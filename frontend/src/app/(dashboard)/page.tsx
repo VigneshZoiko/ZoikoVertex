@@ -1,8 +1,16 @@
 "use client";
 
 import { Activity, TrendingUp, Users, AlertCircle, BarChart3, CheckCircle2 } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export default function DashboardPage() {
+  const [mounted, setMounted] = useState(false);
+  const [heights, setHeights] = useState<number[]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+    setHeights(Array.from({ length: 14 }).map(() => 30 + Math.random() * 60));
+  }, []);
   return (
     <div className="max-w-6xl mx-auto">
       {/* Header section */}
@@ -80,18 +88,20 @@ export default function DashboardPage() {
         
         {/* Mock Chart Visualization */}
         <div className="h-72 w-full flex items-end gap-2">
-          {Array.from({ length: 14 }).map((_, i) => {
-            const height = 30 + Math.random() * 60;
-            return (
-              <div key={i} className="flex-1 flex flex-col justify-end group">
-                <div className="w-full bg-zinc-800/50 hover:bg-indigo-500/50 rounded-t-sm transition-all duration-300 relative" style={{ height: `${height}%` }}>
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-800 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                    {Math.floor(height * 12)}
-                  </div>
+          {mounted && heights.map((height, i) => (
+            <div key={i} className="flex-1 flex flex-col justify-end group">
+              <div className="w-full bg-zinc-800/50 hover:bg-indigo-500/50 rounded-t-sm transition-all duration-300 relative" style={{ height: `${height}%` }}>
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-zinc-800 text-xs text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                  {Math.floor(height * 12)}
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
+          {!mounted && Array.from({ length: 14 }).map((_, i) => (
+            <div key={i} className="flex-1 flex flex-col justify-end">
+              <div className="w-full bg-zinc-800/20 rounded-t-sm h-[50%]" />
+            </div>
+          ))}
         </div>
         <div className="flex justify-between mt-4 text-xs text-zinc-500 font-medium border-t border-zinc-800/50 pt-4">
           <span>May 1</span>

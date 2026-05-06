@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, ShieldAlert, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -93,18 +93,6 @@ export default function LoginPage() {
             {loading ? "Authenticating..." : "Authenticate"}
           </button>
         </form>
-      </div>
-
-      {/* Security Warning / Role Context */}
-      <div className="w-full max-w-md mt-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
-        <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-        <div>
-          <h3 className="text-sm font-semibold text-amber-500">Strict RBAC Enforced</h3>
-          <p className="text-xs text-amber-500/80 mt-1 leading-relaxed">
-            Access to this system is strictly regulated. Accounts are provisioned solely by Workspace Administrators. 
-            Your role (Admin, Manager, or Creator) will determine your execution permissions upon login.
-          </p>
-        </div>
       </div>
 
       <div className="mt-12 text-xs text-zinc-600 font-medium tracking-wide">
