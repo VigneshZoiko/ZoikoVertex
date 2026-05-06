@@ -7,33 +7,57 @@ import { supabase } from "@/lib/supabase";
 export default function ApprovalQueue() {
   const [intents, setIntents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [feedbackText, setFeedbackText] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
-    fetchIntents();
+    fetchUserData();
   }, []);
 
-  const fetchIntents = async () => {
+  const fetchUserData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: member } = await supabase
+        .from('workspace_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+      if (member) {
+        setUserRole(member.role);
+        fetchIntents(member.role);
+      }
+    }
+  };
+
+  const fetchIntents = async (role: string) => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('publish_intents')
       .select(`
         *,
         creator:users!publish_intents_creator_id_fkey(full_name, email)
-      `)
-      .order('created_at', { ascending: false });
+      `);
+    
+    if (role === 'ADMIN') {
+      query = query.eq('status', 'PENDING');
+    } else if (role === 'MANAGER') {
+      query = query.eq('status', 'NEEDS_REVISION');
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (!error && data) setIntents(data);
     setLoading(false);
   };
 
-  const updateStatus = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+  const updateStatus = async (id: string, status: string, feedback?: string) => {
     const { error } = await supabase
       .from('publish_intents')
-      .update({ status })
+      .update({ status, feedback: feedback || null })
       .eq('id', id);
 
     if (!error) {
-      setIntents(prev => prev.map(item => item.id === id ? { ...item, status } : item));
+      setIntents(prev => prev.filter(item => item.id !== id));
     }
   };
 
@@ -125,20 +149,53 @@ export default function ApprovalQueue() {
                       </div>
                     </div>
 
-                    {intent.status === 'PENDING' && (
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => updateStatus(intent.id, 'REJECTED')}
-                          className="px-5 py-2 bg-zinc-800 text-zinc-300 hover:bg-rose-500 hover:text-white rounded-xl text-xs font-bold transition-all duration-300 border border-zinc-700 hover:border-rose-400"
-                        >
-                          Reject
-                        </button>
-                        <button 
-                          onClick={() => updateStatus(intent.id, 'APPROVED')}
-                          className="px-5 py-2 bg-indigo-500 text-white hover:bg-indigo-400 rounded-xl text-xs font-bold transition-all duration-300 shadow-xl shadow-indigo-500/20 border border-indigo-400"
-                        >
-                          Approve Post
-                        </button>
+                    {userRole === 'ADMIN' && intent.status === 'PENDING' && (
+                      <div className="flex flex-col gap-4 w-full md:w-auto">
+                        <textarea 
+                          placeholder="Add feedback for revision..."
+                          value={feedbackText[intent.id] || ""}
+                          onChange={(e) => setFeedbackText({...feedbackText, [intent.id]: e.target.value})}
+                          className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white outline-none focus:border-amber-500/50 min-h-[60px]"
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <button 
+                            onClick={() => updateStatus(intent.id, 'REJECTED')}
+                            className="px-5 py-2 bg-zinc-800 text-zinc-300 hover:bg-rose-500 hover:text-white rounded-xl text-xs font-bold transition-all duration-300 border border-zinc-700"
+                          >
+                            Reject
+                          </button>
+                          <button 
+                            onClick={() => updateStatus(intent.id, 'NEEDS_REVISION', feedbackText[intent.id])}
+                            className="px-5 py-2 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-xl text-xs font-bold transition-all duration-300 border border-amber-500/30"
+                          >
+                            Request Changes
+                          </button>
+                          <button 
+                            onClick={() => updateStatus(intent.id, 'APPROVED')}
+                            className="px-5 py-2 bg-indigo-500 text-white hover:bg-indigo-400 rounded-xl text-xs font-bold transition-all duration-300 shadow-xl shadow-indigo-500/20"
+                          >
+                            Approve Post
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {userRole === 'MANAGER' && intent.status === 'NEEDS_REVISION' && (
+                      <div className="flex flex-col gap-4 w-full">
+                        {intent.feedback && (
+                          <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-lg">
+                            <p className="text-[10px] uppercase font-black text-amber-500 mb-1">Admin Feedback</p>
+                            <p className="text-xs text-zinc-300 italic">"{intent.feedback}"</p>
+                          </div>
+                        )}
+                        <div className="flex justify-end">
+                          <button 
+                            onClick={() => updateStatus(intent.id, 'IN_REVISION')}
+                            className="px-5 py-2 bg-indigo-500 text-white hover:bg-indigo-400 rounded-xl text-xs font-bold transition-all duration-300"
+                          >
+                            Send to Creator for Changes
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
