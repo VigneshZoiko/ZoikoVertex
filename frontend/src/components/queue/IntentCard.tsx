@@ -54,9 +54,20 @@ const IntentCard: React.FC<IntentCardProps> = ({
           </div>
           
           <div className="bg-zinc-950/50 border border-zinc-800/50 rounded-xl p-4 mb-4 flex-1">
-            <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
-              {intent.content.startsWith('{') ? "Platform-Specific Content (JSON)" : intent.content}
-            </p>
+            {intent.content.startsWith('{') ? (
+              <div className="space-y-4">
+                {Object.entries(JSON.parse(intent.content)).map(([platform, text]: [string, any]) => (
+                  <div key={platform} className="border-l-2 border-indigo-500/30 pl-3">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{platform}</p>
+                    <p className="text-xs text-zinc-300 leading-relaxed italic">&quot;{text}&quot;</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
+                {intent.content}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t border-zinc-800/50">

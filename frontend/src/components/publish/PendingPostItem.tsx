@@ -29,7 +29,18 @@ const PendingPostItem: React.FC<PendingPostItemProps> = ({
         <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded font-bold uppercase tracking-wider">{post.platform}</span>
       </div>
       
-      <p className="text-xs text-zinc-300 line-clamp-3 italic">&quot;{post.content}&quot;</p>
+      {post.content.startsWith('{') ? (
+        <div className="space-y-3 bg-zinc-900/50 p-3 rounded-lg border border-zinc-800/50">
+          {Object.entries(JSON.parse(post.content)).map(([platform, text]: [string, any]) => (
+            <div key={platform}>
+              <p className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.1em]">{platform}</p>
+              <p className="text-[11px] text-zinc-400 leading-tight italic line-clamp-2">&quot;{text}&quot;</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-zinc-300 line-clamp-3 italic">&quot;{post.content}&quot;</p>
+      )}
       
       {post.media_url && (
         <MediaPreview url={post.media_url} />

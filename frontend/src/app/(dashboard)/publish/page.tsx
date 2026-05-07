@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { 
-  CheckCircle2, AlertCircle, XCircle 
+  Sparkles, Send, Globe, CheckCircle2, AlertCircle, RefreshCcw, 
+  XCircle, ChevronRight, Layout, Image as ImageIcon, Clock, ListTodo
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -53,7 +54,7 @@ function PublishPageInner() {
   const loadRevision = useCallback((rev: any) => {
     try {
       const parsedContent = JSON.parse(rev.content);
-      if (typeof parsedContent === 'object' && !Array.isArray(parsedContent)) {
+      if (typeof parsedContent === 'object' && !Array.isArray(parsedContent) && parsedContent !== null) {
         setIsPlatformSpecific(true);
         setPlatformCaptions(parsedContent);
         const firstPlatform = Object.keys(parsedContent)[0];
@@ -92,7 +93,6 @@ function PublishPageInner() {
     if (member) {
       setUserRole(member.role);
       
-      // Fetch Connected Accounts
       const { data: accounts } = await supabase
         .from('connected_accounts')
         .select('*')
@@ -104,15 +104,15 @@ function PublishPageInner() {
         setExpandedPlatforms(platformsWithAccounts as string[]);
       }
 
-      // Fetch Creator Revisions
+      // Fetch Creator Revisions - Note: Teammate use 'RETURNED' status
       const { data: revs } = await supabase
         .from('publish_intents')
         .select('*')
         .eq('creator_id', user.id)
-        .eq('status', 'RETURNED'); // Adjusted to match teammate's new status
+        .eq('status', 'RETURNED');
       if (revs) setRevisions(revs);
 
-      // Admin/Manager Queue Preview
+      // Fetch Admin/Manager Queue
       if (member.role === 'ADMIN' || member.role === 'MANAGER') {
         const statusToFetch = member.role === 'ADMIN' ? 'PENDING_ADMIN' : 'PENDING_MANAGER';
         const { data: queue } = await supabase
@@ -131,11 +131,43 @@ function PublishPageInner() {
 
   useEffect(() => {
     const revisionId = searchParams.get('revisionId');
-    if (revisionId && revisions.length > 0) {
-      const rev = revisions.find(r => r.id === revisionId);
-      if (rev) loadRevision(rev);
+    if (revisionId) {
+      const fetchSpecificRevision = async () => {
+        const { data, error } = await supabase
+          .from('publish_intents')
+          .select('*')
+          .eq('id', revisionId)
+          .single();
+        if (!error && data) {
+          loadRevision(data);
+        }
+      };
+      fetchSpecificRevision();
     }
-  }, [searchParams, revisions, loadRevision]);
+  }, [searchParams, loadRevision]);
+
+  const togglePlatformExpansion = (platform: string) => {
+    setExpandedPlatforms(prev => 
+      prev.includes(platform) ? prev.filter(p => p !== platform) : [...prev, platform]
+    );
+  };
+
+  const toggleAccountSelection = (accountId: string) => {
+    setSelectedAccountIds(prev => {
+      const isSelected = prev.includes(accountId);
+      const newSelection = isSelected ? prev.filter(id => id !== accountId) : [...prev, accountId];
+      
+      const account = connectedAccounts.find(a => a.id === accountId);
+      if (account && !isSelected) {
+        const currentDesc = isPlatformSpecific ? platformCaptions[activePlatformTab] : description;
+        if (!platformCaptions[account.platform]) {
+          setPlatformCaptions(pc => ({ ...pc, [account.platform]: currentDesc || description }));
+        }
+        if (!activePlatformTab) setActivePlatformTab(account.platform);
+      }
+      return newSelection;
+    });
+  };
 
   const getSelectedPlatforms = () => {
     return Array.from(new Set(
@@ -143,6 +175,14 @@ function PublishPageInner() {
         .filter(a => selectedAccountIds.includes(a.id))
         .map(a => a.platform)
     ));
+  };
+
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setMedia(file);
+      setMediaPreview(URL.createObjectURL(file));
+    }
   };
 
   const handleGenerateAI = async () => {
@@ -177,7 +217,6 @@ function PublishPageInner() {
     setGenerating(false);
   };
 
-  // Scheduling state
   const [suggestedTimes, setSuggestedTimes] = useState<{time: string, label: string}[]>([]);
   const [selectedTime, setSelectedTime] = useState<string>('immediate');
   const [customTime, setCustomTime] = useState<string>("");
@@ -186,6 +225,10 @@ function PublishPageInner() {
     const activeDescription = isPlatformSpecific ? platformCaptions[activePlatformTab] : description;
     if (!activeDescription || (!media && !mediaPreview)) {
       setMessage({ type: 'error', text: 'Media and Description are required to submit.' });
+      return;
+    }
+    if (selectedAccountIds.length === 0) {
+      setMessage({ type: 'error', text: 'Please select at least one target account.' });
       return;
     }
     
@@ -215,8 +258,11 @@ function PublishPageInner() {
         platform: getSelectedPlatforms().join(', '),
         target_account_ids: selectedAccountIds,
         status: isAdmin ? 'APPROVED' : 'PENDING_ADMIN',
-        scheduled_for: selectedTime === 'immediate' ? new Date().toISOString() : new Date(customTime || selectedTime).toISOString(),
-        media_url: publicUrl
+        scheduled_for: selectedTime === 'immediate'
+          ? new Date().toISOString()
+          : new Date(customTime || selectedTime).toISOString(),
+        media_url: publicUrl,
+        feedback: null
       };
 
       const { error } = activeRevisionId 
@@ -227,13 +273,16 @@ function PublishPageInner() {
 
       setMessage({
         type: 'success',
-        text: isAdmin ? 'Post successfully scheduled!' : 'Post submitted for approval!'
+        text: isAdmin ? 'Post successfully pre-approved and scheduled!' : 'Post successfully submitted for approval!'
       });
       
-      // Cleanup
+      if (activeRevisionId) setRevisions(prev => prev.filter(r => r.id !== activeRevisionId));
       setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
-      setSuggestedTimes([]); setActiveRevisionId(null); setSelectedAccountIds([]);
+      setSuggestedTimes([]); setActiveRevisionId(null);
+      setSelectedAccountIds([]); setPlatformCaptions({});
+      setCustomTime(""); setSelectedTime("immediate");
       fetchUserData();
+      router.replace('/publish');
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     }
@@ -242,6 +291,7 @@ function PublishPageInner() {
 
   const handleGovernanceAction = async (postId: string, action: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       const response = await fetch('/api/v1/governance/transition', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -249,7 +299,7 @@ function PublishPageInner() {
           intentId: postId,
           newStatus: action,
           feedback: action === 'RETURNED' ? reviewComment : null,
-          userId: (await supabase.auth.getUser()).data.user?.id,
+          userId: user?.id,
           userRole
         })
       });
@@ -268,84 +318,203 @@ function PublishPageInner() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-zinc-500 space-y-4">
         <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm font-bold uppercase tracking-widest animate-pulse">Syncing Workspace...</p>
+        <p className="text-sm font-bold uppercase tracking-widest animate-pulse">Syncing Environment...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-12 px-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-black tracking-tighter text-white uppercase">Social Publisher</h1>
-          <p className="text-zinc-500 text-xs font-medium tracking-wide">Draft and schedule high-end social content.</p>
+    <div className="max-w-6xl mx-auto pb-20 px-6">
+      {/* Decent Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-zinc-800 pb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Social Publisher</h1>
+          <p className="text-zinc-500 text-sm mt-1 font-medium">Compose and schedule your cross-platform content.</p>
         </div>
-        <div className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full animate-pulse ${userRole === 'ADMIN' ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-          <span className="text-[10px] font-black text-white uppercase tracking-widest">{userRole}</span>
+        
+        <div className="flex items-center gap-4">
+          {revisions.length > 0 && userRole === 'CREATOR' && (
+            <button 
+              onClick={() => router.push('/review')}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-xl text-xs font-bold"
+            >
+              <AlertCircle className="w-4 h-4" />
+              {revisions.length} Tasks Awaiting Review
+            </button>
+          )}
+          <div className="px-4 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${userRole?.toUpperCase() === 'ADMIN' ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{userRole}</span>
+          </div>
         </div>
       </div>
 
       {message && (
-        <div className={`mb-6 p-4 rounded-2xl flex items-center gap-3 text-sm font-medium ${message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'}`}>
-          {message.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
+        <div className={`mb-8 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in fade-in duration-300 ${message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'}`}>
+          {message.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
           {message.text}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <PlatformSelector 
-            connectedAccounts={connectedAccounts}
-            selectedAccountIds={selectedAccountIds}
-            onToggleAccount={(id) => setSelectedAccountIds(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id])}
-            expandedPlatforms={expandedPlatforms}
-            onToggleExpansion={(p) => setExpandedPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
-            userRole={userRole}
-          />
+        
+        {/* Main Workspace Column */}
+        <div className="lg:col-span-2 space-y-8">
           
-          <MediaUploader 
-            mediaPreview={mediaPreview} 
-            onUpload={(e) => {
-              const file = e.target.files?.[0];
-              if (file) { setMedia(file); setMediaPreview(URL.createObjectURL(file)); }
-            }} 
-            onClear={() => {setMedia(null); setMediaPreview(null);}} 
-          />
+          {/* Media Section (Instagram-style: Top) */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white px-1">Attachment</h3>
+            <MediaUploader 
+              mediaPreview={mediaPreview} 
+              mediaType={media?.type} 
+              onUpload={handleMediaUpload} 
+              onClear={() => {setMedia(null); setMediaPreview(null);}} 
+            />
+          </div>
 
-          <AIWriterPanel 
-            topic={topic} onTopicChange={setTopic} 
-            contentType={contentType} onContentTypeChange={setContentType}
-            aiLength={aiLength} onAiLengthChange={setAiLength} 
-            aiTone={aiTone} onAiToneChange={setAiTone}
-            onGenerate={handleGenerateAI} generating={generating}
-            useEmojis={useEmojis} onToggleEmojis={() => setUseEmojis(!useEmojis)}
-            description={isPlatformSpecific ? platformCaptions[activePlatformTab] : description}
-            onDescriptionChange={(val) => isPlatformSpecific ? setPlatformCaptions(p => ({...p, [activePlatformTab]: val})) : setDescription(val)}
-            isPlatformSpecific={isPlatformSpecific} onTogglePlatformSpecific={() => setIsPlatformSpecific(!isPlatformSpecific)}
-            platformTabs={getSelectedPlatforms()}
-            activePlatformTab={activePlatformTab} onPlatformTabChange={setActivePlatformTab}
-          />
+          {/* Content Area (Instagram-style: Bottom) */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-bold text-white">Draft Composer</h2>
+                <div className="flex items-center gap-2 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
+                  <button 
+                    onClick={() => setIsPlatformSpecific(false)} 
+                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${!isPlatformSpecific ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-400'}`}
+                  >
+                    Universal
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsPlatformSpecific(true);
+                      const currentPlatforms = getSelectedPlatforms();
+                      setPlatformCaptions(prev => {
+                        const next = { ...prev };
+                        currentPlatforms.forEach(p => { if (!next[p]) next[p] = description; });
+                        return next;
+                      });
+                      if (!activePlatformTab && currentPlatforms.length > 0) setActivePlatformTab(currentPlatforms[0]);
+                    }} 
+                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? 'bg-indigo-600 text-white' : 'text-zinc-500 hover:text-zinc-400'}`}
+                  >
+                    Platform-Specific
+                  </button>
+                </div>
+              </div>
+
+              {isPlatformSpecific && getSelectedPlatforms().length > 0 && (
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                  {getSelectedPlatforms().map(p => (
+                    <button 
+                      key={p} 
+                      onClick={() => setActivePlatformTab(p)} 
+                      className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all ${activePlatformTab === p ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400' : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="relative bg-zinc-950/50 border border-zinc-800 rounded-2xl transition-all focus-within:border-zinc-700">
+                <textarea 
+                  value={isPlatformSpecific ? (platformCaptions[activePlatformTab] || "") : description}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (isPlatformSpecific) {
+                      setPlatformCaptions(prev => ({ ...prev, [activePlatformTab]: val }));
+                    } else {
+                      setDescription(val);
+                    }
+                  }}
+                  placeholder={isPlatformSpecific ? `Write custom caption for ${activePlatformTab}...` : "Write your universal caption here..."}
+                  className="w-full bg-transparent p-6 text-white text-base leading-relaxed placeholder:text-zinc-700 outline-none resize-none min-h-[250px]"
+                />
+                
+                <div className="p-4 flex items-center justify-between border-t border-zinc-800/50 bg-zinc-900/30">
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => setShowAIWriter(!showAIWriter)} 
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${showAIWriter ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      AI Studio
+                    </button>
+                    <button onClick={() => setUseEmojis(!useEmojis)} className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border ${useEmojis ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-zinc-900 border-zinc-800 text-zinc-700'}`}>
+                      😊
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
+                    {(isPlatformSpecific ? platformCaptions[activePlatformTab]?.length || 0 : description.length)} Characters
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {showAIWriter && (
+              <AIWriterPanel 
+                topic={topic} onTopicChange={setTopic} 
+                contentType={contentType} onContentTypeChange={setContentType}
+                aiLength={aiLength} onAiLengthChange={setAiLength} 
+                aiTone={aiTone} onAiToneChange={setAiTone}
+                onGenerate={handleGenerateAI} generating={generating}
+              />
+            )}
+          </div>
         </div>
 
-        <div className="lg:col-span-1 space-y-6">
-          <SchedulingPanel 
-            suggestedTimes={suggestedTimes} 
-            selectedTime={selectedTime} 
-            onSelect={setSelectedTime} 
-            customTime={customTime} 
-            onCustomTimeChange={setCustomTime} 
-          />
+        {/* Sidebar Controls */}
+        <div className="lg:col-span-1 space-y-8">
           
-          <button onClick={handleSubmitIntent} disabled={submitting} className="w-full py-4 bg-white text-black font-black rounded-2xl transition-all uppercase tracking-widest text-xs disabled:opacity-50">
-            {submitting ? "Submitting..." : activeRevisionId ? 'Resubmit Draft' : 'Submit for Approval'}
-          </button>
+          {/* Target Selection */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white px-1">Target Platforms</h3>
+            <PlatformSelector 
+              connectedAccounts={connectedAccounts}
+              selectedAccountIds={selectedAccountIds}
+              onToggleAccount={toggleAccountSelection}
+              expandedPlatforms={expandedPlatforms}
+              onToggleExpansion={togglePlatformExpansion}
+              userRole={userRole}
+            />
+          </div>
 
-          {pendingPosts.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">Review Queue ({pendingPosts.length})</h2>
-              <div className="space-y-4">
+          {/* Scheduling */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white px-1">Execution</h3>
+            <SchedulingPanel 
+              suggestedTimes={suggestedTimes} 
+              selectedTime={selectedTime} 
+              onSelect={setSelectedTime} 
+              customTime={customTime} 
+              onCustomTimeChange={setCustomTime} 
+              contentType={contentType} 
+            />
+          </div>
+
+          {/* Final Action */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-sm space-y-4">
+            <button 
+              onClick={handleSubmitIntent} 
+              disabled={submitting} 
+              className={`w-full py-4 font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 uppercase tracking-widest text-[11px] ${userRole === 'ADMIN' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-white text-black hover:bg-zinc-200'}`}
+            >
+              {submitting ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+              {activeRevisionId ? 'Resubmit Draft' : userRole === 'ADMIN' ? 'Publish Directly' : 'Submit for Review'}
+            </button>
+            <p className="text-[10px] text-zinc-500 text-center italic">
+              {userRole === 'ADMIN' ? "Your post will be scheduled immediately." : "This will be sent to your manager for final approval."}
+            </p>
+          </div>
+
+          {/* Review Queue Preview */}
+          {pendingPosts.length > 0 && (userRole === 'ADMIN' || userRole === 'MANAGER') && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-white px-1 flex items-center gap-2">
+                <ListTodo className="w-4 h-4 text-indigo-400" />
+                Active Queue ({pendingPosts.length})
+              </h3>
+              <div className="space-y-4 max-h-[500px] overflow-y-auto scrollbar-hide">
                 {pendingPosts.map(post => (
                   <PendingPostItem 
                     key={post.id} 
