@@ -34,11 +34,7 @@ export default function AccountsPage() {
   const [accountHandle, setAccountHandle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -55,7 +51,11 @@ export default function AccountsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
 
   const togglePlatform = (platformId: string) => {
     setExpandedPlatforms(prev => 
@@ -198,7 +198,7 @@ export default function AccountsPage() {
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
                               {account.avatar_url ? (
-                                <img src={account.avatar_url} className="w-10 h-10 rounded-lg bg-zinc-800" />
+                                <img src={account.avatar_url} alt={account.account_name} className="w-10 h-10 rounded-lg bg-zinc-800" />
                               ) : (
                                 <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500 font-bold">
                                   {account.account_name.charAt(0)}
@@ -311,7 +311,7 @@ export default function AccountsPage() {
                     <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
                       <p className="text-[11px] text-zinc-400 leading-relaxed">
-                        <span className="text-amber-500 font-bold">Note:</span> Since this is a demo, clicking "Connect" will simulate a successful OAuth callback and create the account entry.
+                        <span className="text-amber-500 font-bold">Note:</span> Since this is a demo, clicking &quot;Connect&quot; will simulate a successful OAuth callback and create the account entry.
                       </p>
                     </div>
                   </div>
