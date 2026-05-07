@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { 
-  Sparkles, Send, Globe, CheckCircle2, AlertCircle, RefreshCcw, 
-  XCircle, ChevronRight, Layout, Image as ImageIcon, Clock, ListTodo
+  Sparkles, Send, CheckCircle2, AlertCircle, RefreshCcw, 
+  XCircle, ListTodo
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 

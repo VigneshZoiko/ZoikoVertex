@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCcw, CheckSquare } from "lucide-react";
+import { RefreshCcw, CheckSquare, AlertCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import IntentCard from "@/components/queue/IntentCard";
 
@@ -10,6 +10,7 @@ export default function ApprovalQueue() {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState<{[key: string]: string}>({});
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
 
   const fetchIntents = useCallback(async (role: string) => {
     setLoading(true);
@@ -26,7 +27,6 @@ export default function ApprovalQueue() {
     } else if (normalizedRole === 'MANAGER') {
       query = query.eq('status', 'PENDING_MANAGER');
     } else {
-      // Creators don't see the queue
       setLoading(false);
       return;
     }
@@ -55,15 +55,32 @@ export default function ApprovalQueue() {
     fetchUserData();
   }, [fetchUserData]);
 
+  // FIX: Call backend governance transition instead of direct Supabase update
   const updateStatus = async (id: string, status: string, feedback?: string) => {
-    const { error } = await supabase
-      .from('publish_intents')
-      .update({ status, feedback: feedback || null })
-      .eq('id', id);
-    if (!error) {
+    setMessage(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const response = await fetch('/api/v1/governance/transition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          intentId: id,
+          newStatus: status,
+          feedback: feedback || null,
+          userId: user?.id,
+          userRole: userRole
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Action failed');
+
       setIntents(prev => prev.filter(item => item.id !== id));
-    } else {
-      console.error("Failed to update status:", error);
+      setMessage({ type: 'success', text: `Intent successfully transitioned to ${status}.` });
+    } catch (err: any) {
+      console.error("Failed to update status:", err);
+      setMessage({ type: 'error', text: err.message });
     }
   };
 
@@ -82,6 +99,13 @@ export default function ApprovalQueue() {
           <RefreshCcw className={`w-5 h-5 ${loading ? 'animate-spin text-indigo-500' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
         </button>
       </div>
+
+      {message && (
+        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in slide-in-from-top-4 ${message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'}`}>
+          <AlertCircle className="w-4 h-4" />
+          {message.text}
+        </div>
+      )}
 
       <div className="grid gap-6">
         {loading ? (

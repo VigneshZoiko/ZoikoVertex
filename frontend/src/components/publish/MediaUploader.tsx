@@ -1,5 +1,5 @@
 import React from 'react';
-import { ImageIcon, Video, AlertCircle } from 'lucide-react';
+import { ImageIcon, Video, X } from 'lucide-react';
 import Image from 'next/image';
 
 interface MediaUploaderProps {
@@ -38,9 +38,10 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
           )}
           <button 
             onClick={onClear}
-            className="absolute top-2 right-2 bg-black/70 hover:bg-rose-500 text-white p-1.5 rounded-lg backdrop-blur-md transition-colors"
+            className="absolute top-3 right-3 bg-zinc-950/80 hover:bg-rose-500 text-white p-2 rounded-xl backdrop-blur-md transition-all border border-white/10"
+            title="Remove Media"
           >
-            <AlertCircle className="w-4 h-4" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}

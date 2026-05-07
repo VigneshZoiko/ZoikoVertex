@@ -16,7 +16,8 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       case 'REJECTED':
         return 'bg-rose-500/10 border-rose-500/20 text-rose-500';
       case 'NEEDS_REVISION':
-        return 'bg-blue-500/10 border-blue-500/20 text-blue-500';
+      case 'RETURNED':
+        return 'bg-amber-500/10 border-amber-500/20 text-amber-500 font-black';
       default:
         return 'bg-zinc-500/10 border-zinc-500/20 text-zinc-400';
     }

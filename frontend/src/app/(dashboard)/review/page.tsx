@@ -55,12 +55,12 @@ export default function ReviewPage() {
 
       if (member) setUserRole(member.role);
 
-      // FIX: Use NEEDS_REVISION instead of RETURNED
+      // Fetch posts returned for revision
       const { data: revs, error } = await supabase
         .from('publish_intents')
         .select('*')
         .eq('creator_id', user.id)
-        .eq('status', 'NEEDS_REVISION')
+        .eq('status', 'RETURNED')
         .order('created_at', { ascending: false });
 
       if (error) {

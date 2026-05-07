@@ -129,10 +129,10 @@ const IntentCard: React.FC<IntentCardProps> = ({
                 />
                 <div className="flex justify-end gap-2">
                   <button 
-                    onClick={() => onUpdateStatus(intent.id, 'NEEDS_REVISION', feedbackText)}
+                    onClick={() => onUpdateStatus(intent.id, 'RETURNED', feedbackText)}
                     className="px-5 py-2 bg-indigo-600 text-white hover:bg-indigo-500 rounded-xl text-[10px] font-bold transition-all uppercase"
                   >
-                    Return to Creator
+                    Return for Revision
                   </button>
                 </div>
               </div>
