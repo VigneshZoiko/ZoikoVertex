@@ -46,7 +46,7 @@ export default function Sidebar() {
     { name: "Dashboard",        href: "/",        icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "CREATOR"] },
     { name: "Social Publisher", href: "/publish", icon: PenTool,          roles: ["CREATOR"] },
     { name: "Review & Edit",    href: "/review",  icon: FileEdit,         roles: ["CREATOR"] },
-    { name: "Approval Queue",   href: "/publish", icon: CheckSquare,      roles: ["ADMIN", "MANAGER"] },
+    { name: "Approval Queue",   href: "/queue",   icon: CheckSquare,      roles: ["ADMIN", "MANAGER"] },
     { name: "Platform Accounts",href: "/accounts",icon: Link2,            roles: ["ADMIN", "MANAGER"] },
     { name: "Team Access",      href: "/team",    icon: Users,            roles: ["ADMIN", "MANAGER"] },
   ];

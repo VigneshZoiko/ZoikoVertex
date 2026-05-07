@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, RefreshCcw, CheckCircle2, Clock, ArrowRight } from "lucide-react";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
 const FacebookIcon = ({ className }: { className?: string }) => (
@@ -37,11 +38,8 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRevisions();
-  }, []);
-
-  const fetchRevisions = async () => {
+  // Declared with useCallback before useEffect to prevent hoisting issues
+  const fetchRevisions = useCallback(async () => {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -76,8 +74,11 @@ export default function ReviewPage() {
       setRevisions([]);
     }
     setLoading(false);
-  };
+  }, [router]);
 
+  useEffect(() => {
+    fetchRevisions();
+  }, [fetchRevisions]);
 
   const handleOpenInEditor = (rev: any) => {
     // Pass revision ID via URL param — publish page picks it up
@@ -102,9 +103,9 @@ export default function ReviewPage() {
             <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30">
               <AlertCircle className="w-6 h-6 text-black" />
             </div>
-            <h1 className="text-3xl font-black tracking-tighter text-white uppercase">Review & Edit</h1>
+            <h1 className="text-3xl font-black tracking-tighter text-white uppercase">Review &amp; Edit</h1>
           </div>
-          <p className="text-zinc-500 text-xs font-medium tracking-wide ml-13 pl-13">
+          <p className="text-zinc-500 text-xs font-medium tracking-wide pl-13">
             Posts returned by your Manager with feedback. Edit and resubmit for approval.
           </p>
         </div>
@@ -166,7 +167,13 @@ export default function ReviewPage() {
               {/* Media Preview */}
               {rev.media_url && (
                 <div className="mx-6 mt-5 aspect-video rounded-2xl overflow-hidden border border-zinc-800 bg-black flex items-center justify-center">
-                  <img src={rev.media_url} className="object-contain max-h-full w-full" alt="Post media" />
+                  <Image
+                    src={rev.media_url}
+                    alt="Post media"
+                    width={600}
+                    height={338}
+                    className="object-contain max-h-full w-full"
+                  />
                 </div>
               )}
 
@@ -193,8 +200,8 @@ export default function ReviewPage() {
                 <div className="flex items-center gap-1.5 text-zinc-600">
                   <Clock className="w-3 h-3" />
                   <span className="text-[10px] font-medium">
-                    Returned {new Date(rev.updated_at || rev.created_at).toLocaleDateString([], { 
-                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                    Returned {new Date(rev.updated_at || rev.created_at).toLocaleDateString([], {
+                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                     })}
                   </span>
                 </div>
@@ -207,7 +214,7 @@ export default function ReviewPage() {
                   className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-black text-[11px] font-black rounded-2xl transition-all uppercase tracking-widest shadow-xl shadow-amber-500/15 flex items-center justify-center gap-2"
                 >
                   <RefreshCcw className="w-4 h-4" />
-                  Edit & Resubmit
+                  Edit &amp; Resubmit
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
