@@ -111,8 +111,8 @@ app.post('/api/v1/ai/generate', async (req: Request, res: Response): Promise<voi
         const variationIndex = Math.floor(Math.random() * 1000);
 
         const prompt = `
-        Act as a World-Class Social Media Strategist and Brand Auditor. 
-        Your goal is to generate high-converting, brand-safe social media content.
+        Act as a World-Class Social Media Strategist, Brand Auditor, and Creative Copywriter. 
+        Your goal is to generate high-converting, brand-safe, and UNIQUE social media content.
         
         INPUT DATA:
         - TOPIC: "${topic}"
@@ -123,20 +123,21 @@ app.post('/api/v1/ai/generate', async (req: Request, res: Response): Promise<voi
         - EMOJIS: ${useEmojis ? 'Enabled' : 'Disabled'}
         - VARIATION_ID: ${variationIndex}
 
-        PHASE 1: STRATEGIC ANALYSIS (Chain-of-Thought)
-        1. Identify the core value proposition of the topic.
-        2. Define the target audience demographics for the specified platforms.
+        PHASE 1: STRATEGIC ANALYSIS
+        1. Identify core value proposition.
+        2. Define target audience for ${platforms}.
         3. Determine platform-specific constraints.
-        4. Assess the ideal sentiment for this topic and tone.
+        4. Assess ideal sentiment.
 
-        PHASE 2: CONTENT GENERATION
-        - Draft a primary caption that resonates with the audience.
-        - Ensure the length: ${length === 'short' ? 'Max 20 words' : length === 'medium' ? '60-80 words' : '150+ words'}.
-        - Select 3 high-performing hashtags based on current trends.
+        PHASE 2: WRITING GUIDELINES
+        - NEVER use AI clichés like "In today's fast-paced world", "Unleash your potential", "Elevate your game".
+        - Use "I" or "We" to sound human.
+        - Vary sentence length.
+        - Ensure length adheres strictly: ${length === 'short' ? 'Max 20 words' : length === 'medium' ? '60-80 words' : '150+ words'}.
 
         PHASE 3: GOVERNANCE AUDIT
-        - Calculate a sentiment score (0.0 to 1.0).
-        - Calculate a brand safety score (0.0 to 1.0).
+        - Calculate sentiment score (0.0 to 1.0).
+        - Calculate brand safety score (0.0 to 1.0).
 
         RESPONSE FORMAT (STRICT JSON):
         {

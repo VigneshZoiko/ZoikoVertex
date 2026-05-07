@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import NextImage from "next/image";
 import { 
   Sparkles, Clock, CheckCircle2,
   Image as ImageIcon, Video, Send, Globe,
-  XCircle, RefreshCcw, AlertCircle
+  XCircle, RefreshCcw, AlertCircle, ChevronRight
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -37,13 +37,12 @@ const TwitterIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// Inner component that uses useSearchParams (must be wrapped in Suspense)
 function PublishPageInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [topic, setTopic] = useState("");
   const [contentType] = useState("Entertainment");
-  const [platforms, setPlatforms] = useState({ facebook: true, instagram: false, linkedin: false, twitter: false });
   const [media, setMedia] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
 
@@ -53,6 +52,14 @@ function PublishPageInner() {
 
   const [generating, setGenerating] = useState(false);
   const [description, setDescription] = useState("");
+  const [platformCaptions, setPlatformCaptions] = useState<Record<string, string>>({});
+  const [isPlatformSpecific, setIsPlatformSpecific] = useState(false);
+  const [activePlatformTab, setActivePlatformTab] = useState<string>("");
+  
+  const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const [expandedPlatforms, setExpandedPlatforms] = useState<string[]>([]);
+
   const [suggestedTimes, setSuggestedTimes] = useState<{time: string, label: string}[]>([]);
   const [selectedTime, setSelectedTime] = useState<string>('immediate');
   const [customTime, setCustomTime] = useState<string>("");
@@ -66,17 +73,25 @@ function PublishPageInner() {
   const [loading, setLoading] = useState(true);
 
   const loadRevision = useCallback((rev: any) => {
-    setDescription(rev.content);
+    try {
+      const parsedContent = JSON.parse(rev.content);
+      if (typeof parsedContent === 'object' && !Array.isArray(parsedContent)) {
+        setIsPlatformSpecific(true);
+        setPlatformCaptions(parsedContent);
+        // Set first platform as active tab
+        const firstPlatform = Object.keys(parsedContent)[0];
+        if (firstPlatform) setActivePlatformTab(firstPlatform);
+      } else {
+        setDescription(rev.content);
+      }
+    } catch {
+      setDescription(rev.content);
+    }
+
     setActiveRevisionId(rev.id);
     setMediaPreview(rev.media_url);
-    if (rev.platform) {
-      const pList = rev.platform.split(', ');
-      setPlatforms({
-        facebook: pList.includes('facebook'),
-        instagram: pList.includes('instagram'),
-        linkedin: pList.includes('linkedin'),
-        twitter: pList.includes('twitter')
-      });
+    if (rev.target_account_ids) {
+      setSelectedAccountIds(rev.target_account_ids);
     }
     setMessage({ type: 'success', text: 'Revision loaded. Modify your content and resubmit.' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -84,32 +99,47 @@ function PublishPageInner() {
 
   const fetchUserData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: member, error: mError } = await supabase
-        .from('workspace_members')
-        .select('role, workspace_id')
-        .eq('user_id', user.id)
-        .single();
-      if (mError) console.error("Member Role Fetch Error:", mError);
-      if (member) {
-        setUserRole(member.role);
-        const { data: revs, error: rError } = await supabase
-          .from('publish_intents')
-          .select('*')
-          .eq('creator_id', user.id)
-          .eq('status', 'RETURNED');
-        if (rError) console.error("Revisions Error:", rError);
-        if (revs) setRevisions(revs);
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    const { data: member } = await supabase
+      .from('workspace_members')
+      .select('role, workspace_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (member) {
+      setUserRole(member.role);
+      
+      // Fetch Revisions
+      const { data: revs } = await supabase
+        .from('publish_intents')
+        .select('*')
+        .eq('creator_id', user.id)
+        .eq('status', 'RETURNED');
+      if (revs) setRevisions(revs);
+
+      // Fetch Connected Accounts
+      const { data: accounts } = await supabase
+        .from('connected_accounts')
+        .select('*')
+        .eq('workspace_id', member.workspace_id)
+        .eq('status', 'active');
+      if (accounts) {
+        setConnectedAccounts(accounts);
+        const platformsWithAccounts = Array.from(new Set(accounts.map((a: any) => a.platform)));
+        setExpandedPlatforms(platformsWithAccounts as string[]);
       }
     }
     setLoading(false);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     fetchUserData();
   }, [fetchUserData]);
 
-  // Load revision from URL param (navigated from /review page)
   useEffect(() => {
     const revisionId = searchParams.get('revisionId');
     if (revisionId && revisions.length > 0) {
@@ -117,6 +147,38 @@ function PublishPageInner() {
       if (rev) loadRevision(rev);
     }
   }, [searchParams, revisions, loadRevision]);
+
+  const togglePlatformExpansion = (platform: string) => {
+    setExpandedPlatforms(prev => 
+      prev.includes(platform) ? prev.filter(p => p !== platform) : [...prev, platform]
+    );
+  };
+
+  const toggleAccountSelection = (accountId: string) => {
+    setSelectedAccountIds(prev => {
+      const isSelected = prev.includes(accountId);
+      const newSelection = isSelected ? prev.filter(id => id !== accountId) : [...prev, accountId];
+      
+      const account = connectedAccounts.find(a => a.id === accountId);
+      if (account && !isSelected) {
+        if (!platformCaptions[account.platform]) {
+          setPlatformCaptions(pc => ({ ...pc, [account.platform]: description }));
+        }
+        if (!activePlatformTab) setActivePlatformTab(account.platform);
+      }
+      
+      return newSelection;
+    });
+  };
+
+  const getSelectedPlatforms = () => {
+    const selectedPlatforms = new Set(
+      connectedAccounts
+        .filter(a => selectedAccountIds.includes(a.id))
+        .map(a => a.platform)
+    );
+    return Array.from(selectedPlatforms);
+  };
 
   const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -129,47 +191,57 @@ function PublishPageInner() {
   const handleGenerateAI = async () => {
     if (!topic) return;
     setGenerating(true);
-    const newHistory = history.slice(0, historyIndex + 1);
     try {
       const response = await fetch('http://localhost:5000/api/v1/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic, contentType,
-          platforms: Object.entries(platforms).filter(([_, v]) => v).map(([k]) => k),
+          platforms: getSelectedPlatforms(),
           tone: aiTone,
         })
       });
       const data = await response.json();
       if (response.ok) {
-        setDescription(data.description);
+        const content = data.description;
+        if (isPlatformSpecific && activePlatformTab) {
+          setPlatformCaptions(prev => ({ ...prev, [activePlatformTab]: content }));
+        } else {
+          setDescription(content);
+        }
         setSuggestedTimes(data.suggestedTimes || []);
-        const updatedHistory = [...newHistory, data.description];
+        
+        const newHistory = history.slice(0, historyIndex + 1);
+        const updatedHistory = [...newHistory, content];
         setHistory(updatedHistory);
         setHistoryIndex(updatedHistory.length - 1);
       } else {
         setMessage({ type: 'error', text: data.error || 'AI Generation Failed' });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Backend AI connection failed. Ensure server is running.' });
+      setMessage({ type: 'error', text: 'Backend AI connection failed.' });
     }
     setGenerating(false);
   };
 
   const handleSubmitIntent = async () => {
-    if (!description || (!media && !mediaPreview)) {
+    const activeDescription = isPlatformSpecific ? platformCaptions[activePlatformTab] : description;
+    if (!activeDescription || (!media && !mediaPreview)) {
       setMessage({ type: 'error', text: 'Media and Description are required to submit.' });
       return;
     }
-    if (selectedTime === 'custom' && !customTime) {
-      setMessage({ type: 'error', text: 'Please select a custom date and time.' });
+    if (selectedAccountIds.length === 0) {
+      setMessage({ type: 'error', text: 'Please select at least one target account.' });
       return;
     }
+    
     setSubmitting(true);
     setMessage(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+
+      const { data: member } = await supabase.from('workspace_members').select('workspace_id').eq('user_id', user.id).single();
 
       let publicUrl = mediaPreview;
       if (media) {
@@ -182,12 +254,12 @@ function PublishPageInner() {
       }
 
       const isAdmin = userRole?.toUpperCase() === 'ADMIN';
-      const { data: memberData } = await supabase.from('workspace_members').select('workspace_id').eq('user_id', user.id).single();
       const intentData = {
-        workspace_id: memberData?.workspace_id,
+        workspace_id: member?.workspace_id,
         creator_id: user.id,
-        content: description,
-        platform: Object.entries(platforms).filter(([_, v]) => v).map(([k]) => k).join(', '),
+        content: isPlatformSpecific ? JSON.stringify(platformCaptions) : description,
+        platform: getSelectedPlatforms().join(', '),
+        target_account_ids: selectedAccountIds,
         status: isAdmin ? 'APPROVED' : 'PENDING_ADMIN',
         scheduled_for: selectedTime === 'immediate'
           ? new Date().toISOString()
@@ -210,14 +282,14 @@ function PublishPageInner() {
 
       setMessage({
         type: 'success',
-        text: isAdmin ? 'Post successfully pre-approved and scheduled!' : 'Post successfully submitted to Admin for approval!'
+        text: isAdmin ? 'Post successfully pre-approved and scheduled!' : 'Post successfully submitted for approval!'
       });
-      if (activeRevisionId) {
-        setRevisions(prev => prev.filter(r => r.id !== activeRevisionId));
-      }
+      
+      // Cleanup
+      if (activeRevisionId) setRevisions(prev => prev.filter(r => r.id !== activeRevisionId));
       setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
       setSuggestedTimes([]); setActiveRevisionId(null);
-      setPlatforms({ facebook: true, instagram: false, linkedin: false, twitter: false });
+      setSelectedAccountIds([]); setPlatformCaptions({});
       setCustomTime(""); setSelectedTime("immediate");
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
@@ -256,16 +328,14 @@ function PublishPageInner() {
       {revisions.length > 0 && (
         <div className="mb-8 p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-          <div>
-            <p className="text-sm font-black text-amber-500">
-              {revisions.length} {revisions.length === 1 ? 'Post' : 'Posts'} Returned for Revision
-            </p>
-            <p className="text-xs text-zinc-500">Visit the Review &amp; Edit page to address manager feedback.</p>
+          <div className="flex-1">
+            <p className="text-sm font-black text-amber-500 uppercase tracking-tight">Action Required: {revisions.length} Returned {revisions.length === 1 ? 'Post' : 'Posts'}</p>
+            <p className="text-xs text-zinc-500">A Manager has requested revisions on your drafts. Please address their feedback.</p>
           </div>
+          <button onClick={() => router.push('/review')} className="px-4 py-2 bg-amber-500 text-black text-[10px] font-black uppercase rounded-lg hover:bg-amber-400 transition-colors">View Revisions</button>
         </div>
       )}
 
-      {/* Message Banner */}
       {message && (
         <div className={`mb-6 p-4 rounded-2xl flex items-center gap-3 text-sm font-medium ${message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'}`}>
           {message.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
@@ -273,54 +343,95 @@ function PublishPageInner() {
         </div>
       )}
 
-      {/* Composer Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
         {/* Left: Composer */}
         <div className="lg:col-span-2 space-y-6">
-
-          {/* Platform Selection */}
+          
+          {/* Target Accounts */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Globe className="w-5 h-5 text-indigo-400" />
                 Target Accounts
               </h2>
-              <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-1 rounded font-bold uppercase tracking-wider">Multi-Select Enabled</span>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-1 rounded font-bold uppercase tracking-wider">
+                  {selectedAccountIds.length} Selected
+                </span>
+              </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(platforms).map(([key, active]) => {
-                const Icon = key === 'facebook' ? FacebookIcon : key === 'instagram' ? InstagramIcon : key === 'linkedin' ? LinkedinIcon : TwitterIcon;
+            
+            <div className="space-y-3">
+              {['facebook', 'instagram', 'linkedin', 'twitter'].map(platformId => {
+                const platformAccounts = connectedAccounts.filter(a => a.platform === platformId);
+                const isExpanded = expandedPlatforms.includes(platformId);
+                const Icon = platformId === 'facebook' ? FacebookIcon : platformId === 'instagram' ? InstagramIcon : platformId === 'linkedin' ? LinkedinIcon : TwitterIcon;
+                const selectedCount = platformAccounts.filter(a => selectedAccountIds.includes(a.id)).length;
+
                 return (
-                  <button
-                    key={key}
-                    onClick={() => setPlatforms({...platforms, [key]: !active})}
-                    className={`flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all duration-300 relative group ${
-                      active
-                        ? 'bg-indigo-500/10 border-indigo-500 shadow-lg shadow-indigo-500/10'
-                        : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-900'
-                    }`}
-                  >
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                      active
-                        ? key === 'facebook' ? 'bg-blue-600 text-white' : key === 'instagram' ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 text-white' : key === 'linkedin' ? 'bg-blue-700 text-white' : 'bg-white text-black'
-                        : 'bg-zinc-800 text-zinc-600 group-hover:text-zinc-400'
-                    }`}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : ''}`}>{key}</span>
-                    {active && (
-                      <div className="absolute top-2 right-2">
-                        <CheckCircle2 className="w-4 h-4 text-indigo-400 fill-indigo-400/20" />
+                  <div key={platformId} className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
+                    <button 
+                      onClick={() => togglePlatformExpansion(platformId)}
+                      className={`w-full flex items-center justify-between p-4 transition-colors ${isExpanded ? 'bg-zinc-900/50' : 'hover:bg-zinc-900/30'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${
+                          platformId === 'facebook' ? 'bg-blue-600' : platformId === 'instagram' ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500' : platformId === 'linkedin' ? 'bg-blue-700' : 'bg-white text-black'
+                        }`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-bold text-white capitalize">{platformId}</span>
+                        {selectedCount > 0 && (
+                          <span className="text-[10px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full font-bold">
+                            {selectedCount}
+                          </span>
+                        )}
+                      </div>
+                      <ChevronRight className={`w-4 h-4 text-zinc-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="p-4 pt-2 space-y-2 border-t border-zinc-800/50">
+                        {platformAccounts.length > 0 ? (
+                          platformAccounts.map(account => (
+                            <label 
+                              key={account.id} 
+                              className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                                selectedAccountIds.includes(account.id) 
+                                  ? 'bg-indigo-500/10 border-indigo-500/50' 
+                                  : 'bg-zinc-900/30 border-zinc-800 hover:border-zinc-700'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input 
+                                  type="checkbox" 
+                                  className="hidden"
+                                  checked={selectedAccountIds.includes(account.id)}
+                                  onChange={() => toggleAccountSelection(account.id)}
+                                />
+                                <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center text-zinc-500 text-xs font-bold overflow-hidden">
+                                  {account.avatar_url ? <img src={account.avatar_url} alt="" /> : account.account_name.charAt(0)}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-white">{account.account_name}</p>
+                                  <p className="text-[10px] text-zinc-500">{account.account_handle || 'Active'}</p>
+                                </div>
+                              </div>
+                              {selectedAccountIds.includes(account.id) && <CheckCircle2 className="w-4 h-4 text-indigo-400" />}
+                            </label>
+                          ))
+                        ) : (
+                          <p className="text-[10px] text-zinc-500 py-2 italic">No accounts connected.</p>
+                        )}
                       </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Media Upload */}
+          {/* Media */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
             <h2 className="text-lg font-bold text-white mb-4">Media Assets</h2>
             {!mediaPreview ? (
@@ -330,58 +441,83 @@ function PublishPageInner() {
                   <Video className="w-6 h-6 text-zinc-500" />
                 </div>
                 <span className="text-sm font-medium text-zinc-300">Click to upload Image or Video</span>
-                <span className="text-xs text-zinc-500 mt-1">MP4, JPG, PNG (Max 50MB)</span>
                 <input type="file" className="hidden" accept="image/*,video/*" onChange={handleMediaUpload} />
               </label>
             ) : (
               <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-zinc-800">
-                {media?.type.startsWith('video') ? (
+                {mediaPreview.includes('video') || media?.type.startsWith('video') ? (
                   <video src={mediaPreview} controls className="max-h-full max-w-full" />
                 ) : (
-                  <NextImage
-                    src={mediaPreview!}
-                    alt="Media preview"
-                    fill
-                    className="object-contain"
-                    unoptimized
-                  />
+                  <NextImage src={mediaPreview} alt="Preview" fill className="object-contain" unoptimized />
                 )}
-                <button
-                  onClick={() => { setMedia(null); setMediaPreview(null); }}
-                  className="absolute top-2 right-2 bg-black/70 hover:bg-rose-500 text-white p-1.5 rounded-lg backdrop-blur-md transition-colors"
-                >
+                <button onClick={() => { setMedia(null); setMediaPreview(null); }} className="absolute top-2 right-2 bg-black/70 hover:bg-rose-500 text-white p-1.5 rounded-lg transition-colors">
                   <XCircle className="w-4 h-4" />
                 </button>
               </div>
             )}
           </div>
 
-          {/* Content Composer */}
+          {/* Composer */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
             <div className="p-6">
-              <h2 className="text-xl font-bold text-white mb-6">Post Content</h2>
-              {activeRevisionId && (
-                <div className="mb-4 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-400 font-bold flex items-center gap-2">
-                  <RefreshCcw className="w-3.5 h-3.5" />
-                  Editing a returned revision — modify and resubmit.
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Post Content</h2>
+                <div className="flex items-center gap-2 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
+                  <button 
+                    onClick={() => setIsPlatformSpecific(false)}
+                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${!isPlatformSpecific ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-400'}`}
+                  >
+                    Universal
+                  </button>
+                  <button 
+                    onClick={() => setIsPlatformSpecific(true)}
+                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? 'bg-indigo-600 text-white' : 'text-zinc-500 hover:text-zinc-400'}`}
+                  >
+                    Platform-Specific
+                  </button>
+                </div>
+              </div>
+
+              {isPlatformSpecific && getSelectedPlatforms().length > 0 && (
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                  {getSelectedPlatforms().map(p => {
+                    const Icon = p === 'facebook' ? FacebookIcon : p === 'instagram' ? InstagramIcon : p === 'linkedin' ? LinkedinIcon : TwitterIcon;
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setActivePlatformTab(p)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all whitespace-nowrap ${
+                          activePlatformTab === p ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400' : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span className="capitalize">{p}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
+              
               <div className="relative bg-zinc-950/50 border border-zinc-800 rounded-2xl focus-within:border-indigo-500/50 transition-all duration-300">
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Write your caption here..."
+                <textarea 
+                  value={isPlatformSpecific ? (platformCaptions[activePlatformTab] || "") : description}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (isPlatformSpecific) {
+                      setPlatformCaptions(prev => ({ ...prev, [activePlatformTab]: val }));
+                    } else {
+                      setDescription(val);
+                    }
+                  }}
+                  placeholder={isPlatformSpecific ? `Write custom caption for ${activePlatformTab}...` : "Write your universal caption here..."}
                   className="w-full bg-transparent p-6 text-white text-base leading-relaxed placeholder:text-zinc-600 outline-none resize-none min-h-[220px]"
                 />
                 <div className="p-4 flex items-center justify-between border-t border-zinc-800/50 bg-zinc-900/30">
-                  <button
-                    onClick={() => setShowAIWriter(!showAIWriter)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${showAIWriter ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}
-                  >
+                  <button onClick={() => setShowAIWriter(!showAIWriter)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${showAIWriter ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>
                     <Sparkles className="w-3.5 h-3.5" />
                     AI Writer
                   </button>
-                  <span className="text-[10px] text-zinc-600">{description.length} characters</span>
+                  <span className="text-[10px] text-zinc-600">{(isPlatformSpecific ? platformCaptions[activePlatformTab]?.length || 0 : description.length)} characters</span>
                 </div>
               </div>
             </div>
@@ -399,15 +535,11 @@ function PublishPageInner() {
                       <option value="professional">Professional</option>
                       <option value="casual">Casual</option>
                       <option value="bold">Bold</option>
-                      <option value="inspirational">Inspirational</option>
+                      <option value="educational">Educational</option>
                     </select>
                   </div>
                 </div>
-                <button
-                  onClick={handleGenerateAI}
-                  disabled={generating || !topic}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
-                >
+                <button onClick={handleGenerateAI} disabled={generating || !topic} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
                   {generating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
                   Generate Content
                 </button>
@@ -416,7 +548,7 @@ function PublishPageInner() {
           </div>
         </div>
 
-        {/* Right: Scheduling + Submit */}
+        {/* Right: Scheduling */}
         <div className="lg:col-span-1">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sticky top-8 shadow-2xl space-y-6">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -446,7 +578,7 @@ function PublishPageInner() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 px-1">
                     <Sparkles className="w-3 h-3 text-indigo-400" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">AI Predicted Peak Times</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">AI Suggested Times</span>
                   </div>
                   {suggestedTimes.map((st) => (
                     <label key={st.time} className={`flex items-center p-3 rounded-xl border cursor-pointer transition-colors ${selectedTime === st.time ? 'bg-indigo-500/10 border-indigo-500' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
@@ -462,11 +594,7 @@ function PublishPageInner() {
               )}
             </div>
 
-            <button
-              onClick={handleSubmitIntent}
-              disabled={submitting || !description}
-              className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-indigo-500/20 disabled:opacity-50 flex items-center justify-center gap-2 uppercase tracking-widest text-xs"
-            >
+            <button onClick={handleSubmitIntent} disabled={submitting} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-indigo-500/20 disabled:opacity-50 flex items-center justify-center gap-2 uppercase tracking-widest text-xs">
               {submitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
               {activeRevisionId ? 'Resubmit for Approval' : 'Submit for Approval'}
             </button>
@@ -477,15 +605,9 @@ function PublishPageInner() {
   );
 }
 
-// Exported page wraps inner component in Suspense (required for useSearchParams)
 export default function PublishPage() {
   return (
-    <Suspense fallback={
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-zinc-500 space-y-4">
-        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm font-bold uppercase tracking-widest animate-pulse">Loading Publisher...</p>
-      </div>
-    }>
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] text-zinc-500">Loading...</div>}>
       <PublishPageInner />
     </Suspense>
   );
