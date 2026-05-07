@@ -107,6 +107,7 @@ app.post('/api/v1/ai/generate', async (req: Request, res: Response): Promise<voi
       try {
         // 1. Live AI Integration via Gemini
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+        // Use the standard model name. If this fails, the catch block will handle it.
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const variationIndex = Math.floor(Math.random() * 1000);
         const prompt = `Act as a high-end Social Media Growth Specialist and Creative Copywriter. 

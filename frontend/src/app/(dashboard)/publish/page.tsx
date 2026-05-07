@@ -57,6 +57,14 @@ export default function PublishPage() {
   // AI State
   const [generating, setGenerating] = useState(false);
   const [description, setDescription] = useState("");
+  const [platformCaptions, setPlatformCaptions] = useState<Record<string, string>>({});
+  const [isPlatformSpecific, setIsPlatformSpecific] = useState(false);
+  const [activePlatformTab, setActivePlatformTab] = useState<string>("");
+  
+  const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const [expandedPlatforms, setExpandedPlatforms] = useState<string[]>([]);
+
   const [suggestedTimes, setSuggestedTimes] = useState<{time: string, label: string}[]>([]);
   const [selectedTime, setSelectedTime] = useState<string>('immediate');
   const [customTime, setCustomTime] = useState<string>("");
@@ -113,8 +121,54 @@ export default function PublishPage() {
           .eq('creator_id', user.id)
           .eq('status', 'NEEDS_REVISION');
         if (revs) setRevisions(revs);
+
+        // Fetch Connected Accounts
+        const { data: accounts } = await supabase
+          .from('connected_accounts')
+          .select('*')
+          .eq('workspace_id', member.workspace_id)
+          .eq('status', 'active');
+        if (accounts) {
+          setConnectedAccounts(accounts);
+          // Auto-expand platforms that have accounts
+          const platformsWithAccounts = Array.from(new Set(accounts.map((a: any) => a.platform)));
+          setExpandedPlatforms(platformsWithAccounts as string[]);
+        }
       }
     }
+  };
+
+  const togglePlatformExpansion = (platform: string) => {
+    setExpandedPlatforms(prev => 
+      prev.includes(platform) ? prev.filter(p => p !== platform) : [...prev, platform]
+    );
+  };
+
+  const toggleAccountSelection = (accountId: string) => {
+    setSelectedAccountIds(prev => {
+      const isSelected = prev.includes(accountId);
+      const newSelection = isSelected ? prev.filter(id => id !== accountId) : [...prev, accountId];
+      
+      // Update platform captions if needed
+      const account = connectedAccounts.find(a => a.id === accountId);
+      if (account && !isSelected) {
+        if (!platformCaptions[account.platform]) {
+          setPlatformCaptions(pc => ({ ...pc, [account.platform]: description }));
+        }
+        if (!activePlatformTab) setActivePlatformTab(account.platform);
+      }
+      
+      return newSelection;
+    });
+  };
+
+  const getSelectedPlatforms = () => {
+    const selectedPlatforms = new Set(
+      connectedAccounts
+        .filter(a => selectedAccountIds.includes(a.id))
+        .map(a => a.platform)
+    );
+    return Array.from(selectedPlatforms);
   };
 
   const loadRevision = (rev: any) => {
@@ -223,11 +277,14 @@ export default function PublishPage() {
 
       // 2. Insert or Update the intent
       const isAdmin = userRole === 'ADMIN';
+      const selectedPlatformsList = getSelectedPlatforms();
+      
       const intentData = {
         workspace_id: (await supabase.from('workspace_members').select('workspace_id').eq('user_id', user.id).single()).data?.workspace_id,
         creator_id: user.id,
-        content: description,
-        platform: Object.entries(platforms).filter(([_, v]) => v).map(([k]) => k).join(', '),
+        content: isPlatformSpecific ? JSON.stringify(platformCaptions) : description,
+        platform: selectedPlatformsList.join(', '),
+        target_account_ids: selectedAccountIds, // Assuming this column exists or will be added
         status: isAdmin ? 'APPROVED' : 'PENDING_ADMIN',
         scheduled_for: selectedTime === 'immediate' 
           ? new Date().toISOString() 
@@ -347,45 +404,86 @@ export default function PublishPage() {
                 <Globe className="w-5 h-5 text-indigo-400" />
                 Target Accounts
               </h2>
-              <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-1 rounded font-bold uppercase tracking-wider">Multi-Select Enabled</span>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-1 rounded font-bold uppercase tracking-wider">
+                  {selectedAccountIds.length} Selected
+                </span>
+                <button 
+                  onClick={() => window.location.href = '/accounts'}
+                  className="text-[10px] text-indigo-400 font-bold uppercase hover:underline"
+                >
+                  Manage
+                </button>
+              </div>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(platforms).map(([key, active]) => {
-                const Icon = key === 'facebook' ? FacebookIcon : key === 'instagram' ? InstagramIcon : key === 'linkedin' ? LinkedinIcon : TwitterIcon;
+            <div className="space-y-3">
+              {['facebook', 'instagram', 'linkedin', 'twitter'].map(platformId => {
+                const platformAccounts = connectedAccounts.filter(a => a.platform === platformId);
+                const isExpanded = expandedPlatforms.includes(platformId);
+                const Icon = platformId === 'facebook' ? FacebookIcon : platformId === 'instagram' ? InstagramIcon : platformId === 'linkedin' ? LinkedinIcon : TwitterIcon;
+                const selectedCount = platformAccounts.filter(a => selectedAccountIds.includes(a.id)).length;
+
                 return (
-                  <button
-                    key={key}
-                    onClick={() => setPlatforms({...platforms, [key]: !active})}
-                    className={`flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all duration-300 relative group ${
-                      active 
-                        ? 'bg-indigo-500/10 border-indigo-500 shadow-lg shadow-indigo-500/10' 
-                        : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-900'
-                    }`}
-                  >
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                      active 
-                        ? key === 'facebook' ? 'bg-blue-600 text-white' : key === 'instagram' ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 text-white' : key === 'linkedin' ? 'bg-blue-700 text-white' : 'bg-white text-black'
-                        : 'bg-zinc-800 text-zinc-600 group-hover:text-zinc-400'
-                    }`}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : ''}`}>{key}</span>
-                    {active && (
-                      <div className="absolute top-2 right-2">
-                        <CheckCircle2 className="w-4 h-4 text-indigo-400 fill-indigo-400/20" />
+                  <div key={platformId} className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
+                    <button 
+                      onClick={() => togglePlatformExpansion(platformId)}
+                      className={`w-full flex items-center justify-between p-4 transition-colors ${isExpanded ? 'bg-zinc-900/50' : 'hover:bg-zinc-900/30'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${
+                          platformId === 'facebook' ? 'bg-blue-600' : platformId === 'instagram' ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500' : platformId === 'linkedin' ? 'bg-blue-700' : 'bg-white text-black'
+                        }`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-bold text-white capitalize">{platformId}</span>
+                        {selectedCount > 0 && (
+                          <span className="text-[10px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full font-bold">
+                            {selectedCount}
+                          </span>
+                        )}
+                      </div>
+                      <ChevronRight className={`w-4 h-4 text-zinc-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="p-4 pt-2 space-y-2 border-t border-zinc-800/50">
+                        {platformAccounts.length > 0 ? (
+                          platformAccounts.map(account => (
+                            <label 
+                              key={account.id} 
+                              className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                                selectedAccountIds.includes(account.id) 
+                                  ? 'bg-indigo-500/10 border-indigo-500/50' 
+                                  : 'bg-zinc-900/30 border-zinc-800 hover:border-zinc-700'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input 
+                                  type="checkbox" 
+                                  className="hidden"
+                                  checked={selectedAccountIds.includes(account.id)}
+                                  onChange={() => toggleAccountSelection(account.id)}
+                                />
+                                <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center text-zinc-500 text-xs font-bold overflow-hidden">
+                                  {account.avatar_url ? <img src={account.avatar_url} /> : account.account_name.charAt(0)}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-white">{account.account_name}</p>
+                                  <p className="text-[10px] text-zinc-500">{account.account_handle || 'Active'}</p>
+                                </div>
+                              </div>
+                              {selectedAccountIds.includes(account.id) && <CheckCircle2 className="w-4 h-4 text-indigo-400" />}
+                            </label>
+                          ))
+                        ) : (
+                          <p className="text-[10px] text-zinc-500 py-2 italic">No accounts connected.</p>
+                        )}
                       </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
-              
-              <button className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-dashed border-zinc-800 text-zinc-600 hover:border-indigo-500/50 hover:text-indigo-400 transition-all group">
-                <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center group-hover:bg-indigo-500/10">
-                  <span className="text-xl">+</span>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-tighter">Add New</span>
-              </button>
             </div>
           </div>
 
@@ -423,13 +521,57 @@ export default function PublishPage() {
           {/* Main Post Content Composer */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
             <div className="p-6">
-              <h2 className="text-xl font-bold text-white mb-6">Post Content</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Post Content</h2>
+                <div className="flex items-center gap-2 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
+                  <button 
+                    onClick={() => setIsPlatformSpecific(false)}
+                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${!isPlatformSpecific ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-400'}`}
+                  >
+                    Universal
+                  </button>
+                  <button 
+                    onClick={() => setIsPlatformSpecific(true)}
+                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? 'bg-indigo-600 text-white' : 'text-zinc-500 hover:text-zinc-400'}`}
+                  >
+                    Platform-Specific
+                  </button>
+                </div>
+              </div>
+
+              {isPlatformSpecific && getSelectedPlatforms().length > 0 && (
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                  {getSelectedPlatforms().map(p => {
+                    const Icon = p === 'facebook' ? FacebookIcon : p === 'instagram' ? InstagramIcon : p === 'linkedin' ? LinkedinIcon : TwitterIcon;
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => setActivePlatformTab(p)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all whitespace-nowrap ${
+                          activePlatformTab === p ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400' : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span className="capitalize">{p}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               
               <div className="relative bg-zinc-950/50 border border-zinc-800 rounded-2xl focus-within:border-indigo-500/50 transition-all duration-300">
                 <textarea 
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Write your caption here..."
+                  value={isPlatformSpecific ? (platformCaptions[activePlatformTab] || description) : description}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (isPlatformSpecific) {
+                      setPlatformCaptions(prev => ({ ...prev, [activePlatformTab]: val }));
+                    } else {
+                      setDescription(val);
+                      // Sync to platforms that don't have custom ones yet?
+                    }
+                  }}
+                  placeholder={isPlatformSpecific ? `Write custom caption for ${activePlatformTab}...` : "Write your universal caption here..."}
                   className="w-full bg-transparent p-6 text-white text-base leading-relaxed placeholder:text-zinc-600 outline-none resize-none min-h-[220px]"
                 />
                 
@@ -444,6 +586,15 @@ export default function PublishPage() {
                       <Sparkles className="w-3.5 h-3.5" />
                       AI Writer (Optional)
                     </button>
+                    
+                    {isPlatformSpecific && (
+                      <button 
+                        onClick={() => setPlatformCaptions(pc => ({ ...pc, [activePlatformTab]: description }))}
+                        className="text-[10px] text-zinc-500 hover:text-indigo-400 font-bold uppercase transition-colors"
+                      >
+                        Reset to Universal
+                      </button>
+                    )}
 
                     {history.length > 0 && (
                       <div className="flex gap-1 bg-zinc-800/50 p-1 rounded-lg">
