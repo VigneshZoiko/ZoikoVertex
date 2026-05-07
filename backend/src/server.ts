@@ -1,102 +1,34 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config();
+import helmet from 'helmet';
+import { env } from './config/env';
+import { logger } from './shared/logger';
+import { errorHandler } from './shared/errorHandler';
+import { provisionUser } from './modules/identity/identityController';
+import { generateContent } from './modules/intelligence/intelligenceController';
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = env.PORT;
 
 // Middleware
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-// Basic Intent/Health-check API
-app.get('/api/v1/health', (req: Request, res: Response) => {
+// Health Check
+app.get('/api/v1/health', (req, res) => {
   res.status(200).json({
     status: 'success',
     message: 'ZoikoVertex Control Plane API is active.',
-    environment: process.env.NODE_ENV,
+    environment: env.NODE_ENV,
     timestamp: new Date().toISOString(),
   });
 });
 
-import { createClient } from '@supabase/supabase-js';
+// Routes
+app.post('/api/v1/users/provision', provisionUser);
+app.post('/api/v1/ai/generate', generateContent);
 
-// Initialize Supabase Admin Client
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || '';
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
-
-app.post('/api/v1/users/provision', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { email, password, full_name, role, workspace_id } = req.body;
-    console.log(`[Provisioning] Request for ${email} as ${role} in workspace ${workspace_id}`);
-
-    if (!email || !password || !role) {
-      res.status(400).json({ error: 'Missing required fields' });
-      return;
-    }
-
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('[Provisioning] Error: SUPABASE_SERVICE_ROLE_KEY is missing');
-      res.status(500).json({ error: 'Server configuration error: Missing SUPABASE_SERVICE_ROLE_KEY in backend .env' });
-      return;
-    }
-
-    // 1. Create user in Supabase Auth securely
-    console.log(`[Provisioning] Creating Auth user for ${email}...`);
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name }
-    });
-
-    if (authError) {
-      console.error(`[Provisioning] Auth Error: ${authError.message}`);
-      res.status(400).json({ error: authError.message });
-      return;
-    }
-
-    const userId = authData.user.id;
-    console.log(`[Provisioning] Auth user created successfully: ${userId}`);
-
-    // 2. Set the role in workspace_members
-    console.log(`[Provisioning] Assigning role ${role} to user ${userId}...`);
-    const { error: memberError } = await supabaseAdmin
-      .from('workspace_members')
-      .upsert({
-        workspace_id,
-        user_id: userId,
-        role: role
-      });
-
-    if (memberError) {
-      console.error(`[Provisioning] Member Error: ${memberError.message}`);
-      res.status(500).json({ error: 'User authenticated but role assignment failed: ' + memberError.message });
-      return;
-    }
-
-    console.log(`[Provisioning] Success for ${email}`);
-    res.status(201).json({ success: true, message: 'User provisioned successfully' });
-  } catch (err: any) {
-    console.error(`[Provisioning] Internal Error: ${err.message}`);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-app.post('/api/v1/ai/generate', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { topic, contentType, platforms, length = 'medium', tone = 'professional', useEmojis = true } = req.body;
 
     if (!topic || !contentType) {
       res.status(400).json({ error: 'Missing topic or content type' });
@@ -241,20 +173,24 @@ app.post('/api/v1/ai/generate', async (req: Request, res: Response): Promise<voi
   }
 });
 
+// Global Error Handler
+app.use(errorHandler);
+ main
+
 // Start Server
 try {
   const server = app.listen(port, () => {
-    console.log(`[server]: ZoikoVertex backend is running at http://localhost:${port}`);
+    logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
   });
 
   server.on('error', (err: any) => {
     if (err.code === 'EADDRINUSE') {
-      console.error(`[server] Error: Port ${port} is already in use.`);
+      logger.error(`[server] Error: Port ${port} is already in use.`);
     } else {
-      console.error('[server] Error:', err);
+      logger.error({ err }, '[server] Error');
     }
     process.exit(1);
   });
 } catch (startErr) {
-  console.error('[server] Failed to start:', startErr);
+  logger.error({ startErr }, '[server] Failed to start');
 }
