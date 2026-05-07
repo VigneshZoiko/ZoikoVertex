@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { CheckCircle, XCircle, Clock, Eye, ShieldAlert, CheckSquare } from "lucide-react";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 
 export default function ApprovalQueue() {
@@ -10,26 +11,7 @@ export default function ApprovalQueue() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState<{[key: string]: string}>({});
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-
-  const fetchUserData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: member } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      if (member) {
-        setUserRole(member.role);
-        fetchIntents(member.role);
-      }
-    }
-  };
-
-  const fetchIntents = async (role: string) => {
+  const fetchIntents = useCallback(async (role: string) => {
     setLoading(true);
     let query = supabase
       .from('publish_intents')
@@ -48,7 +30,26 @@ export default function ApprovalQueue() {
 
     if (!error && data) setIntents(data);
     setLoading(false);
-  };
+  }, []);
+
+  const fetchUserData = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: member } = await supabase
+        .from('workspace_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+      if (member) {
+        setUserRole(member.role);
+        fetchIntents(member.role);
+      }
+    }
+  }, [fetchIntents]);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
 
   const updateStatus = async (id: string, status: string, feedback?: string) => {
     const { error } = await supabase
@@ -93,7 +94,7 @@ export default function ApprovalQueue() {
                     intent.media_url.match(/\.(mp4|webm|ogg)$/i) ? (
                       <video src={intent.media_url} className="w-full h-full object-cover" />
                     ) : (
-                      <img src={intent.media_url} alt="Content" className="w-full h-full object-cover" />
+                      <Image src={intent.media_url} alt="Content" width={200} height={200} className="w-full h-full object-cover" />
                     )
                   ) : (
                     <div className="text-xs text-zinc-600 font-medium text-center p-4">No Media Attached</div>
@@ -185,7 +186,7 @@ export default function ApprovalQueue() {
                         {intent.feedback && (
                           <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-lg">
                             <p className="text-[10px] uppercase font-black text-amber-500 mb-1">Admin Feedback</p>
-                            <p className="text-xs text-zinc-300 italic">"{intent.feedback}"</p>
+                            <p className="text-xs text-zinc-300 italic">&quot;{intent.feedback}&quot;</p>
                           </div>
                         )}
                         <div className="flex justify-end">

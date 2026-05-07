@@ -84,7 +84,13 @@ export const generateContent = async (req: Request, res: Response, next: NextFun
   }
 };
 
-const formatTimes = (hours: any[]) => {
+interface SuggestedHour {
+  hour: number;
+  minute: number;
+  label: string;
+}
+
+const formatTimes = (hours: SuggestedHour[]) => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const dateStr = tomorrow.toISOString().split('T')[0];

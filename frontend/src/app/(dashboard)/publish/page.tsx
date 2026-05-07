@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { 
   Upload, Sparkles, Clock, CheckCircle2, AlertCircle, 
   Image as ImageIcon, Video, Send, Globe, MessageSquare, 
@@ -74,11 +75,7 @@ export default function PublishPage() {
   const [pendingPosts, setPendingPosts] = useState<any[]>([]);
   const [reviewComment, setReviewComment] = useState("");
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       // Fetch Role
@@ -115,7 +112,11 @@ export default function PublishPage() {
         if (revs) setRevisions(revs);
       }
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
 
   const loadRevision = (rev: any) => {
     setDescription(rev.content);
@@ -321,7 +322,7 @@ export default function PublishPage() {
             {revisions.map(rev => (
               <div key={rev.id} className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex flex-col justify-between">
                 <div>
-                  <p className="text-xs text-zinc-400 mb-2 line-clamp-2 italic">"{rev.feedback || 'No feedback provided'}"</p>
+                  <p className="text-xs text-zinc-400 mb-2 line-clamp-2 italic">&quot;{rev.feedback || 'No feedback provided'}&quot;</p>
                   <p className="text-[10px] text-zinc-500 uppercase font-bold">Original: {rev.content.substring(0, 30)}...</p>
                 </div>
                 <button 
@@ -408,7 +409,7 @@ export default function PublishPage() {
                 {media?.type.startsWith('video') ? (
                   <video src={mediaPreview} controls className="max-h-full max-w-full" />
                 ) : (
-                  <img src={mediaPreview} className="object-contain max-h-full" />
+                  <Image src={mediaPreview} alt="Media Preview" width={600} height={400} className="object-contain max-h-full" />
                 )}
                 <button 
                   onClick={() => { setMedia(null); setMediaPreview(null); }}
@@ -649,11 +650,11 @@ export default function PublishPage() {
                       <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded font-bold uppercase tracking-wider">{post.platform}</span>
                     </div>
                     
-                    <p className="text-xs text-zinc-300 line-clamp-3 italic">"{post.content}"</p>
+                    <p className="text-xs text-zinc-300 line-clamp-3 italic">&quot;{post.content}&quot;</p>
                     
                     {post.media_url && (
                       <div className="aspect-video rounded-lg overflow-hidden border border-zinc-800 bg-black flex items-center justify-center">
-                        <img src={post.media_url} className="object-contain max-h-full" />
+                        <Image src={post.media_url} alt="Post Media" width={400} height={225} className="object-contain max-h-full" />
                       </div>
                     )}
 
@@ -675,7 +676,7 @@ export default function PublishPage() {
                       <div className="space-y-3">
                         <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
                           <p className="text-[10px] text-amber-500 font-bold uppercase mb-1">Admin Feedback:</p>
-                          <p className="text-[10px] text-zinc-400 italic">"{post.feedback || 'No comments provided'}"</p>
+                          <p className="text-[10px] text-zinc-400 italic">&quot;{post.feedback || 'No comments provided'}&quot;</p>
                         </div>
                         <button onClick={() => handleManagerAction(post.id, 'NEEDS_REVISION')} className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg uppercase tracking-wider flex items-center justify-center gap-2">
                           <RefreshCcw className="w-3 h-3" />

@@ -38,7 +38,7 @@ try {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
   });
 
-  server.on('error', (err: any) => {
+  server.on('error', (err: Error & { code?: string }) => {
     if (err.code === 'EADDRINUSE') {
       logger.error(`[server] Error: Port ${port} is already in use.`);
     } else {
