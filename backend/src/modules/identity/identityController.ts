@@ -11,11 +11,20 @@ const ProvisionSchema = z.object({
   workspace_id: z.string().uuid(),
 });
 
+// Helper for database logging
+const logToDatabase = async (level: string, service: string, message: string, payload?: any) => {
+  try {
+    await supabaseAdmin.from('system_logs').insert({ level, service, message, payload });
+  } catch (err) {
+    logger.error({ err }, '[Identity] Failed to log to DB');
+  }
+};
+
 export const provisionUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, full_name, role, workspace_id } = ProvisionSchema.parse(req.body);
     
-    logger.info({ email, role, workspace_id }, '[Identity] Provisioning request');
+    await logToDatabase('info', 'Provisioning', `Request for ${email} as ${role}`, { email, role, workspace_id });
 
     // 1. Create user in Supabase Auth
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
