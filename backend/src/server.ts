@@ -295,7 +295,7 @@ app.post('/api/v1/governance/transition', async (req: Request, res: Response): P
   }
 });
 
-// ─── Global Error Handler ─────────────────────────────────────────────────────
+// Global Error Handler
 app.use(errorHandler);
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
