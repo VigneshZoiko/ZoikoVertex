@@ -27,6 +27,7 @@ export default function AccountsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedPlatforms, setExpandedPlatforms] = useState<string[]>(['facebook', 'instagram', 'linkedin', 'twitter']);
   const [error, setError] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   
   // Form state for new account
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
@@ -53,9 +54,24 @@ export default function AccountsPage() {
     }
   }, []);
 
+  const fetchUserData = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: member } = await supabase
+        .from('workspace_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+      if (member) {
+        setUserRole(member.role.toUpperCase());
+      }
+    }
+  }, []);
+
   useEffect(() => {
     fetchAccounts();
-  }, [fetchAccounts]);
+    fetchUserData();
+  }, [fetchAccounts, fetchUserData]);
 
   const togglePlatform = (platformId: string) => {
     setExpandedPlatforms(prev => 
@@ -139,13 +155,15 @@ export default function AccountsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Connected Accounts</h1>
           <p className="text-zinc-400">Manage OAuth tokens and platform integrations for your workspace.</p>
         </div>
-        <button 
-          onClick={() => { resetForm(); setShowAddModal(true); }}
-          className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-indigo-500/20"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Connection
-        </button>
+        {userRole !== 'CREATOR' && (
+          <button 
+            onClick={() => { resetForm(); setShowAddModal(true); }}
+            className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-indigo-500/20"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Connection
+          </button>
+        )}
       </div>
 
       {error && (
@@ -220,24 +238,28 @@ export default function AccountsPage() {
                           
                           <div className="flex items-center justify-between border-t border-zinc-800/50 pt-3 mt-auto">
                             <p className="text-[10px] text-zinc-600">ID: {account.id.substring(0, 8)}...</p>
-                            <button 
-                              onClick={() => disconnectAccount(account.id)}
-                              className="text-zinc-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {userRole !== 'CREATOR' && (
+                              <button 
+                                onClick={() => disconnectAccount(account.id)}
+                                className="text-zinc-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))
                     ) : (
                       <div className="md:col-span-2 border-2 border-dashed border-zinc-800/50 rounded-xl p-8 flex flex-col items-center justify-center text-center">
                         <p className="text-xs text-zinc-500 mb-3">No {platform.name} accounts connected yet.</p>
-                        <button 
-                          onClick={() => setShowAddModal(true)}
-                          className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
-                        >
-                          + Connect Account
-                        </button>
+                        {userRole !== 'CREATOR' && (
+                          <button 
+                            onClick={() => setShowAddModal(true)}
+                            className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+                          >
+                            + Connect Account
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

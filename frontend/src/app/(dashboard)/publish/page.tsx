@@ -386,6 +386,7 @@ function PublishPageInner() {
             onToggleAccount={toggleAccountSelection}
             expandedPlatforms={expandedPlatforms}
             onToggleExpansion={togglePlatformExpansion}
+            userRole={userRole}
           />
           
           <MediaUploader 

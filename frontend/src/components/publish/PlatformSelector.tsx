@@ -15,6 +15,7 @@ interface PlatformSelectorProps {
   onToggleAccount: (id: string) => void;
   expandedPlatforms: string[];
   onToggleExpansion: (platform: string) => void;
+  userRole?: string | null;
 }
 
 // Custom Brand Icons
@@ -52,7 +53,8 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
   selectedAccountIds, 
   onToggleAccount,
   expandedPlatforms,
-  onToggleExpansion
+  onToggleExpansion,
+  userRole
 }) => {
   const platformsList = ['facebook', 'instagram', 'linkedin', 'twitter'];
 
@@ -67,12 +69,14 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
           <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-1 rounded font-bold uppercase tracking-wider">
             {selectedAccountIds.length} Selected
           </span>
-          <button 
-            onClick={() => window.location.href = '/accounts'}
-            className="text-[10px] text-indigo-400 font-bold uppercase hover:underline"
-          >
-            Manage
-          </button>
+          {userRole?.toUpperCase() !== 'CREATOR' && (
+            <button 
+              onClick={() => window.location.href = '/accounts'}
+              className="text-[10px] text-indigo-400 font-bold uppercase hover:underline"
+            >
+              Manage
+            </button>
+          )}
         </div>
       </div>
       
