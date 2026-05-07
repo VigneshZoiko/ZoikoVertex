@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock, Eye, ShieldAlert, CheckSquare } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Eye, ShieldAlert, CheckSquare, RefreshCcw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function ApprovalQueue() {
@@ -39,9 +39,9 @@ export default function ApprovalQueue() {
       `);
     
     if (role === 'ADMIN') {
-      query = query.eq('status', 'PENDING');
+      query = query.eq('status', 'PENDING_ADMIN');
     } else if (role === 'MANAGER') {
-      query = query.eq('status', 'NEEDS_REVISION');
+      query = query.eq('status', 'PENDING_MANAGER');
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
@@ -50,22 +50,62 @@ export default function ApprovalQueue() {
     setLoading(false);
   };
 
-  const updateStatus = async (id: string, status: string, feedback?: string) => {
-    const { error } = await supabase
-      .from('publish_intents')
-      .update({ status, feedback: feedback || null })
-      .eq('id', id);
+  const handleTransition = async (id: string, newStatus: string, feedback?: string) => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Authentication required.");
 
-    if (!error) {
-      setIntents(prev => prev.filter(item => item.id !== id));
+      const response = await fetch('http://localhost:5000/api/v1/governance/transition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          intentId: id,
+          newStatus: newStatus,
+          feedback: feedback || null,
+          userId: user.id,
+          userRole: userRole
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Transition failed');
+
+      fetchIntents(userRole || '');
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = (id: string) => handleTransition(id, 'APPROVED', 'Post meets quality standards.');
+  const handlePassToManager = (id: string) => handleTransition(id, 'PENDING_MANAGER', 'Needs secondary verification.');
+  const handleReturnToCreator = (id: string) => {
+    const feedback = prompt("Enter specific changes required for the creator:");
+    if (!feedback) return;
+    handleTransition(id, 'RETURNED', feedback);
+  };
+  const handleReject = (id: string) => {
+    if (confirm("Are you sure you want to REJECT and permanently archive this post?")) {
+      handleTransition(id, 'REJECTED', 'Does not align with brand strategy.');
     }
   };
 
   return (
     <div className="max-w-6xl mx-auto pb-12 px-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Approval Queue</h1>
-        <p className="text-zinc-400 text-sm font-medium">Review and govern social media intents before they are published.</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Approval Queue</h1>
+          <p className="text-zinc-400 text-sm font-medium">Review and govern social media intents before they are published.</p>
+        </div>
+        <button 
+          onClick={() => fetchIntents(userRole || '')}
+          className="p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-400 hover:text-white hover:border-zinc-700 transition-all group"
+          title="Refresh Queue"
+        >
+          <RefreshCcw className={`w-5 h-5 ${loading ? 'animate-spin text-indigo-500' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+        </button>
       </div>
 
       <div className="grid gap-6">
@@ -115,7 +155,7 @@ export default function ApprovalQueue() {
                         ))}
                       </div>
                       <div className={`px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-widest border ${
-                        intent.status === 'PENDING' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                        (intent.status === 'PENDING_ADMIN' || intent.status === 'PENDING_MANAGER') ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
                         intent.status === 'APPROVED' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 
                         'bg-rose-500/10 border-rose-500/20 text-rose-500'
                       }`}>
@@ -149,7 +189,7 @@ export default function ApprovalQueue() {
                       </div>
                     </div>
 
-                    {userRole === 'ADMIN' && intent.status === 'PENDING' && (
+                    {userRole?.toUpperCase() === 'ADMIN' && intent.status === 'PENDING_ADMIN' && (
                       <div className="flex flex-col gap-4 w-full md:w-auto">
                         <textarea 
                           placeholder="Add feedback for revision..."
@@ -159,19 +199,19 @@ export default function ApprovalQueue() {
                         />
                         <div className="flex gap-2 justify-end">
                           <button 
-                            onClick={() => updateStatus(intent.id, 'REJECTED')}
+                            onClick={() => handleReject(intent.id)}
                             className="px-5 py-2 bg-zinc-800 text-zinc-300 hover:bg-rose-500 hover:text-white rounded-xl text-xs font-bold transition-all duration-300 border border-zinc-700"
                           >
                             Reject
                           </button>
                           <button 
-                            onClick={() => updateStatus(intent.id, 'NEEDS_REVISION', feedbackText[intent.id])}
+                            onClick={() => handlePassToManager(intent.id)}
                             className="px-5 py-2 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-xl text-xs font-bold transition-all duration-300 border border-amber-500/30"
                           >
-                            Request Changes
+                            Review Required
                           </button>
                           <button 
-                            onClick={() => updateStatus(intent.id, 'APPROVED')}
+                            onClick={() => handleApprove(intent.id)}
                             className="px-5 py-2 bg-indigo-500 text-white hover:bg-indigo-400 rounded-xl text-xs font-bold transition-all duration-300 shadow-xl shadow-indigo-500/20"
                           >
                             Approve Post
@@ -180,7 +220,7 @@ export default function ApprovalQueue() {
                       </div>
                     )}
 
-                    {userRole === 'MANAGER' && intent.status === 'NEEDS_REVISION' && (
+                    {userRole?.toUpperCase() === 'MANAGER' && intent.status === 'PENDING_MANAGER' && (
                       <div className="flex flex-col gap-4 w-full">
                         {intent.feedback && (
                           <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-lg">
@@ -190,10 +230,10 @@ export default function ApprovalQueue() {
                         )}
                         <div className="flex justify-end">
                           <button 
-                            onClick={() => updateStatus(intent.id, 'IN_REVISION')}
+                            onClick={() => handleReturnToCreator(intent.id)}
                             className="px-5 py-2 bg-indigo-500 text-white hover:bg-indigo-400 rounded-xl text-xs font-bold transition-all duration-300"
                           >
-                            Send to Creator for Changes
+                            Return to Creator for Changes
                           </button>
                         </div>
                       </div>

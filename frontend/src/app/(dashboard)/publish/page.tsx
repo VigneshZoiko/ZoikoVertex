@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { 
-  Upload, Sparkles, Clock, CheckCircle2, AlertCircle, 
-  Image as ImageIcon, Video, Send, Globe, MessageSquare, 
-  Camera, Briefcase, Hash, ChevronRight, XCircle, RefreshCcw
+  Sparkles, Clock, CheckCircle2,
+  Image as ImageIcon, Video, Send, Globe,
+  XCircle, RefreshCcw
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -69,58 +70,108 @@ export default function PublishPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [revisions, setRevisions] = useState<any[]>([]);
   const [activeRevisionId, setActiveRevisionId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Admin/Manager Workflow State
   const [pendingPosts, setPendingPosts] = useState<any[]>([]);
-  const [reviewComment, setReviewComment] = useState("");
+
+
+
+
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     fetchUserData();
   }, []);
 
+  // Auto-load a revision if navigated from /review with ?revisionId=
+  useEffect(() => {
+    const revisionId = searchParams.get('revisionId');
+    if (revisionId && revisions.length > 0) {
+      const rev = revisions.find((r: any) => r.id === revisionId);
+      if (rev) loadRevision(rev);
+    }
+  }, [revisions, searchParams]);
+
   const fetchUserData = async () => {
+    setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       // Fetch Role
-      const { data: member } = await supabase
+      const { data: member, error: mError } = await supabase
         .from('workspace_members')
         .select('role, workspace_id')
         .eq('user_id', user.id)
         .single();
       
+      if (mError) console.error("Member Role Fetch Error:", mError);
+      
       if (member) {
         setUserRole(member.role);
         
         // If Admin or Manager, fetch pending queue
-        if (member.role === 'ADMIN') {
-          const { data: queue } = await supabase
+        const normalizedRole = member.role.toString().toUpperCase();
+        if (normalizedRole === 'ADMIN' || normalizedRole === 'MANAGER') {
+          const targetStatus = normalizedRole === 'ADMIN' ? 'PENDING_ADMIN' : 'PENDING_MANAGER';
+          
+          const { data: queue, error: qError } = await supabase
             .from('publish_intents')
-            .select('*, users!publish_intents_creator_id_fkey(full_name)')
-            .eq('status', 'PENDING_ADMIN');
-          if (queue) setPendingPosts(queue);
-        } else if (member.role === 'MANAGER') {
-          const { data: queue } = await supabase
-            .from('publish_intents')
-            .select('*, users!publish_intents_creator_id_fkey(full_name)')
-            .eq('status', 'PENDING_MANAGER');
-          if (queue) setPendingPosts(queue);
+            .select(`
+              *,
+              creator:users!publish_intents_creator_id_fkey (
+                full_name,
+                email
+              )
+            `)
+            .eq('status', targetStatus)
+            .order('created_at', { ascending: false });
+          
+          if (qError) {
+            console.error(`${normalizedRole} Queue Fetch Error:`, qError);
+            // Fallback: try fetching without join if join fails
+            const { data: fallbackQueue } = await supabase
+              .from('publish_intents')
+              .select('*')
+              .eq('status', targetStatus)
+              .order('created_at', { ascending: false });
+            setPendingPosts(fallbackQueue || []);
+          } else {
+            setPendingPosts(queue || []);
+          }
         }
 
         // Fetch Revisions if Creator
-        const { data: revs } = await supabase
+        const { data: revs, error: rError } = await supabase
           .from('publish_intents')
           .select('*')
           .eq('creator_id', user.id)
-          .eq('status', 'NEEDS_REVISION');
+          .eq('status', 'RETURNED');
+        if (rError) console.error("Revisions Error:", rError);
         if (revs) setRevisions(revs);
       }
     }
+    setLoading(false);
   };
 
   const loadRevision = (rev: any) => {
     setDescription(rev.content);
     setActiveRevisionId(rev.id);
-    setMessage({ type: 'success', text: 'Revision loaded. Make your changes and resubmit.' });
+    setMediaPreview(rev.media_url);
+    
+    // Restore platforms
+    if (rev.platform) {
+      const pList = rev.platform.split(', ');
+      setPlatforms({
+        facebook: pList.includes('facebook'),
+        instagram: pList.includes('instagram'),
+        linkedin: pList.includes('linkedin'),
+        twitter: pList.includes('twitter')
+      });
+    }
+
+    setMessage({ type: 'success', text: 'Revision loaded. Modify your content, media, or settings and resubmit.' });
+    // Scroll to composer
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,7 +240,7 @@ export default function PublishPage() {
   };
 
   const handleSubmitIntent = async () => {
-    if (!description || !media) {
+    if (!description || (!media && !mediaPreview)) {
       setMessage({ type: 'error', text: 'Media and Description are required to submit.' });
       return;
     }
@@ -206,23 +257,29 @@ export default function PublishPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // 1. Upload media to Supabase Storage
-      const fileExt = media.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
+      // 1. Handle Media
+      let publicUrl = mediaPreview;
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('media')
-        .upload(filePath, media);
+      if (media) {
+        const fileExt = media.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
 
-      if (uploadError) throw uploadError;
+        const { error: uploadError } = await supabase.storage
+          .from('media')
+          .upload(filePath, media);
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('media')
-        .getPublicUrl(filePath);
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl: newUrl } } = supabase.storage
+          .from('media')
+          .getPublicUrl(filePath);
+        
+        publicUrl = newUrl;
+      }
 
       // 2. Insert or Update the intent
-      const isAdmin = userRole === 'ADMIN';
+      const isAdmin = userRole?.toUpperCase() === 'ADMIN';
       const intentData = {
         workspace_id: (await supabase.from('workspace_members').select('workspace_id').eq('user_id', user.id).single()).data?.workspace_id,
         creator_id: user.id,
@@ -260,9 +317,23 @@ export default function PublishPage() {
           ? 'Post successfully pre-approved and scheduled!' 
           : 'Post successfully submitted to Admin for approval!' 
       });
+      // 3. Optimistic UI Update: Remove from revisions list immediately
+      if (activeRevisionId) {
+        setRevisions(prev => prev.filter(r => r.id !== activeRevisionId));
+      }
+
       // Reset form
-      setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null); setSuggestedTimes([]); setActiveRevisionId(null);
-      fetchUserData(); // Refresh lists
+      setTopic(""); 
+      setDescription(""); 
+      setMedia(null); 
+      setMediaPreview(null); 
+      setSuggestedTimes([]); 
+      setActiveRevisionId(null);
+      setPlatforms({ facebook: true, instagram: false, linkedin: false, twitter: false });
+      setCustomTime("");
+      setSelectedTime("immediate");
+
+      fetchUserData(); // Refresh lists in background
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     }
@@ -270,427 +341,407 @@ export default function PublishPage() {
     setSubmitting(false);
   };
 
-  const handleAdminAction = async (postId: string, action: 'APPROVED' | 'REJECTED' | 'PENDING_MANAGER') => {
+  const handleGovernance = async (id: string, newStatus: string) => {
+    const feedbackText = prompt(`Enter feedback for this ${newStatus === 'RETURNED' ? 'return' : 'transition'}:`, 
+      newStatus === 'RETURNED' ? 'Please adjust the description and media as requested.' : 'Checked. Passing to Manager for final verification.');
+    
+    if (newStatus === 'RETURNED' && !feedbackText) {
+      setMessage({ type: 'error', text: 'Feedback is mandatory when returning a post to the creator.' });
+      return;
+    }
+
     try {
-      const { error } = await supabase
-        .from('publish_intents')
-        .update({ 
-          status: action,
-          feedback: action === 'PENDING_MANAGER' ? reviewComment : null
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Authentication required for governance.");
+
+      const response = await fetch('http://localhost:5000/api/v1/governance/transition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          intentId: id,
+          newStatus: newStatus,
+          feedback: feedbackText || null,
+          userId: user.id,
+          userRole: userRole
         })
-        .eq('id', postId);
+      });
 
-      if (error) throw error;
-      setReviewComment("");
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Transition failed');
+
+      setMessage({ 
+        type: 'success', 
+        text: newStatus === 'APPROVED' 
+          ? 'Post APPROVED. Execution engine scheduled for publication.' 
+          : `Post status updated to ${newStatus.replace('_', ' ')}.` 
+      });
       fetchUserData();
-      setMessage({ type: 'success', text: `Post ${action.replace('_', ' ')} successfully.` });
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     }
+    setLoading(false);
   };
 
-  const handleManagerAction = async (postId: string, action: 'NEEDS_REVISION' | 'PENDING_ADMIN') => {
-    try {
-      const { error } = await supabase
-        .from('publish_intents')
-        .update({ status: action })
-        .eq('id', postId);
-
-      if (error) throw error;
-      fetchUserData();
-      setMessage({ type: 'success', text: action === 'NEEDS_REVISION' ? 'Post sent back to creator for changes.' : 'Post resubmitted to Admin.' });
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message });
-    }
-  };
+  // Block render until both loading is done AND role is determined.
+  // This prevents the flash where null role briefly shows wrong UI.
+  if (loading || userRole === null) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-zinc-500 space-y-4">
+        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm font-bold uppercase tracking-widest animate-pulse">Syncing Workspace...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto pb-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Social Publisher</h1>
-        <p className="text-zinc-400 text-sm">Draft, optimize with AI, and submit content for governance approval.</p>
+
+
+
+
+      {/* Header section with role indicator */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black tracking-tighter text-white uppercase">
+            {activeTab === 'publisher' ? 'Social Publisher' : 'Approval Queue'}
+          </h1>
+          <p className="text-zinc-500 text-xs font-medium tracking-wide">
+            {activeTab === 'publisher' 
+              ? 'Draft, optimize with AI, and submit content for governance approval.' 
+              : 'Review and manage outgoing content requests for quality assurance.'}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full animate-pulse ${userRole?.toUpperCase() === 'ADMIN' ? 'bg-rose-500' : userRole?.toUpperCase() === 'MANAGER' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+            <span className="text-[10px] font-black text-white uppercase tracking-widest">{userRole || 'Guest'}</span>
+          </div>
+        </div>
       </div>
 
-      {revisions.length > 0 && userRole === 'CREATOR' && (
-        <div className="mb-8 space-y-4">
-          <h3 className="text-sm font-bold text-amber-500 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            Action Required: Revisions Requested
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {revisions.map(rev => (
-              <div key={rev.id} className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex flex-col justify-between">
-                <div>
-                  <p className="text-xs text-zinc-400 mb-2 line-clamp-2 italic">"{rev.feedback || 'No feedback provided'}"</p>
-                  <p className="text-[10px] text-zinc-500 uppercase font-bold">Original: {rev.content.substring(0, 30)}...</p>
-                </div>
-                <button 
-                  onClick={() => loadRevision(rev)}
-                  className="mt-4 w-full py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 text-[10px] font-bold rounded-lg transition-colors uppercase tracking-wider"
-                >
-                  Edit & Resubmit
-                </button>
-              </div>
-            ))}
+      {/* Global Message for all roles */}
+      {message && (
+        <div className={`mb-8 p-4 text-sm rounded-xl border ${message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+          <div className="flex items-center gap-2">
+            {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+            <span className="font-medium">{message.text}</span>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Content Creation */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Account Selection */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Globe className="w-5 h-5 text-indigo-400" />
-                Target Accounts
+      {/* Tab Content: Approval Queue */}
+      {activeTab === 'queue' && (userRole?.toUpperCase() === 'ADMIN' || userRole?.toUpperCase() === 'MANAGER') && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center justify-between mb-8">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                <CheckCircle2 className="w-6 h-6 text-indigo-400" />
+                Review Pipeline
               </h2>
-              <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-1 rounded font-bold uppercase tracking-wider">Multi-Select Enabled</span>
+              <p className="text-xs text-zinc-500">Manage incoming content requests and enforce workspace quality standards.</p>
             </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(platforms).map(([key, active]) => {
-                const Icon = key === 'facebook' ? FacebookIcon : key === 'instagram' ? InstagramIcon : key === 'linkedin' ? LinkedinIcon : TwitterIcon;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setPlatforms({...platforms, [key]: !active})}
-                    className={`flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all duration-300 relative group ${
-                      active 
-                        ? 'bg-indigo-500/10 border-indigo-500 shadow-lg shadow-indigo-500/10' 
-                        : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-900'
-                    }`}
-                  >
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                      active 
-                        ? key === 'facebook' ? 'bg-blue-600 text-white' : key === 'instagram' ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 text-white' : key === 'linkedin' ? 'bg-blue-700 text-white' : 'bg-white text-black'
-                        : 'bg-zinc-800 text-zinc-600 group-hover:text-zinc-400'
-                    }`}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : ''}`}>{key}</span>
-                    {active && (
-                      <div className="absolute top-2 right-2">
-                        <CheckCircle2 className="w-4 h-4 text-indigo-400 fill-indigo-400/20" />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-              
-              <button className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-dashed border-zinc-800 text-zinc-600 hover:border-indigo-500/50 hover:text-indigo-400 transition-all group">
-                <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center group-hover:bg-indigo-500/10">
-                  <span className="text-xl">+</span>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-tighter">Add New</span>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={fetchUserData}
+                className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-all"
+                title="Refresh Queue"
+              >
+                <RefreshCcw className="w-4 h-4" />
               </button>
+              <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-3 py-1.5 rounded-lg font-black uppercase tracking-wider border border-indigo-500/20">
+                {userRole} Mode
+              </span>
             </div>
           </div>
-
-          {/* Media Upload */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Media Assets</h2>
-            
-            {!mediaPreview ? (
-              <label className="w-full h-48 border-2 border-dashed border-zinc-800 hover:border-indigo-500 hover:bg-indigo-500/5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors">
-                <div className="flex items-center gap-4 mb-2">
-                  <ImageIcon className="w-6 h-6 text-zinc-500" />
-                  <Video className="w-6 h-6 text-zinc-500" />
-                </div>
-                <span className="text-sm font-medium text-zinc-300">Click to upload Image or Video</span>
-                <span className="text-xs text-zinc-500 mt-1">MP4, JPG, PNG (Max 50MB)</span>
-                <input type="file" className="hidden" accept="image/*,video/*" onChange={handleMediaUpload} />
-              </label>
-            ) : (
-              <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-zinc-800">
-                {media?.type.startsWith('video') ? (
-                  <video src={mediaPreview} controls className="max-h-full max-w-full" />
-                ) : (
-                  <img src={mediaPreview} className="object-contain max-h-full" />
-                )}
-                <button 
-                  onClick={() => { setMedia(null); setMediaPreview(null); }}
-                  className="absolute top-2 right-2 bg-black/70 hover:bg-rose-500 text-white p-1.5 rounded-lg backdrop-blur-md transition-colors"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Main Post Content Composer */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
-            <div className="p-6">
-              <h2 className="text-xl font-bold text-white mb-6">Post Content</h2>
-              
-              <div className="relative bg-zinc-950/50 border border-zinc-800 rounded-2xl focus-within:border-indigo-500/50 transition-all duration-300">
-                <textarea 
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Write your caption here..."
-                  className="w-full bg-transparent p-6 text-white text-base leading-relaxed placeholder:text-zinc-600 outline-none resize-none min-h-[220px]"
-                />
-                
-                <div className="p-4 flex items-center justify-between border-t border-zinc-800/50 bg-zinc-900/30">
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => setShowAIWriter(!showAIWriter)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
-                        showAIWriter ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                      }`}
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      AI Writer (Optional)
-                    </button>
-
-                    {history.length > 0 && (
-                      <div className="flex gap-1 bg-zinc-800/50 p-1 rounded-lg">
-                        <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-2 py-1 text-[10px] text-zinc-500 hover:text-white disabled:opacity-30">Undo</button>
-                        <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-2 py-1 text-[10px] text-zinc-500 hover:text-white disabled:opacity-30">Redo</button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => setUseEmojis(!useEmojis)}
-                      className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${
-                        useEmojis ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-zinc-800 text-zinc-500 border border-transparent'
-                      }`}
-                      title="Toggle Emojis"
-                    >
-                      <span className="text-lg">😊</span>
-                    </button>
-                    <button 
-                      onClick={() => setDescription(prev => prev + " #")}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-500 hover:text-white transition-all"
-                      title="Add Hashtag"
-                    >
-                      <span className="text-lg font-bold">#</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Expandable AI Control Panel */}
-            {showAIWriter && (
-              <div className="bg-zinc-950/80 border-t border-zinc-800 p-8 space-y-8 animate-in slide-in-from-top duration-300">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Post Topic</label>
-                    <input 
-                      type="text" value={topic} onChange={(e) => setTopic(e.target.value)}
-                      placeholder="e.g. New sneaker launch"
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Content Category</label>
-                    <input 
-                      type="text" list="content-types" value={contentType} onChange={(e) => setContentType(e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 text-sm"
-                    />
-                    <datalist id="content-types">
-                      <option value="Entertainment" /><option value="Music" /><option value="Technology" /><option value="Business" />
-                    </datalist>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
-                  <div className="md:col-span-1 space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Length</label>
-                    <div className="flex bg-zinc-900 p-1 rounded-xl border border-zinc-800">
-                      {['short', 'medium', 'long'].map((l) => (
-                        <button key={l} onClick={() => setAiLength(l)} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${aiLength === l ? 'bg-indigo-500 text-white' : 'text-zinc-500 hover:text-white'}`}>{l}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="md:col-span-1 space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Brand Tone</label>
-                    <select value={aiTone} onChange={(e) => setAiTone(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-indigo-500">
-                      <option value="professional">Professional</option>
-                      <option value="casual">Casual</option>
-                      <option value="excited">Excited</option>
-                      <option value="educational">Educational</option>
-                    </select>
-                  </div>
-                  <div className="md:col-span-1">
-                    <button 
-                      onClick={handleGenerateAI} disabled={generating || !topic}
-                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 text-sm flex items-center justify-center gap-2"
-                    >
-                      {generating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                      Generate Magic
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Scheduling & Action */}
-        <div className="lg:col-span-1 space-y-6">
           
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-amber-400" />
-              Scheduling Logic
-            </h2>
-
-            {suggestedTimes.length > 0 ? (
-              <div className="space-y-3 mb-6">
-                <p className="text-xs text-zinc-400 mb-2">AI Suggested Peak Times for {contentType}:</p>
-                {suggestedTimes.map((slot, i) => (
-                  <label key={i} className={`flex items-center p-3 rounded-xl border cursor-pointer transition-colors ${selectedTime === slot.time ? 'bg-indigo-500/10 border-indigo-500' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
-                    <input 
-                      type="radio" name="schedule" 
-                      checked={selectedTime === slot.time}
-                      onChange={() => setSelectedTime(slot.time)}
-                      className="hidden"
-                    />
-                    <div className="flex-1">
-                      <p className={`text-sm font-bold ${selectedTime === slot.time ? 'text-indigo-400' : 'text-white'}`}>{slot.time}</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">{slot.label}</p>
-                    </div>
-                    {selectedTime === slot.time && <CheckCircle2 className="w-5 h-5 text-indigo-400" />}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <div className="text-xs text-zinc-500 p-4 bg-zinc-950 rounded-xl border border-zinc-800 mb-6 text-center">
-                Generate AI content to see calculated peak time slots.
-              </div>
-            )}
-
-            <label className={`flex items-center p-3 rounded-xl border cursor-pointer transition-colors mb-3 ${selectedTime === 'immediate' ? 'bg-emerald-500/10 border-emerald-500' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
-              <input 
-                type="radio" name="schedule" 
-                checked={selectedTime === 'immediate'}
-                onChange={() => setSelectedTime('immediate')}
-                className="hidden"
-              />
-              <div className="flex-1">
-                <p className={`text-sm font-bold ${selectedTime === 'immediate' ? 'text-emerald-400' : 'text-white'}`}>Post Immediately</p>
-                <p className="text-xs text-zinc-500 mt-0.5">Executes upon manager approval</p>
-              </div>
-              {selectedTime === 'immediate' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
-            </label>
-
-            <div className={`p-3 rounded-xl border transition-colors ${selectedTime === 'custom' ? 'bg-indigo-500/10 border-indigo-500' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
-              <label className="flex items-center cursor-pointer">
-                <input 
-                  type="radio" name="schedule" 
-                  checked={selectedTime === 'custom'}
-                  onChange={() => setSelectedTime('custom')}
-                  className="hidden"
-                />
-                <div className="flex-1">
-                  <p className={`text-sm font-bold ${selectedTime === 'custom' ? 'text-indigo-400' : 'text-white'}`}>Custom Schedule</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">Pick your own specific time</p>
-                </div>
-                {selectedTime === 'custom' && <CheckCircle2 className="w-5 h-5 text-indigo-400" />}
-              </label>
-              
-              {selectedTime === 'custom' && (
-                <div className="mt-3 pt-3 border-t border-zinc-800/50">
-                  <input 
-                    type="datetime-local" 
-                    value={customTime}
-                    onChange={(e) => setCustomTime(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-indigo-500"
-                  />
-                </div>
-              )}
+          {loading ? (
+            <div className="py-24 flex flex-col items-center justify-center space-y-4">
+              <div className="w-12 h-12 border-4 border-indigo-500/10 border-t-indigo-500 rounded-full animate-spin" />
+              <p className="text-sm text-zinc-500 animate-pulse font-medium">Syncing database...</p>
             </div>
-          </div>
-
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-2">Governance</h2>
-            <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
-              All published content must pass through the Approval Queue. Immediate posts will execute the moment a Manager authorizes them.
-            </p>
-
-            {message && (
-              <div className={`mb-4 p-3 text-sm rounded-lg border ${message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
-                {message.text}
-              </div>
-            )}
-
-            <button 
-              onClick={handleSubmitIntent} disabled={submitting || !media || !description}
-              className={`w-full flex items-center justify-center py-3 font-bold rounded-lg transition-colors text-sm disabled:opacity-50 ${
-                userRole === 'ADMIN' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-black hover:bg-zinc-200'
-              }`}
-            >
-              {userRole === 'ADMIN' ? <Globe className="w-4 h-4 mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-              {submitting ? "Processing..." : userRole === 'ADMIN' ? "Publish Directly" : "Submit to Admin"}
-            </button>
-          </div>
-
-          {/* Admin/Manager Review Queue */}
-          {pendingPosts.length > 0 && (userRole === 'ADMIN' || userRole === 'MANAGER') && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-indigo-400" />
-                Review Queue ({pendingPosts.length})
-              </h2>
-              <div className="space-y-4">
-                {pendingPosts.map(post => (
-                  <div key={post.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-xs font-bold text-white">{post.users?.full_name || 'Unknown User'}</p>
-                        <p className="text-[10px] text-zinc-500">{new Date(post.created_at).toLocaleString()}</p>
-                      </div>
-                      <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded font-bold uppercase tracking-wider">{post.platform}</span>
+          ) : pendingPosts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {pendingPosts.map(post => (
+              <div key={post.id} className="group bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden flex flex-col hover:border-indigo-500/50 transition-all duration-500 shadow-2xl hover:shadow-indigo-500/10 relative">
+                {/* Header: User Info */}
+                <div className="p-5 bg-zinc-900/50 border-b border-zinc-800 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-base shrink-0 shadow-xl border border-white/10">
+                    {(post.creator?.full_name || post.users?.full_name || '??').substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-white truncate leading-none mb-1">{post.creator?.full_name || post.users?.full_name || 'Unknown User'}</p>
+                    <p className="text-[11px] text-zinc-500 truncate">{post.creator?.email || post.users?.email || 'No email provided'}</p>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    {post.platform.split(', ').map((p: string) => {
+                      const Icon = p.trim().toLowerCase() === 'facebook' ? FacebookIcon : p.trim().toLowerCase() === 'instagram' ? InstagramIcon : p.trim().toLowerCase() === 'linkedin' ? LinkedinIcon : TwitterIcon;
+                      return (
+                        <div key={p} className="w-7 h-7 bg-zinc-800 rounded-lg flex items-center justify-center border border-zinc-700/50">
+                          <Icon className="w-3.5 h-3.5 text-zinc-300" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                {/* Content Section */}
+                <div className="p-6 flex-1 space-y-6">
+                  {post.media_url && (
+                    <div className="aspect-[16/10] rounded-2xl overflow-hidden border border-zinc-800 bg-black flex items-center justify-center relative group/media shadow-inner">
+                      <img src={post.media_url} className="object-contain max-h-full transition-transform duration-700 group-hover/media:scale-110" />
                     </div>
+                  )}
+                  
+                  <div className="space-y-4">
+                    <p className="text-sm text-zinc-300 line-clamp-4 leading-relaxed italic font-medium">"{post.content}"</p>
                     
-                    <p className="text-xs text-zinc-300 line-clamp-3 italic">"{post.content}"</p>
-                    
-                    {post.media_url && (
-                      <div className="aspect-video rounded-lg overflow-hidden border border-zinc-800 bg-black flex items-center justify-center">
-                        <img src={post.media_url} className="object-contain max-h-full" />
+                    <div className="pt-4 grid grid-cols-2 gap-6 border-t border-zinc-800/50">
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-1">Creation Date</p>
+                        <p className="text-xs text-zinc-400 font-bold">{new Date(post.created_at).toLocaleDateString()} {new Date(post.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                       </div>
-                    )}
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-indigo-500 tracking-widest mb-1">Execution</p>
+                        <p className="text-xs text-indigo-400 font-bold">
+                          {post.scheduled_for === 'immediate' 
+                            ? 'Immediate' 
+                            : `${new Date(post.scheduled_for).toLocaleDateString()} ${new Date(post.scheduled_for).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                    {userRole === 'ADMIN' ? (
-                      <div className="space-y-3">
-                        <textarea 
-                          placeholder="Add a comment if requesting changes..."
-                          value={reviewComment}
-                          onChange={(e) => setReviewComment(e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-xs text-white outline-none focus:border-indigo-500"
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <button onClick={() => handleAdminAction(post.id, 'APPROVED')} className="py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold rounded-lg uppercase tracking-wider">Approve</button>
-                          <button onClick={() => handleAdminAction(post.id, 'REJECTED')} className="py-2 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold rounded-lg uppercase tracking-wider">Reject</button>
-                        </div>
-                        <button onClick={() => handleAdminAction(post.id, 'PENDING_MANAGER')} className="w-full py-2 border border-amber-500/30 hover:bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-lg uppercase tracking-wider">Request Changes</button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-                          <p className="text-[10px] text-amber-500 font-bold uppercase mb-1">Admin Feedback:</p>
-                          <p className="text-[10px] text-zinc-400 italic">"{post.feedback || 'No comments provided'}"</p>
-                        </div>
-                        <button onClick={() => handleManagerAction(post.id, 'NEEDS_REVISION')} className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg uppercase tracking-wider flex items-center justify-center gap-2">
-                          <RefreshCcw className="w-3 h-3" />
-                          Send to Creator
+                {/* Footer: Actions */}
+                <div className="p-6 bg-zinc-900/30 border-t border-zinc-800 space-y-4">
+                  {userRole?.toUpperCase() === 'ADMIN' ? (
+                    <div className="flex flex-col gap-2">
+                      <button 
+                        onClick={() => handleGovernance(post.id, 'APPROVED')}
+                        className="w-full py-2 bg-emerald-500 text-black text-[10px] font-black rounded-xl hover:bg-emerald-400 transition-all uppercase tracking-widest"
+                      >
+                        Approve Now
+                      </button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button 
+                          onClick={() => handleGovernance(post.id, 'PENDING_MANAGER')}
+                          className="py-2 bg-indigo-500 text-white text-[10px] font-black rounded-xl hover:bg-indigo-400 transition-all uppercase tracking-widest"
+                        >
+                          Pass to Manager
+                        </button>
+                        <button 
+                          onClick={() => handleGovernance(post.id, 'REJECTED')}
+                          className="py-2 bg-zinc-800 text-zinc-400 text-[10px] font-black rounded-xl hover:bg-red-500 hover:text-white transition-all uppercase tracking-widest"
+                        >
+                          Reject
                         </button>
                       </div>
-                    )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl mb-4">
+                        <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest mb-1">Admin Instructions</p>
+                        <p className="text-[11px] text-zinc-400 italic font-medium">"{post.feedback || 'Review and pass to Admin.'}"</p>
+                      </div>
+                      
+                      {userRole?.toUpperCase() === 'MANAGER' && (
+                        <button 
+                          onClick={() => handleGovernance(post.id, 'RETURNED')}
+                          className="w-full py-3 bg-amber-500 text-black text-[10px] font-black rounded-xl hover:bg-amber-400 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+                        >
+                          <RefreshCcw className="w-3 h-3" />
+                          Return to Creator
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-32 flex flex-col items-center justify-center text-center">
+              <div className="w-20 h-20 bg-zinc-950 rounded-[2rem] flex items-center justify-center mb-6 border border-zinc-800 shadow-inner">
+                <CheckCircle2 className="w-10 h-10 text-zinc-800" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">Queue is Empty</h3>
+              <p className="text-sm text-zinc-500 max-w-[280px]">No pending posts requiring your review at this moment.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab Content: Social Publisher */}
+      {activeTab === 'publisher' && (
+        <div className={`grid grid-cols-1 ${userRole?.toUpperCase() === 'ADMIN' ? '' : 'lg:grid-cols-3'} gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500`}>
+          
+          {/* Left Column: Composer (Shown for Creators & Managers) */}
+          {userRole?.toUpperCase() !== 'ADMIN' && (
+            <div className="lg:col-span-2 space-y-6">
+              {/* Account Selection */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-indigo-400" />
+                    Target Accounts
+                  </h2>
+                  <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-1 rounded font-bold uppercase tracking-wider">Multi-Select Enabled</span>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {Object.entries(platforms).map(([key, active]) => {
+                    const Icon = key === 'facebook' ? FacebookIcon : key === 'instagram' ? InstagramIcon : key === 'linkedin' ? LinkedinIcon : TwitterIcon;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setPlatforms({...platforms, [key]: !active})}
+                        className={`flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all duration-300 relative group ${
+                          active 
+                            ? 'bg-indigo-500/10 border-indigo-500 shadow-lg shadow-indigo-500/10' 
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-900'
+                        }`}
+                      >
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                          active 
+                            ? key === 'facebook' ? 'bg-blue-600 text-white' : key === 'instagram' ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 text-white' : key === 'linkedin' ? 'bg-blue-700 text-white' : 'bg-white text-black'
+                            : 'bg-zinc-800 text-zinc-600 group-hover:text-zinc-400'
+                        }`}>
+                          <Icon className="w-6 h-6" />
+                        </div>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : ''}`}>{key}</span>
+                        {active && (
+                          <div className="absolute top-2 right-2">
+                            <CheckCircle2 className="w-4 h-4 text-indigo-400 fill-indigo-400/20" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Media Upload */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                <h2 className="text-lg font-bold text-white mb-4">Media Assets</h2>
+                {!mediaPreview ? (
+                  <label className="w-full h-48 border-2 border-dashed border-zinc-800 hover:border-indigo-500 hover:bg-indigo-500/5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors">
+                    <div className="flex items-center gap-4 mb-2">
+                      <ImageIcon className="w-6 h-6 text-zinc-500" />
+                      <Video className="w-6 h-6 text-zinc-500" />
+                    </div>
+                    <span className="text-sm font-medium text-zinc-300">Click to upload Image or Video</span>
+                    <input type="file" className="hidden" accept="image/*,video/*" onChange={handleMediaUpload} />
+                  </label>
+                ) : (
+                  <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-zinc-800">
+                    {media?.type.startsWith('video') ? <video src={mediaPreview} controls className="max-h-full max-w-full" /> : <img src={mediaPreview} className="object-contain max-h-full" />}
+                    <button onClick={() => { setMedia(null); setMediaPreview(null); }} className="absolute top-2 right-2 bg-black/70 hover:bg-rose-500 text-white p-1.5 rounded-lg backdrop-blur-md transition-colors"><XCircle className="w-4 h-4" /></button>
                   </div>
-                ))}
+                )}
+              </div>
+
+              {/* Content Composer */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
+                <div className="p-6">
+                  <h2 className="text-xl font-bold text-white mb-6">Post Content</h2>
+                  <div className="relative bg-zinc-950/50 border border-zinc-800 rounded-2xl focus-within:border-indigo-500/50 transition-all duration-300">
+                    <textarea 
+                      value={description} onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Write your caption here..."
+                      className="w-full bg-transparent p-6 text-white text-base leading-relaxed placeholder:text-zinc-600 outline-none resize-none min-h-[220px]"
+                    />
+                    <div className="p-4 flex items-center justify-between border-t border-zinc-800/50 bg-zinc-900/30">
+                      <button onClick={() => setShowAIWriter(!showAIWriter)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${showAIWriter ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        AI Writer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {showAIWriter && (
+                  <div className="bg-zinc-950/80 border-t border-zinc-800 p-8 space-y-6 animate-in slide-in-from-top duration-300">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Topic</label>
+                        <input type="text" value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Tone</label>
+                        <select value={aiTone} onChange={(e) => setAiTone(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm">
+                          <option value="professional">Professional</option>
+                          <option value="casual">Casual</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button onClick={handleGenerateAI} disabled={generating || !topic} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 flex items-center justify-center gap-2">
+                      {generating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                      Generate content
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
+          {/* Right Column: Scheduling (Shown for Creators & Managers) */}
+          {userRole?.toUpperCase() !== 'ADMIN' && (
+            <div className="lg:col-span-1">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sticky top-8 shadow-2xl">
+                <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-amber-400" />
+                  Scheduling
+                </h2>
+
+                <div className="space-y-4">
+                  <label className={`flex items-center p-4 rounded-2xl border cursor-pointer transition-colors ${selectedTime === 'immediate' ? 'bg-emerald-500/10 border-emerald-500' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
+                    <input type="radio" name="schedule" checked={selectedTime === 'immediate'} onChange={() => setSelectedTime('immediate')} className="hidden" />
+                    <div className="flex-1"><p className="text-sm font-bold text-white">Post Immediately</p></div>
+                    {selectedTime === 'immediate' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
+                  </label>
+
+                  <div className={`p-4 rounded-2xl border transition-colors ${selectedTime === 'custom' ? 'bg-indigo-500/10 border-indigo-500' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
+                    <label className="flex items-center cursor-pointer">
+                      <input type="radio" name="schedule" checked={selectedTime === 'custom'} onChange={() => setSelectedTime('custom')} className="hidden" />
+                      <div className="flex-1"><p className="text-sm font-bold text-white">Custom Time</p></div>
+                      {selectedTime === 'custom' && <CheckCircle2 className="w-5 h-5 text-indigo-400" />}
+                    </label>
+                    {selectedTime === 'custom' && <input type="datetime-local" value={customTime} onChange={(e) => setCustomTime(e.target.value)} className="mt-4 w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-indigo-500" />}
+                  </div>
+
+                  {/* AI Suggested Times */}
+                  {suggestedTimes.length > 0 && (
+                    <div className="space-y-3 animate-in slide-in-from-top-2 duration-500">
+                      <div className="flex items-center gap-2 px-1">
+                        <Sparkles className="w-3 h-3 text-indigo-400" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">AI Predicted Peak Times</span>
+                      </div>
+                      {suggestedTimes.map((st, i) => (
+                        <label key={i} className={`flex flex-col p-3 rounded-2xl border cursor-pointer transition-all ${selectedTime === st.time ? 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
+                          <input type="radio" name="schedule" checked={selectedTime === st.time} onChange={() => setSelectedTime(st.time)} className="hidden" />
+                          <p className={`text-[11px] font-black ${selectedTime === st.time ? 'text-white' : 'text-zinc-300'}`}>{st.label}</p>
+                          <p className={`text-[10px] font-medium ${selectedTime === st.time ? 'text-indigo-100' : 'text-zinc-500'}`}>
+                            {new Date(st.time).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button 
+                  onClick={handleSubmitIntent} disabled={submitting || !description || !mediaPreview}
+                  className="w-full mt-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl uppercase tracking-widest transition-all shadow-xl shadow-indigo-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+                >
+                  {submitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
+                  {activeRevisionId ? 'Resubmit' : 'Submit'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

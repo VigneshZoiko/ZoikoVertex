@@ -4,19 +4,40 @@ import { useState } from "react";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid corporate email format").endsWith("@zoikogroup.com", "Must use a @zoikogroup.com email"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [validationErrors, setValidationErrors] = useState<{email?: string, password?: string}>({});
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setValidationErrors({});
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // Zod Validation
+    const result = loginSchema.safeParse({ email, password });
+    if (!result.success) {
+      const formatted = result.error.format();
+      setValidationErrors({
+        email: formatted.email?._errors[0],
+        password: formatted.password?._errors[0],
+      });
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -58,9 +79,10 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className={`w-full bg-black border ${validationErrors.email ? 'border-rose-500' : 'border-zinc-800'} rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors`}
               placeholder="name@zoikogroup.com"
             />
+            {validationErrors.email && <p className="text-[10px] text-rose-500 mt-1 font-bold uppercase tracking-wider">{validationErrors.email}</p>}
           </div>
 
           <div>
@@ -71,7 +93,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-black border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors pr-10"
+                className={`w-full bg-black border ${validationErrors.password ? 'border-rose-500' : 'border-zinc-800'} rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors pr-10`}
                 placeholder="••••••••"
               />
               <button
@@ -82,6 +104,7 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            {validationErrors.password && <p className="text-[10px] text-rose-500 mt-1 font-bold uppercase tracking-wider">{validationErrors.password}</p>}
           </div>
 
           <button 

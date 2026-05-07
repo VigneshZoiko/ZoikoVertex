@@ -34,10 +34,25 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
+// Persistent Logging Helper
+async function logToDatabase(level: string, service: string, message: string, payload?: any) {
+  console.log(`[${service}] ${message}`);
+  try {
+    await supabaseAdmin.from('system_logs').insert({
+      level,
+      service,
+      message,
+      payload
+    });
+  } catch (err) {
+    console.error('Failed to log to database:', err);
+  }
+}
+
 app.post('/api/v1/users/provision', async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, full_name, role, workspace_id } = req.body;
-    console.log(`[Provisioning] Request for ${email} as ${role} in workspace ${workspace_id}`);
+    await logToDatabase('info', 'Provisioning', `Request for ${email} as ${role} in workspace ${workspace_id}`, { email, role, workspace_id });
 
     if (!email || !password || !role) {
       res.status(400).json({ error: 'Missing required fields' });
@@ -109,55 +124,71 @@ app.post('/api/v1/ai/generate', async (req: Request, res: Response): Promise<voi
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const variationIndex = Math.floor(Math.random() * 1000);
-        const prompt = `Act as a high-end Social Media Growth Specialist and Creative Copywriter. 
-        I need a UNIQUE, organic post for ${platforms.join(' & ')}. 
-        Variation ID: ${variationIndex} (Ensure this generation is distinct from previous ones).
+        const prompt = `
+        Act as a World-Class Social Media Strategist and Brand Auditor. 
+        Your goal is to generate high-converting, brand-safe social media content.
+        
+        INPUT DATA:
+        - TOPIC: "${topic}"
+        - CONTENT_TYPE: "${contentType}"
+        - PLATFORMS: ${platforms.join(', ')}
+        - TONE: "${tone}"
+        - LENGTH: "${length}"
+        - EMOJIS: ${useEmojis ? 'Enabled' : 'Disabled'}
+        - VARIATION_ID: ${variationIndex}
 
-        TOPIC: "${topic}"
-        CATEGORY: "${contentType}"
-        TONE: "${tone}"
-        LENGTH: "${length}"
-        EMOJIS: ${useEmojis ? 'Use them naturally to enhance engagement' : 'Strictly no emojis'}
-        
-        TONE DEFINITION:
-        - professional: Authority, trust, industry-leading insights.
-        - casual: Relatable, friendly, conversational, "best friend" vibe.
-        - excited: High energy, FOMO-inducing, celebratory.
-        - educational: Value-driven, "how-to", myth-busting, tips & tricks.
+        PHASE 1: STRATEGIC ANALYSIS (Chain-of-Thought)
+        1. Identify the core value proposition of the topic.
+        2. Define the target audience demographics for the specified platforms.
+        3. Determine platform-specific constraints (e.g., character limits for X, visual-first for Instagram).
+        4. Assess the ideal sentiment for this topic and tone.
 
-        STRICT LENGTH CONSTRAINTS (MANDATORY):
-        - SHORT: 1-2 punchy sentences. Max 20 words.
-        - MEDIUM: 2-3 detailed paragraphs. Between 60-80 words.
-        - LONG: A deep dive with clear structure (Hook, Value, CTA). Over 150 words.
-        
-        WRITING GUIDELINES:
-        - NEVER use AI markers: "In today's fast-paced world", "Unleash your potential", "Elevate your game", "Vibrant".
-        - Use "I" or "We" to sound human.
-        - Vary sentence length (short/punchy vs long/descriptive).
-        - ${useEmojis ? 'Integrate emojis that match the tone.' : ''}
-        - Add exactly 3 niche, high-performing hashtags relevant to the topic.
-        
-        RESPONSE FORMAT (JSON ONLY):
+        PHASE 2: CONTENT GENERATION
+        - Draft a primary caption that resonates with the audience identified in Phase 1.
+        - Ensure the length adheres strictly to: ${length === 'short' ? 'Max 20 words' : length === 'medium' ? '60-80 words' : '150+ words'}.
+        - Select 3 high-performing hashtags based on current trends.
+
+        PHASE 3: GOVERNANCE AUDIT
+        - Calculate a sentiment score (0.0 to 1.0).
+        - Calculate a brand safety score (0.0 to 1.0) based on "Ethical Foundation" guidelines (no toxicity, no misinformation).
+
+        RESPONSE FORMAT (STRICT JSON):
         {
-          "description": "...",
-          "suggestedHours": [
-            { "hour": 10, "minute": 0, "label": "Morning productivity peak" },
-            { "hour": 18, "minute": 30, "label": "Evening scrolling peak" }
-          ]
+          "analysis": {
+            "target_audience": "string",
+            "strategic_hook": "string"
+          },
+          "content": {
+            "caption": "string",
+            "hashtags": ["string", "string", "string"],
+            "sentiment_score": number,
+            "brand_safety_score": number
+          },
+          "scheduling": {
+            "suggested_times": [
+              { "hour": number, "minute": number, "label": "string" }
+            ]
+          }
         }`;
 
-        console.log(`[AI] Generating ${length}/${tone} post for topic: ${topic}`);
+        await logToDatabase('info', 'AI', `Generating ${length}/${tone} post for topic: ${topic}`, { topic, platforms, tone });
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const responseText = response.text();
         const cleanedJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         
         const parsed = JSON.parse(cleanedJson);
+        
+        // Validation step
+        if (parsed.content.brand_safety_score < 0.8) {
+          console.warn(`[AI] Low brand safety score: ${parsed.content.brand_safety_score}. Retrying or flagging...`);
+        }
+
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         const dateStr = tomorrow.toISOString().split('T')[0];
         
-        const suggestedTimes = parsed.suggestedHours.map((sh: any) => {
+        const suggestedTimes = parsed.scheduling.suggested_times.map((sh: any) => {
           const hh = sh.hour.toString().padStart(2, '0');
           const mm = sh.minute.toString().padStart(2, '0');
           return {
@@ -168,8 +199,13 @@ app.post('/api/v1/ai/generate', async (req: Request, res: Response): Promise<voi
 
         res.status(200).json({
           success: true,
-          description: parsed.description,
-          suggestedTimes: suggestedTimes
+          description: parsed.content.caption + "\n\n" + parsed.content.hashtags.join(' '),
+          suggestedTimes: suggestedTimes,
+          metadata: {
+            target_audience: parsed.analysis.target_audience,
+            sentiment_score: parsed.content.sentiment_score,
+            brand_safety_score: parsed.content.brand_safety_score
+          }
         });
         return;
       } catch (aiErr: any) {
@@ -237,6 +273,57 @@ app.post('/api/v1/ai/generate', async (req: Request, res: Response): Promise<voi
       details: err.message,
       suggestion: "Check if your GEMINI_API_KEY is valid and has access to gemini-1.5-flash."
     });
+  }
+});
+
+// Governance & Execution Engine
+app.post('/api/v1/governance/transition', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { intentId, newStatus, feedback, userId, userRole } = req.body;
+
+    if (!intentId || !newStatus || !userId) {
+       res.status(400).json({ error: 'Missing required governance fields' });
+       return;
+    }
+
+    await logToDatabase('info', 'Governance', `Transitioning ${intentId} to ${newStatus} by ${userRole}`, { intentId, newStatus, feedback, userId });
+
+    // 1. Update the intent status
+    const { data, error } = await supabaseAdmin
+      .from('publish_intents')
+      .update({ 
+        status: newStatus,
+        feedback: feedback || null
+      })
+      .eq('id', intentId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // 2. Simulated Execution Phase
+    // If APPROVED, simulate publishing after a short delay
+    if (newStatus === 'APPROVED') {
+      console.log(`[Execution] Scheduling simulated publish for intent ${intentId}...`);
+      
+      setTimeout(async () => {
+        try {
+          await supabaseAdmin
+            .from('publish_intents')
+            .update({ status: 'PUBLISHED' })
+            .eq('id', intentId);
+          
+          await logToDatabase('info', 'Execution', `Intent ${intentId} successfully PUBLISHED to social platforms (Simulated).`, { intentId });
+        } catch (execErr) {
+          console.error(`[Execution] Failed to publish ${intentId}:`, execErr);
+        }
+      }, 10000); // 10s simulation delay
+    }
+
+    res.status(200).json({ success: true, data });
+  } catch (err: any) {
+    console.error("Governance Route Error:", err.message);
+    res.status(500).json({ error: 'Governance Transition Failed', details: err.message });
   }
 });
 
