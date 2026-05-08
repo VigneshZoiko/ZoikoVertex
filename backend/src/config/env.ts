@@ -16,6 +16,7 @@ const envSchema = z.object({
   META_REDIRECT_URI: z.string().optional(),
   LINKEDIN_CLIENT_ID: z.string().optional(),
   LINKEDIN_CLIENT_SECRET: z.string().optional(),
+  REDIS_URL: z.string().optional(),
 });
 
 const result = envSchema.safeParse(process.env);
