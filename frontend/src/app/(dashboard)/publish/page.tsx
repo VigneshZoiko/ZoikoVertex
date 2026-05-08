@@ -313,35 +313,30 @@ function PublishPageInner() {
         feedback: null
       };
 
-      const { data: intentRecord, error } = activeRevisionId 
+      const { data: savedIntent, error } = activeRevisionId 
         ? await supabase.from('publish_intents').update(intentData).eq('id', activeRevisionId).select().single()
         : await supabase.from('publish_intents').insert(intentData).select().single();
 
       if (error) throw error;
 
-      // Option B: Admin Override - Push directly to the new Scheduler Service
-      if (isAdmin) {
-        const scheduleResponse = await fetch('/api/v1/scheduler/posts', {
+      // If Admin published directly, trigger the backend execution engine immediately
+      if (isAdmin && savedIntent) {
+        console.log("[PUBLISHER] Admin direct publish detected. Triggering backend execution...");
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/api/v1/governance/transition`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            content: intentData.content,
-            mediaUrl: publicUrl || undefined,
-            platform: intentData.platform,
-            scheduledTime: intentData.scheduled_for,
-            campaignId: intentRecord?.campaign_id // Pass campaign if exists
+            intentId: savedIntent.id,
+            newStatus: 'APPROVED',
+            userId: user.id,
+            userRole: userRole
           })
-        });
-        
-        if (!scheduleResponse.ok) {
-           console.error('Scheduler API Error', await scheduleResponse.text());
-           throw new Error('Failed to submit post to the scheduler queue');
-        }
+        }).catch(err => console.error("[PUBLISHER] Failed to trigger execution:", err));
       }
 
       setMessage({
         type: 'success',
-        text: isAdmin ? 'Post successfully pre-approved and scheduled!' : 'Post successfully submitted for approval!'
+        text: isAdmin ? 'Post successfully published to selected accounts!' : 'Post successfully submitted for approval!'
       });
       
       if (activeRevisionId) setRevisions(prev => prev.filter(r => r.id !== activeRevisionId));
