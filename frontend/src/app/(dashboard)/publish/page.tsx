@@ -212,14 +212,62 @@ function PublishPageInner() {
         setMessage({ type: 'error', text: data.error || 'AI Generation Failed' });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Backend AI connection failed.' });
+      setMessage({ type: 'error', text: 'AI generation failed. Please check your topic and try again.' });
     }
     setGenerating(false);
   };
 
-  const [suggestedTimes, setSuggestedTimes] = useState<{time: string, label: string}[]>([]);
+  const [suggestedTimes, setSuggestedTimes] = useState<{time: string, label: string, reasoning?: string, confidence_score?: number}[]>([]);
   const [selectedTime, setSelectedTime] = useState<string>('immediate');
   const [customTime, setCustomTime] = useState<string>("");
+  
+  // Magic Schedule State
+  const [audienceRegion, setAudienceRegion] = useState("Global");
+  const [audienceAgeGroup, setAudienceAgeGroup] = useState("All Ages");
+  const [isFetchingRecommendations, setIsFetchingRecommendations] = useState(false);
+
+  const handleMagicSchedule = async () => {
+    if (!topic) {
+      setMessage({ type: 'error', text: 'Please enter a Topic so the AI knows your niche!' });
+      return;
+    }
+    const platforms = getSelectedPlatforms();
+    if (platforms.length === 0) {
+      setMessage({ type: 'error', text: 'Please select at least one platform.' });
+      return;
+    }
+
+    setIsFetchingRecommendations(true);
+    try {
+      const response = await fetch('/api/v1/scheduler/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform: platforms[0], // Ask for the first platform as primary
+          niche: topic,
+          audienceRegion,
+          audienceAgeGroup
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.recommendations) {
+        const today = new Date().toISOString().split('T')[0];
+        const formattedSlots = data.recommendations.map((rec: any) => ({
+          time: `${today}T${rec.best_start_time}`, // Combining today's date with the recommended time slot
+          label: `${rec.best_start_time} - ${rec.best_end_time} (Confidence: ${Math.round(rec.confidence_score * 100)}%)`,
+          reasoning: rec.reasoning,
+          confidence_score: rec.confidence_score
+        }));
+        setSuggestedTimes(formattedSlots);
+        setMessage({ type: 'success', text: 'AI analyzed demographics and generated peak time slots!' });
+      } else {
+        setMessage({ type: 'error', text: data.error || 'AI Scheduling failed' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Could not fetch scheduling recommendations. Try again later.' });
+    }
+    setIsFetchingRecommendations(false);
+  };
 
   const handleSubmitIntent = async () => {
     const activeDescription = isPlatformSpecific ? platformCaptions[activePlatformTab] : description;
@@ -265,11 +313,31 @@ function PublishPageInner() {
         feedback: null
       };
 
-      const { error } = activeRevisionId 
-        ? await supabase.from('publish_intents').update(intentData).eq('id', activeRevisionId)
-        : await supabase.from('publish_intents').insert(intentData);
+      const { data: intentRecord, error } = activeRevisionId 
+        ? await supabase.from('publish_intents').update(intentData).eq('id', activeRevisionId).select().single()
+        : await supabase.from('publish_intents').insert(intentData).select().single();
 
       if (error) throw error;
+
+      // Option B: Admin Override - Push directly to the new Scheduler Service
+      if (isAdmin) {
+        const scheduleResponse = await fetch('/api/v1/scheduler/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: intentData.content,
+            mediaUrl: publicUrl || undefined,
+            platform: intentData.platform,
+            scheduledTime: intentData.scheduled_for,
+            campaignId: intentRecord?.campaign_id // Pass campaign if exists
+          })
+        });
+        
+        if (!scheduleResponse.ok) {
+           console.error('Scheduler API Error', await scheduleResponse.text());
+           throw new Error('Failed to submit post to the scheduler queue');
+        }
+      }
 
       setMessage({
         type: 'success',
@@ -489,6 +557,12 @@ function PublishPageInner() {
               customTime={customTime} 
               onCustomTimeChange={setCustomTime} 
               contentType={contentType} 
+              audienceRegion={audienceRegion}
+              setAudienceRegion={setAudienceRegion}
+              audienceAgeGroup={audienceAgeGroup}
+              setAudienceAgeGroup={setAudienceAgeGroup}
+              onMagicSchedule={handleMagicSchedule}
+              isFetchingRecommendations={isFetchingRecommendations}
             />
           </div>
 

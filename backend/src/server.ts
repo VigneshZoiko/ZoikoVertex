@@ -9,6 +9,7 @@ import { errorHandler } from './shared/errorHandler';
 import { provisionUser } from './modules/identity/identityController';
 import { generateContent } from './modules/intelligence/intelligenceController';
 import { transitionStatus } from './modules/governance/governanceController';
+import { getRecommendations, schedulePost, cancelScheduledPost } from './modules/scheduler/schedulerController';
 
 const app = express();
 const port = env.PORT;
