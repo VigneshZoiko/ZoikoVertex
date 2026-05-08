@@ -10,6 +10,7 @@ const envSchema = z.object({
   SUPABASE_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   GEMINI_API_KEY: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
   META_REDIRECT_URI: z.string().optional(),
