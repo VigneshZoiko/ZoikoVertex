@@ -3,12 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PenTool, CheckSquare, Link2, LogOut, Users } from "lucide-react";
+import { LayoutDashboard, PenTool, CheckSquare, Link2, LogOut, Users, FileEdit } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useRealtimeNotifications } from "@/lib/hooks/useRealtimeNotifications";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [role, setRole] = useState<string | null>(null);
+  const [roleLoaded, setRoleLoaded] = useState(false);
+
+  // Initialize Realtime Subscriptions
+  useRealtimeNotifications();
 
   useEffect(() => {
     const fetchUserAndRole = async () => {
@@ -26,6 +31,7 @@ export default function Sidebar() {
         .single();
         
       if (data) setRole(data.role);
+      setRoleLoaded(true);
     };
 
     fetchUserAndRole();
@@ -37,11 +43,12 @@ export default function Sidebar() {
   };
 
   const navItems = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "CREATOR"] },
-    { name: "Social Publisher", href: "/publish", icon: PenTool, roles: ["ADMIN", "CREATOR"] },
-    { name: "Approval Queue", href: "/queue", icon: CheckSquare, roles: ["ADMIN", "MANAGER"] },
-    { name: "Platform Accounts", href: "/accounts", icon: Link2, roles: ["ADMIN", "MANAGER"] },
-    { name: "Team Access", href: "/team", icon: Users, roles: ["ADMIN", "MANAGER"] },
+    { name: "Dashboard",        href: "/",        icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "CREATOR"] },
+    { name: "Social Publisher", href: "/publish", icon: PenTool,          roles: ["CREATOR"] },
+    { name: "Review & Edit",    href: "/review",  icon: FileEdit,         roles: ["CREATOR"] },
+    { name: "Approval Queue",   href: "/queue",   icon: CheckSquare,      roles: ["ADMIN", "MANAGER"] },
+    { name: "Platform Accounts",href: "/accounts",icon: Link2,            roles: ["ADMIN", "MANAGER"] },
+    { name: "Team Access",      href: "/team",    icon: Users,            roles: ["ADMIN", "MANAGER"] },
   ];
 
   return (
@@ -58,24 +65,35 @@ export default function Sidebar() {
       <div className="mb-6 px-2">
         <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Workspace</p>
         <nav className="space-y-1">
-          {navItems.filter(item => !role || item.roles.includes(role)).map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center px-3 py-2.5 rounded-lg transition-colors ${
-                  isActive 
-                    ? "bg-indigo-500/10 text-indigo-400 font-medium" 
-                    : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
-                }`}
-              >
-                <Icon className={`w-5 h-5 mr-3 ${isActive ? "text-indigo-400" : "text-zinc-500"}`} />
-                {item.name}
-              </Link>
-            );
-          })}
+          {!roleLoaded ? (
+            // Skeleton shimmer while role is loading — prevents flash of all items
+            <div className="space-y-1">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-10 rounded-lg bg-zinc-800/50 animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            navItems
+              .filter(item => role && item.roles.includes(role.toUpperCase()))
+              .map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`flex items-center px-3 py-2.5 rounded-lg transition-colors ${
+                      isActive 
+                        ? "bg-indigo-500/10 text-indigo-400 font-medium" 
+                        : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 mr-3 ${isActive ? "text-indigo-400" : "text-zinc-500"}`} />
+                    {item.name}
+                  </Link>
+                );
+              })
+          )}
         </nav>
       </div>
 

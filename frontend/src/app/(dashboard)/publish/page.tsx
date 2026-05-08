@@ -1,142 +1,162 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { 
-  Upload, Sparkles, Clock, CheckCircle2, AlertCircle, 
-  Image as ImageIcon, Video, Send, Globe, MessageSquare, 
-  Camera, Briefcase, Hash, ChevronRight, XCircle, RefreshCcw
+  Sparkles, Send, CheckCircle2, AlertCircle, RefreshCcw, 
+  XCircle, ListTodo, AlertTriangle
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-// Custom Brand Icons (since lucide-react version is missing them)
-const FacebookIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-  </svg>
-);
+// Modular Components
+import PlatformSelector from "@/components/publish/PlatformSelector";
+import MediaUploader from "@/components/publish/MediaUploader";
+import AIWriterPanel from "@/components/publish/AIWriterPanel";
+import SchedulingPanel from "@/components/publish/SchedulingPanel";
+import PendingPostItem from "@/components/publish/PendingPostItem";
 
-const InstagramIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-  </svg>
-);
+function PublishPageInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-const LinkedinIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-    <rect x="2" y="9" width="4" height="12" />
-    <circle cx="4" cy="4" r="2" />
-  </svg>
-);
-
-const TwitterIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M4 4l11.733 16h4.267l-11.733 -16z" />
-    <path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772" />
-  </svg>
-);
-
-export default function PublishPage() {
+  // Basic Content State
   const [topic, setTopic] = useState("");
   const [contentType, setContentType] = useState("Entertainment");
-  const [platforms, setPlatforms] = useState({ facebook: true, instagram: false, linkedin: false, twitter: false });
+  const [description, setDescription] = useState("");
   const [media, setMedia] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
 
-  // AI Settings
-  const [aiLength, setAiLength] = useState("medium");
+  // AI & Formatting State
   const [aiTone, setAiTone] = useState("professional");
+  const [aiLength, setAiLength] = useState("medium");
+  const [aiStyleMode, setAiStyleMode] = useState("");
+  const [aiAudience, setAiAudience] = useState("General");
   const [useEmojis, setUseEmojis] = useState(true);
-
-  // History for Undo/Redo
-  const [history, setHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-
-  // AI State
   const [generating, setGenerating] = useState(false);
-  const [description, setDescription] = useState("");
-  const [platformCaptions, setPlatformCaptions] = useState<Record<string, string>>({});
+  const [showAIWriter, setShowAIWriter] = useState(false);
+  const [metrics, setMetrics] = useState<{viral_score?: number, sentiment_score?: number} | null>(null);
+
+  // Platform Specific State
   const [isPlatformSpecific, setIsPlatformSpecific] = useState(false);
+  const [platformCaptions, setPlatformCaptions] = useState<Record<string, string>>({});
   const [activePlatformTab, setActivePlatformTab] = useState<string>("");
-  
   const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [expandedPlatforms, setExpandedPlatforms] = useState<string[]>([]);
 
-  const [suggestedTimes, setSuggestedTimes] = useState<{time: string, label: string}[]>([]);
-  const [selectedTime, setSelectedTime] = useState<string>('immediate');
-  const [customTime, setCustomTime] = useState<string>("");
+  const PLATFORM_LIMITS: Record<string, number> = {
+    "Instagram": 2200,
+    "Facebook": 5000,
+    "X": 280,
+    "LinkedIn": 3000,
+    "Threads": 500,
+    "Pinterest": 500
+  };
 
-  const [showAIWriter, setShowAIWriter] = useState(false);
-
-  // Submit State
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
+  // Governance State
   const [userRole, setUserRole] = useState<string | null>(null);
   const [revisions, setRevisions] = useState<any[]>([]);
-  const [activeRevisionId, setActiveRevisionId] = useState<string | null>(null);
-
-  // Admin/Manager Workflow State
   const [pendingPosts, setPendingPosts] = useState<any[]>([]);
+  const [activeRevisionId, setActiveRevisionId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
   const [reviewComment, setReviewComment] = useState("");
+
+  const loadRevision = useCallback((rev: any) => {
+    try {
+      const parsedContent = JSON.parse(rev.content);
+      if (typeof parsedContent === 'object' && !Array.isArray(parsedContent) && parsedContent !== null) {
+        setIsPlatformSpecific(true);
+        setPlatformCaptions(parsedContent);
+        const firstPlatform = Object.keys(parsedContent)[0];
+        if (firstPlatform) setActivePlatformTab(firstPlatform);
+      } else {
+        setIsPlatformSpecific(false);
+        setDescription(rev.content);
+      }
+    } catch {
+      setIsPlatformSpecific(false);
+      setDescription(rev.content);
+    }
+
+    setActiveRevisionId(rev.id);
+    setMediaPreview(rev.media_url);
+    if (rev.target_account_ids) {
+      setSelectedAccountIds(rev.target_account_ids);
+    }
+    setMessage({ type: 'success', text: 'Revision loaded. Modify your content and resubmit.' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const fetchUserData = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    const { data: member } = await supabase
+      .from('workspace_members')
+      .select('role, workspace_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (member) {
+      setUserRole(member.role);
+      
+      const { data: accounts } = await supabase
+        .from('connected_accounts')
+        .select('*')
+        .eq('workspace_id', member.workspace_id)
+        .eq('status', 'active');
+      if (accounts) {
+        setConnectedAccounts(accounts);
+        const platformsWithAccounts = Array.from(new Set(accounts.map((a: any) => a.platform)));
+        setExpandedPlatforms(platformsWithAccounts as string[]);
+      }
+
+      // Fetch Creator Revisions - Note: Teammate use 'RETURNED' status
+      const { data: revs } = await supabase
+        .from('publish_intents')
+        .select('*')
+        .eq('creator_id', user.id)
+        .eq('status', 'RETURNED');
+      if (revs) setRevisions(revs);
+
+      // Fetch Admin/Manager Queue
+      if (member.role === 'ADMIN' || member.role === 'MANAGER') {
+        const statusToFetch = member.role === 'ADMIN' ? 'PENDING_ADMIN' : 'PENDING_MANAGER';
+        const { data: queue } = await supabase
+          .from('publish_intents')
+          .select('*, users!publish_intents_creator_id_fkey(full_name)')
+          .eq('status', statusToFetch);
+        if (queue) setPendingPosts(queue);
+      }
+    }
+    setLoading(false);
+  }, [router]);
 
   useEffect(() => {
     fetchUserData();
-  }, []);
+  }, [fetchUserData]);
 
-  const fetchUserData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      // Fetch Role
-      const { data: member } = await supabase
-        .from('workspace_members')
-        .select('role, workspace_id')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (member) {
-        setUserRole(member.role);
-        
-        // If Admin or Manager, fetch pending queue
-        if (member.role === 'ADMIN') {
-          const { data: queue } = await supabase
-            .from('publish_intents')
-            .select('*, users!publish_intents_creator_id_fkey(full_name)')
-            .eq('status', 'PENDING_ADMIN');
-          if (queue) setPendingPosts(queue);
-        } else if (member.role === 'MANAGER') {
-          const { data: queue } = await supabase
-            .from('publish_intents')
-            .select('*, users!publish_intents_creator_id_fkey(full_name)')
-            .eq('status', 'PENDING_MANAGER');
-          if (queue) setPendingPosts(queue);
-        }
-
-        // Fetch Revisions if Creator
-        const { data: revs } = await supabase
+  useEffect(() => {
+    const revisionId = searchParams.get('revisionId');
+    if (revisionId) {
+      const fetchSpecificRevision = async () => {
+        const { data, error } = await supabase
           .from('publish_intents')
           .select('*')
-          .eq('creator_id', user.id)
-          .eq('status', 'NEEDS_REVISION');
-        if (revs) setRevisions(revs);
-
-        // Fetch Connected Accounts
-        const { data: accounts } = await supabase
-          .from('connected_accounts')
-          .select('*')
-          .eq('workspace_id', member.workspace_id)
-          .eq('status', 'active');
-        if (accounts) {
-          setConnectedAccounts(accounts);
-          // Auto-expand platforms that have accounts
-          const platformsWithAccounts = Array.from(new Set(accounts.map((a: any) => a.platform)));
-          setExpandedPlatforms(platformsWithAccounts as string[]);
+          .eq('id', revisionId)
+          .single();
+        if (!error && data) {
+          loadRevision(data);
         }
-      }
+      };
+      fetchSpecificRevision();
     }
-  };
+  }, [searchParams, loadRevision]);
 
   const togglePlatformExpansion = (platform: string) => {
     setExpandedPlatforms(prev => 
@@ -149,533 +169,446 @@ export default function PublishPage() {
       const isSelected = prev.includes(accountId);
       const newSelection = isSelected ? prev.filter(id => id !== accountId) : [...prev, accountId];
       
-      // Update platform captions if needed
       const account = connectedAccounts.find(a => a.id === accountId);
       if (account && !isSelected) {
+        const currentDesc = isPlatformSpecific ? platformCaptions[activePlatformTab] : description;
         if (!platformCaptions[account.platform]) {
-          setPlatformCaptions(pc => ({ ...pc, [account.platform]: description }));
+          setPlatformCaptions(pc => ({ ...pc, [account.platform]: currentDesc || description }));
         }
         if (!activePlatformTab) setActivePlatformTab(account.platform);
       }
-      
       return newSelection;
     });
   };
 
-  const getSelectedPlatforms = () => {
-    const selectedPlatforms = new Set(
-      connectedAccounts
-        .filter(a => selectedAccountIds.includes(a.id))
-        .map(a => a.platform)
-    );
-    return Array.from(selectedPlatforms);
-  };
+  const [platforms, setPlatforms] = useState({
+    "Instagram": true,
+    "Facebook": true,
+    "X": true,
+    "LinkedIn": true,
+    "Threads": true,
+    "Pinterest": true
+  });
 
-  const loadRevision = (rev: any) => {
-    setDescription(rev.content);
-    setActiveRevisionId(rev.id);
-    setMessage({ type: 'success', text: 'Revision loaded. Make your changes and resubmit.' });
-  };
+  const getSelectedPlatforms = useCallback(() => {
+    return Object.keys(platforms).filter(p => platforms[p as keyof typeof platforms]);
+  }, [platforms]);
 
-  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setMedia(file);
-      const url = URL.createObjectURL(file);
-      setMediaPreview(url);
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        setMediaPreview(base64);
+        
+        // Auto-analyze image to help the user with story details
+        try {
+          const response = await fetch('/api/v1/ai/analyze-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageBase64: base64 })
+          });
+          const data = await response.json();
+          if (data.success && data.analysis) {
+            setTopic(prev => {
+              const cleaned = prev.trim();
+              return cleaned ? `${cleaned}\n\n[AI Image Insight]: ${data.analysis}` : data.analysis;
+            });
+          }
+        } catch (err) {
+          console.error("AI Image analysis failed", err);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleGenerateAI = async () => {
     if (!topic) return;
     setGenerating(true);
-    
-    // Hit our backend AI route
-    const newHistory = history.slice(0, historyIndex + 1);
-    setHistory(newHistory);
-
+    setMetrics(null);
     try {
-      const response = await fetch('http://localhost:5000/api/v1/ai/generate', {
+      let imageBase64 = null;
+      if (mediaPreview) {
+        imageBase64 = mediaPreview;
+      }
+
+      const response = await fetch('/api/v1/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          topic,
-          contentType,
-          platforms: Object.entries(platforms).filter(([_, v]) => v).map(([k]) => k),
+          topic, contentType,
+          platforms: ["Instagram", "Facebook", "X", "LinkedIn", "Threads", "Pinterest"],
           length: aiLength,
           tone: aiTone,
-          useEmojis
+          useEmojis,
+          styleMode: aiStyleMode,
+          imageBase64
         })
       });
       const data = await response.json();
-      
       if (response.ok) {
+        // 1. Update Universal Description
         setDescription(data.description);
-        setSuggestedTimes(data.suggestedTimes);
+
+        // 2. Update Platform Specific Captions
+        if (data.platform_content) {
+          const newCaptions = { ...platformCaptions };
+          Object.keys(data.platform_content).forEach(p => {
+            const content = data.platform_content[p];
+            newCaptions[p] = content.caption + '\n\n' + content.hashtags.join(' ');
+          });
+          setPlatformCaptions(newCaptions);
+          
+          // If the user hasn't selected a tab yet, set it to the first platform returned
+          if (!activePlatformTab && Object.keys(data.platform_content).length > 0) {
+            setActivePlatformTab(Object.keys(data.platform_content)[0]);
+          }
+        }
         
-        // Update history
-        const updatedHistory = [...newHistory, data.description];
-        setHistory(updatedHistory);
-        setHistoryIndex(updatedHistory.length - 1);
+        if (data.metadata) {
+          setMetrics({
+            viral_score: data.metadata.viral_score,
+            sentiment_score: data.metadata.sentiment_score
+          });
+        }
+        setSuggestedTimes(data.suggestedTimes || []);
       } else {
-        setMessage({ type: 'error', text: data.error || 'AI Generation Failed' });
+        const errorMsg = typeof data.error === 'object' ? data.error.message : data.error;
+        setMessage({ type: 'error', text: errorMsg || 'AI Generation Failed' });
       }
     } catch (err) {
-      setMessage({ type: 'error', text: 'Backend AI connection failed. Ensure server is running.' });
+      console.error(err);
+      setMessage({ type: 'error', text: 'AI generation failed. Please check your topic and try again.' });
     }
     setGenerating(false);
   };
 
-  const handleUndo = () => {
-    if (historyIndex > 0) {
-      const prev = historyIndex - 1;
-      setHistoryIndex(prev);
-      setDescription(history[prev]);
-    }
-  };
+  const [suggestedTimes, setSuggestedTimes] = useState<{time: string, label: string, reasoning?: string, confidence_score?: number}[]>([]);
+  const [selectedTime, setSelectedTime] = useState<string>('immediate');
+  const [customTime, setCustomTime] = useState<string>("");
+  
+  // Magic Schedule State
+  const [audienceRegion, setAudienceRegion] = useState("Global");
+  const [audienceAgeGroup, setAudienceAgeGroup] = useState("All Ages");
+  const [isFetchingRecommendations, setIsFetchingRecommendations] = useState(false);
 
-  const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      const next = historyIndex + 1;
-      setHistoryIndex(next);
-      setDescription(history[next]);
+  const handleMagicSchedule = async () => {
+    if (!topic) {
+      setMessage({ type: 'error', text: 'Please enter a Topic so the AI knows your niche!' });
+      return;
     }
+    const platforms = getSelectedPlatforms();
+    if (platforms.length === 0) {
+      setMessage({ type: 'error', text: 'Please select at least one platform.' });
+      return;
+    }
+
+    setIsFetchingRecommendations(true);
+    try {
+      const response = await fetch('/api/v1/scheduler/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform: platforms[0], // Ask for the first platform as primary
+          niche: topic,
+          audienceRegion,
+          audienceAgeGroup
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.recommendations) {
+        const today = new Date().toISOString().split('T')[0];
+        const formattedSlots = data.recommendations.map((rec: any) => ({
+          time: `${today}T${rec.best_start_time}`, // Combining today's date with the recommended time slot
+          label: `${rec.best_start_time} - ${rec.best_end_time} (Confidence: ${Math.round(rec.confidence_score * 100)}%)`,
+          reasoning: rec.reasoning,
+          confidence_score: rec.confidence_score
+        }));
+        setSuggestedTimes(formattedSlots);
+        setMessage({ type: 'success', text: 'AI analyzed demographics and generated peak time slots!' });
+      } else {
+        const errorMsg = typeof data.error === 'object' ? data.error.message : data.error;
+        setMessage({ type: 'error', text: errorMsg || 'AI Scheduling failed' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Could not fetch scheduling recommendations. Try again later.' });
+    }
+    setIsFetchingRecommendations(false);
   };
 
   const handleSubmitIntent = async () => {
-    if (!description || !media) {
-      setMessage({ type: 'error', text: 'Media and Description are required to submit.' });
-      return;
-    }
-    
-    if (selectedTime === 'custom' && !customTime) {
-      setMessage({ type: 'error', text: 'Please select a custom date and time.' });
+    if (selectedAccountIds.length === 0) {
+      setMessage({ type: 'error', text: 'Please select at least one target account in the sidebar.' });
       return;
     }
     
     setSubmitting(true);
     setMessage(null);
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // 1. Upload media to Supabase Storage
-      const fileExt = media.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('media')
-        .upload(filePath, media);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('media')
-        .getPublicUrl(filePath);
-
-      // 2. Insert or Update the intent
-      const isAdmin = userRole === 'ADMIN';
-      const selectedPlatformsList = getSelectedPlatforms();
-      
-      const intentData = {
-        workspace_id: (await supabase.from('workspace_members').select('workspace_id').eq('user_id', user.id).single()).data?.workspace_id,
-        creator_id: user.id,
-        content: isPlatformSpecific ? JSON.stringify(platformCaptions) : description,
-        platform: selectedPlatformsList.join(', '),
-        target_account_ids: selectedAccountIds, // Assuming this column exists or will be added
-        status: isAdmin ? 'APPROVED' : 'PENDING_ADMIN',
-        scheduled_for: selectedTime === 'immediate' 
-          ? new Date().toISOString() 
-          : selectedTime === 'custom' 
-            ? new Date(customTime).toISOString() 
-            : selectedTime,
-        media_url: publicUrl,
-        feedback: null // Clear feedback on resubmission
-      };
-
-      let error;
-      if (activeRevisionId) {
-        const { error: updateError } = await supabase
-          .from('publish_intents')
-          .update(intentData)
-          .eq('id', activeRevisionId);
-        error = updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('publish_intents')
-          .insert(intentData);
-        error = insertError;
+      // 1. Handle Media Upload to Supabase Storage
+      let publicUrl = mediaPreview;
+      if (media) {
+        const fileExt = media.name.split('.').pop();
+        const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('media').upload(filePath, media);
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl: newUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
+        publicUrl = newUrl;
       }
 
-      if (error) throw error;
+      // 2. Submit to Governance Engine
+      const payload = {
+        topic,
+        content: {
+          universal: description,
+          platforms: platformCaptions
+        },
+        mediaUrl: publicUrl,
+        targetAccountIds: selectedAccountIds,
+        userId: user.id
+      };
 
-      setMessage({ 
-        type: 'success', 
-        text: isAdmin 
-          ? 'Post successfully pre-approved and scheduled!' 
-          : 'Post successfully submitted to Admin for approval!' 
+      const res = await fetch('/api/v1/governance/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
-      // Reset form
-      setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null); setSuggestedTimes([]); setActiveRevisionId(null);
-      fetchUserData(); // Refresh lists
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Submission failed');
+
+      setMessage({
+        type: 'success',
+        text: `Successfully submitted ${result.count} platform-optimized posts for review!`
+      });
+      
+      // Cleanup State
+      setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
+      setSuggestedTimes([]); setActiveRevisionId(null);
+      setSelectedAccountIds([]); setPlatformCaptions({});
+      setCustomTime(""); setSelectedTime("immediate");
+      fetchUserData();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     }
-    
     setSubmitting(false);
   };
 
-  const handleAdminAction = async (postId: string, action: 'APPROVED' | 'REJECTED' | 'PENDING_MANAGER') => {
+  const handleGovernanceAction = async (postId: string, action: string) => {
     try {
-      const { error } = await supabase
-        .from('publish_intents')
-        .update({ 
-          status: action,
-          feedback: action === 'PENDING_MANAGER' ? reviewComment : null
+      const { data: { user } } = await supabase.auth.getUser();
+      const response = await fetch('/api/v1/governance/transition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          intentId: postId,
+          newStatus: action,
+          feedback: action === 'RETURNED' ? reviewComment : null,
+          userId: user?.id,
+          userRole
         })
-        .eq('id', postId);
-
-      if (error) throw error;
-      setReviewComment("");
+      });
+      
+      if (!response.ok) throw new Error('Action failed');
+      
+      setReviewComment(""); 
       fetchUserData();
-      setMessage({ type: 'success', text: `Post ${action.replace('_', ' ')} successfully.` });
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message });
+      setMessage({ type: 'success', text: `Action completed.` });
+    } catch (err: any) { 
+      setMessage({ type: 'error', text: err.message }); 
     }
   };
 
-  const handleManagerAction = async (postId: string, action: 'NEEDS_REVISION' | 'PENDING_ADMIN') => {
-    try {
-      const { error } = await supabase
-        .from('publish_intents')
-        .update({ status: action })
-        .eq('id', postId);
-
-      if (error) throw error;
-      fetchUserData();
-      setMessage({ type: 'success', text: action === 'NEEDS_REVISION' ? 'Post sent back to creator for changes.' : 'Post resubmitted to Admin.' });
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message });
-    }
-  };
+  if (loading || userRole === null) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-zinc-500 space-y-4">
+        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm font-bold uppercase tracking-widest animate-pulse">Syncing Environment...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-6xl mx-auto pb-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Social Publisher</h1>
-        <p className="text-zinc-400 text-sm">Draft, optimize with AI, and submit content for governance approval.</p>
+    <div className="max-w-6xl mx-auto pb-20 px-6">
+      {/* Decent Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-zinc-800 pb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Social Publisher</h1>
+          <p className="text-zinc-500 text-sm mt-1 font-medium">Compose and schedule your cross-platform content.</p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {revisions.length > 0 && userRole === 'CREATOR' && (
+            <button 
+              onClick={() => router.push('/review')}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-xl text-xs font-bold"
+            >
+              <AlertCircle className="w-4 h-4" />
+              {revisions.length} Tasks Awaiting Review
+            </button>
+          )}
+          <div className="px-4 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center gap-2">
+            <div className={`w-1.5 h-1.5 rounded-full ${userRole?.toUpperCase() === 'ADMIN' ? 'bg-rose-500' : 'bg-emerald-500'}`} />
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{userRole}</span>
+          </div>
+        </div>
       </div>
 
-      {revisions.length > 0 && userRole === 'CREATOR' && (
-        <div className="mb-8 space-y-4">
-          <h3 className="text-sm font-bold text-amber-500 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            Action Required: Revisions Requested
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {revisions.map(rev => (
-              <div key={rev.id} className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex flex-col justify-between">
-                <div>
-                  <p className="text-xs text-zinc-400 mb-2 line-clamp-2 italic">"{rev.feedback || 'No feedback provided'}"</p>
-                  <p className="text-[10px] text-zinc-500 uppercase font-bold">Original: {rev.content.substring(0, 30)}...</p>
-                </div>
-                <button 
-                  onClick={() => loadRevision(rev)}
-                  className="mt-4 w-full py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-500 text-[10px] font-bold rounded-lg transition-colors uppercase tracking-wider"
-                >
-                  Edit & Resubmit
-                </button>
-              </div>
-            ))}
-          </div>
+      {message && (
+        <div className={`mb-8 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in fade-in duration-300 ${message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'}`}>
+          {message.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+          {message.text}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Content Creation */}
-        <div className="lg:col-span-2 space-y-6">
+        
+        {/* Main Workspace Column */}
+        <div className="lg:col-span-2 space-y-8">
           
-          {/* Account Selection */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Globe className="w-5 h-5 text-indigo-400" />
-                Target Accounts
-              </h2>
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-1 rounded font-bold uppercase tracking-wider">
-                  {selectedAccountIds.length} Selected
-                </span>
-                <button 
-                  onClick={() => window.location.href = '/accounts'}
-                  className="text-[10px] text-indigo-400 font-bold uppercase hover:underline"
-                >
-                  Manage
-                </button>
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              {['facebook', 'instagram', 'linkedin', 'twitter'].map(platformId => {
-                const platformAccounts = connectedAccounts.filter(a => a.platform === platformId);
-                const isExpanded = expandedPlatforms.includes(platformId);
-                const Icon = platformId === 'facebook' ? FacebookIcon : platformId === 'instagram' ? InstagramIcon : platformId === 'linkedin' ? LinkedinIcon : TwitterIcon;
-                const selectedCount = platformAccounts.filter(a => selectedAccountIds.includes(a.id)).length;
-
-                return (
-                  <div key={platformId} className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
-                    <button 
-                      onClick={() => togglePlatformExpansion(platformId)}
-                      className={`w-full flex items-center justify-between p-4 transition-colors ${isExpanded ? 'bg-zinc-900/50' : 'hover:bg-zinc-900/30'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${
-                          platformId === 'facebook' ? 'bg-blue-600' : platformId === 'instagram' ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500' : platformId === 'linkedin' ? 'bg-blue-700' : 'bg-white text-black'
-                        }`}>
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <span className="text-sm font-bold text-white capitalize">{platformId}</span>
-                        {selectedCount > 0 && (
-                          <span className="text-[10px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full font-bold">
-                            {selectedCount}
-                          </span>
-                        )}
-                      </div>
-                      <ChevronRight className={`w-4 h-4 text-zinc-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                    </button>
-
-                    {isExpanded && (
-                      <div className="p-4 pt-2 space-y-2 border-t border-zinc-800/50">
-                        {platformAccounts.length > 0 ? (
-                          platformAccounts.map(account => (
-                            <label 
-                              key={account.id} 
-                              className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
-                                selectedAccountIds.includes(account.id) 
-                                  ? 'bg-indigo-500/10 border-indigo-500/50' 
-                                  : 'bg-zinc-900/30 border-zinc-800 hover:border-zinc-700'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <input 
-                                  type="checkbox" 
-                                  className="hidden"
-                                  checked={selectedAccountIds.includes(account.id)}
-                                  onChange={() => toggleAccountSelection(account.id)}
-                                />
-                                <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center text-zinc-500 text-xs font-bold overflow-hidden">
-                                  {account.avatar_url ? <img src={account.avatar_url} /> : account.account_name.charAt(0)}
-                                </div>
-                                <div>
-                                  <p className="text-xs font-bold text-white">{account.account_name}</p>
-                                  <p className="text-[10px] text-zinc-500">{account.account_handle || 'Active'}</p>
-                                </div>
-                              </div>
-                              {selectedAccountIds.includes(account.id) && <CheckCircle2 className="w-4 h-4 text-indigo-400" />}
-                            </label>
-                          ))
-                        ) : (
-                          <p className="text-[10px] text-zinc-500 py-2 italic">No accounts connected.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          {/* Media Section (Instagram-style: Top) */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white px-1">Attachment</h3>
+            <MediaUploader 
+              mediaPreview={mediaPreview} 
+              mediaType={media?.type} 
+              onUpload={handleMediaUpload} 
+              onClear={() => {setMedia(null); setMediaPreview(null);}} 
+            />
           </div>
 
-          {/* Media Upload */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Media Assets</h2>
-            
-            {!mediaPreview ? (
-              <label className="w-full h-48 border-2 border-dashed border-zinc-800 hover:border-indigo-500 hover:bg-indigo-500/5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors">
-                <div className="flex items-center gap-4 mb-2">
-                  <ImageIcon className="w-6 h-6 text-zinc-500" />
-                  <Video className="w-6 h-6 text-zinc-500" />
-                </div>
-                <span className="text-sm font-medium text-zinc-300">Click to upload Image or Video</span>
-                <span className="text-xs text-zinc-500 mt-1">MP4, JPG, PNG (Max 50MB)</span>
-                <input type="file" className="hidden" accept="image/*,video/*" onChange={handleMediaUpload} />
-              </label>
-            ) : (
-              <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-zinc-800">
-                {media?.type.startsWith('video') ? (
-                  <video src={mediaPreview} controls className="max-h-full max-w-full" />
-                ) : (
-                  <img src={mediaPreview} className="object-contain max-h-full" />
-                )}
-                <button 
-                  onClick={() => { setMedia(null); setMediaPreview(null); }}
-                  className="absolute top-2 right-2 bg-black/70 hover:bg-rose-500 text-white p-1.5 rounded-lg backdrop-blur-md transition-colors"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Main Post Content Composer */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
+          {/* Content Area (Instagram-style: Bottom) */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-white">Post Content</h2>
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-lg font-bold text-white leading-none">Draft Composer</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[9px] font-black uppercase tracking-widest rounded-md border border-zinc-700/50">{contentType}</span>
+                  </div>
+                </div>
+                
                 <div className="flex items-center gap-2 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
                   <button 
-                    onClick={() => setIsPlatformSpecific(false)}
-                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${!isPlatformSpecific ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-400'}`}
+                    onClick={() => setIsPlatformSpecific(false)} 
+                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${!isPlatformSpecific ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}
                   >
                     Universal
                   </button>
                   <button 
-                    onClick={() => setIsPlatformSpecific(true)}
-                    className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? 'bg-indigo-600 text-white' : 'text-zinc-500 hover:text-zinc-400'}`}
+                    onClick={() => {
+                      setIsPlatformSpecific(true);
+                      if (!activePlatformTab) setActivePlatformTab("Instagram");
+                    }} 
+                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20' : 'text-zinc-500 hover:text-zinc-400'}`}
                   >
                     Platform-Specific
                   </button>
                 </div>
               </div>
 
-              {isPlatformSpecific && getSelectedPlatforms().length > 0 && (
-                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
-                  {getSelectedPlatforms().map(p => {
-                    const Icon = p === 'facebook' ? FacebookIcon : p === 'instagram' ? InstagramIcon : p === 'linkedin' ? LinkedinIcon : TwitterIcon;
-                    return (
-                      <button
-                        key={p}
-                        onClick={() => setActivePlatformTab(p)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all whitespace-nowrap ${
-                          activePlatformTab === p ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400' : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700'
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        <span className="capitalize">{p}</span>
-                      </button>
-                    );
-                  })}
+              {isPlatformSpecific && (
+                <div className="flex flex-wrap gap-2 mb-6 p-2 bg-zinc-950/50 border border-zinc-800/50 rounded-2xl overflow-x-auto scrollbar-hide">
+                  {Object.keys(platforms).map(p => (
+                    <button 
+                      key={p} 
+                      onClick={() => {
+                        setActivePlatformTab(p);
+                        // Ensure it's selected for generation
+                        setPlatforms(prev => ({ ...prev, [p]: true }));
+                        // Copy description if empty
+                        if (!platformCaptions[p]) {
+                          setPlatformCaptions(prev => ({ ...prev, [p]: description }));
+                        }
+                      }} 
+                      className={`px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${activePlatformTab === p ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
+                    >
+                      {p}
+                    </button>
+                  ))}
                 </div>
               )}
-              
-              <div className="relative bg-zinc-950/50 border border-zinc-800 rounded-2xl focus-within:border-indigo-500/50 transition-all duration-300">
+
+              <div className="relative bg-zinc-950/50 border border-zinc-800 rounded-2xl transition-all focus-within:border-zinc-700">
                 <textarea 
-                  value={isPlatformSpecific ? (platformCaptions[activePlatformTab] || description) : description}
+                  value={isPlatformSpecific ? (platformCaptions[activePlatformTab] || "") : description}
                   onChange={(e) => {
                     const val = e.target.value;
                     if (isPlatformSpecific) {
                       setPlatformCaptions(prev => ({ ...prev, [activePlatformTab]: val }));
                     } else {
                       setDescription(val);
-                      // Sync to platforms that don't have custom ones yet?
                     }
                   }}
                   placeholder={isPlatformSpecific ? `Write custom caption for ${activePlatformTab}...` : "Write your universal caption here..."}
-                  className="w-full bg-transparent p-6 text-white text-base leading-relaxed placeholder:text-zinc-600 outline-none resize-none min-h-[220px]"
+                  className="w-full bg-transparent p-6 text-white text-base leading-relaxed placeholder:text-zinc-700 outline-none resize-none min-h-[250px]"
                 />
                 
                 <div className="p-4 flex items-center justify-between border-t border-zinc-800/50 bg-zinc-900/30">
                   <div className="flex items-center gap-3">
                     <button 
-                      onClick={() => setShowAIWriter(!showAIWriter)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
-                        showAIWriter ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                      }`}
+                      onClick={() => setShowAIWriter(!showAIWriter)} 
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${showAIWriter ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      AI Writer (Optional)
+                      AI Studio
                     </button>
-                    
-                    {isPlatformSpecific && (
-                      <button 
-                        onClick={() => setPlatformCaptions(pc => ({ ...pc, [activePlatformTab]: description }))}
-                        className="text-[10px] text-zinc-500 hover:text-indigo-400 font-bold uppercase transition-colors"
-                      >
-                        Reset to Universal
-                      </button>
-                    )}
-
-                    {history.length > 0 && (
-                      <div className="flex gap-1 bg-zinc-800/50 p-1 rounded-lg">
-                        <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-2 py-1 text-[10px] text-zinc-500 hover:text-white disabled:opacity-30">Undo</button>
-                        <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-2 py-1 text-[10px] text-zinc-500 hover:text-white disabled:opacity-30">Redo</button>
-                      </div>
-                    )}
+                    <button onClick={() => setUseEmojis(!useEmojis)} className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border ${useEmojis ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-zinc-900 border-zinc-800 text-zinc-700'}`}>
+                      😊
+                    </button>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => setUseEmojis(!useEmojis)}
-                      className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${
-                        useEmojis ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-zinc-800 text-zinc-500 border border-transparent'
-                      }`}
-                      title="Toggle Emojis"
-                    >
-                      <span className="text-lg">😊</span>
-                    </button>
-                    <button 
-                      onClick={() => setDescription(prev => prev + " #")}
-                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-500 hover:text-white transition-all"
-                      title="Add Hashtag"
-                    >
-                      <span className="text-lg font-bold">#</span>
-                    </button>
+                  <div className="flex flex-col items-end">
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${
+                      isPlatformSpecific && (platformCaptions[activePlatformTab]?.length || 0) > (PLATFORM_LIMITS[activePlatformTab] || 9999)
+                        ? 'text-rose-500' 
+                        : 'text-zinc-600'
+                    }`}>
+                      {(isPlatformSpecific ? platformCaptions[activePlatformTab]?.length || 0 : description.length)} / {isPlatformSpecific ? PLATFORM_LIMITS[activePlatformTab] || '∞' : '∞'} Characters
+                    </span>
+                    {isPlatformSpecific && (platformCaptions[activePlatformTab]?.length || 0) > (PLATFORM_LIMITS[activePlatformTab] || 9999) && (
+                      <span className="text-[9px] text-rose-400 font-bold flex items-center gap-1 mt-1">
+                        <AlertTriangle className="w-2.5 h-2.5" />
+                        Exceeds limit
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Expandable AI Control Panel */}
             {showAIWriter && (
-              <div className="bg-zinc-950/80 border-t border-zinc-800 p-8 space-y-8 animate-in slide-in-from-top duration-300">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Post Topic</label>
-                    <input 
-                      type="text" value={topic} onChange={(e) => setTopic(e.target.value)}
-                      placeholder="e.g. New sneaker launch"
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Content Category</label>
-                    <input 
-                      type="text" list="content-types" value={contentType} onChange={(e) => setContentType(e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 text-sm"
-                    />
-                    <datalist id="content-types">
-                      <option value="Entertainment" /><option value="Music" /><option value="Technology" /><option value="Business" />
-                    </datalist>
-                  </div>
-                </div>
+              <AIWriterPanel 
+                topic={topic} onTopicChange={setTopic} 
+                contentType={contentType} onContentTypeChange={setContentType}
+                aiLength={aiLength} onAiLengthChange={setAiLength} 
+                aiTone={aiTone} onAiToneChange={setAiTone}
+                styleMode={aiStyleMode} onStyleModeChange={setAiStyleMode}
+                audience={aiAudience} onAudienceChange={setAiAudience}
+                onGenerate={handleGenerateAI} generating={generating}
+              />
+            )}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
-                  <div className="md:col-span-1 space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Length</label>
-                    <div className="flex bg-zinc-900 p-1 rounded-xl border border-zinc-800">
-                      {['short', 'medium', 'long'].map((l) => (
-                        <button key={l} onClick={() => setAiLength(l)} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${aiLength === l ? 'bg-indigo-500 text-white' : 'text-zinc-500 hover:text-white'}`}>{l}</button>
-                      ))}
+            {metrics && (
+              <div className="p-6 border-t border-zinc-800 bg-zinc-900/20 flex gap-8">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-1">Viral Score</label>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xl font-bold text-white">{metrics.viral_score}/100</div>
+                    <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-500" style={{ width: `${metrics.viral_score}%` }} />
                     </div>
                   </div>
-                  <div className="md:col-span-1 space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Brand Tone</label>
-                    <select value={aiTone} onChange={(e) => setAiTone(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-indigo-500">
-                      <option value="professional">Professional</option>
-                      <option value="casual">Casual</option>
-                      <option value="excited">Excited</option>
-                      <option value="educational">Educational</option>
-                    </select>
-                  </div>
-                  <div className="md:col-span-1">
-                    <button 
-                      onClick={handleGenerateAI} disabled={generating || !topic}
-                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 text-sm flex items-center justify-center gap-2"
-                    >
-                      {generating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                      Generate Magic
-                    </button>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-1">Sentiment</label>
+                  <div className="text-xl font-bold text-emerald-400">
+                    {metrics.sentiment_score && metrics.sentiment_score > 0.7 ? 'Positive' : 'Balanced'}
                   </div>
                 </div>
               </div>
@@ -683,165 +616,87 @@ export default function PublishPage() {
           </div>
         </div>
 
-        {/* Right Column: Scheduling & Action */}
-        <div className="lg:col-span-1 space-y-6">
+        {/* Sidebar Controls */}
+        <div className="lg:col-span-1 space-y-8">
           
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-amber-400" />
-              Scheduling Logic
-            </h2>
-
-            {suggestedTimes.length > 0 ? (
-              <div className="space-y-3 mb-6">
-                <p className="text-xs text-zinc-400 mb-2">AI Suggested Peak Times for {contentType}:</p>
-                {suggestedTimes.map((slot, i) => (
-                  <label key={i} className={`flex items-center p-3 rounded-xl border cursor-pointer transition-colors ${selectedTime === slot.time ? 'bg-indigo-500/10 border-indigo-500' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
-                    <input 
-                      type="radio" name="schedule" 
-                      checked={selectedTime === slot.time}
-                      onChange={() => setSelectedTime(slot.time)}
-                      className="hidden"
-                    />
-                    <div className="flex-1">
-                      <p className={`text-sm font-bold ${selectedTime === slot.time ? 'text-indigo-400' : 'text-white'}`}>{slot.time}</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">{slot.label}</p>
-                    </div>
-                    {selectedTime === slot.time && <CheckCircle2 className="w-5 h-5 text-indigo-400" />}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <div className="text-xs text-zinc-500 p-4 bg-zinc-950 rounded-xl border border-zinc-800 mb-6 text-center">
-                Generate AI content to see calculated peak time slots.
-              </div>
-            )}
-
-            <label className={`flex items-center p-3 rounded-xl border cursor-pointer transition-colors mb-3 ${selectedTime === 'immediate' ? 'bg-emerald-500/10 border-emerald-500' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
-              <input 
-                type="radio" name="schedule" 
-                checked={selectedTime === 'immediate'}
-                onChange={() => setSelectedTime('immediate')}
-                className="hidden"
-              />
-              <div className="flex-1">
-                <p className={`text-sm font-bold ${selectedTime === 'immediate' ? 'text-emerald-400' : 'text-white'}`}>Post Immediately</p>
-                <p className="text-xs text-zinc-500 mt-0.5">Executes upon manager approval</p>
-              </div>
-              {selectedTime === 'immediate' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
-            </label>
-
-            <div className={`p-3 rounded-xl border transition-colors ${selectedTime === 'custom' ? 'bg-indigo-500/10 border-indigo-500' : 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'}`}>
-              <label className="flex items-center cursor-pointer">
-                <input 
-                  type="radio" name="schedule" 
-                  checked={selectedTime === 'custom'}
-                  onChange={() => setSelectedTime('custom')}
-                  className="hidden"
-                />
-                <div className="flex-1">
-                  <p className={`text-sm font-bold ${selectedTime === 'custom' ? 'text-indigo-400' : 'text-white'}`}>Custom Schedule</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">Pick your own specific time</p>
-                </div>
-                {selectedTime === 'custom' && <CheckCircle2 className="w-5 h-5 text-indigo-400" />}
-              </label>
-              
-              {selectedTime === 'custom' && (
-                <div className="mt-3 pt-3 border-t border-zinc-800/50">
-                  <input 
-                    type="datetime-local" 
-                    value={customTime}
-                    onChange={(e) => setCustomTime(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-indigo-500"
-                  />
-                </div>
-              )}
-            </div>
+          {/* Target Selection */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white px-1">Target Platforms</h3>
+            <PlatformSelector 
+              connectedAccounts={connectedAccounts}
+              selectedAccountIds={selectedAccountIds}
+              onToggleAccount={toggleAccountSelection}
+              expandedPlatforms={expandedPlatforms}
+              onToggleExpansion={togglePlatformExpansion}
+              userRole={userRole}
+            />
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-2">Governance</h2>
-            <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
-              All published content must pass through the Approval Queue. Immediate posts will execute the moment a Manager authorizes them.
-            </p>
+          {/* Scheduling */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-white px-1">Execution</h3>
+            <SchedulingPanel 
+              suggestedTimes={suggestedTimes} 
+              selectedTime={selectedTime} 
+              onSelect={setSelectedTime} 
+              customTime={customTime} 
+              onCustomTimeChange={setCustomTime} 
+              contentType={contentType} 
+              audienceRegion={audienceRegion}
+              setAudienceRegion={setAudienceRegion}
+              audienceAgeGroup={audienceAgeGroup}
+              setAudienceAgeGroup={setAudienceAgeGroup}
+              onMagicSchedule={handleMagicSchedule}
+              isFetchingRecommendations={isFetchingRecommendations}
+            />
+          </div>
 
-            {message && (
-              <div className={`mb-4 p-3 text-sm rounded-lg border ${message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
-                {message.text}
-              </div>
-            )}
-
+          {/* Final Action */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-sm space-y-4">
             <button 
-              onClick={handleSubmitIntent} disabled={submitting || !media || !description}
-              className={`w-full flex items-center justify-center py-3 font-bold rounded-lg transition-colors text-sm disabled:opacity-50 ${
-                userRole === 'ADMIN' ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-white text-black hover:bg-zinc-200'
-              }`}
+              onClick={handleSubmitIntent} 
+              disabled={submitting} 
+              className={`w-full py-4 font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 uppercase tracking-widest text-[11px] ${userRole === 'ADMIN' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-white text-black hover:bg-zinc-200'}`}
             >
-              {userRole === 'ADMIN' ? <Globe className="w-4 h-4 mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-              {submitting ? "Processing..." : userRole === 'ADMIN' ? "Publish Directly" : "Submit to Admin"}
+              {submitting ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+              {activeRevisionId ? 'Resubmit Draft' : userRole === 'ADMIN' ? 'Publish Directly' : 'Submit for Review'}
             </button>
+            <p className="text-[10px] text-zinc-500 text-center italic">
+              {userRole === 'ADMIN' ? "Your post will be scheduled immediately." : "This will be sent to your manager for final approval."}
+            </p>
           </div>
 
-          {/* Admin/Manager Review Queue */}
+          {/* Review Queue Preview */}
           {pendingPosts.length > 0 && (userRole === 'ADMIN' || userRole === 'MANAGER') && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-indigo-400" />
-                Review Queue ({pendingPosts.length})
-              </h2>
-              <div className="space-y-4">
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-white px-1 flex items-center gap-2">
+                <ListTodo className="w-4 h-4 text-indigo-400" />
+                Active Queue ({pendingPosts.length})
+              </h3>
+              <div className="space-y-4 max-h-[500px] overflow-y-auto scrollbar-hide">
                 {pendingPosts.map(post => (
-                  <div key={post.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-xs font-bold text-white">{post.users?.full_name || 'Unknown User'}</p>
-                        <p className="text-[10px] text-zinc-500">{new Date(post.created_at).toLocaleString()}</p>
-                      </div>
-                      <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded font-bold uppercase tracking-wider">{post.platform}</span>
-                    </div>
-                    
-                    <p className="text-xs text-zinc-300 line-clamp-3 italic">"{post.content}"</p>
-                    
-                    {post.media_url && (
-                      <div className="aspect-video rounded-lg overflow-hidden border border-zinc-800 bg-black flex items-center justify-center">
-                        <img src={post.media_url} className="object-contain max-h-full" />
-                      </div>
-                    )}
-
-                    {userRole === 'ADMIN' ? (
-                      <div className="space-y-3">
-                        <textarea 
-                          placeholder="Add a comment if requesting changes..."
-                          value={reviewComment}
-                          onChange={(e) => setReviewComment(e.target.value)}
-                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-xs text-white outline-none focus:border-indigo-500"
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <button onClick={() => handleAdminAction(post.id, 'APPROVED')} className="py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold rounded-lg uppercase tracking-wider">Approve</button>
-                          <button onClick={() => handleAdminAction(post.id, 'REJECTED')} className="py-2 bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold rounded-lg uppercase tracking-wider">Reject</button>
-                        </div>
-                        <button onClick={() => handleAdminAction(post.id, 'PENDING_MANAGER')} className="w-full py-2 border border-amber-500/30 hover:bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-lg uppercase tracking-wider">Request Changes</button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-                          <p className="text-[10px] text-amber-500 font-bold uppercase mb-1">Admin Feedback:</p>
-                          <p className="text-[10px] text-zinc-400 italic">"{post.feedback || 'No comments provided'}"</p>
-                        </div>
-                        <button onClick={() => handleManagerAction(post.id, 'NEEDS_REVISION')} className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg uppercase tracking-wider flex items-center justify-center gap-2">
-                          <RefreshCcw className="w-3 h-3" />
-                          Send to Creator
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <PendingPostItem 
+                    key={post.id} 
+                    post={post} 
+                    userRole={userRole} 
+                    reviewComment={reviewComment} 
+                    onReviewCommentChange={setReviewComment} 
+                    onAction={(action) => handleGovernanceAction(post.id, action)}
+                  />
                 ))}
               </div>
             </div>
           )}
-
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PublishPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] text-zinc-500 animate-pulse">Warming Engine...</div>}>
+      <PublishPageInner />
+    </Suspense>
   );
 }
