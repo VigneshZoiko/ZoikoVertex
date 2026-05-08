@@ -5,20 +5,45 @@
 ---
 
 ## Table of Contents
-1. [What Is ZoikoVertex?](#1-what-is-zoikovertex)
-2. [The Team](#2-the-team)
-3. [Tech Stack](#3-tech-stack)
-4. [System Architecture](#4-system-architecture)
-5. [The Execution Flow (Memorise This)](#5-the-execution-flow-memorise-this)
-6. [Bounded Contexts — Who Owns What](#6-bounded-contexts--who-owns-what)
-7. [Repository Structure](#7-repository-structure)
-8. [Environment Setup](#8-environment-setup)
-9. [Phase 1 Status](#9-phase-1-status)
-10. [Phase Roadmap by Developer](#10-phase-roadmap-by-developer)
+1. [Design Philosophy](#1-design-philosophy--intuitive-by-default)
+2. [What Is ZoikoVertex?](#2-what-is-zoikovertex)
+3. [The Team](#3-the-team)
+4. [Tech Stack](#4-tech-stack)
+5. [System Architecture](#5-system-architecture)
+6. [The Execution Flow (Memorise This)](#6-the-execution-flow-memorise-this)
+7. [Bounded Contexts — Who Owns What](#7-bounded-contexts--who-owns-what)
+8. [Repository Structure](#8-repository-structure)
+9. [Environment Setup](#9-environment-setup)
+10. [Phase 1 Status](#10-phase-1-status)
+11. [Phase Roadmap by Developer](#11-phase-roadmap-by-developer)
 
 ---
 
-## 1. What Is ZoikoVertex?
+## 1. Design Philosophy — Intuitive by Default
+
+Every feature, flow, and screen we build must pass this test:
+
+**If someone opens ZoikoVertex for the first time — with zero prior knowledge of scheduling apps — should they immediately know what to do?**
+
+The answer must always be **yes**.
+
+We do not build tools that require tutorials, onboarding slides, or explanation videos. We build interfaces that feel like an extension of the user's thought. The interface guides them naturally, without them even realising it.
+
+### Core Principles
+
+1. **No learning curve** — If a user needs a guide, we have failed
+2. **Progressive disclosure** — Show only what matters, when it matters
+3. **One clear action per screen** — No ambiguity, no clutter
+4. **Context over documentation** — The UI itself explains what to do
+5. **Feel natural** — Like something they already know, not a tool they must learn
+
+> **Rule:** Before shipping any feature, test it with someone who has never seen the app. If they hesitate, go back and simplify.
+
+---
+
+## 2. What Is ZoikoVertex?
+
+> This section defines what ZoikoVertex IS. For how it SHOULD feel to use, see Section 1.
 
 ZoikoVertex is a **governed, autonomous Digital Marketing Operating System**.
 
@@ -37,7 +62,7 @@ Every autonomous action taken by the system is attributable, policy-aware, and g
 
 ---
 
-## 2. The Team
+## 3. The Team
 
 | Developer | Role | Primary Responsibility |
 |---|---|---|
@@ -61,7 +86,7 @@ Every autonomous action taken by the system is attributable, policy-aware, and g
 
 ---
 
-## 3. Tech Stack
+## 4. Tech Stack
 
 ### Backend
 | Layer | Technology |
