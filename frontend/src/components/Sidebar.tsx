@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PenTool, CheckSquare, Link2, LogOut, Users, FileEdit } from "lucide-react";
+import { LayoutDashboard, PenTool, CheckSquare, Link2, LogOut, Users, FileEdit, Calendar } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRealtimeNotifications } from "@/lib/hooks/useRealtimeNotifications";
 
@@ -44,7 +44,8 @@ export default function Sidebar() {
 
   const navItems = [
     { name: "Dashboard",        href: "/",        icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "CREATOR"] },
-    { name: "Social Publisher", href: "/publish", icon: PenTool,          roles: ["CREATOR"] },
+    { name: "Social Publisher", href: "/publish", icon: PenTool,          roles: ["ADMIN", "MANAGER", "CREATOR"] },
+    { name: "Calendar",         href: "/calendar",icon: Calendar,         roles: ["ADMIN", "MANAGER", "CREATOR"] },
     { name: "Review & Edit",    href: "/review",  icon: FileEdit,         roles: ["CREATOR"] },
     { name: "Approval Queue",   href: "/queue",   icon: CheckSquare,      roles: ["ADMIN", "MANAGER"] },
     { name: "Platform Accounts",href: "/accounts",icon: Link2,            roles: ["ADMIN", "MANAGER"] },
