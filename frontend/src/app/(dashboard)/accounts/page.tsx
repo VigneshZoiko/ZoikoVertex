@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 interface ConnectedAccount {
   id: string;
-  platform: 'facebook' | 'instagram' | 'linkedin' | 'twitter';
+  platform: 'facebook' | 'instagram' | 'linkedin' | 'twitter' | 'pinterest' | 'threads';
   account_name: string;
   account_handle?: string;
   avatar_url?: string;
@@ -15,17 +15,19 @@ interface ConnectedAccount {
 }
 
 const PLATFORMS = [
-  { id: 'facebook', name: 'Facebook', color: '#1877F2', icon: 'F' },
-  { id: 'instagram', name: 'Instagram', color: '#E4405F', icon: 'IG' },
-  { id: 'linkedin', name: 'LinkedIn', color: '#0A66C2', icon: 'in' },
-  { id: 'twitter', name: 'Twitter / X', color: '#000000', icon: 'X' },
+  { id: 'facebook', name: 'Facebook', icon: 'f', color: '#1877F2' },
+  { id: 'instagram', name: 'Instagram', icon: 'i', color: '#E4405F' },
+  { id: 'linkedin', name: 'LinkedIn', icon: 'in', color: '#0A66C2' },
+  { id: 'twitter', name: 'X / Twitter', icon: '𝕏', color: '#000000' },
+  { id: 'pinterest', name: 'Pinterest', icon: 'P', color: '#BD081C' },
+  { id: 'threads', name: 'Threads', icon: '@', color: '#000000' },
 ];
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [expandedPlatforms, setExpandedPlatforms] = useState<string[]>(['facebook', 'instagram', 'linkedin', 'twitter']);
+  const [expandedPlatforms, setExpandedPlatforms] = useState<string[]>(['facebook', 'instagram', 'linkedin', 'twitter', 'pinterest', 'threads']);
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   
@@ -96,56 +98,73 @@ export default function AccountsPage() {
     }
   };
 
-  const handleAddAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedPlatform || !accountName) return;
-
+  const handleAddAccount = async (platformId: string) => {
     setIsSubmitting(true);
     setError(null);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User session not found. Please log in again.");
+      if (!user) throw new Error("User session not found.");
 
-      // Get workspace ID
-      const { data: member, error: memberError } = await supabase
+      const { data: member } = await supabase
         .from('workspace_members')
         .select('workspace_id')
         .eq('user_id', user.id)
         .single();
 
-      if (memberError || !member) throw new Error("Workspace membership not found.");
+      if (!member) throw new Error("Workspace context not found.");
 
-      const newAccount = {
-        workspace_id: member.workspace_id,
-        platform: selectedPlatform,
-        account_name: accountName,
-        account_handle: accountHandle,
-        status: 'active'
-      };
+      if (platformId === 'facebook' || platformId === 'instagram') {
+        const appId = process.env.NEXT_PUBLIC_META_APP_ID || '989391590153112';
+        const redirectUri = encodeURIComponent('http://localhost:5000/api/auth/facebook/callback');
+        
+        const scopeString = [
+          'public_profile', 'email', 'pages_show_list',
+          'pages_read_engagement', 'pages_manage_posts',
+          'instagram_basic', 'instagram_content_publish'
+        ].join(',');
 
-      const { error: insertError } = await supabase
-        .from('connected_accounts')
-        .insert(newAccount);
-      
-      if (insertError) throw insertError;
+        const state = encodeURIComponent(JSON.stringify({
+          workspaceId: member.workspace_id,
+          platform: platformId
+        }));
 
-      await fetchAccounts();
-      resetForm();
-      setShowAddModal(false);
+        window.location.href = `https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scopeString}&state=${state}&response_type=code`;
+      } else if (platformId === 'linkedin') {
+        // LinkedIn OAuth 2.0 Integration
+        const clientId = '86ffpbixotzcst'; 
+        const redirectUri = encodeURIComponent('http://localhost:5000/api/auth/linkedin/callback');
+        const state = encodeURIComponent(JSON.stringify({
+          workspaceId: member.workspace_id,
+          platform: 'linkedin'
+        }));
+        const scope = encodeURIComponent('openid profile email w_member_social');
+
+        window.location.href = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`;
+      } else if (platformId === 'pinterest') {
+        // Pinterest OAuth 2.0
+        const clientId = process.env.NEXT_PUBLIC_PINTEREST_APP_ID || '';
+        const redirectUri = encodeURIComponent('http://localhost:5000/api/auth/pinterest/callback');
+        const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
+        const scope = 'boards:read,pins:read,pins:write';
+        
+        window.location.href = `https://www.pinterest.com/oauth/?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
+      } else if (platformId === 'threads') {
+        // Threads OAuth (Via Meta)
+        const appId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '';
+        const redirectUri = encodeURIComponent('http://localhost:5000/api/auth/threads/callback');
+        const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
+        const scope = 'threads_basic,threads_content_publish';
+        
+        window.location.href = `https://www.threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`;
+      } else {
+        setError(`${platformId.charAt(0).toUpperCase() + platformId.slice(1)} integration is coming in the next update.`);
+        setIsSubmitting(false);
+      }
     } catch (err: any) {
-      console.error("Add account error:", err);
-      setError(err.message || "Failed to add account. Ensure the database table exists.");
-    } finally {
+      setError(err.message);
       setIsSubmitting(false);
     }
-  };
-
-  const resetForm = () => {
-    setSelectedPlatform(null);
-    setAccountName("");
-    setAccountHandle("");
-    setError(null);
   };
 
   return (
@@ -153,21 +172,21 @@ export default function AccountsPage() {
       <div className="flex items-end justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Connected Accounts</h1>
-          <p className="text-zinc-400">Manage OAuth tokens and platform integrations for your workspace.</p>
+          <p className="text-zinc-400">Manage and sync your social media platform integrations.</p>
         </div>
         {userRole !== 'CREATOR' && (
           <button 
-            onClick={() => { resetForm(); setShowAddModal(true); }}
-            className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-indigo-500/20"
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center px-6 py-2.5 bg-white text-black hover:bg-zinc-200 text-sm font-bold rounded-xl transition-all shadow-lg"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Add Connection
+            Connect New Account
           </button>
         )}
       </div>
 
       {error && (
-        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex items-center gap-3 text-rose-500 text-sm">
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex items-center gap-3 text-rose-500 text-sm animate-in fade-in duration-300">
           <AlertCircle className="w-5 h-5 shrink-0" />
           <p>{error}</p>
           <button onClick={() => setError(null)} className="ml-auto hover:text-rose-400">
@@ -177,9 +196,33 @@ export default function AccountsPage() {
       )}
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center h-64 space-y-4">
-          <div className="w-8 h-8 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
-          <p className="text-zinc-500 text-sm font-medium">Synchronizing tokens...</p>
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+          <div className="w-10 h-10 border-4 border-white/10 border-t-indigo-500 rounded-full animate-spin" />
+          <p className="text-zinc-500 text-[10px] font-black tracking-widest uppercase animate-pulse">Syncing Cloud Tokens...</p>
+        </div>
+      ) : accounts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6 animate-in fade-in zoom-in-95 duration-700">
+          <div className="relative mb-10">
+            <div className="absolute inset-0 bg-indigo-500/20 blur-[100px] rounded-full animate-pulse" />
+            <div className="relative w-28 h-28 bg-zinc-900 border border-zinc-800 rounded-[2.5rem] flex items-center justify-center shadow-2xl">
+              <LinkIcon className="w-12 h-12 text-zinc-700" />
+            </div>
+            <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl">
+              <Plus className="w-5 h-5 text-white" />
+            </div>
+          </div>
+          <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Expand your reach</h2>
+          <p className="text-zinc-500 max-w-sm mx-auto mb-10 text-lg font-medium leading-relaxed">
+            Connect your social media accounts to start scheduling, analyzing, and automating your content from a single dashboard.
+          </p>
+          {userRole !== 'CREATOR' && (
+            <button 
+              onClick={() => setShowAddModal(true)}
+              className="px-10 py-4 bg-white text-black hover:bg-zinc-200 text-base font-black rounded-2xl transition-all shadow-2xl shadow-white/5 hover:scale-105 active:scale-95"
+            >
+              Add Your First Connection
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
@@ -188,76 +231,86 @@ export default function AccountsPage() {
             const isExpanded = expandedPlatforms.includes(platform.id);
             
             return (
-              <div key={platform.id} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden">
+              <div key={platform.id} className="bg-zinc-900/40 border border-zinc-800/50 rounded-3xl overflow-hidden backdrop-blur-sm">
                 <button 
                   onClick={() => togglePlatform(platform.id)}
-                  className="w-full flex items-center justify-between p-5 hover:bg-zinc-800/30 transition-colors"
+                  className="w-full flex items-center justify-between p-6 hover:bg-zinc-800/30 transition-colors group"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-5">
                     <div 
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg"
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-2xl transition-transform group-hover:scale-110"
                       style={{ backgroundColor: platform.color }}
                     >
                       {platform.icon}
                     </div>
                     <div className="text-left">
-                      <h3 className="text-white font-bold">{platform.name}</h3>
-                      <p className="text-xs text-zinc-500">{platformAccounts.length} Connected {platformAccounts.length === 1 ? 'Account' : 'Accounts'}</p>
+                      <h3 className="text-white font-bold text-lg">{platform.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full ${platformAccounts.length > 0 ? 'bg-emerald-500' : 'bg-zinc-700'}`} />
+                        <p className="text-xs text-zinc-500 font-medium">
+                          {platformAccounts.length} {platformAccounts.length === 1 ? 'connection' : 'connections'} active
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  {isExpanded ? <ChevronUp className="w-5 h-5 text-zinc-500" /> : <ChevronDown className="w-5 h-5 text-zinc-500" />}
+                  <div className="flex items-center gap-4">
+                    {platformAccounts.length === 0 && userRole !== 'CREATOR' && (
+                      <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mr-2 opacity-0 group-hover:opacity-100 transition-opacity">Not Linked</span>
+                    )}
+                    {isExpanded ? <ChevronUp className="w-5 h-5 text-zinc-500" /> : <ChevronDown className="w-5 h-5 text-zinc-500" />}
+                  </div>
                 </button>
-
                 {isExpanded && (
-                  <div className="p-5 pt-0 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="border-t border-zinc-800/30 animate-in fade-in slide-in-from-top-1 duration-300">
                     {platformAccounts.length > 0 ? (
-                      platformAccounts.map(account => (
-                        <div key={account.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between h-40 group">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
+                      <div className="divide-y divide-zinc-800/30">
+                        {platformAccounts.map(account => (
+                          <div key={account.id} className="flex items-center justify-between p-4 px-6 hover:bg-zinc-800/20 transition-colors group">
+                            <div className="flex items-center gap-4 min-w-0">
                               {account.avatar_url ? (
-                                <img src={account.avatar_url} alt={account.account_name} className="w-10 h-10 rounded-lg bg-zinc-800" />
+                                <img src={account.avatar_url} alt={account.account_name} className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-800 shadow-sm" />
                               ) : (
-                                <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500 font-bold">
+                                <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 font-bold text-xs">
                                   {account.account_name.charAt(0)}
                                 </div>
                               )}
-                              <div>
-                                <h4 className="text-white font-medium text-sm">{account.account_name}</h4>
-                                <p className="text-xs text-zinc-500">{account.account_handle || 'Connected'}</p>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="text-zinc-100 font-medium text-sm truncate">{account.account_name}</h4>
+                                  <span className="w-1 h-1 rounded-full bg-zinc-700" />
+                                  <p className="text-[11px] text-zinc-500 font-medium truncate uppercase tracking-tight">
+                                    {account.account_handle || `ID: ${account.id.substring(0, 8)}`}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                              account.status === 'active' 
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                                : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                            }`}>
-                              {account.status}
-                            </span>
+                            
+                            <div className="flex items-center gap-6">
+                              <span className="hidden md:flex items-center px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest bg-emerald-500/5 text-emerald-400/60 border border-emerald-500/10">
+                                Connected
+                              </span>
+                              {userRole !== 'CREATOR' && (
+                                <button 
+                                  onClick={() => disconnectAccount(account.id)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-900/0 text-zinc-600 hover:text-rose-500 hover:bg-rose-500/5 transition-all opacity-0 group-hover:opacity-100"
+                                  title="Disconnect"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          
-                          <div className="flex items-center justify-between border-t border-zinc-800/50 pt-3 mt-auto">
-                            <p className="text-[10px] text-zinc-600">ID: {account.id.substring(0, 8)}...</p>
-                            {userRole !== 'CREATOR' && (
-                              <button 
-                                onClick={() => disconnectAccount(account.id)}
-                                className="text-zinc-500 hover:text-rose-400 transition-colors opacity-0 group-hover:opacity-100"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))
+                        ))}
+                      </div>
                     ) : (
-                      <div className="md:col-span-2 border-2 border-dashed border-zinc-800/50 rounded-xl p-8 flex flex-col items-center justify-center text-center">
-                        <p className="text-xs text-zinc-500 mb-3">No {platform.name} accounts connected yet.</p>
+                      <div className="p-10 flex flex-col items-center justify-center text-center">
+                        <p className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.2em] mb-4">No active connection</p>
                         {userRole !== 'CREATOR' && (
                           <button 
                             onClick={() => setShowAddModal(true)}
-                            className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+                            className="px-4 py-1.5 bg-zinc-900/50 hover:bg-white hover:text-black text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all border border-zinc-800"
                           >
-                            + Connect Account
+                            Add {platform.name}
                           </button>
                         )}
                       </div>
@@ -270,113 +323,66 @@ export default function AccountsPage() {
         </div>
       )}
 
-      {/* Add Account Modal */}
+      {/* Ultra-Compact Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white">
-                {selectedPlatform ? `Connect ${PLATFORMS.find(p => p.id === selectedPlatform)?.name}` : 'Connect Platform'}
-              </h2>
-              <button onClick={() => setShowAddModal(false)} className="text-zinc-500 hover:text-white transition-colors">
-                <X className="w-6 h-6" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/95 backdrop-blur-md animate-in fade-in duration-500">
+          <div className="bg-zinc-950 border border-zinc-800/80 rounded-[2rem] w-full max-w-lg overflow-hidden shadow-2xl flex flex-col">
+            <div className="p-6 border-b border-zinc-900 flex items-center justify-between bg-zinc-900/10 shrink-0">
+              <h2 className="text-lg font-bold text-white tracking-tight">Add Connection</h2>
+              <button 
+                onClick={() => setShowAddModal(false)} 
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-zinc-900 text-zinc-500 hover:text-white transition-all border border-zinc-800"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
             
-            <form onSubmit={handleAddAccount}>
-              <div className="p-8 space-y-6">
-                {!selectedPlatform ? (
-                  <>
-                    <p className="text-zinc-400 text-sm">Select a platform to initiate the OAuth 2.0 secure authorization flow.</p>
-                    <div className="grid grid-cols-2 gap-4">
-                      {PLATFORMS.map(platform => (
-                        <button
-                          key={platform.id}
-                          type="button"
-                          onClick={() => setSelectedPlatform(platform.id)}
-                          className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-zinc-950 border border-zinc-800 hover:border-indigo-500/50 hover:bg-zinc-900 transition-all group text-left"
-                        >
-                          <div 
-                            className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg transition-transform group-hover:scale-110"
-                            style={{ backgroundColor: platform.color }}
-                          >
-                            {platform.icon}
-                          </div>
-                          <span className="text-xs font-bold text-white">{platform.name}</span>
-                        </button>
-                      ))}
+            <div className="p-8">
+              <div className="grid grid-cols-2 gap-3 mb-8">
+                {PLATFORMS.map(platform => (
+                  <button
+                    key={platform.id}
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => handleAddAccount(platform.id)}
+                    className="flex items-center gap-3 p-4 rounded-2xl bg-zinc-900/30 border border-zinc-800 hover:border-zinc-500 hover:bg-zinc-800/50 transition-all text-left disabled:opacity-50 group"
+                  >
+                    <div 
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-xl group-hover:scale-110 transition-transform"
+                      style={{ backgroundColor: platform.color }}
+                    >
+                      {platform.icon}
                     </div>
-                  </>
-                ) : (
-                  <div className="space-y-5 animate-in slide-in-from-right-4 duration-300">
-                    <div>
-                      <label className="block text-xs font-black uppercase tracking-widest text-zinc-500 mb-2">Account Name</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={accountName}
-                        onChange={(e) => setAccountName(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 text-sm transition-colors"
-                        placeholder="e.g. Zoiko Official"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-black uppercase tracking-widest text-zinc-500 mb-2">Account Handle (Optional)</label>
-                      <input 
-                        type="text" 
-                        value={accountHandle}
-                        onChange={(e) => setAccountHandle(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 text-sm transition-colors"
-                        placeholder="e.g. @zoiko_intl"
-                      />
-                    </div>
-                    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-                      <p className="text-[11px] text-zinc-400 leading-relaxed">
-                        <span className="text-amber-500 font-bold">Note:</span> Since this is a demo, clicking &quot;Connect&quot; will simulate a successful OAuth callback and create the account entry.
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-zinc-200 truncate">{platform.name}</h4>
+                      <p className="text-[9px] text-zinc-500 font-black uppercase tracking-tight opacity-60">
+                        {platform.id === 'facebook' || platform.id === 'instagram' ? 'OAuth' : 'Pending'}
                       </p>
                     </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="p-6 bg-zinc-950/50 border-t border-zinc-800 flex justify-between">
-                {selectedPlatform ? (
-                  <button 
-                    type="button"
-                    onClick={() => setSelectedPlatform(null)}
-                    className="px-6 py-2 text-zinc-400 hover:text-white text-sm font-bold transition-colors"
-                  >
-                    Back
                   </button>
-                ) : (
-                  <div />
-                )}
-                <div className="flex gap-3">
-                  <button 
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-bold rounded-xl transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  {selectedPlatform && (
-                    <button 
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2"
-                    >
-                      {isSubmitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <LinkIcon className="w-4 h-4" />}
-                      Connect Account
-                    </button>
-                  )}
-                </div>
+                ))}
               </div>
-            </form>
+
+              <div className="p-5 bg-zinc-900/30 border border-zinc-800/50 rounded-2xl flex items-start gap-4">
+                <AlertCircle className="w-4 h-4 text-zinc-600 mt-0.5 shrink-0" />
+                <p className="text-[10px] text-zinc-500 leading-relaxed font-medium uppercase tracking-tight">
+                  ZoikoVertex uses enterprise-grade OAuth handshakes. Revoke access anytime from your provider settings.
+                </p>
+              </div>
+            </div>
+            
+            <div className="p-6 bg-zinc-900/20 border-t border-zinc-900 flex justify-end shrink-0">
+              <button 
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="px-6 py-2 text-zinc-500 hover:text-white text-[10px] font-black transition-colors uppercase tracking-widest"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
-

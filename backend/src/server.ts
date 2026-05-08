@@ -9,7 +9,7 @@ import { errorHandler } from './shared/errorHandler';
 import { provisionUser } from './modules/identity/identityController';
 import { generateContent } from './modules/intelligence/intelligenceController';
 import { transitionStatus } from './modules/governance/governanceController';
-import { getRecommendations, schedulePost, cancelScheduledPost } from './modules/scheduler/schedulerController';
+import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback } from './modules/social/socialController';
 
 const app = express();
 const port = env.PORT;
@@ -33,6 +33,10 @@ app.get('/api/v1/health', (req, res) => {
 app.post('/api/v1/users/provision', provisionUser);
 app.post('/api/v1/ai/generate', generateContent);
 app.post('/api/v1/governance/transition', transitionStatus);
+app.get('/api/auth/facebook/callback', handleFacebookCallback);
+app.get('/api/auth/linkedin/callback', handleLinkedInCallback);
+app.get('/api/auth/pinterest/callback', handlePinterestCallback);
+app.get('/api/auth/threads/callback', handleThreadsCallback);
 
 // Global Error Handler
 app.use(errorHandler);

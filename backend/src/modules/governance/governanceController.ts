@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
+import { ExecutionService } from '../social/executionService';
 
 // Helper for database logging
 const logToDatabase = async (level: string, service: string, message: string, payload?: any) => {
@@ -20,6 +21,7 @@ export const transitionStatus = async (req: Request, res: Response, next: NextFu
       return;
     }
 
+    logger.info(`[Governance] Transitioning ${intentId} to ${newStatus} by ${userRole}`);
     await logToDatabase('info', 'Governance', `Transitioning ${intentId} to ${newStatus} by ${userRole}`, { intentId, newStatus, feedback, userId });
 
     // 1. Update the intent status
@@ -32,20 +34,12 @@ export const transitionStatus = async (req: Request, res: Response, next: NextFu
 
     if (error) throw error;
 
-    // 2. If APPROVED, simulate publishing after a delay
+    // 2. If APPROVED, trigger real publishing
     if (newStatus === 'APPROVED') {
-      logger.info(`[Execution] Scheduling simulated publish for intent ${intentId}...`);
-      setTimeout(async () => {
-        try {
-          await supabaseAdmin
-            .from('publish_intents')
-            .update({ status: 'PUBLISHED' })
-            .eq('id', intentId);
-          await logToDatabase('info', 'Execution', `Intent ${intentId} successfully PUBLISHED (Simulated).`, { intentId });
-        } catch (execErr) {
-          logger.error({ execErr }, `[Execution] Failed to publish ${intentId}`);
-        }
-      }, 10000); // 10 second delay
+      console.log(`[GOVERNANCE] Detected APPROVED status for ${intentId}. Triggering ExecutionService...`);
+      ExecutionService.publishIntent(intentId).catch(err => {
+        logger.error({ err }, `[Governance] Async execution failed for ${intentId}`);
+      });
     }
 
     res.status(200).json({ success: true, data });
