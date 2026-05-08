@@ -12,6 +12,64 @@ const logToDatabase = async (level: string, service: string, message: string, pa
   }
 };
 
+export const submitIntent = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { topic, content, mediaUrl, targetAccountIds, userId } = req.body;
+
+    if (!targetAccountIds || targetAccountIds.length === 0) {
+      return res.status(400).json({ error: 'No target accounts selected' });
+    }
+
+    // 1. Fetch workspace_id for the user
+    const { data: member, error: memberError } = await supabaseAdmin
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (memberError) throw memberError;
+
+    // 2. Fetch account details
+    const { data: accounts, error: accError } = await supabaseAdmin
+      .from('connected_accounts')
+      .select('id, platform')
+      .in('id', targetAccountIds);
+
+    if (accError) throw accError;
+
+    // 3. Create separate intents for each account
+    const intentsToCreate = accounts.map(acc => {
+      let finalCaption = content.universal;
+      if (content.platforms && content.platforms[acc.platform]) {
+        finalCaption = content.platforms[acc.platform];
+      }
+
+      return {
+        workspace_id: member.workspace_id,
+        creator_id: userId,
+        target_account_ids: [acc.id],
+        content: finalCaption,
+        media_url: mediaUrl,
+        status: 'PENDING_ADMIN', // Aligning with the existing status name
+        platform: acc.platform
+      };
+    });
+
+    const { data, error } = await supabaseAdmin
+      .from('publish_intents')
+      .insert(intentsToCreate)
+      .select();
+
+    if (error) throw error;
+
+    await logToDatabase('info', 'Governance', `Created ${intentsToCreate.length} publish intents`, { userId, count: intentsToCreate.length });
+
+    res.status(200).json({ success: true, count: data.length });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const transitionStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { intentId, newStatus, feedback, userId, userRole } = req.body;

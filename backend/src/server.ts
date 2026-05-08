@@ -7,8 +7,8 @@ import { errorHandler } from './shared/errorHandler';
 
 // Controllers
 import { provisionUser } from './modules/identity/identityController';
-import { generateContent } from './modules/intelligence/intelligenceController';
-import { transitionStatus } from './modules/governance/governanceController';
+import { generateContent, analyzeImage } from './modules/intelligence/intelligenceController';
+import { transitionStatus, submitIntent } from './modules/governance/governanceController';
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback } from './modules/social/socialController';
 
 const app = express();
@@ -17,7 +17,8 @@ const port = env.PORT;
 // Middleware
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/api/v1/health', (req, res) => {
@@ -32,7 +33,9 @@ app.get('/api/v1/health', (req, res) => {
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.post('/api/v1/users/provision', provisionUser);
 app.post('/api/v1/ai/generate', generateContent);
+app.post('/api/v1/ai/analyze-image', analyzeImage);
 app.post('/api/v1/governance/transition', transitionStatus);
+app.post('/api/v1/governance/submit', submitIntent);
 app.get('/api/auth/facebook/callback', handleFacebookCallback);
 app.get('/api/auth/linkedin/callback', handleLinkedInCallback);
 app.get('/api/auth/pinterest/callback', handlePinterestCallback);
