@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { 
   Sparkles, Send, CheckCircle2, AlertCircle, RefreshCcw, 
-  XCircle, ListTodo, AlertTriangle
-  XCircle, ListTodo, Calendar, Clock, Edit3, Trash2, ChevronLeft, ChevronRight
+  XCircle, ListTodo, AlertTriangle, Calendar, Clock, 
+  Edit3, Trash2, ChevronLeft, ChevronRight 
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -271,7 +271,7 @@ function PublishPageInner() {
           canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
           const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
 
-          const response = await fetch('http://localhost:5000/api/v1/ai/analyze-image', {
+          const response = await fetch('/api/v1/ai/analyze-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ imageBase64: optimizedBase64 })
@@ -290,7 +290,7 @@ function PublishPageInner() {
           }
         } catch (err: any) {
           console.error("[VISION] Network Error:", err);
-          setMessage({ type: 'error', text: `Connection Error: Could not reach AI server at http://localhost:5000` });
+          setMessage({ type: 'error', text: `Connection Error: Could not reach AI server` });
         } finally {
           setIsAnalyzing(false);
         }
@@ -323,7 +323,7 @@ function PublishPageInner() {
         imageBase64 = mediaPreview;
       }
 
-      const response = await fetch('http://localhost:5000/api/v1/ai/generate', {
+      const response = await fetch('/api/v1/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -374,59 +374,6 @@ function PublishPageInner() {
     setGenerating(false);
   };
 
-  const [suggestedTimes, setSuggestedTimes] = useState<{time: string, label: string, reasoning?: string, confidence_score?: number}[]>([]);
-  const [selectedTime, setSelectedTime] = useState<string>('immediate');
-  const [customTime, setCustomTime] = useState<string>("");
-  
-  // Magic Schedule State
-  const [audienceRegion, setAudienceRegion] = useState("Global");
-  const [audienceAgeGroup, setAudienceAgeGroup] = useState("All Ages");
-  const [isFetchingRecommendations, setIsFetchingRecommendations] = useState(false);
-
-  const handleMagicSchedule = async () => {
-    if (!topic) {
-      setMessage({ type: 'error', text: 'Please enter a Topic so the AI knows your niche!' });
-      return;
-    }
-    const platforms = getSelectedPlatforms();
-    if (platforms.length === 0) {
-      setMessage({ type: 'error', text: 'Please select at least one platform.' });
-      return;
-    }
-
-    setIsFetchingRecommendations(true);
-    try {
-      const response = await fetch('http://localhost:5000/api/v1/scheduler/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform: platforms[0], // Ask for the first platform as primary
-          niche: topic,
-          audienceRegion,
-          audienceAgeGroup
-        })
-      });
-      const data = await response.json();
-      if (response.ok && data.recommendations) {
-        const today = new Date().toISOString().split('T')[0];
-        const formattedSlots = data.recommendations.map((rec: any) => ({
-          time: `${today}T${rec.best_start_time}`, // Combining today's date with the recommended time slot
-          label: `${rec.best_start_time} - ${rec.best_end_time} (Confidence: ${Math.round(rec.confidence_score * 100)}%)`,
-          reasoning: rec.reasoning,
-          confidence_score: rec.confidence_score
-        }));
-        setSuggestedTimes(formattedSlots);
-        setMessage({ type: 'success', text: 'AI analyzed demographics and generated peak time slots!' });
-      } else {
-        const errorMsg = typeof data.error === 'object' ? data.error.message : data.error;
-        setMessage({ type: 'error', text: errorMsg || 'AI Scheduling failed' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Could not fetch scheduling recommendations. Try again later.' });
-    }
-    setIsFetchingRecommendations(false);
-  };
-
   const handleSubmitIntent = async () => {
     if (selectedAccountIds.length === 0) {
       setMessage({ type: 'error', text: 'Please select at least one target account in the sidebar.' });
@@ -462,7 +409,7 @@ function PublishPageInner() {
         userId: user.id
       };
 
-      const res = await fetch('http://localhost:5000/api/v1/governance/submit', {
+      const res = await fetch('/api/v1/governance/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -491,7 +438,7 @@ function PublishPageInner() {
   const handleGovernanceAction = async (postId: string, action: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const response = await fetch('http://localhost:5000/api/v1/governance/transition', {
+      const response = await fetch('/api/v1/governance/transition', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -711,48 +658,11 @@ function PublishPageInner() {
                       if (!activePlatformTab) setActivePlatformTab("Instagram");
                     }} 
                     className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20' : 'text-zinc-500 hover:text-zinc-400'}`}
-          {/* Content Composer */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-            <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white">Caption</h3>
-              <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg">
-                <button 
-                  onClick={() => setIsPlatformSpecific(false)} 
-                  className={`px-3 py-1 text-[10px] font-bold rounded transition-all ${!isPlatformSpecific ? 'bg-zinc-800 text-white' : 'text-zinc-500'}`}
-                >
-                  Universal
-                </button>
-                <button 
-                  onClick={() => {
-                    setIsPlatformSpecific(true);
-                    const currentPlatforms = getSelectedPlatforms();
-                    setPlatformCaptions(prev => {
-                      const next = { ...prev };
-                      currentPlatforms.forEach(p => { if (!next[p]) next[p] = description; });
-                      return next;
-                    });
-                    if (!activePlatformTab && currentPlatforms.length > 0) setActivePlatformTab(currentPlatforms[0]);
-                  }} 
-                  className={`px-3 py-1 text-[10px] font-bold rounded transition-all ${isPlatformSpecific ? 'bg-indigo-600 text-white' : 'text-zinc-500'}`}
-                >
-                  Per Platform
-                </button>
-              </div>
-            </div>
-
-            {isPlatformSpecific && getSelectedPlatforms().length > 0 && (
-              <div className="flex gap-2 p-4 border-b border-zinc-800 overflow-x-auto">
-                {getSelectedPlatforms().map(p => (
-                  <button 
-                    key={p} 
-                    onClick={() => setActivePlatformTab(p)} 
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activePlatformTab === p ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500' : 'bg-zinc-950 text-zinc-500 border border-zinc-800'}`}
                   >
-                    {p}
+                    Per Platform
                   </button>
-                ))}
+                </div>
               </div>
-            )}
 
               {isPlatformSpecific && (
                 <div className="flex flex-wrap gap-2 mb-6 p-2 bg-zinc-950/50 border border-zinc-800/50 rounded-2xl overflow-x-auto scrollbar-hide">
@@ -836,45 +746,6 @@ function PublishPageInner() {
                 isAnalyzing={isAnalyzing}
                 onAddImageInsight={handleAddImageInsight}
               />
-            <div className="p-4">
-              <textarea 
-                value={isPlatformSpecific ? (platformCaptions[activePlatformTab] || "") : description}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (isPlatformSpecific) {
-                    setPlatformCaptions(prev => ({ ...prev, [activePlatformTab]: val }));
-                  } else {
-                    setDescription(val);
-                  }
-                }}
-                placeholder={isPlatformSpecific ? `Write for ${activePlatformTab}...` : "Write your caption..."}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-white text-sm leading-relaxed placeholder:text-zinc-600 outline-none focus:border-zinc-700 min-h-[180px] resize-none"
-              />
-            </div>
-
-            <div className="px-4 pb-4 flex items-center justify-between">
-              <button 
-                onClick={() => setShowAIWriter(!showAIWriter)} 
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all ${showAIWriter ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-              >
-                <Sparkles className="w-4 h-4" />
-                AI Generate
-              </button>
-              <span className="text-xs text-zinc-600">
-                {isPlatformSpecific ? platformCaptions[activePlatformTab]?.length || 0 : description.length} chars
-              </span>
-            </div>
-
-            {showAIWriter && (
-              <div className="p-4 border-t border-zinc-800 bg-zinc-950/50">
-                <AIWriterPanel 
-                  topic={topic} onTopicChange={setTopic} 
-                  contentType={contentType} onContentTypeChange={setContentType}
-                  aiLength={aiLength} onAiLengthChange={setAiLength} 
-                  aiTone={aiTone} onAiToneChange={setAiTone}
-                  onGenerate={handleGenerateAI} generating={generating}
-                />
-              </div>
             )}
 
             {metrics && (
