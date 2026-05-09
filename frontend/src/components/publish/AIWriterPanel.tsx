@@ -16,6 +16,9 @@ interface AIWriterPanelProps {
   onAudienceChange: (val: string) => void;
   onGenerate: () => void;
   generating: boolean;
+  hasImageAnalysis: boolean;
+  isAnalyzing: boolean;
+  onAddImageInsight: () => void;
 }
 
 const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
@@ -32,13 +35,32 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
   audience,
   onAudienceChange,
   onGenerate,
-  generating
+  generating,
+  hasImageAnalysis,
+  isAnalyzing,
+  onAddImageInsight
 }) => {
   return (
     <div className="bg-zinc-950/80 border-t border-zinc-800 p-8 space-y-8 animate-in slide-in-from-top duration-300">
       <div className="space-y-4">
         <div className="space-y-2">
-          <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Post Topic / Story Detail</label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Post Topic / Story Detail</label>
+            {isAnalyzing ? (
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 animate-pulse">
+                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping" />
+                Analyzing Image...
+              </div>
+            ) : hasImageAnalysis && (
+              <button 
+                type="button"
+                onClick={onAddImageInsight}
+                className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20"
+              >
+                + Add AI Image Insight
+              </button>
+            )}
+          </div>
           <textarea 
             value={topic} onChange={(e) => onTopicChange(e.target.value)}
             placeholder="Describe your story in detail. Add up to 5+ lines for better AI context..."
