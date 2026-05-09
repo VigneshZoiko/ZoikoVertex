@@ -9,16 +9,18 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-// Modular Components
 import PlatformSelector from "@/components/publish/PlatformSelector";
 import MediaUploader from "@/components/publish/MediaUploader";
 import AIWriterPanel from "@/components/publish/AIWriterPanel";
 import SchedulingPanel from "@/components/publish/SchedulingPanel";
 import PendingPostItem from "@/components/publish/PendingPostItem";
+import MediaPackManager from "@/components/publish/MediaPackManager";
+import { useDraftGuard } from "@/lib/context/DraftGuardContext";
 
 function PublishPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { isDirty, setIsDirty } = useDraftGuard();
 
   // Basic Content State
   const [topic, setTopic] = useState("");
@@ -26,6 +28,9 @@ function PublishPageInner() {
   const [description, setDescription] = useState("");
   const [media, setMedia] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);   // all URLs in the pack
+  const [selectedUrls, setSelectedUrls] = useState<string[]>([]);  // manager's finalized selection
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   // AI & Formatting State
   const [aiTone, setAiTone] = useState("professional");
@@ -72,6 +77,44 @@ function PublishPageInner() {
   
   // AI Recommendations State
   const [suggestedTimes, setSuggestedTimes] = useState<any[]>([]);
+  const assetUrls = searchParams.get('assetUrls');
+  const assetUrl  = searchParams.get('assetUrl');   // legacy single-url fallback
+  const assetType = searchParams.get('assetType');
+  const assetTitle = searchParams.get('assetTitle');
+
+  useEffect(() => {
+    if (assetUrls) {
+      try {
+        const parsed: string[] = JSON.parse(assetUrls);
+        setMediaUrls(parsed);
+        setSelectedUrls(parsed);
+        setMediaPreview(parsed[0] || null);
+        setCarouselIndex(0);
+      } catch {}
+    } else if (assetUrl) {
+      setMediaUrls([assetUrl]);
+      setSelectedUrls([assetUrl]);
+      setMediaPreview(assetUrl);
+    }
+    if (assetTitle && !topic) setTopic(assetTitle);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assetUrls, assetUrl, assetTitle]);
+
+  // Mark draft as dirty whenever meaningful content exists
+  useEffect(() => {
+    const hasDraft = topic.trim().length > 0 || description.trim().length > 0 || media !== null || mediaUrls.length > 0;
+    setIsDirty(hasDraft);
+  }, [topic, description, media, mediaUrls, setIsDirty]);
+
+  // Discard handler
+  const handleDiscard = useCallback(() => {
+    setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
+    setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
+    setSuggestedTimes([]); setActiveRevisionId(null);
+    setSelectedAccountIds([]); setPlatformCaptions({});
+    setIsDirty(false);
+    setMessage({ type: 'success', text: 'Draft discarded. Start fresh anytime.' });
+  }, [setIsDirty]);
   const [isFetchingRecommendations, setIsFetchingRecommendations] = useState(false);
   
   // Scheduling State
@@ -386,15 +429,15 @@ function PublishPageInner() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // 1. Handle Media Upload to Supabase Storage
-      let publicUrl = mediaPreview;
+      // 1. Handle Media Upload to Supabase Storage (only if a new local file is attached)
+      let finalUrls: string[] = [...selectedUrls];
       if (media) {
         const fileExt = media.name.split('.').pop();
         const filePath = `${user.id}/${Date.now()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage.from('media').upload(filePath, media);
         if (uploadError) throw uploadError;
         const { data: { publicUrl: newUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
-        publicUrl = newUrl;
+        finalUrls = [newUrl];
       }
 
       // 2. Submit to Governance Engine
@@ -404,7 +447,8 @@ function PublishPageInner() {
           universal: description,
           platforms: platformCaptions
         },
-        mediaUrl: publicUrl,
+        mediaUrls: finalUrls,
+        mediaUrl: finalUrls[0] || null,  // backward compat
         targetAccountIds: selectedAccountIds,
         userId: user.id
       };
@@ -425,9 +469,11 @@ function PublishPageInner() {
       
       // Cleanup State
       setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
+      setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
       setSuggestedTimes([]); setActiveRevisionId(null);
       setSelectedAccountIds([]); setPlatformCaptions({});
       setCustomTime(""); setSelectedTime("immediate");
+      setIsDirty(false);
       fetchUserData();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
@@ -595,6 +641,16 @@ function PublishPageInner() {
         </div>
         
         <div className="flex items-center gap-4">
+          {/* Discard Draft button — only show when dirty and user is MANAGER */}
+          {isDirty && userRole === 'MANAGER' && (
+            <button
+              onClick={handleDiscard}
+              className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 rounded-xl text-xs font-bold transition-all"
+            >
+              <Trash2 className="w-4 h-4" />
+              Discard Draft
+            </button>
+          )}
           {revisions.length > 0 && userRole === 'CREATOR' && (
             <button 
               onClick={() => router.push('/review')}
@@ -625,13 +681,131 @@ function PublishPageInner() {
           
           {/* Media Section */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <h3 className="text-sm font-bold text-white mb-4">Media</h3>
-            <MediaUploader 
-              mediaPreview={mediaPreview} 
-              mediaType={media?.type} 
-              onUpload={handleMediaUpload} 
-              onClear={() => {setMedia(null); setMediaPreview(null);}} 
-            />
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-white">Media</h3>
+              {mediaUrls.length > 1 && (
+                <span className="text-xs text-indigo-400 font-bold bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-lg">
+                  Pack · {mediaUrls.length} files
+                </span>
+              )}
+            </div>
+
+            {/* Carousel preview when library pack is loaded */}
+            {mediaUrls.length > 1 ? (
+              <div className="space-y-4">
+                {/* Swipeable Carousel Viewer */}
+                {(() => {
+                  // We render this as a self-contained IIFE so hooks-style state
+                  // lives in the parent (carouselIndex / setCarouselIndex already there)
+                  return null; // placeholder — actual JSX is below
+                })()}
+                <div
+                  className="relative rounded-xl overflow-hidden border border-zinc-800 bg-black select-none"
+                  style={{ touchAction: 'pan-y' }}
+                  onPointerDown={(e) => {
+                    (e.currentTarget as any)._dragStartX = e.clientX;
+                    (e.currentTarget as any)._dragging = true;
+                  }}
+                  onPointerMove={(e) => {
+                    if (!(e.currentTarget as any)._dragging) return;
+                    (e.currentTarget as any)._dragCurrentX = e.clientX;
+                  }}
+                  onPointerUp={(e) => {
+                    if (!(e.currentTarget as any)._dragging) return;
+                    (e.currentTarget as any)._dragging = false;
+                    const start = (e.currentTarget as any)._dragStartX ?? e.clientX;
+                    const delta = (e.currentTarget as any)._dragCurrentX - start;
+                    if (delta < -60 && carouselIndex < selectedUrls.length - 1) {
+                      const ni = carouselIndex + 1;
+                      setCarouselIndex(ni);
+                      setMediaPreview(selectedUrls[ni]);
+                    } else if (delta > 60 && carouselIndex > 0) {
+                      const ni = carouselIndex - 1;
+                      setCarouselIndex(ni);
+                      setMediaPreview(selectedUrls[ni]);
+                    }
+                  }}
+                  onPointerLeave={(e) => { (e.currentTarget as any)._dragging = false; }}
+                >
+                  <div className="aspect-video relative cursor-grab active:cursor-grabbing">
+                    {assetType === 'video' ? (
+                      <video key={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} src={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} controls className="w-full h-full object-contain pointer-events-none" />
+                    ) : (
+                      <img key={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} src={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} alt={`media ${carouselIndex + 1}`} className="w-full h-full object-contain pointer-events-none" draggable={false} />
+                    )}
+
+                    {/* Left arrow */}
+                    {carouselIndex > 0 && (
+                      <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => { const ni = carouselIndex - 1; setCarouselIndex(ni); setMediaPreview(selectedUrls[ni]); }}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black text-white rounded-full w-9 h-9 flex items-center justify-center transition-all z-10"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                    )}
+
+                    {/* Right arrow */}
+                    {carouselIndex < selectedUrls.length - 1 && (
+                      <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => { const ni = carouselIndex + 1; setCarouselIndex(ni); setMediaPreview(selectedUrls[ni]); }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black text-white rounded-full w-9 h-9 flex items-center justify-center transition-all z-10"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    )}
+
+                    {/* Dot indicators */}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                      {selectedUrls.map((_, i) => (
+                        <button
+                          key={i}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => { setCarouselIndex(i); setMediaPreview(selectedUrls[i]); }}
+                          className={`rounded-full transition-all ${ i === carouselIndex ? 'bg-white w-4 h-2' : 'bg-white/40 hover:bg-white/70 w-2 h-2'}`}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Swipe hint */}
+                    <div className="absolute top-3 right-3 bg-black/50 text-white text-[10px] px-2 py-1 rounded-lg font-medium opacity-60">
+                      {carouselIndex + 1} / {selectedUrls.length}
+                    </div>
+                  </div>
+
+                  {/* Thumbnail strip */}
+                  <div className="flex gap-2 p-3 bg-zinc-950/80 overflow-x-auto">
+                    {selectedUrls.map((url, i) => (
+                      <button key={i} onClick={() => { setCarouselIndex(i); setMediaPreview(url); }}
+                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${ i === carouselIndex ? 'border-indigo-500' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                        <img src={url} alt={`thumb ${i}`} className="w-full h-full object-cover" draggable={false} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Media Pack Manager */}
+                <MediaPackManager
+                  allUrls={mediaUrls}
+                  fileType={assetType || 'image'}
+                  selectedUrls={selectedUrls}
+                  onSelectionChange={(next) => {
+                    setSelectedUrls(next);
+                    // Keep carousel index in bounds
+                    if (carouselIndex >= next.length) setCarouselIndex(Math.max(0, next.length - 1));
+                    setMediaPreview(next[0] || null);
+                  }}
+                />
+              </div>
+            ) : (
+              <MediaUploader
+                mediaPreview={mediaPreview}
+                mediaType={media?.type}
+                onUpload={handleMediaUpload}
+                onClear={() => { setMedia(null); setMediaPreview(null); setMediaUrls([]); setSelectedUrls([]); }}
+              />
+            )}
           </div>
 
           {/* Content Area (Instagram-style: Bottom) */}
@@ -779,6 +953,8 @@ function PublishPageInner() {
               expandedPlatforms={expandedPlatforms}
               onToggleExpansion={togglePlatformExpansion}
               userRole={userRole}
+              mediaCount={selectedUrls.length || (media ? 1 : 0)}
+              mediaType={assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : '')}
             />
           </div>
 
@@ -914,29 +1090,6 @@ function PublishPageInner() {
         </div>
       </div>
 
-      {/* Review Queue - Only for Admin/Manager - Horizontal Compact */}
-      {pendingPosts.length > 0 && (userRole === 'ADMIN' || userRole === 'MANAGER') && (
-        <div className="mt-6 bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <ListTodo className="w-4 h-4 text-indigo-400" />
-              Approval Queue ({pendingPosts.length})
-            </h3>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            {pendingPosts.map(post => (
-              <PendingPostItem 
-                key={post.id} 
-                post={post} 
-                userRole={userRole} 
-                reviewComment={reviewComment} 
-                onReviewCommentChange={setReviewComment} 
-                onAction={(action) => handleGovernanceAction(post.id, action)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
       {/* Edit Scheduled Post Modal */}
                       {/* Edit Scheduled Post Modal */}
       {showEditScheduledModal && selectedScheduledPost && (

@@ -89,13 +89,19 @@ export default function ApprovalQueue() {
     <div className="max-w-6xl mx-auto pb-12 px-4">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Approval Queue</h1>
-          <p className="text-zinc-400 text-sm font-medium">Review and govern social media intents before they are published.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">
+            {userRole === 'MANAGER' ? 'Review & Edit' : 'Approval Queue'}
+          </h1>
+          <p className="text-zinc-400 text-sm font-medium">
+            {userRole === 'MANAGER'
+              ? 'Review posts submitted by creators. Approve, return for edits, or reject before escalating to Admin.'
+              : 'Final approval gate. Approve or reject Manager-submitted posts before they go live.'}
+          </p>
         </div>
         <button
           onClick={() => fetchIntents(userRole || '')}
           className="p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-400 hover:text-white hover:border-zinc-700 transition-all group"
-          title="Refresh Queue"
+          title="Refresh"
         >
           <RefreshCcw className={`w-5 h-5 ${loading ? 'animate-spin text-indigo-500' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
         </button>
@@ -119,8 +125,14 @@ export default function ApprovalQueue() {
             <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <CheckSquare className="w-8 h-8 text-zinc-600" />
             </div>
-            <h3 className="text-white font-bold text-lg mb-2">Queue is Empty</h3>
-            <p className="text-zinc-500 max-w-xs mx-auto text-sm">There are no pending posts waiting for approval at this time.</p>
+            <h3 className="text-white font-bold text-lg mb-2">
+              {userRole === 'MANAGER' ? 'No Posts to Review' : 'Approval Queue is Clear'}
+            </h3>
+            <p className="text-zinc-500 max-w-xs mx-auto text-sm leading-relaxed">
+              {userRole === 'MANAGER' 
+                ? 'Everything is up to date. New posts from creators will appear here for your review.' 
+                : 'There are no pending posts waiting for final approval. Great job!'}
+            </p>
           </div>
         ) : (
           intents.map((intent) => (

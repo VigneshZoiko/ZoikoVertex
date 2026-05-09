@@ -114,9 +114,11 @@ export default function AccountsPage() {
 
       if (!member) throw new Error("Workspace context not found.");
 
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+
       if (platformId === 'facebook' || platformId === 'instagram') {
         const appId = process.env.NEXT_PUBLIC_META_APP_ID || '989391590153112';
-        const redirectUri = encodeURIComponent('http://localhost:5000/api/auth/facebook/callback');
+        const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/facebook/callback`);
         
         const scopeString = [
           'public_profile', 'email', 'pages_show_list',
@@ -133,7 +135,7 @@ export default function AccountsPage() {
       } else if (platformId === 'linkedin') {
         // LinkedIn OAuth 2.0 Integration
         const clientId = '86ffpbixotzcst'; 
-        const redirectUri = encodeURIComponent('http://localhost:5000/api/auth/linkedin/callback');
+        const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/linkedin/callback`);
         const state = encodeURIComponent(JSON.stringify({
           workspaceId: member.workspace_id,
           platform: 'linkedin'
@@ -144,7 +146,7 @@ export default function AccountsPage() {
       } else if (platformId === 'pinterest') {
         // Pinterest OAuth 2.0
         const clientId = process.env.NEXT_PUBLIC_PINTEREST_APP_ID || '';
-        const redirectUri = encodeURIComponent('http://localhost:5000/api/auth/pinterest/callback');
+        const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/pinterest/callback`);
         const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
         const scope = 'boards:read,pins:read,pins:write';
         
@@ -152,7 +154,7 @@ export default function AccountsPage() {
       } else if (platformId === 'threads') {
         // Threads OAuth (Via Meta)
         const appId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '';
-        const redirectUri = encodeURIComponent('http://localhost:5000/api/auth/threads/callback');
+        const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/threads/callback`);
         const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
         const scope = 'threads_basic,threads_content_publish';
         

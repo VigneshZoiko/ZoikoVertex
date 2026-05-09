@@ -136,8 +136,8 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
 
     // Redirect user back to the frontend dashboard
     // In a real app, you'd redirect to a "success" page or the accounts settings
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    res.redirect(`${frontendUrl}/accounts?status=success&connected=${connectedAccounts.length}`);
+    // Redirect user back to the frontend dashboard
+    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&connected=${connectedAccounts.length}`);
 
   } catch (error) {
     next(error);
@@ -180,7 +180,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code: code as string,
-        redirect_uri: 'http://localhost:5000/api/auth/linkedin/callback',
+        redirect_uri: `${env.META_REDIRECT_URI?.replace('facebook', 'linkedin')}`, // Hack to use the same base redirect domain
         client_id: env.LINKEDIN_CLIENT_ID || '',
         client_secret: env.LINKEDIN_CLIENT_SECRET || '',
       }),
@@ -216,8 +216,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
 
     if (dbError) throw dbError;
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    res.redirect(`${frontendUrl}/accounts?status=success&platform=linkedin`);
+    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=linkedin`);
 
   } catch (error) {
     next(error);
@@ -233,10 +232,8 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
     logger.info(`[Social] Pinterest callback received for workspace: ${workspaceId}`);
     
     // Placeholder for Pinterest Token Exchange logic
-    // Once you add PINTEREST_CLIENT_ID to .env, we can implement the fetch() here.
     
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    res.redirect(`${frontendUrl}/accounts?status=success&platform=pinterest`);
+    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=pinterest`);
   } catch (error) {
     next(error);
   }
@@ -252,8 +249,7 @@ export const handleThreadsCallback = async (req: Request, res: Response, next: N
     
     // Placeholder for Threads Token Exchange logic
     
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    res.redirect(`${frontendUrl}/accounts?status=success&platform=threads`);
+    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=threads`);
   } catch (error) {
     next(error);
   }

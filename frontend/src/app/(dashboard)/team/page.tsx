@@ -5,6 +5,7 @@ import { Users, UserPlus, ShieldAlert, Check, X, Shield, RefreshCw } from "lucid
 import { supabase } from "@/lib/supabase";
 
 export default function TeamPage() {
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
@@ -95,7 +96,7 @@ export default function TeamPage() {
     } else if (currentUserRole === 'ADMIN') {
       // Provision immediately via backend API
       try {
-        const response = await fetch('http://localhost:5000/api/v1/users/provision', {
+        const response = await fetch(`${backendUrl}/api/v1/users/provision`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -128,7 +129,7 @@ export default function TeamPage() {
       if (req) {
         setFormLoading(true);
         try {
-          const response = await fetch('http://localhost:5000/api/v1/users/provision', {
+          const response = await fetch(`${backendUrl}/api/v1/users/provision`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

@@ -3,6 +3,7 @@ import { Eye, CheckCircle2, Clock, MessageSquare } from 'lucide-react';
 import Image from 'next/image';
 import StatusBadge from '../ui/StatusBadge';
 import MediaPreview from '../ui/MediaPreview';
+import { formatDateTime } from '@/lib/utils';
 
 interface IntentCardProps {
   intent: any;
@@ -27,7 +28,7 @@ const IntentCard: React.FC<IntentCardProps> = ({
         
         {/* Media Preview */}
         <div className="w-full md:w-48 shrink-0">
-          <MediaPreview url={intent.media_url} className="md:aspect-square" />
+          <MediaPreview url={intent.urls || intent.media_url} className="md:aspect-square" />
         </div>
 
         {/* Content Body */}
@@ -47,7 +48,7 @@ const IntentCard: React.FC<IntentCardProps> = ({
               <div className="flex flex-col items-end">
                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-tighter">Scheduled For</span>
                  <span className="text-[10px] text-white font-medium">
-                    {intent.scheduled_for ? new Date(intent.scheduled_for).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Immediate'}
+                    {intent.scheduled_for ? formatDateTime(intent.scheduled_for) : 'Immediate'}
                  </span>
               </div>
             </div>
@@ -77,7 +78,7 @@ const IntentCard: React.FC<IntentCardProps> = ({
               </div>
               <div className="text-xs">
                 <p className="text-white font-bold">{intent.creator?.full_name || "Unknown Creator"}</p>
-                <p className="text-zinc-500 font-medium text-[10px] uppercase tracking-wider">Submitted {new Date(intent.created_at).toLocaleDateString()}</p>
+                <p className="text-zinc-500 font-medium text-[10px] uppercase tracking-wider">Submitted {formatDateTime(intent.created_at)}</p>
               </div>
             </div>
 
@@ -122,24 +123,35 @@ const IntentCard: React.FC<IntentCardProps> = ({
                   </div>
                 )}
                 <textarea 
-                  placeholder="Feedback for Creator..."
+                  placeholder="Review notes for Creator..."
                   value={feedbackText}
                   onChange={(e) => onFeedbackChange(e.target.value)}
                   className="bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-white outline-none focus:border-indigo-500/50 min-h-[60px]"
                 />
                 <div className="flex justify-end gap-2">
                   <button 
-                    onClick={() => onUpdateStatus(intent.id, 'RETURNED', feedbackText)}
-                    className="px-5 py-2 bg-indigo-600 text-white hover:bg-indigo-500 rounded-xl text-[10px] font-bold transition-all uppercase"
+                    onClick={() => onUpdateStatus(intent.id, 'REJECTED', feedbackText)}
+                    className="px-4 py-2 bg-zinc-800 text-zinc-300 hover:bg-rose-500 hover:text-white rounded-xl text-[10px] font-bold transition-all border border-zinc-700 uppercase"
                   >
-                    Return for Revision
+                    Reject
+                  </button>
+                  <button 
+                    onClick={() => onUpdateStatus(intent.id, 'RETURNED', feedbackText)}
+                    className="px-4 py-2 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-xl text-[10px] font-bold transition-all border border-amber-500/30 uppercase"
+                  >
+                    Return to Creator
+                  </button>
+                  <button 
+                    onClick={() => onUpdateStatus(intent.id, 'PENDING_ADMIN', feedbackText)}
+                    className="px-5 py-2 bg-indigo-600 text-white hover:bg-indigo-500 rounded-xl text-[10px] font-bold transition-all shadow-lg shadow-indigo-500/20 uppercase"
+                  >
+                    Approve & Escalate
                   </button>
                 </div>
               </div>
             )}
           </div>
         </div>
-
       </div>
     </div>
   );

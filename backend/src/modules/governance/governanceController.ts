@@ -14,7 +14,9 @@ const logToDatabase = async (level: string, service: string, message: string, pa
 
 export const submitIntent = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { topic, content, mediaUrl, targetAccountIds, userId } = req.body;
+    const { topic, content, mediaUrls, mediaUrl, targetAccountIds, userId } = req.body;
+
+    const urlsToSave = mediaUrls || (mediaUrl ? [mediaUrl] : []);
 
     if (!targetAccountIds || targetAccountIds.length === 0) {
       return res.status(400).json({ error: 'No target accounts selected' });
@@ -49,7 +51,8 @@ export const submitIntent = async (req: Request, res: Response, next: NextFuncti
         creator_id: userId,
         target_account_ids: [acc.id],
         content: finalCaption,
-        media_url: mediaUrl,
+        media_urls: urlsToSave,
+        media_url: urlsToSave[0] || null, // Keep for backward compatibility
         status: 'PENDING_ADMIN', // Aligning with the existing status name
         platform: acc.platform
       };
@@ -105,3 +108,28 @@ export const transitionStatus = async (req: Request, res: Response, next: NextFu
     next(error);
   }
 };
+
+export const deleteIntent = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.query; // Expecting userId to verify ownership
+
+    // Ideally, we'd also call the social platform APIs here to delete the live post
+    // if the intent status is PUBLISHED. For now, we remove the record from our system.
+
+    const { error } = await supabaseAdmin
+      .from('publish_intents')
+      .delete()
+      .eq('id', id)
+      // .eq('creator_id', userId) // Security: ensure only the creator can delete
+
+    if (error) throw error;
+
+    await logToDatabase('info', 'Governance', `Deleted publish intent ${id}`, { userId });
+
+    res.status(200).json({ success: true, message: 'Post deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+

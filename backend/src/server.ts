@@ -8,9 +8,10 @@ import { errorHandler } from './shared/errorHandler';
 // Controllers
 import { provisionUser } from './modules/identity/identityController';
 import { generateContent, analyzeImage } from './modules/intelligence/intelligenceController';
-import { transitionStatus, submitIntent } from './modules/governance/governanceController';
+import { transitionStatus, submitIntent, deleteIntent } from './modules/governance/governanceController';
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback } from './modules/social/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './modules/scheduler/schedulerController';
+import { listLibrary, addToLibrary, deleteFromLibrary } from './modules/library/libraryController';
 
 const app = express();
 const port = env.PORT;
@@ -37,6 +38,7 @@ app.post('/api/v1/ai/generate', generateContent);
 app.post('/api/v1/ai/analyze-image', analyzeImage);
 app.post('/api/v1/governance/transition', transitionStatus);
 app.post('/api/v1/governance/submit', submitIntent);
+app.delete('/api/v1/governance/intents/:id', deleteIntent);
 app.get('/api/auth/facebook/callback', handleFacebookCallback);
 app.get('/api/auth/linkedin/callback', handleLinkedInCallback);
 app.get('/api/auth/pinterest/callback', handlePinterestCallback);
@@ -49,6 +51,11 @@ app.get('/api/v1/scheduler/posts/:id', getScheduledPost);
 app.post('/api/v1/scheduler/posts', schedulePost);
 app.put('/api/v1/scheduler/posts/:id', updateScheduledPost);
 app.delete('/api/v1/scheduler/posts/:id', cancelScheduledPost);
+
+// Library Routes
+app.get('/api/v1/library', listLibrary);
+app.post('/api/v1/library/upload', addToLibrary);
+app.delete('/api/v1/library/:id', deleteFromLibrary);
 
 // Global Error Handler
 app.use(errorHandler);

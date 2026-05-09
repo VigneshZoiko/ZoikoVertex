@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Calendar, Clock, Sparkles, X, Edit3, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { formatDateTime } from "@/lib/utils";
 
 interface ScheduledPost {
   id: string;
@@ -351,7 +352,7 @@ export default function CalendarPage() {
                 <p className="text-zinc-300 text-sm">{selectedPost.content}</p>
                 <div className="flex items-center gap-2 text-zinc-500 text-sm">
                   <Clock className="w-4 h-4" />
-                  {new Date(selectedPost.scheduled_time).toLocaleString()}
+                  {formatDateTime(selectedPost.scheduled_time)}
                 </div>
                 {selectedPost.status === 'SCHEDULED' && (
                   <div className="flex gap-3 mt-4">
@@ -505,7 +506,7 @@ export default function CalendarPage() {
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-bold text-indigo-400">{post.platform}</span>
                     <span className="text-xs text-zinc-600">
-                      {new Date(post.scheduled_time).toLocaleDateString()}
+                      {formatDateTime(post.scheduled_time)}
                     </span>
                   </div>
                   <p className="text-xs text-zinc-400 truncate">{post.content}</p>
