@@ -27,7 +27,7 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
-    } catch (e) {
+    } catch {
       // Fallback if state is just a string (for legacy/debug)
       workspaceId = stateParam as string;
     }
@@ -160,7 +160,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
-    } catch (e) {
+    } catch {
       workspaceId = stateParam as string;
     }
 
@@ -225,7 +225,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
 
 export const handlePinterestCallback = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { code, state: stateParam } = req.query;
+    const { state: stateParam } = req.query;
     const stateObj = JSON.parse(stateParam as string);
     const workspaceId = stateObj.workspaceId;
 
@@ -241,7 +241,7 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
 
 export const handleThreadsCallback = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { code, state: stateParam } = req.query;
+    const { state: stateParam } = req.query;
     const stateObj = JSON.parse(stateParam as string);
     const workspaceId = stateObj.workspaceId;
 

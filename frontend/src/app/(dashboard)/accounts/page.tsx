@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link as LinkIcon, Plus, Trash2, CheckCircle2, AlertCircle, X, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 interface ConnectedAccount {
   id: string;
@@ -86,15 +87,11 @@ export default function AccountsPage() {
   const disconnectAccount = async (id: string) => {
     if (!confirm("Are you sure you want to disconnect this account?")) return;
     
-    const { error } = await supabase
-      .from('connected_accounts')
-      .delete()
-      .eq('id', id);
-    
-    if (!error) {
+    try {
+      await api.delete(`/api/v1/accounts/${id}`);
       setAccounts(prev => prev.filter(a => a.id !== id));
-    } else {
-      setError("Failed to disconnect account: " + error.message);
+    } catch (err: any) {
+      setError("Failed to disconnect account: " + err.message);
     }
   };
 
@@ -114,7 +111,7 @@ export default function AccountsPage() {
 
       if (!member) throw new Error("Workspace context not found.");
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5005';
 
       if (platformId === 'facebook' || platformId === 'instagram') {
         const appId = process.env.NEXT_PUBLIC_META_APP_ID || '989391590153112';

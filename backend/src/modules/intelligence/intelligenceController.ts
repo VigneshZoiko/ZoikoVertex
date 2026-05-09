@@ -1,10 +1,10 @@
-import { Request, Response, NextFunction } from 'express';
-import { z } from 'zod';
+import { Response, NextFunction } from 'express';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../../config/env';
 import { logger } from '../../shared/logger';
 import { supabaseAdmin } from '../../shared/supabase';
+import { AuthRequest } from '../../shared/authMiddleware';
 
 const STYLE_RULES: Record<string, string> = {
   "MrBeast": "High-energy hooks and curiosity-driven viral pacing.",
@@ -24,9 +24,13 @@ const logToDatabase = async (level: string, service: string, message: string, pa
   }
 };
 
-export const analyzeImage = async (req: Request, res: Response, next: NextFunction) => {
+export const analyzeImage = async (req: AuthRequest, res: Response) => {
   try {
     const { imageBase64 } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
     if (!imageBase64 || !env.GEMINI_API_KEY) {
       return res.status(400).json({ success: false, message: 'Missing image or API key' });
     }
@@ -41,6 +45,8 @@ export const analyzeImage = async (req: Request, res: Response, next: NextFuncti
     ]);
 
     const analysis = (await result.response).text();
+    await logToDatabase('info', 'AI', `Vision analysis completed for user ${userId}`, { userId });
+
     res.status(200).json({ success: true, analysis });
   } catch (err: any) {
     logger.error({ err: err.message, stack: err.stack }, '[Intelligence] Image analysis failed');
@@ -48,15 +54,18 @@ export const analyzeImage = async (req: Request, res: Response, next: NextFuncti
       success: false, 
       error: { 
         message: 'Gemini Vision Error',
-        details: err.message // This will show the actual reason (e.g. Quota Exceeded, Invalid Key)
+        details: err.message 
       } 
     });
   }
 };
 
-export const generateContent = async (req: Request, res: Response, next: NextFunction) => {
+export const generateContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { topic, contentType, platforms, length, tone, useEmojis, styleMode, imageBase64 } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     
     let imageAnalysis = "";
     
@@ -136,7 +145,7 @@ export const generateContent = async (req: Request, res: Response, next: NextFun
     }`;
 
     logger.info({ topic, length, tone, styleMode }, '[Intelligence] Generating content via Groq');
-    await logToDatabase('info', 'AI', `Generating post via Groq for topic: ${topic}`, { topic, platforms, tone, styleMode });
+    await logToDatabase('info', 'AI', `Generating post via Groq for topic: ${topic}`, { topic, platforms, tone, styleMode, userId });
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",

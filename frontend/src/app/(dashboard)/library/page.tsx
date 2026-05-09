@@ -8,6 +8,7 @@ import {
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 interface LibraryAsset {
   id: string;
@@ -54,12 +55,7 @@ export default function MediaLibraryPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/v1/library?search=${encodeURIComponent(search)}&type=${filter}`);
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Server error: ${res.status}`);
-      }
-      const data = await res.json();
+      const data = await api.get(`/api/v1/library?search=${encodeURIComponent(search)}&type=${filter}`);
       setAssets(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.error("Failed to fetch library", err);
@@ -89,8 +85,7 @@ export default function MediaLibraryPage() {
     if (!confirm(`Are you sure you want to delete "${title}"? This cannot be undone.`)) return;
 
     try {
-      const res = await fetch(`/api/v1/library/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete asset');
+      await api.delete(`/api/v1/library/${id}`);
       
       // Optimistic update
       setAssets(prev => prev.filter(a => a.id !== id));

@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { Users, UserPlus, ShieldAlert, Check, X, Shield, RefreshCw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 export default function TeamPage() {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
@@ -96,26 +96,17 @@ export default function TeamPage() {
     } else if (currentUserRole === 'ADMIN') {
       // Provision immediately via backend API
       try {
-        const response = await fetch(`${backendUrl}/api/v1/users/provision`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workspace_id: workspaceId,
-            full_name: fullName,
-            email: email,
-            role: role,
-            password: password
-          })
+        await api.post('/api/v1/users/provision', {
+          workspace_id: workspaceId,
+          full_name: fullName,
+          email: email,
+          role: role,
+          password: password
         });
         
-        const data = await response.json();
-        if (response.ok) {
-          setMessage({ type: 'success', text: 'User provisioned successfully!' });
-          setFullName(""); setEmail(""); setPassword("");
-          fetchData(currentUser.id, currentUserRole, workspaceId!); // Refresh tables
-        } else {
-          setMessage({ type: 'error', text: data.error || 'Failed to provision user.' });
-        }
+        setMessage({ type: 'success', text: 'User provisioned successfully!' });
+        setFullName(""); setEmail(""); setPassword("");
+        fetchData(currentUser.id, currentUserRole, workspaceId!); // Refresh tables
       } catch (err) {
         setMessage({ type: 'error', text: 'Backend connection failed. Ensure server is running.' });
       }
@@ -129,23 +120,13 @@ export default function TeamPage() {
       if (req) {
         setFormLoading(true);
         try {
-          const response = await fetch(`${backendUrl}/api/v1/users/provision`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              workspace_id: workspaceId,
-              full_name: req.full_name,
-              email: req.email,
-              role: req.role,
-              password: req.temporary_password || 'TempPass123!'
-            })
+          await api.post('/api/v1/users/provision', {
+            workspace_id: workspaceId,
+            full_name: req.full_name,
+            email: req.email,
+            role: req.role,
+            password: req.temporary_password || 'TempPass123!'
           });
-          const data = await response.json();
-          if (!response.ok) {
-            setMessage({ type: 'error', text: data.error || 'Failed to provision requested user.' });
-            setFormLoading(false);
-            return;
-          }
         } catch (err) {
           setMessage({ type: 'error', text: 'Backend connection failed.' });
           setFormLoading(false);

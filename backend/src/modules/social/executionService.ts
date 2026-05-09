@@ -1,12 +1,6 @@
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 
-interface PublishTarget {
-  platform: string;
-  access_token: string;
-  account_handle: string;
-}
-
 interface PublishResult {
   success: boolean;
   platform: string;
@@ -59,7 +53,7 @@ export class ExecutionService {
             } else if (typeof parsed === 'object') {
               platformContent = Object.values(parsed)[0] as string;
             }
-          } catch (e) {}
+          } catch {}
 
           const intentWithCorrectContent = { ...intent, content: platformContent };
           return this.publishToPlatform(intentWithCorrectContent, account);

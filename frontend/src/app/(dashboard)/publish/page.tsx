@@ -16,6 +16,7 @@ import SchedulingPanel from "@/components/publish/SchedulingPanel";
 import PendingPostItem from "@/components/publish/PendingPostItem";
 import MediaPackManager from "@/components/publish/MediaPackManager";
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
+import { api } from "@/lib/api";
 
 function PublishPageInner() {
   const searchParams = useSearchParams();
@@ -213,10 +214,7 @@ function PublishPageInner() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     try {
-      const response = await fetch('/api/v1/scheduler/posts?limit=50', {
-        headers: { 'x-user-id': user.id }
-      });
-      const result = await response.json();
+      const result = await api.get('/api/v1/scheduler/posts?limit=50');
       if (result.success && result.posts) {
         setScheduledPosts(result.posts);
       }
@@ -314,12 +312,7 @@ function PublishPageInner() {
           canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
           const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
 
-          const response = await fetch('/api/v1/ai/analyze-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageBase64: optimizedBase64 })
-          });
-          const data = await response.json();
+          const data = await api.post('/api/v1/ai/analyze-image', { imageBase64: optimizedBase64 });
           console.log("[VISION] Analysis Result:", data);
           if (data.success && data.analysis) {
             sessionStorage.setItem('lastImageAnalysis', data.analysis);
@@ -366,21 +359,17 @@ function PublishPageInner() {
         imageBase64 = mediaPreview;
       }
 
-      const response = await fetch('/api/v1/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          topic, contentType,
-          platforms: ["Instagram", "Facebook", "X", "LinkedIn", "Threads", "Pinterest"],
-          length: aiLength,
-          tone: aiTone,
-          useEmojis,
-          styleMode: aiStyleMode,
-          imageBase64
-        })
+      const data = await api.post('/api/v1/ai/generate', {
+        topic, contentType,
+        platforms: ["Instagram", "Facebook", "X", "LinkedIn", "Threads", "Pinterest"],
+        length: aiLength,
+        tone: aiTone,
+        useEmojis,
+        styleMode: aiStyleMode,
+        imageBase64
       });
-      const data = await response.json();
-      if (response.ok) {
+      
+      if (data.success) {
         // 1. Update Universal Description
         setDescription(data.description);
 
@@ -453,18 +442,11 @@ function PublishPageInner() {
         userId: user.id
       };
 
-      const res = await fetch('/api/v1/governance/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Submission failed');
-
+      const result = await api.post('/api/v1/governance/submit', payload);
+      
       setMessage({
         type: 'success',
-        text: `Successfully submitted ${result.count} platform-optimized posts for review!`
+        text: `Successfully submitted ${result.count || ''} platform-optimized posts for review!`
       });
       
       // Cleanup State
@@ -484,19 +466,12 @@ function PublishPageInner() {
   const handleGovernanceAction = async (postId: string, action: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const response = await fetch('/api/v1/governance/transition', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          intentId: postId,
-          newStatus: action,
-          feedback: action === 'RETURNED' ? reviewComment : null,
-          userId: user?.id,
-          userRole
-        })
+      const response = await api.post('/api/v1/governance/transition', {
+        intentId: postId,
+        newStatus: action,
+        feedback: action === 'RETURNED' ? reviewComment : null,
+        userRole
       });
-      
-      if (!response.ok) throw new Error('Action failed');
       
       setReviewComment(""); 
       fetchUserData();
@@ -519,19 +494,14 @@ function PublishPageInner() {
 
     setIsFetchingRecommendations(true);
     try {
-      const response = await fetch('/api/v1/scheduler/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform: platforms[0],
-          niche: topic,
-          audienceRegion: audienceRegion,
-          audienceAgeGroup: audienceAgeGroup,
-          userTimezone
-        })
+      const data = await api.post('/api/v1/scheduler/recommend', {
+        platform: platforms[0],
+        niche: topic,
+        audienceRegion: audienceRegion,
+        audienceAgeGroup: audienceAgeGroup,
+        userTimezone
       });
-      const data = await response.json();
-      if (response.ok && data.recommendations) {
+      if (data.recommendations) {
         const today = new Date().toISOString().split('T')[0];
         const formattedSlots = data.recommendations.map((rec: any) => ({
           time: `${today}T${rec.best_start_time}`,
@@ -556,18 +526,10 @@ function PublishPageInner() {
   const handleEditScheduledPost = async (postId: string, newContent: string, newTime: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const response = await fetch(`/api/v1/scheduler/posts/${postId}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-id': user?.id || ''
-        },
-        body: JSON.stringify({
-          content: newContent,
-          scheduledTime: newTime
-        })
+      const result = await api.put(`/api/v1/scheduler/posts/${postId}`, {
+        content: newContent,
+        scheduledTime: newTime
       });
-      const result = await response.json();
       if (result.success) {
         setScheduledPosts(prev => prev.map(p => p.id === postId ? { ...p, content: newContent, scheduled_time: newTime } : p));
         setShowEditScheduledModal(false);
@@ -584,11 +546,7 @@ function PublishPageInner() {
   const handleCancelScheduledPost = async (postId: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const response = await fetch(`/api/v1/scheduler/posts/${postId}`, {
-        method: 'DELETE',
-        headers: { 'x-user-id': user?.id || '' }
-      });
-      const result = await response.json();
+      const result = await api.delete(`/api/v1/scheduler/posts/${postId}`);
       if (result.success) {
         setScheduledPosts(prev => prev.filter(p => p.id !== postId));
         setSelectedScheduledPost(null);

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatDateTime } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 export default function ManagePostsPage() {
   const router = useRouter();
@@ -18,27 +19,17 @@ export default function ManagePostsPage() {
   const fetchMyPosts = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase
-        .from('publish_intents')
-        .select(`
-          *,
-          target_accounts:connected_accounts!target_account_ids(platform, account_name)
-        `)
-        .eq('creator_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPosts(data || []);
-    } catch (err) {
-      console.error(err);
+      const result = await api.get('/api/v1/governance/intents');
+      if (result.success) {
+        setPosts(result.data || []);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch my posts:", err);
+      setMessage({ type: 'error', text: err.message });
     } finally {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchMyPosts();
   }, []);
@@ -47,14 +38,7 @@ export default function ManagePostsPage() {
     if (!confirm("Are you sure you want to delete this post? This action cannot be undone.")) return;
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const res = await fetch(`/api/v1/governance/intents/${id}?userId=${user?.id}`, {
-        method: 'DELETE'
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to delete post");
-      }
+      await api.delete(`/api/v1/governance/intents/${id}`);
 
       setMessage({ type: 'success', text: 'Post deleted successfully.' });
       fetchMyPosts(); // Refresh list

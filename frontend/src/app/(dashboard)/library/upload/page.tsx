@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
 
 export default function CreatorUploadPage() {
   const router = useRouter();
@@ -57,21 +58,11 @@ export default function CreatorUploadPage() {
       const publicUrls = await Promise.all(uploadPromises);
 
       // 2. Save Metadata via Backend API
-      const response = await fetch('/api/v1/library/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          urls: publicUrls,
-          file_type: files[0].type.startsWith('video') ? 'video' : 'image', // simplified type
-          uploader_id: user.id
-        })
+      await api.post('/api/v1/library/upload', {
+        title,
+        urls: publicUrls,
+        file_type: files[0].type.startsWith('video') ? 'video' : 'image' // simplified type
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save to library');
-      }
 
       setMessage({ type: 'success', text: `Asset pack successfully uploaded (${files.length} files) to the Common Library!` });
       setTitle("");

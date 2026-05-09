@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { ExecutionService } from '../social/executionService';
+import { AuthRequest } from '../../shared/authMiddleware';
 
 // Helper for database logging
 const logToDatabase = async (level: string, service: string, message: string, payload?: any) => {
@@ -12,9 +13,14 @@ const logToDatabase = async (level: string, service: string, message: string, pa
   }
 };
 
-export const submitIntent = async (req: Request, res: Response, next: NextFunction) => {
+export const submitIntent = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { topic, content, mediaUrls, mediaUrl, targetAccountIds, userId } = req.body;
+    const { content, mediaUrls, mediaUrl, targetAccountIds } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User context missing' });
+    }
 
     const urlsToSave = mediaUrls || (mediaUrl ? [mediaUrl] : []);
 
@@ -53,7 +59,7 @@ export const submitIntent = async (req: Request, res: Response, next: NextFuncti
         content: finalCaption,
         media_urls: urlsToSave,
         media_url: urlsToSave[0] || null, // Keep for backward compatibility
-        status: 'PENDING_ADMIN', // Aligning with the existing status name
+        status: 'PENDING_ADMIN', 
         platform: acc.platform
       };
     });
@@ -73,13 +79,28 @@ export const submitIntent = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-export const transitionStatus = async (req: Request, res: Response, next: NextFunction) => {
+export const transitionStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { intentId, newStatus, feedback, userId, userRole } = req.body;
+    const { intentId, newStatus, feedback } = req.body;
+    const userId = req.user?.id;
 
     if (!intentId || !newStatus || !userId) {
       res.status(400).json({ error: 'Missing required governance fields' });
       return;
+    }
+
+    // Security: Verify user has permission to transition (Admin/Manager check)
+    const { data: member, error: roleError } = await supabaseAdmin
+      .from('workspace_members')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+
+    if (roleError || !member) throw new Error("Unauthorized: Workspace membership required");
+    const userRole = member.role;
+
+    if (userRole === 'CREATOR' && newStatus !== 'CANCELLED') {
+      return res.status(403).json({ error: 'Creators can only cancel their own intents' });
     }
 
     logger.info(`[Governance] Transitioning ${intentId} to ${newStatus} by ${userRole}`);
@@ -109,25 +130,96 @@ export const transitionStatus = async (req: Request, res: Response, next: NextFu
   }
 };
 
-export const deleteIntent = async (req: Request, res: Response, next: NextFunction) => {
+export const deleteIntent = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const { userId } = req.query; // Expecting userId to verify ownership
+    const userId = req.user?.id;
 
-    // Ideally, we'd also call the social platform APIs here to delete the live post
-    // if the intent status is PUBLISHED. For now, we remove the record from our system.
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Ensure only the creator or an Admin can delete
+    const { data: member } = await supabaseAdmin
+      .from('workspace_members')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
 
     const { error } = await supabaseAdmin
       .from('publish_intents')
       .delete()
       .eq('id', id)
-      // .eq('creator_id', userId) // Security: ensure only the creator can delete
+      .or(`creator_id.eq.${userId},${member?.role === 'ADMIN' ? 'id.neq.0' : 'id.eq.0'}`); 
 
     if (error) throw error;
 
     await logToDatabase('info', 'Governance', `Deleted publish intent ${id}`, { userId });
 
     res.status(200).json({ success: true, message: 'Post deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listIntents = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Fetch intents for this user
+    const { data, error } = await supabaseAdmin
+      .from('publish_intents')
+      .select('*')
+      .eq('creator_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getQueue = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // 1. Get user role
+    const { data: member, error: roleError } = await supabaseAdmin
+      .from('workspace_members')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+
+    if (roleError || !member) throw new Error("Workspace context missing");
+    const role = member.role;
+
+    // 2. Determine what to fetch based on role
+    let query = supabaseAdmin
+      .from('publish_intents')
+      .select(`
+        *,
+        creator:users!publish_intents_creator_id_fkey(full_name, email)
+      `);
+
+    if (role === 'CREATOR') {
+      // Creators see their own RETURNED posts
+      query = query.eq('creator_id', userId).eq('status', 'RETURNED');
+    } else if (role === 'MANAGER') {
+      // Managers see posts pending manager approval
+      query = query.eq('status', 'PENDING_MANAGER');
+    } else if (role === 'ADMIN') {
+      // Admins see posts pending admin approval
+      query = query.eq('status', 'PENDING_ADMIN');
+    } else {
+      return res.status(403).json({ error: 'Invalid role' });
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) throw error;
+
+    res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);
   }

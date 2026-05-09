@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, RefreshCcw, CheckCircle2, Clock, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 
 const FacebookIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -41,42 +42,30 @@ export default function ReviewPage() {
   const fetchRevisions = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
+      const result = await api.get('/api/v1/governance/queue');
+      if (result.success) {
+        setRevisions(result.data || []);
       }
+    } catch (err: any) {
+      console.error("Failed to fetch revisions:", err);
+      setRevisions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
+  useEffect(() => {
+    const fetchRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
       const { data: member } = await supabase
         .from('workspace_members')
         .select('role')
         .eq('user_id', user.id)
         .single();
-
       if (member) setUserRole(member.role);
-
-      // Fetch posts returned for revision
-      const { data: revs, error } = await supabase
-        .from('publish_intents')
-        .select('*')
-        .eq('creator_id', user.id)
-        .eq('status', 'RETURNED')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error("Revisions fetch error:", error);
-        setRevisions([]);
-      } else {
-        setRevisions(revs || []);
-      }
-    } catch (err) {
-      console.error("Unexpected error in fetchRevisions:", err);
-      setRevisions([]);
-    }
-    setLoading(false);
-  }, [router]);
-
-  useEffect(() => {
+    };
+    fetchRole();
     fetchRevisions();
   }, [fetchRevisions]);
 

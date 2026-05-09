@@ -1,9 +1,10 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../../config/env';
 import { logger } from '../../shared/logger';
 import { supabaseAdmin } from '../../shared/supabase';
+import { AuthRequest } from '../../shared/authMiddleware';
 
 import { getQueue } from '../../workers/schedulerWorker';
 
@@ -67,7 +68,7 @@ const logToDatabase = async (level: string, service: string, message: string, pa
   }
 };
 
-export const getRecommendations = async (req: Request, res: Response, next: NextFunction) => {
+export const getRecommendations = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { platform, niche, audienceRegion, audienceAgeGroup, userTimezone } = RecommendSchema.parse(req.body);
 
@@ -150,7 +151,7 @@ export const getRecommendations = async (req: Request, res: Response, next: Next
     - Target Audience Location: "${audienceRegion}"
     - Target Audience Age: "${audienceAgeGroup}"
     - Target Audience Timezone: "${audienceTimezone}"
-
+ 
     Task:
     Analyze the behavioral patterns of this specific demographic on this specific platform.
     Consider when they wake up, commute, take lunch breaks, and wind down in their local timezone (${audienceTimezone}).
@@ -174,8 +175,14 @@ export const getRecommendations = async (req: Request, res: Response, next: Next
     const response = await result.response;
     const text = response.text();
     
-    const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleanedJson);
+    let parsed;
+    try {
+      const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      parsed = JSON.parse(cleanedJson);
+    } catch (e) {
+      logger.error({ text, e }, '[Scheduler] AI response parsing failed');
+      return res.status(500).json({ error: 'AI response parsing failed' });
+    }
 
     // 3. Cache the new AI recommendations asynchronously
     try {
@@ -232,12 +239,12 @@ const SchedulePostSchema = z.object({
   campaignId: z.string().uuid().nullable().optional(),
 });
 
-export const schedulePost = async (req: Request, res: Response, next: NextFunction) => {
+export const schedulePost = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { content, mediaUrl, platform, scheduledTime, campaignId } = SchedulePostSchema.parse(req.body);
-    
-    // In a real implementation, auth middleware would provide the user context
-    const creatorId = req.headers['x-user-id'] || '00000000-0000-0000-0000-000000000000'; 
+    const creatorId = req.user?.id;
+
+    if (!creatorId) return res.status(401).json({ error: 'Unauthorized' });
 
     await logToDatabase('info', 'Scheduler', `Scheduling new post for ${platform}`, { platform, scheduledTime });
 
@@ -259,15 +266,13 @@ export const schedulePost = async (req: Request, res: Response, next: NextFuncti
     if (postError) throw postError;
 
     // 2. Enqueue the scheduler job
-    const { data: job, error: jobError } = await supabaseAdmin
+    const { error: jobError } = await supabaseAdmin
       .from('scheduler_jobs')
       .insert({
         post_id: post.id,
         execution_status: 'PENDING',
         next_attempt: scheduledTime
-      })
-      .select()
-      .single();
+      });
 
     if (jobError) throw jobError;
 
@@ -286,23 +291,28 @@ export const schedulePost = async (req: Request, res: Response, next: NextFuncti
       logger.warn('[Scheduler] Redis unavailable — skipping BullMQ enqueue. Post saved to DB only.');
     }
 
-    res.status(201).json({ success: true, post, job });
+    res.status(201).json({ success: true, post });
   } catch (error) {
     next(error);
   }
 };
 
-export const cancelScheduledPost = async (req: Request, res: Response, next: NextFunction) => {
+export const cancelScheduledPost = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
+    const userId = req.user?.id;
+
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Verify ownership
+    const { data: post } = await supabaseAdmin.from('scheduled_posts').select('creator_id').eq('id', id).single();
+    if (!post || post.creator_id !== userId) return res.status(403).json({ error: 'Forbidden' });
 
     // 1. Delete the background job in BullMQ (if Redis available)
     const queue = getQueue();
     if (queue) {
       const bullJob = await queue.getJob(id);
-      if (bullJob) {
-        await bullJob.remove();
-      }
+      if (bullJob) await bullJob.remove();
     }
 
     // 2. Delete the DB job record
@@ -334,12 +344,10 @@ const ListPostsQuerySchema = z.object({
   offset: z.coerce.number().min(0).default(0),
 });
 
-export const listScheduledPosts = async (req: Request, res: Response, next: NextFunction) => {
+export const listScheduledPosts = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.headers['x-user-id'] as string;
-    if (!userId) {
-      return res.status(401).json({ success: false, error: 'User ID required' });
-    }
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'User ID required' });
 
     const { status, startDate, endDate, limit, offset } = ListPostsQuerySchema.parse(req.query);
 
@@ -350,18 +358,11 @@ export const listScheduledPosts = async (req: Request, res: Response, next: Next
       .order('scheduled_time', { ascending: true })
       .range(offset, offset + limit - 1);
 
-    if (status) {
-      query = query.eq('status', status);
-    }
-    if (startDate) {
-      query = query.gte('scheduled_time', startDate);
-    }
-    if (endDate) {
-      query = query.lte('scheduled_time', endDate);
-    }
+    if (status) query = query.eq('status', status);
+    if (startDate) query = query.gte('scheduled_time', startDate);
+    if (endDate) query = query.lte('scheduled_time', endDate);
 
     const { data: posts, error } = await query;
-
     if (error) throw error;
 
     const { count } = await supabaseAdmin
@@ -392,14 +393,12 @@ const UpdateScheduleSchema = z.object({
   status: z.enum(['SCHEDULED', 'CANCELLED']).optional(),
 });
 
-export const updateScheduledPost = async (req: Request, res: Response, next: NextFunction) => {
+export const updateScheduledPost = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const userId = req.headers['x-user-id'] as string;
+    const userId = req.user?.id;
     
-    if (!userId) {
-      return res.status(401).json({ success: false, error: 'User ID required' });
-    }
+    if (!userId) return res.status(401).json({ success: false, error: 'User ID required' });
 
     const updates = UpdateScheduleSchema.parse(req.body);
 
@@ -409,13 +408,9 @@ export const updateScheduledPost = async (req: Request, res: Response, next: Nex
       .eq('id', id)
       .single();
 
-    if (fetchError || !existingPost) {
-      return res.status(404).json({ success: false, error: 'Post not found' });
-    }
+    if (fetchError || !existingPost) return res.status(404).json({ success: false, error: 'Post not found' });
 
-    if (existingPost.creator_id !== userId) {
-      return res.status(403).json({ success: false, error: 'Not authorized to update this post' });
-    }
+    if (existingPost.creator_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized to update this post' });
 
     if (existingPost.status === 'PUBLISHED' || existingPost.status === 'FAILED') {
       return res.status(400).json({ success: false, error: 'Cannot update posts that are already published or failed' });
@@ -426,25 +421,19 @@ export const updateScheduledPost = async (req: Request, res: Response, next: Nex
     if (updates.scheduledTime) {
       updatePayload.scheduled_time = updates.scheduledTime;
       
-      const { data: jobUpdate, error: jobError } = await supabaseAdmin
+      const { error: jobError } = await supabaseAdmin
         .from('scheduler_jobs')
         .update({ next_attempt: updates.scheduledTime })
-        .eq('post_id', id)
-        .select()
-        .single();
+        .eq('post_id', id);
         
-      if (jobError) {
-        logger.warn({ jobError }, '[Scheduler] Failed to update scheduler job time');
-      }
+      if (jobError) logger.warn({ jobError }, '[Scheduler] Failed to update scheduler job time');
     }
 
     if (updates.status === 'CANCELLED') {
       const queue = getQueue();
       if (queue) {
         const bullJob = await queue.getJob(id);
-        if (bullJob) {
-          await bullJob.remove();
-        }
+        if (bullJob) await bullJob.remove();
       }
       await supabaseAdmin.from('scheduler_jobs').delete().eq('post_id', id);
     }
@@ -467,14 +456,12 @@ export const updateScheduledPost = async (req: Request, res: Response, next: Nex
   }
 };
 
-export const getScheduledPost = async (req: Request, res: Response, next: NextFunction) => {
+export const getScheduledPost = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const userId = req.headers['x-user-id'] as string;
+    const userId = req.user?.id;
     
-    if (!userId) {
-      return res.status(401).json({ success: false, error: 'User ID required' });
-    }
+    if (!userId) return res.status(401).json({ success: false, error: 'User ID required' });
 
     const { data: post, error } = await supabaseAdmin
       .from('scheduled_posts')
@@ -482,13 +469,9 @@ export const getScheduledPost = async (req: Request, res: Response, next: NextFu
       .eq('id', id)
       .single();
 
-    if (error || !post) {
-      return res.status(404).json({ success: false, error: 'Post not found' });
-    }
+    if (error || !post) return res.status(404).json({ success: false, error: 'Post not found' });
 
-    if (post.creator_id !== userId) {
-      return res.status(403).json({ success: false, error: 'Not authorized to view this post' });
-    }
+    if (post.creator_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized to view this post' });
 
     res.status(200).json({ success: true, post });
   } catch (error) {
@@ -496,3 +479,4 @@ export const getScheduledPost = async (req: Request, res: Response, next: NextFu
     next(error);
   }
 };
+

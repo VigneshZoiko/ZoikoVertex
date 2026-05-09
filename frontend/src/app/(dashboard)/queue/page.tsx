@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { RefreshCcw, CheckSquare, AlertCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import IntentCard from "@/components/queue/IntentCard";
+import { api } from "@/lib/api";
 
 export default function ApprovalQueue() {
   const [intents, setIntents] = useState<any[]>([]);
@@ -12,28 +13,19 @@ export default function ApprovalQueue() {
   const [feedbackText, setFeedbackText] = useState<{[key: string]: string}>({});
   const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
 
-  const fetchIntents = useCallback(async (role: string) => {
+  const fetchIntents = useCallback(async () => {
     setLoading(true);
-    let query = supabase
-      .from('publish_intents')
-      .select(`
-        *,
-        creator:users!publish_intents_creator_id_fkey(full_name, email)
-      `);
-
-    const normalizedRole = role.toUpperCase();
-    if (normalizedRole === 'ADMIN') {
-      query = query.eq('status', 'PENDING_ADMIN');
-    } else if (normalizedRole === 'MANAGER') {
-      query = query.eq('status', 'PENDING_MANAGER');
-    } else {
+    try {
+      const result = await api.get('/api/v1/governance/queue');
+      if (result.success) {
+        setIntents(result.data || []);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch queue:", err);
+      setMessage({ type: 'error', text: err.message });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const { data, error } = await query.order('created_at', { ascending: false });
-    if (!error && data) setIntents(data);
-    setLoading(false);
   }, []);
 
   const fetchUserData = useCallback(async () => {
@@ -46,7 +38,7 @@ export default function ApprovalQueue() {
         .single();
       if (member) {
         setUserRole(member.role);
-        fetchIntents(member.role);
+        fetchIntents();
       }
     }
   }, [fetchIntents]);
@@ -59,23 +51,12 @@ export default function ApprovalQueue() {
   const updateStatus = async (id: string, status: string, feedback?: string) => {
     setMessage(null);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Use proxy path - next.config.ts rewrites to backend
-      const response = await fetch('/api/v1/governance/transition', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          intentId: id,
-          newStatus: status,
-          feedback: feedback || null,
-          userId: user?.id,
-          userRole: userRole
-        })
+      const result = await api.post('/api/v1/governance/transition', {
+        intentId: id,
+        newStatus: status,
+        feedback: feedback || null,
+        userRole: userRole
       });
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Action failed');
 
       setIntents(prev => prev.filter(item => item.id !== id));
       setMessage({ type: 'success', text: `Intent successfully transitioned to ${status}.` });
@@ -99,7 +80,7 @@ export default function ApprovalQueue() {
           </p>
         </div>
         <button
-          onClick={() => fetchIntents(userRole || '')}
+          onClick={() => fetchIntents()}
           className="p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-400 hover:text-white hover:border-zinc-700 transition-all group"
           title="Refresh"
         >

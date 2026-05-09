@@ -114,7 +114,7 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
                 <p className="text-xs text-zinc-500 mt-1">{slot.label}</p>
                 {slot.reasoning && (
                   <p className="text-xs text-indigo-400/80 mt-1.5 italic bg-indigo-500/5 p-2 rounded-lg border border-indigo-500/10">
-                    "{slot.reasoning}"
+                    &quot;{slot.reasoning}&quot;
                   </p>
                 )}
               </div>
@@ -124,7 +124,7 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
         </div>
       ) : (
         <div className="text-xs text-zinc-500 p-4 bg-zinc-950 rounded-xl border border-zinc-800 mb-6 text-center">
-          Click "Magic Schedule" to calculate peak time slots based on your target audience.
+          Click &quot;Magic Schedule&quot; to calculate peak time slots based on your target audience.
         </div>
       )}
 

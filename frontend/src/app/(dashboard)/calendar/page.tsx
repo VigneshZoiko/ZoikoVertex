@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Calendar, Clock, Sparkles, X, Edit3, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 interface ScheduledPost {
   id: string;
@@ -69,12 +70,7 @@ export default function CalendarPage() {
   const fetchScheduledPosts = useCallback(async () => {
     setLoading(true);
     try {
-      if (!user) return;
-
-      const response = await fetch('/api/v1/scheduler/posts?limit=100', {
-        headers: { 'x-user-id': user.id }
-      });
-      const result = await response.json();
+      const result = await api.get('/api/v1/scheduler/posts?limit=100');
       if (result.success && result.posts) {
         setPosts(result.posts);
       } else {
@@ -99,19 +95,14 @@ export default function CalendarPage() {
 
     setIsFetchingRecommendations(true);
     try {
-      const response = await fetch('/api/v1/scheduler/recommend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform: selectedPlatform,
-          niche: topic,
-          audienceRegion,
-          audienceAgeGroup,
-          userTimezone
-        })
+      const data = await api.post('/api/v1/scheduler/recommend', {
+        platform: selectedPlatform,
+        niche: topic,
+        audienceRegion,
+        audienceAgeGroup,
+        userTimezone
       });
-      const data = await response.json();
-      if (response.ok && data.recommendations) {
+      if (data.recommendations) {
         setSuggestedTimes(data.recommendations);
         setMessage({ type: 'success', text: 'AI generated optimal posting times for your audience' });
       } else {
@@ -148,20 +139,11 @@ export default function CalendarPage() {
         scheduledDate.setDate(scheduledDate.getDate() + 1);
       }
 
-      const response = await fetch('/api/v1/scheduler/posts', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-id': user.id
-        },
-        body: JSON.stringify({
-          content: scheduleContent,
-          platform: selectedPlatform,
-          scheduledTime: scheduledDate.toISOString()
-        })
+      const result = await api.post('/api/v1/scheduler/posts', {
+        content: scheduleContent,
+        platform: selectedPlatform,
+        scheduledTime: scheduledDate.toISOString()
       });
-
-      const result = await response.json();
       if (result.success) {
         setShowScheduleModal(false);
         setSelectedTimeSlot(null);
@@ -182,19 +164,10 @@ export default function CalendarPage() {
     if (!editingPost) return;
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const response = await fetch(`/api/v1/scheduler/posts/${editingPost.id}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-id': user?.id || ''
-        },
-        body: JSON.stringify({
-          content: editingPost.content,
-          scheduledTime: editingPost.scheduled_time
-        })
+      const result = await api.put(`/api/v1/scheduler/posts/${editingPost.id}`, {
+        content: editingPost.content,
+        scheduledTime: editingPost.scheduled_time
       });
-      const result = await response.json();
       if (result.success) {
         setPosts(prev => prev.map(p => p.id === editingPost.id ? { ...p, content: editingPost.content, scheduled_time: editingPost.scheduled_time } : p));
         setShowEditModal(false);
@@ -209,11 +182,7 @@ export default function CalendarPage() {
 
   const handleCancelPost = async (postId: string) => {
     try {
-      const response = await fetch(`/api/v1/scheduler/posts/${postId}`, {
-        method: 'DELETE',
-        headers: { 'x-user-id': user?.id || '' }
-      });
-      const result = await response.json();
+      const result = await api.delete(`/api/v1/scheduler/posts/${postId}`);
       if (result.success) {
         setPosts(prev => prev.filter(p => p.id !== postId));
         setSelectedPost(null);
