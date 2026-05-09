@@ -239,34 +239,77 @@ function PublishPageInner() {
     return Object.keys(platforms).filter(p => platforms[p as keyof typeof platforms]);
   }, [platforms]);
 
+  const [hasImageAnalysis, setHasImageAnalysis] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  useEffect(() => {
+    // Check if there's already an analysis in the session
+    const existing = sessionStorage.getItem('lastImageAnalysis');
+    if (existing) setHasImageAnalysis(true);
+  }, []);
+
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setHasImageAnalysis(false); 
+      setIsAnalyzing(true);
       setMedia(file);
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        setMediaPreview(base64);
+        const rawBase64 = reader.result as string;
+        setMediaPreview(rawBase64);
         
-        // Auto-analyze image to help the user with story details
         try {
-          const response = await fetch('/api/v1/ai/analyze-image', {
+          // Resize for AI processing to avoid payload limits
+          const img = document.createElement('img');
+          img.src = rawBase64;
+          await new Promise(r => img.onload = r);
+          const canvas = document.createElement('canvas');
+          const scale = Math.min(1, 1024 / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+          const response = await fetch('http://localhost:5000/api/v1/ai/analyze-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageBase64: base64 })
+            body: JSON.stringify({ imageBase64: optimizedBase64 })
           });
           const data = await response.json();
+          console.log("[VISION] Analysis Result:", data);
           if (data.success && data.analysis) {
-            setTopic(prev => {
-              const cleaned = prev.trim();
-              return cleaned ? `${cleaned}\n\n[AI Image Insight]: ${data.analysis}` : data.analysis;
-            });
+            sessionStorage.setItem('lastImageAnalysis', data.analysis);
+            setHasImageAnalysis(true);
+            setShowAIWriter(true); 
+          } else {
+            const errorMsg = data.error?.message || data.error || 'Vision analysis returned no data';
+            const errorDetails = data.error?.details || '';
+            console.error("[VISION] Failed:", errorMsg, errorDetails);
+            setMessage({ type: 'error', text: `AI Vision: ${errorMsg}. ${errorDetails}` });
           }
-        } catch (err) {
-          console.error("AI Image analysis failed", err);
+        } catch (err: any) {
+          console.error("[VISION] Network Error:", err);
+          setMessage({ type: 'error', text: `Connection Error: Could not reach AI server at http://localhost:5000` });
+        } finally {
+          setIsAnalyzing(false);
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAddImageInsight = () => {
+    const analysis = sessionStorage.getItem('lastImageAnalysis');
+    console.log("[VISION] Adding insight to topic:", analysis);
+    if (analysis) {
+      setTopic(prev => {
+        const cleaned = prev.trim();
+        return cleaned ? `${cleaned}\n\n[AI Image Insight]: ${analysis}` : analysis;
+      });
+      // Optionally clear it so they don't add it twice
+      // sessionStorage.removeItem('lastImageAnalysis');
+      // setHasImageAnalysis(false);
     }
   };
 
@@ -280,7 +323,7 @@ function PublishPageInner() {
         imageBase64 = mediaPreview;
       }
 
-      const response = await fetch('/api/v1/ai/generate', {
+      const response = await fetch('http://localhost:5000/api/v1/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -353,7 +396,7 @@ function PublishPageInner() {
 
     setIsFetchingRecommendations(true);
     try {
-      const response = await fetch('/api/v1/scheduler/recommend', {
+      const response = await fetch('http://localhost:5000/api/v1/scheduler/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -419,7 +462,7 @@ function PublishPageInner() {
         userId: user.id
       };
 
-      const res = await fetch('/api/v1/governance/submit', {
+      const res = await fetch('http://localhost:5000/api/v1/governance/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -448,7 +491,7 @@ function PublishPageInner() {
   const handleGovernanceAction = async (postId: string, action: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const response = await fetch('/api/v1/governance/transition', {
+      const response = await fetch('http://localhost:5000/api/v1/governance/transition', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -789,6 +832,9 @@ function PublishPageInner() {
                 styleMode={aiStyleMode} onStyleModeChange={setAiStyleMode}
                 audience={aiAudience} onAudienceChange={setAiAudience}
                 onGenerate={handleGenerateAI} generating={generating}
+                hasImageAnalysis={hasImageAnalysis}
+                isAnalyzing={isAnalyzing}
+                onAddImageInsight={handleAddImageInsight}
               />
             <div className="p-4">
               <textarea 
