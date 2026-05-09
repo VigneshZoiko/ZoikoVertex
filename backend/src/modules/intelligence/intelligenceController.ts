@@ -32,11 +32,11 @@ export const analyzeImage = async (req: Request, res: Response, next: NextFuncti
     }
 
     const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    const visionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const visionModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
     
     const result = await visionModel.generateContent([
-      "Act as a high-precision vision transformer. Analyze this image in detail. Extract any visible text (OCR), describe flowcharts or diagrams if present, identify all key objects, and capture the overall mood/vibe. Provide a 2-3 sentence strategic summary for a social media story.",
+      "Extract text and summarize this image for a social media story. Focus on key themes and mood. Keep it concise.",
       { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }
     ]);
 
@@ -47,8 +47,8 @@ export const analyzeImage = async (req: Request, res: Response, next: NextFuncti
     res.status(500).json({ 
       success: false, 
       error: { 
-        message: 'Image analysis failed. The image might be too large or complex.',
-        details: err.message
+        message: 'Gemini Vision Error',
+        details: err.message // This will show the actual reason (e.g. Quota Exceeded, Invalid Key)
       } 
     });
   }
@@ -64,11 +64,11 @@ export const generateContent = async (req: Request, res: Response, next: NextFun
     if (imageBase64 && env.GEMINI_API_KEY) {
       try {
         const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-        const visionModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const visionModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
         
         const result = await visionModel.generateContent([
-          "Analyze this image in detail. Extract text, explain diagrams/flowcharts, identify objects, and describe the visual style. Be concise.",
+          "Analyze this image for storytelling context. Extract meaningful text if present, otherwise describe the mood, scene, and emotional depth. Be concise and story-ready.",
           { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }
         ]);
         imageAnalysis = (await result.response).text();
@@ -113,8 +113,11 @@ export const generateContent = async (req: Request, res: Response, next: NextFun
 
     WRITING RULES:
     1. MANDATORY: Every platform in TARGETED_PLATFORMS MUST have a unique caption. NO REPEATS.
-    2. Hook Strength: Start with a viral-style hook (< 10 words).
-    3. Formatting: Use line breaks for readability. Ensure CTAs are platform-appropriate.
+    2. MANDATORY: You MUST provide the specific number of hashtags defined in the GOVERNANCE section. NEVER leave the 'hashtags' array empty unless specified (e.g. Threads).
+    3. STRICT LENGTH LIMITS: You MUST strictly count characters for every platform. Ensure the caption length falls exactly within the specified character ranges (e.g., Facebook 40-120 chars). Do not exceed the maximum character limits under any circumstances.
+    4. NO INLINE HASHTAGS: DO NOT include ANY hashtags inside the "caption" string itself. Place all hashtags EXCLUSIVELY in the "hashtags" array. The system will append them automatically.
+    5. Hook Strength: Start with a viral-style hook (< 10 words).
+    6. Formatting: Use line breaks for readability. Ensure CTAs are platform-appropriate.
 
     RESPONSE FORMAT (STRICT JSON):
     {
