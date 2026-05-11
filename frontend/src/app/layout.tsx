@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ZoikoVertex | Governed Social Publisher",
-  description: "Enterprise governed digital marketing operating system",
+  title: "ZoikoVertex | Where Execution Becomes Accountable",
+  description: "Governed Autonomous Agentic Intelligence for Enterprise Social Media Management.",
 };
 
 export default function RootLayout({

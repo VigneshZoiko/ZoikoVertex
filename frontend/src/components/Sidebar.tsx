@@ -138,11 +138,14 @@ export default function Sidebar() {
 
       <div className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col h-screen p-4">
         {/* Brand */}
-        <div className="flex items-center mb-10 px-2 mt-2">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center mr-3">
-            <span className="text-black font-bold text-xl">Z</span>
+        <div className="flex flex-col mb-10 px-2 mt-2">
+          <div className="flex items-center">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center mr-3">
+              <span className="text-black font-bold text-xl">Z</span>
+            </div>
+            <span className="text-white font-bold text-xl tracking-wide">ZoikoVertex</span>
           </div>
-          <span className="text-white font-bold text-xl tracking-wide">ZoikoVertex</span>
+          <p className="text-zinc-500 text-xs mt-1 ml-11">Where Execution Becomes Accountable.</p>
         </div>
 
         {/* Navigation Links mapped by Role */}

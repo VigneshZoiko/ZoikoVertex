@@ -10,6 +10,8 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
+export const dynamic = 'force-dynamic';
+
 export default function CreatorUploadPage() {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
