@@ -1,25 +1,21 @@
-import { Response, NextFunction } from "express";
-import { supabaseAdmin } from "../../shared/supabase";
-import { logger } from "../../shared/logger";
-import { ExecutionService } from "../social/executionService";
-import { AuthRequest } from "../../shared/authMiddleware";
-import { RiskClassifier } from "../../services/governance/riskClassifier";
+import { Response, NextFunction } from 'express';
+import { z } from 'zod';
+import { supabaseAdmin } from '../../shared/supabase';
+import { logger } from '../../shared/logger';
+import { logToDatabase } from '../../shared/databaseLogger';
+import { ExecutionService } from '../social/executionService';
+import { AuthRequest } from '../../shared/authMiddleware';
+import { RiskClassifier } from '../../services/governance/riskClassifier';
 
-// Helper for database logging
-const logToDatabase = async (
-  level: string,
-  service: string,
-  message: string,
-  payload?: any,
-) => {
-  try {
-    await supabaseAdmin
-      .from("system_logs")
-      .insert({ level, service, message, payload });
-  } catch (err) {
-    logger.error({ err }, "[Governance] Failed to log to DB");
-  }
-};
+const SubmitIntentSchema = z.object({
+  content: z.object({
+    universal: z.string().min(1),
+    platforms: z.record(z.string(), z.string()).optional(),
+  }),
+  mediaUrls: z.array(z.string()).optional(),
+  mediaUrl: z.string().optional(),
+  targetAccountIds: z.array(z.string().uuid()).min(1, 'At least one target account required'),
+});
 
 export const submitIntent = async (
   req: AuthRequest,
@@ -27,33 +23,29 @@ export const submitIntent = async (
   next: NextFunction,
 ) => {
   try {
-    const { content, mediaUrls, mediaUrl, targetAccountIds } = req.body;
+    const { content, mediaUrls, mediaUrl, targetAccountIds } = SubmitIntentSchema.parse(req.body);
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ error: "User context missing" });
+      return res.status(401).json({ error: 'User context missing' });
     }
 
     const urlsToSave = mediaUrls || (mediaUrl ? [mediaUrl] : []);
 
-    if (!targetAccountIds || targetAccountIds.length === 0) {
-      return res.status(400).json({ error: "No target accounts selected" });
-    }
-
     // 1. Fetch workspace_id for the user
     const { data: member, error: memberError } = await supabaseAdmin
-      .from("workspace_members")
-      .select("workspace_id")
-      .eq("user_id", userId)
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', userId)
       .single();
 
     if (memberError) throw memberError;
 
     // 2. Fetch account details
     const { data: accounts, error: accError } = await supabaseAdmin
-      .from("connected_accounts")
-      .select("id, platform")
-      .in("id", targetAccountIds);
+      .from('connected_accounts')
+      .select('id, platform')
+      .in('id', targetAccountIds);
 
     if (accError) throw accError;
 
@@ -76,8 +68,8 @@ export const submitIntent = async (
         target_account_ids: [acc.id],
         content: finalCaption,
         media_urls: urlsToSave,
-        media_url: urlsToSave[0] || null, // Keep for backward compatibility
-        status: "PENDING_ADMIN",
+        media_url: urlsToSave[0] || null,
+        status: 'PENDING_ADMIN',
         platform: acc.platform,
         risk_level: riskAssessment.level,
         risk_score: riskAssessment.score,
@@ -88,7 +80,7 @@ export const submitIntent = async (
     });
 
     const { data, error } = await supabaseAdmin
-      .from("publish_intents")
+      .from('publish_intents')
       .insert(intentsToCreate)
       .select();
 
@@ -96,10 +88,10 @@ export const submitIntent = async (
 
     // Create governance artifacts for audit trail
     for (const intent of data) {
-      if (intent.risk_level && intent.risk_level !== "LOW") {
-        await supabaseAdmin.from("governance_artifacts").insert({
+      if (intent.risk_level && intent.risk_level !== 'LOW') {
+        await supabaseAdmin.from('governance_artifacts').insert({
           intent_id: intent.id,
-          artifact_type: "risk_assessment",
+          artifact_type: 'risk_assessment',
           evidence_data: {
             level: intent.risk_level,
             score: intent.risk_score,
@@ -107,14 +99,14 @@ export const submitIntent = async (
             platform: intent.platform,
             assessed_at: new Date().toISOString(),
           },
-          policy_version: "v1.0",
+          policy_version: 'v1.0',
         });
       }
     }
 
     await logToDatabase(
-      "info",
-      "Governance",
+      'info',
+      'Governance',
       `Created ${intentsToCreate.length} publish intents with risk assessment`,
       { userId, count: intentsToCreate.length },
     );
@@ -145,52 +137,47 @@ export const transitionStatus = async (
     const userId = req.user?.id;
 
     if (!intentId || !newStatus || !userId) {
-      res.status(400).json({ error: "Missing required governance fields" });
+      res.status(400).json({ error: 'Missing required governance fields' });
       return;
     }
 
     // Security: Verify user has permission to transition (Admin/Manager check)
     const { data: member, error: roleError } = await supabaseAdmin
-      .from("workspace_members")
-      .select("role")
-      .eq("user_id", userId)
+      .from('workspace_members')
+      .select('role')
+      .eq('user_id', userId)
       .single();
 
     if (roleError || !member)
-      throw new Error("Unauthorized: Workspace membership required");
+      throw new Error('Unauthorized: Workspace membership required');
     const userRole = member.role;
 
-    if (userRole === "CREATOR" && newStatus !== "CANCELLED") {
+    if (userRole === 'CREATOR' && newStatus !== 'CANCELLED') {
       return res
         .status(403)
-        .json({ error: "Creators can only cancel their own intents" });
+        .json({ error: 'Creators can only cancel their own intents' });
     }
 
-    logger.info(
-      `[Governance] Transitioning ${intentId} to ${newStatus} by ${userRole}`,
-    );
     await logToDatabase(
-      "info",
-      "Governance",
+      'info',
+      'Governance',
       `Transitioning ${intentId} to ${newStatus} by ${userRole}`,
       { intentId, newStatus, feedback, userId },
     );
 
     // 1. Update the intent status
     const { data, error } = await supabaseAdmin
-      .from("publish_intents")
+      .from('publish_intents')
       .update({ status: newStatus, feedback: feedback || null })
-      .eq("id", intentId)
+      .eq('id', intentId)
       .select()
       .single();
 
     if (error) throw error;
 
     // 2. If APPROVED, trigger real publishing
-    if (newStatus === "APPROVED") {
-      console.log(
-        `[GOVERNANCE] Detected APPROVED status for ${intentId}. Triggering ExecutionService...`,
-      );
+    if (newStatus === 'APPROVED') {
+      logger.info(`[Governance] Detected APPROVED status for ${intentId}. Triggering ExecutionService...`);
       ExecutionService.publishIntent(intentId).catch((err) => {
         logger.error(
           { err },
@@ -214,32 +201,39 @@ export const deleteIntent = async (
     const { id } = req.params;
     const userId = req.user?.id;
 
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     // Ensure only the creator or an Admin can delete
     const { data: member } = await supabaseAdmin
-      .from("workspace_members")
-      .select("role")
-      .eq("user_id", userId)
+      .from('workspace_members')
+      .select('role')
+      .eq('user_id', userId)
       .single();
 
-    const { error } = await supabaseAdmin
-      .from("publish_intents")
+    let query = supabaseAdmin
+      .from('publish_intents')
       .delete()
-      .eq("id", id)
-      .or(
-        `creator_id.eq.${userId},${member?.role === "ADMIN" ? "id.neq.0" : "id.eq.0"}`,
-      );
+      .eq('id', id);
+
+    if (member?.role === 'ADMIN') {
+      // Admin can delete any intent
+      query = query;
+    } else {
+      // Non-admin can only delete their own
+      query = query.eq('creator_id', userId);
+    }
+
+    const { error } = await query;
 
     if (error) throw error;
 
-    await logToDatabase("info", "Governance", `Deleted publish intent ${id}`, {
+    await logToDatabase('info', 'Governance', `Deleted publish intent ${id}`, {
       userId,
     });
 
     res
       .status(200)
-      .json({ success: true, message: "Post deleted successfully" });
+      .json({ success: true, message: 'Post deleted successfully' });
   } catch (error) {
     next(error);
   }
@@ -252,14 +246,14 @@ export const listIntents = async (
 ) => {
   try {
     const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     // Fetch intents for this user
     const { data, error } = await supabaseAdmin
-      .from("publish_intents")
-      .select("*")
-      .eq("creator_id", userId)
-      .order("created_at", { ascending: false });
+      .from('publish_intents')
+      .select('*')
+      .eq('creator_id', userId)
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
@@ -276,38 +270,38 @@ export const getQueue = async (
 ) => {
   try {
     const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     // 1. Get user role
     const { data: member, error: roleError } = await supabaseAdmin
-      .from("workspace_members")
-      .select("role")
-      .eq("user_id", userId)
+      .from('workspace_members')
+      .select('role')
+      .eq('user_id', userId)
       .single();
 
-    if (roleError || !member) throw new Error("Workspace context missing");
+    if (roleError || !member) throw new Error('Workspace context missing');
     const role = member.role;
 
     // 2. Determine what to fetch based on role
-    let query = supabaseAdmin.from("publish_intents").select(`
+    let query = supabaseAdmin.from('publish_intents').select(`
         *,
         creator:users!publish_intents_creator_id_fkey(full_name, email)
       `);
 
-    if (role === "CREATOR") {
+    if (role === 'CREATOR') {
       // Creators see their own RETURNED posts
-      query = query.eq("creator_id", userId).eq("status", "RETURNED");
-    } else if (role === "MANAGER") {
+      query = query.eq('creator_id', userId).eq('status', 'RETURNED');
+    } else if (role === 'MANAGER') {
       // Managers see posts pending manager approval
-      query = query.eq("status", "PENDING_MANAGER");
-    } else if (role === "ADMIN") {
+      query = query.eq('status', 'PENDING_MANAGER');
+    } else if (role === 'ADMIN') {
       // Admins see posts pending admin approval
-      query = query.eq("status", "PENDING_ADMIN");
+      query = query.eq('status', 'PENDING_ADMIN');
     } else {
-      return res.status(403).json({ error: "Invalid role" });
+      return res.status(403).json({ error: 'Invalid role' });
     }
 
-    const { data, error } = await query.order("created_at", {
+    const { data, error } = await query.order('created_at', {
       ascending: false,
     });
     if (error) throw error;

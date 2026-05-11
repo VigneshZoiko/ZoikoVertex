@@ -169,7 +169,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
     // 1. Exchange code for access token
     const credentials = Buffer.from(`${env.LINKEDIN_CLIENT_ID}:${env.LINKEDIN_CLIENT_SECRET}`).toString('base64');
     
-    console.log(`[Social] Exchanging LinkedIn code for token. ID: ${env.LINKEDIN_CLIENT_ID?.substring(0, 4)}...`);
+    logger.info('[Social] Exchanging LinkedIn code for access token');
 
     const tokenResponse = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
       method: 'POST',

@@ -16,10 +16,9 @@ export class ExecutionService {
    * Publishes an intent to all selected platforms
    */
   static async publishIntent(intentId: string) {
-    console.log(`[EXECUTION SERVICE] Wake up! Processing intent: ${intentId}`);
+    logger.info(`[Execution] Processing intent: ${intentId}`);
     try {
-      // 1. Fetch intent details
-      console.log(`[EXECUTION SERVICE] Fetching details for intent ${intentId}...`);
+      logger.info(`[Execution] Fetching details for intent ${intentId}...`);
       const { data: intent, error: intentError } = await supabaseAdmin
         .from('publish_intents')
         .select('*')
@@ -40,7 +39,7 @@ export class ExecutionService {
       }
 
       const accountList = accounts as any[];
-      console.log(`[EXECUTION SERVICE] Starting publication for intent ${intentId} to ${accountList.length} platforms`);
+      logger.info(`[Execution] Starting publication for intent ${intentId} to ${accountList.length} platforms`);
 
       const results: PublishResult[] = await Promise.all(
         accountList.map(async account => {
@@ -78,7 +77,7 @@ export class ExecutionService {
   }
 
   private static async publishToPlatform(intent: any, account: any): Promise<PublishResult> {
-    console.log(`[EXECUTION SERVICE] Targeting platform: ${account.platform} (${account.account_handle})`);
+    logger.info(`[Execution] Targeting platform: ${account.platform} (${account.account_handle})`);
     try {
       if (account.platform === 'facebook') {
         return await this.postToFacebook(intent, account);
@@ -89,20 +88,20 @@ export class ExecutionService {
       }
       return { success: false, platform: account.platform, error: `Unsupported platform: ${account.platform}` };
     } catch (err: any) {
-      console.error(`[EXECUTION SERVICE] Error publishing to ${account.platform}:`, err);
+      logger.error({ err }, `[Execution] Error publishing to ${account.platform}`);
       return { success: false, platform: account.platform, error: err.message || 'Unknown error' };
     }
   }
 
   private static async postToLinkedIn(intent: any, account: any) {
-    console.log(`[EXECUTION SERVICE] LinkedIn Handshake Started for: ${account.account_handle}`);
+    logger.info(`[Execution] LinkedIn Handshake Started for: ${account.account_handle}`);
     
     // LinkedIn URN format for person: urn:li:person:<id>
     const authorUrn = account.account_handle.startsWith('urn:li:') 
       ? account.account_handle 
       : `urn:li:person:${account.account_handle}`;
 
-    console.log(`[EXECUTION SERVICE] Using Author URN: ${authorUrn}`);
+    logger.info(`[Execution] Using Author URN: ${authorUrn}`);
 
     const url = 'https://api.linkedin.com/v2/ugcPosts';
     
@@ -134,7 +133,7 @@ export class ExecutionService {
       }
     };
 
-    console.log(`[EXECUTION SERVICE] Sending payload to LinkedIn...`);
+    logger.info(`[Execution] Sending payload to LinkedIn...`);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -147,7 +146,7 @@ export class ExecutionService {
     });
 
     const responseText = await response.text();
-    console.log(`[EXECUTION SERVICE] LinkedIn Response (${response.status}):`, responseText);
+    logger.info({ status: response.status, response: responseText }, `[Execution] LinkedIn Response`);
 
     if (!response.ok) {
       throw new Error(`LinkedIn API Failed: ${response.status} - ${responseText}`);
@@ -157,7 +156,7 @@ export class ExecutionService {
   }
 
   private static async postToFacebook(intent: any, account: any) {
-    console.log(`[EXECUTION SERVICE] Sending Native POST to Facebook for ${account.account_handle}...`);
+    logger.info(`[Execution] Sending post to Facebook for ${account.account_handle}...`);
     const endpoint = intent.media_url ? 'photos' : 'feed';
     const url = `https://graph.facebook.com/v18.0/${account.account_handle}/${endpoint}`;
     
