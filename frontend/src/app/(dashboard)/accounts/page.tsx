@@ -111,16 +111,21 @@ export default function AccountsPage() {
 
       if (!member) throw new Error("Workspace context not found.");
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5005';
+      const backendUrl = process.env.NEXT_PUBLIC_OAUTH_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5005';
 
       if (platformId === 'facebook' || platformId === 'instagram') {
         const appId = process.env.NEXT_PUBLIC_META_APP_ID || '989391590153112';
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/facebook/callback`);
         
         const scopeString = [
-          'public_profile', 'email', 'pages_show_list',
-          'pages_read_engagement', 'pages_manage_posts',
-          'instagram_basic', 'instagram_content_publish'
+          'public_profile', 
+          'email', 
+          'pages_show_list',
+          'pages_read_engagement', 
+          'pages_manage_posts',
+          'instagram_basic', 
+          'instagram_content_publish', 
+          'business_management' // Added for professional account management
         ].join(',');
 
         const state = encodeURIComponent(JSON.stringify({
@@ -355,7 +360,7 @@ export default function AccountsPage() {
                     <div className="min-w-0">
                       <h4 className="text-sm font-bold text-zinc-200 truncate">{platform.name}</h4>
                       <p className="text-[9px] text-zinc-500 font-black uppercase tracking-tight opacity-60">
-                        {platform.id === 'facebook' || platform.id === 'instagram' ? 'OAuth' : 'Pending'}
+                        {['facebook', 'instagram', 'linkedin', 'pinterest', 'threads'].includes(platform.id) ? 'OAuth' : 'Pending'}
                       </p>
                     </div>
                   </button>
