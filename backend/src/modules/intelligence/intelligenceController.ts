@@ -3,8 +3,8 @@ import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../../config/env';
 import { logger } from '../../shared/logger';
-import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { logToDatabase } from '../../shared/databaseLogger';
 
 const STYLE_RULES: Record<string, string> = {
   "MrBeast": "High-energy hooks and curiosity-driven viral pacing.",
@@ -15,16 +15,7 @@ const STYLE_RULES: Record<string, string> = {
   "Minimal Creator": "Clean concise creator captions."
 };
 
-// Helper for database logging
-const logToDatabase = async (level: string, service: string, message: string, payload?: any) => {
-  try {
-    await supabaseAdmin.from('system_logs').insert({ level, service, message, payload });
-  } catch (err) {
-    logger.error({ err }, '[Intelligence] Failed to log to DB');
-  }
-};
-
-export const analyzeImage = async (req: AuthRequest, res: Response) => {
+export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { imageBase64 } = req.body;
     const userId = req.user?.id;
@@ -48,15 +39,8 @@ export const analyzeImage = async (req: AuthRequest, res: Response) => {
     await logToDatabase('info', 'AI', `Vision analysis completed for user ${userId}`, { userId });
 
     res.status(200).json({ success: true, analysis });
-  } catch (err: any) {
-    logger.error({ err: err.message, stack: err.stack }, '[Intelligence] Image analysis failed');
-    res.status(500).json({ 
-      success: false, 
-      error: { 
-        message: 'Gemini Vision Error',
-        details: err.message 
-      } 
-    });
+  } catch (err) {
+    next(err);
   }
 };
 

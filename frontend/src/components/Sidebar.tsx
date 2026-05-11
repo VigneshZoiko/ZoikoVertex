@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { LayoutDashboard, PenTool, CheckSquare, Link2, LogOut, Users, FileEdit, Calendar, ClipboardList } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRealtimeNotifications } from "@/lib/hooks/useRealtimeNotifications";
@@ -42,7 +43,10 @@ export default function Sidebar() {
   useEffect(() => {
     const fetchUserAndRole = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { window.location.href = '/login'; return; }
+      if (!user) {
+        window.location.href = '/login';
+        return;
+      }
       const { data } = await supabase
         .from('workspace_members')
         .select('role')
@@ -136,13 +140,16 @@ export default function Sidebar() {
         onCancel={handleDiscardCancel}
       />
 
-      <div className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col h-screen p-4">
+      <aside className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col h-screen p-4 shrink-0">
         {/* Brand */}
-        <div className="flex items-center mb-10 px-2 mt-2">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center mr-3">
-            <span className="text-black font-bold text-xl">Z</span>
+        <div className="flex flex-col mb-10 px-2 mt-2">
+          <div className="flex items-center">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center mr-3 shrink-0">
+              <span className="text-black font-bold text-xl">Z</span>
+            </div>
+            <span className="text-white font-bold text-xl tracking-wide">ZoikoVertex</span>
           </div>
-          <span className="text-white font-bold text-xl tracking-wide">ZoikoVertex</span>
+          <p className="text-zinc-500 text-xs mt-1 ml-11">Where Execution Becomes Accountable.</p>
         </div>
 
         {/* Navigation Links mapped by Role */}
@@ -172,9 +179,9 @@ export default function Sidebar() {
                           : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
                       }`}
                     >
-                      <Icon className={`w-5 h-5 mr-3 ${isActive ? "text-indigo-400" : "text-zinc-500 group-hover:text-zinc-300"}`} />
+                      <Icon className={`w-5 h-5 mr-3 shrink-0 ${isActive ? "text-indigo-400" : "text-zinc-500 group-hover:text-zinc-300"}`} />
                       <span className="flex-1">{item.name}</span>
-                      
+
                       {/* Pending Action Badge */}
                       {pendingCount > 0 && (item.name === "Review & Edit" || item.name === "Approval Queue") && (
                         <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-black text-white shadow-lg shadow-indigo-500/20 animate-in zoom-in duration-300">
@@ -197,10 +204,12 @@ export default function Sidebar() {
         <div className="mt-auto px-2 pb-2">
           <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl mb-4">
             <div className="flex items-center">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border-2 border-zinc-950"></div>
-              <div className="ml-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shrink-0 border-2 border-zinc-950" />
+              <div className="ml-3 min-w-0">
                 <p className="text-sm font-medium text-white leading-none">Agent Profile</p>
-                <p className="text-xs text-amber-500 mt-1 capitalize font-medium">{role ? role.toLowerCase() : "Loading..."}</p>
+                <p className="text-xs text-amber-500 mt-1 capitalize font-medium">
+                  {role ? role.toLowerCase() : "Loading..."}
+                </p>
               </div>
             </div>
           </div>
@@ -209,11 +218,11 @@ export default function Sidebar() {
             onClick={handleLogout}
             className="w-full flex items-center px-3 py-2.5 text-rose-500 hover:text-white hover:bg-rose-500 rounded-lg transition-colors"
           >
-            <LogOut className="w-5 h-5 mr-3" />
+            <LogOut className="w-5 h-5 mr-3 shrink-0" />
             <span className="text-sm font-medium">Secure Log out</span>
           </button>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

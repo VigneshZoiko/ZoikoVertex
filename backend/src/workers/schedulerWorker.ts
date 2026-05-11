@@ -3,6 +3,7 @@ import IORedis from 'ioredis';
 import { env } from '../config/env';
 import { logger } from '../shared/logger';
 import { supabaseAdmin } from '../shared/supabase';
+import { logToDatabase } from '../shared/databaseLogger';
 
 let connection: IORedis | null = null;
 let publishQueue: Queue | null = null;
@@ -22,15 +23,6 @@ export function getQueue(): Queue | null {
   }
   return publishQueue;
 }
-
-// Helper to log to the system_logs table
-const logToDatabase = async (level: string, service: string, message: string, payload?: any) => {
-  try {
-    await supabaseAdmin.from('system_logs').insert({ level, service, message, payload });
-  } catch (err) {
-    logger.error({ err }, '[Worker] Failed to log to DB');
-  }
-};
 
 // Initialize the worker
 export const initWorker = () => {
