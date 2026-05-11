@@ -128,6 +128,7 @@ export default function AccountsPage() {
           platform: platformId
         }));
 
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = `https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scopeString}&state=${state}&response_type=code`;
       } else if (platformId === 'linkedin') {
         // LinkedIn OAuth 2.0 Integration
@@ -139,6 +140,7 @@ export default function AccountsPage() {
         }));
         const scope = encodeURIComponent('openid profile email w_member_social');
 
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`;
       } else if (platformId === 'pinterest') {
         // Pinterest OAuth 2.0
@@ -147,6 +149,7 @@ export default function AccountsPage() {
         const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
         const scope = 'boards:read,pins:read,pins:write';
         
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = `https://www.pinterest.com/oauth/?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
       } else if (platformId === 'threads') {
         // Threads OAuth (Via Meta)
@@ -155,6 +158,7 @@ export default function AccountsPage() {
         const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
         const scope = 'threads_basic,threads_content_publish';
         
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = `https://www.threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`;
       } else {
         setError(`${platformId.charAt(0).toUpperCase() + platformId.slice(1)} integration is coming in the next update.`);
