@@ -219,7 +219,7 @@ export default function Sidebar() {
             <span className="text-sm font-medium">Secure Log out</span>
           </button>
         </div>
-      </aside>
+      </div>
     </>
   );
 }
