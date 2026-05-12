@@ -41,12 +41,14 @@ export default function MediaLibraryPage() {
       if (!user) return;
       setCurrentUserId(user.id);
       
-      const { data } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      if (data) setUserRole(data.role);
+      try {
+        const result = await api.get('/api/v1/user/context');
+        if (result.success && result.data.role) {
+          setUserRole(result.data.role);
+        }
+      } catch {
+        // fallback
+      }
     };
     fetchUserContext();
   }, []);

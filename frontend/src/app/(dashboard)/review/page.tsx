@@ -58,12 +58,14 @@ export default function ReviewPage() {
     const fetchRole = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: member } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (member) setUserRole(member.role);
+      try {
+        const result = await api.get('/api/v1/user/context');
+        if (result.success && result.data.role) {
+          setUserRole(result.data.role);
+        }
+      } catch {
+        // fallback
+      }
     };
     fetchRole();
     fetchRevisions();

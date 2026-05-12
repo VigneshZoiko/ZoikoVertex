@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { LayoutDashboard, PenTool, CheckSquare, Link2, LogOut, Users, FileEdit, Calendar, ClipboardList, Shield, HelpCircle, MessageSquare } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 import { useRealtimeNotifications } from "@/lib/hooks/useRealtimeNotifications";
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
 import DiscardModal from "@/components/DiscardModal";
@@ -28,18 +29,14 @@ export default function Sidebar() {
   useRealtimeNotifications();
 
   const fetchPendingCount = useCallback(async (userRole: string) => {
-    let query = supabase.from('publish_intents').select('id', { count: 'exact', head: true });
-    
-    if (userRole.toUpperCase() === 'ADMIN') {
-      query = query.eq('status', 'PENDING_ADMIN');
-    } else if (userRole.toUpperCase() === 'MANAGER') {
-      query = query.eq('status', 'PENDING_MANAGER');
-    } else {
-      return;
+    try {
+      const result = await api.get('/api/v1/governance/queue');
+      if (result.success) {
+        setPendingCount(result.data?.length || 0);
+      }
+    } catch {
+      setPendingCount(0);
     }
-
-    const { count } = await query;
-    setPendingCount(count || 0);
   }, []);
 
   useEffect(() => {
@@ -50,31 +47,23 @@ export default function Sidebar() {
         return;
       }
 
-      // Check SuperAdmin status and fetch name
-      const { data: userData } = await supabase
-        .from('users')
-        .select('is_superadmin, full_name')
-        .eq('id', user.id)
-        .single();
-      
-      if (userData) {
-        setFullName(userData.full_name);
-        if (userData.is_superadmin) {
-          setIsSuperAdmin(true);
-          setRoleLoaded(true);
-          return;
+      try {
+        const result = await api.get('/api/v1/user/context');
+        if (result.success) {
+          const { is_superadmin, role: userRole, full_name } = result.data;
+          setIsSuperAdmin(is_superadmin);
+          if (full_name) setFullName(full_name);
+          if (is_superadmin) {
+            setRoleLoaded(true);
+            return;
+          }
+          if (userRole) {
+            setRole(userRole);
+            fetchPendingCount(userRole);
+          }
         }
-      }
-
-      const { data } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (data) {
-        setRole(data.role);
-        fetchPendingCount(data.role);
+      } catch {
+        // fallback silently
       }
       setRoleLoaded(true);
     };

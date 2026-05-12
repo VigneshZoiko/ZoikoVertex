@@ -38,15 +38,9 @@ export default function AccountsPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase
-        .from('connected_accounts')
-        .select('*')
-        .order('platform', { ascending: true });
-      
-      if (error) throw error;
-      if (data) setAccounts(data);
-    } catch (err: any) {
-      console.error("Fetch error:", err);
+      const result = await api.get('/api/v1/accounts');
+      if (result.success) setAccounts(result.data || []);
+    } catch {
       setError("Failed to fetch accounts. Have you applied the SQL migration?");
     } finally {
       setLoading(false);
@@ -54,16 +48,13 @@ export default function AccountsPage() {
   }, []);
 
   const fetchUserData = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: member } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (member) {
-        setUserRole(member.role.toUpperCase());
+    try {
+      const result = await api.get('/api/v1/user/context');
+      if (result.success && result.data.role) {
+        setUserRole(result.data.role.toUpperCase());
       }
+    } catch {
+      // fallback
     }
   }, []);
 

@@ -22,30 +22,23 @@ export default function TeamPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
-  const fetchData = async (userId: string, currentRole: string, wId: string) => {
+  const fetchData = async (currentRole: string) => {
     // Fetch Active Members
-    const { data: membersData } = await supabase
-      .from('workspace_members')
-      .select(`
-        role,
-        users ( full_name, email )
-      `)
-      .eq('workspace_id', wId);
-      
-    if (membersData) setMembers(membersData);
+    try {
+      const membersRes = await api.get('/api/v1/team/members');
+      if (membersRes.success) setMembers(membersRes.data || []);
+    } catch {
+      setMembers([]);
+    }
 
     // Fetch Pending Requests (Only if Admin)
     if (currentRole === 'ADMIN') {
-      const { data: requestsData } = await supabase
-        .from('account_requests')
-        .select(`
-          id, full_name, email, role,
-          users!account_requests_requested_by_fkey ( full_name )
-        `)
-        .eq('workspace_id', wId)
-        .eq('status', 'PENDING');
-        
-      if (requestsData) setRequests(requestsData);
+      try {
+        const requestsRes = await api.get('/api/v1/team/requests');
+        if (requestsRes.success) setRequests(requestsRes.data || []);
+      } catch {
+        setRequests([]);
+      }
     }
     setLoading(false);
   };
@@ -56,16 +49,16 @@ export default function TeamPage() {
       if (!user) return;
       setCurrentUser(user);
 
-      const { data } = await supabase
-        .from('workspace_members')
-        .select('role, workspace_id')
-        .eq('user_id', user.id)
-        .single();
-        
-      if (data) {
-        setCurrentUserRole(data.role);
-        setWorkspaceId(data.workspace_id);
-        fetchData(user.id, data.role, data.workspace_id);
+      try {
+        const result = await api.get('/api/v1/user/context');
+        if (result.success) {
+          const { role: userRole, workspace_id: wId } = result.data;
+          setCurrentUserRole(userRole);
+          setWorkspaceId(wId);
+          fetchData(userRole);
+        }
+      } catch {
+        setLoading(false);
       }
     };
     init();
@@ -77,21 +70,17 @@ export default function TeamPage() {
     setMessage(null);
 
     if (currentUserRole === 'MANAGER') {
-      // Submit for Approval (Insert into account_requests)
-      const { error } = await supabase.from('account_requests').insert({
-        workspace_id: workspaceId,
-        requested_by: currentUser.id,
-        full_name: fullName,
-        email: email,
-        role: role,
-        temporary_password: password
-      });
-
-      if (error) {
-        setMessage({ type: 'error', text: 'Failed to submit request. Please try again.' });
-      } else {
+      try {
+        await api.post('/api/v1/team/requests', {
+          full_name: fullName,
+          email,
+          role,
+          temporary_password: password,
+        });
         setMessage({ type: 'success', text: 'Request submitted to Admin for approval.' });
         setFullName(""); setEmail(""); setPassword("");
+      } catch {
+        setMessage({ type: 'error', text: 'Failed to submit request. Please try again.' });
       }
     } else if (currentUserRole === 'ADMIN') {
       // Provision immediately via backend API
@@ -106,7 +95,7 @@ export default function TeamPage() {
         
         setMessage({ type: 'success', text: 'User provisioned successfully!' });
         setFullName(""); setEmail(""); setPassword("");
-        fetchData(currentUser.id, currentUserRole, workspaceId!); // Refresh tables
+        fetchData(currentUserRole!); // Refresh tables
       } catch (err) {
         setMessage({ type: 'error', text: 'Backend connection failed. Ensure server is running.' });
       }
@@ -136,8 +125,12 @@ export default function TeamPage() {
       }
     }
     
-    await supabase.from('account_requests').update({ status: action }).eq('id', requestId);
-    fetchData(currentUser.id, currentUserRole!, workspaceId!);
+    try {
+      await api.put(`/api/v1/team/requests/${requestId}`, { status: action });
+    } catch {
+      // fallback
+    }
+    fetchData(currentUserRole!);
   };
 
   if (loading) return <div className="text-[var(--foreground)] p-8">Loading...</div>;
