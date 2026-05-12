@@ -35,7 +35,7 @@ export default function SuperAdminPage() {
       setSuccess(`Organization "${formData.name}" has been successfully provisioned.`);
       setFormData({ name: '', adminName: '', adminEmail: '', password: '' });
     } catch (err: any) {
-      setError(err.message || "Failed to create organization. Verify SuperAdmin privileges.");
+      setError("Failed to create organization. Verify SuperAdmin privileges.");
     } finally {
       setLoading(false);
     }

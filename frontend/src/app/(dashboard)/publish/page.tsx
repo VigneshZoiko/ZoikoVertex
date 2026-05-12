@@ -468,7 +468,7 @@ function PublishPageInner() {
       setIsDirty(false);
       fetchUserData();
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message });
+      setMessage({ type: 'error', text: 'Failed to submit for review. Please try again.' });
     }
     setSubmitting(false);
   };
@@ -487,7 +487,7 @@ function PublishPageInner() {
       fetchUserData();
       setMessage({ type: 'success', text: `Action completed.` });
     } catch (err: any) { 
-      setMessage({ type: 'error', text: err.message }); 
+      setMessage({ type: 'error', text: 'Failed to process action. Please try again.' }); 
     }
   };
 

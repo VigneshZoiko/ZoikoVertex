@@ -59,7 +59,7 @@ export default function MediaLibraryPage() {
       setAssets(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.error("Failed to fetch library", err);
-      setError(err.message || 'Failed to load library');
+      setError('Failed to load library. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,7 @@ export default function MediaLibraryPage() {
       // Optimistic update
       setAssets(prev => prev.filter(a => a.id !== id));
     } catch (err: any) {
-      alert(err.message);
+      setError('Failed to delete asset. Please try again.');
     }
   };
 

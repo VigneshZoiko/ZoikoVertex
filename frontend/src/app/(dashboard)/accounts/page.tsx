@@ -87,7 +87,7 @@ export default function AccountsPage() {
       await api.delete(`/api/v1/accounts/${id}`);
       setAccounts(prev => prev.filter(a => a.id !== id));
     } catch (err: any) {
-      setError("Failed to disconnect account: " + err.message);
+      setError('Failed to disconnect account. Please try again.');
     }
   };
 
@@ -163,7 +163,7 @@ export default function AccountsPage() {
         setIsSubmitting(false);
       }
     } catch (err: any) {
-      setError(err.message);
+      setError('Failed to connect account. Please try again.');
       setIsSubmitting(false);
     }
   };

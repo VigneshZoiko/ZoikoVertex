@@ -19,7 +19,10 @@ export const api = {
         ...authHeader,
       },
     });
-    if (!response.ok) throw new Error(`GET ${endpoint} failed: ${response.statusText}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `GET ${endpoint} failed: ${response.statusText}`);
+    }
     return response.json();
   },
 
@@ -50,7 +53,10 @@ export const api = {
       },
       body: JSON.stringify(body),
     });
-    if (!response.ok) throw new Error(`PUT ${endpoint} failed: ${response.statusText}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `PUT ${endpoint} failed: ${response.statusText}`);
+    }
     return response.json();
   },
 
@@ -62,7 +68,10 @@ export const api = {
         ...authHeader,
       },
     });
-    if (!response.ok) throw new Error(`DELETE ${endpoint} failed: ${response.statusText}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `DELETE ${endpoint} failed: ${response.statusText}`);
+    }
     return response.json();
   },
 };

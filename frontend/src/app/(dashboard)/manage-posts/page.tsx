@@ -25,7 +25,7 @@ export default function ManagePostsPage() {
       }
     } catch (err: any) {
       console.error("Failed to fetch my posts:", err);
-      setMessage({ type: 'error', text: err.message });
+      setMessage({ type: 'error', text: 'Failed to load your posts. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -43,7 +43,7 @@ export default function ManagePostsPage() {
       setMessage({ type: 'success', text: 'Post deleted successfully.' });
       fetchMyPosts(); // Refresh list
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message });
+      setMessage({ type: 'error', text: 'Failed to delete post. Please try again.' });
     }
   };
 
