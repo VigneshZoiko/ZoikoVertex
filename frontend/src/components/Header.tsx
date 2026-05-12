@@ -49,9 +49,6 @@ export default function Header() {
         {/* Theme Toggle */}
         <ThemeToggle />
 
-        {/* Theme Toggle */}
-        <ThemeToggle />
-
         {/* Notifications */}
         <button
           aria-label="Notifications"
