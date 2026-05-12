@@ -32,10 +32,6 @@ export default function AccountsPage() {
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   
-  // Form state for new account
-  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
-  const [accountName, setAccountName] = useState("");
-  const [accountHandle, setAccountHandle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
@@ -111,16 +107,21 @@ export default function AccountsPage() {
 
       if (!member) throw new Error("Workspace context not found.");
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5005';
+      const backendUrl = process.env.NEXT_PUBLIC_OAUTH_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5005';
 
       if (platformId === 'facebook' || platformId === 'instagram') {
         const appId = process.env.NEXT_PUBLIC_META_APP_ID || '989391590153112';
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/facebook/callback`);
         
         const scopeString = [
-          'public_profile', 'email', 'pages_show_list',
-          'pages_read_engagement', 'pages_manage_posts',
-          'instagram_basic', 'instagram_content_publish'
+          'public_profile', 
+          'email', 
+          'pages_show_list',
+          'pages_read_engagement', 
+          'pages_manage_posts',
+          'instagram_basic', 
+          'instagram_content_publish', 
+          'business_management'
         ].join(',');
 
         const state = encodeURIComponent(JSON.stringify({
@@ -131,7 +132,6 @@ export default function AccountsPage() {
         // eslint-disable-next-line react-hooks/immutability
         window.location.href = `https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scopeString}&state=${state}&response_type=code`;
       } else if (platformId === 'linkedin') {
-        // LinkedIn OAuth 2.0 Integration
         const clientId = '86ffpbixotzcst'; 
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/linkedin/callback`);
         const state = encodeURIComponent(JSON.stringify({
@@ -143,7 +143,6 @@ export default function AccountsPage() {
         // eslint-disable-next-line react-hooks/immutability
         window.location.href = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`;
       } else if (platformId === 'pinterest') {
-        // Pinterest OAuth 2.0
         const clientId = process.env.NEXT_PUBLIC_PINTEREST_APP_ID || '';
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/pinterest/callback`);
         const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
@@ -152,7 +151,6 @@ export default function AccountsPage() {
         // eslint-disable-next-line react-hooks/immutability
         window.location.href = `https://www.pinterest.com/oauth/?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
       } else if (platformId === 'threads') {
-        // Threads OAuth (Via Meta)
         const appId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '';
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/threads/callback`);
         const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
@@ -326,7 +324,6 @@ export default function AccountsPage() {
         </div>
       )}
 
-      {/* Ultra-Compact Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[var(--card)] backdrop-blur-md animate-in fade-in duration-500">
           <div className="bg-[var(--surface)] border border-[var(--border)]/80 rounded-[2rem] w-full max-w-lg overflow-hidden shadow-2xl flex flex-col">
@@ -359,7 +356,7 @@ export default function AccountsPage() {
                     <div className="min-w-0">
                       <h4 className="text-sm font-bold text-[var(--foreground)] truncate">{platform.name}</h4>
                       <p className="text-[9px] text-[var(--foreground-muted)] font-black uppercase tracking-tight opacity-60">
-                        {platform.id === 'facebook' || platform.id === 'instagram' ? 'OAuth' : 'Pending'}
+                        {['facebook', 'instagram', 'linkedin', 'pinterest', 'threads'].includes(platform.id) ? 'OAuth' : 'Pending'}
                       </p>
                     </div>
                   </button>

@@ -17,6 +17,13 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
   LINKEDIN_CLIENT_ID: z.string().optional(),
   LINKEDIN_CLIENT_SECRET: z.string().optional(),
+  LINKEDIN_REDIRECT_URI: z.string().optional(),
+  PINTEREST_CLIENT_ID: z.string().optional(),
+  PINTEREST_CLIENT_SECRET: z.string().optional(),
+  PINTEREST_REDIRECT_URI: z.string().optional(),
+  THREADS_APP_ID: z.string().optional(),
+  THREADS_APP_SECRET: z.string().optional(),
+  THREADS_REDIRECT_URI: z.string().optional(),
   REDIS_URL: z.string().optional(),
 });
 

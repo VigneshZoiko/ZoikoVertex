@@ -215,11 +215,11 @@ export default function Sidebar() {
             onClick={handleLogout}
             className="w-full flex items-center px-3 py-2.5 text-rose-500 hover:text-white hover:bg-rose-500 rounded-lg transition-colors"
           >
-            <LogOut className="w-5 h-5 mr-3" />
+            <LogOut className="w-5 h-5 mr-3 shrink-0" />
             <span className="text-sm font-medium">Secure Log out</span>
           </button>
         </div>
-      </div>
+      </aside>
     </>
   );
 }
