@@ -237,16 +237,20 @@ export const schedulePost = async (req: AuthRequest, res: Response, next: NextFu
   try {
     const { content, mediaUrl, platform, scheduledTime, campaignId } = SchedulePostSchema.parse(req.body);
     const creatorId = req.user?.id;
-
     if (!creatorId) return res.status(401).json({ error: 'Unauthorized' });
 
-    await logToDatabase('info', 'Scheduler', `Scheduling new post for ${platform}`, { platform, scheduledTime });
+    // Identify user's workspace
+    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', creatorId).single();
+    if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
+
+    await logToDatabase('info', 'Scheduler', `Scheduling new post for ${platform}`, { platform, scheduledTime, workspaceId: member.workspace_id });
 
     // 1. Create the canonical post record
     const { data: post, error: postError } = await supabaseAdmin
       .from('scheduled_posts')
       .insert({
         creator_id: creatorId,
+        workspace_id: member.workspace_id,
         campaign_id: campaignId || null,
         content,
         media_url: mediaUrl || null,
@@ -298,9 +302,19 @@ export const cancelScheduledPost = async (req: AuthRequest, res: Response, next:
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // Verify ownership
-    const { data: post } = await supabaseAdmin.from('scheduled_posts').select('creator_id').eq('id', id).single();
-    if (!post || post.creator_id !== userId) return res.status(403).json({ error: 'Forbidden' });
+    // Identify user's workspace and superadmin status
+    const { data: userData } = await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single();
+    const isSuper = userData?.is_superadmin;
+    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).single();
+
+    // Verify ownership or workspace access
+    let query = supabaseAdmin.from('scheduled_posts').select('id, workspace_id').eq('id', id);
+    if (!isSuper) {
+      query = query.eq('workspace_id', member?.workspace_id);
+    }
+    const { data: post } = await query.single();
+
+    if (!post) return res.status(403).json({ error: 'Forbidden: Post not found in your workspace' });
 
     // 1. Delete the background job in BullMQ (if Redis available)
     const queue = getQueue();
@@ -343,14 +357,23 @@ export const listScheduledPosts = async (req: AuthRequest, res: Response, next: 
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ success: false, error: 'User ID required' });
 
+    // Identify user's workspace and superadmin status
+    const { data: userData } = await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single();
+    const isSuper = userData?.is_superadmin;
+    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).single();
+
     const { status, startDate, endDate, limit, offset } = ListPostsQuerySchema.parse(req.query);
 
     let query = supabaseAdmin
       .from('scheduled_posts')
       .select('*')
-      .eq('creator_id', userId)
       .order('scheduled_time', { ascending: true })
       .range(offset, offset + limit - 1);
+
+    if (!isSuper) {
+      if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
+      query = query.eq('workspace_id', member.workspace_id);
+    }
 
     if (status) query = query.eq('status', status);
     if (startDate) query = query.gte('scheduled_time', startDate);
@@ -391,20 +414,26 @@ export const updateScheduledPost = async (req: AuthRequest, res: Response, next:
   try {
     const id = req.params.id as string;
     const userId = req.user?.id;
-    
     if (!userId) return res.status(401).json({ success: false, error: 'User ID required' });
+
+    const { data: userData } = await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single();
+    const isSuper = userData?.is_superadmin;
+    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).single();
 
     const updates = UpdateScheduleSchema.parse(req.body);
 
-    const { data: existingPost, error: fetchError } = await supabaseAdmin
+    let fetchQuery = supabaseAdmin
       .from('scheduled_posts')
       .select('*')
-      .eq('id', id)
-      .single();
+      .eq('id', id);
+    
+    if (!isSuper) {
+      fetchQuery = fetchQuery.eq('workspace_id', member?.workspace_id);
+    }
 
-    if (fetchError || !existingPost) return res.status(404).json({ success: false, error: 'Post not found' });
+    const { data: existingPost, error: fetchError } = await fetchQuery.single();
 
-    if (existingPost.creator_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized to update this post' });
+    if (fetchError || !existingPost) return res.status(404).json({ success: false, error: 'Post not found in your workspace' });
 
     if (existingPost.status === 'PUBLISHED' || existingPost.status === 'FAILED') {
       return res.status(400).json({ success: false, error: 'Cannot update posts that are already published or failed' });
@@ -454,18 +483,24 @@ export const getScheduledPost = async (req: AuthRequest, res: Response, next: Ne
   try {
     const id = req.params.id as string;
     const userId = req.user?.id;
-    
     if (!userId) return res.status(401).json({ success: false, error: 'User ID required' });
 
-    const { data: post, error } = await supabaseAdmin
+    const { data: userData } = await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single();
+    const isSuper = userData?.is_superadmin;
+    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).single();
+
+    let query = supabaseAdmin
       .from('scheduled_posts')
       .select('*')
-      .eq('id', id)
-      .single();
+      .eq('id', id);
 
-    if (error || !post) return res.status(404).json({ success: false, error: 'Post not found' });
+    if (!isSuper) {
+      query = query.eq('workspace_id', member?.workspace_id);
+    }
 
-    if (post.creator_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized to view this post' });
+    const { data: post, error } = await query.single();
+
+    if (error || !post) return res.status(404).json({ success: false, error: 'Post not found in your workspace' });
 
     res.status(200).json({ success: true, post });
   } catch (error) {

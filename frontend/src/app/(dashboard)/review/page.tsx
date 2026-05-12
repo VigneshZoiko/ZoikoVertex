@@ -62,7 +62,7 @@ export default function ReviewPage() {
         .from('workspace_members')
         .select('role')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       if (member) setUserRole(member.role);
     };
     fetchRole();

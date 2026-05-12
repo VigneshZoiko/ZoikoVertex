@@ -152,6 +152,7 @@ export class ExecutionService {
     
     try {
       // 1. Fetch Boards to find a place to pin (if not specified in intent)
+      // For now, we take the first board found
       const boardsRes = await fetch('https://api.pinterest.com/v5/boards', {
         headers: { 'Authorization': `Bearer ${account.access_token}` }
       });
@@ -243,7 +244,7 @@ export class ExecutionService {
         // Upload to LinkedIn
         logger.info(`[Execution] Uploading image binary to LinkedIn...`);
         await fetch(uploadUrl, {
-          method: 'POST',
+          method: 'POST', // LinkedIn uses POST for the binary upload to the provided URL
           headers: { 'Authorization': `Bearer ${account.access_token}` },
           body: imageBuffer
         });

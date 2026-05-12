@@ -376,10 +376,22 @@ export const disconnectAccount = async (req: any, res: Response, next: NextFunct
       return res.status(404).json({ error: 'Account not found' });
     }
 
-    const { error: deleteError } = await supabaseAdmin
+    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id, role').eq('user_id', userId).single();
+    if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
+
+    const { data: userData } = await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single();
+    const isSuper = userData?.is_superadmin;
+
+    let query = supabaseAdmin
       .from('connected_accounts')
       .delete()
       .eq('id', id);
+
+    if (!isSuper) {
+      query = query.eq('workspace_id', member.workspace_id);
+    }
+
+    const { error: deleteError } = await query;
 
     if (deleteError) throw deleteError;
 

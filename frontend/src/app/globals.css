@@ -101,10 +101,6 @@
 }
 
 html {
-  color-scheme: light;
-}
-
-html.dark {
   color-scheme: dark;
 }
 
@@ -123,23 +119,4 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
-}
-
-/* ─── Smooth Theme Transitions ───────────────────────────────────────────── */
-body,
-header,
-aside,
-main,
-nav,
-section,
-div {
-  transition:
-    background-color 200ms ease,
-    border-color 200ms ease,
-    color 100ms ease;
-}
-
-/* Disable transitions during initial load to prevent flash */
-.no-transitions * {
-  transition: none !important;
 }

@@ -60,7 +60,7 @@ export default function AccountsPage() {
         .from('workspace_members')
         .select('role')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       if (member) {
         setUserRole(member.role.toUpperCase());
       }
@@ -121,7 +121,7 @@ export default function AccountsPage() {
           'pages_manage_posts',
           'instagram_basic', 
           'instagram_content_publish', 
-          'business_management'
+          'business_management' // Added for professional account management
         ].join(',');
 
         const state = encodeURIComponent(JSON.stringify({
