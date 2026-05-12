@@ -13,13 +13,15 @@ let client: SupabaseClient;
 
 try {
   client = initClient();
-} catch {
-  // Build-time fallback: methods throw a clear error if called during prerender
+} catch (e) {
+  console.warn("Supabase initialization failed. Check your environment variables.");
+  // Build-time fallback: methods return null or throw a clear error only when CALLED
   client = new Proxy({} as SupabaseClient, {
     get(_, prop) {
-      throw new Error(
-        `supabase.${String(prop)}() is not available during build. Ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set.`,
-      );
+      return () => {
+        console.error(`Supabase method ${String(prop)} called but client is not initialized.`);
+        return { data: null, error: { message: "Supabase not initialized" } };
+      };
     },
   });
 }
