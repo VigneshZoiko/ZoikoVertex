@@ -201,12 +201,17 @@ export default function Sidebar() {
         return;
       }
 
+      // 1. Initial set from Auth (Immediate)
+      setFullName(user.user_metadata?.full_name || user.email?.split('@')[0] || "Agent");
+
+      // 2. Fetch extended context from Backend
       try {
         const result = await api.get('/api/v1/user/context');
         if (result.success) {
           const { is_superadmin, role: userRole, full_name } = result.data;
           setIsSuperAdmin(is_superadmin);
           if (full_name) setFullName(full_name);
+          
           if (is_superadmin) {
             setRoleLoaded(true);
             return;
@@ -216,8 +221,10 @@ export default function Sidebar() {
             fetchPendingCount(userRole);
           }
         }
-      } catch {
-        // fallback silently
+      } catch (err) {
+        console.error("Sidebar context fetch failed:", err);
+        // Fallback: If backend is down, still allow basic access if authenticated
+        if (!role) setRole("CREATOR"); 
       }
       setRoleLoaded(true);
     };
