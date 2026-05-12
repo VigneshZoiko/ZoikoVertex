@@ -1,6 +1,5 @@
 import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
-import { logger } from '../../shared/logger';
 import { AuthRequest } from '../../shared/authMiddleware';
 
 export const listAccounts = async (req: AuthRequest, res: Response, next: NextFunction) => {
