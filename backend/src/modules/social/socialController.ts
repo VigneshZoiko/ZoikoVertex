@@ -151,6 +151,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
 
     const credentials = Buffer.from(`${env.LINKEDIN_CLIENT_ID}:${env.LINKEDIN_CLIENT_SECRET}`).toString('base64');
     
+    logger.info('[Social] Exchanging LinkedIn code for access token');
     const redirectUri = env.LINKEDIN_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/linkedin/callback`;
 
     const tokenResponse = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {

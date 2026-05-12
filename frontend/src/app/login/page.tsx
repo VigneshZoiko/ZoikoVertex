@@ -53,11 +53,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4">
       {/* Brand */}
-      <div className="flex items-center mb-8">
-        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-white/10">
-          <span className="text-black font-bold text-2xl">Z</span>
+      <div className="flex flex-col items-center mb-8">
+        <div className="flex items-center">
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center mr-3 shadow-lg shadow-white/10">
+            <span className="text-black font-bold text-2xl">Z</span>
+          </div>
+          <span className="text-white font-bold text-2xl tracking-wide">ZoikoVertex</span>
         </div>
-        <span className="text-white font-bold text-2xl tracking-wide">ZoikoVertex</span>
+        <p className="text-zinc-400 text-sm mt-2">Where Execution Becomes Accountable.</p>
       </div>
 
       {/* Login Card */}

@@ -5,6 +5,7 @@ import { env } from '../../config/env';
 import { logger } from '../../shared/logger';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { logToDatabase } from '../../shared/databaseLogger';
 
 import { getQueue } from '../../workers/schedulerWorker';
 
@@ -59,14 +60,7 @@ const RecommendSchema = z.object({
   userTimezone: z.string().optional().default('UTC'),
 });
 
-// Helper for database logging
-const logToDatabase = async (level: string, service: string, message: string, payload?: any) => {
-  try {
-    await supabaseAdmin.from('system_logs').insert({ level, service, message, payload });
-  } catch (err) {
-    logger.error({ err }, '[Scheduler] Failed to log to DB');
-  }
-};
+
 
 export const getRecommendations = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

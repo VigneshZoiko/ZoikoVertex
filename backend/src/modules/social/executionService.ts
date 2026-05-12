@@ -16,10 +16,9 @@ export class ExecutionService {
    * Publishes an intent to all selected platforms
    */
   static async publishIntent(intentId: string) {
-    console.log(`[EXECUTION SERVICE] Wake up! Processing intent: ${intentId}`);
+    logger.info(`[Execution] Processing intent: ${intentId}`);
     try {
-      // 1. Fetch intent details
-      console.log(`[EXECUTION SERVICE] Fetching details for intent ${intentId}...`);
+      logger.info(`[Execution] Fetching details for intent ${intentId}...`);
       const { data: intent, error: intentError } = await supabaseAdmin
         .from('publish_intents')
         .select('*')
@@ -40,7 +39,7 @@ export class ExecutionService {
       }
 
       const accountList = accounts as any[];
-      console.log(`[EXECUTION SERVICE] Starting publication for intent ${intentId} to ${accountList.length} platforms`);
+      logger.info(`[Execution] Starting publication for intent ${intentId} to ${accountList.length} platforms`);
 
       const results: PublishResult[] = await Promise.all(
         accountList.map(async account => {
@@ -78,7 +77,7 @@ export class ExecutionService {
   }
 
   private static async publishToPlatform(intent: any, account: any): Promise<PublishResult> {
-    console.log(`[EXECUTION SERVICE] Targeting platform: ${account.platform} (${account.account_handle})`);
+    logger.info(`[Execution] Targeting platform: ${account.platform} (${account.account_handle})`);
     try {
       if (account.platform === 'facebook') {
         return await this.postToFacebook(intent, account);
@@ -93,13 +92,13 @@ export class ExecutionService {
       }
       return { success: false, platform: account.platform, error: `Unsupported platform: ${account.platform}` };
     } catch (err: any) {
-      console.error(`[EXECUTION SERVICE] Error publishing to ${account.platform}:`, err);
+      logger.error({ err }, `[Execution] Error publishing to ${account.platform}`);
       return { success: false, platform: account.platform, error: err.message || 'Unknown error' };
     }
   }
 
   private static async postToThreads(intent: any, account: any): Promise<PublishResult> {
-    console.log(`[EXECUTION SERVICE] Sending post to Threads for ${account.account_handle}...`);
+    logger.info(`[Execution] Sending post to Threads for ${account.account_handle}...`);
     try {
       // 1. Create Media Container
       const containerUrl = `https://graph.threads.net/v1.0/${account.account_handle}/threads`;
@@ -125,7 +124,7 @@ export class ExecutionService {
       const creationId = containerData.id;
 
       // 2. Wait for the container to be ready (Threads requirement)
-      console.log(`[EXECUTION SERVICE] Waiting 5 seconds for Threads container ${creationId} to process...`);
+      logger.info(`[Execution] Waiting 5 seconds for Threads container ${creationId} to process...`);
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // 3. Publish the Container
@@ -149,7 +148,7 @@ export class ExecutionService {
   }
 
   private static async postToPinterest(intent: any, account: any): Promise<PublishResult> {
-    console.log(`[EXECUTION SERVICE] Sending PIN to Pinterest for ${account.account_handle}...`);
+    logger.info(`[Execution] Sending PIN to Pinterest for ${account.account_handle}...`);
     
     try {
       // 1. Fetch Boards to find a place to pin (if not specified in intent)
@@ -197,7 +196,7 @@ export class ExecutionService {
   }
 
   private static async postToLinkedIn(intent: any, account: any): Promise<PublishResult> {
-    console.log(`[EXECUTION SERVICE] LinkedIn Handshake Started for: ${account.account_handle}`);
+    logger.info(`[Execution] LinkedIn Handshake Started for: ${account.account_handle}`);
     try {
       const authorUrn = account.account_handle.startsWith('urn:li:') 
         ? account.account_handle 
@@ -207,7 +206,7 @@ export class ExecutionService {
 
       // 1. If there's an image, we must register and upload it to LinkedIn first
       if (intent.media_url) {
-        console.log(`[EXECUTION SERVICE] Registering image asset on LinkedIn...`);
+        logger.info(`[Execution] Registering image asset on LinkedIn...`);
         const registerUrl = 'https://api.linkedin.com/v2/assets?action=registerUpload';
         const registerBody = {
           registerUploadRequest: {
@@ -238,12 +237,12 @@ export class ExecutionService {
         mediaUrn = regData.value.asset;
 
         // Fetch image from Supabase/URL
-        console.log(`[EXECUTION SERVICE] Fetching image from ${intent.media_url} for upload...`);
+        logger.info(`[Execution] Fetching image from ${intent.media_url} for upload...`);
         const imageRes = await fetch(intent.media_url);
         const imageBuffer = await imageRes.arrayBuffer();
 
         // Upload to LinkedIn
-        console.log(`[EXECUTION SERVICE] Uploading image binary to LinkedIn...`);
+        logger.info(`[Execution] Uploading image binary to LinkedIn...`);
         await fetch(uploadUrl, {
           method: 'POST', // LinkedIn uses POST for the binary upload to the provided URL
           headers: { 'Authorization': `Bearer ${account.access_token}` },
@@ -288,13 +287,13 @@ export class ExecutionService {
 
       return { success: true, platform: 'linkedin', id: data.id };
     } catch (err: any) {
-      console.error(`[EXECUTION SERVICE] LinkedIn Error:`, err);
+      logger.error({ err }, `[Execution] LinkedIn Error`);
       return { success: false, platform: 'linkedin', error: err.message };
     }
   }
 
   private static async postToFacebook(intent: any, account: any) {
-    console.log(`[EXECUTION SERVICE] Sending Native POST to Facebook for ${account.account_handle}...`);
+    logger.info(`[Execution] Sending post to Facebook for ${account.account_handle}...`);
     const endpoint = intent.media_url ? 'photos' : 'feed';
     const url = `https://graph.facebook.com/v18.0/${account.account_handle}/${endpoint}`;
     
@@ -345,7 +344,7 @@ export class ExecutionService {
       const creationId = containerData.id;
       
       // 2. Wait for processing (IG recommendation)
-      console.log(`[EXECUTION SERVICE] Waiting 5 seconds for Instagram container ${creationId} to process...`);
+      logger.info(`[Execution] Waiting 5 seconds for Instagram container ${creationId} to process...`);
       await new Promise(resolve => setTimeout(resolve, 5000));
  
       // 3. Publish the Container
