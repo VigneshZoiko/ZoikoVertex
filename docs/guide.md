@@ -195,7 +195,7 @@ Each domain owns its data. No domain mutates another domain's data directly.
 
 ## 7. Repository Structure
 
-> **Note:** This is the recommended structure. Confirm with the team before deviating.
+> The architecture defines a three-plane structure (see [Master Blueprint](architecture/01_master_blueprint.md)). Current implementation lives under `frontend/` and `backend/` as a transitional layout.
 
 ```
 zoikovertex/
@@ -223,6 +223,7 @@ zoikovertex/
 │   └── prompts/              # Prompt templates (versioned)
 ├── infra/                    # Infrastructure config (Docker, CI)
 ├── docs/                     # Architecture docs (the source docs live here)
+│   └── architecture/         # Detailed architecture specifications
 ├── GUIDE.md                  # This file
 ├── RULES.md                  # Git and collaboration rules
 └── AGENTS.md                 # AI agent operating guide
@@ -251,20 +252,22 @@ cp .env.example .env.local
 
 > **Never commit `.env` files. Never. Ever.**
 
-### Step 4 — Start local services (Docker)
+### Step 4 — Start the backend
 ```bash
-docker-compose up -d
-# This starts: PostgreSQL, Redis, Kafka (local)
+cd backend && npm run dev
+# Runs on http://localhost:5005
 ```
 
-### Step 5 — Run the API
+### Step 5 — Start the frontend (in a new terminal)
 ```bash
-npm run dev --workspace=apps/api
+cd frontend && npm run dev
+# Runs on http://localhost:3000
 ```
 
 ### Step 6 — Verify
-- API running at `http://localhost:3000`
-- Health check: `GET /health`
+- Frontend at `http://localhost:3000`
+- Backend health check: `GET http://localhost:5005/api/v1/health`
+- Requires a running Supabase instance with the schema from `db_migrations/` applied
 
 > If anything is broken in setup, ping Team. Do not guess your way through environment issues.
 

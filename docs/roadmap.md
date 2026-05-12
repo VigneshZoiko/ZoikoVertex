@@ -6,7 +6,7 @@
     - [x] Modular Directory Creation
     - [x] Core Dependency Installation
 - [ ] Database Schema Implementation
-    - [ ] Apply `migrations.sql` to Supabase
+    - [ ] Apply SQL files from `db_migrations/` to Supabase
 - [ ] Shared Layer Implementation
     - [ ] Supabase Client Setup
     - [ ] Global Error Handler & Middleware
