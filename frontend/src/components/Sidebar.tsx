@@ -40,7 +40,6 @@ import {
   Briefcase,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { api } from "@/lib/api";
 import { useRealtimeNotifications } from "@/lib/hooks/useRealtimeNotifications";
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
 import DiscardModal from "@/components/DiscardModal";
@@ -183,14 +182,14 @@ export default function Sidebar() {
   useRealtimeNotifications();
 
   const fetchPendingCount = useCallback(async (userRole: string) => {
-    try {
-      const result = await api.get('/api/v1/governance/queue');
-      if (result.success) {
-        setPendingCount(result.data?.length || 0);
-      }
-    } catch {
-      setPendingCount(0);
-    }
+    let query = supabase.from("publish_intents").select("id", { count: "exact", head: true });
+    if (userRole.toUpperCase() === "ADMIN") {
+      query = query.eq("status", "PENDING_ADMIN");
+    } else if (userRole.toUpperCase() === "MANAGER") {
+      query = query.eq("status", "PENDING_MANAGER");
+    } else { return; }
+    const { count } = await query;
+    setPendingCount(count || 0);
   }, []);
 
   useEffect(() => {
@@ -201,23 +200,31 @@ export default function Sidebar() {
         return;
       }
 
-      try {
-        const result = await api.get('/api/v1/user/context');
-        if (result.success) {
-          const { is_superadmin, role: userRole, full_name } = result.data;
-          setIsSuperAdmin(is_superadmin);
-          if (full_name) setFullName(full_name);
-          if (is_superadmin) {
-            setRoleLoaded(true);
-            return;
-          }
-          if (userRole) {
-            setRole(userRole);
-            fetchPendingCount(userRole);
-          }
+      // Fetch name & superadmin status
+      const { data: userData } = await supabase
+        .from("users")
+        .select("is_superadmin, full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (userData) {
+        setFullName(userData.full_name);
+        if (userData.is_superadmin) {
+          setIsSuperAdmin(true);
+          setRoleLoaded(true);
+          return;
         }
-      } catch {
-        // fallback silently
+      }
+
+      const { data } = await supabase
+        .from("workspace_members")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (data) {
+        setRole(data.role);
+        fetchPendingCount(data.role);
       }
       setRoleLoaded(true);
     };
