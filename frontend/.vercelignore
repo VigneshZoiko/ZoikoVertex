@@ -1,0 +1,9 @@
+node_modules
+.next
+.vercel
+dist
+build
+*.local
+.env*
+.git
+README.md

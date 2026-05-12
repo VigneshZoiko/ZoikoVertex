@@ -19,6 +19,9 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
         
+      - name: Clean Previous Artifacts
+        run: rm -rf ./frontend/.vercel ./frontend/.next
+        
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} --cwd ./frontend
         
