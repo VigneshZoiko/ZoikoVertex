@@ -31,15 +31,15 @@ export default function ApprovalQueue() {
   const fetchUserData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data: member } = await supabase
-        .from('workspace_members')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      if (member) {
-        setUserRole(member.role);
-        fetchIntents();
+      try {
+        const result = await api.get('/api/v1/user/context');
+        if (result.success && result.data.role) {
+          setUserRole(result.data.role);
+        }
+      } catch {
+        // fallback
       }
+      fetchIntents();
     }
   }, [fetchIntents]);
 

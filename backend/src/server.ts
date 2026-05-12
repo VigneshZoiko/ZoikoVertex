@@ -14,6 +14,9 @@ import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPos
 import { listLibrary, addToLibrary, deleteFromLibrary } from './modules/library/libraryController';
 import { SuperAdminController } from './modules/superadmin/superAdminController';
 import { SupportController } from './modules/support/supportController';
+import { getUserContext } from './modules/user/userController';
+import { listAccounts } from './modules/social/accountsController';
+import { listMembers, listRequests, createRequest, updateRequest } from './modules/team/teamController';
 
 import { authenticate } from './shared/authMiddleware';
 
@@ -71,6 +74,18 @@ app.delete('/api/v1/scheduler/posts/:id', authenticate, cancelScheduledPost);
 app.get('/api/v1/library', authenticate, listLibrary);
 app.post('/api/v1/library/upload', authenticate, addToLibrary);
 app.delete('/api/v1/library/:id', authenticate, deleteFromLibrary);
+
+// Protected User Routes
+app.get('/api/v1/user/context', authenticate, getUserContext);
+
+// Protected Account Routes
+app.get('/api/v1/accounts', authenticate, listAccounts);
+
+// Protected Team Routes
+app.get('/api/v1/team/members', authenticate, listMembers);
+app.get('/api/v1/team/requests', authenticate, listRequests);
+app.post('/api/v1/team/requests', authenticate, createRequest);
+app.put('/api/v1/team/requests/:id', authenticate, updateRequest);
 
 // ─── SuperAdmin Routes ───────────────────────────────────────────────────────
 app.post('/api/v1/superadmin/organizations', authenticate, SuperAdminController.createOrganization);
