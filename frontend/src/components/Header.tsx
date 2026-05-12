@@ -7,11 +7,25 @@ import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Header() {
   const [email, setEmail] = useState<string | null>(null);
+  const [fullName, setFullName] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setEmail(user.email ?? "");
+      if (user) {
+        setEmail(user.email ?? "");
+        
+        // Fetch full_name from public.users
+        const { data: userData } = await supabase
+          .from('users')
+          .select('full_name')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        if (userData?.full_name) {
+          setFullName(userData.full_name);
+        }
+      }
     };
     fetchUser();
   }, []);
@@ -48,7 +62,7 @@ export default function Header() {
         <div className="flex items-center pl-4 border-l border-[var(--border)]">
           <div className="text-right mr-3 hidden md:block">
             <p className="text-sm font-medium text-[var(--foreground)]">{email || "Loading..."}</p>
-            <p className="text-xs text-[var(--foreground-muted)]">Authenticated Session</p>
+            <p className="text-xs text-[var(--foreground-muted)]">{fullName || "Authenticated Session"}</p>
           </div>
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shrink-0" />
         </div>

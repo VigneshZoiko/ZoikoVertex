@@ -13,6 +13,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
+  const [fullName, setFullName] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [roleLoaded, setRoleLoaded] = useState(false);
 
@@ -49,17 +50,20 @@ export default function Sidebar() {
         return;
       }
 
-      // Check SuperAdmin status first
+      // Check SuperAdmin status and fetch name
       const { data: userData } = await supabase
         .from('users')
-        .select('is_superadmin')
+        .select('is_superadmin, full_name')
         .eq('id', user.id)
         .single();
       
-      if (userData?.is_superadmin) {
-        setIsSuperAdmin(true);
-        setRoleLoaded(true);
-        return; // SuperAdmins don't need to check workspace_members for their platform role
+      if (userData) {
+        setFullName(userData.full_name);
+        if (userData.is_superadmin) {
+          setIsSuperAdmin(true);
+          setRoleLoaded(true);
+          return;
+        }
       }
 
       const { data } = await supabase
@@ -230,7 +234,9 @@ export default function Sidebar() {
             <div className="flex items-center">
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border-2 border-[var(--sidebar-bg)]"></div>
               <div className="ml-3">
-                <p className="text-sm font-medium text-[var(--sidebar-text)] leading-none">Agent Profile</p>
+                <p className="text-sm font-medium text-[var(--sidebar-text)] leading-none truncate w-32">
+                  {fullName || "Agent Profile"}
+                </p>
                 <p className="text-xs text-amber-500 mt-1 capitalize font-medium">
                   {isSuperAdmin ? "SuperAdmin" : role ? role.toLowerCase() : "Loading..."}
                 </p>
