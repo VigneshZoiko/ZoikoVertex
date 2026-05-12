@@ -271,7 +271,7 @@ node_modules/
 ### In your local environment:
 1. Check your `.env.local` is correct
 2. Pull the latest `main` — someone might have fixed it already
-3. Run `docker-compose down && docker-compose up -d` to restart services
+3. Restart your local dev servers (backend + frontend)
 4. If still broken — ask Team, don't spend 4 hours guessing
 
 ### In staging or production:
