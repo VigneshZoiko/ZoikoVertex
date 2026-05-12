@@ -275,7 +275,15 @@ export default function Sidebar() {
   const visibleGroups = NAV_GROUPS.map(group => ({
     ...group,
     items: group.items.filter(item => {
-      if (isSuperAdmin) return item.roles.includes("SUPERADMIN");
+      // 1. SuperAdmins see everything
+      if (isSuperAdmin) return true;
+      
+      // 2. Fallback: If role hasn't loaded yet, show basic items to anyone authenticated
+      if (!role && roleLoaded) {
+        return item.roles.includes("CREATOR") || item.roles.includes("MANAGER");
+      }
+
+      // 3. Normal role-based filtering
       return role && item.roles.includes(role.toUpperCase());
     }),
   })).filter(group => group.items.length > 0);
