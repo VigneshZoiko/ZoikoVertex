@@ -82,25 +82,25 @@ export default function CreatorUploadPage() {
   return (
     <div className="max-w-4xl mx-auto p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Creator Upload Center</h1>
-        <p className="text-slate-400">Upload high-quality assets for the Managers to pick and publish.</p>
+        <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">Creator Upload Center</h1>
+        <p className="text-[var(--foreground-muted)]">Upload high-quality assets for the Managers to pick and publish.</p>
       </div>
 
-      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 backdrop-blur-xl">
+      <div className="bg-[var(--card)]/50 border border-[var(--border)] rounded-3xl p-8 backdrop-blur-xl">
         <form onSubmit={handleUpload} className="space-y-6">
           {/* Title Input */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
               Asset Title / Filename
             </label>
             <div className="relative">
-              <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--foreground-muted)]" />
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g., Summer Collection Lipstick Shot"
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-4 pl-12 pr-4 text-white focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-4 pl-12 pr-4 text-[var(--foreground)] focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
                 required
               />
             </div>
@@ -108,7 +108,7 @@ export default function CreatorUploadPage() {
 
           {/* File Dropzone */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
               Media Pack (Upload Multiple Images/Videos)
             </label>
 
@@ -122,13 +122,13 @@ export default function CreatorUploadPage() {
                   accept="image/*,video/*"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <div className="border-2 border-dashed rounded-3xl p-12 text-center transition-all border-slate-800 group-hover:border-slate-700 bg-slate-950">
+                <div className="border-2 border-dashed rounded-3xl p-12 text-center transition-all border-[var(--border)] group-hover:border-[var(--card-border)] bg-[var(--surface)]">
                   <div className="flex flex-col items-center">
-                    <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mb-4">
-                      <Upload className="text-slate-500" />
+                    <div className="w-16 h-16 bg-[var(--card)] rounded-2xl flex items-center justify-center mb-4">
+                      <Upload className="text-[var(--foreground-muted)]" />
                     </div>
-                    <p className="text-white font-medium">Click or drag to upload</p>
-                    <p className="text-slate-500 text-sm">Supports high-res JPG, PNG, MP4</p>
+                    <p className="text-[var(--foreground)] font-medium">Click or drag to upload</p>
+                    <p className="text-[var(--foreground-muted)] text-sm">Supports high-res JPG, PNG, MP4</p>
                   </div>
                 </div>
               </div>
@@ -139,7 +139,7 @@ export default function CreatorUploadPage() {
               <div className="border-2 border-emerald-500/50 bg-emerald-500/5 rounded-3xl p-4">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                   {previewUrls.map((url, idx) => (
-                    <div key={idx} className="relative aspect-video rounded-xl overflow-hidden bg-black/50 border border-slate-700 group/thumb">
+                    <div key={idx} className="relative aspect-video rounded-xl overflow-hidden bg-black/50 border border-[var(--border)] group/thumb">
                       {files[idx].type.startsWith('video') ? (
                         <video src={url} className="w-full h-full object-cover opacity-80" />
                       ) : (
@@ -164,13 +164,13 @@ export default function CreatorUploadPage() {
                       {/* File name tooltip on hover */}
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover/thumb:opacity-100 transition-opacity">
                         <p className="text-[10px] text-white truncate font-medium">{files[idx].name}</p>
-                        <p className="text-[9px] text-slate-400">{(files[idx].size / (1024 * 1024)).toFixed(1)} MB</p>
+                        <p className="text-[9px] text-[var(--foreground-muted)]">{(files[idx].size / (1024 * 1024)).toFixed(1)} MB</p>
                       </div>
                     </div>
                   ))}
 
                   {/* Add more files button */}
-                  <label className="relative aspect-video rounded-xl border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950 hover:bg-indigo-500/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 group/add">
+                  <label className="relative aspect-video rounded-xl border-2 border-dashed border-[var(--border)] hover:border-indigo-500 bg-[var(--surface)] hover:bg-indigo-500/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 group/add">
                     <input
                       type="file"
                       multiple
@@ -184,8 +184,8 @@ export default function CreatorUploadPage() {
                       accept="image/*,video/*"
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
-                    <Upload className="w-6 h-6 text-slate-600 group-hover/add:text-indigo-400 transition-colors" />
-                    <span className="text-xs text-slate-500 group-hover/add:text-indigo-400 transition-colors font-medium">Add more</span>
+                    <Upload className="w-6 h-6 text-[var(--foreground-muted)] group-hover/add:text-indigo-400 transition-colors" />
+                    <span className="text-xs text-[var(--foreground-muted)] group-hover/add:text-indigo-400 transition-colors font-medium">Add more</span>
                   </label>
                 </div>
 
@@ -211,7 +211,7 @@ export default function CreatorUploadPage() {
             className={`
               w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all
               ${isUploading || files.length === 0 || !title 
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed' 
+                ? 'bg-[var(--surface)] text-[var(--foreground-muted)] cursor-not-allowed' 
                 : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:shadow-lg hover:shadow-indigo-500/20 active:scale-[0.98]'}
             `}
           >
@@ -227,7 +227,7 @@ export default function CreatorUploadPage() {
         </form>
       </div>
 
-      <div className="mt-8 flex items-center justify-center gap-4 text-slate-500 text-sm">
+      <div className="mt-8 flex items-center justify-center gap-4 text-[var(--foreground-muted)] text-sm">
         <p>Your upload will be visible to all Managers</p>
         <span>•</span>
         <button onClick={() => router.push('/library')} className="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1">

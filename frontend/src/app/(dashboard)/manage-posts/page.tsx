@@ -58,15 +58,15 @@ export default function ManagePostsPage() {
       case 'REJECTED':
         return { color: 'text-rose-500', bg: 'bg-rose-500/10', icon: XCircle, label: 'Returned for Revision' };
       default:
-        return { color: 'text-slate-400', bg: 'bg-slate-800', icon: Clock, label: status };
+        return { color: 'text-[var(--foreground-muted)]', bg: 'bg-[var(--surface)]', icon: Clock, label: status };
     }
   };
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">My Posts</h1>
-        <p className="text-slate-400">Manage, edit, or delete the content you have authored.</p>
+        <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">My Posts</h1>
+        <p className="text-[var(--foreground-muted)]">Manage, edit, or delete the content you have authored.</p>
       </div>
 
       {message && (
@@ -80,14 +80,14 @@ export default function ManagePostsPage() {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-          <p className="text-slate-400">Loading your posts...</p>
+          <p className="text-[var(--foreground-muted)]">Loading your posts...</p>
         </div>
       ) : posts.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {posts.map((post) => {
             const Status = getStatusConfig(post.status);
             return (
-              <div key={post.id} className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden flex flex-col">
+              <div key={post.id} className="bg-[var(--card)] border border-[var(--border)] rounded-3xl overflow-hidden flex flex-col">
                 {/* Media Preview */}
                 {post.media_url ? (
                   <div className="aspect-video relative overflow-hidden bg-black">
@@ -100,9 +100,9 @@ export default function ManagePostsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="aspect-video bg-slate-950 flex flex-col items-center justify-center relative">
-                    <ImageIcon className="w-10 h-10 text-slate-800 mb-2" />
-                    <p className="text-slate-600 text-sm">Text Only Post</p>
+                  <div className="aspect-video bg-[var(--surface)] flex flex-col items-center justify-center relative">
+                    <ImageIcon className="w-10 h-10 text-[var(--foreground-muted)] mb-2" />
+                    <p className="text-[var(--foreground-muted)] text-sm">Text Only Post</p>
                     <div className="absolute top-4 right-4">
                       <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 backdrop-blur-md ${Status.bg} ${Status.color}`}>
                         <Status.icon className="w-3 h-3" />
@@ -113,7 +113,7 @@ export default function ManagePostsPage() {
                 )}
 
                 <div className="p-6 flex-1 flex flex-col">
-                  <p className="text-white text-sm line-clamp-3 mb-4 flex-1">
+                  <p className="text-[var(--foreground)] text-sm line-clamp-3 mb-4 flex-1">
                     {post.content || "No description provided."}
                   </p>
 
@@ -124,15 +124,15 @@ export default function ManagePostsPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-800">
-                    <div className="text-xs text-slate-500">
+                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-[var(--border)]">
+                    <div className="text-xs text-[var(--foreground-muted)]">
                       {formatDateTime(post.created_at)}
                     </div>
                     <div className="flex gap-2">
                       {(post.status === 'PENDING_ADMIN' || post.status === 'RETURNED') && (
                         <button 
                           onClick={() => router.push(`/publish?assetUrl=${encodeURIComponent(post.media_url || '')}`)} // Quick edit hack for now
-                          className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-indigo-400 transition-colors"
+                          className="p-2 hover:bg-[var(--surface-hover)] rounded-lg text-[var(--foreground-muted)] hover:text-indigo-400 transition-colors"
                           title="Edit Post"
                         >
                           <FileEdit className="w-4 h-4" />
@@ -140,7 +140,7 @@ export default function ManagePostsPage() {
                       )}
                       <button 
                         onClick={() => handleDelete(post.id)}
-                        className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
+                        className="p-2 hover:bg-rose-500/10 rounded-lg text-[var(--foreground-muted)] hover:text-rose-500 transition-colors"
                         title="Delete Post"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -153,12 +153,12 @@ export default function ManagePostsPage() {
           })}
         </div>
       ) : (
-        <div className="bg-slate-900 border border-dashed border-slate-800 rounded-3xl p-16 flex flex-col items-center text-center">
-          <div className="w-16 h-16 bg-slate-950 rounded-full flex items-center justify-center mb-4">
-            <Send className="w-8 h-8 text-slate-700" />
+        <div className="bg-[var(--card)] border border-dashed border-[var(--border)] rounded-3xl p-16 flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-[var(--surface)] rounded-full flex items-center justify-center mb-4">
+            <Send className="w-8 h-8 text-[var(--foreground-muted)]" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">No Posts Yet</h2>
-          <p className="text-slate-500 max-w-sm mb-6">You haven&apos;t authored any posts. Head to the Media Library to pick an asset and start publishing!</p>
+          <h2 className="text-xl font-bold text-[var(--foreground)] mb-2">No Posts Yet</h2>
+          <p className="text-[var(--foreground-muted)] max-w-sm mb-6">You haven&apos;t authored any posts. Head to the Media Library to pick an asset and start publishing!</p>
           <button 
             onClick={() => router.push('/library')}
             className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20"

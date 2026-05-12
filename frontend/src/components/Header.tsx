@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Search, Bell, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Header() {
   const [email, setEmail] = useState<string | null>(null);
@@ -34,6 +35,9 @@ export default function Header() {
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
           <span className="text-xs font-medium text-emerald-400">System Secure</span>
         </div>
+
+        {/* Theme Toggle */}
+        <ThemeToggle />
 
         {/* Notifications */}
         <button

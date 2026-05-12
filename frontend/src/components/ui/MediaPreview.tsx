@@ -13,14 +13,14 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({ url, alt = "Content", class
 
   if (urls.length === 0) {
     return (
-      <div className={`w-full aspect-video bg-black rounded-xl border border-zinc-800 flex items-center justify-center ${className}`}>
-        <div className="text-xs text-zinc-600 font-medium text-center p-4">No Media Attached</div>
+      <div className={`w-full aspect-video bg-black rounded-xl border border-[var(--border)] flex items-center justify-center ${className}`}>
+        <div className="text-xs text-[var(--foreground-muted)] font-medium text-center p-4">No Media Attached</div>
       </div>
     );
   }
 
   return (
-    <div className={`w-full aspect-video bg-black rounded-xl border border-zinc-800 relative group overflow-hidden shrink-0 ${className}`}>
+    <div className={`w-full aspect-video bg-black rounded-xl border border-[var(--border)] relative group overflow-hidden shrink-0 ${className}`}>
       <div className="flex w-full h-full overflow-x-auto snap-x scrollbar-hide">
         {urls.map((u, i) => {
           const isVideo = u.match(/\.(mp4|webm|ogg)$/i);

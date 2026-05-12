@@ -218,14 +218,14 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
   };
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+    <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
+        <h2 className="text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
           <Globe className="w-5 h-5 text-indigo-400" />
           Target Accounts
         </h2>
         <div className="flex items-center gap-3">
-          <span className="text-[10px] bg-zinc-800 text-zinc-500 px-2 py-1 rounded font-bold uppercase tracking-wider">
+          <span className="text-[10px] bg-[var(--surface)] text-[var(--foreground-muted)] px-2 py-1 rounded font-bold uppercase tracking-wider">
             {selectedAccountIds.length} Selected
           </span>
           {userRole?.toUpperCase() !== 'CREATOR' && (
@@ -267,24 +267,24 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
               key={platformId}
               className={`rounded-xl overflow-hidden border transition-all ${
                 blocked
-                  ? 'border-rose-500/20 bg-zinc-950/80 opacity-50 grayscale cursor-not-allowed'
+                  ? 'border-rose-500/20 bg-[var(--card)]/80 opacity-50 grayscale cursor-not-allowed'
                   : hasWarning
-                  ? 'border-amber-500/30 bg-zinc-950'
-                  : 'border-zinc-800 bg-zinc-950'
+                  ? 'border-amber-500/30 bg-[var(--card)]'
+                  : 'border-[var(--border)] bg-[var(--card)]'
               }`}
             >
               <button
                 onClick={() => handlePlatformClick(platformId)}
                 disabled={false}  // always clickable — shows warning if blocked
                 className={`w-full flex items-center justify-between p-4 transition-colors ${
-                  blocked ? 'cursor-not-allowed' : isExpanded ? 'bg-zinc-900/50' : 'hover:bg-zinc-900/30'
+                  blocked ? 'cursor-not-allowed' : isExpanded ? 'bg-[var(--surface)]/50' : 'hover:bg-[var(--surface)]/30'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${meta.color} ${blocked ? 'opacity-40' : ''}`}>
                     <Icon className="w-4 h-4" />
                   </div>
-                  <span className={`text-sm font-bold capitalize ${blocked ? 'text-zinc-600' : 'text-white'}`}>
+                  <span className={`text-sm font-bold capitalize ${blocked ? 'text-[var(--foreground-muted)]' : 'text-[var(--foreground)]'}`}>
                     {platformId}
                   </span>
 
@@ -305,12 +305,12 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
                     </span>
                   )}
                 </div>
-                {!blocked && <ChevronRight className={`w-4 h-4 text-zinc-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />}
+                {!blocked && <ChevronRight className={`w-4 h-4 text-[var(--foreground-muted)] transition-transform ${isExpanded ? 'rotate-90' : ''}`} />}
                 {blocked && <AlertTriangle className="w-4 h-4 text-rose-500/50" />}
               </button>
 
               {isExpanded && !blocked && (
-                <div className="p-4 pt-2 space-y-2 border-t border-zinc-800/50">
+                <div className="p-4 pt-2 space-y-2 border-t border-[var(--border)]/50">
                   {/* Inline warning */}
                   {hasWarning && (
                     <div className="mb-3 p-3 rounded-lg bg-amber-500/8 border border-amber-500/20 flex items-start gap-2">
@@ -326,7 +326,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
                         className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
                           selectedAccountIds.includes(account.id)
                             ? 'bg-indigo-500/10 border-indigo-500/50'
-                            : 'bg-zinc-900/30 border-zinc-800 hover:border-zinc-700'
+                            : 'bg-[var(--surface)]/30 border-[var(--border)] hover:border-[var(--card-border)]'
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -336,19 +336,19 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
                             checked={selectedAccountIds.includes(account.id)}
                             onChange={() => onToggleAccount(account.id)}
                           />
-                          <div className="w-8 h-8 rounded bg-zinc-800 flex items-center justify-center text-zinc-500 text-xs font-bold overflow-hidden">
+                          <div className="w-8 h-8 rounded bg-[var(--surface)] flex items-center justify-center text-[var(--foreground-muted)] text-xs font-bold overflow-hidden">
                             {account.avatar_url ? <img src={account.avatar_url} alt="" /> : account.account_name.charAt(0)}
                           </div>
                           <div>
-                            <p className="text-xs font-bold text-white">{account.account_name}</p>
-                            <p className="text-[10px] text-zinc-500">{account.account_handle || 'Active'}</p>
+                            <p className="text-xs font-bold text-[var(--foreground)]">{account.account_name}</p>
+                            <p className="text-[10px] text-[var(--foreground-muted)]">{account.account_handle || 'Active'}</p>
                           </div>
                         </div>
                         {selectedAccountIds.includes(account.id) && <CheckCircle2 className="w-4 h-4 text-indigo-400" />}
                       </label>
                     ))
                   ) : (
-                    <p className="text-[10px] text-zinc-500 py-2 italic text-center">
+                    <p className="text-[10px] text-[var(--foreground-muted)] py-2 italic text-center">
                       No accounts connected. <a href="/accounts" className="text-indigo-400 hover:underline">Connect one now</a>
                     </p>
                   )}
