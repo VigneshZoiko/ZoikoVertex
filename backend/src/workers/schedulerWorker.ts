@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Worker, Queue, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { env } from '../config/env';
