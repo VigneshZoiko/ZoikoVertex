@@ -58,15 +58,15 @@ export default function MediaPackManager({
   };
 
   return (
-    <div className="rounded-2xl border border-zinc-700 bg-zinc-950 overflow-hidden">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-800 bg-zinc-900/60">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] bg-[var(--surface)]/60">
         <div className="flex items-center gap-2">
           <PackageCheck className="w-4 h-4 text-indigo-400" />
-          <span className="text-sm font-bold text-white">Media Pack Manager</span>
+          <span className="text-sm font-bold text-[var(--foreground)]">Media Pack Manager</span>
         </div>
-        <span className="text-xs text-zinc-400">
-          <span className="text-white font-bold">{selectedUrls.length}</span> / {allUrls.length} in post
+        <span className="text-xs text-[var(--foreground-muted)]">
+          <span className="text-[var(--foreground)] font-bold">{selectedUrls.length}</span> / {allUrls.length} in post
         </span>
       </div>
 
@@ -74,11 +74,11 @@ export default function MediaPackManager({
 
         {/* ── SELECTED (IN POST) — draggable ────────────────────────────── */}
         <div>
-          <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-3">
+          <p className="text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-widest mb-3">
             In Post — drag to reorder · click ✕ to remove
           </p>
           {selectedUrls.length === 0 ? (
-            <p className="text-xs text-zinc-600 italic text-center py-4">
+            <p className="text-xs text-[var(--foreground-muted)] italic text-center py-4">
               No files selected. Add some from the pool below.
             </p>
           ) : (
@@ -91,10 +91,10 @@ export default function MediaPackManager({
                   onDragEnter={() => handleDragEnter(idx)}
                   onDragEnd={handleDragEnd}
                   onDragOver={(e) => e.preventDefault()}
-                  className={`relative group aspect-square rounded-xl overflow-hidden border-2 cursor-grab active:cursor-grabbing transition-all select-none ${
-                    draggingIdx === idx
-                      ? "border-indigo-500 opacity-40 scale-95"
-                      : "border-zinc-700 hover:border-indigo-400"
+                   className={`relative group aspect-square rounded-xl overflow-hidden border-2 cursor-grab active:cursor-grabbing transition-all select-none ${
+                     draggingIdx === idx
+                       ? "border-indigo-500 opacity-40 scale-95"
+                       : "border-[var(--border)] hover:border-indigo-400"
                   }`}
                 >
                   {fileType === "video" ? (
@@ -135,15 +135,15 @@ export default function MediaPackManager({
         {/* ── AVAILABLE POOL (removed / not yet added) ──────────────────── */}
         {removedUrls.length > 0 && (
           <div>
-            <div className="h-px bg-zinc-800 mb-4" />
-            <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-widest mb-3">
+            <div className="h-px bg-[var(--border)] mb-4" />
+            <p className="text-[10px] uppercase font-bold text-[var(--foreground-muted)] tracking-widest mb-3">
               Available — click + to add back to post
             </p>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
               {removedUrls.map((url, idx) => (
                 <div
                   key={url}
-                  className="relative group aspect-square rounded-xl overflow-hidden border-2 border-dashed border-zinc-700 opacity-50 hover:opacity-90 transition-all"
+                  className="relative group aspect-square rounded-xl overflow-hidden border-2 border-dashed border-[var(--border)] opacity-50 hover:opacity-90 transition-all"
                 >
                   {fileType === "video" ? (
                     <video src={url} className="w-full h-full object-cover pointer-events-none" />
@@ -168,11 +168,11 @@ export default function MediaPackManager({
         )}
 
         {/* Footer */}
-        <div className="pt-1 border-t border-zinc-800 flex items-center gap-2">
+        <div className="pt-1 border-t border-[var(--border)] flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          <p className="text-[10px] text-zinc-500">
-            <span className="text-white font-bold">{selectedUrls.length} file{selectedUrls.length !== 1 ? "s" : ""}</span> will be submitted as a carousel post.
-            {removedUrls.length > 0 && <span className="text-zinc-600"> {removedUrls.length} in available pool.</span>}
+          <p className="text-[10px] text-[var(--foreground-muted)]">
+            <span className="text-[var(--foreground)] font-bold">{selectedUrls.length} file{selectedUrls.length !== 1 ? "s" : ""}</span> will be submitted as a carousel post.
+            {removedUrls.length > 0 && <span className="text-[var(--foreground-muted)]"> {removedUrls.length} in available pool.</span>}
           </p>
         </div>
       </div>

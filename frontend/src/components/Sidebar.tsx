@@ -160,26 +160,27 @@ export default function Sidebar() {
         onCancel={handleDiscardCancel}
       />
 
-      <aside className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col h-screen p-4 shrink-0">
+      <div className="w-64 bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col h-screen p-4 transition-colors">
         {/* Brand */}
         <div className="flex flex-col mb-10 px-2 mt-2">
           <div className="flex items-center">
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mr-3 shrink-0">
-              <img src="/logo-dark.jpeg" alt="ZoikoVertex Logo" className="w-full h-full object-cover" />
+              <img src="/logo-dark.jpeg" alt="ZoikoVertex Logo" className="w-full h-full object-cover dark:block hidden" />
+              <img src="/logo.jpeg" alt="ZoikoVertex Logo" className="w-full h-full object-cover block dark:hidden" />
             </div>
-            <span className="text-white font-bold text-xl tracking-wide">ZoikoVertex</span>
+            <span className="text-[var(--sidebar-text)] font-bold text-xl tracking-wide">ZoikoVertex</span>
           </div>
-          <p className="text-zinc-500 text-xs mt-1 ml-11">Where Execution Becomes Accountable.</p>
+          <p className="text-[var(--sidebar-text-muted)] text-xs mt-1 ml-11">Where Execution Becomes Accountable.</p>
         </div>
 
         {/* Navigation Links mapped by Role */}
         <div className="mb-6 px-2">
-          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Workspace</p>
+          <p className="text-xs font-semibold text-[var(--sidebar-text-muted)] uppercase tracking-wider mb-3">Workspace</p>
           <nav className="space-y-1">
             {!roleLoaded ? (
               <div className="space-y-1">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-10 rounded-lg bg-zinc-800/50 animate-pulse" />
+                  <div key={i} className="h-10 rounded-lg bg-[var(--sidebar-hover)]/50 animate-pulse" />
                 ))}
               </div>
             ) : (
@@ -198,11 +199,11 @@ export default function Sidebar() {
                       onClick={(e) => handleNavClick(e, item.href)}
                       className={`flex items-center px-3 py-2.5 rounded-lg transition-colors group ${
                         isActive
-                          ? "bg-indigo-500/10 text-indigo-400 font-medium"
-                          : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+                          ? "bg-[var(--sidebar-active)] text-indigo-400 font-medium"
+                          : "text-[var(--sidebar-text-muted)] hover:text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)]"
                       }`}
                     >
-                      <Icon className={`w-5 h-5 mr-3 shrink-0 ${isActive ? "text-indigo-400" : "text-zinc-500 group-hover:text-zinc-300"}`} />
+                      <Icon className={`w-5 h-5 mr-3 ${isActive ? "text-indigo-400" : "text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)]"}`} />
                       <span className="flex-1">{item.name}</span>
 
                       {/* Pending Action Badge */}
@@ -225,11 +226,11 @@ export default function Sidebar() {
 
         {/* User Status & Logout */}
         <div className="mt-auto px-2 pb-2">
-          <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl mb-4">
+          <div className="p-3 bg-[var(--surface)] border border-[var(--sidebar-border)] rounded-xl mb-4">
             <div className="flex items-center">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shrink-0 border-2 border-zinc-950" />
-              <div className="ml-3 min-w-0">
-                <p className="text-sm font-medium text-white leading-none">Agent Profile</p>
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border-2 border-[var(--sidebar-bg)]"></div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-[var(--sidebar-text)] leading-none">Agent Profile</p>
                 <p className="text-xs text-amber-500 mt-1 capitalize font-medium">
                   {isSuperAdmin ? "SuperAdmin" : role ? role.toLowerCase() : "Loading..."}
                 </p>
@@ -245,7 +246,7 @@ export default function Sidebar() {
             <span className="text-sm font-medium">Secure Log out</span>
           </button>
         </div>
-      </aside>
+      </div>
     </>
   );
 }

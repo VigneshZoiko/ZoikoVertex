@@ -592,7 +592,7 @@ function PublishPageInner() {
 
   if (loading || userRole === null) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-zinc-500 space-y-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-[var(--foreground-muted)] space-y-4">
         <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
         <p className="text-sm font-bold uppercase tracking-widest animate-pulse">Syncing Environment...</p>
       </div>
@@ -602,10 +602,10 @@ function PublishPageInner() {
   return (
     <div className="max-w-6xl mx-auto pb-20 px-6">
       {/* Decent Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-zinc-800 pb-8">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-[var(--border)] pb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Social Publisher</h1>
-          <p className="text-zinc-500 text-sm mt-1 font-medium">Compose and schedule your cross-platform content.</p>
+          <h1 className="text-3xl font-bold text-[var(--foreground)] tracking-tight">Social Publisher</h1>
+          <p className="text-[var(--foreground-muted)] text-sm mt-1 font-medium">Compose and schedule your cross-platform content.</p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -628,9 +628,9 @@ function PublishPageInner() {
               {revisions.length} Tasks Awaiting Review
             </button>
           )}
-          <div className="px-4 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center gap-2">
+          <div className="px-4 py-1.5 bg-[var(--card)] border border-[var(--border)] rounded-lg flex items-center gap-2">
             <div className={`w-1.5 h-1.5 rounded-full ${userRole?.toUpperCase() === 'ADMIN' ? 'bg-rose-500' : 'bg-emerald-500'}`} />
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{userRole}</span>
+            <span className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-widest">{userRole}</span>
           </div>
         </div>
       </div>
@@ -644,8 +644,8 @@ function PublishPageInner() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {revisions.map(rev => (
-              <div key={rev.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
-                <p className="text-[10px] text-zinc-500 line-clamp-2 italic">&quot;{rev.feedback || 'No feedback provided'}&quot;</p>
+              <div key={rev.id} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 space-y-3">
+                <p className="text-[10px] text-[var(--foreground-muted)] line-clamp-2 italic">&quot;{rev.feedback || 'No feedback provided'}&quot;</p>
                 <button 
                   onClick={() => loadRevision(rev)} 
                   className="w-full py-1.5 bg-amber-500/20 text-amber-500 text-[10px] font-bold rounded-lg uppercase hover:bg-amber-500/30 transition-all"
@@ -671,9 +671,9 @@ function PublishPageInner() {
         <div className="lg:col-span-8 space-y-4">
           
           {/* Media Section */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-white">Media</h3>
+              <h3 className="text-sm font-bold text-[var(--foreground)]">Media</h3>
               {mediaUrls.length > 1 && (
                 <span className="text-xs text-indigo-400 font-bold bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-lg">
                   Pack · {mediaUrls.length} files
@@ -691,7 +691,7 @@ function PublishPageInner() {
                   return null; // placeholder — actual JSX is below
                 })()}
                 <div
-                  className="relative rounded-xl overflow-hidden border border-zinc-800 bg-black select-none"
+                  className="relative rounded-xl overflow-hidden border border-[var(--border)] bg-black select-none"
                   style={{ touchAction: 'pan-y' }}
                   onPointerDown={(e) => {
                     (e.currentTarget as any)._dragStartX = e.clientX;
@@ -766,7 +766,7 @@ function PublishPageInner() {
                   </div>
 
                   {/* Thumbnail strip */}
-                  <div className="flex gap-2 p-3 bg-zinc-950/80 overflow-x-auto">
+                  <div className="flex gap-2 p-3 bg-[var(--surface)]/80 overflow-x-auto">
                     {selectedUrls.map((url, i) => (
                       <button key={i} onClick={() => { setCarouselIndex(i); setMediaPreview(url); }}
                         className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${ i === carouselIndex ? 'border-indigo-500' : 'border-transparent opacity-60 hover:opacity-100'}`}>
@@ -800,20 +800,20 @@ function PublishPageInner() {
           </div>
 
           {/* Content Area (Instagram-style: Bottom) */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+          <div className="bg-[var(--card)]/50 border border-[var(--border)] rounded-3xl overflow-hidden shadow-sm">
             <div className="p-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
                 <div className="flex flex-col gap-1">
-                  <h2 className="text-lg font-bold text-white leading-none">Draft Composer</h2>
+                  <h2 className="text-lg font-bold text-[var(--foreground)] leading-none">Draft Composer</h2>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[9px] font-black uppercase tracking-widest rounded-md border border-zinc-700/50">{contentType}</span>
+                    <span className="px-2 py-0.5 bg-[var(--surface)] text-[var(--foreground-muted)] text-[9px] font-black uppercase tracking-widest rounded-md border border-[var(--border)]/50">{contentType}</span>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-2 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
+                <div className="flex items-center gap-2 bg-[var(--surface)] p-1 rounded-lg border border-[var(--border)]">
                   <button 
                     onClick={() => setIsPlatformSpecific(false)} 
-                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${!isPlatformSpecific ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-400'}`}
+                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${!isPlatformSpecific ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'}`}
                   >
                     Universal
                   </button>
@@ -822,7 +822,7 @@ function PublishPageInner() {
                       setIsPlatformSpecific(true);
                       if (!activePlatformTab) setActivePlatformTab("Instagram");
                     }} 
-                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20' : 'text-zinc-500 hover:text-zinc-400'}`}
+                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground-muted)]'}`}
                   >
                     Per Platform
                   </button>
@@ -830,7 +830,7 @@ function PublishPageInner() {
               </div>
 
               {isPlatformSpecific && (
-                <div className="flex flex-wrap gap-2 mb-6 p-2 bg-zinc-950/50 border border-zinc-800/50 rounded-2xl overflow-x-auto scrollbar-hide">
+                <div className="flex flex-wrap gap-2 mb-6 p-2 bg-[var(--surface)]/50 border border-[var(--border)]/50 rounded-2xl overflow-x-auto scrollbar-hide">
                   {Object.keys(platforms).map(p => (
                     <button 
                       key={p} 
@@ -843,7 +843,7 @@ function PublishPageInner() {
                           setPlatformCaptions(prev => ({ ...prev, [p]: description }));
                         }
                       }} 
-                      className={`px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${activePlatformTab === p ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
+                      className={`px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${activePlatformTab === p ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--card-border)]'}`}
                     >
                       {p}
                     </button>
@@ -851,7 +851,7 @@ function PublishPageInner() {
                 </div>
               )}
 
-              <div className="relative bg-zinc-950/50 border border-zinc-800 rounded-2xl transition-all focus-within:border-zinc-700">
+              <div className="relative bg-[var(--surface)]/50 border border-[var(--border)] rounded-2xl transition-all focus-within:border-[var(--card-border)]">
                 <textarea 
                   value={isPlatformSpecific ? (platformCaptions[activePlatformTab] || "") : description}
                   onChange={(e) => {
@@ -863,19 +863,19 @@ function PublishPageInner() {
                     }
                   }}
                   placeholder={isPlatformSpecific ? `Write custom caption for ${activePlatformTab}...` : "Write your universal caption here..."}
-                  className="w-full bg-transparent p-6 text-white text-base leading-relaxed placeholder:text-zinc-700 outline-none resize-none min-h-[250px]"
+                  className="w-full bg-transparent p-6 text-[var(--foreground)] text-base leading-relaxed outline-none resize-none min-h-[250px]"
                 />
                 
-                <div className="p-4 flex items-center justify-between border-t border-zinc-800/50 bg-zinc-900/30">
+                <div className="p-4 flex items-center justify-between border-t border-[var(--border)]/50 bg-[var(--card)]/30">
                   <div className="flex items-center gap-3">
                     <button 
                       onClick={() => setShowAIWriter(!showAIWriter)} 
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${showAIWriter ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${showAIWriter ? 'bg-indigo-600 text-white' : 'bg-[var(--surface)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'}`}
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       AI Studio
                     </button>
-                    <button onClick={() => setUseEmojis(!useEmojis)} className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border ${useEmojis ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-zinc-900 border-zinc-800 text-zinc-700'}`}>
+                    <button onClick={() => setUseEmojis(!useEmojis)} className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border ${useEmojis ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)]'}`}>
                       😊
                     </button>
                   </div>
@@ -883,7 +883,7 @@ function PublishPageInner() {
                     <span className={`text-[10px] font-bold uppercase tracking-widest ${
                       isPlatformSpecific && (platformCaptions[activePlatformTab]?.length || 0) > (PLATFORM_LIMITS[activePlatformTab] || 9999)
                         ? 'text-rose-500' 
-                        : 'text-zinc-600'
+                        : 'text-[var(--foreground-muted)]'
                     }`}>
                       {(isPlatformSpecific ? platformCaptions[activePlatformTab]?.length || 0 : description.length)} / {isPlatformSpecific ? PLATFORM_LIMITS[activePlatformTab] || '∞' : '∞'} Characters
                     </span>
@@ -914,18 +914,18 @@ function PublishPageInner() {
             )}
 
             {metrics && (
-              <div className="p-6 border-t border-zinc-800 bg-zinc-900/20 flex gap-8">
+              <div className="p-6 border-t border-[var(--border)] bg-[var(--card)]/20 flex gap-8">
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-1">Viral Score</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)] block mb-1">Viral Score</label>
                   <div className="flex items-center gap-2">
-                    <div className="text-xl font-bold text-white">{metrics.viral_score}/100</div>
-                    <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="text-xl font-bold text-[var(--foreground)]">{metrics.viral_score}/100</div>
+                    <div className="w-24 h-1.5 bg-[var(--surface)] rounded-full overflow-hidden">
                       <div className="h-full bg-indigo-500" style={{ width: `${metrics.viral_score}%` }} />
                     </div>
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-1">Sentiment</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)] block mb-1">Sentiment</label>
                   <div className="text-xl font-bold text-emerald-400">
                     {metrics.sentiment_score && metrics.sentiment_score > 0.7 ? 'Positive' : 'Balanced'}
                   </div>
@@ -935,8 +935,8 @@ function PublishPageInner() {
           </div>
 
           {/* Platform Selection */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <h3 className="text-sm font-bold text-white mb-4">Post To</h3>
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
+            <h3 className="text-sm font-bold text-[var(--foreground)] mb-4">Post To</h3>
             <PlatformSelector 
               connectedAccounts={connectedAccounts}
               selectedAccountIds={selectedAccountIds}
@@ -964,9 +964,9 @@ function PublishPageInner() {
         <div className="lg:col-span-4 space-y-4">
           
           {/* Week Calendar */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-bold text-white flex items-center gap-2">
+              <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
                 <Calendar className="w-3 h-3 text-indigo-400" />
                 This Week
               </h3>
@@ -980,13 +980,13 @@ function PublishPageInner() {
                 const isToday = new Date().toDateString() === date.toDateString();
                 return (
                   <div key={day} className="text-center">
-                    <div className={`text-[10px] font-medium mb-1 ${isToday ? 'text-indigo-400' : 'text-zinc-500'}`}>{day}</div>
-                    <div className={`text-sm font-bold mb-2 ${isToday ? 'text-indigo-400' : 'text-white'}`}>{date.getDate()}</div>
+                    <div className={`text-[10px] font-medium mb-1 ${isToday ? 'text-indigo-400' : 'text-[var(--foreground-muted)]'}`}>{day}</div>
+                    <div className={`text-sm font-bold mb-2 ${isToday ? 'text-indigo-400' : 'text-[var(--foreground)]'}`}>{date.getDate()}</div>
                     <div className="space-y-1">
                       {posts.slice(0, 2).map(post => (
                         <div key={post.id} className={`h-1.5 rounded-full ${post.status === 'SCHEDULED' ? 'bg-emerald-500' : post.status === 'PUBLISHED' ? 'bg-blue-500' : 'bg-rose-500'}`} />
                       ))}
-                      {posts.length > 2 && <div className="text-[8px] text-zinc-600">+{posts.length - 2}</div>}
+                      {posts.length > 2 && <div className="text-[8px] text-[var(--foreground-muted)]">+{posts.length - 2}</div>}
                     </div>
                   </div>
                 );
@@ -995,27 +995,27 @@ function PublishPageInner() {
           </div>
 
           {/* Scheduled Posts */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
-            <h3 className="text-xs font-bold text-white flex items-center gap-2 mb-2">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+            <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2 mb-2">
               <Clock className="w-3 h-3 text-emerald-400" />
               Scheduled ({scheduledPosts.length})
             </h3>
             {scheduledPosts.length === 0 ? (
-              <p className="text-xs text-zinc-500 text-center py-4">No posts scheduled</p>
+              <p className="text-xs text-[var(--foreground-muted)] text-center py-4">No posts scheduled</p>
             ) : (
               <div className="space-y-3 max-h-[250px] overflow-y-auto">
                 {scheduledPosts.slice(0, 5).map(post => (
                   <button
                     key={post.id}
                     onClick={() => { setSelectedScheduledPost(post); setShowEditScheduledModal(true); }}
-                    className="w-full p-3 bg-zinc-950 border border-zinc-800 rounded-xl hover:border-zinc-700 transition-all text-left"
+                    className="w-full p-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--card-border)] transition-all text-left"
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-bold text-indigo-400">{post.platform}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${post.status === 'SCHEDULED' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-700 text-zinc-400'}`}>{post.status}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${post.status === 'SCHEDULED' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[var(--surface-hover)] text-[var(--foreground-muted)]'}`}>{post.status}</span>
                     </div>
-                    <p className="text-xs text-zinc-400 truncate mb-1">{post.content}</p>
-                    <p className="text-[10px] text-zinc-600">{new Date(post.scheduled_time).toLocaleDateString()} at {new Date(post.scheduled_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                    <p className="text-xs text-[var(--foreground-muted)] truncate mb-1">{post.content}</p>
+                    <p className="text-[10px] text-[var(--foreground-muted)]">{new Date(post.scheduled_time).toLocaleDateString()} at {new Date(post.scheduled_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                   </button>
                 ))}
               </div>
@@ -1023,8 +1023,8 @@ function PublishPageInner() {
           </div>
 
           {/* AI Scheduler */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5">
+            <h3 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-amber-400" />
               AI Scheduler
             </h3>
@@ -1032,7 +1032,7 @@ function PublishPageInner() {
               <select
                 value={audienceRegion}
                 onChange={(e) => setAudienceRegion(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-xs outline-none"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none"
               >
                 <option value="Global">Global Audience</option>
                 <option value="US (EST)">US (EST)</option>
@@ -1043,7 +1043,7 @@ function PublishPageInner() {
               <select
                 value={audienceAgeGroup}
                 onChange={(e) => setAudienceAgeGroup(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-xs outline-none"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none"
               >
                 <option value="All Ages">All Ages</option>
                 <option value="18-24">18-24 Gen Z</option>
@@ -1065,14 +1065,14 @@ function PublishPageInner() {
               </button>
             </div>
             {suggestedTimes.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-zinc-800 space-y-2">
+              <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-2">
                 {suggestedTimes.slice(0, 2).map((rec, i) => (
-                  <div key={i} className="p-3 bg-zinc-950 rounded-xl">
+                  <div key={i} className="p-3 bg-[var(--surface)] rounded-xl">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-bold text-emerald-400">{rec.user_local_time_start} - {rec.user_local_time_end}</span>
                       <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">{Math.round(rec.confidence_score * 100)}%</span>
                     </div>
-                    <p className="text-[10px] text-zinc-500">{rec.audience_timezone}: {rec.best_start_time} - {rec.best_end_time}</p>
+                    <p className="text-[10px] text-[var(--foreground-muted)]">{rec.audience_timezone}: {rec.best_start_time} - {rec.best_end_time}</p>
                   </div>
                 ))}
               </div>
@@ -1085,33 +1085,33 @@ function PublishPageInner() {
                       {/* Edit Scheduled Post Modal */}
       {showEditScheduledModal && selectedScheduledPost && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-lg">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-lg">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">Edit Scheduled Post</h3>
-              <button onClick={() => { setShowEditScheduledModal(false); setSelectedScheduledPost(null); }} className="text-zinc-500 hover:text-white">
+              <h3 className="text-xl font-bold text-[var(--foreground)]">Edit Scheduled Post</h3>
+              <button onClick={() => { setShowEditScheduledModal(false); setSelectedScheduledPost(null); }} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-4">
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                <div className="text-xs text-zinc-400 mb-1">Platform</div>
-                <p className="text-white font-medium">{selectedScheduledPost.platform}</p>
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
+                <div className="text-xs text-[var(--foreground-muted)] mb-1">Platform</div>
+                <p className="text-[var(--foreground)] font-medium">{selectedScheduledPost.platform}</p>
               </div>
               <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Content</label>
+                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Content</label>
                 <textarea
                   defaultValue={selectedScheduledPost.content}
                   id="editContent"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-500 min-h-[100px]"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-emerald-500 min-h-[100px]"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Scheduled Time</label>
+                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Scheduled Time</label>
                 <input
                   type="datetime-local"
                   defaultValue={selectedScheduledPost.scheduled_time.slice(0, 16)}
                   id="editTime"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-500"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-emerald-500"
                 />
               </div>
               <div className="flex gap-3 pt-4">
@@ -1145,7 +1145,7 @@ function PublishPageInner() {
 export default function PublishPage() {
   return (
     <Suspense fallback={
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-zinc-500">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-[var(--foreground-muted)]">
         <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
         <p className="text-sm font-bold uppercase tracking-widest">Warming Engine...</p>
       </div>

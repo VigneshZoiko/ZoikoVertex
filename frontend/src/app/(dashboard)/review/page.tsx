@@ -75,7 +75,7 @@ export default function ReviewPage() {
 
   if (loading || userRole === null) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-zinc-500 space-y-4">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-[var(--foreground-muted)] space-y-4">
         <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
         <p className="text-sm font-bold uppercase tracking-widest animate-pulse">Scanning Governance History...</p>
       </div>
@@ -89,11 +89,11 @@ export default function ReviewPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-amber-500/20">
-              <ShieldCheck className="w-7 h-7 text-black" />
+              <ShieldCheck className="w-7 h-7 text-[var(--foreground)]" />
             </div>
             <div>
-              <h1 className="text-4xl font-black tracking-tighter text-white uppercase italic leading-none">Review &amp; Refine</h1>
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.3em] mt-1">Governance Feedback Loop</p>
+              <h1 className="text-4xl font-black tracking-tighter text-[var(--foreground)] uppercase italic leading-none">Review &amp; Refine</h1>
+              <p className="text-[var(--foreground-muted)] text-[10px] font-black uppercase tracking-[0.3em] mt-1">Governance Feedback Loop</p>
             </div>
           </div>
         </div>
@@ -106,7 +106,7 @@ export default function ReviewPage() {
           )}
           <button
             onClick={fetchRevisions}
-            className="p-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-zinc-500 hover:text-white hover:border-zinc-700 transition-all group"
+            className="p-3 bg-[var(--card)] border border-[var(--border)] rounded-2xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--card-border)] transition-all group"
             title="Refresh"
           >
             <RefreshCcw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
@@ -117,11 +117,11 @@ export default function ReviewPage() {
       {/* Grid Flow */}
       {revisions.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-40 text-center animate-in fade-in zoom-in duration-700">
-          <div className="w-32 h-32 bg-zinc-900/50 border border-zinc-800 rounded-[3rem] flex items-center justify-center mb-8 shadow-inner group">
+          <div className="w-32 h-32 bg-[var(--card)]/50 border border-[var(--border)] rounded-[3rem] flex items-center justify-center mb-8 shadow-inner group">
             <CheckCircle2 className="w-16 h-16 text-emerald-500/20 group-hover:text-emerald-500/50 transition-colors duration-500" />
           </div>
-          <h2 className="text-2xl font-black text-white mb-3 tracking-tighter uppercase italic">Perfect Alignment</h2>
-          <p className="text-sm text-zinc-600 max-w-[340px] leading-relaxed font-medium">
+          <h2 className="text-2xl font-black text-[var(--foreground)] mb-3 tracking-tighter uppercase italic">Perfect Alignment</h2>
+          <p className="text-sm text-[var(--foreground-muted)] max-w-[340px] leading-relaxed font-medium">
             Your content strategy is fully approved. No drafts currently require revision.
           </p>
         </div>
@@ -130,10 +130,10 @@ export default function ReviewPage() {
           {revisions.map(rev => (
             <div
               key={rev.id}
-              className="group bg-zinc-900/40 backdrop-blur-xl border border-zinc-800 hover:border-amber-500/40 rounded-[2.5rem] overflow-hidden flex flex-col transition-all duration-500 hover:shadow-[0_20px_50px_rgba(245,158,11,0.1)]"
+              className="group bg-[var(--card)]/40 backdrop-blur-xl border border-[var(--border)] hover:border-amber-500/40 rounded-[2.5rem] overflow-hidden flex flex-col transition-all duration-500 hover:shadow-[0_20px_50px_rgba(245,158,11,0.1)]"
             >
               {/* Header Context */}
-              <div className="p-6 pb-4 border-b border-zinc-800/50 flex items-center justify-between bg-black/20">
+              <div className="p-6 pb-4 border-b border-[var(--border)]/50 flex items-center justify-between bg-[var(--card)]/20">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)] animate-pulse" />
                   <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.2em]">Revision Needed</span>
@@ -145,8 +145,8 @@ export default function ReviewPage() {
                       p.trim().toLowerCase() === 'instagram' ? InstagramIcon :
                       p.trim().toLowerCase() === 'linkedin' ? LinkedinIcon : TwitterIcon;
                     return (
-                      <div key={p} className="w-8 h-8 bg-zinc-950 rounded-xl flex items-center justify-center border border-zinc-800 group-hover:border-zinc-700 transition-colors">
-                        <Icon className="w-4 h-4 text-zinc-400" />
+                      <div key={p} className="w-8 h-8 bg-[var(--surface)] rounded-xl flex items-center justify-center border border-[var(--border)] group-hover:border-[var(--card-border)] transition-colors">
+                        <Icon className="w-4 h-4 text-[var(--foreground-muted)]" />
                       </div>
                     );
                   })}
@@ -155,7 +155,7 @@ export default function ReviewPage() {
 
               {/* Media Segment */}
               {rev.media_url && (
-                <div className="mx-6 mt-6 aspect-[16/10] rounded-[2rem] overflow-hidden border border-zinc-800 bg-black flex items-center justify-center relative group-hover:border-zinc-700 transition-all">
+                <div className="mx-6 mt-6 aspect-[16/10] rounded-[2rem] overflow-hidden border border-[var(--border)] bg-[var(--card)] flex items-center justify-center relative group-hover:border-[var(--card-border)] transition-all">
                   <Image
                     src={rev.media_url}
                     alt="Review content"
@@ -163,7 +163,7 @@ export default function ReviewPage() {
                     height={500}
                     className="object-cover w-full h-full opacity-60 group-hover:opacity-100 transition-opacity duration-700"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--card)] via-transparent to-transparent opacity-60" />
                 </div>
               )}
 
@@ -178,7 +178,7 @@ export default function ReviewPage() {
                     <AlertCircle className="w-3.5 h-3.5" />
                     Actionable Feedback
                   </p>
-                  <p className="text-sm text-zinc-200 italic leading-relaxed font-medium">
+                  <p className="text-sm text-[var(--foreground)] italic leading-relaxed font-medium">
                     &ldquo;{rev.feedback || 'Adjust creative assets and refine copy for better engagement.'}&rdquo;
                   </p>
                 </div>
@@ -186,15 +186,15 @@ export default function ReviewPage() {
                 {/* Draft Summary */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Original Draft</p>
-                    <div className="flex items-center gap-1.5 text-zinc-600">
+                    <p className="text-[10px] font-black text-[var(--foreground-muted)] uppercase tracking-widest">Original Draft</p>
+                    <div className="flex items-center gap-1.5 text-[var(--foreground-muted)]">
                       <Clock className="w-3 h-3" />
                       <span className="text-[9px] font-black uppercase">
                         {new Date(rev.updated_at || rev.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                       </span>
                     </div>
                   </div>
-                  <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed font-medium bg-black/20 p-4 rounded-2xl border border-zinc-800/30 italic">
+                  <p className="text-xs text-[var(--foreground-muted)] line-clamp-2 leading-relaxed font-medium bg-[var(--card)]/20 p-4 rounded-2xl border border-[var(--border)]/30 italic">
                     {rev.content.startsWith('{') ? "Multi-Platform Configuration" : rev.content}
                   </p>
                 </div>
@@ -204,7 +204,7 @@ export default function ReviewPage() {
               <div className="p-6 pt-0">
                 <button
                   onClick={() => handleOpenInEditor(rev)}
-                  className="w-full py-4.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-black text-[11px] font-black rounded-3xl transition-all uppercase tracking-[0.2em] shadow-2xl shadow-amber-500/20 flex items-center justify-center gap-3 group/btn"
+                  className="w-full py-4.5 bg-amber-500 hover:bg-amber-400 active:scale-95 text-[var(--foreground)] text-[11px] font-black rounded-3xl transition-all uppercase tracking-[0.2em] shadow-2xl shadow-amber-500/20 flex items-center justify-center gap-3 group/btn"
                 >
                   <RefreshCcw className="w-4 h-4 group-hover/btn:rotate-180 transition-transform duration-700" />
                   Enter Workspace

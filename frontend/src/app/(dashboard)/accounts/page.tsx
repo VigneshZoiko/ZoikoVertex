@@ -129,6 +129,7 @@ export default function AccountsPage() {
           platform: platformId
         }));
 
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = `https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scopeString}&state=${state}&response_type=code`;
       } else if (platformId === 'linkedin') {
         const clientId = '86ffpbixotzcst'; 
@@ -139,6 +140,7 @@ export default function AccountsPage() {
         }));
         const scope = encodeURIComponent('openid profile email w_member_social');
 
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`;
       } else if (platformId === 'pinterest') {
         const clientId = process.env.NEXT_PUBLIC_PINTEREST_APP_ID || '';
@@ -146,6 +148,7 @@ export default function AccountsPage() {
         const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
         const scope = 'boards:read,pins:read,pins:write';
         
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = `https://www.pinterest.com/oauth/?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
       } else if (platformId === 'threads') {
         const appId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '';
@@ -153,6 +156,7 @@ export default function AccountsPage() {
         const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
         const scope = 'threads_basic,threads_content_publish';
         
+        // eslint-disable-next-line react-hooks/immutability
         window.location.href = `https://www.threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`;
       } else {
         setError(`${platformId.charAt(0).toUpperCase() + platformId.slice(1)} integration is coming in the next update.`);
@@ -168,8 +172,8 @@ export default function AccountsPage() {
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
       <div className="flex items-end justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Connected Accounts</h1>
-          <p className="text-zinc-400">Manage and sync your social media platform integrations.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] mb-1">Connected Accounts</h1>
+          <p className="text-[var(--foreground-muted)]">Manage and sync your social media platform integrations.</p>
         </div>
         {userRole !== 'CREATOR' && (
           <button 
@@ -195,21 +199,21 @@ export default function AccountsPage() {
       {loading ? (
         <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
           <div className="w-10 h-10 border-4 border-white/10 border-t-indigo-500 rounded-full animate-spin" />
-          <p className="text-zinc-500 text-[10px] font-black tracking-widest uppercase animate-pulse">Syncing Cloud Tokens...</p>
+          <p className="text-[var(--foreground-muted)] text-[10px] font-black tracking-widest uppercase animate-pulse">Syncing Cloud Tokens...</p>
         </div>
       ) : accounts.length === 0 ? (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-6 animate-in fade-in zoom-in-95 duration-700">
           <div className="relative mb-10">
             <div className="absolute inset-0 bg-indigo-500/20 blur-[100px] rounded-full animate-pulse" />
-            <div className="relative w-28 h-28 bg-zinc-900 border border-zinc-800 rounded-[2.5rem] flex items-center justify-center shadow-2xl">
-              <LinkIcon className="w-12 h-12 text-zinc-700" />
+            <div className="relative w-28 h-28 bg-[var(--card)] border border-[var(--border)] rounded-[2.5rem] flex items-center justify-center shadow-2xl">
+              <LinkIcon className="w-12 h-12 text-[var(--foreground-muted)]" />
             </div>
             <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl">
               <Plus className="w-5 h-5 text-white" />
             </div>
           </div>
-          <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Expand your reach</h2>
-          <p className="text-zinc-500 max-w-sm mx-auto mb-10 text-lg font-medium leading-relaxed">
+          <h2 className="text-3xl font-bold text-[var(--foreground)] mb-4 tracking-tight">Expand your reach</h2>
+          <p className="text-[var(--foreground-muted)] max-w-sm mx-auto mb-10 text-lg font-medium leading-relaxed">
             Connect your social media accounts to start scheduling, analyzing, and automating your content from a single dashboard.
           </p>
           {userRole !== 'CREATOR' && (
@@ -228,10 +232,10 @@ export default function AccountsPage() {
             const isExpanded = expandedPlatforms.includes(platform.id);
             
             return (
-              <div key={platform.id} className="bg-zinc-900/40 border border-zinc-800/50 rounded-3xl overflow-hidden backdrop-blur-sm">
+              <div key={platform.id} className="bg-[var(--card)]/40 border border-[var(--border)]/50 rounded-3xl overflow-hidden backdrop-blur-sm">
                 <button 
                   onClick={() => togglePlatform(platform.id)}
-                  className="w-full flex items-center justify-between p-6 hover:bg-zinc-800/30 transition-colors group"
+                  className="w-full flex items-center justify-between p-6 hover:bg-[var(--surface-hover)]/30 transition-colors group"
                 >
                   <div className="flex items-center gap-5">
                     <div 
@@ -241,10 +245,10 @@ export default function AccountsPage() {
                       {platform.icon}
                     </div>
                     <div className="text-left">
-                      <h3 className="text-white font-bold text-lg">{platform.name}</h3>
+                      <h3 className="text-[var(--foreground)] font-bold text-lg">{platform.name}</h3>
                       <div className="flex items-center gap-2">
                         <span className={`w-1.5 h-1.5 rounded-full ${platformAccounts.length > 0 ? 'bg-emerald-500' : 'bg-zinc-700'}`} />
-                        <p className="text-xs text-zinc-500 font-medium">
+                        <p className="text-xs text-[var(--foreground-muted)] font-medium">
                           {platformAccounts.length} {platformAccounts.length === 1 ? 'connection' : 'connections'} active
                         </p>
                       </div>
@@ -252,30 +256,30 @@ export default function AccountsPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     {platformAccounts.length === 0 && userRole !== 'CREATOR' && (
-                      <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest mr-2 opacity-0 group-hover:opacity-100 transition-opacity">Not Linked</span>
+                      <span className="text-[10px] font-black text-[var(--foreground-muted)] uppercase tracking-widest mr-2 opacity-0 group-hover:opacity-100 transition-opacity">Not Linked</span>
                     )}
-                    {isExpanded ? <ChevronUp className="w-5 h-5 text-zinc-500" /> : <ChevronDown className="w-5 h-5 text-zinc-500" />}
+                    {isExpanded ? <ChevronUp className="w-5 h-5 text-[var(--foreground-muted)]" /> : <ChevronDown className="w-5 h-5 text-[var(--foreground-muted)]" />}
                   </div>
                 </button>
                 {isExpanded && (
-                  <div className="border-t border-zinc-800/30 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <div className="border-t border-[var(--border)]/30 animate-in fade-in slide-in-from-top-1 duration-300">
                     {platformAccounts.length > 0 ? (
-                      <div className="divide-y divide-zinc-800/30">
+                      <div className="divide-y divide-[var(--border)]/30">
                         {platformAccounts.map(account => (
-                          <div key={account.id} className="flex items-center justify-between p-4 px-6 hover:bg-zinc-800/20 transition-colors group">
+                          <div key={account.id} className="flex items-center justify-between p-4 px-6 hover:bg-[var(--surface-hover)] transition-colors group">
                             <div className="flex items-center gap-4 min-w-0">
                               {account.avatar_url ? (
-                                <img src={account.avatar_url} alt={account.account_name} className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-800 shadow-sm" />
+                                <img src={account.avatar_url} alt={account.account_name} className="w-8 h-8 rounded-lg bg-[var(--surface)] border border-[var(--border)] shadow-sm" />
                               ) : (
-                                <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 font-bold text-xs">
+                                <div className="w-8 h-8 rounded-lg bg-[var(--card)] border border-[var(--border)] flex items-center justify-center text-[var(--foreground-muted)] font-bold text-xs">
                                   {account.account_name.charAt(0)}
                                 </div>
                               )}
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <h4 className="text-zinc-100 font-medium text-sm truncate">{account.account_name}</h4>
+                                  <h4 className="text-[var(--foreground)] font-medium text-sm truncate">{account.account_name}</h4>
                                   <span className="w-1 h-1 rounded-full bg-zinc-700" />
-                                  <p className="text-[11px] text-zinc-500 font-medium truncate uppercase tracking-tight">
+                                  <p className="text-[11px] text-[var(--foreground-muted)] font-medium truncate uppercase tracking-tight">
                                     {account.account_handle || `ID: ${account.id.substring(0, 8)}`}
                                   </p>
                                 </div>
@@ -289,7 +293,7 @@ export default function AccountsPage() {
                               {userRole !== 'CREATOR' && (
                                 <button 
                                   onClick={() => disconnectAccount(account.id)}
-                                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-900/0 text-zinc-600 hover:text-rose-500 hover:bg-rose-500/5 transition-all opacity-0 group-hover:opacity-100"
+                                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--card)]/0 text-[var(--foreground-muted)] hover:text-rose-500 hover:bg-rose-500/5 transition-all opacity-0 group-hover:opacity-100"
                                   title="Disconnect"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -301,11 +305,11 @@ export default function AccountsPage() {
                       </div>
                     ) : (
                       <div className="p-10 flex flex-col items-center justify-center text-center">
-                        <p className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.2em] mb-4">No active connection</p>
+                        <p className="text-[10px] text-[var(--foreground-muted)] font-black uppercase tracking-[0.2em] mb-4">No active connection</p>
                         {userRole !== 'CREATOR' && (
                           <button 
                             onClick={() => setShowAddModal(true)}
-                            className="px-4 py-1.5 bg-zinc-900/50 hover:bg-white hover:text-black text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all border border-zinc-800"
+                            className="px-4 py-1.5 bg-[var(--card)]/50 hover:bg-white hover:text-black text-[var(--foreground-muted)] text-[10px] font-black uppercase tracking-widest rounded-lg transition-all border border-[var(--border)]"
                           >
                             Add {platform.name}
                           </button>
@@ -321,13 +325,13 @@ export default function AccountsPage() {
       )}
 
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/95 backdrop-blur-md animate-in fade-in duration-500">
-          <div className="bg-zinc-950 border border-zinc-800/80 rounded-[2rem] w-full max-w-lg overflow-hidden shadow-2xl flex flex-col">
-            <div className="p-6 border-b border-zinc-900 flex items-center justify-between bg-zinc-900/10 shrink-0">
-              <h2 className="text-lg font-bold text-white tracking-tight">Add Connection</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[var(--card)] backdrop-blur-md animate-in fade-in duration-500">
+          <div className="bg-[var(--surface)] border border-[var(--border)]/80 rounded-[2rem] w-full max-w-lg overflow-hidden shadow-2xl flex flex-col">
+            <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--card)]/10 shrink-0">
+              <h2 className="text-lg font-bold text-[var(--foreground)] tracking-tight">Add Connection</h2>
               <button 
                 onClick={() => setShowAddModal(false)} 
-                className="w-8 h-8 flex items-center justify-center rounded-xl bg-zinc-900 text-zinc-500 hover:text-white transition-all border border-zinc-800"
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-[var(--card)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all border border-[var(--border)]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -341,7 +345,7 @@ export default function AccountsPage() {
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => handleAddAccount(platform.id)}
-                    className="flex items-center gap-3 p-4 rounded-2xl bg-zinc-900/30 border border-zinc-800 hover:border-zinc-500 hover:bg-zinc-800/50 transition-all text-left disabled:opacity-50 group"
+                    className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--card)]/30 border border-[var(--border)] hover:border-zinc-500 hover:bg-[var(--surface-hover)] transition-all text-left disabled:opacity-50 group"
                   >
                     <div 
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-xl group-hover:scale-110 transition-transform"
@@ -350,8 +354,8 @@ export default function AccountsPage() {
                       {platform.icon}
                     </div>
                     <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-zinc-200 truncate">{platform.name}</h4>
-                      <p className="text-[9px] text-zinc-500 font-black uppercase tracking-tight opacity-60">
+                      <h4 className="text-sm font-bold text-[var(--foreground)] truncate">{platform.name}</h4>
+                      <p className="text-[9px] text-[var(--foreground-muted)] font-black uppercase tracking-tight opacity-60">
                         {['facebook', 'instagram', 'linkedin', 'pinterest', 'threads'].includes(platform.id) ? 'OAuth' : 'Pending'}
                       </p>
                     </div>
@@ -359,19 +363,19 @@ export default function AccountsPage() {
                 ))}
               </div>
 
-              <div className="p-5 bg-zinc-900/30 border border-zinc-800/50 rounded-2xl flex items-start gap-4">
-                <AlertCircle className="w-4 h-4 text-zinc-600 mt-0.5 shrink-0" />
-                <p className="text-[10px] text-zinc-500 leading-relaxed font-medium uppercase tracking-tight">
+              <div className="p-5 bg-[var(--card)]/30 border border-[var(--border)]/50 rounded-2xl flex items-start gap-4">
+                <AlertCircle className="w-4 h-4 text-[var(--foreground-muted)] mt-0.5 shrink-0" />
+                <p className="text-[10px] text-[var(--foreground-muted)] leading-relaxed font-medium uppercase tracking-tight">
                   ZoikoVertex uses enterprise-grade OAuth handshakes. Revoke access anytime from your provider settings.
                 </p>
               </div>
             </div>
             
-            <div className="p-6 bg-zinc-900/20 border-t border-zinc-900 flex justify-end shrink-0">
+            <div className="p-6 bg-[var(--card)]/20 border-t border-[var(--border)] flex justify-end shrink-0">
               <button 
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="px-6 py-2 text-zinc-500 hover:text-white text-[10px] font-black transition-colors uppercase tracking-widest"
+                className="px-6 py-2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] text-[10px] font-black transition-colors uppercase tracking-widest"
               >
                 Cancel
               </button>

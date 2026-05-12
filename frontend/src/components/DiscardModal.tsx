@@ -30,7 +30,7 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel 
       />
 
       {/* Modal card */}
-      <div className="relative z-10 w-full max-w-md bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl shadow-black/50 animate-in zoom-in-95 duration-200">
+      <div className="relative z-10 w-full max-w-md bg-[var(--card)] border border-[var(--border)] rounded-3xl shadow-2xl shadow-black/50 animate-in zoom-in-95 duration-200">
         {/* Top accent */}
         <div className="h-1 rounded-t-3xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500" />
 
@@ -40,15 +40,15 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel 
             <AlertTriangle className="w-7 h-7 text-amber-400" />
           </div>
 
-          <h2 className="text-xl font-bold text-white mb-2">Discard this draft?</h2>
-          <p className="text-zinc-400 text-sm leading-relaxed mb-8">
+          <h2 className="text-xl font-bold text-[var(--foreground)] mb-2">Discard this draft?</h2>
+          <p className="text-[var(--foreground-muted)] text-sm leading-relaxed mb-8">
             You have an unsaved post in progress. If you leave now, your topic, description, and media selection will be lost.
           </p>
 
           <div className="flex gap-3">
             <button
               onClick={onCancel}
-              className="flex-1 py-3 rounded-xl border border-zinc-700 text-zinc-300 font-semibold text-sm hover:bg-zinc-800 hover:text-white transition-all"
+              className="flex-1 py-3 rounded-xl border border-[var(--border)] text-[var(--foreground)] font-semibold text-sm hover:bg-[var(--surface-hover)] transition-all"
             >
               Keep Editing
             </button>
@@ -64,7 +64,7 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel 
         {/* Close X */}
         <button
           onClick={onCancel}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition-all"
+          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[var(--surface)] hover:bg-[var(--surface-hover)] flex items-center justify-center text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-all"
         >
           <X className="w-4 h-4" />
         </button>

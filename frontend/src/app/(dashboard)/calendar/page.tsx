@@ -220,8 +220,8 @@ export default function CalendarPage() {
   return (
     <div className="max-w-7xl mx-auto pb-12 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Content Calendar</h1>
-        <p className="text-zinc-400 text-sm font-medium">Visualize and manage your scheduled posts across all platforms.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] mb-2">Content Calendar</h1>
+        <p className="text-[var(--foreground-muted)] text-sm font-medium">Visualize and manage your scheduled posts across all platforms.</p>
       </div>
 
       {message && (
@@ -232,17 +232,17 @@ export default function CalendarPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-3">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-            <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden">
+            <div className="p-6 border-b border-[var(--border)] flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <button onClick={() => navigateMonth(-1)} className="p-2 hover:bg-zinc-800 rounded-lg transition-colors">
-                  <ChevronLeft className="w-5 h-5 text-zinc-400" />
+                <button onClick={() => navigateMonth(-1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
+                  <ChevronLeft className="w-5 h-5 text-[var(--foreground-muted)]" />
                 </button>
-                <h2 className="text-xl font-bold text-white">
+                <h2 className="text-xl font-bold text-[var(--foreground)]">
                   {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
                 </h2>
-                <button onClick={() => navigateMonth(1)} className="p-2 hover:bg-zinc-800 rounded-lg transition-colors">
-                  <ChevronRight className="w-5 h-5 text-zinc-400" />
+                <button onClick={() => navigateMonth(1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
+                  <ChevronRight className="w-5 h-5 text-[var(--foreground-muted)]" />
                 </button>
               </div>
               <button onClick={() => setCurrentDate(new Date())} className="text-sm text-indigo-400 hover:text-indigo-300 font-medium">
@@ -250,9 +250,9 @@ export default function CalendarPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-7 border-b border-zinc-800">
+            <div className="grid grid-cols-7 border-b border-[var(--border)]">
               {dayNames.map(day => (
-                <div key={day} className="p-3 text-center text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                <div key={day} className="p-3 text-center text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider">
                   {day}
                 </div>
               ))}
@@ -260,7 +260,7 @@ export default function CalendarPage() {
 
             <div className="grid grid-cols-7">
               {Array.from({ length: startingDay }).map((_, i) => (
-                <div key={`empty-${i}`} className="min-h-[120px] bg-zinc-950/30 border-b border-r border-zinc-800/50" />
+                <div key={`empty-${i}`} className="min-h-[120px] bg-[var(--surface)]/30 border-b border-r border-[var(--border)]/50" />
               ))}
               
               {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -269,8 +269,8 @@ export default function CalendarPage() {
                 const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
                 
                 return (
-                  <div key={day} className={`min-h-[120px] border-b border-r border-zinc-800/50 p-2 ${isToday ? 'bg-indigo-500/5' : 'bg-zinc-900/30'}`}>
-                    <div className={`text-sm font-medium mb-2 ${isToday ? 'text-indigo-400' : 'text-zinc-500'}`}>
+                  <div key={day} className={`min-h-[120px] border-b border-r border-[var(--border)]/50 p-2 ${isToday ? 'bg-indigo-500/5' : 'bg-[var(--card)]/30'}`}>
+                    <div className={`text-sm font-medium mb-2 ${isToday ? 'text-indigo-400' : 'text-[var(--foreground-muted)]'}`}>
                       {day}
                     </div>
                     <div className="space-y-1">
@@ -288,7 +288,7 @@ export default function CalendarPage() {
                         </button>
                       ))}
                       {dayPosts.length > 2 && (
-                        <div className="text-xs text-zinc-600">+{dayPosts.length - 2} more</div>
+                        <div className="text-xs text-[var(--foreground-muted)]">+{dayPosts.length - 2} more</div>
                       )}
                     </div>
                   </div>
@@ -298,10 +298,10 @@ export default function CalendarPage() {
           </div>
 
           {selectedPost && (
-            <div className="mt-6 bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+            <div className="mt-6 bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-white">Post Details</h3>
-                <button onClick={() => setSelectedPost(null)} className="text-zinc-500 hover:text-white">
+                <h3 className="text-lg font-bold text-[var(--foreground)]">Post Details</h3>
+                <button onClick={() => setSelectedPost(null)} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -318,8 +318,8 @@ export default function CalendarPage() {
                     {selectedPost.status}
                   </span>
                 </div>
-                <p className="text-zinc-300 text-sm">{selectedPost.content}</p>
-                <div className="flex items-center gap-2 text-zinc-500 text-sm">
+                <p className="text-[var(--foreground)] text-sm">{selectedPost.content}</p>
+                <div className="flex items-center gap-2 text-[var(--foreground-muted)] text-sm">
                   <Clock className="w-4 h-4" />
                   {formatDateTime(selectedPost.scheduled_time)}
                 </div>
@@ -347,19 +347,19 @@ export default function CalendarPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-[var(--foreground)] mb-4 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-amber-400" />
               AI Scheduler
             </h3>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Platform</label>
+                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Platform</label>
                 <select
                   value={selectedPlatform}
                   onChange={(e) => setSelectedPlatform(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500"
                 >
                   <option value="Instagram">Instagram</option>
                   <option value="Twitter">Twitter</option>
@@ -369,22 +369,22 @@ export default function CalendarPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Topic / Niche</label>
+                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Topic / Niche</label>
                 <input
                   type="text"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder="e.g. tech, fashion, fitness"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Target Audience Region</label>
+                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Target Audience Region</label>
                 <select
                   value={audienceRegion}
                   onChange={(e) => setAudienceRegion(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500"
                 >
                   <option value="Global">Global</option>
                   <option value="US (EST)">US (EST)</option>
@@ -397,11 +397,11 @@ export default function CalendarPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Target Age Group</label>
+                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Target Age Group</label>
                 <select
                   value={audienceAgeGroup}
                   onChange={(e) => setAudienceAgeGroup(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500"
                 >
                   <option value="All Ages">All Ages</option>
                   <option value="18-24">18-24 (Gen Z)</option>
@@ -411,8 +411,8 @@ export default function CalendarPage() {
                 </select>
               </div>
 
-              <div className="text-xs text-zinc-500">
-                Your timezone: <span className="text-zinc-400 font-medium">{userTimezone}</span>
+              <div className="text-xs text-[var(--foreground-muted)]">
+                Your timezone: <span className="text-[var(--foreground-muted)] font-medium">{userTimezone}</span>
               </div>
 
               <button
@@ -430,11 +430,11 @@ export default function CalendarPage() {
             </div>
 
             {suggestedTimes.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-zinc-800">
-                <h4 className="text-sm font-bold text-white mb-3">Recommended Times</h4>
+              <div className="mt-6 pt-6 border-t border-[var(--border)]">
+                <h4 className="text-sm font-bold text-[var(--foreground)] mb-3">Recommended Times</h4>
                 <div className="space-y-3">
                   {suggestedTimes.map((rec, i) => (
-                    <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3">
+                    <div key={i} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-bold text-indigo-400">
                           {rec.user_local_time_start} - {rec.user_local_time_end}
@@ -443,10 +443,10 @@ export default function CalendarPage() {
                           {Math.round(rec.confidence_score * 100)}%
                         </span>
                       </div>
-                      <p className="text-xs text-zinc-500 mb-1">
+                      <p className="text-xs text-[var(--foreground-muted)] mb-1">
                         Audience time ({rec.audience_timezone}): {rec.best_start_time} - {rec.best_end_time}
                       </p>
-                      <p className="text-xs text-zinc-400 italic mb-2">{rec.reasoning}</p>
+                      <p className="text-xs text-[var(--foreground-muted)] italic mb-2">{rec.reasoning}</p>
                       <button
                         onClick={() => handleScheduleFromRecommendation(rec)}
                         className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors"
@@ -460,8 +460,8 @@ export default function CalendarPage() {
             )}
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-[var(--foreground)] mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-indigo-400" />
               Upcoming ({posts.filter(p => p.status === 'SCHEDULED').length})
             </h3>
@@ -470,19 +470,19 @@ export default function CalendarPage() {
                 <button
                   key={post.id}
                   onClick={() => setSelectedPost(post)}
-                  className="w-full text-left p-3 bg-zinc-950 border border-zinc-800 rounded-xl hover:border-zinc-700 transition-colors"
+                  className="w-full text-left p-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--card-border)] transition-colors"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-bold text-indigo-400">{post.platform}</span>
-                    <span className="text-xs text-zinc-600">
+                    <span className="text-xs text-[var(--foreground-muted)]">
                       {formatDateTime(post.scheduled_time)}
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-400 truncate">{post.content}</p>
+                  <p className="text-xs text-[var(--foreground-muted)] truncate">{post.content}</p>
                 </button>
               ))}
               {posts.filter(p => p.status === 'SCHEDULED').length === 0 && (
-                <p className="text-sm text-zinc-500 text-center py-4">No scheduled posts</p>
+                <p className="text-sm text-[var(--foreground-muted)] text-center py-4">No scheduled posts</p>
               )}
             </div>
           </div>
@@ -491,31 +491,31 @@ export default function CalendarPage() {
 
       {showEditModal && editingPost && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-lg">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-lg">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">Edit Scheduled Post</h3>
-              <button onClick={() => setShowEditModal(false)} className="text-zinc-500 hover:text-white">
+              <h3 className="text-xl font-bold text-[var(--foreground)]">Edit Scheduled Post</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Content</label>
+                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Content</label>
                 <textarea
                   value={editingPost.content}
                   onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-indigo-500 min-h-[120px]"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500 min-h-[120px]"
                 />
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Scheduled Time</label>
+                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Scheduled Time</label>
                 <input
                   type="datetime-local"
                   value={editingPost.scheduled_time.slice(0, 16)}
                   onChange={(e) => setEditingPost({ ...editingPost, scheduled_time: new Date(e.target.value).toISOString() })}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500"
                 />
               </div>
 
@@ -528,7 +528,7 @@ export default function CalendarPage() {
                 </button>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors"
+                  className="px-6 py-3 bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--foreground)] font-bold rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
@@ -540,40 +540,40 @@ export default function CalendarPage() {
 
       {showScheduleModal && selectedTimeSlot && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-lg">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-lg">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">Schedule Post</h3>
-              <button onClick={() => setShowScheduleModal(false)} className="text-zinc-500 hover:text-white">
+              <h3 className="text-xl font-bold text-[var(--foreground)]">Schedule Post</h3>
+              <button onClick={() => setShowScheduleModal(false)} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
             <div className="space-y-4">
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
                 <div className="flex items-center gap-2 text-sm mb-2">
                   <Clock className="w-4 h-4 text-emerald-400" />
                   <span className="text-emerald-400 font-bold">Scheduled Time</span>
                 </div>
-                <p className="text-white font-medium">
+                <p className="text-[var(--foreground)] font-medium">
                   {selectedTimeSlot.user_local_time_start} - {selectedTimeSlot.user_local_time_end} (Your time)
                 </p>
-                <p className="text-zinc-500 text-xs mt-1">
+                <p className="text-[var(--foreground-muted)] text-xs mt-1">
                   {selectedTimeSlot.best_start_time} - {selectedTimeSlot.best_end_time} ({selectedTimeSlot.audience_timezone})
                 </p>
               </div>
 
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
-                <div className="text-sm text-zinc-400 mb-2">Platform</div>
-                <p className="text-white font-medium">{selectedPlatform}</p>
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
+                <div className="text-sm text-[var(--foreground-muted)] mb-2">Platform</div>
+                <p className="text-[var(--foreground)] font-medium">{selectedPlatform}</p>
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-zinc-400 mb-1">Post Content</label>
+                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Post Content</label>
                 <textarea
                   value={scheduleContent}
                   onChange={(e) => setScheduleContent(e.target.value)}
                   placeholder="Write your post content here..."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-indigo-500 min-h-[120px]"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500 min-h-[120px]"
                 />
               </div>
 
@@ -592,7 +592,7 @@ export default function CalendarPage() {
                 </button>
                 <button
                   onClick={() => setShowScheduleModal(false)}
-                  className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-colors"
+                  className="px-6 py-3 bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--foreground)] font-bold rounded-xl transition-colors"
                 >
                   Cancel
                 </button>

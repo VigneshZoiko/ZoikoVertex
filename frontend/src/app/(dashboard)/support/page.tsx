@@ -57,7 +57,7 @@ export default function SupportPage() {
           Help & Support
         </h1>
         <p className="text-zinc-400 mt-2 text-lg">
-          We're here to ensure your execution remains uninterrupted.
+          We&apos;re here to ensure your execution remains uninterrupted.
         </p>
       </div>
 
@@ -93,7 +93,7 @@ export default function SupportPage() {
       <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
         <div className="p-8 border-b border-zinc-800">
           <h2 className="text-xl font-bold text-white mb-1">Open a Support Ticket</h2>
-          <p className="text-zinc-500 text-sm">Provide details about the issue you're encountering.</p>
+          <p className="text-zinc-500 text-sm">Provide details about the issue you&apos;re encountering.</p>
         </div>
 
         {submitted ? (

@@ -41,13 +41,13 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
   onAddImageInsight
 }) => {
   return (
-    <div className="bg-zinc-950/80 border-t border-zinc-800 p-8 space-y-8 animate-in slide-in-from-top duration-300">
+    <div className="bg-[var(--card)]/80 border-t border-[var(--border)] p-8 space-y-8 animate-in slide-in-from-top duration-300">
       <div className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Post Topic / Story Detail</label>
+            <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground-muted)]">Post Topic / Story Detail</label>
             {isAnalyzing ? (
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 animate-pulse">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--foreground-muted)] animate-pulse">
                 <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping" />
                 Analyzing Image...
               </div>
@@ -64,16 +64,16 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
           <textarea 
             value={topic} onChange={(e) => onTopicChange(e.target.value)}
             placeholder="Describe your story in detail. Add up to 5+ lines for better AI context..."
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-indigo-500 text-sm min-h-[140px] resize-none"
+            className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-4 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm min-h-[140px] resize-none"
           />
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Content Category</label>
+            <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground-muted)]">Content Category</label>
             <select 
               value={contentType} onChange={(e) => onContentTypeChange(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 text-sm outline-none"
+              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm outline-none"
             >
               <option value="Entertainment">Entertainment</option>
               <option value="Education">Education</option>
@@ -89,8 +89,8 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
           </div>
           <div className="space-y-2">
             {/* We'll handle platform selection in the main page for better sync, but could add hints here */}
-            <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Intelligence Focus</label>
-            <div className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/50">
+            <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground-muted)]">Intelligence Focus</label>
+            <div className="text-[10px] text-[var(--foreground-muted)] font-bold uppercase tracking-widest bg-[var(--surface)]/50 p-3 rounded-xl border border-[var(--border)]/50">
               Cross-Platform Strategy Active
             </div>
           </div>
@@ -99,7 +99,7 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8 items-end">
         <div className="space-y-2">
-          <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Style Mode</label>
+          <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground-muted)]">Style Mode</label>
           <select 
             value={styleMode} 
             onChange={(e) => onStyleModeChange(e.target.value)} 
@@ -116,11 +116,11 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
         </div>
         
         <div className="space-y-2 col-span-2">
-          <label className="text-xs font-black uppercase tracking-widest text-zinc-500">Brand Tone</label>
+          <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground-muted)]">Brand Tone</label>
           <select 
             value={aiTone} 
             onChange={(e) => onAiToneChange(e.target.value)} 
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-indigo-500"
+            className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-2.5 text-[var(--foreground)] text-xs outline-none focus:border-indigo-500"
           >
             <option value="professional">Professional</option>
             <option value="casual">Casual</option>

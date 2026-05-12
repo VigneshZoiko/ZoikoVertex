@@ -19,7 +19,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       case 'RETURNED':
         return 'bg-amber-500/10 border-amber-500/20 text-amber-500 font-black';
       default:
-        return 'bg-zinc-500/10 border-zinc-500/20 text-zinc-400';
+        return 'bg-[var(--surface)] border-[var(--border)] text-[var(--foreground-muted)]';
     }
   };
 

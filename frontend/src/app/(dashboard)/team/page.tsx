@@ -140,26 +140,26 @@ export default function TeamPage() {
     fetchData(currentUser.id, currentUserRole!, workspaceId!);
   };
 
-  if (loading) return <div className="text-white p-8">Loading...</div>;
+  if (loading) return <div className="text-[var(--foreground)] p-8">Loading...</div>;
 
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Team Access</h1>
-          <p className="text-zinc-400 text-sm">Provision and manage RBAC roles for your workspace.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] mb-2">Team Access</h1>
+          <p className="text-[var(--foreground-muted)] text-sm">Provision and manage RBAC roles for your workspace.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Form */}
         <div className="lg:col-span-1">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-sm">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
             <div className="flex items-center mb-6">
               <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center mr-3">
                 <UserPlus className="w-4 h-4 text-indigo-400" />
               </div>
-              <h2 className="text-lg font-bold text-white">Provision User</h2>
+              <h2 className="text-lg font-bold text-[var(--foreground)]">Provision User</h2>
             </div>
 
             {message && (
@@ -170,26 +170,26 @@ export default function TeamPage() {
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Full Name</label>
+                <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">Full Name</label>
                 <input 
                   type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500 text-sm"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Corporate Email</label>
+                <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">Corporate Email</label>
                 <input 
                   type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500 text-sm"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Assign Role</label>
+                <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">Assign Role</label>
                 <select 
                   value={role} onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500 text-sm"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm"
                 >
                   <option value="CREATOR">Creator (Drafts only)</option>
                   <option value="MANAGER">Manager (Approves posts)</option>
@@ -198,10 +198,10 @@ export default function TeamPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Temporary Password</label>
+                <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">Temporary Password</label>
                 <input 
                   type="text" required value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500 text-sm"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm"
                 />
               </div>
 
@@ -231,20 +231,20 @@ export default function TeamPage() {
           
           {/* Pending Approvals Table (Admin Only) */}
           {currentUserRole === 'ADMIN' && (
-            <div className="bg-zinc-900 border border-amber-500/30 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+            <div className="bg-[var(--card)] border border-amber-500/30 rounded-2xl p-6 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
                 <ShieldAlert className="w-32 h-32 text-amber-500" />
               </div>
               
-              <h2 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[var(--foreground)] mb-1 flex items-center gap-2">
                 <Shield className="w-5 h-5 text-amber-500" />
                 Pending Account Approvals
               </h2>
-              <p className="text-sm text-zinc-400 mb-6">Users provisioned by Managers requiring your authorization.</p>
+              <p className="text-sm text-[var(--foreground-muted)] mb-6">Users provisioned by Managers requiring your authorization.</p>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-zinc-400">
-                  <thead className="text-xs text-zinc-500 uppercase bg-zinc-950/50">
+                <table className="w-full text-left text-sm text-[var(--foreground-muted)]">
+                  <thead className="text-xs text-[var(--foreground-muted)] uppercase bg-[var(--surface)]/50">
                     <tr>
                       <th className="px-4 py-3 font-medium rounded-tl-lg">User</th>
                       <th className="px-4 py-3 font-medium">Requested Role</th>
@@ -256,10 +256,10 @@ export default function TeamPage() {
                     {requests.length === 0 ? (
                       <tr><td colSpan={4} className="px-4 py-4 text-center">No pending requests.</td></tr>
                     ) : requests.map((req) => (
-                      <tr key={req.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+                      <tr key={req.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--surface-hover)] transition-colors">
                         <td className="px-4 py-3">
-                          <div className="text-white font-medium">{req.full_name}</div>
-                          <div className="text-xs text-zinc-500">{req.email}</div>
+                          <div className="text-[var(--foreground)] font-medium">{req.full_name}</div>
+                          <div className="text-xs text-[var(--foreground-muted)]">{req.email}</div>
                         </td>
                         <td className="px-4 py-3">
                           <span className="bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded-md text-xs font-semibold">{req.role}</span>
@@ -284,15 +284,15 @@ export default function TeamPage() {
           )}
 
           {/* Active Users Table */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-[var(--foreground)] mb-6 flex items-center gap-2">
               <Users className="w-5 h-5 text-indigo-400" />
               Active Workspace Members
             </h2>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-zinc-400">
-                <thead className="text-xs text-zinc-500 uppercase bg-zinc-950/50">
+              <table className="w-full text-left text-sm text-[var(--foreground-muted)]">
+                <thead className="text-xs text-[var(--foreground-muted)] uppercase bg-[var(--surface)]/50">
                   <tr>
                     <th className="px-4 py-3 font-medium rounded-tl-lg">User</th>
                     <th className="px-4 py-3 font-medium">Role</th>
@@ -301,10 +301,10 @@ export default function TeamPage() {
                 </thead>
                 <tbody>
                   {members.map((member, i) => (
-                    <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+                    <tr key={i} className="border-b border-[var(--border)]/50 hover:bg-[var(--surface-hover)] transition-colors">
                       <td className="px-4 py-3">
-                        <div className="text-white font-medium">{member.users?.full_name || 'Zoiko Employee'}</div>
-                        <div className="text-xs text-zinc-500">{member.users?.email}</div>
+                        <div className="text-[var(--foreground)] font-medium">{member.users?.full_name || 'Zoiko Employee'}</div>
+                        <div className="text-xs text-[var(--foreground-muted)]">{member.users?.email}</div>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-md text-xs font-semibold ${
