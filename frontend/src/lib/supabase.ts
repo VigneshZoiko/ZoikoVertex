@@ -15,15 +15,25 @@ try {
   client = initClient();
 } catch (e) {
   console.warn("Supabase initialization failed. Check your environment variables.");
-  // Build-time fallback: methods return null or throw a clear error only when CALLED
-  client = new Proxy({} as SupabaseClient, {
-    get(_, prop) {
-      return () => {
-        console.error(`Supabase method ${String(prop)} called but client is not initialized.`);
-        return { data: null, error: { message: "Supabase not initialized" } };
-      };
-    },
-  });
+  
+  // Recursive Proxy to prevent crashes on nested properties (auth.getUser, etc)
+  const createResilientProxy = (path: string = "supabase"): any => {
+    const noop = () => {
+      console.error(`Method ${path}() called but Supabase is not initialized.`);
+      return { data: null, error: { message: "Supabase not initialized" } };
+    };
+    
+    return new Proxy(noop, {
+      get(_, prop) {
+        if (typeof prop === "string") {
+          return createResilientProxy(`${path}.${prop}`);
+        }
+        return undefined;
+      }
+    });
+  };
+
+  client = createResilientProxy() as SupabaseClient;
 }
 
 export const supabase = client;
