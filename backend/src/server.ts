@@ -12,6 +12,8 @@ import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } f
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, disconnectAccount } from './modules/social/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './modules/scheduler/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './modules/library/libraryController';
+import { SuperAdminController } from './modules/superadmin/superAdminController';
+import { SupportController } from './modules/support/supportController';
 
 import { authenticate } from './shared/authMiddleware';
 
@@ -69,6 +71,16 @@ app.delete('/api/v1/scheduler/posts/:id', authenticate, cancelScheduledPost);
 app.get('/api/v1/library', authenticate, listLibrary);
 app.post('/api/v1/library/upload', authenticate, addToLibrary);
 app.delete('/api/v1/library/:id', authenticate, deleteFromLibrary);
+
+// ─── SuperAdmin Routes ───────────────────────────────────────────────────────
+app.post('/api/v1/superadmin/organizations', authenticate, SuperAdminController.createOrganization);
+app.get('/api/v1/superadmin/organizations', authenticate, SuperAdminController.listAllOrganizations);
+app.get('/api/v1/superadmin/stats', authenticate, SuperAdminController.getPlatformStats);
+app.get('/api/v1/superadmin/tickets', authenticate, SupportController.listAllTickets);
+app.patch('/api/v1/superadmin/tickets/:id', authenticate, SupportController.updateTicketStatus);
+
+// ─── Support Routes ──────────────────────────────────────────────────────────
+app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket);
 
 // Global Error Handler
 app.use(errorHandler);

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, PenTool, CheckSquare, Link2, LogOut, Users, FileEdit, Calendar, ClipboardList } from "lucide-react";
+import { LayoutDashboard, PenTool, CheckSquare, Link2, LogOut, Users, FileEdit, Calendar, ClipboardList, Shield, HelpCircle, MessageSquare } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRealtimeNotifications } from "@/lib/hooks/useRealtimeNotifications";
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
@@ -13,6 +13,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [roleLoaded, setRoleLoaded] = useState(false);
 
   // Draft guard
@@ -47,11 +48,26 @@ export default function Sidebar() {
         window.location.href = '/login';
         return;
       }
+
+      // Check SuperAdmin status first
+      const { data: userData } = await supabase
+        .from('users')
+        .select('is_superadmin')
+        .eq('id', user.id)
+        .single();
+      
+      if (userData?.is_superadmin) {
+        setIsSuperAdmin(true);
+        setRoleLoaded(true);
+        return; // SuperAdmins don't need to check workspace_members for their platform role
+      }
+
       const { data } = await supabase
         .from('workspace_members')
         .select('role')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
+
       if (data) {
         setRole(data.role);
         fetchPendingCount(data.role);
@@ -128,6 +144,10 @@ export default function Sidebar() {
     { name: "Calendar",          href: "/calendar",       icon: Calendar,        roles: ["ADMIN", "MANAGER"] },
     { name: "Platform Accounts", href: "/accounts",       icon: Link2,           roles: ["ADMIN"] },
     { name: "Team Access",       href: "/team",           icon: Users,           roles: ["ADMIN"] },
+    { name: "Platform Overview", href: "/superadmin/analytics", icon: LayoutDashboard, roles: ["SUPERADMIN"] },
+    { name: "Support Inbox",     href: "/superadmin/tickets",   icon: MessageSquare,   roles: ["SUPERADMIN"] },
+    { name: "Global Control",    href: "/superadmin",           icon: Shield,          roles: ["SUPERADMIN"] },
+    { name: "Help & Support",    href: "/support",              icon: HelpCircle,      roles: ["ADMIN", "MANAGER", "CREATOR"] },
   ];
 
   return (
@@ -144,8 +164,8 @@ export default function Sidebar() {
         {/* Brand */}
         <div className="flex flex-col mb-10 px-2 mt-2">
           <div className="flex items-center">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center mr-3 shrink-0">
-              <span className="text-black font-bold text-xl">Z</span>
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mr-3 shrink-0">
+              <img src="/logo-dark.jpeg" alt="ZoikoVertex Logo" className="w-full h-full object-cover" />
             </div>
             <span className="text-white font-bold text-xl tracking-wide">ZoikoVertex</span>
           </div>
@@ -164,7 +184,10 @@ export default function Sidebar() {
               </div>
             ) : (
               navItems
-                .filter(item => role && item.roles.includes(role.toUpperCase()))
+                .filter(item => {
+                  if (isSuperAdmin) return item.roles.includes("SUPERADMIN");
+                  return role && item.roles.includes(role.toUpperCase());
+                })
                 .map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
@@ -208,7 +231,7 @@ export default function Sidebar() {
               <div className="ml-3 min-w-0">
                 <p className="text-sm font-medium text-white leading-none">Agent Profile</p>
                 <p className="text-xs text-amber-500 mt-1 capitalize font-medium">
-                  {role ? role.toLowerCase() : "Loading..."}
+                  {isSuperAdmin ? "SuperAdmin" : role ? role.toLowerCase() : "Loading..."}
                 </p>
               </div>
             </div>

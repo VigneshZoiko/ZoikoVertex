@@ -1,33 +1,7 @@
 @import "tailwindcss";
 
-/* ─── Semantic Design Tokens ─────────────────────────────────────────────── */
+/* ─── Default Premium Dark Theme ────────────────────────────────────────── */
 :root {
-  /* Light Mode */
-  --background:         #f4f4f5;
-  --background-subtle:  #ffffff;
-  --foreground:         #09090b;
-  --foreground-muted:   #71717a;
-
-  --card:               #ffffff;
-  --card-border:        #e4e4e7;
-
-  --surface:            #f9f9fa;
-  --surface-hover:      #f0f0f1;
-
-  --border:             #e4e4e7;
-  --input:              #e4e4e7;
-
-  --accent:             #6366f1;
-  --accent-subtle:      #eef2ff;
-  --accent-foreground:  #ffffff;
-
-  --sidebar-bg:         #ffffff;
-  --sidebar-border:     #e4e4e7;
-  --header-bg:          #ffffff;
-}
-
-.dark {
-  /* Dark Mode */
   --background:         #09090b;
   --background-subtle:  #0a0a0a;
   --foreground:         #fafafa;
@@ -80,10 +54,6 @@
 }
 
 html {
-  color-scheme: light;
-}
-
-html.dark {
   color-scheme: dark;
 }
 
@@ -92,23 +62,4 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
-}
-
-/* ─── Smooth Theme Transitions ───────────────────────────────────────────── */
-body,
-header,
-aside,
-main,
-nav,
-section,
-div {
-  transition:
-    background-color 200ms ease,
-    border-color 200ms ease,
-    color 100ms ease;
-}
-
-/* Disable transitions during initial load to prevent flash */
-.no-transitions * {
-  transition: none !important;
 }

@@ -13,12 +13,25 @@ export const listLibrary = async (req: AuthRequest, res: Response, next: NextFun
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // Step 1: Fetch library items
+    // Step 0: Identify user's workspace or SuperAdmin status
+    const { data: userData } = await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single();
+    const isSuper = userData?.is_superadmin;
+
+    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).single();
+    const workspaceId = member?.workspace_id;
+
+    if (!workspaceId && !isSuper) return res.status(403).json({ error: 'Workspace context missing' });
+
+    // Step 1: Fetch library items scoped to workspace
     let query = supabaseAdmin
       .from('media_library')
-      .select('id, title, url, urls, file_type, uploader_id, status, created_at')
+      .select('id, title, url, urls, file_type, uploader_id, status, created_at, workspace_id')
       .eq('status', 'available')
       .order('created_at', { ascending: false });
+
+    if (!isSuper) {
+      query = query.eq('workspace_id', workspaceId);
+    }
 
     if (type && type !== 'all') {
       query = query.eq('file_type', type);
@@ -75,6 +88,14 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(400).json({ error: 'Missing required fields: title, urls, file_type' });
     }
 
+    const { data: member } = await supabaseAdmin
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
+
     const { data, error } = await supabaseAdmin
       .from('media_library')
       .insert({
@@ -83,6 +104,7 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
         url: urls[0], // Keep first for backward compatibility
         file_type,
         uploader_id: userId,
+        workspace_id: member.workspace_id,
         status: 'available'
       })
       .select()
@@ -110,17 +132,27 @@ export const deleteFromLibrary = async (req: AuthRequest, res: Response, next: N
     // Ensure the user is the uploader OR an admin
     const { data: member } = await supabaseAdmin
       .from('workspace_members')
-      .select('role')
+      .select('role, workspace_id')
       .eq('user_id', userId)
       .single();
 
     const isAdmin = member?.role === 'ADMIN' || member?.role === 'MANAGER';
+    const isSuper = (await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single()).data?.is_superadmin;
 
-    const { error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('media_library')
       .delete()
-      .eq('id', id)
-      .or(`uploader_id.eq.${userId},${isAdmin ? 'id.neq.0' : 'id.eq.0'}`);
+      .eq('id', id);
+
+    if (!isSuper) {
+      // If not superadmin, must be uploader OR workspace admin in the correct workspace
+      query = query.eq('workspace_id', member?.workspace_id);
+      if (!isAdmin) {
+        query = query.eq('uploader_id', userId);
+      }
+    }
+
+    const { error } = await query;
 
     if (error) throw error;
 
