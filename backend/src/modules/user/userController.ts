@@ -9,7 +9,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
 
     const { data: userData } = await supabaseAdmin
       .from('users')
-      .select('is_superadmin')
+      .select('is_superadmin, full_name')
       .eq('id', userId)
       .single();
 
@@ -33,6 +33,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
       success: true,
       data: {
         user_id: userId,
+        full_name: userData?.full_name || null,
         is_superadmin: userData?.is_superadmin || false,
         workspace_id: workspaceId,
         role,

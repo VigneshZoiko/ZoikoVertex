@@ -14,6 +14,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [role, setRole] = useState<string | null>(null);
+  const [fullName, setFullName] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [roleLoaded, setRoleLoaded] = useState(false);
 
@@ -49,8 +50,9 @@ export default function Sidebar() {
       try {
         const result = await api.get('/api/v1/user/context');
         if (result.success) {
-          const { is_superadmin, role: userRole } = result.data;
+          const { is_superadmin, role: userRole, full_name } = result.data;
           setIsSuperAdmin(is_superadmin);
+          if (full_name) setFullName(full_name);
           if (is_superadmin) {
             setRoleLoaded(true);
             return;
@@ -221,7 +223,9 @@ export default function Sidebar() {
             <div className="flex items-center">
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border-2 border-[var(--sidebar-bg)]"></div>
               <div className="ml-3">
-                <p className="text-sm font-medium text-[var(--sidebar-text)] leading-none">Agent Profile</p>
+                <p className="text-sm font-medium text-[var(--sidebar-text)] leading-none truncate w-32">
+                  {fullName || "Agent Profile"}
+                </p>
                 <p className="text-xs text-amber-500 mt-1 capitalize font-medium">
                   {isSuperAdmin ? "SuperAdmin" : role ? role.toLowerCase() : "Loading..."}
                 </p>

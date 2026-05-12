@@ -70,7 +70,6 @@ export default function TeamPage() {
     setMessage(null);
 
     if (currentUserRole === 'MANAGER') {
-      // Submit for Approval (Insert into account_requests)
       try {
         await api.post('/api/v1/team/requests', {
           full_name: fullName,
