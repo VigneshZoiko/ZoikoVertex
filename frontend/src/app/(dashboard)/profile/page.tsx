@@ -382,7 +382,7 @@ export default function ProfilePage() {
                   readOnly
                   className="w-full bg-[var(--surface)]/50 border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground-muted)] outline-none cursor-not-allowed"
                 />
-                <p className="text-xs text-[var(--foreground-muted)]">Email is your login identity and can't be changed here.</p>
+                <p className="text-xs text-[var(--foreground-muted)]">Email is your login identity and can&apos;t be changed here.</p>
               </div>
 
               {/* Phone */}

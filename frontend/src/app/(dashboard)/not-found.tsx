@@ -22,7 +22,7 @@ export default function DashboardNotFound() {
         Page Not Found
       </h1>
       <p className="text-[var(--foreground-muted)] max-w-sm mb-8 text-sm leading-relaxed">
-        This page is still under construction or doesn't exist yet. Head back to the dashboard to continue.
+        This page is still under construction or doesn&apos;t exist yet. Head back to the dashboard to continue.
       </p>
 
       {/* Action */}
