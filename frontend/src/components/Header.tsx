@@ -30,11 +30,7 @@ export default function Header() {
 
       {/* Right-side utilities */}
       <div className="flex items-center gap-3">
-        {/* System Secure Badge */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span className="text-xs font-medium text-emerald-400">System Secure</span>
-        </div>
+
 
         {/* Theme Toggle */}
         <ThemeToggle />
