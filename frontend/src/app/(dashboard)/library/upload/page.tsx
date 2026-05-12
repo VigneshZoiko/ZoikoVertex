@@ -73,7 +73,7 @@ export default function CreatorUploadPage() {
       
     } catch (err: any) {
       console.error(err);
-      setMessage({ type: 'error', text: err.message || 'Upload failed' });
+      setMessage({ type: 'error', text: 'Upload failed. Please try again.' });
     } finally {
       setIsUploading(false);
     }

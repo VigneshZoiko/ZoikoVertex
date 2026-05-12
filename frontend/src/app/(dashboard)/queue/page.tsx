@@ -22,7 +22,7 @@ export default function ApprovalQueue() {
       }
     } catch (err: any) {
       console.error("Failed to fetch queue:", err);
-      setMessage({ type: 'error', text: err.message });
+      setMessage({ type: 'error', text: 'Failed to load approval queue. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ export default function ApprovalQueue() {
       setMessage({ type: 'success', text: `Intent successfully transitioned to ${status}.` });
     } catch (err: any) {
       console.error("Failed to update status:", err);
-      setMessage({ type: 'error', text: err.message });
+      setMessage({ type: 'error', text: 'Failed to update intent. Please try again.' });
     }
   };
 

@@ -88,7 +88,7 @@ export default function TeamPage() {
       });
 
       if (error) {
-        setMessage({ type: 'error', text: error.message });
+        setMessage({ type: 'error', text: 'Failed to submit request. Please try again.' });
       } else {
         setMessage({ type: 'success', text: 'Request submitted to Admin for approval.' });
         setFullName(""); setEmail(""); setPassword("");
