@@ -1,26 +1,114 @@
 @import "tailwindcss";
 
+/* ─── Semantic Design Tokens ─────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Light Mode */
+  --background:         #f4f4f5;
+  --background-subtle:  #ffffff;
+  --foreground:         #09090b;
+  --foreground-muted:   #71717a;
+
+  --card:               #ffffff;
+  --card-border:        #e4e4e7;
+
+  --surface:            #f9f9fa;
+  --surface-hover:      #f0f0f1;
+
+  --border:             #e4e4e7;
+  --input:              #e4e4e7;
+
+  --accent:             #6366f1;
+  --accent-subtle:      #eef2ff;
+  --accent-foreground:  #ffffff;
+
+  --sidebar-bg:         #ffffff;
+  --sidebar-border:     #e4e4e7;
+  --header-bg:          #ffffff;
 }
 
+.dark {
+  /* Dark Mode */
+  --background:         #09090b;
+  --background-subtle:  #0a0a0a;
+  --foreground:         #fafafa;
+  --foreground-muted:   #a1a1aa;
+
+  --card:               #18181b;
+  --card-border:        #27272a;
+
+  --surface:            #18181b;
+  --surface-hover:      #27272a;
+
+  --border:             #27272a;
+  --input:              #27272a;
+
+  --accent:             #6366f1;
+  --accent-subtle:      #1e1b4b;
+  --accent-foreground:  #ffffff;
+
+  --sidebar-bg:         #09090b;
+  --sidebar-border:     #18181b;
+  --header-bg:          #09090b;
+}
+
+/* ─── Tailwind v4 Theme Mapping ──────────────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background:        var(--background);
+  --color-background-subtle: var(--background-subtle);
+  --color-foreground:        var(--foreground);
+  --color-foreground-muted:  var(--foreground-muted);
+  --color-card:              var(--card);
+  --color-card-border:       var(--card-border);
+  --color-surface:           var(--surface);
+  --color-surface-hover:     var(--surface-hover);
+  --color-border:            var(--border);
+  --color-accent:            var(--accent);
+  --color-accent-subtle:     var(--accent-subtle);
+  --color-sidebar-bg:        var(--sidebar-bg);
+  --color-sidebar-border:    var(--sidebar-border);
+  --color-header-bg:         var(--header-bg);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Base Styles ────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Smooth Theme Transitions ───────────────────────────────────────────── */
+body,
+header,
+aside,
+main,
+nav,
+section,
+div {
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 100ms ease;
+}
+
+/* Disable transitions during initial load to prevent flash */
+.no-transitions * {
+  transition: none !important;
 }

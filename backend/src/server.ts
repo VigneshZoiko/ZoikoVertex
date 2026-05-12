@@ -9,7 +9,7 @@ import { errorHandler } from './shared/errorHandler';
 import { provisionUser } from './modules/identity/identityController';
 import { generateContent, analyzeImage } from './modules/intelligence/intelligenceController';
 import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } from './modules/governance/governanceController';
-import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback } from './modules/social/socialController';
+import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, disconnectAccount } from './modules/social/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './modules/scheduler/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './modules/library/libraryController';
 
@@ -53,6 +53,9 @@ app.get('/api/auth/facebook/callback', handleFacebookCallback);
 app.get('/api/auth/linkedin/callback', handleLinkedInCallback);
 app.get('/api/auth/pinterest/callback', handlePinterestCallback);
 app.get('/api/auth/threads/callback', handleThreadsCallback);
+
+// Protected Social/Account Routes
+app.delete('/api/v1/accounts/:id', authenticate, disconnectAccount);
 
 // Protected Scheduler Routes
 app.post('/api/v1/scheduler/recommend', authenticate, getRecommendations);

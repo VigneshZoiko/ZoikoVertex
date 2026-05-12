@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { 
-  Sparkles, Send, CheckCircle2, AlertCircle, RefreshCcw, 
+  Sparkles, Send, Globe, CheckCircle2, AlertCircle, RefreshCcw, 
   XCircle, ListTodo, AlertTriangle, Calendar, Clock, 
   Edit3, Trash2, ChevronLeft, ChevronRight 
 } from "lucide-react";
@@ -194,7 +194,13 @@ function PublishPageInner() {
         const { data: queue } = await supabase
           .from('publish_intents')
           .select('*, users!publish_intents_creator_id_fkey(full_name)')
-          .eq('status', statusToFetch);
+          .eq('status', 'PENDING_ADMIN');
+        if (queue) setPendingPosts(queue);
+      } else if (member.role === 'MANAGER') {
+        const { data: queue } = await supabase
+          .from('publish_intents')
+          .select('*, users!publish_intents_creator_id_fkey(full_name)')
+          .eq('status', 'PENDING_MANAGER');
         if (queue) setPendingPosts(queue);
       }
     }
@@ -411,6 +417,10 @@ function PublishPageInner() {
       setMessage({ type: 'error', text: 'Please select at least one target account in the sidebar.' });
       return;
     }
+    if (selectedAccountIds.length === 0) {
+      setMessage({ type: 'error', text: 'Please select at least one target account.' });
+      return;
+    }
     
     setSubmitting(true);
     setMessage(null);
@@ -422,7 +432,7 @@ function PublishPageInner() {
       let finalUrls: string[] = [...selectedUrls];
       if (media) {
         const fileExt = media.name.split('.').pop();
-        const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+        const filePath = `${user.id}/${Math.random()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage.from('media').upload(filePath, media);
         if (uploadError) throw uploadError;
         const { data: { publicUrl: newUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
@@ -463,7 +473,7 @@ function PublishPageInner() {
     setSubmitting(false);
   };
 
-  const handleGovernanceAction = async (postId: string, action: string) => {
+  const handleAdminAction = async (postId: string, action: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const response = await api.post('/api/v1/governance/transition', {
@@ -624,6 +634,29 @@ function PublishPageInner() {
           </div>
         </div>
       </div>
+
+      {/* Revisions Banner */}
+      {revisions.length > 0 && userRole === 'CREATOR' && (
+        <div className="mb-8 p-6 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
+          <div className="flex items-center gap-3 mb-4">
+            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+            <p className="text-sm font-black text-amber-500 uppercase tracking-tight">Revisions Requested: {revisions.length} Drafts</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {revisions.map(rev => (
+              <div key={rev.id} className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+                <p className="text-[10px] text-zinc-500 line-clamp-2 italic">&quot;{rev.feedback || 'No feedback provided'}&quot;</p>
+                <button 
+                  onClick={() => loadRevision(rev)} 
+                  className="w-full py-1.5 bg-amber-500/20 text-amber-500 text-[10px] font-bold rounded-lg uppercase hover:bg-amber-500/30 transition-all"
+                >
+                  Edit Revision
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {message && (
         <div className={`mb-8 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in fade-in duration-300 ${message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'}`}>
@@ -1111,7 +1144,12 @@ function PublishPageInner() {
 
 export default function PublishPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh] text-zinc-500 animate-pulse">Warming Engine...</div>}>
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-zinc-500">
+        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-bold uppercase tracking-widest">Warming Engine...</p>
+      </div>
+    }>
       <PublishPageInner />
     </Suspense>
   );
