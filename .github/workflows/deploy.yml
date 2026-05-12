@@ -16,14 +16,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+      - name: Install Dependencies
+        run: npm install
+        working-directory: ./frontend
         
-      - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} --cwd ./frontend
+      - name: Run Lint & Type Check
+        run: npm run lint
+        working-directory: ./frontend
         
-      - name: Build Project Artifacts
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }} --cwd ./frontend
-        
-      - name: Deploy Project Artifacts to Vercel
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} --cwd ./frontend
+      - name: Verify Local Build
+        run: npm run build
+        working-directory: ./frontend
+
+      - name: Deploy to Vercel
+        run: npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --cwd ./frontend --yes --archive=tgz

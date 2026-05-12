@@ -49,9 +49,6 @@ export default function Header() {
         {/* Theme Toggle */}
         <ThemeToggle />
 
-        {/* Theme Toggle */}
-        <ThemeToggle />
-
         {/* Notifications */}
         <button
           aria-label="Notifications"
@@ -62,13 +59,20 @@ export default function Header() {
         </button>
 
         {/* User profile */}
-        <div className="flex items-center pl-4 border-l border-[var(--border)]">
+        <a 
+          href="/profile"
+          className="flex items-center pl-4 border-l border-[var(--border)] hover:opacity-80 transition-opacity group"
+        >
           <div className="text-right mr-3 hidden md:block">
-            <p className="text-sm font-medium text-[var(--foreground)]">{email || "Loading..."}</p>
+            <p className="text-sm font-medium text-[var(--foreground)] group-hover:text-indigo-400 transition-colors">{email || "Loading..."}</p>
             <p className="text-xs text-[var(--foreground-muted)]">{fullName || "Authenticated Session"}</p>
           </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shrink-0" />
-        </div>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shrink-0 border-2 border-transparent group-hover:border-indigo-500/50 transition-all overflow-hidden">
+            <div className="w-full h-full flex items-center justify-center text-[10px] text-white font-bold uppercase">
+              {fullName ? fullName.split(' ').map(n => n[0]).join('') : "U"}
+            </div>
+          </div>
+        </a>
       </div>
     </header>
   );
