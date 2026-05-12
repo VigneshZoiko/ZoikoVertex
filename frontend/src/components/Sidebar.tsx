@@ -222,8 +222,7 @@ export default function Sidebar() {
           }
         }
       } catch (err) {
-        console.error("Sidebar context fetch failed:", err);
-        // Fallback: If backend is down, still allow basic access if authenticated
+        console.warn("Sidebar context fetch skipped or failed. Using default CREATOR role.");
         if (!role) setRole("CREATOR"); 
       }
       setRoleLoaded(true);

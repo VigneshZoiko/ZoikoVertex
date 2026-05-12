@@ -20,6 +20,11 @@ export const api = {
       },
     });
     if (!response.ok) {
+      // Avoid crashing if the backend is just not there (e.g. localhost vs production)
+      if (response.status === 404) {
+        console.warn(`[API] Endpoint not found: ${endpoint}. Check if NEXT_PUBLIC_BACKEND_URL is set correctly.`);
+        return { success: false, error: 'Not Found' };
+      }
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || `GET ${endpoint} failed: ${response.statusText}`);
     }
