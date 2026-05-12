@@ -195,37 +195,38 @@ Each domain owns its data. No domain mutates another domain's data directly.
 
 ## 7. Repository Structure
 
+> The architecture defines a three-plane structure (see [Master Blueprint](architecture/01_master_blueprint.md)). Current implementation lives under `frontend/` and `backend/` as a transitional layout.
+
 ```
 zoikovertex/
-├── backend/                  # Backend — Control Plane (Express + TypeScript)
-│   ├── src/
-│   │   ├── config/           # Environment config, validation
-│   │   ├── modules/          # One folder per domain
-│   │   │   ├── governance/   # Governance engine, risk classifier
-│   │   │   ├── identity/     # User provisioning
-│   │   │   ├── intelligence/ # AI generation, analysis
-│   │   │   ├── library/      # Media library
-│   │   │   ├── scheduler/    # Scheduling, recommendations
-│   │   │   ├── social/       # Social account OAuth + execution
-│   │   │   ├── superadmin/   # Super admin controls
-│   │   │   ├── support/      # Support tickets
-│   │   │   ├── team/         # Team management
-│   │   │   └── user/         # User context
-│   │   ├── services/         # Shared services (risk classifier, etc.)
-│   │   ├── shared/           # Middleware, logger, supabase client
-│   │   └── workers/          # Background workers (scheduler)
-│   └── package.json
-├── frontend/                 # Frontend (Next.js + React + TypeScript)
-│   ├── src/
-│   │   ├── app/              # Next.js app router pages
-│   │   ├── components/       # Reusable UI components
-│   │   └── lib/              # API client, supabase, utils
-│   └── package.json
-├── db_migrations/            # SQL migration files
-├── docs/                     # Architecture docs
+├── apps/
+│   ├── api/                  # Backend — Control Plane (modular monolith)
+│   │   ├── src/
+│   │   │   ├── domains/      # One folder per bounded context
+│   │   │   │   ├── identity/
+│   │   │   │   ├── campaigns/
+│   │   │   │   ├── decisions/
+│   │   │   │   ├── governance/
+│   │   │   │   └── ...
+│   │   │   ├── events/       # Event definitions and emitters
+│   │   │   ├── queues/       # Kafka consumers and producers
+│   │   │   └── shared/       # Shared types, middleware, utils
+│   │   └── tests/
+│   ├── web/                  # Frontend app
+│   └── workers/              # Async data plane workers
+├── packages/
+│   ├── types/                # Shared TypeScript types
+│   └── config/               # Shared config (non-secret)
+├── ai/
+│   ├── agents/               # Agent definitions and contracts
+│   ├── pipelines/            # AI pipeline logic (Naresh + Harsha)
+│   └── prompts/              # Prompt templates (versioned)
+├── infra/                    # Infrastructure config (Docker, CI)
+├── docs/                     # Architecture docs (the source docs live here)
 │   └── architecture/         # Detailed architecture specifications
-├── README.md
-└── .github/workflows/        # CI/CD pipelines
+├── GUIDE.md                  # This file
+├── RULES.md                  # Git and collaboration rules
+└── AGENTS.md                 # AI agent operating guide
 ```
 
 ---
