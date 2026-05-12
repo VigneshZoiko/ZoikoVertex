@@ -53,10 +53,11 @@ export default function WelcomeOverlay() {
               Welcome to <span className="text-indigo-500">{BRAND.name}</span>
             </h1>
             
-            <div className="h-1 w-24 bg-indigo-500 rounded-full mb-6 mx-auto animate-expand" />
-            
-            <p className="text-zinc-400 text-xl font-medium max-w-md mx-auto leading-relaxed">
-              Your high-performance workspace is provisioned and ready for execution.
+            <h2 className="text-4xl font-black text-white tracking-tighter mb-2">
+              Vertex Identity Verified
+            </h2>
+            <p className="text-zinc-400 text-lg max-w-md mx-auto">
+              Your governance workspace is now live and secured. Welcome to the future of execution.
             </p>
           </div>
         </div>
