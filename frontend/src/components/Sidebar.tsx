@@ -16,21 +16,6 @@ import {
   ListChecks,
   AlertOctagon,
   Bot,
-  SlidersHorizontal,
-  GitBranch,
-  MessageSquareCode,
-  LineChart,
-  BookOpen,
-  Scale,
-  BookMarked,
-  ShieldAlert,
-  FileSearch,
-  Archive,
-  ChevronDown,
-  LogOut,
-  Users,
-  HelpCircle,
-  MessageSquare,
   Shield,
   Link2,
   PenTool,
@@ -38,6 +23,21 @@ import {
   ClipboardList,
   CheckSquare,
   Briefcase,
+  Settings,
+  LogOut,
+  Users,
+  HelpCircle,
+  ChevronDown,
+  MessageSquare,
+  GitBranch,
+  LineChart,
+  BookOpen,
+  MessageSquareCode,
+  Scale,
+  BookMarked,
+  ShieldAlert,
+  FileSearch,
+  Archive,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -110,7 +110,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Bot,
     items: [
       { name: "Agent Studio",      href: "/agents/studio",    icon: Bot,              roles: ["ADMIN", "MANAGER"] },
-      { name: "AI Settings",       href: "/agents/settings",  icon: SlidersHorizontal,roles: ["ADMIN"] },
+      { name: "AI Settings",       href: "/agents/settings",  icon: Settings,         roles: ["ADMIN"] },
       { name: "Workflows",         href: "/agents/workflows", icon: GitBranch,        roles: ["ADMIN", "MANAGER"] },
       { name: "Prompt Governance", href: "/agents/prompts",   icon: MessageSquareCode,roles: ["ADMIN"] },
       { name: "Model Performance", href: "/agents/models",    icon: LineChart,        roles: ["ADMIN"] },
@@ -378,32 +378,29 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* User Profile & Logout */}
-        <div className="px-3 pb-4 pt-2 border-t border-[var(--sidebar-border)]">
-          <div className="p-3 bg-[var(--surface)] border border-[var(--sidebar-border)] rounded-xl mb-3">
-            <div className="flex items-center">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border-2 border-[var(--sidebar-bg)] shrink-0"></div>
-              <div className="ml-3 min-w-0">
-                <p className="text-sm font-medium text-[var(--sidebar-text)] leading-none truncate">
-                  <span className="text-amber-500 uppercase text-[10px] font-bold mr-2">
-                    {isSuperAdmin ? "SUPERADMIN" : role ? role.toUpperCase() : "AGENT"}
-                  </span>
-                  - {fullName || "Loading..."}
-                </p>
-                <p className="text-[10px] text-[var(--sidebar-text-muted)] mt-1.5 font-medium uppercase tracking-tighter">
-                  Authenticated Workspace Session
-                </p>
-              </div>
-            </div>
+        {/* Action Footer */}
+        <div className="px-4 pb-6 pt-4 border-t border-[var(--sidebar-border)] bg-[var(--sidebar-bg)]">
+          <div className="flex items-center gap-3">
+            {/* Round Settings Button */}
+            <a
+              href="/profile"
+              onClick={(e) => handleNavClick(e, "/profile")}
+              className="w-10 h-10 flex items-center justify-center bg-[var(--surface)] text-[var(--sidebar-text-muted)] hover:text-indigo-400 hover:bg-[var(--sidebar-hover)] border border-[var(--sidebar-border)] rounded-full transition-all shadow-sm group shrink-0"
+              title="Settings & Profile"
+            >
+              <Settings className="w-5 h-5 transition-transform duration-500 group-hover:rotate-90" />
+            </a>
+            
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="flex-1 flex items-center justify-center h-10 px-4 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all font-semibold text-sm group"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              <span>Log out</span>
+            </button>
           </div>
-
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center px-3 py-2.5 text-rose-500 hover:text-white hover:bg-rose-500/90 rounded-lg transition-colors"
-          >
-            <LogOut className="w-5 h-5 mr-3 shrink-0" />
-            <span className="text-sm font-medium">Secure Log out</span>
-          </button>
         </div>
       </div>
     </>

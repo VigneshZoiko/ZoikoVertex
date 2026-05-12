@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ThemeProvider } from "next-themes";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,10 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`dark ${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
-      <body>
-        <ThemeProvider attribute="class" disableTransitionOnChange>
+      <body suppressHydrationWarning>
+        <Providers>
           {children}
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );
