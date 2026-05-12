@@ -195,37 +195,37 @@ Each domain owns its data. No domain mutates another domain's data directly.
 
 ## 7. Repository Structure
 
-> **Note:** This is the recommended structure. Confirm with the team before deviating.
-
 ```
 zoikovertex/
-├── apps/
-│   ├── api/                  # Backend — Control Plane (modular monolith)
-│   │   ├── src/
-│   │   │   ├── domains/      # One folder per bounded context
-│   │   │   │   ├── identity/
-│   │   │   │   ├── campaigns/
-│   │   │   │   ├── decisions/
-│   │   │   │   ├── governance/
-│   │   │   │   └── ...
-│   │   │   ├── events/       # Event definitions and emitters
-│   │   │   ├── queues/       # Kafka consumers and producers
-│   │   │   └── shared/       # Shared types, middleware, utils
-│   │   └── tests/
-│   ├── web/                  # Frontend app
-│   └── workers/              # Async data plane workers
-├── packages/
-│   ├── types/                # Shared TypeScript types
-│   └── config/               # Shared config (non-secret)
-├── ai/
-│   ├── agents/               # Agent definitions and contracts
-│   ├── pipelines/            # AI pipeline logic (Naresh + Harsha)
-│   └── prompts/              # Prompt templates (versioned)
-├── infra/                    # Infrastructure config (Docker, CI)
-├── docs/                     # Architecture docs (the source docs live here)
-├── GUIDE.md                  # This file
-├── RULES.md                  # Git and collaboration rules
-└── AGENTS.md                 # AI agent operating guide
+├── backend/                  # Backend — Control Plane (Express + TypeScript)
+│   ├── src/
+│   │   ├── config/           # Environment config, validation
+│   │   ├── modules/          # One folder per domain
+│   │   │   ├── governance/   # Governance engine, risk classifier
+│   │   │   ├── identity/     # User provisioning
+│   │   │   ├── intelligence/ # AI generation, analysis
+│   │   │   ├── library/      # Media library
+│   │   │   ├── scheduler/    # Scheduling, recommendations
+│   │   │   ├── social/       # Social account OAuth + execution
+│   │   │   ├── superadmin/   # Super admin controls
+│   │   │   ├── support/      # Support tickets
+│   │   │   ├── team/         # Team management
+│   │   │   └── user/         # User context
+│   │   ├── services/         # Shared services (risk classifier, etc.)
+│   │   ├── shared/           # Middleware, logger, supabase client
+│   │   └── workers/          # Background workers (scheduler)
+│   └── package.json
+├── frontend/                 # Frontend (Next.js + React + TypeScript)
+│   ├── src/
+│   │   ├── app/              # Next.js app router pages
+│   │   ├── components/       # Reusable UI components
+│   │   └── lib/              # API client, supabase, utils
+│   └── package.json
+├── db_migrations/            # SQL migration files
+├── docs/                     # Architecture docs
+│   └── architecture/         # Detailed architecture specifications
+├── README.md
+└── .github/workflows/        # CI/CD pipelines
 ```
 
 ---
@@ -251,20 +251,22 @@ cp .env.example .env.local
 
 > **Never commit `.env` files. Never. Ever.**
 
-### Step 4 — Start local services (Docker)
+### Step 4 — Start the backend
 ```bash
-docker-compose up -d
-# This starts: PostgreSQL, Redis, Kafka (local)
+cd backend && npm run dev
+# Runs on http://localhost:5005
 ```
 
-### Step 5 — Run the API
+### Step 5 — Start the frontend (in a new terminal)
 ```bash
-npm run dev --workspace=apps/api
+cd frontend && npm run dev
+# Runs on http://localhost:3000
 ```
 
 ### Step 6 — Verify
-- API running at `http://localhost:3000`
-- Health check: `GET /health`
+- Frontend at `http://localhost:3000`
+- Backend health check: `GET http://localhost:5005/api/v1/health`
+- Requires a running Supabase instance with the schema from `db_migrations/` applied
 
 > If anything is broken in setup, ping Team. Do not guess your way through environment issues.
 
