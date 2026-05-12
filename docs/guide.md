@@ -228,7 +228,6 @@ zoikovertex/
 ├── RULES.md                  # Git and collaboration rules
 └── AGENTS.md                 # AI agent operating guide
 ```
-```
 
 ---
 
