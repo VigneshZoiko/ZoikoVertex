@@ -385,10 +385,13 @@ export default function Sidebar() {
               <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border-2 border-[var(--sidebar-bg)] shrink-0"></div>
               <div className="ml-3 min-w-0">
                 <p className="text-sm font-medium text-[var(--sidebar-text)] leading-none truncate">
-                  {fullName || "Agent Profile"}
+                  <span className="text-amber-500 uppercase text-[10px] font-bold mr-2">
+                    {isSuperAdmin ? "SUPERADMIN" : role ? role.toUpperCase() : "AGENT"}
+                  </span>
+                  - {fullName || "Loading..."}
                 </p>
-                <p className="text-xs text-amber-500 mt-1 capitalize font-medium">
-                  {isSuperAdmin ? "SuperAdmin" : role ? role.toLowerCase() : "Loading..."}
+                <p className="text-[10px] text-[var(--sidebar-text-muted)] mt-1.5 font-medium uppercase tracking-tighter">
+                  Authenticated Workspace Session
                 </p>
               </div>
             </div>
