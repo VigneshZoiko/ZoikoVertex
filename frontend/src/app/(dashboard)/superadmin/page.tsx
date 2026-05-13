@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Shield, Building2, UserPlus, Mail, AlertCircle, CheckCircle2, X, ChevronRight, Globe, Lock, Loader2 } from "lucide-react";
 import { BRAND } from "@/lib/brand";
 import { api } from "@/lib/api";
@@ -13,6 +13,12 @@ export default function SuperAdminPage() {
 
   const [pendingOrgs, setPendingOrgs] = useState<any[]>([]);
   const [fetchingPending, setFetchingPending] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    adminName: '',
+    adminEmail: '',
+    password: ''
+  });
 
   const fetchPendingOrgs = async () => {
     setFetchingPending(true);
@@ -31,7 +37,7 @@ export default function SuperAdminPage() {
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     fetchPendingOrgs();
   }, []);
 
@@ -39,7 +45,7 @@ export default function SuperAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.post(`/api/v1/superadmin/organizations/${orgId}/approve`);
+      const response = await api.post(`/api/v1/superadmin/organizations/${orgId}/approve`, {});
       setSuccess("Organization and Workspace successfully activated.");
       fetchPendingOrgs();
     } catch (err: any) {

@@ -13,7 +13,7 @@ import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } f
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, disconnectAccount } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
-import { SuperAdminController } from './domains/admin/superAdminController';
+import { SuperAdminController } from './modules/superadmin/superAdminController';
 import { SupportController } from './domains/admin/supportController';
 import { getUserContext } from './domains/identity/userController';
 import { listAccounts } from './domains/channels/accountsController';
