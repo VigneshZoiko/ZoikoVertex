@@ -5,6 +5,7 @@ import { env } from '../config/env';
 import { logger } from '../shared/logger';
 import { supabaseAdmin } from '../shared/supabase';
 import { logToDatabase } from '../shared/databaseLogger';
+import { ExecutionService } from '../modules/social/executionService';
 
 let connection: IORedis | null = null;
 let publishQueue: Queue | null = null;
@@ -46,20 +47,25 @@ export const initWorker = () => {
           .update({ execution_status: 'PROCESSING' })
           .eq('post_id', postId);
 
-        // 2. SIMULATE EXTERNAL API CALL TO PLATFORM (Meta, Twitter, etc.)
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        // 2. Fetch post to confirm it exists
+        const { data: post, error: fetchError } = await supabaseAdmin
+          .from('scheduled_posts')
+          .select('*')
+          .eq('id', postId)
+          .single();
 
-        // 3. Update the post status to PUBLISHED
+        if (fetchError || !post) throw new Error(`Post ${postId} not found`);
+
+        // 3. Delegate to ExecutionService for real platform API calls
+        await ExecutionService.publishIntent(postId);
+
+        // 4. Update post and job status after successful publish
         const { error: postError } = await supabaseAdmin.from('scheduled_posts')
-          .update({ 
-            status: 'PUBLISHED', 
-            published_time: new Date().toISOString() 
-          })
+          .update({ status: 'PUBLISHED', published_time: new Date().toISOString() })
           .eq('id', postId);
 
         if (postError) throw postError;
 
-        // 4. Mark job as COMPLETED
         await supabaseAdmin.from('scheduler_jobs')
           .update({ execution_status: 'COMPLETED' })
           .eq('post_id', postId);
@@ -69,12 +75,11 @@ export const initWorker = () => {
 
       } catch (error: any) {
         logger.error({ error }, `[Worker] Failed to publish post ${postId}`);
-        
-        // Mark job and post as FAILED
-        await supabaseAdmin.from('scheduler_jobs').update({ execution_status: 'FAILED' }).eq('post_id', postId);
+
         await supabaseAdmin.from('scheduled_posts').update({ status: 'FAILED' }).eq('id', postId);
+        await supabaseAdmin.from('scheduler_jobs').update({ execution_status: 'FAILED' }).eq('post_id', postId);
         await logToDatabase('error', 'Worker', `Failed to publish post ${postId}`, { error: error.message });
-        
+
         throw error;
       }
     },
