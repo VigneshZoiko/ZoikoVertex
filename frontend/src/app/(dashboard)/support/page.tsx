@@ -54,7 +54,7 @@ export default function SupportPage() {
       <div className="mb-10">
         <h1 className="text-4xl font-black text-white tracking-tight flex items-center">
           <HelpCircle className="w-10 h-10 mr-4 text-indigo-500" />
-          Help & Support
+          Help &amp; Support
         </h1>
         <p className="text-zinc-400 mt-2 text-lg">
           We&apos;re here to ensure your execution remains uninterrupted.

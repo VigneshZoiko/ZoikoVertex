@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { 
   Sparkles, Send, Globe, CheckCircle2, AlertCircle, RefreshCcw, 
   XCircle, ListTodo, AlertTriangle, Calendar, Clock, 
@@ -603,9 +604,14 @@ function PublishPageInner() {
     <div className="max-w-6xl mx-auto pb-20 px-6">
       {/* Decent Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-[var(--border)] pb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-[var(--foreground)] tracking-tight">Social Publisher</h1>
-          <p className="text-[var(--foreground-muted)] text-sm mt-1 font-medium">Compose and schedule your cross-platform content.</p>
+        <div className="flex items-center gap-4">
+          <div className="relative w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl shadow-indigo-500/20">
+            <Image src="/logo-dark.jpeg" alt="Logo" fill className="object-cover" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-[var(--foreground)] tracking-tight">Social Publisher</h1>
+            <p className="text-[var(--foreground-muted)] text-sm mt-1 font-medium">Compose and schedule your cross-platform content.</p>
+          </div>
         </div>
         
         <div className="flex items-center gap-4">
@@ -684,12 +690,6 @@ function PublishPageInner() {
             {/* Carousel preview when library pack is loaded */}
             {mediaUrls.length > 1 ? (
               <div className="space-y-4">
-                {/* Swipeable Carousel Viewer */}
-                {(() => {
-                  // We render this as a self-contained IIFE so hooks-style state
-                  // lives in the parent (carouselIndex / setCarouselIndex already there)
-                  return null; // placeholder — actual JSX is below
-                })()}
                 <div
                   className="relative rounded-xl overflow-hidden border border-[var(--border)] bg-black select-none"
                   style={{ touchAction: 'pan-y' }}
@@ -722,7 +722,16 @@ function PublishPageInner() {
                     {assetType === 'video' ? (
                       <video key={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} src={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} controls className="w-full h-full object-contain pointer-events-none" />
                     ) : (
-                      <img key={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} src={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} alt={`media ${carouselIndex + 1}`} className="w-full h-full object-contain pointer-events-none" draggable={false} />
+                      <div className="relative w-full h-full">
+                        <Image 
+                          key={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} 
+                          src={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} 
+                          alt={`media ${carouselIndex + 1}`} 
+                          fill 
+                          className="object-contain pointer-events-none" 
+                          draggable={false} 
+                        />
+                      </div>
                     )}
 
                     {/* Left arrow */}
@@ -769,8 +778,8 @@ function PublishPageInner() {
                   <div className="flex gap-2 p-3 bg-[var(--surface)]/80 overflow-x-auto">
                     {selectedUrls.map((url, i) => (
                       <button key={i} onClick={() => { setCarouselIndex(i); setMediaPreview(url); }}
-                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${ i === carouselIndex ? 'border-indigo-500' : 'border-transparent opacity-60 hover:opacity-100'}`}>
-                        <img src={url} alt={`thumb ${i}`} className="w-full h-full object-cover" draggable={false} />
+                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 relative transition-all ${ i === carouselIndex ? 'border-indigo-500' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                        <Image src={url} alt={`thumb ${i}`} fill className="object-cover" draggable={false} />
                       </button>
                     ))}
                   </div>

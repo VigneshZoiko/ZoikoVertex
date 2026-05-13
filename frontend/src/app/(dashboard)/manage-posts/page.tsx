@@ -7,6 +7,7 @@ import {
   XCircle, Loader2, Image as ImageIcon, Send
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { formatDateTime } from "@/lib/utils";
 import { api } from "@/lib/api";
 
@@ -91,7 +92,7 @@ export default function ManagePostsPage() {
                 {/* Media Preview */}
                 {post.media_url ? (
                   <div className="aspect-video relative overflow-hidden bg-black">
-                    <img src={post.media_url} alt="Post media" className="w-full h-full object-cover" />
+                    <Image src={post.media_url} alt="Post media" fill className="object-cover" />
                     <div className="absolute top-4 right-4">
                       <div className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 backdrop-blur-md ${Status.bg} ${Status.color}`}>
                         <Status.icon className="w-3 h-3" />

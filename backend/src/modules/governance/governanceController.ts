@@ -6,6 +6,7 @@ import { logToDatabase } from '../../shared/databaseLogger';
 import { ExecutionService } from '../social/executionService';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { RiskClassifier } from '../../services/governance/riskClassifier';
+import { ApprovalEngine } from '../../services/governance/approvalEngine';
 
 const SubmitIntentSchema = z.object({
   content: z.object({
@@ -62,6 +63,16 @@ export const submitIntent = async (
         acc.platform,
       );
 
+      // Determine advanced approval path
+      const approvalPath = ApprovalEngine.getApprovalPath({
+        platform: acc.platform,
+        risk_level: riskAssessment.level,
+        // Mocking other dimensions for now, these would come from workspace config
+        region: 'GLOBAL',
+        brand: 'ZOIKO',
+        market: 'ENTERPRISE'
+      });
+
       return {
         workspace_id: member.workspace_id,
         creator_id: userId,
@@ -69,13 +80,14 @@ export const submitIntent = async (
         content: finalCaption,
         media_urls: urlsToSave,
         media_url: urlsToSave[0] || null,
-        status: 'PENDING_ADMIN',
+        status: approvalPath[0] === 'AUTO_APPROVE' ? 'APPROVED' : `PENDING_${approvalPath[0]}`,
         platform: acc.platform,
         risk_level: riskAssessment.level,
         risk_score: riskAssessment.score,
         risk_factors: riskAssessment.factors,
         requires_approval: riskAssessment.requiresApproval,
-        approval_level: riskAssessment.approvalLevel,
+        approval_level: approvalPath[0],
+        approval_path: approvalPath, // Store the full path
       };
     });
 

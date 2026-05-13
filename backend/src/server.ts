@@ -17,6 +17,8 @@ import { SupportController } from './modules/support/supportController';
 import { getUserContext } from './modules/user/userController';
 import { listAccounts } from './modules/social/accountsController';
 import { listMembers, listRequests, createRequest, updateRequest } from './modules/team/teamController';
+import { performQualityCheck } from './modules/qa/qaController';
+import { listExceptions, resolveException } from './modules/exceptions/exceptionController';
 
 import { authenticate } from './shared/authMiddleware';
 
@@ -45,6 +47,9 @@ app.post('/api/v1/users/provision', provisionUser); // Usually needs its own int
 // Protected Intelligence/AI
 app.post('/api/v1/ai/generate', authenticate, generateContent);
 app.post('/api/v1/ai/analyze-image', authenticate, analyzeImage);
+app.post('/api/v1/qa/check', authenticate, performQualityCheck);
+app.get('/api/v1/governance/exceptions', authenticate, listExceptions);
+app.post('/api/v1/governance/exceptions/resolve', authenticate, resolveException);
 
 // Protected Governance
 app.post('/api/v1/governance/transition', authenticate, transitionStatus);
