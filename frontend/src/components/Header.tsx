@@ -11,20 +11,24 @@ export default function Header() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setEmail(user.email ?? "");
-        
-        // Fetch full_name from public.users
-        const { data: userData } = await supabase
-          .from('users')
-          .select('full_name')
-          .eq('id', user.id)
-          .maybeSingle();
-        
-        if (userData?.full_name) {
-          setFullName(userData.full_name);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setEmail(user.email ?? "");
+          
+          // Fetch full_name from public.users
+          const { data: userData } = await supabase
+            .from('users')
+            .select('full_name')
+            .eq('id', user.id)
+            .maybeSingle();
+          
+          if (userData?.full_name) {
+            setFullName(userData.full_name);
+          }
         }
+      } catch (err) {
+        console.warn("Header user fetch failed:", err);
       }
     };
     fetchUser();

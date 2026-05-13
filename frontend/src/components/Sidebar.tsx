@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Activity,
-  Radio,
   BarChart3,
   Cpu,
   ImageIcon,
@@ -18,7 +17,6 @@ import {
   Bot,
   Shield,
   Link2,
-  PenTool,
   FileEdit,
   ClipboardList,
   CheckSquare,
@@ -38,6 +36,23 @@ import {
   ShieldAlert,
   FileSearch,
   Archive,
+  Database,
+  Globe,
+  Sliders,
+  ToggleRight,
+  Zap,
+  Webhook,
+  Code2,
+  HeartPulse,
+  Key,
+  Building2,
+  Handshake,
+  CreditCard,
+  Lock,
+  EyeOff,
+  Bell,
+  Server,
+  TrendingUp,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -47,7 +62,7 @@ import DiscardModal from "@/components/DiscardModal";
 
 /* ─────────────────────────────────────────────
    Types
-───────────────────────────────────────────── */
+ ───────────────────────────────────────────── */
 type NavItem = {
   name: string;
   href: string;
@@ -65,8 +80,8 @@ type NavGroup = {
 };
 
 /* ─────────────────────────────────────────────
-   Navigation structure (Naresh's grouped nav)
-───────────────────────────────────────────── */
+   Navigation structure (Enterprise Layout)
+ ───────────────────────────────────────────── */
 const NAV_GROUPS: NavGroup[] = [
   {
     id: "command",
@@ -74,9 +89,8 @@ const NAV_GROUPS: NavGroup[] = [
     icon: LayoutDashboard,
     items: [
       { name: "Dashboard",           href: "/",            icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "CREATOR"] },
-      { name: "Live Stats",          href: "/live-stats",  icon: Radio,           roles: ["ADMIN", "MANAGER"] },
       { name: "Operations Feed",     href: "/operations",  icon: Activity,        roles: ["ADMIN", "MANAGER"] },
-      { name: "Insights & Analytics",href: "/analytics",   icon: BarChart3,       roles: ["ADMIN", "MANAGER"] },
+      { name: "Insights & ROI",      href: "/analytics",   icon: TrendingUp,      roles: ["ADMIN", "MANAGER"] },
       { name: "Resource Monitoring", href: "/resources",   icon: Cpu,             roles: ["ADMIN"] },
     ],
   },
@@ -85,12 +99,10 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Media",
     icon: ImageIcon,
     items: [
-      { name: "Upload Asset",   href: "/library/upload", icon: PenTool,    roles: ["CREATOR"] },
-      { name: "Media Library",  href: "/library",        icon: ImageIcon,  roles: ["ADMIN", "MANAGER", "CREATOR"] },
+      { name: "Media Vault",    href: "/library",        icon: Database,   roles: ["ADMIN", "MANAGER", "CREATOR"] },
       { name: "Projects",       href: "/projects",       icon: Briefcase,  roles: ["ADMIN", "MANAGER"] },
       { name: "Calendar",       href: "/calendar",       icon: Calendar,   roles: ["ADMIN", "MANAGER"] },
-      { name: "Social Publisher",href: "/publish",       icon: Send,       roles: ["MANAGER"], dirty: true },
-      { name: "My Posts",       href: "/manage-posts",   icon: FileEdit,   roles: ["MANAGER"] },
+      { name: "Publishing Hub", href: "/publish",        icon: Globe,      roles: ["MANAGER"], dirty: true },
     ],
   },
   {
@@ -98,10 +110,10 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Validation",
     icon: ClipboardCheck,
     items: [
-      { name: "Review & Edit",  href: "/queue",          icon: ClipboardList, roles: ["MANAGER"], badge: true },
-      { name: "Approval Queue", href: "/queue",          icon: CheckSquare,   roles: ["ADMIN"],   badge: true },
-      { name: "Quality Check",  href: "/quality",        icon: ShieldCheck,   roles: ["ADMIN", "MANAGER"] },
-      { name: "Exceptions",     href: "/exceptions",     icon: AlertOctagon,  roles: ["ADMIN"] },
+      { name: "Review Queue",     href: "/queue",          icon: ClipboardList, roles: ["MANAGER"], badge: true },
+      { name: "Quality Assurance",href: "/quality",        icon: ShieldCheck,   roles: ["ADMIN", "MANAGER"] },
+      { name: "Approval Rules",   href: "/governance/rules",icon: ListChecks,    roles: ["ADMIN"] },
+      { name: "Exceptions",       href: "/exceptions",     icon: AlertOctagon,  roles: ["ADMIN"] },
     ],
   },
   {
@@ -110,11 +122,11 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Bot,
     items: [
       { name: "Agent Studio",      href: "/agents/studio",    icon: Bot,              roles: ["ADMIN", "MANAGER"] },
-      { name: "AI Settings",       href: "/agents/settings",  icon: Settings,         roles: ["ADMIN"] },
       { name: "Workflows",         href: "/agents/workflows", icon: GitBranch,        roles: ["ADMIN", "MANAGER"] },
       { name: "Prompt Governance", href: "/agents/prompts",   icon: MessageSquareCode,roles: ["ADMIN"] },
+      { name: "Autonomy Controls", href: "/agents/autonomy",  icon: ToggleRight,      roles: ["ADMIN"] },
       { name: "Model Performance", href: "/agents/models",    icon: LineChart,        roles: ["ADMIN"] },
-      { name: "Knowledge Base",    href: "/agents/knowledge", icon: BookOpen,         roles: ["ADMIN", "MANAGER"] },
+      { name: "Knowledge Bases",   href: "/agents/knowledge", icon: BookOpen,         roles: ["ADMIN", "MANAGER"] },
     ],
   },
   {
@@ -122,31 +134,47 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Governance",
     icon: Scale,
     items: [
-      { name: "Legal Rules",       href: "/governance/legal",     icon: Scale,      roles: ["ADMIN"] },
-      { name: "Policy Center",     href: "/governance/policy",    icon: BookMarked, roles: ["ADMIN"] },
+      { name: "Brand Standards",   href: "/governance/legal",     icon: BookMarked, roles: ["ADMIN"] },
+      { name: "Policy Center",     href: "/governance/policy",    icon: Scale,      roles: ["ADMIN"] },
       { name: "Risk & Compliance", href: "/governance/risk",      icon: ShieldAlert,roles: ["ADMIN"] },
       { name: "Audit Trail",       href: "/governance/audit",     icon: FileSearch, roles: ["ADMIN"] },
       { name: "Evidence Vault",    href: "/governance/evidence",  icon: Archive,    roles: ["ADMIN"] },
     ],
   },
   {
-    id: "team",
-    label: "Team",
-    icon: Users,
+    id: "integrations",
+    label: "Integrations",
+    icon: Zap,
     items: [
-      { name: "Platform Accounts", href: "/accounts", icon: Link2,       roles: ["ADMIN"] },
-      { name: "Team Access",       href: "/team",     icon: Users,       roles: ["ADMIN"] },
-      { name: "Help & Support",    href: "/support",  icon: HelpCircle,  roles: ["ADMIN", "MANAGER", "CREATOR"] },
+      { name: "Platform Accounts", href: "/accounts",          icon: Link2,       roles: ["ADMIN"] },
+      { name: "Data Connectors",   href: "/integrations/data",  icon: Database,    roles: ["ADMIN"] },
+      { name: "API & Webhooks",    href: "/integrations/api",   icon: Webhook,     roles: ["ADMIN"] },
+      { name: "Integration Health",href: "/integrations/health",icon: HeartPulse,  roles: ["ADMIN"] },
     ],
   },
   {
-    id: "superadmin",
-    label: "SuperAdmin",
+    id: "access",
+    label: "Access",
     icon: Shield,
     items: [
-      { name: "Platform Overview", href: "/superadmin/analytics", icon: LayoutDashboard, roles: ["SUPERADMIN"] },
-      { name: "Support Inbox",     href: "/superadmin/tickets",   icon: MessageSquare,   roles: ["SUPERADMIN"] },
-      { name: "Global Control",    href: "/superadmin",           icon: Shield,          roles: ["SUPERADMIN"] },
+      { name: "Users & Access",     href: "/team",             icon: Users,       roles: ["ADMIN"] },
+      { name: "Roles & Permissions",href: "/access/roles",     icon: Key,         roles: ["ADMIN"] },
+      { name: "Business Units",     href: "/access/units",     icon: Building2,   roles: ["ADMIN"] },
+      { name: "External Partners",  href: "/access/partners",  icon: Handshake,   roles: ["ADMIN"] },
+    ],
+  },
+  {
+    id: "admin",
+    label: "Admin",
+    icon: Settings,
+    items: [
+      { name: "Workspace Settings",  href: "/admin/settings",      icon: Sliders,     roles: ["ADMIN", "SUPERADMIN"] },
+      { name: "Subscription & Usage",href: "/admin/billing",       icon: CreditCard,  roles: ["ADMIN", "SUPERADMIN"] },
+      { name: "Security",            href: "/admin/security",      icon: Lock,        roles: ["ADMIN", "SUPERADMIN"] },
+      { name: "Privacy & Data",      href: "/admin/privacy",       icon: EyeOff,      roles: ["ADMIN", "SUPERADMIN"] },
+      { name: "Notifications",       href: "/admin/notifications", icon: Bell,        roles: ["ADMIN", "SUPERADMIN"] },
+      { name: "System Status",       href: "/admin/status",        icon: Server,      roles: ["ADMIN", "SUPERADMIN"] },
+      { name: "Support",             href: "/support",             icon: HelpCircle,  roles: ["ADMIN", "MANAGER", "CREATOR"] },
     ],
   },
 ];
@@ -195,37 +223,49 @@ export default function Sidebar() {
 
   useEffect(() => {
     const fetchUserAndRole = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        window.location.href = "/login";
-        return;
-      }
-
-      // 1. Initial set from Auth (Immediate)
-      setFullName(user.user_metadata?.full_name || user.email?.split('@')[0] || "Agent");
-
-      // 2. Fetch extended context from Backend
       try {
-        const result = await api.get('/api/v1/user/context');
-        if (result.success) {
-          const { is_superadmin, role: userRole, full_name } = result.data;
-          setIsSuperAdmin(is_superadmin);
-          if (full_name) setFullName(full_name);
-          
-          if (is_superadmin) {
-            setRoleLoaded(true);
-            return;
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        if (authError || !user) {
+          console.error("Auth session invalid or missing:", authError);
+          window.location.href = "/login";
+          return;
+        }
+
+        // 1. Initial set from Auth (Immediate)
+        setFullName(user.user_metadata?.full_name || user.email?.split('@')[0] || "Agent");
+
+        // 2. Fetch extended context from Backend
+        try {
+          const result = await api.get('/api/v1/user/context');
+          if (result.success) {
+            const { is_superadmin, role: userRole, full_name } = result.data;
+            setIsSuperAdmin(is_superadmin);
+            if (full_name) setFullName(full_name);
+            
+            if (is_superadmin) {
+              setRoleLoaded(true);
+              return;
+            }
+            if (userRole) {
+              setRole(userRole);
+              fetchPendingCount(userRole);
+            }
           }
-          if (userRole) {
-            setRole(userRole);
-            fetchPendingCount(userRole);
-          }
+        } catch (err) {
+          console.warn("Sidebar context fetch skipped or failed. Using default CREATOR role.");
+          if (!role) setRole("CREATOR"); 
         }
       } catch (err) {
-        console.warn("Sidebar context fetch skipped or failed. Using default CREATOR role.");
-        if (!role) setRole("CREATOR"); 
+        console.error("Critical Auth/Context Error:", err);
+        // If it's a refresh token error, we must redirect
+        if (String(err).includes("Refresh Token")) {
+          window.location.href = "/login";
+          return;
+        }
+      } finally {
+        setRoleLoaded(true);
       }
-      setRoleLoaded(true);
     };
     fetchUserAndRole();
   }, [fetchPendingCount]);
