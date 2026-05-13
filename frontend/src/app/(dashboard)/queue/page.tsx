@@ -71,7 +71,7 @@ export default function ApprovalQueue() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] mb-2">
-            {userRole === 'MANAGER' ? 'Review & Edit' : 'Approval Queue'}
+            {userRole === 'MANAGER' ? 'Review &amp; Edit' : 'Approval Queue'}
           </h1>
           <p className="text-[var(--foreground-muted)] text-sm font-medium">
             {userRole === 'MANAGER'

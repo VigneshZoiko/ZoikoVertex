@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Globe, CheckCircle2, ChevronRight, AlertTriangle } from 'lucide-react';
+import Image from 'next/image';
 
 interface ConnectedAccount {
   id: string;
@@ -336,8 +337,8 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
                             checked={selectedAccountIds.includes(account.id)}
                             onChange={() => onToggleAccount(account.id)}
                           />
-                          <div className="w-8 h-8 rounded bg-[var(--surface)] flex items-center justify-center text-[var(--foreground-muted)] text-xs font-bold overflow-hidden">
-                            {account.avatar_url ? <img src={account.avatar_url} alt="" /> : account.account_name.charAt(0)}
+                          <div className="relative w-8 h-8 rounded bg-[var(--surface)] flex items-center justify-center text-[var(--foreground-muted)] text-xs font-bold overflow-hidden">
+                            {account.avatar_url ? <Image src={account.avatar_url} alt="" fill className="object-cover" /> : account.account_name.charAt(0)}
                           </div>
                           <div>
                             <p className="text-xs font-bold text-[var(--foreground)]">{account.account_name}</p>

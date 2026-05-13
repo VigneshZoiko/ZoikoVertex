@@ -14,10 +14,12 @@ import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import { SuperAdminController } from './modules/superadmin/superAdminController';
-import { SupportController } from './domains/admin/supportController';
-import { getUserContext } from './domains/identity/userController';
-import { listAccounts } from './domains/channels/accountsController';
-import { listMembers, listRequests, createRequest, updateRequest } from './domains/identity/teamController';
+import { SupportController } from './modules/support/supportController';
+import { getUserContext } from './modules/user/userController';
+import { listAccounts } from './modules/social/accountsController';
+import { listMembers, listRequests, createRequest, updateRequest } from './modules/team/teamController';
+import { performQualityCheck } from './modules/qa/qaController';
+import { listExceptions, resolveException } from './modules/exceptions/exceptionController';
 
 import { authenticate, provisionGuard } from './shared/authMiddleware';
 
@@ -49,6 +51,9 @@ app.post('/api/v1/users/provision', provisionGuard, provisionUser);
 // Protected Intelligence/AI
 app.post('/api/v1/ai/generate', authenticate, generateContent);
 app.post('/api/v1/ai/analyze-image', authenticate, analyzeImage);
+app.post('/api/v1/qa/check', authenticate, performQualityCheck);
+app.get('/api/v1/governance/exceptions', authenticate, listExceptions);
+app.post('/api/v1/governance/exceptions/resolve', authenticate, resolveException);
 
 // Protected Governance
 app.post('/api/v1/governance/transition', authenticate, transitionStatus);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import Image from "next/image";
 import { PackageCheck, Plus, GripVertical } from "lucide-react";
 
 interface MediaPackManagerProps {
@@ -100,7 +101,7 @@ export default function MediaPackManager({
                   {fileType === "video" ? (
                     <video src={url} className="w-full h-full object-cover pointer-events-none" />
                   ) : (
-                    <img src={url} alt={`File ${idx + 1}`} className="w-full h-full object-cover pointer-events-none" draggable={false} />
+                    <Image src={url} alt={`File ${idx + 1}`} fill className="object-cover pointer-events-none" draggable={false} />
                   )}
 
                   {/* Order badge */}
@@ -148,7 +149,7 @@ export default function MediaPackManager({
                   {fileType === "video" ? (
                     <video src={url} className="w-full h-full object-cover pointer-events-none" />
                   ) : (
-                    <img src={url} alt={`Available ${idx + 1}`} className="w-full h-full object-cover pointer-events-none" draggable={false} />
+                    <Image src={url} alt={`Available ${idx + 1}`} fill className="object-cover pointer-events-none" draggable={false} />
                   )}
 
                   {/* + Re-add button */}

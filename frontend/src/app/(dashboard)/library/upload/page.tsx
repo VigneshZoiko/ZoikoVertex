@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { api } from "@/lib/api";
 
 export const dynamic = 'force-dynamic';
@@ -143,7 +144,7 @@ export default function CreatorUploadPage() {
                       {files[idx].type.startsWith('video') ? (
                         <video src={url} className="w-full h-full object-cover opacity-80" />
                       ) : (
-                        <img src={url} alt={`Preview ${idx}`} className="w-full h-full object-cover opacity-80" />
+                        <Image src={url} alt={`Preview ${idx}`} fill className="object-cover opacity-80" unoptimized />
                       )}
 
                       {/* File number badge */}

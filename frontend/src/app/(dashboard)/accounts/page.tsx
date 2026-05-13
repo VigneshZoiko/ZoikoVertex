@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Link as LinkIcon, Plus, Trash2, CheckCircle2, AlertCircle, X, ChevronDown, ChevronUp } from "lucide-react";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
 
@@ -256,7 +257,9 @@ export default function AccountsPage() {
                           <div key={account.id} className="flex items-center justify-between p-4 px-6 hover:bg-[var(--surface-hover)]/20 transition-colors group">
                             <div className="flex items-center gap-4 min-w-0">
                               {account.avatar_url ? (
-                                <img src={account.avatar_url} alt={account.account_name} className="w-8 h-8 rounded-lg bg-[var(--surface)] border border-[var(--border)] shadow-sm" />
+                                <div className="relative w-8 h-8 rounded-lg bg-[var(--surface)] border border-[var(--border)] shadow-sm overflow-hidden">
+                                  <Image src={account.avatar_url} alt={account.account_name} fill className="object-cover" />
+                                </div>
                               ) : (
                                 <div className="w-8 h-8 rounded-lg bg-[var(--card)] border border-[var(--border)] flex items-center justify-center text-[var(--foreground-muted)] font-bold text-xs">
                                   {account.account_name.charAt(0)}
