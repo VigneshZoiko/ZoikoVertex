@@ -5,6 +5,8 @@ import { env } from '../../config/env';
 import { logger } from '../../shared/logger';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logToDatabase } from '../../shared/databaseLogger';
+import { validateAgentCanAct } from './agentRegistry';
+import { logAgentRun } from './agentRunLogger';
 
 const STYLE_RULES: Record<string, string> = {
   "MrBeast": "High-energy hooks and curiosity-driven viral pacing.",
@@ -22,6 +24,11 @@ export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFu
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+    const agentCheck = validateAgentCanAct('agent-content-gen-v1', 'content_generation');
+    if (!agentCheck.allowed) {
+      return res.status(403).json({ error: 'Agent not authorized', reason: agentCheck.reason });
+    }
+
     if (!imageBase64 || !env.GEMINI_API_KEY) {
       return res.status(400).json({ success: false, message: 'Missing image or API key' });
     }
@@ -36,7 +43,7 @@ export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFu
     ]);
 
     const analysis = (await result.response).text();
-    await logToDatabase('info', 'AI', `Vision analysis completed for user ${userId}`, { userId });
+    await logToDatabase('info', 'AI', `Vision analysis completed for user ${userId}`, { userId, agent_id: 'agent-content-gen-v1', agent_contract_version: 'v1' });
 
     res.status(200).json({ success: true, analysis });
   } catch (err) {
@@ -50,7 +57,12 @@ export const generateContent = async (req: AuthRequest, res: Response, next: Nex
     const userId = req.user?.id;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-    
+
+    const agentCheck = validateAgentCanAct('agent-content-gen-v1', 'content_generation');
+    if (!agentCheck.allowed) {
+      return res.status(403).json({ error: 'Agent not authorized', reason: agentCheck.reason });
+    }
+
     let imageAnalysis = "";
     
     // Phase 0: Vision Analysis if image provided
@@ -129,7 +141,7 @@ export const generateContent = async (req: AuthRequest, res: Response, next: Nex
     }`;
 
     logger.info({ topic, length, tone, styleMode }, '[Intelligence] Generating content via Groq');
-    await logToDatabase('info', 'AI', `Generating post via Groq for topic: ${topic}`, { topic, platforms, tone, styleMode, userId });
+    await logToDatabase('info', 'AI', `Generating post via Groq for topic: ${topic}`, { topic, platforms, tone, styleMode, userId, agent_id: 'agent-content-gen-v1', agent_contract_version: 'v1' });
 
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
@@ -156,7 +168,11 @@ export const generateContent = async (req: AuthRequest, res: Response, next: Nex
         viral_score: parsed.metrics?.viral_score || 50
       }
     });
+
+    await logAgentRun('agent-content-gen-v1', 'content_generation', userId, 'SUCCESS', { topic, platforms });
   } catch (error) {
+    const userId = (req as AuthRequest).user?.id ?? 'unknown';
+    await logAgentRun('agent-content-gen-v1', 'content_generation', userId, 'FAILURE', { error: String(error) });
     next(error);
   }
 };
