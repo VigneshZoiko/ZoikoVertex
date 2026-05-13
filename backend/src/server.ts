@@ -1,3 +1,4 @@
+import './domains/channels/executionService';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -6,19 +7,19 @@ import { logger } from './shared/logger';
 import { errorHandler } from './shared/errorHandler';
 
 // Controllers
-import { provisionUser } from './modules/identity/identityController';
-import { generateContent, analyzeImage } from './modules/intelligence/intelligenceController';
-import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } from './modules/governance/governanceController';
-import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, disconnectAccount } from './modules/social/socialController';
-import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './modules/scheduler/schedulerController';
-import { listLibrary, addToLibrary, deleteFromLibrary } from './modules/library/libraryController';
-import { SuperAdminController } from './modules/superadmin/superAdminController';
-import { SupportController } from './modules/support/supportController';
-import { getUserContext } from './modules/user/userController';
-import { listAccounts } from './modules/social/accountsController';
-import { listMembers, listRequests, createRequest, updateRequest } from './modules/team/teamController';
+import { provisionUser } from './domains/identity/identityController';
+import { generateContent, analyzeImage } from './domains/intelligence/intelligenceController';
+import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } from './domains/governance/governanceController';
+import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, disconnectAccount } from './domains/channels/socialController';
+import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
+import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
+import { SuperAdminController } from './domains/admin/superAdminController';
+import { SupportController } from './domains/admin/supportController';
+import { getUserContext } from './domains/identity/userController';
+import { listAccounts } from './domains/channels/accountsController';
+import { listMembers, listRequests, createRequest, updateRequest } from './domains/identity/teamController';
 
-import { authenticate } from './shared/authMiddleware';
+import { authenticate, provisionGuard } from './shared/authMiddleware';
 
 import { enterpriseSignup } from './modules/auth/enterpriseSignupController';
 
@@ -43,7 +44,7 @@ app.get('/api/v1/health', (req, res) => {
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.post('/api/v1/auth/signup-enterprise', enterpriseSignup);
-app.post('/api/v1/users/provision', provisionUser); 
+app.post('/api/v1/users/provision', provisionGuard, provisionUser);
 
 // Protected Intelligence/AI
 app.post('/api/v1/ai/generate', authenticate, generateContent);
@@ -105,9 +106,11 @@ app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket
 app.use(errorHandler);
 
 import { initWorker } from './workers/schedulerWorker';
+import { registerExecutionListeners } from './domains/channels/executionService';
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
+  registerExecutionListeners();
   const server = app.listen(port, () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers

@@ -5,8 +5,8 @@ import { logger } from '../../shared/logger';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { AuthRequest } from '../../shared/authMiddleware';
-import { RiskClassifier } from '../../services/governance/riskClassifier';
-import { evaluateIntent } from '../../services/decision/decisionEngine';
+import { RiskClassifier } from '../decisions/riskClassifier';
+import { evaluateIntent } from '../decisions/decisionEngine';
 
 const SubmitIntentSchema = z.object({
   content: z.object({
