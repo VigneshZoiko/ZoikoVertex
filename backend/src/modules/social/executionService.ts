@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
+import { internalEventBus } from '../../shared/internalEventBus';
+
+internalEventBus.on('execution.requested', (payload: unknown) => {
+  const { intentId } = payload as { intentId: string };
+  ExecutionService.publishIntent(intentId).catch((err) => {
+    logger.error({ err }, `[Execution] Event-triggered publish failed for ${intentId}`);
+  });
+});
 
 interface PublishResult {
   success: boolean;

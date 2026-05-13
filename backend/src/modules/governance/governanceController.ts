@@ -3,9 +3,10 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { logToDatabase } from '../../shared/databaseLogger';
-import { ExecutionService } from '../social/executionService';
+import { internalEventBus } from '../../shared/internalEventBus';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { RiskClassifier } from '../../services/governance/riskClassifier';
+import { evaluateIntent } from '../../services/decision/decisionEngine';
 
 const SubmitIntentSchema = z.object({
   content: z.object({
@@ -165,7 +166,53 @@ export const transitionStatus = async (
       { intentId, newStatus, feedback, userId },
     );
 
-    // 1. Update the intent status
+    // 1. If APPROVED, run Decision Engine before committing status
+    if (newStatus === 'APPROVED') {
+      const { data: intentMeta, error: metaError } = await supabaseAdmin
+        .from('publish_intents')
+        .select('workspace_id')
+        .eq('id', intentId)
+        .single();
+
+      if (metaError || !intentMeta) throw new Error('Intent not found');
+
+      const decisionResult = await evaluateIntent(intentId, '', intentMeta.workspace_id);
+
+      logger.info(
+        { intentId, decisionResult },
+        '[Governance] Decision Engine evaluated intent',
+      );
+
+      if (!decisionResult.governance_cleared) {
+        await supabaseAdmin
+          .from('publish_intents')
+          .update({ status: 'GOVERNANCE_BLOCKED', decision_id: decisionResult.decision_id, feedback: `Blocked by Decision Engine: ${decisionResult.decision_class}` })
+          .eq('id', intentId);
+
+        return res.status(403).json({
+          error: 'Governance blocked',
+          decision_class: decisionResult.decision_class,
+          decision_id: decisionResult.decision_id,
+        });
+      }
+
+      // Governance cleared — write decision_id alongside APPROVED status
+      const { data, error } = await supabaseAdmin
+        .from('publish_intents')
+        .update({ status: newStatus, feedback: feedback || null, decision_id: decisionResult.decision_id })
+        .eq('id', intentId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      logger.info(`[Governance] Governance cleared for ${intentId}. Emitting execution.requested...`);
+      internalEventBus.emit('execution.requested', { intentId, orgId: intentMeta.workspace_id });
+
+      return res.status(200).json({ success: true, data });
+    }
+
+    // 2. Non-APPROVED transitions — update status directly
     const { data, error } = await supabaseAdmin
       .from('publish_intents')
       .update({ status: newStatus, feedback: feedback || null })
@@ -174,17 +221,6 @@ export const transitionStatus = async (
       .single();
 
     if (error) throw error;
-
-    // 2. If APPROVED, trigger real publishing
-    if (newStatus === 'APPROVED') {
-      logger.info(`[Governance] Detected APPROVED status for ${intentId}. Triggering ExecutionService...`);
-      ExecutionService.publishIntent(intentId).catch((err) => {
-        logger.error(
-          { err },
-          `[Governance] Async execution failed for ${intentId}`,
-        );
-      });
-    }
 
     res.status(200).json({ success: true, data });
   } catch (error) {
