@@ -101,9 +101,11 @@ app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket
 app.use(errorHandler);
 
 import { initWorker } from './workers/schedulerWorker';
+import { registerExecutionListeners } from './modules/social/executionService';
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
+  registerExecutionListeners();
   const server = app.listen(port, () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers
