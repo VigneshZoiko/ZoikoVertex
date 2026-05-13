@@ -25,6 +25,8 @@ const envSchema = z.object({
   THREADS_APP_SECRET: z.string().optional(),
   THREADS_REDIRECT_URI: z.string().optional(),
   REDIS_URL: z.string().optional(),
+  // Required for internal service-to-service calls to /api/v1/users/provision
+  INTERNAL_SERVICE_SECRET: z.string().min(32).optional(),
 });
 
 const result = envSchema.safeParse(process.env);

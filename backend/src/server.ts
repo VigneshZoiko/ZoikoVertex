@@ -1,3 +1,4 @@
+import './modules/social/executionService';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -18,7 +19,7 @@ import { getUserContext } from './modules/user/userController';
 import { listAccounts } from './modules/social/accountsController';
 import { listMembers, listRequests, createRequest, updateRequest } from './modules/team/teamController';
 
-import { authenticate } from './shared/authMiddleware';
+import { authenticate, provisionGuard } from './shared/authMiddleware';
 
 const app = express();
 const port = env.PORT;
@@ -40,7 +41,7 @@ app.get('/api/v1/health', (req, res) => {
 });
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
-app.post('/api/v1/users/provision', provisionUser); // Usually needs its own internal secret or admin auth
+app.post('/api/v1/users/provision', provisionGuard, provisionUser);
 
 // Protected Intelligence/AI
 app.post('/api/v1/ai/generate', authenticate, generateContent);
