@@ -9,10 +9,12 @@ import {
   ChevronRight, ArrowRight, Eye, Search
 } from "lucide-react";
 
+const CHART_MOCK_DATA = [45, 52, 38, 65, 48, 55, 60, 42, 35, 70, 58, 62, 40, 50, 45, 68, 72, 55, 48, 60, 55, 50, 42, 58];
+
 export default function OperationsPage() {
   const [activeSystem, setActiveSystem] = useState("Vertex Core");
   
-  const chartData = useMemo(() => [...Array(24)].map(() => 20 + Math.random() * 80), []);
+  const chartData = CHART_MOCK_DATA;
   
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-12 pb-32 bg-black min-h-screen">

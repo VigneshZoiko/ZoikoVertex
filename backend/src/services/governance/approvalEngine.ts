@@ -76,8 +76,9 @@ export class ApprovalEngine {
   /**
    * Check if a user can approve for a specific step in the path
    */
-  static canUserApprove(userRole: string, requiredRole: string): boolean {
-    if (userRole === 'ADMIN') return true; // Admins can approve anything
+  static canUserApprove(userRole: string, requiredRole: string, isSuperAdmin: boolean = false): boolean {
+    if (isSuperAdmin) return true;
+    if (userRole === 'ADMIN') return true; // Admins can approve anything within workspace
     return userRole === requiredRole;
   }
 }

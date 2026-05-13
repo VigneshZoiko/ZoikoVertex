@@ -9,8 +9,10 @@ import {
   Layers, Compass, Eye, Sparkles
 } from "lucide-react";
 
+const PULSE_MOCK_DATA = [65, 45, 75, 55, 85, 40, 60, 90, 70, 50, 80, 45, 65, 55, 75, 40, 85, 60, 50, 70];
+
 export default function AnalyticsPage() {
-  const pulseData = useMemo(() => [...Array(20)].map(() => 30 + Math.random() * 70), []);
+  const pulseData = PULSE_MOCK_DATA;
   
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-12 pb-32 bg-black min-h-screen">
@@ -180,7 +182,7 @@ export default function AnalyticsPage() {
                     <div>
                        <div className="text-[10px] font-black text-white uppercase tracking-widest">AI Insight</div>
                        <p className="text-[10px] text-slate-400 font-medium leading-relaxed mt-1 italic">
-                          "High-risk creative assets are showing a 2x engagement lift in the EU market."
+                          &quot;High-risk creative assets are showing a 2x engagement lift in the EU market.&quot;
                        </p>
                     </div>
                  </div>

@@ -7,6 +7,7 @@ import { internalEventBus } from '../../shared/internalEventBus';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { RiskClassifier } from '../decisions/riskClassifier';
 import { evaluateIntent } from '../decisions/decisionEngine';
+import { ApprovalEngine } from '../../services/governance/approvalEngine';
 
 const SubmitIntentSchema = z.object({
   content: z.object({
@@ -63,6 +64,13 @@ export const submitIntent = async (
         acc.platform,
       );
 
+      // Determine approval path using the new engine
+      const approvalPath = ApprovalEngine.getApprovalPath({
+        platform: acc.platform,
+        risk_level: riskAssessment.level,
+        // Add other factors if available in the future
+      });
+
       return {
         workspace_id: member.workspace_id,
         creator_id: userId,
@@ -70,13 +78,13 @@ export const submitIntent = async (
         content: finalCaption,
         media_urls: urlsToSave,
         media_url: urlsToSave[0] || null,
-        status: 'PENDING_ADMIN',
+        status: approvalPath.length > 0 ? `PENDING_${approvalPath[0]}` : 'APPROVED',
         platform: acc.platform,
         risk_level: riskAssessment.level,
         risk_score: riskAssessment.score,
         risk_factors: riskAssessment.factors,
-        requires_approval: riskAssessment.requiresApproval,
-        approval_level: riskAssessment.approvalLevel,
+        requires_approval: approvalPath.length > 0,
+        approval_level: approvalPath.join(' -> '),
       };
     });
 
@@ -153,7 +161,16 @@ export const transitionStatus = async (
       throw new Error('Unauthorized: Workspace membership required');
     const userRole = member.role;
 
-    if (userRole === 'CREATOR' && newStatus !== 'CANCELLED') {
+    // 2. Fetch extended context for Superadmin check
+    const { data: userContext, error: contextError } = await supabaseAdmin
+      .from('users')
+      .select('is_superadmin')
+      .eq('id', userId)
+      .single();
+
+    const isSuperAdmin = !contextError && userContext?.is_superadmin;
+
+    if (userRole === 'CREATOR' && newStatus !== 'CANCELLED' && !isSuperAdmin) {
       return res
         .status(403)
         .json({ error: 'Creators can only cancel their own intents' });
@@ -166,53 +183,75 @@ export const transitionStatus = async (
       { intentId, newStatus, feedback, userId },
     );
 
-    // 1. If APPROVED, run Decision Engine before committing status
+    // 1. If transitioning to APPROVED (from a reviewer)
     if (newStatus === 'APPROVED') {
-      const { data: intentMeta, error: metaError } = await supabaseAdmin
+      const { data: intent, error: fetchErr } = await supabaseAdmin
         .from('publish_intents')
-        .select('workspace_id')
+        .select('*')
         .eq('id', intentId)
         .single();
 
-      if (metaError || !intentMeta) throw new Error('Intent not found');
+      if (fetchErr || !intent) throw new Error('Intent context missing');
 
-      const decisionResult = await evaluateIntent(intentId, '', intentMeta.workspace_id);
+      // Check if user is authorized to approve this specific step
+      const currentPath = intent.approval_level ? intent.approval_level.split(' -> ') : ['MANAGER'];
+      const currentStatus = intent.status; // e.g. PENDING_MANAGER
+      const currentRequiredRole = currentStatus.startsWith('PENDING_') ? currentStatus.replace('PENDING_', '') : currentPath[0];
 
-      logger.info(
-        { intentId, decisionResult },
-        '[Governance] Decision Engine evaluated intent',
-      );
-
-      if (!decisionResult.governance_cleared) {
-        await supabaseAdmin
-          .from('publish_intents')
-          .update({ status: 'GOVERNANCE_BLOCKED', decision_id: decisionResult.decision_id, feedback: `Blocked by Decision Engine: ${decisionResult.decision_class}` })
-          .eq('id', intentId);
-
-        return res.status(403).json({
-          error: 'Governance blocked',
-          decision_class: decisionResult.decision_class,
-          decision_id: decisionResult.decision_id,
-        });
+      if (!ApprovalEngine.canUserApprove(userRole, currentRequiredRole, isSuperAdmin)) {
+        return res.status(403).json({ error: `You do not have the required role (${currentRequiredRole}) to approve this step.` });
       }
 
-      // Governance cleared — write decision_id alongside APPROVED status
-      const { data, error } = await supabaseAdmin
-        .from('publish_intents')
-        .update({ status: newStatus, feedback: feedback || null, decision_id: decisionResult.decision_id })
-        .eq('id', intentId)
-        .select()
-        .single();
+      // Determine next status in path
+      const currentIndex = currentPath.indexOf(currentRequiredRole);
+      const nextRole = currentPath[currentIndex + 1];
 
-      if (error) throw error;
+      let statusToSet = 'APPROVED';
+      if (nextRole && !isSuperAdmin) {
+        statusToSet = `PENDING_${nextRole}`;
+      }
 
-      logger.info(`[Governance] Governance cleared for ${intentId}. Emitting execution.requested...`);
-      internalEventBus.emit('execution.requested', { intentId, orgId: intentMeta.workspace_id });
+      // If finally APPROVED, run Decision Engine
+      if (statusToSet === 'APPROVED') {
+        const decisionResult = await evaluateIntent(intentId, '', intent.workspace_id);
+        if (!decisionResult.governance_cleared) {
+          await supabaseAdmin
+            .from('publish_intents')
+            .update({ status: 'GOVERNANCE_BLOCKED', decision_id: decisionResult.decision_id, feedback: `Blocked by Decision Engine: ${decisionResult.decision_class}` })
+            .eq('id', intentId);
 
-      return res.status(200).json({ success: true, data });
+          return res.status(403).json({
+            error: 'Governance blocked',
+            decision_class: decisionResult.decision_class,
+            decision_id: decisionResult.decision_id,
+          });
+        }
+
+        const { data, error } = await supabaseAdmin
+          .from('publish_intents')
+          .update({ status: statusToSet, feedback: feedback || null, decision_id: decisionResult.decision_id })
+          .eq('id', intentId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        internalEventBus.emit('execution.requested', { intentId, orgId: intent.workspace_id });
+        return res.status(200).json({ success: true, data });
+      } else {
+        // Just move to next pending state
+        const { data, error } = await supabaseAdmin
+          .from('publish_intents')
+          .update({ status: statusToSet, feedback: feedback || `Approved by ${userRole}. Moving to ${nextRole} review.` })
+          .eq('id', intentId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return res.status(200).json({ success: true, data });
+      }
     }
 
-    // 2. Non-APPROVED transitions — update status directly
+    // 2. Handle other transitions (RETURNED, CANCELLED, etc.)
     const { data, error } = await supabaseAdmin
       .from('publish_intents')
       .update({ status: newStatus, feedback: feedback || null })
@@ -221,7 +260,6 @@ export const transitionStatus = async (
       .single();
 
     if (error) throw error;
-
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);
@@ -308,7 +346,7 @@ export const getQueue = async (
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // 1. Get user role
+    // 1. Get user role from workspace
     const { data: member, error: roleError } = await supabaseAdmin
       .from('workspace_members')
       .select('role')
@@ -318,23 +356,30 @@ export const getQueue = async (
     if (roleError || !member) throw new Error('Workspace context missing');
     const role = member.role;
 
-    // 2. Determine what to fetch based on role
+    // 2. Get user context for Superadmin check
+    const { data: userContext } = await supabaseAdmin
+      .from('users')
+      .select('is_superadmin')
+      .eq('id', userId)
+      .single();
+
+    const isSuperAdmin = userContext?.is_superadmin;
+
+    // 3. Determine what to fetch based on role
     let query = supabaseAdmin.from('publish_intents').select(`
         *,
         creator:users!publish_intents_creator_id_fkey(full_name, email)
       `);
 
-    if (role === 'CREATOR') {
+    if (isSuperAdmin) {
+      // Superadmins see everything that is pending any level of approval
+      query = query.like('status', 'PENDING_%');
+    } else if (role === 'CREATOR') {
       // Creators see their own RETURNED posts
       query = query.eq('creator_id', userId).eq('status', 'RETURNED');
-    } else if (role === 'MANAGER') {
-      // Managers see posts pending manager approval
-      query = query.eq('status', 'PENDING_MANAGER');
-    } else if (role === 'ADMIN') {
-      // Admins see posts pending admin approval
-      query = query.eq('status', 'PENDING_ADMIN');
     } else {
-      return res.status(403).json({ error: 'Invalid role' });
+      // Reviewers see posts pending their specific role
+      query = query.eq('status', `PENDING_${role}`);
     }
 
     const { data, error } = await query.order('created_at', {

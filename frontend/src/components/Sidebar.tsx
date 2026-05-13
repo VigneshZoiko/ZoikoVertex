@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   LayoutDashboard,
   Activity,
@@ -279,7 +280,7 @@ export default function Sidebar() {
       }
     };
     fetchUserAndRole();
-  }, [fetchPendingCount]);
+  }, [fetchPendingCount, role]);
 
   // Real-time badge sync
   useEffect(() => {
@@ -352,7 +353,10 @@ export default function Sidebar() {
         return item.roles.includes("CREATOR") || item.roles.includes("MANAGER");
       }
 
-      // 3. Normal role-based filtering
+      // 3. Admin Override: Workspace Admins see EVERYTHING for now
+      if (role?.toUpperCase() === "ADMIN") return true;
+
+      // 4. Normal role-based filtering
       if (!role) return false;
       const normalizedRole = role.toUpperCase();
 
@@ -380,9 +384,9 @@ export default function Sidebar() {
         {/* Brand */}
         <div className="flex flex-col px-4 pt-5 pb-4 border-b border-[var(--sidebar-border)]">
           <div className="flex items-center">
-            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mr-3 shrink-0">
-              <img src="/logo-dark.jpeg" alt="ZoikoVertex Logo" className="w-full h-full object-cover dark:block hidden" />
-              <img src="/logo.jpeg" alt="ZoikoVertex Logo" className="w-full h-full object-cover block dark:hidden" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mr-3 shrink-0 relative">
+              <Image src="/logo-dark.jpeg" alt="ZoikoVertex Logo" fill className="object-cover dark:block hidden" />
+              <Image src="/logo.jpeg" alt="ZoikoVertex Logo" fill className="object-cover block dark:hidden" />
             </div>
             <span className="text-[var(--sidebar-text)] font-bold text-xl tracking-wide">ZoikoVertex</span>
           </div>
