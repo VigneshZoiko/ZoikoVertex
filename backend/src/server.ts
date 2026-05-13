@@ -20,6 +20,8 @@ import { listMembers, listRequests, createRequest, updateRequest } from './modul
 
 import { authenticate } from './shared/authMiddleware';
 
+import { enterpriseSignup } from './modules/auth/enterpriseSignupController';
+
 const app = express();
 const port = env.PORT;
 
@@ -40,7 +42,8 @@ app.get('/api/v1/health', (req, res) => {
 });
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
-app.post('/api/v1/users/provision', provisionUser); // Usually needs its own internal secret or admin auth
+app.post('/api/v1/auth/signup-enterprise', enterpriseSignup);
+app.post('/api/v1/users/provision', provisionUser); 
 
 // Protected Intelligence/AI
 app.post('/api/v1/ai/generate', authenticate, generateContent);
@@ -89,6 +92,7 @@ app.put('/api/v1/team/requests/:id', authenticate, updateRequest);
 
 // ─── SuperAdmin Routes ───────────────────────────────────────────────────────
 app.post('/api/v1/superadmin/organizations', authenticate, SuperAdminController.createOrganization);
+app.post('/api/v1/superadmin/organizations/:orgId/approve', authenticate, SuperAdminController.approveOrganization);
 app.get('/api/v1/superadmin/organizations', authenticate, SuperAdminController.listAllOrganizations);
 app.get('/api/v1/superadmin/stats', authenticate, SuperAdminController.getPlatformStats);
 app.get('/api/v1/superadmin/tickets', authenticate, SupportController.listAllTickets);

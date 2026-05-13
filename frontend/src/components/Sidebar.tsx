@@ -59,6 +59,7 @@ import { api } from "@/lib/api";
 import { useRealtimeNotifications } from "@/lib/hooks/useRealtimeNotifications";
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
 import DiscardModal from "@/components/DiscardModal";
+import { ROLE_GROUP_MAPPING } from "@/lib/roles";
 
 /* ─────────────────────────────────────────────
    Types
@@ -83,6 +84,16 @@ type NavGroup = {
    Navigation structure (Enterprise Layout)
  ───────────────────────────────────────────── */
 const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "platform",
+    label: "Platform Owner",
+    icon: Shield,
+    items: [
+      { name: "Governance Node", href: "/superadmin", icon: Shield, roles: ["SUPERADMIN"] },
+      { name: "Global Analytics", href: "/superadmin/analytics", icon: LineChart, roles: ["SUPERADMIN"] },
+      { name: "Support Queue", href: "/superadmin/tickets", icon: MessageSquare, roles: ["SUPERADMIN"] },
+    ],
+  },
   {
     id: "command",
     label: "Command",
@@ -317,20 +328,41 @@ export default function Sidebar() {
     window.location.href = "/login";
   };
 
+  // Curated list of pages required for the Workspace Owner (Platform Admin)
+  const OWNER_REQUIRED_PAGES = [
+    "/",
+    "/superadmin",
+    "/superadmin/analytics",
+    "/superadmin/tickets",
+    "/admin/status",
+    "/support"
+  ];
+
   // Filter items based on role
   const visibleGroups = NAV_GROUPS.map(group => ({
     ...group,
     items: group.items.filter(item => {
-      // 1. SuperAdmins see everything
-      if (isSuperAdmin) return true;
+      // 1. Workspace Owners (Superadmins) see only curated control plane items
+      if (isSuperAdmin) {
+        return OWNER_REQUIRED_PAGES.includes(item.href) || item.roles.includes("SUPERADMIN");
+      }
       
-      // 2. Fallback: If role hasn't loaded yet, show basic items to anyone authenticated
-      if (!role && roleLoaded) {
+      // 2. Fallback: If role hasn't loaded yet, show basic items
+      if (!role && !roleLoaded) {
         return item.roles.includes("CREATOR") || item.roles.includes("MANAGER");
       }
 
       // 3. Normal role-based filtering
-      return role && item.roles.includes(role.toUpperCase());
+      if (!role) return false;
+      const normalizedRole = role.toUpperCase();
+
+      // Explicit access check
+      const hasExplicitAccess = item.roles.includes(normalizedRole);
+      
+      // Group access check
+      const hasGroupAccess = ROLE_GROUP_MAPPING[group.id]?.includes(normalizedRole);
+
+      return hasExplicitAccess || hasGroupAccess;
     }),
   })).filter(group => group.items.length > 0);
 
