@@ -22,20 +22,20 @@ export const enterpriseSignup = async (req: Request, res: Response, next: NextFu
 
     const userId = authUser.user.id;
 
-    // 2. Create Organization (PENDING)
+    // 2. Create Organization (ACTIVE)
     const { data: orgData, error: orgError } = await supabaseAdmin.from("organizations").insert({
       name: companyName,
-      status: "PENDING",
+      status: "ACTIVE",
       plan_type: "FREE"
     }).select().single();
 
     if (orgError) throw orgError;
 
-    // 3. Create Workspace (PENDING)
+    // 3. Create Workspace (ACTIVE)
     const { data: wsData, error: wsError } = await supabaseAdmin.from("workspaces").insert({
       name: workspaceName,
       org_id: orgData.id,
-      status: "PENDING",
+      status: "ACTIVE",
       type: "BRAND"
     }).select().single();
 
@@ -57,7 +57,7 @@ export const enterpriseSignup = async (req: Request, res: Response, next: NextFu
 
     res.status(201).json({
       success: true,
-      message: 'Account created successfully (Pending Superadmin Approval).'
+      message: 'Account and Organization created successfully. You can now sign in.'
     });
 
   } catch (error) {

@@ -7,6 +7,8 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { validateAgentCanAct } from './agentRegistry';
 import { logAgentRun } from './agentRunLogger';
+import { KnowledgeController } from '../../modules/knowledge/knowledgeController';
+import { supabaseAdmin } from '../../shared/supabase';
 
 const STYLE_RULES: Record<string, string> = {
   "MrBeast": "High-energy hooks and curiosity-driven viral pacing.",
@@ -95,10 +97,67 @@ export const generateContent = async (req: AuthRequest, res: Response, next: Nex
     
     const selectedStyleRules = styleMode ? STYLE_RULES[styleMode] : "";
 
+    // ─── Fetch Org Knowledge Context ─────────────────────────────────────────
+    let knowledgeContextBlock = "";
+    try {
+      const { data: member } = await supabaseAdmin
+        .from('workspace_members')
+        .select('workspaces(org_id)')
+        .eq('user_id', userId)
+        .maybeSingle();
+      const orgId = (member?.workspaces as any)?.org_id;
+      if (orgId) {
+        const ctx = await KnowledgeController.buildAIContextForOrg(orgId);
+        const blocks: string[] = [];
+
+        if (ctx.brand_voice && ctx.brand_voice.length > 0) {
+          const voiceText = ctx.brand_voice.map((v: any) => `- [${v.title}]: ${v.guideline}`).join('\n');
+          blocks.push(`BRAND VOICE & TONE GUIDELINES (MUST FOLLOW):\n${voiceText}`);
+        }
+
+        if (ctx.brand_visual) {
+          const v = ctx.brand_visual;
+          const visualLines = [
+            v.primary_color ? `  Primary Color: ${v.primary_color}` : null,
+            v.secondary_color ? `  Secondary Color: ${v.secondary_color}` : null,
+            v.font_family ? `  Brand Fonts: ${v.font_family}` : null,
+            v.visual_style ? `  Visual Style: ${v.visual_style}` : null,
+          ].filter(Boolean);
+          if (visualLines.length > 0) {
+            blocks.push(`BRAND VISUAL IDENTITY (for reference in image prompts and style):\n${visualLines.join('\n')}`);
+          }
+        }
+
+        if (ctx.sop_rules && ctx.sop_rules.length > 0) {
+          const sopText = ctx.sop_rules.map((s: any) => `- [${s.title}]: ${s.rule}`).join('\n');
+          blocks.push(`OPERATIONAL RULES & SOPs (MUST COMPLY):\n${sopText}`);
+        }
+
+        if (ctx.ai_library && ctx.ai_library.length > 0) {
+          const libText = ctx.ai_library.map((l: any) => `- [${l.title}]: ${l.content}`).join('\n');
+          blocks.push(`KNOWLEDGE LIBRARY (use for factual accuracy):\n${libText}`);
+        }
+
+        if (blocks.length > 0) {
+          knowledgeContextBlock = `
+\n\n═══════════════════════════════════════════════
+ORGANIZATION KNOWLEDGE BASE CONTEXT
+The following rules and guidelines are MANDATORY and must override any generic defaults.
+═══════════════════════════════════════════════
+${blocks.join('\n\n')}
+═══════════════════════════════════════════════`;
+          logger.info({ orgId, blocks: blocks.length }, '[Intelligence] Knowledge context injected into prompt');
+        }
+      }
+    } catch (kbErr) {
+      // Non-fatal: if KB fetch fails, proceed without knowledge context
+      logger.warn({ kbErr }, '[Intelligence] Could not fetch knowledge context, proceeding without it');
+    }
+
     const prompt = `
     Act as a World-Class Social Media Strategist and Copywriter.
     Your goal is to generate UNIQUE, high-converting content for each platform.
-    
+    ${knowledgeContextBlock}
     INPUT DATA:
     - TOPIC: "${topic}"
     - IMAGE_CONTEXT: "${imageAnalysis || 'None'}"
