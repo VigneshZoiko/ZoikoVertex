@@ -34,6 +34,17 @@ export const api = {
         ...authHeader,
       },
     });
+    if (!response.ok) {
+      // Avoid crashing if the backend is just not there (e.g. localhost vs production)
+      if (response.status === 404) {
+        console.warn(`[API] Endpoint not found: ${endpoint}. Check if NEXT_PUBLIC_BACKEND_URL is set correctly.`);
+        return { success: false, error: 'Not Found' };
+      }
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `GET ${endpoint} failed: ${response.statusText}`);
+      throw new Error(errorMessage);
+    }
+    return response.json();
     return handleResponse(response, endpoint, 'GET');
   },
 
@@ -47,6 +58,12 @@ export const api = {
       },
       body: JSON.stringify(body),
     });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `POST ${endpoint} failed: ${response.statusText}`);
+      throw new Error(errorMessage);
+    }
+    return response.json();
     return handleResponse(response, endpoint, 'POST');
   },
 
@@ -72,6 +89,12 @@ export const api = {
       },
       body: JSON.stringify(body),
     });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `PUT ${endpoint} failed: ${response.statusText}`);
+      throw new Error(errorMessage);
+    }
+    return response.json();
     return handleResponse(response, endpoint, 'PUT');
   },
 
@@ -83,6 +106,12 @@ export const api = {
         ...authHeader,
       },
     });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `DELETE ${endpoint} failed: ${response.statusText}`);
+      throw new Error(errorMessage);
+    }
+    return response.json();
     return handleResponse(response, endpoint, 'DELETE');
   },
 };

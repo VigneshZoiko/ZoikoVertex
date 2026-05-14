@@ -18,13 +18,19 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
 
     if (!userData?.is_superadmin) {
       const { data: member } = await supabaseAdmin
+        .from('memberships')
+        .select('workspace_id, role:roles(name), workspaces(org_id)')
         .from('workspace_members')
         .select('workspace_id, role, workspaces(org_id, organizations(status))')
         .eq('user_id', userId)
+        .limit(1)
         .maybeSingle();
 
       if (member) {
         workspaceId = member.workspace_id;
+        role = (member.role as any)?.name || 'MEMBER';
+        const orgId = (member.workspaces as any)?.org_id;
+
         role = member.role;
         // @ts-expect-error nested join type not inferred by supabase client
         const orgStatus = member.workspaces?.organizations?.status;
@@ -35,6 +41,8 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
             full_name: userData?.full_name || null,
             is_superadmin: false,
             workspace_id: workspaceId,
+            org_id: orgId,
+            role,
             role,
             org_status: orgStatus || 'ACTIVE'
           },
@@ -50,6 +58,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
         full_name: userData?.full_name || null,
         is_superadmin: userData?.is_superadmin || false,
         workspace_id: workspaceId,
+        org_id: null,
         role,
         org_status: 'ACTIVE'
       },
