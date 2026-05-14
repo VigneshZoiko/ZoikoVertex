@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-const pdf = require('pdf-parse');
+import * as pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import { logger } from '../../shared/logger';
 
@@ -13,7 +13,7 @@ export class KnowledgeFileService {
       const buffer = fs.readFileSync(filePath);
       
       if (mimeType === 'application/pdf') {
-        const data = await pdf(buffer);
+        const data = await (pdfParse as unknown as (buf: Buffer) => Promise<{ text: string }>)(buffer);
         return data.text;
       }
       

@@ -29,7 +29,7 @@ export class KnowledgeController {
    */
   static async listBases(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id!);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
       
       const { data, error } = await supabaseAdmin
         .from('knowledge_bases')
@@ -49,7 +49,7 @@ export class KnowledgeController {
    */
   static async createBase(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id!);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
       const { name, description, type } = req.body;
 
       const { data, error } = await supabaseAdmin
@@ -71,7 +71,7 @@ export class KnowledgeController {
   static async listEntries(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { baseId } = req.params;
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id!);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
 
       // Verify base belongs to org
       const { data: base } = await supabaseAdmin
@@ -104,7 +104,7 @@ export class KnowledgeController {
       const { baseId } = req.params;
       const { title, source_url, metadata } = req.body;
       let { content } = req.body;
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id!);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
 
       // Verify base belongs to org
       const { data: base } = await supabaseAdmin
@@ -151,7 +151,7 @@ export class KnowledgeController {
   static async deleteBase(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { baseId } = req.params;
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id!);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
 
       const { error } = await supabaseAdmin
         .from('knowledge_bases')
@@ -172,7 +172,7 @@ export class KnowledgeController {
   static async deleteEntry(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { entryId } = req.params;
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id!);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
 
       // Join check to ensure entry's base belongs to org
       const { data: entry } = await supabaseAdmin
@@ -209,7 +209,7 @@ export class KnowledgeController {
    */
   static async getAIContext(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id!);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
       const requestedTypes = req.query.types
         ? String(req.query.types).split(',') as ('BRAND_GUIDELINES' | 'SOP' | 'AI_LIBRARY')[]
         : ['BRAND_GUIDELINES', 'SOP', 'AI_LIBRARY'];
