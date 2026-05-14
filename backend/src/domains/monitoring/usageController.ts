@@ -22,14 +22,6 @@ export const getResourceUsage = async (req: Request, res: Response, next: NextFu
 
     if (logsError) throw logsError;
 
-    // 2. Get totals aggregated by type
-    const { data: totals, error: totalsError } = await supabaseAdmin
-      .from('resource_usage')
-      .select('resource_type, quantity.sum(), cost_usd.sum()')
-      .eq('workspace_id', workspaceId);
-      
-    // Note: If simple grouping isn't supported via RPC/select in this version of supabase-js, 
-    // we'll aggregate in code for reliability.
     const aggregated = logs?.reduce((acc: any, log: any) => {
       const type = log.resource_type;
       if (!acc[type]) acc[type] = { quantity: 0, cost: 0, unit: log.unit };
