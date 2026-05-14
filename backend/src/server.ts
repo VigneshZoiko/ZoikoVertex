@@ -20,6 +20,7 @@ import { listAccounts } from './modules/social/accountsController';
 import { listMembers, listRequests, createRequest, updateRequest } from './modules/team/teamController';
 import { performQualityCheck } from './modules/qa/qaController';
 import { listExceptions, resolveException } from './modules/exceptions/exceptionController';
+import { listAgents, getAgent, registerAgent, certifyAgent } from './domains/agents/agentController';
 
 import { authenticate, provisionGuard } from './shared/authMiddleware';
 
@@ -95,6 +96,12 @@ app.get('/api/v1/team/members', authenticate, listMembers);
 app.get('/api/v1/team/requests', authenticate, listRequests);
 app.post('/api/v1/team/requests', authenticate, createRequest);
 app.put('/api/v1/team/requests/:id', authenticate, updateRequest);
+
+// Protected Agent Routes
+app.get('/api/v1/agents', authenticate, listAgents);
+app.get('/api/v1/agents/:id', authenticate, getAgent);
+app.post('/api/v1/agents', authenticate, registerAgent);
+app.post('/api/v1/agents/:id/certify', authenticate, certifyAgent);
 
 // ─── SuperAdmin Routes ───────────────────────────────────────────────────────
 app.post('/api/v1/superadmin/organizations', authenticate, SuperAdminController.createOrganization);
