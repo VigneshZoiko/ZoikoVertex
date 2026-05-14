@@ -51,7 +51,7 @@ export const listRequests = async (req: AuthRequest, res: Response, next: NextFu
 
     if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
     
-    // @ts-ignore
+    // @ts-expect-error nested role join type not inferred by supabase client
     if (member.role?.name !== 'ADMIN') return res.status(403).json({ error: 'Only admins can view requests' });
 
     const { data: requests, error } = await supabaseAdmin
@@ -116,7 +116,7 @@ export const updateRequest = async (req: AuthRequest, res: Response, next: NextF
       .limit(1)
       .maybeSingle();
 
-    // @ts-ignore - Handle nested role check
+    // @ts-expect-error nested role join type not inferred by supabase client
     const isAdmin = member?.role?.name === 'ADMIN';
 
     if (!isAdmin) return res.status(403).json({ error: 'Only admins can update requests' });
