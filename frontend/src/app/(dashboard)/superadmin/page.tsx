@@ -310,7 +310,7 @@ export default function SuperAdminPage() {
               ) : (
                 <tr>
                   <td colSpan={5} className="px-8 py-20 text-center">
-                    <p className="text-zinc-600 italic font-medium">No organizations found matching "{searchTerm}"</p>
+                    <p className="text-zinc-600 italic font-medium">No organizations found matching &quot;{searchTerm}&quot;</p>
                   </td>
                 </tr>
               )}

@@ -231,7 +231,7 @@ export default function KnowledgePage() {
               <div>
                 <h4 className="text-sm font-black text-white uppercase tracking-wider mb-2">AI Library (The Brain)</h4>
                 <p className="text-xs text-zinc-400 leading-relaxed font-medium">
-                  The "textbooks" for your AI. Upload raw data, company history, and product details so the AI knows exactly what your business does without guessing.
+                  The &quot;textbooks&quot; for your AI. Upload raw data, company history, and product details so the AI knows exactly what your business does without guessing.
                 </p>
               </div>
             </div>
@@ -243,7 +243,7 @@ export default function KnowledgePage() {
               <div>
                 <h4 className="text-sm font-black text-white uppercase tracking-wider mb-2">Brand Center (The Voice)</h4>
                 <p className="text-xs text-zinc-400 leading-relaxed font-medium">
-                  The "personality manual." Define how you sound (professional, bold, or friendly) to ensure every AI-generated post matches your official brand identity.
+                  The &quot;personality manual.&quot; Define how you sound (professional, bold, or friendly) to ensure every AI-generated post matches your official brand identity.
                 </p>
               </div>
             </div>
@@ -255,7 +255,7 @@ export default function KnowledgePage() {
               <div>
                 <h4 className="text-sm font-black text-white uppercase tracking-wider mb-2">Operations (The Rules)</h4>
                 <p className="text-xs text-zinc-400 leading-relaxed font-medium">
-                  The "instruction booklets." Store your SOPs and workflow rules here so the AI follows your company's specific procedures for every single task.
+                  The &quot;instruction booklets.&quot; Store your SOPs and workflow rules here so the AI follows your company&apos;s specific procedures for every single task.
                 </p>
               </div>
             </div>

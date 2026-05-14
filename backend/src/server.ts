@@ -103,9 +103,8 @@ app.put('/api/v1/team/requests/:id', authenticate, updateRequest);
 
 // ─── SuperAdmin Routes ───────────────────────────────────────────────────────
 app.get('/api/v1/superadmin/organizations', authenticate, SuperAdminController.listAllOrganizations);
-app.post('/api/v1/superadmin/organizations/:orgId/pause', authenticate, SuperAdminController.pauseOrganization);
-app.post('/api/v1/superadmin/organizations/:orgId/resume', authenticate, SuperAdminController.resumeOrganization);
-app.delete('/api/v1/superadmin/organizations/:orgId', authenticate, SuperAdminController.deleteOrganization);
+app.post('/api/v1/superadmin/organizations', authenticate, SuperAdminController.createOrganization);
+app.post('/api/v1/superadmin/organizations/:orgId/approve', authenticate, SuperAdminController.approveOrganization);
 app.get('/api/v1/superadmin/stats', authenticate, SuperAdminController.getPlatformStats);
 app.get('/api/v1/superadmin/tickets', authenticate, SupportController.listAllTickets);
 app.patch('/api/v1/superadmin/tickets/:id', authenticate, SupportController.updateTicketStatus);
