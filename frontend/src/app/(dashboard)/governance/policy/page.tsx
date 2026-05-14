@@ -74,7 +74,7 @@ export default function PolicyPage() {
         </div>
         <div className="flex-1">
           <h3 className="text-sm font-bold text-amber-700">Pending Policy Review</h3>
-          <p className="text-xs text-amber-700/70 mt-1">3 agents are currently operating under "Experimental" policies while handling production data. This exceeds the recommended risk threshold.</p>
+          <p className="text-xs text-amber-700/70 mt-1">3 agents are currently operating under &quot;Experimental&quot; policies while handling production data. This exceeds the recommended risk threshold.</p>
         </div>
         <button className="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all self-center">
           REVIEW RISK
