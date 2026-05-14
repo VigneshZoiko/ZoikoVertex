@@ -7,22 +7,31 @@ export const listMembers = async (req: AuthRequest, res: Response, next: NextFun
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+    // 1. Find the current user's workspace context
     const { data: member } = await supabaseAdmin
-      .from('workspace_members')
+      .from('memberships')
       .select('workspace_id')
       .eq('user_id', userId)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
 
+    // 2. Fetch all members of that workspace from domain_users
     const { data: members, error } = await supabaseAdmin
-      .from('workspace_members')
-      .select('role, users ( full_name, email )')
+      .from('memberships')
+      .select(`
+        id,
+        user:domain_users(id, full_name, email)
+      `)
       .eq('workspace_id', member.workspace_id);
 
     if (error) throw error;
 
-    res.json({ success: true, data: members || [] });
+    // 3. Format for the frontend (extracting user info)
+    const formattedMembers = (members || []).map(m => m.user);
+
+    res.json({ success: true, data: formattedMembers });
   } catch (error) {
     next(error);
   }
@@ -34,13 +43,16 @@ export const listRequests = async (req: AuthRequest, res: Response, next: NextFu
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { data: member } = await supabaseAdmin
-      .from('workspace_members')
-      .select('workspace_id, role')
+      .from('memberships')
+      .select('workspace_id, role:roles(name)')
       .eq('user_id', userId)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
-    if (member.role !== 'ADMIN') return res.status(403).json({ error: 'Only admins can view requests' });
+    
+    // @ts-ignore
+    if (member.role?.name !== 'ADMIN') return res.status(403).json({ error: 'Only admins can view requests' });
 
     const { data: requests, error } = await supabaseAdmin
       .from('account_requests')
@@ -62,10 +74,11 @@ export const createRequest = async (req: AuthRequest, res: Response, next: NextF
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { data: member } = await supabaseAdmin
-      .from('workspace_members')
-      .select('workspace_id, role')
+      .from('memberships')
+      .select('workspace_id, role_id')
       .eq('user_id', userId)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
 
@@ -97,12 +110,16 @@ export const updateRequest = async (req: AuthRequest, res: Response, next: NextF
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { data: member } = await supabaseAdmin
-      .from('workspace_members')
-      .select('role')
+      .from('memberships')
+      .select('workspace_id, role:roles(name)')
       .eq('user_id', userId)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
-    if (!member || member.role !== 'ADMIN') return res.status(403).json({ error: 'Only admins can update requests' });
+    // @ts-ignore - Handle nested role check
+    const isAdmin = member?.role?.name === 'ADMIN';
+
+    if (!isAdmin) return res.status(403).json({ error: 'Only admins can update requests' });
 
     const { error } = await supabaseAdmin
       .from('account_requests')

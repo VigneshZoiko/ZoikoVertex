@@ -21,6 +21,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
         .from('workspace_members')
         .select('workspace_id, role, workspaces(org_id, organizations(status))')
         .eq('user_id', userId)
+        .limit(1)
         .maybeSingle();
 
       if (member) {
@@ -50,6 +51,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
         full_name: userData?.full_name || null,
         is_superadmin: userData?.is_superadmin || false,
         workspace_id: workspaceId,
+        org_id: null,
         role,
         org_status: 'ACTIVE'
       },

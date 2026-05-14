@@ -385,8 +385,8 @@ export default function Sidebar() {
         <div className="flex flex-col px-4 pt-5 pb-4 border-b border-[var(--sidebar-border)]">
           <div className="flex items-center">
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mr-3 shrink-0 relative">
-              <Image src="/logo-dark.jpeg" alt="ZoikoVertex Logo" fill className="object-cover dark:block hidden" />
-              <Image src="/logo.jpeg" alt="ZoikoVertex Logo" fill className="object-cover block dark:hidden" />
+              <Image src="/logo-dark.jpeg" alt="ZoikoVertex Logo" fill sizes="32px" className="object-cover dark:block hidden" />
+              <Image src="/logo.jpeg" alt="ZoikoVertex Logo" fill sizes="32px" className="object-cover block dark:hidden" />
             </div>
             <span className="text-[var(--sidebar-text)] font-bold text-xl tracking-wide">ZoikoVertex</span>
           </div>

@@ -11,6 +11,21 @@ async function getAuthHeader(): Promise<Record<string, string>> {
   return headers;
 }
 
+async function handleResponse(response: Response, endpoint: string, method: string) {
+  if (!response.ok) {
+    if (response.status === 404) {
+      console.warn(`[API] Endpoint not found: ${endpoint}. Check if NEXT_PUBLIC_BACKEND_URL is set correctly.`);
+      return { success: false, error: 'Not Found' };
+    }
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = typeof errorData.error === 'object' 
+      ? errorData.error.message 
+      : (errorData.error || response.statusText);
+    throw new Error(errorMessage || `${method} ${endpoint} failed`);
+  }
+  return response.json();
+}
+
 export const api = {
   async get(endpoint: string) {
     const authHeader = await getAuthHeader();
@@ -26,9 +41,11 @@ export const api = {
         return { success: false, error: 'Not Found' };
       }
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `GET ${endpoint} failed: ${response.statusText}`);
+      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `GET ${endpoint} failed: ${response.statusText}`);
+      throw new Error(errorMessage);
     }
     return response.json();
+    return handleResponse(response, endpoint, 'GET');
   },
 
   async post(endpoint: string, body: any) {
@@ -43,9 +60,23 @@ export const api = {
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `POST ${endpoint} failed: ${response.statusText}`);
+      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `POST ${endpoint} failed: ${response.statusText}`);
+      throw new Error(errorMessage);
     }
     return response.json();
+    return handleResponse(response, endpoint, 'POST');
+  },
+
+  async postMultipart(endpoint: string, formData: FormData) {
+    const authHeader = await getAuthHeader();
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        ...authHeader,
+      },
+      body: formData,
+    });
+    return handleResponse(response, endpoint, 'POST (Multipart)');
   },
 
   async put(endpoint: string, body: any) {
@@ -60,9 +91,11 @@ export const api = {
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `PUT ${endpoint} failed: ${response.statusText}`);
+      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `PUT ${endpoint} failed: ${response.statusText}`);
+      throw new Error(errorMessage);
     }
     return response.json();
+    return handleResponse(response, endpoint, 'PUT');
   },
 
   async delete(endpoint: string) {
@@ -75,8 +108,10 @@ export const api = {
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `DELETE ${endpoint} failed: ${response.statusText}`);
+      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `DELETE ${endpoint} failed: ${response.statusText}`);
+      throw new Error(errorMessage);
     }
     return response.json();
+    return handleResponse(response, endpoint, 'DELETE');
   },
 };

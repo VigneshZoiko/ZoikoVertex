@@ -1,5 +1,7 @@
 import './domains/channels/executionService';
 import express from 'express';
+import multer from 'multer';
+import os from 'os';
 import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env';
@@ -13,6 +15,7 @@ import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } f
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, disconnectAccount } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
+import { listAgents, getAgent, registerAgent, certifyAgent } from './domains/agents/agentController';
 import { SuperAdminController } from './domains/admin/superAdminController';
 import { SupportController } from './domains/admin/supportController';
 import { getUserContext } from './domains/identity/userController';
@@ -20,10 +23,13 @@ import { listAccounts } from './domains/channels/accountsController';
 import { listMembers, listRequests, createRequest, updateRequest } from './domains/identity/teamController';
 import { performQualityCheck } from './domains/governance/qaController';
 import { listExceptions, resolveException } from './domains/governance/exceptionController';
+import { KnowledgeController } from './modules/knowledge/knowledgeController';
 
 import { authenticate, provisionGuard } from './shared/authMiddleware';
 
 import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
+
+const upload = multer({ dest: os.tmpdir() });
 
 const app = express();
 const port = env.PORT;
@@ -96,13 +102,30 @@ app.get('/api/v1/team/requests', authenticate, listRequests);
 app.post('/api/v1/team/requests', authenticate, createRequest);
 app.put('/api/v1/team/requests/:id', authenticate, updateRequest);
 
+// Protected Agent Routes
+app.get('/api/v1/agents', authenticate, listAgents);
+app.get('/api/v1/agents/:id', authenticate, getAgent);
+app.post('/api/v1/agents', authenticate, registerAgent);
+app.post('/api/v1/agents/:id/certify', authenticate, certifyAgent);
+
 // ─── SuperAdmin Routes ───────────────────────────────────────────────────────
+app.get('/api/v1/superadmin/organizations', authenticate, SuperAdminController.listAllOrganizations);
 app.post('/api/v1/superadmin/organizations', authenticate, SuperAdminController.createOrganization);
 app.post('/api/v1/superadmin/organizations/:orgId/approve', authenticate, SuperAdminController.approveOrganization);
-app.get('/api/v1/superadmin/organizations', authenticate, SuperAdminController.listAllOrganizations);
 app.get('/api/v1/superadmin/stats', authenticate, SuperAdminController.getPlatformStats);
 app.get('/api/v1/superadmin/tickets', authenticate, SupportController.listAllTickets);
 app.patch('/api/v1/superadmin/tickets/:id', authenticate, SupportController.updateTicketStatus);
+
+// ─── Knowledge Base Routes ───────────────────────────────────────────────────
+app.get('/api/v1/knowledge/bases', authenticate, KnowledgeController.listBases);
+app.post('/api/v1/knowledge/bases', authenticate, KnowledgeController.createBase);
+app.delete('/api/v1/knowledge/bases/:baseId', authenticate, KnowledgeController.deleteBase);
+app.get('/api/v1/knowledge/bases/:baseId/entries', authenticate, KnowledgeController.listEntries);
+app.post('/api/v1/knowledge/bases/:baseId/entries', authenticate, upload.single('file'), KnowledgeController.createEntry);
+app.delete('/api/v1/knowledge/entries/:entryId', authenticate, KnowledgeController.deleteEntry);
+// AI context endpoint — returns the full knowledge bundle for AI consumption
+// GET /api/v1/knowledge/ai-context?types=BRAND_GUIDELINES,SOP,AI_LIBRARY&limit=20
+app.get('/api/v1/knowledge/ai-context', authenticate, KnowledgeController.getAIContext);
 
 // ─── Support Routes ──────────────────────────────────────────────────────────
 app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket);
