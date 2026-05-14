@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Search, Bell, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import ThemeToggle from "@/components/ThemeToggle";
+import NotificationPanel from "@/components/NotificationPanel";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function Header() {
   const [email, setEmail] = useState<string | null>(null);
@@ -34,33 +36,54 @@ export default function Header() {
     fetchUser();
   }, []);
 
+  // Global Keyboard Shortcut for Search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('global-search')?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
-    <header className="h-16 bg-[var(--header-bg)] border-b border-[var(--border)] flex items-center justify-between px-8 z-10 sticky top-0">
-      {/* Search */}
-      <div className="flex items-center bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-1.5 w-96 transition-colors">
-        <Search className="w-4 h-4 text-[var(--foreground-muted)] mr-2 shrink-0" />
-        <input
-          type="text"
-          placeholder="Search workspace..."
-          className="bg-transparent border-none outline-none text-sm text-[var(--foreground)] w-full placeholder:text-[var(--foreground-muted)]"
-        />
+    <header className="h-16 bg-[var(--header-bg)]/80 backdrop-blur-xl border-b border-[var(--border)] flex items-center justify-between px-8 z-20 sticky top-0 shadow-sm">
+      {/* Left side: Breadcrumbs */}
+      <div className="flex-1 hidden md:block">
+        <Breadcrumbs />
+      </div>
+
+      {/* Center: Search */}
+      <div className="flex-1 flex justify-center">
+        <div className="relative group w-full max-w-md">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="w-4 h-4 text-[var(--foreground-muted)] group-focus-within:text-indigo-400 transition-colors" />
+          </div>
+          <input
+            id="global-search"
+            type="text"
+            placeholder="Search workspace..."
+            className="block w-full pl-10 pr-12 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm group-hover:border-[var(--foreground-muted)]"
+          />
+          <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+            <kbd className="hidden sm:inline-block border border-[var(--border)] rounded bg-[var(--background)] px-1.5 text-[10px] font-mono text-[var(--foreground-muted)] font-bold shadow-sm">
+              ⌘K
+            </kbd>
+          </div>
+        </div>
       </div>
 
       {/* Right-side utilities */}
-      <div className="flex items-center gap-3">
+      <div className="flex-1 flex items-center justify-end gap-3">
 
 
         {/* Theme Toggle */}
         <ThemeToggle />
 
         {/* Notifications */}
-        <button
-          aria-label="Notifications"
-          className="relative text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
-        >
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-0 right-0 w-2 h-2 bg-indigo-500 rounded-full border-2 border-[var(--header-bg)]" />
-        </button>
+        <NotificationPanel />
 
         {/* User profile */}
         <a 

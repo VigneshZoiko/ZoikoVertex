@@ -59,6 +59,7 @@ import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
 import { useRealtimeNotifications } from "@/lib/hooks/useRealtimeNotifications";
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
+import { useNotifications } from "@/lib/context/NotificationContext";
 import DiscardModal from "@/components/DiscardModal";
 import { ROLE_GROUP_MAPPING } from "@/lib/roles";
 
@@ -210,6 +211,10 @@ export default function Sidebar() {
   const [showDiscardModal, setShowDiscardModal] = useState(false);
 
   const [pendingCount, setPendingCount] = useState(0);
+
+  // Notifications global state
+  const { state } = useNotifications();
+  const unreadCount = state?.notifications?.filter(n => !n.read).length || 0;
 
   // Which groups are expanded (default: all open)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
@@ -437,6 +442,13 @@ export default function Sidebar() {
                           {item.badge && pendingCount > 0 && (
                             <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-black text-white shadow-lg shadow-indigo-500/20 animate-in zoom-in duration-300">
                               {pendingCount}
+                            </span>
+                          )}
+
+                          {/* Notifications Unread badge */}
+                          {item.name === "Notifications" && unreadCount > 0 && (
+                            <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-lg shadow-rose-500/20 animate-pulse animate-in zoom-in duration-300">
+                              {unreadCount > 9 ? '9+' : unreadCount}
                             </span>
                           )}
 
