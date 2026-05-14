@@ -26,7 +26,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
       if (member) {
         workspaceId = member.workspace_id;
         role = member.role;
-        // @ts-ignore
+        // @ts-expect-error
         const orgStatus = member.workspaces?.organizations?.status;
         res.json({
           success: true,
