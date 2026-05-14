@@ -17,7 +17,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.105.3",
-    "@types/helmet": "^0.0.48",
+    "@types/helmet": "^4.0.0",
     "@types/multer": "^2.1.0",
     "bullmq": "^5.76.6",
     "cors": "^2.8.6",
