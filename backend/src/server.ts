@@ -15,9 +15,9 @@ import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPos
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import { SuperAdminController } from './modules/superadmin/superAdminController';
 import { SupportController } from './modules/support/supportController';
-import { getUserContext } from './modules/user/userController';
+import { getUserContext } from './domains/identity/userController';
 import { listAccounts } from './modules/social/accountsController';
-import { listMembers, listRequests, createRequest, updateRequest } from './modules/team/teamController';
+import { listMembers, listRequests, createRequest, updateRequest } from './domains/identity/teamController';
 import { performQualityCheck } from './modules/qa/qaController';
 import { listExceptions, resolveException } from './modules/exceptions/exceptionController';
 import { listAgents, getAgent, registerAgent, certifyAgent } from './domains/agents/agentController';

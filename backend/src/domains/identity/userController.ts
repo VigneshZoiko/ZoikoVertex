@@ -18,14 +18,29 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
 
     if (!userData?.is_superadmin) {
       const { data: member } = await supabaseAdmin
-        .from('workspace_members')
-        .select('workspace_id, role')
+        .from('memberships')
+        .select('workspace_id, role:roles(name), workspaces(org_id)')
         .eq('user_id', userId)
+        .limit(1)
         .maybeSingle();
 
       if (member) {
         workspaceId = member.workspace_id;
-        role = member.role;
+        role = (member.role as any)?.name || 'MEMBER';
+        const orgId = (member.workspaces as any)?.org_id;
+
+        res.json({
+          success: true,
+          data: {
+            user_id: userId,
+            full_name: userData?.full_name || null,
+            is_superadmin: false,
+            workspace_id: workspaceId,
+            org_id: orgId,
+            role,
+          },
+        });
+        return;
       }
     }
 
@@ -36,6 +51,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
         full_name: userData?.full_name || null,
         is_superadmin: userData?.is_superadmin || false,
         workspace_id: workspaceId,
+        org_id: null,
         role,
       },
     });
