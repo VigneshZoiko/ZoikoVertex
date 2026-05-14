@@ -167,3 +167,39 @@ export const certifyAgent = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
+/**
+ * Manually update agent autonomy level (Admin/Manager only)
+ */
+export const updateAutonomy = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { autonomy_level } = req.body;
+
+    if (!['L0', 'L1', 'L2', 'L3', 'L4'].includes(autonomy_level)) {
+      return res.status(400).json({ success: false, message: 'Invalid autonomy level' });
+    }
+
+    await logToDatabase('info', AGENT_SERVICE, `Manually updating agent ${id} autonomy to ${autonomy_level}`, { autonomy_level });
+
+    const { data, error } = await supabaseAdmin
+      .from('agents')
+      .update({ 
+        autonomy_level,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(200).json({
+      success: true,
+      message: `Agent autonomy updated to ${autonomy_level}.`,
+      data
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

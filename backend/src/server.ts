@@ -15,7 +15,7 @@ import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } f
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, disconnectAccount } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
-import { listAgents, getAgent, registerAgent, certifyAgent } from './domains/agents/agentController';
+import { listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy } from './domains/agents/agentController';
 import { SuperAdminController } from './domains/admin/superAdminController';
 import { SupportController } from './domains/admin/supportController';
 import { getUserContext } from './domains/identity/userController';
@@ -24,6 +24,7 @@ import { listMembers, listRequests, createRequest, updateRequest } from './domai
 import { performQualityCheck } from './domains/governance/qaController';
 import { listExceptions, resolveException } from './domains/governance/exceptionController';
 import { KnowledgeController } from './modules/knowledge/knowledgeController';
+import { getResourceUsage } from './domains/monitoring/usageController';
 
 import { authenticate, provisionGuard } from './shared/authMiddleware';
 
@@ -107,6 +108,7 @@ app.get('/api/v1/agents', authenticate, listAgents);
 app.get('/api/v1/agents/:id', authenticate, getAgent);
 app.post('/api/v1/agents', authenticate, registerAgent);
 app.post('/api/v1/agents/:id/certify', authenticate, certifyAgent);
+app.patch('/api/v1/agents/:id/autonomy', authenticate, updateAutonomy);
 
 // ─── SuperAdmin Routes ───────────────────────────────────────────────────────
 app.get('/api/v1/superadmin/organizations', authenticate, SuperAdminController.listAllOrganizations);
@@ -126,6 +128,9 @@ app.delete('/api/v1/knowledge/entries/:entryId', authenticate, KnowledgeControll
 // AI context endpoint — returns the full knowledge bundle for AI consumption
 // GET /api/v1/knowledge/ai-context?types=BRAND_GUIDELINES,SOP,AI_LIBRARY&limit=20
 app.get('/api/v1/knowledge/ai-context', authenticate, KnowledgeController.getAIContext);
+
+// ─── Monitoring Routes ───────────────────────────────────────────────────────
+app.get('/api/v1/monitoring/usage', authenticate, getResourceUsage);
 
 // ─── Support Routes ──────────────────────────────────────────────────────────
 app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket);

@@ -114,4 +114,22 @@ export const api = {
     return response.json();
     return handleResponse(response, endpoint, 'DELETE');
   },
+
+  async patch(endpoint: string, body: any) {
+    const authHeader = await getAuthHeader();
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `PATCH ${endpoint} failed: ${response.statusText}`);
+      throw new Error(errorMessage);
+    }
+    return response.json();
+  },
 };
