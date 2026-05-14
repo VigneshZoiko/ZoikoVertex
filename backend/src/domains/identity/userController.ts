@@ -19,13 +19,27 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
     if (!userData?.is_superadmin) {
       const { data: member } = await supabaseAdmin
         .from('workspace_members')
-        .select('workspace_id, role')
+        .select('workspace_id, role, workspaces(org_id, organizations(status))')
         .eq('user_id', userId)
         .maybeSingle();
 
       if (member) {
         workspaceId = member.workspace_id;
         role = member.role;
+        // @ts-expect-error nested join type not inferred by supabase client
+        const orgStatus = member.workspaces?.organizations?.status;
+        res.json({
+          success: true,
+          data: {
+            user_id: userId,
+            full_name: userData?.full_name || null,
+            is_superadmin: false,
+            workspace_id: workspaceId,
+            role,
+            org_status: orgStatus || 'ACTIVE'
+          },
+        });
+        return;
       }
     }
 
@@ -37,6 +51,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
         is_superadmin: userData?.is_superadmin || false,
         workspace_id: workspaceId,
         role,
+        org_status: 'ACTIVE'
       },
     });
   } catch (error) {

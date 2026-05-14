@@ -5,7 +5,7 @@ import { env } from '../config/env';
 import { logger } from '../shared/logger';
 import { supabaseAdmin } from '../shared/supabase';
 import { logToDatabase } from '../shared/databaseLogger';
-import { ExecutionService } from '../modules/social/executionService';
+import { ExecutionService } from '../domains/channels/executionService';
 
 let connection: IORedis | null = null;
 let publishQueue: Queue | null = null;
