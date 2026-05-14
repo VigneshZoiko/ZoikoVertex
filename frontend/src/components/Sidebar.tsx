@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   LayoutDashboard,
   Activity,
@@ -59,6 +60,7 @@ import { api } from "@/lib/api";
 import { useRealtimeNotifications } from "@/lib/hooks/useRealtimeNotifications";
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
 import DiscardModal from "@/components/DiscardModal";
+import { ROLE_GROUP_MAPPING } from "@/lib/roles";
 
 /* ─────────────────────────────────────────────
    Types
@@ -83,6 +85,16 @@ type NavGroup = {
    Navigation structure (Enterprise Layout)
  ───────────────────────────────────────────── */
 const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "platform",
+    label: "Platform Owner",
+    icon: Shield,
+    items: [
+      { name: "Governance Node", href: "/superadmin", icon: Shield, roles: ["SUPERADMIN"] },
+      { name: "Global Analytics", href: "/superadmin/analytics", icon: LineChart, roles: ["SUPERADMIN"] },
+      { name: "Support Queue", href: "/superadmin/tickets", icon: MessageSquare, roles: ["SUPERADMIN"] },
+    ],
+  },
   {
     id: "command",
     label: "Command",
@@ -268,7 +280,7 @@ export default function Sidebar() {
       }
     };
     fetchUserAndRole();
-  }, [fetchPendingCount]);
+  }, [fetchPendingCount, role]);
 
   // Real-time badge sync
   useEffect(() => {
@@ -317,20 +329,44 @@ export default function Sidebar() {
     window.location.href = "/login";
   };
 
+  // Curated list of pages required for the Workspace Owner (Platform Admin)
+  const OWNER_REQUIRED_PAGES = [
+    "/",
+    "/superadmin",
+    "/superadmin/analytics",
+    "/superadmin/tickets",
+    "/admin/status",
+    "/support"
+  ];
+
   // Filter items based on role
   const visibleGroups = NAV_GROUPS.map(group => ({
     ...group,
     items: group.items.filter(item => {
-      // 1. SuperAdmins see everything
-      if (isSuperAdmin) return true;
+      // 1. Workspace Owners (Superadmins) see only curated control plane items
+      if (isSuperAdmin) {
+        return OWNER_REQUIRED_PAGES.includes(item.href) || item.roles.includes("SUPERADMIN");
+      }
       
-      // 2. Fallback: If role hasn't loaded yet, show basic items to anyone authenticated
-      if (!role && roleLoaded) {
+      // 2. Fallback: If role hasn't loaded yet, show basic items
+      if (!role && !roleLoaded) {
         return item.roles.includes("CREATOR") || item.roles.includes("MANAGER");
       }
 
-      // 3. Normal role-based filtering
-      return role && item.roles.includes(role.toUpperCase());
+      // 3. Admin Override: Workspace Admins see EVERYTHING for now
+      if (role?.toUpperCase() === "ADMIN") return true;
+
+      // 4. Normal role-based filtering
+      if (!role) return false;
+      const normalizedRole = role.toUpperCase();
+
+      // Explicit access check
+      const hasExplicitAccess = item.roles.includes(normalizedRole);
+      
+      // Group access check
+      const hasGroupAccess = ROLE_GROUP_MAPPING[group.id]?.includes(normalizedRole);
+
+      return hasExplicitAccess || hasGroupAccess;
     }),
   })).filter(group => group.items.length > 0);
 
@@ -348,9 +384,9 @@ export default function Sidebar() {
         {/* Brand */}
         <div className="flex flex-col px-4 pt-5 pb-4 border-b border-[var(--sidebar-border)]">
           <div className="flex items-center">
-            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mr-3 shrink-0">
-              <img src="/logo-dark.jpeg" alt="ZoikoVertex Logo" className="w-full h-full object-cover dark:block hidden" />
-              <img src="/logo.jpeg" alt="ZoikoVertex Logo" className="w-full h-full object-cover block dark:hidden" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mr-3 shrink-0 relative">
+              <Image src="/logo-dark.jpeg" alt="ZoikoVertex Logo" fill className="object-cover dark:block hidden" />
+              <Image src="/logo.jpeg" alt="ZoikoVertex Logo" fill className="object-cover block dark:hidden" />
             </div>
             <span className="text-[var(--sidebar-text)] font-bold text-xl tracking-wide">ZoikoVertex</span>
           </div>

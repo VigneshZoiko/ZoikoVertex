@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   User, Shield, History, Save, Camera,
   Eye, EyeOff, AlertCircle, CheckCircle2, X, Monitor, Smartphone,
@@ -177,7 +178,6 @@ export default function ProfilePage() {
       },
       { timeout: 10000 }
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   /* ── Save profile ──────────────────────────── */
@@ -439,7 +439,7 @@ export default function ProfilePage() {
               <div className="relative group cursor-pointer" onClick={() => fileRef.current?.click()}>
                 <div className="w-16 h-16 rounded-full overflow-hidden bg-[#002b4e] flex items-center justify-center text-white text-2xl font-bold border-2 border-[var(--border)] shadow-inner">
                   {avatarPreview ? (
-                    <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                    <Image src={avatarPreview} alt="Avatar" fill className="object-cover" />
                   ) : (
                     initials
                   )}

@@ -18,8 +18,12 @@ import { SupportController } from './domains/admin/supportController';
 import { getUserContext } from './domains/identity/userController';
 import { listAccounts } from './domains/channels/accountsController';
 import { listMembers, listRequests, createRequest, updateRequest } from './domains/identity/teamController';
+import { performQualityCheck } from './domains/governance/qaController';
+import { listExceptions, resolveException } from './domains/governance/exceptionController';
 
 import { authenticate, provisionGuard } from './shared/authMiddleware';
+
+import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
 
 const app = express();
 const port = env.PORT;
@@ -41,11 +45,15 @@ app.get('/api/v1/health', (req, res) => {
 });
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
+app.post('/api/v1/auth/signup-enterprise', enterpriseSignup);
 app.post('/api/v1/users/provision', provisionGuard, provisionUser);
 
 // Protected Intelligence/AI
 app.post('/api/v1/ai/generate', authenticate, generateContent);
 app.post('/api/v1/ai/analyze-image', authenticate, analyzeImage);
+app.post('/api/v1/qa/check', authenticate, performQualityCheck);
+app.get('/api/v1/governance/exceptions', authenticate, listExceptions);
+app.post('/api/v1/governance/exceptions/resolve', authenticate, resolveException);
 
 // Protected Governance
 app.post('/api/v1/governance/transition', authenticate, transitionStatus);
@@ -90,6 +98,7 @@ app.put('/api/v1/team/requests/:id', authenticate, updateRequest);
 
 // ─── SuperAdmin Routes ───────────────────────────────────────────────────────
 app.post('/api/v1/superadmin/organizations', authenticate, SuperAdminController.createOrganization);
+app.post('/api/v1/superadmin/organizations/:orgId/approve', authenticate, SuperAdminController.approveOrganization);
 app.get('/api/v1/superadmin/organizations', authenticate, SuperAdminController.listAllOrganizations);
 app.get('/api/v1/superadmin/stats', authenticate, SuperAdminController.getPlatformStats);
 app.get('/api/v1/superadmin/tickets', authenticate, SupportController.listAllTickets);

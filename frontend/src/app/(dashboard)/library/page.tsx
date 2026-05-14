@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Search, Filter, Image as ImageIcon, Video as VideoIcon, 
   ExternalLink, Send, Trash2, Loader2, User, Calendar
 } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime } from "@/lib/utils";
@@ -53,7 +54,7 @@ export default function MediaLibraryPage() {
     fetchUserContext();
   }, []);
 
-  const fetchLibrary = async () => {
+  const fetchLibrary = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -65,12 +66,12 @@ export default function MediaLibraryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, filter]);
 
   useEffect(() => {
     const timer = setTimeout(fetchLibrary, 300);
     return () => clearTimeout(timer);
-  }, [search, filter]);
+  }, [search, filter, fetchLibrary]);
 
   const handleUseAsset = (asset: LibraryAsset) => {
     const allUrls = asset.urls?.length ? asset.urls : [asset.url];
@@ -175,7 +176,9 @@ export default function MediaLibraryPage() {
                           </video>
                         </div>
                       ) : (
-                        <img src={primary} alt={asset.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        <div className="relative w-full h-full">
+                          <Image src={primary} alt={asset.title} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                        </div>
                       )}
                       {allUrls.length > 1 && (
                         <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1">

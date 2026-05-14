@@ -141,7 +141,7 @@ export default function PlatformAnalytics() {
         <div className="flex items-start">
           <ShieldCheck className="w-10 h-10 text-indigo-400 mr-6 shrink-0 mt-1" />
           <div>
-            <h3 className="text-xl font-bold text-white mb-2">Privacy & Compliance Protocol</h3>
+            <h3 className="text-xl font-bold text-white mb-2">Privacy &amp; Compliance Protocol</h3>
             <p className="text-zinc-400 leading-relaxed max-w-3xl">
               As a SuperAdmin, you have visibility into global execution metrics to monitor platform scale and resource utilization. 
               In accordance with enterprise data standards, individual content, media files, and private workspace activity 

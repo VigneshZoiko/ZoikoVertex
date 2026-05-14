@@ -81,7 +81,7 @@ export default function CalendarPage() {
       setPosts([]);
     }
     setLoading(false);
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     fetchScheduledPosts();

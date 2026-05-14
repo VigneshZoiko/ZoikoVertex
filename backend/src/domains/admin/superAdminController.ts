@@ -119,6 +119,49 @@ export class SuperAdminController {
   }
 
   /**
+   * Approves a pending organization and its workspaces
+   */
+  static async approveOrganization(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { orgId } = req.params;
+
+      // 1. Verify SuperAdmin
+      const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('is_superadmin')
+        .eq('id', userId)
+        .single();
+
+      if (!user?.is_superadmin) {
+        return res.status(403).json({ error: 'Access denied: SuperAdmin privileges required.' });
+      }
+
+      logger.info(`[SuperAdmin] Approving organization: ${orgId}`);
+
+      // 2. Activate Organization
+      const { error: orgError } = await supabaseAdmin
+        .from('organizations')
+        .update({ status: 'ACTIVE' })
+        .eq('id', orgId);
+
+      if (orgError) throw orgError;
+
+      // 3. Activate associated Workspaces
+      const { error: wsError } = await supabaseAdmin
+        .from('workspaces')
+        .update({ status: 'ACTIVE' })
+        .eq('org_id', orgId);
+
+      if (wsError) throw wsError;
+
+      res.json({ success: true, message: 'Organization and associated workspaces activated.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * List all organizations for platform monitoring
    */
   static async listAllOrganizations(req: AuthRequest, res: Response, next: NextFunction) {

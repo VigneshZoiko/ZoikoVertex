@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, UserPlus, ShieldAlert, Check, X, Shield, RefreshCw } from "lucide-react";
+import { Users, UserPlus, ShieldAlert, Check, X, Shield, RefreshCw, ChevronRight } from "lucide-react";
+import { ROLE_ARCHITECTURE } from "@/lib/roles";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
 
@@ -21,6 +22,7 @@ export default function TeamPage() {
   const [password, setPassword] = useState("");
   const [formLoading, setFormLoading] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [showAdvancedRoles, setShowAdvancedRoles] = useState(false);
 
   const fetchData = async (currentRole: string) => {
     // Fetch Active Members
@@ -178,17 +180,33 @@ export default function TeamPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">Assign Role</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium text-[var(--foreground-muted)]">Assign Role</label>
+                  <button 
+                    type="button"
+                    onClick={() => setShowAdvancedRoles(!showAdvancedRoles)}
+                    className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-wider flex items-center gap-1"
+                  >
+                    {showAdvancedRoles ? "Standard Roles" : "Enterprise Roles"}
+                    <ChevronRight className={`w-2.5 h-2.5 transition-transform ${showAdvancedRoles ? 'rotate-90' : ''}`} />
+                  </button>
+                </div>
                 <select 
                   value={role} onChange={(e) => setRole(e.target.value)}
                   className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm"
                 >
-                  <option value="CREATOR">Creator (Drafts only)</option>
-                  <option value="MANAGER">Manager (Approves posts)</option>
-                  {currentUserRole === 'ADMIN' && <option value="ADMIN">Admin (Full Control)</option>}
+                  {!showAdvancedRoles ? (
+                    <>
+                      <option value="CREATOR">Creator (Drafts only)</option>
+                      <option value="MANAGER">Manager (Approves posts)</option>
+                      {currentUserRole === 'ADMIN' && <option value="ADMIN">Admin (Full Control)</option>}
+                    </>
+                  ) : (
+                    ROLE_ARCHITECTURE.map(r => (
+                      <option key={r.id} value={r.id}>{r.name} ({r.layer})</option>
+                    ))
+                  )}
                 </select>
-              </div>
 
               <div>
                 <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">Temporary Password</label>
