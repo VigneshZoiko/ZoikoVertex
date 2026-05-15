@@ -1355,10 +1355,10 @@ function Footer() {
           {/* Nav cols */}
           {cols.map((col) => (
             <div key={col.heading}>
-              <p className="text-white/50 text-[10px] font-bold tracking-widest uppercase mb-4">{col.heading}</p>
+              <p className="text-white text-[10px] font-black tracking-widest uppercase mb-4">{col.heading}</p>
               <ul className="space-y-2.5">
                 {col.links.map((l) => (
-                  <li key={l}><a href="#" className="text-white/40 text-xs hover:text-white/70 transition-colors">{l}</a></li>
+                  <li key={l}><a href="#" className="text-white/70 text-xs font-medium hover:text-white transition-colors">{l}</a></li>
                 ))}
               </ul>
             </div>
