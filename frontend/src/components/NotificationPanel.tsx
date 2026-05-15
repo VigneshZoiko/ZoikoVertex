@@ -8,7 +8,7 @@ import Link from "next/link";
 type Tab = 'ALL' | 'UNREAD' | 'WORKFLOW';
 
 export default function NotificationPanel() {
-  const { state, dispatch } = useNotifications();
+  const { state, dispatch, markAsRead, markAllRead, clearAll } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('ALL');
 
@@ -76,7 +76,7 @@ export default function NotificationPanel() {
                 <h3 className="text-base font-bold text-[var(--foreground)] tracking-tight">Notifications</h3>
                 <div className="flex gap-3 items-center">
                   <button 
-                    onClick={() => dispatch({ type: 'MARK_ALL_READ' })}
+                    onClick={markAllRead}
                     className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
                     disabled={unreadCount === 0}
                   >
@@ -84,7 +84,7 @@ export default function NotificationPanel() {
                   </button>
                   <div className="w-px h-3 bg-[var(--border)]" />
                   <button 
-                    onClick={() => dispatch({ type: 'CLEAR_ALL' })}
+                    onClick={clearAll}
                     className="text-[10px] text-rose-400 hover:text-rose-300 font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
                     disabled={state.notifications.length === 0}
                   >
@@ -130,7 +130,7 @@ export default function NotificationPanel() {
                     key={notif.id} 
                     style={{ animationDelay: `${index * 30}ms` }}
                     className={`px-5 py-4 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]/60 transition-all relative group animate-in slide-in-from-right-4 duration-300 fill-mode-both ${!notif.read ? 'bg-indigo-500/[0.02]' : ''}`}
-                    onClick={() => !notif.read && dispatch({ type: 'MARK_READ', payload: notif.id })}
+                    onClick={() => !notif.read && markAsRead(notif.id)}
                   >
                     <div className="flex gap-4">
                       {/* Priority Indicator & Icon */}

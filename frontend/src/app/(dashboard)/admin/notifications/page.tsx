@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 export default function NotificationsPage() {
-  const { state, dispatch } = useNotifications();
+  const { state, dispatch, markAsRead, markAllRead, clearAll } = useNotifications();
   const [filter, setFilter] = useState<'ALL' | 'UNREAD'>('ALL');
 
   const notifications = filter === 'UNREAD' 
@@ -43,7 +43,7 @@ export default function NotificationsPage() {
         
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => dispatch({ type: 'MARK_ALL_READ' })}
+            onClick={markAllRead}
             disabled={state.notifications.filter(n => !n.read).length === 0}
             className="flex items-center px-4 py-2 text-sm font-semibold rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors disabled:opacity-50"
           >
@@ -51,7 +51,7 @@ export default function NotificationsPage() {
             Mark all read
           </button>
           <button 
-            onClick={() => dispatch({ type: 'CLEAR_ALL' })}
+            onClick={clearAll}
             disabled={state.notifications.length === 0}
             className="flex items-center px-4 py-2 text-sm font-semibold rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors disabled:opacity-50"
           >
@@ -159,7 +159,7 @@ export default function NotificationsPage() {
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         {!notif.read && (
                           <button
-                            onClick={() => dispatch({ type: 'MARK_READ', payload: notif.id })}
+                            onClick={() => markAsRead(notif.id)}
                             className="p-2 rounded-lg text-indigo-400 hover:bg-indigo-500/10 transition-colors tooltip-trigger"
                             title="Mark as read"
                           >

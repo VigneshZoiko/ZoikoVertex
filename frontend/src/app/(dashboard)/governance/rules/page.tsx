@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   ShieldCheck, Globe, Zap, Filter, Plus, 
   ChevronRight, Users, Scale, Layout, 
@@ -8,8 +8,9 @@ import {
   Settings2, MoreVertical, Edit2, Trash2,
   Activity, Fingerprint, Database, Cpu,
   Eye, Terminal, Code2, Network,
-  BarChart3, Target, Sparkles
+  BarChart3, Target, Sparkles, Loader2
 } from "lucide-react";
+import { api } from "@/lib/api";
 
 interface ApprovalRule {
   id: string;
@@ -29,44 +30,32 @@ interface ApprovalRule {
 }
 
 export default function GovernanceRulesPage() {
-  const [rules, setRules] = useState<ApprovalRule[]>([
-    {
-      id: 'r1',
-      name: 'EU High-Risk Financial Protocol',
-      dimensions: { region: 'EU', risk: 'HIGH', type: 'Financial' },
-      path: ['MANAGER', 'COMPLIANCE', 'LEGAL', 'ADMIN'],
-      status: 'active',
-      hits: 1242,
-      latency: '1.4h'
-    },
-    {
-      id: 'r2',
-      name: 'Global Instagram Creative Flow',
-      dimensions: { platform: 'Instagram', brand: 'Main' },
-      path: ['CREATIVE_DIR', 'MANAGER'],
-      status: 'active',
-      hits: 8560,
-      latency: '0.8h'
-    },
-    {
-      id: 'r3',
-      name: 'Standard Twitter Operations',
-      dimensions: { platform: 'X (Twitter)', risk: 'LOW' },
-      path: ['MANAGER'],
-      status: 'active',
-      hits: 15201,
-      latency: '0.2h'
-    },
-    {
-      id: 'r4',
-      name: 'APAC Market Entry Campaign',
-      dimensions: { region: 'APAC', market: 'Emerging' },
-      path: ['REGION_HEAD', 'MANAGER', 'ADMIN'],
-      status: 'active',
-      hits: 412,
-      latency: '2.5h'
+  const [rules, setRules] = useState<ApprovalRule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const fetchRules = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await api.get('/api/v1/governance/rules');
+      if (result.success) {
+        setRules(result.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch rules:", err);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  }, []);
+
+  useEffect(() => {
+    fetchRules();
+  }, [fetchRules]);
+
+  const filteredRules = rules.filter(rule => 
+    rule.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    Object.values(rule.dimensions).some(v => v?.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-12 pb-32 bg-black min-h-screen">
@@ -153,97 +142,112 @@ export default function GovernanceRulesPage() {
               <input 
                 type="text" 
                 placeholder="Search logic..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-[10px] text-slate-400 focus:outline-none focus:border-indigo-500 transition-all w-64 uppercase tracking-widest"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-6">
-            {rules.map((rule) => (
-              <div key={rule.id} className="bg-slate-950 border border-slate-900 rounded-[3rem] p-10 hover:border-indigo-500/30 transition-all group relative overflow-hidden shadow-2xl">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600/0 group-hover:bg-indigo-600 transition-all" />
-                
-                <div className="flex flex-col gap-10">
-                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)] animate-pulse" />
-                        <h3 className="text-2xl font-black text-white tracking-tighter group-hover:text-indigo-400 transition-colors italic">{rule.name}</h3>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-24 bg-slate-900/10 border border-slate-800 border-dashed rounded-[3rem]">
+                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-4" />
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Accessing Logic Core...</span>
+              </div>
+            ) : filteredRules.length === 0 ? (
+              <div className="py-24 text-center bg-slate-900/10 border border-slate-800 border-dashed rounded-[3rem]">
+                 <Activity className="w-16 h-16 mx-auto mb-6 text-slate-800" />
+                 <h3 className="text-2xl font-black text-slate-500 uppercase tracking-tighter italic">No Protocols Found</h3>
+                 <p className="text-xs text-slate-700 mt-2 font-bold uppercase tracking-widest">Zero matches for your current logic parameters.</p>
+              </div>
+            ) : (
+              filteredRules.map((rule) => (
+                <div key={rule.id} className="bg-slate-950 border border-slate-900 rounded-[3rem] p-10 hover:border-indigo-500/30 transition-all group relative overflow-hidden shadow-2xl">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600/0 group-hover:bg-indigo-600 transition-all" />
+                  
+                  <div className="flex flex-col gap-10">
+                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)] animate-pulse" />
+                          <h3 className="text-2xl font-black text-white tracking-tighter group-hover:text-indigo-400 transition-colors italic">{rule.name}</h3>
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {Object.entries(rule.dimensions).map(([key, val]) => (
+                            <div key={key} className="flex items-center bg-slate-900/60 border border-slate-800/60 rounded-xl px-4 py-2 gap-2 group-hover:border-slate-700 transition-all">
+                               <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{key}:</span>
+                               <span className="text-[10px] font-black text-slate-200 uppercase tracking-widest">{val}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        {Object.entries(rule.dimensions).map(([key, val]) => (
-                          <div key={key} className="flex items-center bg-slate-900/60 border border-slate-800/60 rounded-xl px-4 py-2 gap-2 group-hover:border-slate-700 transition-all">
-                             <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">{key}:</span>
-                             <span className="text-[10px] font-black text-slate-200 uppercase tracking-widest">{val}</span>
+                      
+                      <div className="flex items-center gap-6 shrink-0 bg-slate-900/30 p-4 rounded-3xl border border-slate-800/60">
+                         <div className="text-center">
+                            <div className="text-xs font-black text-white">{rule.hits.toLocaleString()}</div>
+                            <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Total Hits</div>
+                         </div>
+                         <div className="w-px h-8 bg-slate-800" />
+                         <div className="text-center">
+                            <div className="text-xs font-black text-indigo-400">{rule.latency}</div>
+                            <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Avg Latency</div>
+                         </div>
+                      </div>
+                    </div>
+
+                    {/* High-Fidelity Path Visualization */}
+                    <div className="bg-black/40 rounded-[2.5rem] border border-slate-900/60 p-8 overflow-x-auto no-scrollbar shadow-inner">
+                      <div className="flex items-center gap-6">
+                        {rule.path.map((step, idx) => (
+                          <div key={idx} className="flex items-center gap-6 shrink-0">
+                            <div className="relative group/step">
+                              <div className={`
+                                absolute -inset-2 rounded-3xl blur opacity-0 group-hover/step:opacity-20 transition-all
+                                ${idx === 0 ? 'bg-indigo-500' : 'bg-slate-500'}
+                              `} />
+                              <div className={`
+                                relative w-16 h-16 rounded-[1.5rem] flex flex-col items-center justify-center gap-1.5 transition-all border
+                                ${idx === 0 ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500 group-hover:border-indigo-500/30'}
+                              `}>
+                                <Users className="w-6 h-6" />
+                                <span className="text-[8px] font-black uppercase tracking-tighter text-center leading-none px-1">
+                                  {step.replace('_', ' ')}
+                                </span>
+                              </div>
+                              {idx === 0 && (
+                                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-4 border-black" />
+                              )}
+                            </div>
+                            {idx < rule.path.length - 1 && (
+                              <div className="flex flex-col items-center gap-1">
+                                 <ChevronRight className="w-5 h-5 text-slate-800 group-hover:text-indigo-500/50 transition-colors" />
+                                 <div className="w-8 h-px bg-slate-900" />
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-6 shrink-0 bg-slate-900/30 p-4 rounded-3xl border border-slate-800/60">
-                       <div className="text-center">
-                          <div className="text-xs font-black text-white">{rule.hits.toLocaleString()}</div>
-                          <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Total Hits</div>
-                       </div>
-                       <div className="w-px h-8 bg-slate-800" />
-                       <div className="text-center">
-                          <div className="text-xs font-black text-indigo-400">{rule.latency}</div>
-                          <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Avg Latency</div>
-                       </div>
-                    </div>
-                  </div>
 
-                  {/* High-Fidelity Path Visualization */}
-                  <div className="bg-black/40 rounded-[2.5rem] border border-slate-900/60 p-8 overflow-x-auto no-scrollbar shadow-inner">
-                    <div className="flex items-center gap-6">
-                      {rule.path.map((step, idx) => (
-                        <div key={idx} className="flex items-center gap-6 shrink-0">
-                          <div className="relative group/step">
-                            <div className={`
-                              absolute -inset-2 rounded-3xl blur opacity-0 group-hover/step:opacity-20 transition-all
-                              ${idx === 0 ? 'bg-indigo-500' : 'bg-slate-500'}
-                            `} />
-                            <div className={`
-                              relative w-16 h-16 rounded-[1.5rem] flex flex-col items-center justify-center gap-1.5 transition-all border
-                              ${idx === 0 ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-500 group-hover:border-indigo-500/30'}
-                            `}>
-                              <Users className="w-6 h-6" />
-                              <span className="text-[8px] font-black uppercase tracking-tighter text-center leading-none">
-                                {step.replace('_', ' ')}
-                              </span>
-                            </div>
-                            {idx === 0 && (
-                               <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-4 border-black" />
-                            )}
-                          </div>
-                          {idx < rule.path.length - 1 && (
-                            <div className="flex flex-col items-center gap-1">
-                               <ChevronRight className="w-5 h-5 text-slate-800 group-hover:text-indigo-500/50 transition-colors" />
-                               <div className="w-8 h-px bg-slate-900" />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-4">
-                    <div className="flex items-center gap-2">
-                       <Terminal className="w-3.5 h-3.5 text-slate-600" />
-                       <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">Logic ID: {rule.id.toUpperCase()}0X42</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 border border-slate-800 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white hover:border-indigo-500/30 transition-all">
-                        <Edit2 className="w-3.5 h-3.5" /> Modify Logic
-                      </button>
-                      <button className="p-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-600 hover:text-rose-400 transition-all">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                    <div className="flex items-center justify-between pt-4">
+                      <div className="flex items-center gap-2">
+                         <Terminal className="w-3.5 h-3.5 text-slate-600" />
+                         <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">Logic ID: {rule.id.toUpperCase()}0X42</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 border border-slate-800 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white hover:border-indigo-500/30 transition-all">
+                          <Edit2 className="w-3.5 h-3.5" /> Modify Logic
+                        </button>
+                        <button className="p-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-600 hover:text-rose-400 transition-all">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -284,7 +288,7 @@ export default function GovernanceRulesPage() {
                       <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest mt-1">Rule Conflicts</div>
                    </div>
                    <div className="p-4 bg-slate-900/60 border border-slate-800/60 rounded-2xl text-center">
-                      <div className="text-2xl font-black text-indigo-400 tracking-tighter">4</div>
+                      <div className="text-2xl font-black text-indigo-400 tracking-tighter">{rules.length}</div>
                       <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest mt-1">Active Clusters</div>
                    </div>
                 </div>
@@ -353,4 +357,3 @@ export default function GovernanceRulesPage() {
     </div>
   );
 }
-

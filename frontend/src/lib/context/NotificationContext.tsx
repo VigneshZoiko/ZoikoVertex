@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 
 export type NotificationCategory = 'SYSTEM' | 'WORKFLOW' | 'SECURITY' | 'SOCIAL';
 export type NotificationPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
@@ -27,23 +28,33 @@ export interface Notification {
 
 interface NotificationState {
   notifications: Notification[];
+  loading: boolean;
 }
 
 type NotificationEvent =
+  | { type: 'SET_NOTIFICATIONS'; payload: Notification[] }
   | { type: 'ADD'; payload: Notification }
   | { type: 'REMOVE'; payload: string }
   | { type: 'MARK_READ'; payload: string }
   | { type: 'MARK_ALL_READ' }
-  | { type: 'CLEAR_ALL' };
+  | { type: 'CLEAR_ALL' }
+  | { type: 'SET_LOADING'; payload: boolean };
 
 const NotificationContext = createContext<{
   state: NotificationState;
   dispatch: React.Dispatch<NotificationEvent>;
   addNotification: (notif: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
+  markAsRead: (id: string) => Promise<void>;
+  markAllRead: () => Promise<void>;
+  clearAll: () => Promise<void>;
 } | undefined>(undefined);
 
 function notificationReducer(state: NotificationState, action: NotificationEvent): NotificationState {
   switch (action.type) {
+    case 'SET_NOTIFICATIONS':
+      return { ...state, notifications: action.payload, loading: false };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
     case 'ADD':
       return { ...state, notifications: [action.payload, ...state.notifications].slice(0, 50) };
     case 'REMOVE':
@@ -68,7 +79,30 @@ function notificationReducer(state: NotificationState, action: NotificationEvent
 }
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(notificationReducer, { notifications: [] });
+  const [state, dispatch] = useReducer(notificationReducer, { notifications: [], loading: true });
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const response = await api.get('/api/v1/notifications');
+      if (response.success) {
+        const formatted = response.data.map((n: any) => ({
+          ...n,
+          timestamp: new Date(n.created_at || n.timestamp),
+          // Ensure category and priority are correctly typed
+          category: n.category || 'SYSTEM',
+          priority: n.priority || 'MEDIUM',
+        }));
+        dispatch({ type: 'SET_NOTIFICATIONS', payload: formatted });
+      }
+    } catch (err) {
+      console.warn("Failed to fetch notifications:", err);
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const addNotification = useCallback((notif: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
     const newNotif: Notification = {
@@ -78,6 +112,33 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       read: false,
     };
     dispatch({ type: 'ADD', payload: newNotif });
+  }, []);
+
+  const markAsRead = useCallback(async (id: string) => {
+    dispatch({ type: 'MARK_READ', payload: id });
+    try {
+      await api.patch(`/api/v1/notifications/${id}/read`, {});
+    } catch (err) {
+      console.warn("Failed to mark notification as read in backend:", err);
+    }
+  }, []);
+
+  const markAllRead = useCallback(async () => {
+    dispatch({ type: 'MARK_ALL_READ' });
+    try {
+      await api.post('/api/v1/notifications/mark-all-read', {});
+    } catch (err) {
+      console.warn("Failed to mark all notifications as read in backend:", err);
+    }
+  }, []);
+
+  const clearAll = useCallback(async () => {
+    dispatch({ type: 'CLEAR_ALL' });
+    try {
+      await api.delete('/api/v1/notifications');
+    } catch (err) {
+      console.warn("Failed to clear notifications in backend:", err);
+    }
   }, []);
 
   // Sync with Supabase Realtime (centralized)
@@ -113,7 +174,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [addNotification]);
 
   return (
-    <NotificationContext.Provider value={{ state, dispatch, addNotification }}>
+    <NotificationContext.Provider value={{ state, dispatch, addNotification, markAsRead, markAllRead, clearAll }}>
       {children}
     </NotificationContext.Provider>
   );
