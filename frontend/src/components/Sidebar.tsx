@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import {
   LayoutDashboard,
@@ -194,6 +195,15 @@ const NAV_GROUPS: NavGroup[] = [
 
 const allNavItems = NAV_GROUPS.flatMap(g => g.items);
 
+const OWNER_REQUIRED_PAGES = [
+  "/",
+  "/superadmin",
+  "/superadmin/analytics",
+  "/superadmin/tickets",
+  "/admin/status",
+  "/support"
+];
+
 /* ─────────────────────────────────────────────
    Component
 ───────────────────────────────────────────── */
@@ -334,46 +344,23 @@ export default function Sidebar() {
     window.location.href = "/login";
   };
 
-  // Curated list of pages required for the Workspace Owner (Platform Admin)
-  const OWNER_REQUIRED_PAGES = [
-    "/",
-    "/superadmin",
-    "/superadmin/analytics",
-    "/superadmin/tickets",
-    "/admin/status",
-    "/support"
-  ];
-
-  // Filter items based on role
-  const visibleGroups = NAV_GROUPS.map(group => ({
+  const visibleGroups = useMemo(() => NAV_GROUPS.map(group => ({
     ...group,
     items: group.items.filter(item => {
-      // 1. Workspace Owners (Superadmins) see only curated control plane items
       if (isSuperAdmin) {
         return OWNER_REQUIRED_PAGES.includes(item.href) || item.roles.includes("SUPERADMIN");
       }
-      
-      // 2. Fallback: If role hasn't loaded yet, show basic items
       if (!role && !roleLoaded) {
         return item.roles.includes("CREATOR") || item.roles.includes("MANAGER");
       }
-
-      // 3. Admin Override: Workspace Admins see EVERYTHING for now
       if (role?.toUpperCase() === "ADMIN") return true;
-
-      // 4. Normal role-based filtering
       if (!role) return false;
       const normalizedRole = role.toUpperCase();
-
-      // Explicit access check
       const hasExplicitAccess = item.roles.includes(normalizedRole);
-      
-      // Group access check
       const hasGroupAccess = ROLE_GROUP_MAPPING[group.id]?.includes(normalizedRole);
-
       return hasExplicitAccess || hasGroupAccess;
     }),
-  })).filter(group => group.items.length > 0);
+  })).filter(group => group.items.length > 0), [isSuperAdmin, role, roleLoaded]);
 
   return (
     <>
@@ -425,7 +412,7 @@ export default function Sidebar() {
                       const Icon = item.icon;
                       const isActive = pathname === item.href;
                       return (
-                        <a
+                        <Link
                           key={item.name}
                           href={item.href}
                           onClick={(e) => handleNavClick(e, item.href)}
@@ -456,7 +443,7 @@ export default function Sidebar() {
                           {item.dirty && isDirty && (
                             <span className="ml-auto w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-lg shadow-amber-400/20" title="Unsaved draft" />
                           )}
-                        </a>
+                        </Link>
                       );
                     })}
                   </nav>
@@ -470,14 +457,14 @@ export default function Sidebar() {
         <div className="px-4 pb-6 pt-4 border-t border-[var(--sidebar-border)] bg-[var(--sidebar-bg)]">
           <div className="flex items-center gap-3">
             {/* Round Settings Button */}
-            <a
+            <Link
               href="/profile"
               onClick={(e) => handleNavClick(e, "/profile")}
               className="w-10 h-10 flex items-center justify-center bg-[var(--surface)] text-[var(--sidebar-text-muted)] hover:text-indigo-400 hover:bg-[var(--sidebar-hover)] border border-[var(--sidebar-border)] rounded-full transition-all shadow-sm group shrink-0"
               title="Settings & Profile"
             >
               <Settings className="w-5 h-5 transition-transform duration-500 group-hover:rotate-90" />
-            </a>
+            </Link>
             
             {/* Logout Button */}
             <button
@@ -494,3 +481,4 @@ export default function Sidebar() {
     </>
   );
 }
+

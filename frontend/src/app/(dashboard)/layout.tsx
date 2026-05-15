@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import WelcomeOverlay from "@/components/WelcomeOverlay";
@@ -14,31 +15,67 @@ export default function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
   const [orgStatus, setOrgStatus] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     const checkStatus = async () => {
       try {
         const result = await api.get('/api/v1/user/context');
-        if (result.success) {
+        if (isMounted && result.success) {
           setOrgStatus(result.data.org_status);
           setIsSuperAdmin(result.data.is_superadmin);
         }
       } catch (err) {
-        console.error("Failed to check org status", err);
+        if (isMounted) console.error("Failed to check org status", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     checkStatus();
+    return () => { isMounted = false; };
   }, []);
 
   if (loading) {
     return (
-      <div className="h-screen bg-[#111111] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+      <div className="h-screen bg-[var(--background,#111111)] flex overflow-hidden">
+        {/* Sidebar skeleton */}
+        <div className="w-64 shrink-0 bg-[var(--sidebar-bg,#1a1a1a)] border-r border-[var(--sidebar-border,#2a2a2a)] flex flex-col">
+          <div className="px-4 pt-5 pb-4 border-b border-[var(--sidebar-border,#2a2a2a)]">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[var(--sidebar-hover,#222)] animate-pulse" />
+              <div className="h-5 w-28 rounded bg-[var(--sidebar-hover,#222)] animate-pulse" />
+            </div>
+          </div>
+          <div className="flex-1 py-4 px-3 space-y-2">
+            {[80, 60, 72, 64, 56, 68].map((w, i) => (
+              <div key={i} className="h-9 rounded-lg bg-[var(--sidebar-hover,#222)] animate-pulse" style={{ width: `${w}%`, animationDelay: `${i * 60}ms` }} />
+            ))}
+          </div>
+        </div>
+        {/* Main area skeleton */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="h-16 border-b border-[var(--border,#2a2a2a)] bg-[var(--header-bg,#111)] px-8 flex items-center justify-between shrink-0">
+            <div className="h-8 w-80 rounded-lg bg-[var(--surface,#1a1a1a)] animate-pulse" />
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[var(--surface,#1a1a1a)] animate-pulse" />
+              <div className="w-8 h-8 rounded-full bg-[var(--surface,#1a1a1a)] animate-pulse" />
+              <div className="h-8 w-32 rounded-lg bg-[var(--surface,#1a1a1a)] animate-pulse" />
+            </div>
+          </div>
+          <div className="flex-1 p-8 space-y-4">
+            <div className="h-8 w-48 rounded-lg bg-[var(--surface,#1a1a1a)] animate-pulse" />
+            <div className="grid grid-cols-4 gap-4">
+              {[1,2,3,4].map(i => (
+                <div key={i} className="h-28 rounded-2xl bg-[var(--surface,#1a1a1a)] animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
+              ))}
+            </div>
+            <div className="h-64 rounded-2xl bg-[var(--surface,#1a1a1a)] animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -57,7 +94,9 @@ export default function DashboardLayout({
           <div className="flex-1 flex flex-col min-w-0 h-screen">
             <Header />
             <main className="flex-1 overflow-y-auto p-8 bg-[var(--background)] transition-colors">
-              {children}
+              <div key={pathname} className="page-enter">
+                {children}
+              </div>
             </main>
           </div>
         </div>

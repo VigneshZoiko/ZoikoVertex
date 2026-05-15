@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Search, Bell, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -86,7 +87,7 @@ export default function Header() {
         <NotificationPanel />
 
         {/* User profile */}
-        <a 
+        <Link
           href="/profile"
           className="flex items-center pl-4 border-l border-[var(--border)] hover:opacity-80 transition-opacity group"
         >
@@ -99,8 +100,9 @@ export default function Header() {
               {fullName ? fullName.split(' ').map(n => n[0]).join('') : "U"}
             </div>
           </div>
-        </a>
+        </Link>
       </div>
     </header>
   );
 }
+

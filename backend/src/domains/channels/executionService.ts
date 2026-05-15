@@ -100,11 +100,49 @@ export class ExecutionService {
         return await this.postToPinterest(intent, account);
       } else if (account.platform === 'threads') {
         return await this.postToThreads(intent, account);
+      } else if (account.platform === 'twitter') {
+        return await this.postToTwitter(intent, account);
       }
       return { success: false, platform: account.platform, error: `Unsupported platform: ${account.platform}` };
     } catch (err: any) {
       logger.error({ err }, `[Execution] Error publishing to ${account.platform}`);
       return { success: false, platform: account.platform, error: err.message || 'Unknown error' };
+    }
+  }
+
+  private static async postToTwitter(intent: any, account: any): Promise<PublishResult> {
+    logger.info(`[Execution] Sending tweet for ${account.account_handle}...`);
+    try {
+      const url = 'https://api.twitter.com/2/tweets';
+      
+      const body: any = {
+        text: intent.content
+      };
+
+      if (intent.media_url) {
+        logger.warn(`[Execution] Twitter media upload requires v1.1 API integration. Sending tweet as text/link. URL: ${intent.media_url}`);
+        // Can optionally append media_url to the text if desired, but we'll leave it out or handle it natively later.
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${account.access_token}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      const data = await response.json();
+      logger.info({ httpStatus: response.status, body: data }, '[Execution] Twitter API response');
+      if (!response.ok || data.errors) {
+        throw new Error(JSON.stringify(data.errors || data.detail || data.title || 'Twitter API Error'));
+      }
+
+      return { success: true, platform: 'twitter', id: data.data?.id };
+    } catch (err: any) {
+      logger.error({ err }, `[Execution] Twitter Error`);
+      return { success: false, platform: 'twitter', error: err.message };
     }
   }
 
