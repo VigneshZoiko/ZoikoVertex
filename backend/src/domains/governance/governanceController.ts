@@ -11,9 +11,12 @@ import { ApprovalEngine } from '../decisions/approvalEngine';
 
 const SubmitIntentSchema = z.object({
   content: z.object({
-    universal: z.string().min(1),
+    universal: z.string().default(''),
     platforms: z.record(z.string(), z.string()).optional(),
-  }),
+  }).refine(
+    (c) => c.universal.trim().length > 0 || Object.values(c.platforms || {}).some(v => v.trim().length > 0),
+    { message: 'At least one caption (universal or platform-specific) is required' }
+  ),
   mediaUrls: z.array(z.string()).optional(),
   mediaUrl: z.string().optional(),
   targetAccountIds: z.array(z.string().uuid()).min(1, 'At least one target account required'),

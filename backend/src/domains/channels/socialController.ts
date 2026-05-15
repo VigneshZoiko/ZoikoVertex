@@ -443,6 +443,70 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
 };
 
 /**
+ * Threads deauthorize callback — called when a user removes the app from their Threads account
+ */
+export const handleThreadsDeauthorize = async (req: Request, res: Response) => {
+  const signedRequest = req.body?.signed_request;
+  logger.info({ signedRequest }, '[Social] Threads deauthorize callback received');
+
+  try {
+    if (signedRequest) {
+      const payload = signedRequest.split('.')[1];
+      const decoded = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
+      const userId = decoded?.user_id;
+
+      if (userId) {
+        await supabaseAdmin
+          .from('connected_accounts')
+          .delete()
+          .eq('platform', 'threads')
+          .eq('account_handle', userId);
+        logger.info(`[Social] Threads account deauthorized for user ${userId}`);
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, '[Social] Could not parse Threads deauthorize signed_request');
+  }
+
+  res.status(200).json({ success: true });
+};
+
+/**
+ * Threads data deletion callback — called when a user requests their data be deleted
+ */
+export const handleThreadsDataDeletion = async (req: Request, res: Response) => {
+  const signedRequest = req.body?.signed_request;
+  logger.info({ signedRequest }, '[Social] Threads data deletion request received');
+
+  let confirmationCode = `threads_del_${Date.now()}`;
+
+  try {
+    if (signedRequest) {
+      const payload = signedRequest.split('.')[1];
+      const decoded = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
+      const userId = decoded?.user_id;
+
+      if (userId) {
+        await supabaseAdmin
+          .from('connected_accounts')
+          .delete()
+          .eq('platform', 'threads')
+          .eq('account_handle', userId);
+        confirmationCode = `threads_del_${userId}_${Date.now()}`;
+        logger.info(`[Social] Threads data deleted for user ${userId}`);
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, '[Social] Could not parse Threads data deletion signed_request');
+  }
+
+  res.status(200).json({
+    url: `https://hacker-despise-ipad.ngrok-free.dev/api/auth/threads/deletion-status?code=${confirmationCode}`,
+    confirmation_code: confirmationCode,
+  });
+};
+
+/**
  * Disconnects a social account
  */
 export const disconnectAccount = async (req: any, res: Response, next: NextFunction) => {

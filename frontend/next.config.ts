@@ -38,21 +38,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Apply no-cache to all HTML pages — never serve stale page shells from CDN or browser
         source: "/((?!_next/static|_next/image|favicon.ico).*)",
         headers: [
-          {
-            key: "Cache-Control",
-            value: "no-cache, no-store, must-revalidate",
-          },
-          {
-            key: "Pragma",
-            value: "no-cache",
-          },
-          {
-            key: "Expires",
-            value: "0",
-          },
+          { key: "Cache-Control",       value: "no-cache, no-store, must-revalidate" },
+          { key: "Pragma",              value: "no-cache" },
+          { key: "Expires",             value: "0" },
+          { key: "CDN-Cache-Control",   value: "no-store" },
+          { key: "Vercel-CDN-Cache-Control", value: "no-store" },
         ],
       },
     ];

@@ -266,9 +266,9 @@ export default function AccountsPage() {
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/threads/callback`);
         const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
-        window.location.assign(`https://www.threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=threads_basic,threads_content_publish&state=${state}&response_type=code`);
+        window.location.assign(`https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=threads_basic,threads_content_publish&state=${state}&response_type=code`);
       } else if (platformId === "twitter") {
-        const clientId = process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "ZGtmZHMxdUJWU3BUMS15VXpjVXk6MTpjaQ";
+        const clientId = process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "ZGtmZHMxdUJWU3BMUS15VXpjVXk6MTpjaQ";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/twitter/callback`);
         const codeChallenge = "zoikovertex_twitter_oauth2_pkce_plain_challenge_string";
         const state = encodeURIComponent(member.workspace_id);
