@@ -1,9 +1,8 @@
-import './domains/channels/executionService';
 import express from 'express';
-import multer from 'multer';
-import os from 'os';
 import cors from 'cors';
 import helmet from 'helmet';
+import multer from 'multer';
+import os from 'os';
 import { env } from './config/env';
 import { logger } from './shared/logger';
 import { errorHandler } from './shared/errorHandler';
@@ -25,13 +24,23 @@ import { performQualityCheck } from './domains/governance/qaController';
 import { listExceptions, resolveException } from './domains/governance/exceptionController';
 import { KnowledgeController } from './modules/knowledge/knowledgeController';
 import { getResourceUsage } from './domains/monitoring/usageController';
-
-import { authenticate, provisionGuard } from './shared/authMiddleware';
-
 import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
 
-const upload = multer({ dest: os.tmpdir() });
+// New features from Naresh
+import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
+import { listRules, createRule } from './domains/governance/ruleController';
+import { listWorkflows, getActiveOrchestrations, getWorkflowGraph, getWorkflowStats, getEscalationPaths } from './domains/agents/workflowController';
+import {
+  getPerformanceSummary,
+  getPerformanceTrends,
+  getHallucinationFlags,
+  getAgentLeaderboard
+} from './domains/monitoring/modelPerformanceController';
 
+import { authenticate, provisionGuard } from './shared/authMiddleware';
+import { registerExecutionListeners } from './domains/channels/executionService';
+
+const upload = multer({ dest: os.tmpdir() });
 const app = express();
 const port = env.PORT;
 
@@ -61,6 +70,8 @@ app.post('/api/v1/ai/analyze-image', authenticate, analyzeImage);
 app.post('/api/v1/qa/check', authenticate, performQualityCheck);
 app.get('/api/v1/governance/exceptions', authenticate, listExceptions);
 app.post('/api/v1/governance/exceptions/resolve', authenticate, resolveException);
+app.get('/api/v1/governance/rules', authenticate, listRules);
+app.post('/api/v1/governance/rules', authenticate, createRule);
 
 // Protected Governance
 app.post('/api/v1/governance/transition', authenticate, transitionStatus);
@@ -69,7 +80,7 @@ app.get('/api/v1/governance/intents', authenticate, listIntents);
 app.get('/api/v1/governance/queue', authenticate, getQueue);
 app.delete('/api/v1/governance/intents/:id', authenticate, deleteIntent);
 
-// Public OAuth (They handle their own security via state)
+// Public OAuth
 app.get('/api/auth/facebook/callback', handleFacebookCallback);
 app.get('/api/auth/linkedin/callback', handleLinkedInCallback);
 app.get('/api/auth/pinterest/callback', handlePinterestCallback);
@@ -106,14 +117,32 @@ app.get('/api/v1/team/requests', authenticate, listRequests);
 app.post('/api/v1/team/requests', authenticate, createRequest);
 app.put('/api/v1/team/requests/:id', authenticate, updateRequest);
 
-// Protected Agent Routes
+// Protected Notification Routes
+app.get('/api/v1/notifications', authenticate, listNotifications);
+app.patch('/api/v1/notifications/:id/read', authenticate, markAsRead);
+app.post('/api/v1/notifications/mark-all-read', authenticate, markAllRead);
+app.delete('/api/v1/notifications', authenticate, clearNotifications);
+
+// Protected Agent/Workflow Routes
 app.get('/api/v1/agents', authenticate, listAgents);
+app.get('/api/v1/agents/workflows', authenticate, listWorkflows);
+app.get('/api/v1/agents/workflows/active', authenticate, getActiveOrchestrations);
+app.get('/api/v1/agents/workflows/graph', authenticate, getWorkflowGraph);
+app.get('/api/v1/agents/workflows/stats', authenticate, getWorkflowStats);
+app.get('/api/v1/agents/workflows/escalations', authenticate, getEscalationPaths);
 app.get('/api/v1/agents/:id', authenticate, getAgent);
 app.post('/api/v1/agents', authenticate, registerAgent);
 app.post('/api/v1/agents/:id/certify', authenticate, certifyAgent);
 app.patch('/api/v1/agents/:id/autonomy', authenticate, updateAutonomy);
 
-// ─── SuperAdmin Routes ───────────────────────────────────────────────────────
+// Monitoring Routes
+app.get('/api/v1/monitoring/usage', authenticate, getResourceUsage);
+app.get('/api/v1/monitoring/models/performance/summary', authenticate, getPerformanceSummary);
+app.get('/api/v1/monitoring/models/performance/trends', authenticate, getPerformanceTrends);
+app.get('/api/v1/monitoring/models/performance/hallucinations', authenticate, getHallucinationFlags);
+app.get('/api/v1/monitoring/models/performance/agents', authenticate, getAgentLeaderboard);
+
+// SuperAdmin Routes
 app.get('/api/v1/superadmin/organizations', authenticate, SuperAdminController.listAllOrganizations);
 app.post('/api/v1/superadmin/organizations', authenticate, SuperAdminController.createOrganization);
 app.post('/api/v1/superadmin/organizations/:orgId/approve', authenticate, SuperAdminController.approveOrganization);
@@ -121,28 +150,22 @@ app.get('/api/v1/superadmin/stats', authenticate, SuperAdminController.getPlatfo
 app.get('/api/v1/superadmin/tickets', authenticate, SupportController.listAllTickets);
 app.patch('/api/v1/superadmin/tickets/:id', authenticate, SupportController.updateTicketStatus);
 
-// ─── Knowledge Base Routes ───────────────────────────────────────────────────
+// Knowledge Base Routes
 app.get('/api/v1/knowledge/bases', authenticate, KnowledgeController.listBases);
 app.post('/api/v1/knowledge/bases', authenticate, KnowledgeController.createBase);
 app.delete('/api/v1/knowledge/bases/:baseId', authenticate, KnowledgeController.deleteBase);
 app.get('/api/v1/knowledge/bases/:baseId/entries', authenticate, KnowledgeController.listEntries);
 app.post('/api/v1/knowledge/bases/:baseId/entries', authenticate, upload.single('file'), KnowledgeController.createEntry);
 app.delete('/api/v1/knowledge/entries/:entryId', authenticate, KnowledgeController.deleteEntry);
-// AI context endpoint — returns the full knowledge bundle for AI consumption
-// GET /api/v1/knowledge/ai-context?types=BRAND_GUIDELINES,SOP,AI_LIBRARY&limit=20
 app.get('/api/v1/knowledge/ai-context', authenticate, KnowledgeController.getAIContext);
 
-// ─── Monitoring Routes ───────────────────────────────────────────────────────
-app.get('/api/v1/monitoring/usage', authenticate, getResourceUsage);
-
-// ─── Support Routes ──────────────────────────────────────────────────────────
+// Support Routes
 app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket);
 
 // Global Error Handler
 app.use(errorHandler);
 
 import { initWorker } from './workers/schedulerWorker';
-import { registerExecutionListeners } from './domains/channels/executionService';
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {

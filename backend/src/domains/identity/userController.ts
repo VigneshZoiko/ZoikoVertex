@@ -33,10 +33,12 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
         const planType = member.workspaces?.organizations?.plan_type;
         // @ts-expect-error nested join type not inferred by supabase client
         const orgId = member.workspaces?.org_id;
-        res.json({
+
+        return res.json({
           success: true,
           data: {
             user_id: userId,
+            email: req.user?.email || null,
             full_name: userData?.full_name || null,
             is_superadmin: false,
             workspace_id: workspaceId,
@@ -46,7 +48,6 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
             org_status: orgStatus || 'ACTIVE'
           },
         });
-        return;
       }
     }
 
@@ -54,6 +55,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
       success: true,
       data: {
         user_id: userId,
+        email: req.user?.email || null,
         full_name: userData?.full_name || null,
         is_superadmin: userData?.is_superadmin || false,
         workspace_id: workspaceId,

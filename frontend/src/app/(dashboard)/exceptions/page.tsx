@@ -48,9 +48,25 @@ export default function ExceptionsPage() {
     }
   };
 
+  const handleResolve = async (id: string) => {
+    try {
+      const result = await api.post('/api/v1/governance/exceptions/resolve', { 
+        intentId: id, 
+        resolution: "Manually resolved via Incident Command Center",
+        override: true 
+      });
+      if (result.success) {
+        setExceptions(prev => prev.filter(ex => ex.id !== id));
+        if (selectedIncident === id) setSelectedIncident(null);
+      }
+    } catch (err) {
+      console.error("Failed to resolve exception:", err);
+    }
+  };
+
   useEffect(() => {
     fetchExceptions();
-  }, []);
+  }, [fetchExceptions]);
 
   const filteredExceptions = exceptions.filter(ex => {
     if (filter === 'ALL') return true;
@@ -208,7 +224,10 @@ export default function ExceptionsPage() {
                     </div>
 
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                      <button className="flex-1 md:flex-none px-8 py-3.5 bg-white text-black hover:bg-rose-600 hover:text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleResolve(ex.id); }}
+                        className="flex-1 md:flex-none px-8 py-3.5 bg-white text-black hover:bg-rose-600 hover:text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95"
+                      >
                         Resolve
                       </button>
                       <button className="p-3.5 bg-slate-900 border border-slate-800 rounded-[1.5rem] text-slate-600 hover:text-white transition-all">
