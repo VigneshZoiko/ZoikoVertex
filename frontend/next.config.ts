@@ -24,6 +24,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "media.licdn.com",
       },
+      {
+        protocol: "https",
+        hostname: "*.pinimg.com",
+      },
     ],
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60,
