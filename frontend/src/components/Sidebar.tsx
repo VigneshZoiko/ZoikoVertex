@@ -252,7 +252,7 @@ export default function Sidebar() {
     const fetchUserAndRole = async () => {
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+
         if (authError || !user) {
           console.error("Auth session invalid or missing:", authError);
           window.location.href = "/login";
@@ -269,7 +269,7 @@ export default function Sidebar() {
             const { is_superadmin, role: userRole, full_name } = result.data;
             setIsSuperAdmin(is_superadmin);
             if (full_name) setFullName(full_name);
-            
+
             if (is_superadmin) {
               setRoleLoaded(true);
               return;
@@ -281,7 +281,7 @@ export default function Sidebar() {
           }
         } catch (err) {
           console.warn("Sidebar context fetch skipped or failed. Using default CREATOR role.");
-          if (!role) setRole("CREATOR"); 
+          if (!role) setRole("CREATOR");
         }
       } catch (err) {
         console.error("Critical Auth/Context Error:", err);
