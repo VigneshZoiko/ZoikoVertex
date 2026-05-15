@@ -615,7 +615,7 @@ function PublishPageInner() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-[var(--border)] pb-8">
         <div className="flex items-center gap-4">
           <div className="relative w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl shadow-indigo-500/20">
-            <Image src="/logo-dark.jpeg" alt="Logo" fill sizes="48px" className="object-cover" />
+            <Image src="/images/logo-dark.jpeg" alt="Logo" fill sizes="48px" className="object-cover" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-[var(--foreground)] tracking-tight">Social Publisher</h1>

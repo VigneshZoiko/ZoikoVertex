@@ -102,7 +102,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Command",
     icon: LayoutDashboard,
     items: [
-      { name: "Dashboard",           href: "/",            icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "CREATOR"] },
+      { name: "Dashboard",           href: "/dashboard",   icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "CREATOR"] },
       { name: "Operations Feed",     href: "/operations",  icon: Activity,        roles: ["ADMIN", "MANAGER"] },
       { name: "Insights & ROI",      href: "/analytics",   icon: TrendingUp,      roles: ["ADMIN", "MANAGER"] },
       { name: "Resource Monitoring", href: "/resources",   icon: Cpu,             roles: ["ADMIN"] },
@@ -377,8 +377,8 @@ export default function Sidebar() {
         <div className="flex flex-col px-4 pt-5 pb-4 border-b border-[var(--sidebar-border)]">
           <div className="flex items-center">
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mr-3 shrink-0 relative">
-              <Image src="/logo-dark.jpeg" alt="ZoikoVertex Logo" fill sizes="32px" className="object-cover dark:block hidden" />
-              <Image src="/logo.jpeg" alt="ZoikoVertex Logo" fill sizes="32px" className="object-cover block dark:hidden" />
+              <Image src="/images/logo-dark.jpeg" alt="ZoikoVertex Logo" fill sizes="32px" className="object-cover dark:block hidden" />
+              <Image src="/images/logo.jpeg" alt="ZoikoVertex Logo" fill sizes="32px" className="object-cover block dark:hidden" />
             </div>
             <span className="text-[var(--sidebar-text)] font-bold text-xl tracking-wide">ZoikoVertex</span>
           </div>

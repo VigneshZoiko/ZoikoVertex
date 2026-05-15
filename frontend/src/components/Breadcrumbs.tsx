@@ -79,7 +79,7 @@ export default function Breadcrumbs() {
       <ol className="flex items-center gap-1">
         <li>
           <Link 
-            href="/" 
+            href="/dashboard"
             className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] p-1.5 rounded-md transition-colors flex items-center"
             title="Dashboard"
           >
