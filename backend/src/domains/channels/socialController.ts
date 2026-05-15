@@ -358,6 +358,91 @@ export const handleThreadsCallback = async (req: Request, res: Response, next: N
 };
 
 /**
+ * Handles the Twitter OAuth 2.0 callback
+ */
+export const handleTwitterCallback = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { code, state: stateParam } = req.query;
+
+    const twitterError = req.query.error as string | undefined;
+    if (twitterError) {
+      const desc = (req.query.error_description as string) || twitterError;
+      logger.warn(`[Social] Twitter OAuth denied: ${desc}`);
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent(desc)}`);
+    }
+
+    if (!code) {
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('No authorization code returned from Twitter')}`);
+    }
+
+    const codeVerifier = 'zoikovertex_twitter_oauth2_pkce_plain_challenge_string';
+    const workspaceId = stateParam as string;
+
+    logger.info(`[Social] Handling Twitter callback for workspace: ${workspaceId}`);
+
+    const redirectUri = env.TWITTER_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/twitter/callback`;
+
+    const credentials = Buffer.from(`${env.TWITTER_CLIENT_ID}:${env.TWITTER_CLIENT_SECRET}`).toString('base64');
+
+    const tokenResponse = await fetch('https://api.twitter.com/2/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${credentials}`,
+      },
+      body: new URLSearchParams({
+        code: code as string,
+        grant_type: 'authorization_code',
+        client_id: env.TWITTER_CLIENT_ID || '',
+        redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
+      }),
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (tokenData.error) {
+      logger.error({ details: tokenData }, '[Social] Twitter token exchange failed');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
+    }
+
+    const accessToken = tokenData.access_token;
+
+    const profileResponse = await fetch('https://api.twitter.com/2/users/me?user.fields=profile_image_url,name,username', {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    const profileData = await profileResponse.json();
+
+    if (profileData.errors) {
+      logger.error({ details: profileData.errors }, '[Social] Twitter profile fetch failed');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Failed to fetch Twitter profile')}`);
+    }
+
+    const user = profileData.data;
+
+    const accountData = {
+      workspace_id: workspaceId,
+      platform: 'twitter',
+      account_name: user.name || user.username,
+      account_handle: user.username,
+      avatar_url: user.profile_image_url,
+      access_token: accessToken,
+      status: 'active'
+    };
+
+    const { error: dbError } = await supabaseAdmin
+      .from('connected_accounts')
+      .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
+
+    if (dbError) throw dbError;
+
+    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=twitter`);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Disconnects a social account
  */
 export const disconnectAccount = async (req: any, res: Response, next: NextFunction) => {

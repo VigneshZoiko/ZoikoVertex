@@ -12,7 +12,7 @@ import { errorHandler } from './shared/errorHandler';
 import { provisionUser } from './domains/identity/identityController';
 import { generateContent, analyzeImage } from './domains/intelligence/intelligenceController';
 import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } from './domains/governance/governanceController';
-import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, disconnectAccount } from './domains/channels/socialController';
+import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleTwitterCallback, disconnectAccount } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import { listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy } from './domains/agents/agentController';
@@ -74,6 +74,7 @@ app.get('/api/auth/facebook/callback', handleFacebookCallback);
 app.get('/api/auth/linkedin/callback', handleLinkedInCallback);
 app.get('/api/auth/pinterest/callback', handlePinterestCallback);
 app.get('/api/auth/threads/callback', handleThreadsCallback);
+app.get('/api/auth/twitter/callback', handleTwitterCallback);
 
 // Protected Social/Account Routes
 app.delete('/api/v1/accounts/:id', authenticate, disconnectAccount);

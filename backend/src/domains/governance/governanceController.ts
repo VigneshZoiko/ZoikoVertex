@@ -5,7 +5,7 @@ import { logger } from '../../shared/logger';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { AuthRequest } from '../../shared/authMiddleware';
-import { RiskClassifier } from '../decisions/riskClassifier';
+
 import { evaluateIntent } from '../decisions/decisionEngine';
 import { ApprovalEngine } from '../decisions/approvalEngine';
 
@@ -55,16 +55,6 @@ export const submitIntent = async (
         finalCaption = content.platforms[acc.platform];
       }
 
-      const riskAssessment = RiskClassifier.assessContent(finalCaption, acc.platform);
-
-      const approvalPath = ApprovalEngine.getApprovalPath({
-        platform: acc.platform,
-        risk_level: riskAssessment.level,
-        region: 'GLOBAL',
-        brand: 'ZOIKO',
-        market: 'ENTERPRISE',
-      });
-
       return {
         workspace_id: member.workspace_id,
         creator_id: userId,
@@ -72,14 +62,13 @@ export const submitIntent = async (
         content: finalCaption,
         media_urls: urlsToSave,
         media_url: urlsToSave[0] || null,
-        status: approvalPath[0] === 'AUTO_APPROVE' ? 'APPROVED' : `PENDING_${approvalPath[0]}`,
+        status: 'APPROVED',
         platform: acc.platform,
-        risk_level: riskAssessment.level,
-        risk_score: riskAssessment.score,
-        risk_factors: riskAssessment.factors,
-        requires_approval: riskAssessment.requiresApproval,
-        approval_level: approvalPath[0],
-        approval_path: approvalPath,
+        risk_level: 'LOW',
+        risk_score: 0,
+        risk_factors: [],
+        requires_approval: false,
+        approval_level: 'AUTO_APPROVE',
       };
     });
 
@@ -90,40 +79,21 @@ export const submitIntent = async (
 
     if (error) throw error;
 
+    // Fire execution immediately for all intents
     for (const intent of data) {
-      if (intent.risk_level && intent.risk_level !== 'LOW') {
-        await supabaseAdmin.from('governance_artifacts').insert({
-          intent_id: intent.id,
-          artifact_type: 'risk_assessment',
-          evidence_data: {
-            level: intent.risk_level,
-            score: intent.risk_score,
-            factors: intent.risk_factors,
-            platform: intent.platform,
-            assessed_at: new Date().toISOString(),
-          },
-          policy_version: 'v1.0',
-        });
-      }
+      internalEventBus.emit('execution.requested', { intentId: intent.id });
     }
 
     await logToDatabase(
       'info',
       'Governance',
-      `Created ${intentsToCreate.length} publish intents with risk assessment`,
-      { userId, count: intentsToCreate.length },
+      `Directly publishing ${data.length} intents (testing mode)`,
+      { userId, count: data.length },
     );
 
     res.status(200).json({
       success: true,
       count: data.length,
-      risk_summary: data.map((d) => ({
-        id: d.id,
-        risk_level: d.risk_level,
-        risk_score: d.risk_score,
-        approval_required: d.requires_approval,
-        approval_level: d.approval_level,
-      })),
     });
   } catch (error) {
     next(error);

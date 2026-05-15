@@ -10,12 +10,14 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-import PlatformSelector from "@/components/publish/PlatformSelector";
-import MediaUploader from "@/components/publish/MediaUploader";
-import AIWriterPanel from "@/components/publish/AIWriterPanel";
-import SchedulingPanel from "@/components/publish/SchedulingPanel";
-import PendingPostItem from "@/components/publish/PendingPostItem";
-import MediaPackManager from "@/components/publish/MediaPackManager";
+import dynamic from "next/dynamic";
+
+const PlatformSelector = dynamic(() => import("@/components/publish/PlatformSelector"), { ssr: false });
+const MediaUploader = dynamic(() => import("@/components/publish/MediaUploader"), { ssr: false });
+const AIWriterPanel = dynamic(() => import("@/components/publish/AIWriterPanel"), { ssr: false });
+const SchedulingPanel = dynamic(() => import("@/components/publish/SchedulingPanel"), { ssr: false });
+const PendingPostItem = dynamic(() => import("@/components/publish/PendingPostItem"), { ssr: false });
+const MediaPackManager = dynamic(() => import("@/components/publish/MediaPackManager"), { ssr: false });
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
 import { api } from "@/lib/api";
 
@@ -50,7 +52,6 @@ function PublishPageInner() {
   const [activePlatformTab, setActivePlatformTab] = useState<string>("");
   const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
-  const [expandedPlatforms, setExpandedPlatforms] = useState<string[]>([]);
 
   const PLATFORM_LIMITS: Record<string, number> = {
     "Instagram": 2200,
@@ -71,6 +72,9 @@ function PublishPageInner() {
   const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
   const [reviewComment, setReviewComment] = useState("");
   
+  // Recent publish intents (for status diagnostics)
+  const [recentPosts, setRecentPosts] = useState<any[]>([]);
+
   // Scheduled Posts State
   const [scheduledPosts, setScheduledPosts] = useState<any[]>([]);
   const [selectedScheduledPost, setSelectedScheduledPost] = useState<any>(null);
@@ -169,41 +173,37 @@ function PublishPageInner() {
 
     if (member) {
       setUserRole(member.role);
-      
-      const { data: accounts } = await supabase
-        .from('connected_accounts')
-        .select('*')
-        .eq('workspace_id', member.workspace_id)
-        .eq('status', 'active');
+
+      const queueStatus = member.role === 'MANAGER' ? 'PENDING_MANAGER' : 'PENDING_ADMIN';
+
+      const [
+        { data: accounts },
+        { data: revs },
+        { data: queue },
+      ] = await Promise.all([
+        supabase
+          .from('connected_accounts')
+          .select('*')
+          .eq('workspace_id', member.workspace_id)
+          .eq('status', 'active'),
+        supabase
+          .from('publish_intents')
+          .select('*')
+          .eq('creator_id', user.id)
+          .eq('status', 'RETURNED'),
+        (member.role === 'ADMIN' || member.role === 'MANAGER')
+          ? supabase
+              .from('publish_intents')
+              .select('*, users!publish_intents_creator_id_fkey(full_name)')
+              .eq('status', queueStatus)
+          : Promise.resolve({ data: null }),
+      ]);
+
       if (accounts) {
         setConnectedAccounts(accounts);
-        const platformsWithAccounts = Array.from(new Set(accounts.map((a: any) => a.platform)));
-        setExpandedPlatforms(platformsWithAccounts as string[]);
       }
-
-      // Fetch Creator Revisions - Note: Teammate use 'RETURNED' status
-      const { data: revs } = await supabase
-        .from('publish_intents')
-        .select('*')
-        .eq('creator_id', user.id)
-        .eq('status', 'RETURNED');
       if (revs) setRevisions(revs);
-
-      // Fetch Admin/Manager Queue
-      if (member.role === 'ADMIN' || member.role === 'MANAGER') {
-        const statusToFetch = member.role === 'ADMIN' ? 'PENDING_ADMIN' : 'PENDING_MANAGER';
-        const { data: queue } = await supabase
-          .from('publish_intents')
-          .select('*, users!publish_intents_creator_id_fkey(full_name)')
-          .eq('status', 'PENDING_ADMIN');
-        if (queue) setPendingPosts(queue);
-      } else if (member.role === 'MANAGER') {
-        const { data: queue } = await supabase
-          .from('publish_intents')
-          .select('*, users!publish_intents_creator_id_fkey(full_name)')
-          .eq('status', 'PENDING_MANAGER');
-        if (queue) setPendingPosts(queue);
-      }
+      if (queue) setPendingPosts(queue);
     }
     setLoading(false);
   }, [router]);
@@ -215,6 +215,15 @@ function PublishPageInner() {
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     setUserTimezone(tz);
+  }, []);
+
+  const fetchRecentPosts = useCallback(async () => {
+    try {
+      const result = await api.get('/api/v1/governance/intents');
+      if (result.success && result.data) {
+        setRecentPosts(result.data.slice(0, 8));
+      }
+    } catch {}
   }, []);
 
   const fetchScheduledPosts = useCallback(async () => {
@@ -232,30 +241,27 @@ function PublishPageInner() {
 
   useEffect(() => {
     fetchScheduledPosts();
-  }, [fetchScheduledPosts]);
+    fetchRecentPosts();
+  }, [fetchScheduledPosts, fetchRecentPosts]);
 
   useEffect(() => {
     const revisionId = searchParams.get('revisionId');
-    if (revisionId) {
-      const fetchSpecificRevision = async () => {
-        const { data, error } = await supabase
-          .from('publish_intents')
-          .select('*')
-          .eq('id', revisionId)
-          .single();
-        if (!error && data) {
-          loadRevision(data);
-        }
-      };
-      fetchSpecificRevision();
-    }
+    if (!revisionId) return;
+    let isMounted = true;
+    const fetchSpecificRevision = async () => {
+      const { data, error } = await supabase
+        .from('publish_intents')
+        .select('*')
+        .eq('id', revisionId)
+        .single();
+      if (!error && data && isMounted) {
+        loadRevision(data);
+      }
+    };
+    fetchSpecificRevision();
+    return () => { isMounted = false; };
   }, [searchParams, loadRevision]);
 
-  const togglePlatformExpansion = (platform: string) => {
-    setExpandedPlatforms(prev => 
-      prev.includes(platform) ? prev.filter(p => p !== platform) : [...prev, platform]
-    );
-  };
 
   const toggleAccountSelection = (accountId: string) => {
     setSelectedAccountIds(prev => {
@@ -454,10 +460,10 @@ function PublishPageInner() {
       };
 
       const result = await api.post('/api/v1/governance/submit', payload);
-      
+
       setMessage({
         type: 'success',
-        text: `Successfully submitted ${result.count || ''} platform-optimized posts for review!`
+        text: `Publishing ${result.count || ''} post${(result.count || 0) > 1 ? 's' : ''} to your selected accounts!`
       });
       
       // Cleanup State
@@ -468,8 +474,11 @@ function PublishPageInner() {
       setCustomTime(""); setSelectedTime("immediate");
       setIsDirty(false);
       fetchUserData();
+      // Poll for publish result after a short delay so status has time to update
+      setTimeout(() => fetchRecentPosts(), 3000);
+      setTimeout(() => fetchRecentPosts(), 8000);
     } catch (err: any) {
-      setMessage({ type: 'error', text: 'Failed to submit for review. Please try again.' });
+      setMessage({ type: 'error', text: 'Failed to publish. Please try again.' });
     }
     setSubmitting(false);
   };
@@ -606,7 +615,7 @@ function PublishPageInner() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-[var(--border)] pb-8">
         <div className="flex items-center gap-4">
           <div className="relative w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl shadow-indigo-500/20">
-            <Image src="/logo-dark.jpeg" alt="Logo" fill className="object-cover" />
+            <Image src="/logo-dark.jpeg" alt="Logo" fill sizes="48px" className="object-cover" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-[var(--foreground)] tracking-tight">Social Publisher</h1>
@@ -723,13 +732,14 @@ function PublishPageInner() {
                       <video key={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} src={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} controls className="w-full h-full object-contain pointer-events-none" />
                     ) : (
                       <div className="relative w-full h-full">
-                        <Image 
-                          key={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} 
-                          src={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]} 
-                          alt={`media ${carouselIndex + 1}`} 
-                          fill 
-                          className="object-contain pointer-events-none" 
-                          draggable={false} 
+                        <Image
+                          key={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]}
+                          src={selectedUrls[Math.min(carouselIndex, selectedUrls.length - 1)]}
+                          alt={`media ${carouselIndex + 1}`}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 66vw"
+                          className="object-contain pointer-events-none"
+                          draggable={false}
                         />
                       </div>
                     )}
@@ -779,7 +789,7 @@ function PublishPageInner() {
                     {selectedUrls.map((url, i) => (
                       <button key={i} onClick={() => { setCarouselIndex(i); setMediaPreview(url); }}
                         className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 relative transition-all ${ i === carouselIndex ? 'border-indigo-500' : 'border-transparent opacity-60 hover:opacity-100'}`}>
-                        <Image src={url} alt={`thumb ${i}`} fill className="object-cover" draggable={false} />
+                        <Image src={url} alt={`thumb ${i}`} fill sizes="64px" className="object-cover" draggable={false} />
                       </button>
                     ))}
                   </div>
@@ -950,8 +960,7 @@ function PublishPageInner() {
               connectedAccounts={connectedAccounts}
               selectedAccountIds={selectedAccountIds}
               onToggleAccount={toggleAccountSelection}
-              expandedPlatforms={expandedPlatforms}
-              onToggleExpansion={togglePlatformExpansion}
+
               userRole={userRole}
               mediaCount={selectedUrls.length || (media ? 1 : 0)}
               mediaType={assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : '')}
@@ -962,10 +971,10 @@ function PublishPageInner() {
           <button 
             onClick={handleSubmitIntent} 
             disabled={submitting} 
-            className={`w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${userRole === 'ADMIN' ? 'bg-indigo-600 text-white hover:bg-indigo-500' : 'bg-white text-black hover:bg-zinc-200'}`}
+            className="w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-500"
           >
             {submitting ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
-            {activeRevisionId ? 'Resubmit' : userRole === 'ADMIN' ? 'Publish Now' : 'Submit for Review'}
+            {submitting ? 'Publishing…' : activeRevisionId ? 'Republish' : 'Publish Now'}
           </button>
         </div>
 
@@ -1027,6 +1036,50 @@ function PublishPageInner() {
                     <p className="text-[10px] text-[var(--foreground-muted)]">{new Date(post.scheduled_time).toLocaleDateString()} at {new Date(post.scheduled_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                   </button>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Recent Posts — publish status diagnostics */}
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
+                <ListTodo className="w-3 h-3 text-indigo-400" />
+                Recent Posts
+              </h3>
+              <button onClick={fetchRecentPosts} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
+                <RefreshCcw className="w-3 h-3" />
+              </button>
+            </div>
+            {recentPosts.length === 0 ? (
+              <p className="text-xs text-[var(--foreground-muted)] text-center py-4">No posts yet</p>
+            ) : (
+              <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                {recentPosts.map(post => {
+                  const isPub = post.status === 'PUBLISHED';
+                  const isFailed = post.status === 'FAILED';
+                  const isPending = post.status === 'APPROVED';
+                  return (
+                    <div key={post.id} className="p-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-xl">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-indigo-400 uppercase">{post.platform}</span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                          isPub ? 'bg-emerald-500/20 text-emerald-400' :
+                          isFailed ? 'bg-rose-500/20 text-rose-400' :
+                          isPending ? 'bg-amber-500/20 text-amber-400' :
+                          'bg-[var(--surface-hover)] text-[var(--foreground-muted)]'
+                        }`}>
+                          {isPub ? 'PUBLISHED' : isFailed ? 'FAILED' : isPending ? 'PROCESSING…' : post.status}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-[var(--foreground-muted)] truncate mb-1">{post.content}</p>
+                      {isFailed && post.feedback && (
+                        <p className="text-[9px] text-rose-400 bg-rose-500/10 rounded px-1.5 py-1 mt-1 break-words">{post.feedback}</p>
+                      )}
+                      <p className="text-[9px] text-[var(--foreground-muted)] mt-1">{new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

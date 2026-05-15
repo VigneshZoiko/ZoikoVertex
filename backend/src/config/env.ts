@@ -24,6 +24,9 @@ const envSchema = z.object({
   THREADS_APP_ID: z.string().optional(),
   THREADS_APP_SECRET: z.string().optional(),
   THREADS_REDIRECT_URI: z.string().optional(),
+  TWITTER_CLIENT_ID: z.string().optional(),
+  TWITTER_CLIENT_SECRET: z.string().optional(),
+  TWITTER_REDIRECT_URI: z.string().optional(),
   REDIS_URL: z.string().optional(),
   // Required for internal service-to-service calls to /api/v1/users/provision
   INTERNAL_SERVICE_SECRET: z.string().min(32).optional(),

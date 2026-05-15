@@ -31,59 +31,91 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       <div className="w-full max-w-[400px]">
-        <div className="bg-[#1a1a1a] p-8 rounded-[20px] border border-[#2d2d2d] shadow-2xl">
-          
+        <div className="bg-[var(--card)] p-8 rounded-2xl border border-[var(--border)] shadow-2xl shadow-black/20">
+
           <div className="mb-6">
-            <h2 className="text-[20px] font-bold text-white mb-1.5 tracking-tight">Secure Gateway</h2>
-            <p className="text-[#888888] text-[12px] font-medium leading-relaxed opacity-90">
+            <h2 className="text-xl font-bold text-[var(--foreground)] mb-1.5 tracking-tight">
+              Secure Gateway
+            </h2>
+            <p className="text-[var(--foreground-muted)] text-xs font-medium leading-relaxed">
               Access your corporate workspace.
             </p>
           </div>
 
           {error && (
-            <div className="mb-5 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold rounded-lg">
+            <div className="mb-5 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold rounded-xl animate-in fade-in slide-in-from-top-1 duration-200">
               {error}
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-white ml-0.5 opacity-90">Corporate Email</label>
+              <label className="text-[11px] font-bold text-[var(--foreground)] ml-0.5 uppercase tracking-wider opacity-75">
+                Corporate Email
+              </label>
               <input
-                type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-[42px] bg-[#111111] border border-[#2d2d2d] rounded-lg px-4 text-[13px] text-white placeholder-[#333333] focus:outline-none focus:border-[#4d47ff]/50 transition-all"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-[42px] bg-[var(--background-subtle)] border border-[var(--border)] rounded-xl px-4 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200"
                 placeholder="name@zoikogroup.com"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-white ml-0.5 opacity-90">Password</label>
-              <div className="relative group">
+              <label className="text-[11px] font-bold text-[var(--foreground)] ml-0.5 uppercase tracking-wider opacity-75">
+                Password
+              </label>
+              <div className="relative">
                 <input
-                  type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-[42px] bg-[#111111] border border-[#2d2d2d] rounded-lg px-4 pr-12 text-[13px] text-white placeholder-[#333333] focus:outline-none focus:border-[#4d47ff]/50 transition-all"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full h-[42px] bg-[var(--background-subtle)] border border-[var(--border)] rounded-xl px-4 pr-12 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-200"
                   placeholder="••••••••"
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#444444] hover:text-[#888888] transition-colors">
-                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors duration-150"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
             <div className="flex items-center justify-end">
-              <Link href="/reset-password" title="Forgot password?" className="text-[11px] font-semibold text-[#666666] hover:text-white transition-colors">
+              <Link
+                href="/reset-password"
+                className="text-[11px] font-semibold text-[var(--foreground-muted)] hover:text-indigo-400 transition-colors duration-150"
+              >
                 Forgot password?
               </Link>
             </div>
 
-            <button type="submit" disabled={loading} className="w-full h-[46px] bg-[#4d47ff] text-white font-bold text-[14px] rounded-lg hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 mt-2 shadow-lg shadow-blue-900/10">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Lock className="w-3.5 h-3.5" /> Authenticate</>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-[46px] bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-500 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2.5 mt-2 shadow-lg shadow-indigo-500/25 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <><Lock className="w-3.5 h-3.5" /> Authenticate</>
+              }
             </button>
           </form>
         </div>
 
-        <p className="mt-6 text-center text-[12px] font-medium text-[#666666]">
-          New here? <Link href="/signup" className="text-white hover:text-[#4d47ff] font-bold ml-1 transition-colors">Register organization</Link>
+        <p className="mt-6 text-center text-xs font-medium text-[var(--foreground-muted)]">
+          New here?{" "}
+          <Link
+            href="/signup"
+            className="text-[var(--foreground)] hover:text-indigo-400 font-bold ml-1 transition-colors duration-150"
+          >
+            Register organization
+          </Link>
         </p>
       </div>
     </AuthLayout>

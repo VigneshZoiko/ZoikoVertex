@@ -45,7 +45,6 @@ export const api = {
       throw new Error(errorMessage);
     }
     return response.json();
-    return handleResponse(response, endpoint, 'GET');
   },
 
   async post(endpoint: string, body: any) {
@@ -64,7 +63,6 @@ export const api = {
       throw new Error(errorMessage);
     }
     return response.json();
-    return handleResponse(response, endpoint, 'POST');
   },
 
   async postMultipart(endpoint: string, formData: FormData) {
@@ -95,7 +93,6 @@ export const api = {
       throw new Error(errorMessage);
     }
     return response.json();
-    return handleResponse(response, endpoint, 'PUT');
   },
 
   async delete(endpoint: string) {
@@ -112,7 +109,6 @@ export const api = {
       throw new Error(errorMessage);
     }
     return response.json();
-    return handleResponse(response, endpoint, 'DELETE');
   },
 
   async patch(endpoint: string, body: any) {
