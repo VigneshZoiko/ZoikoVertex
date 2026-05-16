@@ -163,6 +163,10 @@ export default function AccountsPage() {
   const [isSubmitting, setIsSubmitting]                 = useState<string | null>(null);
   const [disconnecting, setDisconnecting]               = useState<string | null>(null);
   const [confirmingDisconnect, setConfirmingDisconnect] = useState<string | null>(null);
+  const [liPageSession, setLiPageSession]               = useState<string | null>(null);
+  const [liPages, setLiPages]                           = useState<{ id: string; name: string; urn: string }[]>([]);
+  const [selectedPageIds, setSelectedPageIds]           = useState<Set<string>>(new Set());
+  const [savingPages, setSavingPages]                   = useState(false);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -201,11 +205,50 @@ export default function AccountsPage() {
     if (status === "success" && platform) {
       setSuccess(`${platform.charAt(0).toUpperCase() + platform.slice(1)} account connected successfully!`);
       fetchAccounts();
+    } else if (status === "linkedin_pages") {
+      const session = searchParams.get("session");
+      if (session) {
+        router.replace("/accounts");
+        api.get(`/api/v1/accounts/linkedin/pages?session=${session}`).then((res) => {
+          if (res.success && res.data?.length > 0) {
+            setLiPages(res.data);
+            setSelectedPageIds(new Set(res.data.map((p: { id: string }) => p.id)));
+            setLiPageSession(session);
+          } else {
+            setError("No LinkedIn pages found where you are an admin.");
+          }
+        });
+        return;
+      }
     } else if (status === "error") {
       setError(reason ? decodeURIComponent(reason) : "Failed to connect account. Please try again.");
     }
     router.replace("/accounts");
   }, [searchParams, router, fetchAccounts]);
+
+  const saveSelectedPages = async () => {
+    if (!liPageSession || selectedPageIds.size === 0) return;
+    setSavingPages(true);
+    try {
+      const res = await api.post("/api/v1/accounts/linkedin/pages", {
+        session: liPageSession,
+        selectedPageIds: Array.from(selectedPageIds),
+      });
+      if (res.success) {
+        setSuccess(`${res.data?.count || selectedPageIds.size} LinkedIn page(s) connected successfully!`);
+        setLiPageSession(null);
+        setLiPages([]);
+        setSelectedPageIds(new Set());
+        fetchAccounts();
+      } else {
+        setError(res.error?.message || "Failed to save pages.");
+      }
+    } catch {
+      setError("Failed to save pages. Please try again.");
+    } finally {
+      setSavingPages(false);
+    }
+  };
 
   const disconnectAccount = async (id: string) => {
     setConfirmingDisconnect(null);
@@ -242,10 +285,16 @@ export default function AccountsPage() {
         const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id, platform: platformId }));
         window.location.assign(`https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`);
       } else if (platformId === "linkedin") {
-        const clientId = "86ffpbixotzcst";
+        const clientId = process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/linkedin/callback`);
         const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id, platform: "linkedin" }));
         const scope = encodeURIComponent("openid profile email w_member_social");
+        window.location.assign(`https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`);
+      } else if (platformId === "linkedin_page") {
+        const clientId = process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "";
+        const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/linkedin/callback`);
+        const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id, platform: "linkedin", flowType: "page" }));
+        const scope = encodeURIComponent("openid profile email w_member_social r_organization_social w_organization_social");
         window.location.assign(`https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`);
       } else if (platformId === "pinterest") {
         const clientId = process.env.NEXT_PUBLIC_PINTEREST_APP_ID || "";
@@ -394,18 +443,34 @@ export default function AccountsPage() {
                 </div>
 
                 {!platform.comingSoon && userRole !== "CREATOR" && (
-                  <button
-                    onClick={() => handleConnect(platform.id)}
-                    disabled={isConnecting}
-                    className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white rounded-lg transition-all duration-150 disabled:opacity-60 shrink-0 hover:opacity-90 active:scale-95"
-                    style={{ backgroundColor: platform.color }}
-                  >
-                    {isConnecting
-                      ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      : <Plus className="w-3.5 h-3.5" />
-                    }
-                    Connect
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {platform.id === "linkedin" && (
+                      <button
+                        onClick={() => handleConnect("linkedin_page")}
+                        disabled={isSubmitting === "linkedin_page"}
+                        className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all duration-150 disabled:opacity-60 hover:opacity-90 active:scale-95 border"
+                        style={{ color: platform.color, borderColor: platform.color + "55", backgroundColor: platform.color + "11" }}
+                      >
+                        {isSubmitting === "linkedin_page"
+                          ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          : <Link2 className="w-3.5 h-3.5" />
+                        }
+                        Page
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleConnect(platform.id)}
+                      disabled={isConnecting}
+                      className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white rounded-lg transition-all duration-150 disabled:opacity-60 hover:opacity-90 active:scale-95"
+                      style={{ backgroundColor: platform.color }}
+                    >
+                      {isConnecting
+                        ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        : <Plus className="w-3.5 h-3.5" />
+                      }
+                      Connect
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -495,6 +560,64 @@ export default function AccountsPage() {
           );
         })}
       </div>
+
+      {/* ── LinkedIn Page Picker Modal ── */}
+      {liPageSession && liPages.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[var(--border)]">
+              <div>
+                <h2 className="text-sm font-bold text-[var(--foreground)]">Select LinkedIn Pages</h2>
+                <p className="text-xs text-[var(--foreground-muted)] mt-0.5">Choose which pages to connect. You can select multiple.</p>
+              </div>
+              <button onClick={() => { setLiPageSession(null); setLiPages([]); setSelectedPageIds(new Set()); }} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="divide-y divide-[var(--border)] max-h-72 overflow-y-auto">
+              {liPages.map((page) => {
+                const checked = selectedPageIds.has(page.id);
+                return (
+                  <label key={page.id} className="flex items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-[var(--surface)] transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        setSelectedPageIds(prev => {
+                          const next = new Set(prev);
+                          checked ? next.delete(page.id) : next.add(page.id);
+                          return next;
+                        });
+                      }}
+                      className="w-4 h-4 rounded accent-[#0A66C2]"
+                    />
+                    <div className="w-8 h-8 rounded-lg bg-[#0A66C2]/10 border border-[#0A66C2]/20 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-[#0A66C2]">{page.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[var(--foreground)] truncate">{page.name}</p>
+                      <p className="text-[11px] text-[var(--foreground-muted)] truncate">{page.urn}</p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between px-5 py-4 border-t border-[var(--border)]">
+              <span className="text-xs text-[var(--foreground-muted)]">{selectedPageIds.size} of {liPages.length} selected</span>
+              <button
+                onClick={saveSelectedPages}
+                disabled={savingPages || selectedPageIds.size === 0}
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#0A66C2] hover:bg-[#0A66C2]/90 rounded-lg transition-all disabled:opacity-50"
+              >
+                {savingPages ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                Connect {selectedPageIds.size > 0 ? `${selectedPageIds.size} Page${selectedPageIds.size > 1 ? "s" : ""}` : "Pages"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Security note ── */}
       <div className="flex items-start gap-3 p-4 bg-[var(--surface)] border border-[var(--border)] rounded-xl">

@@ -197,13 +197,37 @@ export default function TeamPage() {
                 >
                   {!showAdvancedRoles ? (
                     <>
-                      <option value="CREATOR">Creator (Drafts only)</option>
-                      <option value="MANAGER">Manager (Approves posts)</option>
-                      {currentUserRole === 'ADMIN' && <option value="ADMIN">Admin (Full Control)</option>}
+                      <optgroup label="— Build Layer">
+                        <option value="CREATOR">Contributor — drafts only</option>
+                        <option value="CAMPAIGN_MANAGER">Campaign Manager — campaign execution</option>
+                        <option value="AGENT_OPERATOR">Agent Operator — live agent supervision</option>
+                        <option value="KNOWLEDGE_MANAGER">Knowledge Manager — RAG & sources</option>
+                      </optgroup>
+                      <optgroup label="— Output Layer">
+                        <option value="REVIEWER">Reviewer — general content review</option>
+                        <option value="VALIDATOR">Validator — HITL accuracy validation</option>
+                        <option value="APPROVER">Approver — formal approval authority</option>
+                        <option value="PUBLISHER">Publisher — live publishing</option>
+                      </optgroup>
+                      {currentUserRole === 'ADMIN' && (
+                        <optgroup label="— Administration">
+                          <option value="ADMIN">Administrator — full workspace control</option>
+                          <option value="GOVERNANCE_ADMIN">Governance Lead — policies & rules</option>
+                        </optgroup>
+                      )}
                     </>
                   ) : (
-                    ROLE_ARCHITECTURE.map(r => (
-                      <option key={r.id} value={r.id}>{r.name} ({r.layer})</option>
+                    [
+                      { group: "Build Control", roles: ["WORKSPACE_OWNER","ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","DEVELOPER"] },
+                      { group: "Governance Control", roles: ["GOVERNANCE_ADMIN","SECURITY_ADMIN","PRIVACY_ADMIN","COMPLIANCE_REVIEWER","AUDITOR"] },
+                      { group: "Output Control", roles: ["BRAND_REVIEWER","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","ANALYST"] },
+                      { group: "External", roles: ["EXTERNAL_COLLABORATOR","VIEWER"] },
+                    ].map(({ group, roles }) => (
+                      <optgroup key={group} label={`— ${group}`}>
+                        {ROLE_ARCHITECTURE.filter(r => roles.includes(r.id)).map(r => (
+                          <option key={r.id} value={r.id}>{r.name} — {r.description.slice(0, 50)}</option>
+                        ))}
+                      </optgroup>
                     ))
                   )}
                 </select>

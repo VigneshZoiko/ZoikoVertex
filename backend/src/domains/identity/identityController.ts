@@ -3,11 +3,19 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logToDatabase } from '../../shared/databaseLogger';
 
+const VALID_ROLES = [
+  'WORKSPACE_OWNER', 'ADMIN', 'MANAGER', 'SECURITY_ADMIN', 'GOVERNANCE_ADMIN',
+  'AGENT_ARCHITECT', 'AGENT_OPERATOR', 'KNOWLEDGE_MANAGER', 'CAMPAIGN_MANAGER',
+  'CREATOR', 'BRAND_REVIEWER', 'REVIEWER', 'VALIDATOR', 'APPROVER', 'PUBLISHER',
+  'COMPLIANCE_REVIEWER', 'AUDITOR', 'ANALYST', 'PRIVACY_ADMIN', 'DEVELOPER',
+  'EXTERNAL_COLLABORATOR', 'VIEWER',
+] as const;
+
 const ProvisionSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   full_name: z.string().optional(),
-  role: z.enum(['CREATOR', 'MANAGER', 'ADMIN']),
+  role: z.enum(VALID_ROLES),
   workspace_id: z.string().uuid(),
 });
 

@@ -1,8 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response, NextFunction } from 'express';
+import { randomUUID } from 'crypto';
 import { env } from '../../config/env';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
+
+// In-memory session store for short-lived OAuth page-selection sessions (10 min TTL)
+const _sessionStore = new Map<string, { data: string; expiresAt: number }>();
+
+function setSession(key: string, value: string, ttlSeconds: number): void {
+  _sessionStore.set(key, { data: value, expiresAt: Date.now() + ttlSeconds * 1000 });
+}
+function getSession(key: string): string | null {
+  const entry = _sessionStore.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { _sessionStore.delete(key); return null; }
+  return entry.data;
+}
+function deleteSession(key: string): void {
+  _sessionStore.delete(key);
+}
 
 /**
  * Handles the Facebook OAuth callback
@@ -130,7 +147,7 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
 };
 
 /**
- * Handles the LinkedIn OAuth callback
+ * Handles the LinkedIn OAuth callback (personal profile + page flows)
  */
 export const handleLinkedInCallback = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -141,23 +158,23 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
     }
 
     let workspaceId: string;
+    let flowType: string | undefined;
     try {
       const stateObj = JSON.parse(stateParam as string);
       workspaceId = stateObj.workspaceId;
+      flowType = stateObj.flowType;
     } catch {
       workspaceId = stateParam as string;
     }
 
-    logger.info(`[Social] Handling LinkedIn callback for workspace: ${workspaceId}`);
+    logger.info(`[Social] Handling LinkedIn callback for workspace: ${workspaceId}, flow: ${flowType || 'personal'}`);
 
     const credentials = Buffer.from(`${env.LINKEDIN_CLIENT_ID}:${env.LINKEDIN_CLIENT_SECRET}`).toString('base64');
-    
-    logger.info('[Social] Exchanging LinkedIn code for access token');
     const redirectUri = env.LINKEDIN_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/linkedin/callback`;
 
     const tokenResponse = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Basic ${credentials}`
       },
@@ -177,6 +194,49 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
 
     const accessToken = tokenData.access_token;
 
+    // ── Page flow: fetch admin pages and present picker ──────────────────────
+    if (flowType === 'page') {
+      logger.info('[Social] LinkedIn page flow — fetching admin organizations');
+
+      const aclRes = await fetch(
+        'https://api.linkedin.com/v2/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED&count=50',
+        { headers: { Authorization: `Bearer ${accessToken}`, 'X-Restli-Protocol-Version': '2.0.0' } }
+      );
+      const aclData = await aclRes.json();
+      const elements: any[] = aclData.elements || [];
+
+      // Extract org IDs from URNs like "urn:li:organization:12345"
+      const orgIds = elements
+        .map((el: any) => el.organization?.match(/\d+$/)?.[0])
+        .filter(Boolean);
+
+      let pages: { id: string; name: string; urn: string }[] = [];
+
+      if (orgIds.length > 0) {
+        const idsParam = orgIds.map((id: string) => `List(${id})`).join(',');
+        const orgsRes = await fetch(
+          `https://api.linkedin.com/v2/organizations?ids=List(${orgIds.join(',')})&projection=(results*(id,localizedName,vanityName))`,
+          { headers: { Authorization: `Bearer ${accessToken}`, 'X-Restli-Protocol-Version': '2.0.0' } }
+        );
+        const orgsData = await orgsRes.json();
+        const results = orgsData.results || {};
+
+        pages = orgIds.map((id: string) => ({
+          id,
+          name: results[id]?.localizedName || results[id]?.vanityName || `Page ${id}`,
+          urn: `urn:li:organization:${id}`,
+        }));
+      }
+
+      logger.info(`[Social] Found ${pages.length} admin pages for workspace ${workspaceId}`);
+
+      const sessionId = randomUUID();
+      setSession(`lp_session:${sessionId}`, JSON.stringify({ accessToken, workspaceId, pages }), 600);
+
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=linkedin_pages&session=${sessionId}`);
+    }
+
+    // ── Personal flow ────────────────────────────────────────────────────────
     const profileResponse = await fetch('https://api.linkedin.com/v2/userinfo', {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
@@ -185,7 +245,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
     const accountData = {
       workspace_id: workspaceId,
       platform: 'linkedin',
-      account_name: profileData.name || profileData.given_name,
+      account_name: profileData.name || profileData.given_name || profileData.email || 'LinkedIn User',
       account_handle: profileData.sub,
       avatar_url: profileData.picture,
       access_token: accessToken,
@@ -200,6 +260,58 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=linkedin`);
 
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Returns the list of LinkedIn pages stored in a session (for page picker modal)
+ */
+export const getLinkedInPagesSession = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { session } = req.query;
+    const raw = getSession(`lp_session:${session as string}`);
+    if (!raw) return res.status(404).json({ success: false, error: 'Session expired or not found' });
+
+    const { pages } = JSON.parse(raw);
+    res.json({ success: true, data: pages });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Saves the user-selected LinkedIn pages as connected accounts
+ */
+export const saveLinkedInPages = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { session, selectedPageIds } = req.body as { session: string; selectedPageIds: string[] };
+
+    const raw = getSession(`lp_session:${session}`);
+    if (!raw) return res.status(400).json({ success: false, error: 'Session expired — please reconnect LinkedIn' });
+
+    const { accessToken, workspaceId, pages } = JSON.parse(raw);
+    const selectedPages = pages.filter((p: any) => selectedPageIds.includes(p.id));
+
+    for (const page of selectedPages) {
+      const { error: dbError } = await supabaseAdmin
+        .from('connected_accounts')
+        .upsert({
+          workspace_id: workspaceId,
+          platform: 'linkedin',
+          account_name: page.name,
+          account_handle: page.urn,
+          access_token: accessToken,
+          status: 'active',
+        }, { onConflict: 'workspace_id,platform,account_handle' });
+
+      if (dbError) throw dbError;
+    }
+
+    deleteSession(`lp_session:${session}`);
+    logger.info(`[Social] Saved ${selectedPages.length} LinkedIn pages for workspace ${workspaceId}`);
+    res.json({ success: true, count: selectedPages.length });
   } catch (error) {
     next(error);
   }

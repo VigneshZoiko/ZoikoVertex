@@ -11,7 +11,7 @@ import { errorHandler } from './shared/errorHandler';
 import { provisionUser } from './domains/identity/identityController';
 import { generateContent, analyzeImage } from './domains/intelligence/intelligenceController';
 import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } from './domains/governance/governanceController';
-import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, disconnectAccount } from './domains/channels/socialController';
+import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import { listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy } from './domains/agents/agentController';
@@ -24,6 +24,7 @@ import { performQualityCheck } from './domains/governance/qaController';
 import { listExceptions, resolveException } from './domains/governance/exceptionController';
 import { KnowledgeController } from './modules/knowledge/knowledgeController';
 import { getResourceUsage } from './domains/monitoring/usageController';
+import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
 import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
 
 // New features from Naresh
@@ -38,6 +39,7 @@ import {
 } from './domains/monitoring/modelPerformanceController';
 
 import { authenticate, provisionGuard } from './shared/authMiddleware';
+import { requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';
 
 const upload = multer({ dest: os.tmpdir() });
@@ -70,8 +72,9 @@ app.post('/api/v1/ai/analyze-image', authenticate, analyzeImage);
 app.post('/api/v1/qa/check', authenticate, performQualityCheck);
 app.get('/api/v1/governance/exceptions', authenticate, listExceptions);
 app.post('/api/v1/governance/exceptions/resolve', authenticate, resolveException);
-app.get('/api/v1/governance/rules', authenticate, listRules);
-app.post('/api/v1/governance/rules', authenticate, createRule);
+const govGuard = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER');
+app.get('/api/v1/governance/rules', authenticate, govGuard, listRules);
+app.post('/api/v1/governance/rules', authenticate, govGuard, createRule);
 
 // Protected Governance
 app.post('/api/v1/governance/transition', authenticate, transitionStatus);
@@ -91,6 +94,8 @@ app.get('/api/auth/twitter/callback', handleTwitterCallback);
 
 // Protected Social/Account Routes
 app.delete('/api/v1/accounts/:id', authenticate, disconnectAccount);
+app.get('/api/v1/accounts/linkedin/pages', authenticate, getLinkedInPagesSession);
+app.post('/api/v1/accounts/linkedin/pages', authenticate, saveLinkedInPages);
 
 // Protected Scheduler Routes
 app.post('/api/v1/scheduler/recommend', authenticate, getRecommendations);
@@ -142,13 +147,14 @@ app.get('/api/v1/monitoring/models/performance/trends', authenticate, getPerform
 app.get('/api/v1/monitoring/models/performance/hallucinations', authenticate, getHallucinationFlags);
 app.get('/api/v1/monitoring/models/performance/agents', authenticate, getAgentLeaderboard);
 
-// SuperAdmin Routes
-app.get('/api/v1/superadmin/organizations', authenticate, SuperAdminController.listAllOrganizations);
-app.post('/api/v1/superadmin/organizations', authenticate, SuperAdminController.createOrganization);
-app.post('/api/v1/superadmin/organizations/:orgId/approve', authenticate, SuperAdminController.approveOrganization);
-app.get('/api/v1/superadmin/stats', authenticate, SuperAdminController.getPlatformStats);
-app.get('/api/v1/superadmin/tickets', authenticate, SupportController.listAllTickets);
-app.patch('/api/v1/superadmin/tickets/:id', authenticate, SupportController.updateTicketStatus);
+// SuperAdmin Routes (superadmin-only)
+const superAdminGuard = requireRole('SUPERADMIN');
+app.get('/api/v1/superadmin/organizations', authenticate, superAdminGuard, SuperAdminController.listAllOrganizations);
+app.post('/api/v1/superadmin/organizations', authenticate, superAdminGuard, SuperAdminController.createOrganization);
+app.post('/api/v1/superadmin/organizations/:orgId/approve', authenticate, superAdminGuard, SuperAdminController.approveOrganization);
+app.get('/api/v1/superadmin/stats', authenticate, superAdminGuard, SuperAdminController.getPlatformStats);
+app.get('/api/v1/superadmin/tickets', authenticate, superAdminGuard, SupportController.listAllTickets);
+app.patch('/api/v1/superadmin/tickets/:id', authenticate, superAdminGuard, SupportController.updateTicketStatus);
 
 // Knowledge Base Routes
 app.get('/api/v1/knowledge/bases', authenticate, KnowledgeController.listBases);
@@ -158,6 +164,8 @@ app.get('/api/v1/knowledge/bases/:baseId/entries', authenticate, KnowledgeContro
 app.post('/api/v1/knowledge/bases/:baseId/entries', authenticate, upload.single('file'), KnowledgeController.createEntry);
 app.delete('/api/v1/knowledge/entries/:entryId', authenticate, KnowledgeController.deleteEntry);
 app.get('/api/v1/knowledge/ai-context', authenticate, KnowledgeController.getAIContext);
+
+app.get('/api/v1/integrations/health', authenticate, getIntegrationHealth);
 
 // Support Routes
 app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket);
