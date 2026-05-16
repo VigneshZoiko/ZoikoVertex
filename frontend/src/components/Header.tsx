@@ -1,42 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { Search, Bell, ShieldCheck } from "lucide-react";
-import { api } from "@/lib/api";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationPanel from "@/components/NotificationPanel";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { useRoleContext } from "@/lib/context/RoleContext";
 
 export default function Header() {
-  const [email, setEmail] = useState<string | null>(null);
-  const [fullName, setFullName] = useState<string | null>(null);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const { fullName, role, orgName, isSuperAdmin } = useRoleContext();
 
-  useEffect(() => {
-    const fetchContext = async () => {
-      try {
-        const result = await api.get('/api/v1/user/context');
-        if (result.success) {
-          // Note: In a real app, email might be in the context or we get it from supabase
-          // For now, we'll try to get it from context if added, or fallback to a placeholder
-          // since the backend user context returns full_name and is_superadmin
-          setFullName(result.data.full_name);
-          setEmail(result.data.email);
-          setIsSuperAdmin(result.data.is_superadmin);
-          
-          // If the backend doesn't return email, we could still use supabase as a secondary source
-          // but our goal is to "connect the backend" as the primary source of truth.
-          // Let's assume the user's name is the primary identifier here.
-        }
-      } catch (err) {
-        console.warn("Header context fetch failed:", err);
-      }
-    };
-    fetchContext();
-  }, []);
-
-  // Global Keyboard Shortcut for Search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -48,8 +22,14 @@ export default function Header() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const formatRole = (r: string | null) => {
+    if (!r) return 'Member';
+    if (r === 'SUPERADMIN') return 'Super Admin';
+    return r.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+  };
+
   return (
-    <header className="h-16 bg-[var(--header-bg)]/80 backdrop-blur-xl border-b border-[var(--border)] flex items-center justify-between px-8 z-20 sticky top-0 shadow-sm">
+    <header className="h-16 bg-[var(--header-bg)]/80 backdrop-blur-xl border-b border-[var(--border)] flex items-center justify-between px-8 z-20 sticky top-0 shadow-sm transition-colors">
       {/* Left side: Breadcrumbs */}
       <div className="flex-1 hidden md:block">
         <Breadcrumbs />
@@ -78,16 +58,13 @@ export default function Header() {
       {/* Right-side utilities */}
       <div className="flex-1 flex items-center justify-end gap-3">
         {isSuperAdmin && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full text-[10px] font-bold text-amber-500 uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[10px] font-bold text-indigo-500 uppercase tracking-wider">
             <ShieldCheck className="w-3 h-3" />
             SuperAdmin
           </div>
         )}
 
-        {/* Theme Toggle */}
         <ThemeToggle />
-
-        {/* Notifications */}
         <NotificationPanel />
 
         {/* User profile */}
@@ -96,17 +73,18 @@ export default function Header() {
           className="flex items-center pl-4 border-l border-[var(--border)] hover:opacity-80 transition-opacity group"
         >
           <div className="text-right mr-3 hidden md:block">
-            <p className="text-sm font-medium text-[var(--foreground)] group-hover:text-indigo-400 transition-colors">{fullName || "User Profile"}</p>
-            <p className="text-xs text-[var(--foreground-muted)]">{isSuperAdmin ? "System Administrator" : "Workspace Member"}</p>
+            <p className="text-sm font-bold text-[var(--foreground)] group-hover:text-indigo-400 transition-colors">
+              {fullName || "User Profile"}
+            </p>
+            <p className="text-[10px] text-[var(--foreground-muted)] font-black uppercase tracking-wider">
+              {formatRole(role || (isSuperAdmin ? 'SUPERADMIN' : ''))}-{orgName || 'ZoikoGroup'}
+            </p>
           </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shrink-0 border-2 border-transparent group-hover:border-indigo-500/50 transition-all overflow-hidden">
-            <div className="w-full h-full flex items-center justify-center text-[10px] text-white font-bold uppercase">
-              {fullName ? fullName.split(' ').map(n => n[0]).join('') : "U"}
-            </div>
+          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shrink-0 border-2 border-transparent group-hover:border-indigo-500/50 transition-all overflow-hidden shadow-lg flex items-center justify-center text-xs text-white font-bold uppercase">
+            {fullName ? fullName.split(' ').map(n => n[0]).join('') : "U"}
           </div>
         </Link>
       </div>
     </header>
   );
 }
-

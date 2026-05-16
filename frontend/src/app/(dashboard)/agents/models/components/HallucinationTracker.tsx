@@ -60,12 +60,12 @@ export default function HallucinationTracker({ flags }: { flags?: Hallucination[
                 <p className="text-xs font-semibold text-rose-500 mb-1 flex items-center">
                   <AlertTriangle className="w-3 h-3 mr-1" /> Flagged Output
                 </p>
-                <p className="text-sm text-[var(--text-primary)] leading-relaxed">"{flag.flaggedOutput}"</p>
+                <p className="text-sm text-[var(--text-primary)] leading-relaxed">&quot;{flag.flaggedOutput}&quot;</p>
               </div>
               
               <div className="bg-emerald-500/5 rounded-lg p-3 border border-emerald-500/10">
                 <p className="text-xs font-semibold text-emerald-500 mb-1">Corrected Baseline</p>
-                <p className="text-sm text-[var(--text-primary)] leading-relaxed">"{flag.correctedOutput}"</p>
+                <p className="text-sm text-[var(--text-primary)] leading-relaxed">&quot;{flag.correctedOutput}&quot;</p>
               </div>
             </div>
           ))}

@@ -213,7 +213,7 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
       let pages: { id: string; name: string; urn: string }[] = [];
 
       if (orgIds.length > 0) {
-        const idsParam = orgIds.map((id: string) => `List(${id})`).join(',');
+
         const orgsRes = await fetch(
           `https://api.linkedin.com/v2/organizations?ids=List(${orgIds.join(',')})&projection=(results*(id,localizedName,vanityName))`,
           { headers: { Authorization: `Bearer ${accessToken}`, 'X-Restli-Protocol-Version': '2.0.0' } }

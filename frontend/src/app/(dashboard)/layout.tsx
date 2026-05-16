@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -8,7 +7,7 @@ import WelcomeOverlay from "@/components/WelcomeOverlay";
 import PendingApproval from "@/components/PendingApproval";
 import { DraftGuardProvider } from "@/lib/context/DraftGuardContext";
 import { NotificationProvider } from "@/lib/context/NotificationContext";
-import { api } from "@/lib/api";
+import { useRoleContext } from "@/lib/context/RoleContext";
 
 export default function DashboardLayout({
   children,
@@ -16,30 +15,9 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
-  const [orgStatus, setOrgStatus] = useState<string | null>(null);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { orgStatus, isSuperAdmin, isLoading } = useRoleContext();
 
-  useEffect(() => {
-    let isMounted = true;
-    const checkStatus = async () => {
-      try {
-        const result = await api.get('/api/v1/user/context');
-        if (isMounted && result.success) {
-          setOrgStatus(result.data.org_status);
-          setIsSuperAdmin(result.data.is_superadmin);
-        }
-      } catch (err) {
-        if (isMounted) console.error("Failed to check org status", err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    checkStatus();
-    return () => { isMounted = false; };
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="h-screen bg-[var(--background,#111111)] flex overflow-hidden">
         {/* Sidebar skeleton */}

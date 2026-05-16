@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logToDatabase } from '../../shared/databaseLogger';
+import { AuthRequest } from '../../shared/authMiddleware';
 
 const AGENT_SERVICE = 'AgentStudio';
 
@@ -20,20 +21,28 @@ const CreateAgentSchema = z.object({
 /**
  * List all agents for a given workspace
  */
-export const listAgents = async (req: Request, res: Response, next: NextFunction) => {
+export const listAgents = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { workspaceId } = req.query;
+    const isSuper = req.user?.is_superadmin;
+    const userWorkspaceId = req.user?.workspace_id;
+    const targetWorkspaceId = (req.query.workspaceId as string) || userWorkspaceId;
     
-    if (!workspaceId) {
+    if (!targetWorkspaceId && !isSuper) {
       return res.status(400).json({ success: false, message: 'workspaceId is required' });
     }
 
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('agents')
       .select(`*, primary_dri:users!primary_dri_id(full_name, email), backup_dri:users!backup_dri_id(full_name, email)`)
-      .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false });
 
+    if (!isSuper) {
+      query = query.eq('workspace_id', targetWorkspaceId);
+    } else if (req.query.workspaceId) {
+      query = query.eq('workspace_id', req.query.workspaceId);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
 
     res.status(200).json({

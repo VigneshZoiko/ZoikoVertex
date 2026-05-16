@@ -10,16 +10,10 @@ export const listLibrary = async (req: AuthRequest, res: Response, next: NextFun
   try {
     const { search, type } = req.query;
     const userId = req.user?.id;
+    const isSuper = req.user?.is_superadmin;
+    const workspaceId = req.user?.workspace_id;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
-    // Step 0: Identify user's workspace or SuperAdmin status
-    const { data: userData } = await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single();
-    const isSuper = userData?.is_superadmin;
-
-    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).single();
-    const workspaceId = member?.workspace_id;
-
     if (!workspaceId && !isSuper) return res.status(403).json({ error: 'Workspace context missing' });
 
     // Step 1: Fetch library items scoped to workspace

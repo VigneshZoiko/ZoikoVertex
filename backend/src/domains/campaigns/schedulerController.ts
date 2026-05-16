@@ -300,18 +300,16 @@ export const cancelScheduledPost = async (req: AuthRequest, res: Response, next:
   try {
     const id = req.params.id as string;
     const userId = req.user?.id;
-
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // Identify user's workspace and superadmin status
-    const { data: userData } = await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single();
-    const isSuper = userData?.is_superadmin;
-    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).single();
+    const isSuper = req.user?.is_superadmin;
+    const userWorkspaceId = req.user?.workspace_id;
 
     // Verify ownership or workspace access
     let query = supabaseAdmin.from('scheduled_posts').select('id, workspace_id').eq('id', id);
     if (!isSuper) {
-      query = query.eq('workspace_id', member?.workspace_id);
+      if (!userWorkspaceId) return res.status(403).json({ error: 'Workspace context missing' });
+      query = query.eq('workspace_id', userWorkspaceId);
     }
     const { data: post } = await query.single();
 
@@ -358,10 +356,8 @@ export const listScheduledPosts = async (req: AuthRequest, res: Response, next: 
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ success: false, error: 'User ID required' });
 
-    // Identify user's workspace and superadmin status
-    const { data: userData } = await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single();
-    const isSuper = userData?.is_superadmin;
-    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).single();
+    const isSuper = req.user?.is_superadmin;
+    const userWorkspaceId = req.user?.workspace_id;
 
     const { status, startDate, endDate, limit, offset } = ListPostsQuerySchema.parse(req.query);
 
@@ -372,8 +368,8 @@ export const listScheduledPosts = async (req: AuthRequest, res: Response, next: 
       .range(offset, offset + limit - 1);
 
     if (!isSuper) {
-      if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
-      query = query.eq('workspace_id', member.workspace_id);
+      if (!userWorkspaceId) return res.status(403).json({ error: 'Workspace context missing' });
+      query = query.eq('workspace_id', userWorkspaceId);
     }
 
     if (status) query = query.eq('status', status);

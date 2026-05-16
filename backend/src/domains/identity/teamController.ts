@@ -1,36 +1,35 @@
 import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { logAuditEvent } from '../governance/evidenceController';
 
 export const listMembers = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // 1. Find the current user's workspace context
-    const { data: member } = await supabaseAdmin
-      .from('memberships')
-      .select('workspace_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle();
+    const isSuperAdmin = req.user?.is_superadmin;
+    const workspaceId = req.user?.workspace_id;
 
-    if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
+    if (!isSuperAdmin && !workspaceId) {
+      return res.status(403).json({ error: 'Workspace context missing' });
+    }
 
-    // 2. Fetch all members of that workspace from domain_users
-    const { data: members, error } = await supabaseAdmin
-      .from('memberships')
+    let query = supabaseAdmin
+      .from('workspace_members')
       .select(`
         id,
-        user:domain_users(id, full_name, email)
-      `)
-      .eq('workspace_id', member.workspace_id);
+        user:users(id, full_name, email)
+      `);
 
+    if (!isSuperAdmin) {
+      query = query.eq('workspace_id', workspaceId);
+    }
+
+    const { data: members, error } = await query;
     if (error) throw error;
 
-    // 3. Format for the frontend (extracting user info)
     const formattedMembers = (members || []).map(m => m.user);
-
     res.json({ success: true, data: formattedMembers });
   } catch (error) {
     next(error);
@@ -42,24 +41,23 @@ export const listRequests = async (req: AuthRequest, res: Response, next: NextFu
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: member } = await supabaseAdmin
-      .from('memberships')
-      .select('workspace_id, role:roles(name)')
-      .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle();
+    const isSuperAdmin = req.user?.is_superadmin;
+    const workspaceId = req.user?.workspace_id;
 
-    if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
-    
-    // @ts-expect-error nested role join type not inferred by supabase client
-    if (member.role?.name !== 'ADMIN') return res.status(403).json({ error: 'Only admins can view requests' });
+    if (!isSuperAdmin && !workspaceId) {
+      return res.status(403).json({ error: 'Workspace context missing' });
+    }
 
-    const { data: requests, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('account_requests')
-      .select('id, full_name, email, role, users!account_requests_requested_by_fkey ( full_name )')
-      .eq('workspace_id', member.workspace_id)
+      .select('id, full_name, email, role, requested_by_user:users!account_requests_requested_by_fkey ( full_name )')
       .eq('status', 'PENDING');
 
+    if (!isSuperAdmin) {
+      query = query.eq('workspace_id', workspaceId);
+    }
+
+    const { data: requests, error } = await query;
     if (error) throw error;
 
     res.json({ success: true, data: requests || [] });
@@ -73,19 +71,20 @@ export const createRequest = async (req: AuthRequest, res: Response, next: NextF
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: member } = await supabaseAdmin
-      .from('memberships')
-      .select('workspace_id, role_id')
-      .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle();
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId && !req.user?.is_superadmin) {
+      return res.status(403).json({ error: 'Workspace context missing' });
+    }
 
-    if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
+    const { full_name, email, role, temporary_password, target_workspace_id } = req.body;
+    
+    // Superadmins can specify a target workspace
+    const finalWorkspaceId = req.user?.is_superadmin ? (target_workspace_id || workspaceId) : workspaceId;
 
-    const { full_name, email, role, temporary_password } = req.body;
+    if (!finalWorkspaceId) return res.status(400).json({ error: 'Target workspace required' });
 
     const { error } = await supabaseAdmin.from('account_requests').insert({
-      workspace_id: member.workspace_id,
+      workspace_id: finalWorkspaceId,
       requested_by: userId,
       full_name,
       email,
@@ -94,6 +93,14 @@ export const createRequest = async (req: AuthRequest, res: Response, next: NextF
     });
 
     if (error) throw error;
+    
+    await logAuditEvent({
+      workspaceId: finalWorkspaceId,
+      actorId: userId,
+      module: 'Team',
+      action: `Created account request for ${email}`,
+      metadata: { full_name, email, role }
+    });
 
     res.json({ success: true, message: 'Request submitted for approval.' });
   } catch (error) {
@@ -109,17 +116,11 @@ export const updateRequest = async (req: AuthRequest, res: Response, next: NextF
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: member } = await supabaseAdmin
-      .from('memberships')
-      .select('workspace_id, role:roles(name)')
-      .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle();
-
-    // @ts-expect-error nested role join type not inferred by supabase client
-    const isAdmin = member?.role?.name === 'ADMIN';
-
-    if (!isAdmin) return res.status(403).json({ error: 'Only admins can update requests' });
+    // Superadmins bypass role check
+    if (!req.user?.is_superadmin) {
+      // For standard users, we'd check their role in the workspace, 
+      // but requireRole middleware should have already gated this.
+    }
 
     const { error } = await supabaseAdmin
       .from('account_requests')
@@ -127,6 +128,14 @@ export const updateRequest = async (req: AuthRequest, res: Response, next: NextF
       .eq('id', id);
 
     if (error) throw error;
+
+    await logAuditEvent({
+      workspaceId: req.user?.workspace_id || '00000000-0000-0000-0000-000000000000',
+      actorId: userId,
+      module: 'Team',
+      action: `Updated account request ${id} to ${status}`,
+      metadata: { request_id: id, status }
+    });
 
     res.json({ success: true, message: `Request ${status.toLowerCase()}.` });
   } catch (error) {

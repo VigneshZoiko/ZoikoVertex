@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Users, UserPlus, ShieldAlert, Check, X, Shield, RefreshCw, ChevronRight } from "lucide-react";
 import { ROLE_ARCHITECTURE } from "@/lib/roles";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
+import { useRoles } from "@/lib/hooks/useRoles";
 
 export default function TeamPage() {
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const { role: currentUserRole, isSuperAdmin, isLoading } = useRoles();
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   
   const [members, setMembers] = useState<any[]>([]);
@@ -24,7 +24,7 @@ export default function TeamPage() {
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [showAdvancedRoles, setShowAdvancedRoles] = useState(false);
 
-  const fetchData = async (currentRole: string) => {
+  const fetchData = useCallback(async () => {
     // Fetch Active Members
     try {
       const membersRes = await api.get('/api/v1/team/members');
@@ -32,9 +32,9 @@ export default function TeamPage() {
     } catch {
       setMembers([]);
     }
-
-    // Fetch Pending Requests (Only if Admin)
-    if (currentRole === 'ADMIN') {
+ 
+    // Fetch Pending Requests (Only if Admin or Superadmin)
+    if (currentUserRole === 'ADMIN' || isSuperAdmin) {
       try {
         const requestsRes = await api.get('/api/v1/team/requests');
         if (requestsRes.success) setRequests(requestsRes.data || []);
@@ -43,35 +43,31 @@ export default function TeamPage() {
       }
     }
     setLoading(false);
-  };
+  }, [currentUserRole, isSuperAdmin]);
 
   useEffect(() => {
-    const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setCurrentUser(user);
-
-      try {
-        const result = await api.get('/api/v1/user/context');
-        if (result.success) {
-          const { role: userRole, workspace_id: wId } = result.data;
-          setCurrentUserRole(userRole);
-          setWorkspaceId(wId);
-          fetchData(userRole);
+    if (!isLoading) {
+      const init = async () => {
+        try {
+          const result = await api.get('/api/v1/user/context');
+          if (result.success) {
+            setWorkspaceId(result.data.workspace_id);
+          }
+          fetchData();
+        } catch {
+          setLoading(false);
         }
-      } catch {
-        setLoading(false);
-      }
-    };
-    init();
-  }, []);
+      };
+      init();
+    }
+  }, [isLoading, currentUserRole, isSuperAdmin, fetchData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormLoading(true);
     setMessage(null);
 
-    if (currentUserRole === 'MANAGER') {
+    if (currentUserRole === 'MANAGER' && !isSuperAdmin) {
       try {
         await api.post('/api/v1/team/requests', {
           full_name: fullName,
@@ -84,11 +80,11 @@ export default function TeamPage() {
       } catch {
         setMessage({ type: 'error', text: 'Failed to submit request. Please try again.' });
       }
-    } else if (currentUserRole === 'ADMIN') {
+    } else if (currentUserRole === 'ADMIN' || isSuperAdmin) {
       // Provision immediately via backend API
       try {
         await api.post('/api/v1/users/provision', {
-          workspace_id: workspaceId,
+          workspace_id: workspaceId || '00000000-0000-0000-0000-000000000000',
           full_name: fullName,
           email: email,
           role: role,
@@ -97,7 +93,7 @@ export default function TeamPage() {
         
         setMessage({ type: 'success', text: 'User provisioned successfully!' });
         setFullName(""); setEmail(""); setPassword("");
-        fetchData(currentUserRole!); // Refresh tables
+        fetchData(); // Refresh tables
       } catch (err) {
         setMessage({ type: 'error', text: 'Backend connection failed. Ensure server is running.' });
       }
@@ -132,7 +128,7 @@ export default function TeamPage() {
     } catch {
       // fallback
     }
-    fetchData(currentUserRole!);
+    fetchData();
   };
 
   if (loading) return <div className="text-[var(--foreground)] p-8">Loading...</div>;
@@ -264,8 +260,8 @@ export default function TeamPage() {
         {/* Right Column: Tables */}
         <div className="lg:col-span-2 space-y-8">
           
-          {/* Pending Approvals Table (Admin Only) */}
-          {currentUserRole === 'ADMIN' && (
+          {/* Pending Approvals Table (Admin or Superadmin Only) */}
+          {(currentUserRole === 'ADMIN' || isSuperAdmin) && (
             <div className="bg-[var(--card)] border border-amber-500/30 rounded-2xl p-6 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
                 <ShieldAlert className="w-32 h-32 text-amber-500" />
@@ -338,8 +334,8 @@ export default function TeamPage() {
                   {members.map((member, i) => (
                     <tr key={i} className="border-b border-[var(--border)]/50 hover:bg-[var(--surface-hover)] transition-colors">
                       <td className="px-4 py-3">
-                        <div className="text-[var(--foreground)] font-medium">{member.users?.full_name || 'Zoiko Employee'}</div>
-                        <div className="text-xs text-[var(--foreground-muted)]">{member.users?.email}</div>
+                        <div className="text-[var(--foreground)] font-medium">{member.full_name || 'Zoiko Employee'}</div>
+                        <div className="text-xs text-[var(--foreground-muted)]">{member.email}</div>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-md text-xs font-semibold ${

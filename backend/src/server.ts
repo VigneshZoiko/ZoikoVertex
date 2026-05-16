@@ -11,6 +11,15 @@ import { errorHandler } from './shared/errorHandler';
 import { provisionUser } from './domains/identity/identityController';
 import { generateContent, analyzeImage } from './domains/intelligence/intelligenceController';
 import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } from './domains/governance/governanceController';
+import { 
+  getAuditTrail, getAuditStats, 
+  getEvidenceArtifacts, getEvidenceArtifactDetail, getEvidenceStats,
+  applyLegalHold, listLegalHolds, releaseLegalHold,
+  buildEvidencePack, listEvidencePacks
+} from './domains/governance/evidenceController';
+import { getRiskPulse, getActiveRiskFeed, getGovernanceGaps, triggerEmergencyPause } from './domains/governance/riskController';
+import { getForensicSummary, getAgentPerformance } from './domains/governance/forensicController';
+import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
@@ -30,6 +39,8 @@ import { performQualityCheck } from './domains/governance/qaController';
 import { listExceptions, resolveException } from './domains/governance/exceptionController';
 import { KnowledgeController } from './modules/knowledge/knowledgeController';
 import { getResourceUsage } from './domains/monitoring/usageController';
+import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemetryController';
+import { performGlobalSearch } from './domains/admin/globalSearchController';
 import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
 import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
 
@@ -89,6 +100,41 @@ app.post('/api/v1/governance/submit', authenticate, submitIntent);
 app.get('/api/v1/governance/intents', authenticate, listIntents);
 app.get('/api/v1/governance/queue', authenticate, getQueue);
 app.delete('/api/v1/governance/intents/:id', authenticate, deleteIntent);
+
+// Protected Evidence Vault & Audit Trail
+app.get('/api/v1/governance/audit/trail', authenticate, govGuard, getAuditTrail);
+app.get('/api/v1/governance/audit/stats', authenticate, govGuard, getAuditStats);
+app.get('/api/v1/governance/evidence/stats', authenticate, govGuard, getEvidenceStats);
+app.get('/api/v1/governance/evidence/artifacts', authenticate, govGuard, getEvidenceArtifacts);
+app.get('/api/v1/governance/evidence/artifacts/:id', authenticate, govGuard, getEvidenceArtifactDetail);
+app.get('/api/v1/governance/evidence/holds', authenticate, govGuard, listLegalHolds);
+app.post('/api/v1/governance/evidence/holds', authenticate, govGuard, applyLegalHold);
+app.delete('/api/v1/governance/evidence/holds/:id', authenticate, govGuard, releaseLegalHold);
+app.get('/api/v1/governance/evidence/packs', authenticate, govGuard, listEvidencePacks);
+app.post('/api/v1/governance/evidence/packs', authenticate, govGuard, buildEvidencePack);
+
+// Protected Risk & Compliance Command Center
+app.get('/api/v1/governance/risk/pulse', authenticate, govGuard, getRiskPulse);
+app.get('/api/v1/governance/risk/feed', authenticate, govGuard, getActiveRiskFeed);
+app.get('/api/v1/governance/risk/gaps', authenticate, govGuard, getGovernanceGaps);
+app.post('/api/v1/governance/risk/emergency-pause', authenticate, govGuard, triggerEmergencyPause);
+
+// Forensic Analysis Engine
+app.get('/api/v1/governance/forensic/summary', authenticate, govGuard, getForensicSummary);
+app.get('/api/v1/governance/forensic/agents/:agentId', authenticate, govGuard, getAgentPerformance);
+
+// Global Operations Telemetry
+app.get('/api/v1/operations/telemetry', authenticate, getSystemTelemetry);
+app.get('/api/v1/operations/logs', authenticate, getMissionLogs);
+
+// Global Discovery
+app.get('/api/v1/search', authenticate, performGlobalSearch);
+
+// Protected Brand Standards & Content Governance
+app.get('/api/v1/governance/brand/profiles', authenticate, govGuard, getBrandProfiles);
+app.get('/api/v1/governance/brand/linguistic', authenticate, govGuard, getLinguisticProfile);
+app.get('/api/v1/governance/brand/claims', authenticate, govGuard, getClaimsLedger);
+app.post('/api/v1/governance/brand/rules', authenticate, govGuard, updateBrandRule);
 
 // Public OAuth
 app.get('/api/auth/facebook/callback', handleFacebookCallback);

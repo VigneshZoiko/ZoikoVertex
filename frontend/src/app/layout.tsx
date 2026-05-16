@@ -17,8 +17,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ZoikoVertex | Where Execution Becomes Accountable",
-  description: "Governed Autonomous Agentic Intelligence for Enterprise Social Media Management.",
+  title: "ZoikoVertex | Enterprise Agentic Governance",
+  description: "The world's first Governed Autonomous Intelligence network. Sovereign evidence, predictive risk management, and scaleable execution.",
+  keywords: ["AI Governance", "Autonomous Agents", "Enterprise AI", "Social Media Automation", "Brand Integrity"],
+  authors: [{ name: "Zoiko Group" }],
 };
 
 export default function RootLayout({

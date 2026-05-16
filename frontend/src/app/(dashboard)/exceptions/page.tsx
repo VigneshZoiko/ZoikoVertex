@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   AlertOctagon, ShieldAlert, Zap, Filter, 
   ArrowUpRight, AlertTriangle, CheckCircle2, 
@@ -34,7 +34,7 @@ export default function ExceptionsPage() {
   const [filter, setFilter] = useState('ALL');
   const [selectedIncident, setSelectedIncident] = useState<string | null>(null);
 
-  const fetchExceptions = async () => {
+  const fetchExceptions = useCallback(async () => {
     setLoading(true);
     try {
       const result = await api.get('/api/v1/governance/exceptions');
@@ -46,7 +46,7 @@ export default function ExceptionsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleResolve = async (id: string) => {
     try {

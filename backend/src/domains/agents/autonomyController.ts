@@ -110,19 +110,16 @@ const NKSSchema = z.object({
 
 export const getAutonomyStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const isSuper = req.user?.is_superadmin;
+    const workspaceId = req.user?.workspace_id;
 
-    const { data: member } = await supabaseAdmin
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    const workspaceId = member?.workspace_id;
+    if (!isSuper && !workspaceId) return res.status(403).json({ error: 'Workspace context missing' });
 
     let agentQuery = supabaseAdmin.from('agents').select('id, name, type, status, autonomy_level, trust_score, faithfulness_score');
-    if (workspaceId) agentQuery = agentQuery.eq('workspace_id', workspaceId);
+    if (!isSuper) {
+      agentQuery = agentQuery.eq('workspace_id', workspaceId);
+    }
+    
     const { data: agents } = await agentQuery;
 
     const stats = {
@@ -159,16 +156,18 @@ export const updateAgentLevel = async (req: AuthRequest, res: Response, next: Ne
     const id = String(req.params.id);
     const { level, reason } = LevelChangeSchema.parse(req.body);
     const userId = req.user?.id;
+    const isSuper = req.user?.is_superadmin;
+
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { data: agent, error: fetchErr } = await supabaseAdmin
       .from('agents').select('name, trust_score, autonomy_level, status').eq('id', id).single();
     if (fetchErr || !agent) return res.status(404).json({ error: 'Agent not found' });
 
-    // Trust score enforcement
+    // Trust score enforcement (Superadmins can override if needed, but keeping it for now)
     const trustPct = Math.round((agent.trust_score || 0) * 100);
     const required = AUTONOMY_LEVELS[level].minTrust;
-    if (trustPct < required) {
+    if (trustPct < required && !isSuper) {
       return res.status(403).json({
         error: `Trust score ${trustPct}% is below the minimum ${required}% required for ${level} (${AUTONOMY_LEVELS[level].name})`,
       });
@@ -226,9 +225,13 @@ export const createEmergencyLock = async (req: AuthRequest, res: Response, next:
   try {
     const { lock_level, scope, reason } = LockSchema.parse(req.body);
     const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const isSuper = req.user?.is_superadmin;
+    const workspaceId = req.user?.workspace_id;
 
-    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).maybeSingle();
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    if (!workspaceId && !isSuper) return res.status(403).json({ error: 'Workspace context missing' });
+
+    const finalWorkspaceId = workspaceId || 'global';
 
     const lock: EmergencyLock = {
       id: randomUUID(),
@@ -237,16 +240,17 @@ export const createEmergencyLock = async (req: AuthRequest, res: Response, next:
       reason,
       created_by: userId,
       created_at: new Date().toISOString(),
-      workspace_id: member?.workspace_id || 'unknown',
+      workspace_id: finalWorkspaceId,
     };
     lockStore.set(lock.id, lock);
 
     // If L3/L4 workspace lock, suspend all active agents
-    if (['L3', 'L4'].includes(lock_level) && member?.workspace_id) {
-      await supabaseAdmin.from('agents')
-        .update({ status: 'SUSPENDED', updated_at: new Date().toISOString() })
-        .eq('workspace_id', member.workspace_id)
-        .eq('status', 'ACTIVE');
+    if (['L3', 'L4'].includes(lock_level)) {
+      let query = supabaseAdmin.from('agents').update({ status: 'SUSPENDED', updated_at: new Date().toISOString() }).eq('status', 'ACTIVE');
+      if (!isSuper) {
+        query = query.eq('workspace_id', workspaceId);
+      }
+      await query;
     }
 
     await logToDatabase('warn', 'Autonomy', `Emergency Lock ${lock_level} applied — ${scope}`, { lock, userId });
@@ -260,13 +264,13 @@ export const createEmergencyLock = async (req: AuthRequest, res: Response, next:
 export const listEmergencyLocks = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
+    const isSuper = req.user?.is_superadmin;
+    const workspaceId = req.user?.workspace_id;
+
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).maybeSingle();
-    const { data: userCtx } = await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single();
-
     const locks = [...lockStore.values()].filter(l =>
-      userCtx?.is_superadmin || l.workspace_id === member?.workspace_id
+      isSuper || l.workspace_id === workspaceId
     );
 
     res.json({ success: true, data: locks });
@@ -297,12 +301,13 @@ export const liftEmergencyLock = async (req: AuthRequest, res: Response, next: N
 export const listHITLRules = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
+
+    const workspaceId = req.user?.workspace_id;
+
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).maybeSingle();
-    const workspaceId = member?.workspace_id || 'global';
-
-    const rules = getWorkspaceHITLRules(workspaceId);
+    const finalWorkspaceId = workspaceId || 'global';
+    const rules = getWorkspaceHITLRules(finalWorkspaceId);
     res.json({ success: true, data: rules });
   } catch (error) {
     next(error);
@@ -314,17 +319,18 @@ export const upsertHITLRule = async (req: AuthRequest, res: Response, next: Next
     const id = String(req.params.id);
     const body = HITLRuleSchema.parse(req.body);
     const userId = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).maybeSingle();
-    const workspaceId = String(member?.workspace_id || 'global');
+    const finalWorkspaceId = String(workspaceId || 'global');
 
     const ruleId = id || randomUUID();
-    const key = ruleId + ':' + workspaceId;
+    const key = ruleId + ':' + finalWorkspaceId;
     const rule: HITLRule = {
       id: ruleId,
       ...body,
-      workspace_id: workspaceId,
+      workspace_id: finalWorkspaceId,
       created_at: new Date().toISOString(),
     };
     hitlStore.set(key, rule);
@@ -339,10 +345,12 @@ export const deleteHITLRule = async (req: AuthRequest, res: Response, next: Next
   try {
     const id = String(req.params.id);
     const userId = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).maybeSingle();
-    const key = id + ':' + (member?.workspace_id || 'global');
+    const finalWorkspaceId = workspaceId || 'global';
+    const key = id + ':' + finalWorkspaceId;
     hitlStore.delete(key);
 
     res.json({ success: true });
@@ -354,10 +362,13 @@ export const deleteHITLRule = async (req: AuthRequest, res: Response, next: Next
 export const listNegativeKnowledge = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
+    const isSuper = req.user?.is_superadmin;
+    const workspaceId = req.user?.workspace_id;
+
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).maybeSingle();
-    const items = [...nksStore.values()].filter(n => n.workspace_id === (member?.workspace_id || ''));
+    const finalWorkspaceId = workspaceId || 'global';
+    const items = [...nksStore.values()].filter(n => isSuper || n.workspace_id === finalWorkspaceId);
     res.json({ success: true, data: items });
   } catch (error) {
     next(error);
@@ -368,14 +379,16 @@ export const createNegativeKnowledge = async (req: AuthRequest, res: Response, n
   try {
     const body = NKSSchema.parse(req.body);
     const userId = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: member } = await supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', userId).maybeSingle();
+    const finalWorkspaceId = workspaceId || 'global';
 
     const nks: NegativeKnowledgeSet = {
       id: randomUUID(),
       ...body,
-      workspace_id: member?.workspace_id || 'unknown',
+      workspace_id: finalWorkspaceId,
       created_at: new Date().toISOString(),
     };
     nksStore.set(nks.id, nks);

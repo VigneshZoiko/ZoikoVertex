@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
-import { logToDatabase } from '../../shared/databaseLogger';
+import { logAuditEvent } from '../governance/evidenceController';
+import { AuthRequest } from '../../shared/authMiddleware';
 
 const VALID_ROLES = [
   'WORKSPACE_OWNER', 'ADMIN', 'MANAGER', 'SECURITY_ADMIN', 'GOVERNANCE_ADMIN',
@@ -21,11 +22,17 @@ const ProvisionSchema = z.object({
 
 const IDENTITY_SERVICE = 'Identity';
 
-export const provisionUser = async (req: Request, res: Response, next: NextFunction) => {
+export const provisionUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { email, password, full_name, role, workspace_id } = ProvisionSchema.parse(req.body);
     
-    await logToDatabase('info', IDENTITY_SERVICE, `Request for ${email} as ${role}`, { email, role, workspace_id });
+    await logAuditEvent({
+      workspaceId: workspace_id,
+      actorId: req.user?.id || 'SYSTEM',
+      module: IDENTITY_SERVICE,
+      action: `Provisioned user ${email} as ${role}`,
+      metadata: { email, role, workspace_id }
+    });
 
     // 1. Create user in Supabase Auth
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({

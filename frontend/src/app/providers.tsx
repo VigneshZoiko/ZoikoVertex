@@ -1,7 +1,7 @@
 "use client";
 
 import { ThemeProvider } from "next-themes";
-import { useEffect, useState } from "react";
+import { RoleProvider } from "@/lib/context/RoleContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -11,7 +11,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem={false}
       disableTransitionOnChange
     >
-      {children}
+      <RoleProvider>
+        {children}
+      </RoleProvider>
     </ThemeProvider>
   );
 }

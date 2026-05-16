@@ -9,6 +9,7 @@ import {
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
+import { useRoles } from "@/lib/hooks/useRoles";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 interface ConnectedAccount {
@@ -159,7 +160,7 @@ export default function AccountsPage() {
   const [loading, setLoading]                           = useState(true);
   const [error, setError]                               = useState<string | null>(null);
   const [success, setSuccess]                           = useState<string | null>(null);
-  const [userRole, setUserRole]                         = useState<string | null>(null);
+  const { role: userRole, isSuperAdmin, isLoading } = useRoles();
   const [isSubmitting, setIsSubmitting]                 = useState<string | null>(null);
   const [disconnecting, setDisconnecting]               = useState<string | null>(null);
   const [confirmingDisconnect, setConfirmingDisconnect] = useState<string | null>(null);
@@ -184,17 +185,11 @@ export default function AccountsPage() {
     }
   }, []);
 
-  const fetchUserData = useCallback(async () => {
-    try {
-      const result = await api.get("/api/v1/user/context");
-      if (result.success && result.data.role) setUserRole(result.data.role.toUpperCase());
-    } catch { /* fallback */ }
-  }, []);
-
   useEffect(() => {
-    fetchAccounts();
-    fetchUserData();
-  }, [fetchAccounts, fetchUserData]);
+    if (!isLoading) {
+      fetchAccounts();
+    }
+  }, [fetchAccounts, isLoading]);
 
   useEffect(() => {
     const status = searchParams.get("status");
@@ -269,9 +264,12 @@ export default function AccountsPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User session not found.");
+      
+      let workspaceId = '00000000-0000-0000-0000-000000000000'; // Default Dev Workspace
       const { data: member } = await supabase
-        .from("workspace_members").select("workspace_id").eq("user_id", user.id).single();
-      if (!member) throw new Error("Workspace context not found.");
+        .from("workspace_members").select("workspace_id").eq("user_id", user.id).maybeSingle();
+      
+      if (member) workspaceId = member.workspace_id;
 
       const backendUrl =
         process.env.NEXT_PUBLIC_OAUTH_BACKEND_URL ||
@@ -282,18 +280,18 @@ export default function AccountsPage() {
         const appId = process.env.NEXT_PUBLIC_META_APP_ID || "989391590153112";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/facebook/callback`);
         const scope = ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","instagram_basic","instagram_content_publish","business_management"].join(",");
-        const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id, platform: platformId }));
+        const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: platformId }));
         window.location.assign(`https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`);
       } else if (platformId === "linkedin") {
         const clientId = process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/linkedin/callback`);
-        const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id, platform: "linkedin" }));
+        const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: "linkedin" }));
         const scope = encodeURIComponent("openid profile email w_member_social");
         window.location.assign(`https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`);
       } else if (platformId === "linkedin_page") {
         const clientId = process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/linkedin/callback`);
-        const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id, platform: "linkedin", flowType: "page" }));
+        const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: "linkedin", flowType: "page" }));
         const scope = encodeURIComponent("openid profile email w_member_social r_organization_social w_organization_social");
         window.location.assign(`https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}&scope=${scope}`);
       } else if (platformId === "pinterest") {
@@ -304,7 +302,7 @@ export default function AccountsPage() {
           return;
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/pinterest/callback`);
-        const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
+        const state = encodeURIComponent(JSON.stringify({ workspaceId }));
         window.location.assign(`https://www.pinterest.com/oauth/?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=boards:read,pins:read,pins:write&state=${state}`);
       } else if (platformId === "threads") {
         const appId = process.env.NEXT_PUBLIC_THREADS_APP_ID || "";
@@ -314,13 +312,13 @@ export default function AccountsPage() {
           return;
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/threads/callback`);
-        const state = encodeURIComponent(JSON.stringify({ workspaceId: member.workspace_id }));
+        const state = encodeURIComponent(JSON.stringify({ workspaceId }));
         window.location.assign(`https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=threads_basic,threads_content_publish&state=${state}&response_type=code`);
       } else if (platformId === "twitter") {
         const clientId = process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "ZGtmZHMxdUJWU3BMUS15VXpjVXk6MTpjaQ";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/twitter/callback`);
         const codeChallenge = "zoikovertex_twitter_oauth2_pkce_plain_challenge_string";
-        const state = encodeURIComponent(member.workspace_id);
+        const state = encodeURIComponent(workspaceId);
         const scope = encodeURIComponent("tweet.read tweet.write users.read offline.access");
         window.location.assign(`https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=plain`);
       } else {
@@ -442,7 +440,7 @@ export default function AccountsPage() {
                   <p className="text-xs text-[var(--foreground-muted)] mt-0.5">{platform.description}</p>
                 </div>
 
-                {!platform.comingSoon && userRole !== "CREATOR" && (
+                {!platform.comingSoon && (userRole !== "CREATOR" || isSuperAdmin) && (
                   <div className="flex items-center gap-2 shrink-0">
                     {platform.id === "linkedin" && (
                       <button
@@ -518,7 +516,7 @@ export default function AccountsPage() {
                           <CheckCircle2 className="w-3 h-3" />
                           Active
                         </span>
-                        {userRole !== "CREATOR" && (
+                        {(userRole !== "CREATOR" || isSuperAdmin) && (
                           confirmingDisconnect === account.id ? (
                             <div className="flex items-center gap-2">
                               <span className="text-[11px] text-[var(--foreground-muted)]">Remove?</span>

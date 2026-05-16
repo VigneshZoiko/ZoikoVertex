@@ -6,10 +6,13 @@ import { AuthRequest } from '../../shared/authMiddleware';
 export const listExceptions = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
+    const isSuper = req.user?.is_superadmin;
+    const workspaceId = req.user?.workspace_id;
+
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     // 1. Fetch intents that are in exception states: FAILED, RETURNED, or HIGH risk
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('publish_intents')
       .select(`
         *,
@@ -18,6 +21,12 @@ export const listExceptions = async (req: AuthRequest, res: Response, next: Next
       .or('status.eq.FAILED,status.eq.RETURNED,risk_level.eq.HIGH,risk_level.eq.RESTRICTED')
       .order('created_at', { ascending: false });
 
+    if (!isSuper) {
+      if (!workspaceId) return res.status(403).json({ error: 'Workspace context missing' });
+      query = query.eq('workspace_id', workspaceId);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
 
     // 2. Format exceptions into specific categories

@@ -37,13 +37,14 @@ export const submitIntent = async (
 
     const urlsToSave = mediaUrls || (mediaUrl ? [mediaUrl] : []);
 
-    const { data: member, error: memberError } = await supabaseAdmin
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', userId)
-      .single();
+    const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
 
-    if (memberError) throw memberError;
+    if (!workspaceId && !isSuperAdmin) {
+      return res.status(403).json({ error: 'User is not associated with a workspace' });
+    }
+
+    const targetWorkspaceId = workspaceId || '00000000-0000-0000-0000-000000000000'; // Default Dev Workspace for God Mode
 
     const { data: accounts, error: accError } = await supabaseAdmin
       .from('connected_accounts')
@@ -59,7 +60,7 @@ export const submitIntent = async (
       }
 
       return {
-        workspace_id: member.workspace_id,
+        workspace_id: targetWorkspaceId,
         creator_id: userId,
         target_account_ids: [acc.id],
         content: finalCaption,
@@ -117,23 +118,9 @@ export const transitionStatus = async (
       return;
     }
 
-    const { data: member, error: roleError } = await supabaseAdmin
-      .from('workspace_members')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
-
-    if (roleError || !member)
-      throw new Error('Unauthorized: Workspace membership required');
-    const userRole = member.role;
-
-    const { data: userContext, error: contextError } = await supabaseAdmin
-      .from('users')
-      .select('is_superadmin')
-      .eq('id', userId)
-      .single();
-
-    const isSuperAdmin = !contextError && userContext?.is_superadmin;
+    const userRoleResult = req.user?.workspace_id ? await supabaseAdmin.from('workspace_members').select('role').eq('user_id', userId).eq('workspace_id', req.user.workspace_id).maybeSingle() : null;
+    const userRole = userRoleResult?.data?.role || (req.user?.is_superadmin ? 'ADMIN' : 'CREATOR');
+    const isSuperAdmin = req.user?.is_superadmin;
 
     if (userRole === 'CREATOR' && newStatus !== 'CANCELLED' && !isSuperAdmin) {
       return res.status(403).json({ error: 'Creators can only cancel their own intents' });
@@ -248,7 +235,7 @@ export const deleteIntent = async (
 
     let query = supabaseAdmin.from('publish_intents').delete().eq('id', id);
 
-    if (member?.role !== 'ADMIN') {
+    if (member?.role !== 'ADMIN' && !req.user?.is_superadmin) {
       query = query.eq('creator_id', userId);
     }
 
@@ -296,22 +283,9 @@ export const getQueue = async (
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: member, error: roleError } = await supabaseAdmin
-      .from('workspace_members')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
-
-    if (roleError || !member) throw new Error('Workspace context missing');
-    const role = member.role;
-
-    const { data: userContext } = await supabaseAdmin
-      .from('users')
-      .select('is_superadmin')
-      .eq('id', userId)
-      .single();
-
-    const isSuperAdmin = userContext?.is_superadmin;
+    const userRoleResult = req.user?.workspace_id ? await supabaseAdmin.from('workspace_members').select('role').eq('user_id', userId).eq('workspace_id', req.user.workspace_id).maybeSingle() : null;
+    const role = userRoleResult?.data?.role || (req.user?.is_superadmin ? 'ADMIN' : null);
+    const isSuperAdmin = req.user?.is_superadmin;
 
     let query = supabaseAdmin.from('publish_intents').select(`
         *,

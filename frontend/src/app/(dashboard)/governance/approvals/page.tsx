@@ -266,7 +266,7 @@ export default function ApprovalsPage() {
                   <TrendingUp className="w-4 h-4 text-indigo-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">This Week's Activity</p>
+                  <p className="text-sm font-semibold text-white">This Week&apos;s Activity</p>
                   <p className="text-xs text-[#666]">{totalDecided} decisions made in the past 7 days</p>
                 </div>
               </div>

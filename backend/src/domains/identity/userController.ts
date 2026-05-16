@@ -102,6 +102,9 @@ const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'dashboard:view','analytics:view','projects:view','campaigns:view',
     'queue:view','support:view',
   ],
+  MODEL_SUPERVISOR: [
+    'dashboard:view','agents:view','operations:view','analytics:view','audit:view','support:view',
+  ],
   SECURITY_ADMIN: [
     'dashboard:view','security:view','security:manage',
     'team:view','audit:view','support:view',
@@ -145,20 +148,25 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
     if (!userData?.is_superadmin) {
       const { data: member } = await supabaseAdmin
         .from('workspace_members')
-        .select('workspace_id, role, workspaces(org_id, organizations(status, plan_type))')
+        .select('workspace_id, role, workspaces(name, org_id, organizations(name, status, plan_type))')
         .eq('user_id', userId)
         .limit(1)
         .maybeSingle();
 
       if (member) {
+        console.log('Member found for user:', userId, 'Role:', member.role);
         workspaceId = member.workspace_id;
         role = member.role;
-        // @ts-expect-error nested join type not inferred by supabase client
-        const orgStatus = member.workspaces?.organizations?.status;
-        // @ts-expect-error nested join type not inferred by supabase client
-        const planType = member.workspaces?.organizations?.plan_type;
-        // @ts-expect-error nested join type not inferred by supabase client
-        const orgId = member.workspaces?.org_id;
+        
+        // Handle potential array return from joined queries (common in some supabase client versions)
+        const ws = Array.isArray(member.workspaces) ? member.workspaces[0] : member.workspaces;
+        const org = Array.isArray(ws?.organizations) ? ws.organizations[0] : ws?.organizations;
+
+        const orgStatus = org?.status;
+        const planType = org?.plan_type;
+        const orgId = ws?.org_id;
+        const orgName = org?.name;
+        const wsName = ws?.name;
 
         return res.json({
           success: true,
@@ -168,7 +176,9 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
             full_name: userData?.full_name || null,
             is_superadmin: false,
             workspace_id: workspaceId,
+            workspace_name: wsName || null,
             org_id: orgId || null,
+            org_name: orgName || 'ZoikoGroup',
             plan_type: planType || 'FREE',
             role,
             org_status: orgStatus || 'ACTIVE',
@@ -176,6 +186,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
           },
         });
       }
+      console.log('No member found for user:', userId);
     }
 
     res.json({
@@ -187,6 +198,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
         is_superadmin: userData?.is_superadmin || false,
         workspace_id: workspaceId,
         org_id: null,
+        org_name: 'ZoikoGroup',
         role,
         org_status: 'ACTIVE',
         permissions: userData?.is_superadmin ? ['*'] : (ROLE_PERMISSIONS_MAP[String(role || '').toUpperCase()] || []),

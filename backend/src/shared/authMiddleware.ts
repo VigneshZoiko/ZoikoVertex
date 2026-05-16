@@ -7,6 +7,8 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     email?: string;
+    workspace_id?: string | null;
+    is_superadmin?: boolean;
   };
   file?: Express.Multer.File;
 }
@@ -26,10 +28,26 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(401).json({ error: 'Unauthorized: Invalid token' });
     }
 
+    // Fetch workspace_id and superadmin status
+    const { data: userData } = await supabaseAdmin
+      .from('users')
+      .select('is_superadmin')
+      .eq('id', user.id)
+      .single();
+
+    const { data: member } = await supabaseAdmin
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', user.id)
+      .limit(1)
+      .maybeSingle();
+
     // Attach user to request
     req.user = {
       id: user.id,
-      email: user.email
+      email: user.email,
+      workspace_id: member?.workspace_id || null,
+      is_superadmin: userData?.is_superadmin || false
     };
 
     next();

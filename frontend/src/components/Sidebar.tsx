@@ -42,31 +42,23 @@ import {
   Zap,
   Webhook,
   HeartPulse,
-  Key,
   Building2,
   Handshake,
   CreditCard,
   Lock,
-  EyeOff,
-  Bell,
-  Server,
   TrendingUp,
   FolderKanban,
   Inbox,
   MonitorPlay,
-  Palette,
-  Terminal,
-  ExternalLink,
-  Siren,
   Fingerprint,
   Pencil,
-  BarChart3,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
 import { useRealtimeNotifications } from "@/lib/hooks/useRealtimeNotifications";
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
 import { useNotifications } from "@/lib/context/NotificationContext";
+import { useRoleContext } from "@/lib/context/RoleContext";
 import DiscardModal from "@/components/DiscardModal";
 import { ROLE_GROUP_MAPPING } from "@/lib/roles";
 
@@ -109,14 +101,14 @@ const NAV_GROUPS: NavGroup[] = [
     icon: LayoutDashboard,
     items: [
       { name: "Dashboard",           href: "/dashboard",   icon: LayoutDashboard, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","ANALYST","SECURITY_ADMIN","PRIVACY_ADMIN","BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER"] },
-      { name: "Operations Feed",     href: "/operations",  icon: Activity,        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_OPERATOR","CAMPAIGN_MANAGER"] },
-      { name: "Insights & ROI",      href: "/analytics",   icon: TrendingUp,      roles: ["ADMIN","WORKSPACE_OWNER","ANALYST","CAMPAIGN_MANAGER","AUDITOR","COMPLIANCE_REVIEWER"] },
-      { name: "Resource Monitoring", href: "/resources",   icon: Cpu,             roles: ["ADMIN","WORKSPACE_OWNER"] },
+      { name: "Operations Feed",     href: "/operations",  icon: Activity,        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_OPERATOR","CAMPAIGN_MANAGER","PUBLISHER"] },
+      { name: "Insights & ROI",      href: "/analytics",   icon: TrendingUp,      roles: ["ADMIN","WORKSPACE_OWNER","ANALYST","CAMPAIGN_MANAGER","AUDITOR","COMPLIANCE_REVIEWER","PUBLISHER"] },
+      { name: "Resource Monitoring", href: "/resources",   icon: Cpu,             roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"] },
     ],
   },
   {
     id: "media",
-    label: "Media",
+    label: "Media Engine",
     icon: ImageIcon,
     items: [
       { name: "Media Vault",         href: "/library",    icon: Database,       roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","REVIEWER","ANALYST","VIEWER"] },
@@ -129,84 +121,82 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    id: "validation",
-    label: "Validation",
-    icon: ClipboardCheck,
-    items: [
-      { name: "Review Queue",     href: "/queue",                   icon: ClipboardList,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","REVIEWER","VALIDATOR","APPROVER","BRAND_REVIEWER","CAMPAIGN_MANAGER"], badge: true },
-      { name: "Validation Desk",  href: "/validation",              icon: ClipboardCheck, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR"] },
-      { name: "Approvals",        href: "/governance/approvals",    icon: CheckSquare,    roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","APPROVER","VALIDATOR"] },
-      { name: "Brand Library",    href: "/governance/brand-library",icon: Palette,        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR","REVIEWER","APPROVER","BRAND_REVIEWER"] },
-      { name: "Quality Assurance",href: "/quality",                 icon: ShieldCheck,    roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","BRAND_REVIEWER"] },
-      { name: "Approval Rules",   href: "/governance/rules",        icon: ListChecks,     roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
-      { name: "Exceptions",       href: "/exceptions",              icon: AlertOctagon,   roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
-    ],
-  },
-  {
     id: "agents",
-    label: "Agents",
+    label: "Authority Layer",
     icon: Bot,
     items: [
       { name: "Agent Studio",      href: "/agents/studio",      icon: Bot,               roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT"] },
       { name: "Agent Operations",  href: "/agents/operations",  icon: MonitorPlay,       roles: ["ADMIN","WORKSPACE_OWNER","AGENT_OPERATOR","AGENT_ARCHITECT"] },
       { name: "Workflows",         href: "/agents/workflows",   icon: GitBranch,         roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT","AGENT_OPERATOR"] },
       { name: "Prompt Governance", href: "/agents/prompts",     icon: MessageSquareCode, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"] },
-      { name: "Autonomy Controls", href: "/agents/autonomy",    icon: ToggleRight,       roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
-      { name: "Model Performance", href: "/agents/models",      icon: LineChart,         roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT","AGENT_OPERATOR"] },
       { name: "Knowledge Bases",   href: "/agents/knowledge",   icon: BookOpen,          roles: ["ADMIN","WORKSPACE_OWNER","KNOWLEDGE_MANAGER","AGENT_ARCHITECT"] },
     ],
   },
   {
     id: "governance",
-    label: "Governance",
+    label: "Safety Layer",
     icon: Scale,
     items: [
-      { name: "Governance Center", href: "/governance",          icon: Scale,      roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
-      { name: "Brand Standards",   href: "/governance/legal",    icon: BookMarked, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","BRAND_REVIEWER"] },
+      { name: "Autonomy Controls", href: "/agents/autonomy",    icon: ToggleRight,       roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
       { name: "Policy Center",     href: "/governance/policy",   icon: Scale,      roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
-      { name: "Risk & Compliance", href: "/governance/risk",     icon: ShieldAlert,roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"] },
+      { name: "Risk Management",   href: "/governance/risk",     icon: ShieldAlert,roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"] },
+      { name: "Brand Standards",   href: "/governance/legal",    icon: BookMarked, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","BRAND_REVIEWER"] },
+    ],
+  },
+  {
+    id: "validation",
+    label: "Accountability Layer",
+    icon: ClipboardCheck,
+    items: [
+      { name: "Review Queue",     href: "/queue",                   icon: ClipboardList,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","REVIEWER","VALIDATOR","APPROVER","BRAND_REVIEWER","CAMPAIGN_MANAGER"], badge: true },
+      { name: "Quality Audit",    href: "/governance/qa",           icon: ShieldCheck,    roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR","AUDITOR"] },
+      { name: "Validation Desk",  href: "/validation",              icon: ClipboardCheck, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR"] },
+      { name: "Approvals",        href: "/governance/approvals",    icon: CheckSquare,    roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","APPROVER","VALIDATOR"] },
+      { name: "Approval Rules",   href: "/governance/rules",        icon: ListChecks,     roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
+      { name: "Exceptions",       href: "/exceptions",              icon: AlertOctagon,   roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
+    ],
+  },
+  {
+    id: "evidence",
+    label: "Evidence Layer",
+    icon: FileSearch,
+    items: [
       { name: "Audit Trail",       href: "/governance/audit",    icon: FileSearch, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER"] },
+      { name: "Forensic Hub",      href: "/governance/forensic", icon: Fingerprint,roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR"] },
       { name: "Evidence Vault",    href: "/governance/evidence", icon: Archive,    roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER"] },
+      { name: "Identity Ledger",   href: "/integrations/identity-ledger",icon: Fingerprint,roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER","AUDITOR"] },
     ],
   },
   {
     id: "integrations",
-    label: "Integrations",
+    label: "Infrastructure",
     icon: Zap,
     items: [
       { name: "Platform Accounts",    href: "/accounts",                    icon: Link2,       roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER","PUBLISHER"] },
       { name: "Data Connectors",      href: "/integrations/data",           icon: Database,    roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"] },
       { name: "API & Webhooks",       href: "/integrations/api",            icon: Webhook,     roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"] },
-      { name: "Developer Console",    href: "/integrations/developer",      icon: Terminal,    roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"] },
-      { name: "System Identity Ledger",href: "/integrations/identity-ledger",icon: Fingerprint,roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER","AUDITOR"] },
       { name: "Integration Health",   href: "/integrations/health",         icon: HeartPulse,  roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"] },
     ],
   },
   {
     id: "access",
-    label: "Access",
+    label: "Access Control",
     icon: Shield,
     items: [
       { name: "Users & Access",      href: "/team",             icon: Users,        roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"] },
-      { name: "Roles & Permissions", href: "/access/roles",     icon: Key,          roles: ["ADMIN","WORKSPACE_OWNER"] },
-      { name: "Business Units",      href: "/access/units",     icon: Building2,    roles: ["ADMIN","WORKSPACE_OWNER"] },
+      { name: "Roles & Units",       href: "/access/roles",     icon: Building2,    roles: ["ADMIN","WORKSPACE_OWNER"] },
       { name: "External Partners",   href: "/access/partners",  icon: Handshake,    roles: ["ADMIN","WORKSPACE_OWNER"] },
-      { name: "External Workspace",  href: "/access/external",  icon: ExternalLink, roles: ["ADMIN","WORKSPACE_OWNER","EXTERNAL_COLLABORATOR"] },
     ],
   },
   {
     id: "admin",
-    label: "Admin",
+    label: "System",
     icon: Settings,
     items: [
       { name: "Workspace Settings",  href: "/admin/settings",      icon: Sliders,     roles: ["ADMIN","WORKSPACE_OWNER"] },
-      { name: "Subscription & Usage",href: "/admin/billing",       icon: CreditCard,  roles: ["ADMIN","WORKSPACE_OWNER"] },
-      { name: "Security",            href: "/admin/security",      icon: Lock,        roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"] },
-      { name: "Privacy & Data",      href: "/admin/privacy",       icon: EyeOff,      roles: ["ADMIN","WORKSPACE_OWNER","PRIVACY_ADMIN"] },
-      { name: "Notifications",       href: "/admin/notifications", icon: Bell,        roles: ["ADMIN","WORKSPACE_OWNER"] },
-      { name: "Crisis Console",      href: "/admin/crisis",        icon: Siren,       roles: ["ADMIN","WORKSPACE_OWNER"] },
-      { name: "System Status",       href: "/admin/status",        icon: Server,      roles: ["ADMIN","WORKSPACE_OWNER"] },
-      { name: "Support",             href: "/support",             icon: HelpCircle,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","ANALYST","SECURITY_ADMIN","PRIVACY_ADMIN","BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER"] },
+      { name: "Billing & Usage",     href: "/admin/billing",       icon: CreditCard,  roles: ["ADMIN","WORKSPACE_OWNER"] },
+      { name: "Security Center",     href: "/admin/security",      icon: Lock,        roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"] },
+      { name: "Support & Docs",      href: "/support",             icon: HelpCircle,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","ANALYST","SECURITY_ADMIN","PRIVACY_ADMIN","BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER"] },
     ],
   },
 ];
@@ -226,9 +216,7 @@ const OWNER_REQUIRED_PAGES = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [role, setRole] = useState<string | null>(null);
-  const [fullName, setFullName] = useState<string | null>(null);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const { role, isSuperAdmin, isLoading: roleLoading } = useRoleContext();
   const [roleLoaded, setRoleLoaded] = useState(false);
 
   const { isDirty, setIsDirty } = useDraftGuard();
@@ -258,48 +246,13 @@ export default function Sidebar() {
     }
   }, []);
 
+
   useEffect(() => {
-    const fetchUserAndRole = async () => {
-      try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-          window.location.href = "/login";
-          return;
-        }
-
-        setFullName(user.user_metadata?.full_name || user.email?.split('@')[0] || "Agent");
-
-        try {
-          const result = await api.get('/api/v1/user/context');
-          if (result.success) {
-            const { is_superadmin, role: userRole, full_name } = result.data;
-            setIsSuperAdmin(is_superadmin);
-            if (full_name) setFullName(full_name);
-
-            if (is_superadmin) {
-              setRoleLoaded(true);
-              return;
-            }
-            if (userRole) {
-              setRole(userRole);
-              fetchPendingCount(userRole);
-            }
-          }
-        } catch {
-          if (!role) setRole("CREATOR");
-        }
-      } catch (err) {
-        if (String(err).includes("Refresh Token")) {
-          window.location.href = "/login";
-          return;
-        }
-      } finally {
-        setRoleLoaded(true);
-      }
-    };
-    fetchUserAndRole();
-  }, [fetchPendingCount, role]);
+    if (!roleLoading) {
+      setRoleLoaded(true);
+      if (role) fetchPendingCount(role);
+    }
+  }, [roleLoading, role, fetchPendingCount]);
 
   useEffect(() => {
     if (!role) return;
@@ -346,23 +299,30 @@ export default function Sidebar() {
     window.location.href = "/login";
   };
 
-  const visibleGroups = useMemo(() => NAV_GROUPS.map(group => ({
-    ...group,
-    items: group.items.filter(item => {
-      if (isSuperAdmin) {
-        return OWNER_REQUIRED_PAGES.includes(item.href) || item.roles.includes("SUPERADMIN");
-      }
-      if (!role && !roleLoaded) {
-        return item.roles.includes("CREATOR");
-      }
-      if (!role) return false;
-      const normalizedRole = role.toUpperCase();
-      if (normalizedRole === "ADMIN" || normalizedRole === "WORKSPACE_OWNER") return true;
-      const hasExplicitAccess = item.roles.includes(normalizedRole);
-      const hasGroupAccess = ROLE_GROUP_MAPPING[group.id]?.includes(normalizedRole);
-      return hasExplicitAccess || hasGroupAccess;
-    }),
-  })).filter(group => group.items.length > 0), [isSuperAdmin, role, roleLoaded]);
+  const visibleGroups = useMemo(() => {
+    return NAV_GROUPS.map(group => ({
+      ...group,
+      items: group.items.filter(item => {
+        // DEV GOD MODE: Superadmin sees EVERYTHING
+        if (isSuperAdmin) return true;
+
+        if (!role && !roleLoaded) {
+          return item.roles.includes("CREATOR");
+        }
+        if (!role) return false;
+        const normalizedRole = role.toUpperCase();
+
+        // ADMIN / WORKSPACE_OWNER see almost everything (except Platform Owner items)
+        if (normalizedRole === "ADMIN" || normalizedRole === "WORKSPACE_OWNER") {
+          return group.id !== "platform";
+        }
+
+        const hasExplicitAccess = item.roles.includes(normalizedRole);
+        const hasGroupAccess = ROLE_GROUP_MAPPING[group.id]?.includes(normalizedRole);
+        return hasExplicitAccess || hasGroupAccess;
+      }),
+    })).filter(group => group.items.length > 0);
+  }, [isSuperAdmin, role, roleLoaded]);
 
   return (
     <>
@@ -384,6 +344,12 @@ export default function Sidebar() {
             <span className="text-[var(--sidebar-text)] font-bold text-xl tracking-wide">ZoikoVertex</span>
           </div>
           <p className="text-[var(--sidebar-text-muted)] text-xs mt-1 ml-11">Where Execution Becomes Accountable.</p>
+          {isSuperAdmin && (
+            <div className="mt-3 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full flex items-center gap-2">
+              <Shield className="w-3 h-3 text-indigo-400" />
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">God Mode Active</span>
+            </div>
+          )}
         </div>
 
         {/* Navigation */}
