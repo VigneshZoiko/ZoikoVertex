@@ -38,6 +38,7 @@ import {
   getAgentLeaderboard
 } from './domains/monitoring/modelPerformanceController';
 
+import { submitForReview, getApprovalQueue, getApprovalStats, takeApprovalAction } from './domains/decisions/approvalController';
 import { authenticate, provisionGuard } from './shared/authMiddleware';
 import { requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';
@@ -166,6 +167,12 @@ app.delete('/api/v1/knowledge/entries/:entryId', authenticate, KnowledgeControll
 app.get('/api/v1/knowledge/ai-context', authenticate, KnowledgeController.getAIContext);
 
 app.get('/api/v1/integrations/health', authenticate, getIntegrationHealth);
+
+// Approval Workflow Routes
+app.post('/api/v1/approvals/submit', authenticate, submitForReview);
+app.get('/api/v1/approvals/queue', authenticate, getApprovalQueue);
+app.get('/api/v1/approvals/stats', authenticate, getApprovalStats);
+app.post('/api/v1/approvals/items/:id/action', authenticate, takeApprovalAction);
 
 // Support Routes
 app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket);
