@@ -15,6 +15,12 @@ import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import { listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy } from './domains/agents/agentController';
+import {
+  getAutonomyStats, updateAgentLevel, suspendAgent,
+  createEmergencyLock, listEmergencyLocks, liftEmergencyLock,
+  listHITLRules, upsertHITLRule, deleteHITLRule,
+  listNegativeKnowledge, createNegativeKnowledge, deleteNegativeKnowledge,
+} from './domains/agents/autonomyController';
 import { SuperAdminController } from './domains/admin/superAdminController';
 import { SupportController } from './domains/admin/supportController';
 import { getUserContext } from './domains/identity/userController';
@@ -130,6 +136,21 @@ app.post('/api/v1/notifications/mark-all-read', authenticate, markAllRead);
 app.delete('/api/v1/notifications', authenticate, clearNotifications);
 
 // Protected Agent/Workflow Routes
+// Autonomy Control Routes
+app.get('/api/v1/autonomy/stats', authenticate, getAutonomyStats);
+app.patch('/api/v1/autonomy/agents/:id/level', authenticate, updateAgentLevel);
+app.post('/api/v1/autonomy/agents/:id/suspend', authenticate, suspendAgent);
+app.get('/api/v1/autonomy/emergency-locks', authenticate, listEmergencyLocks);
+app.post('/api/v1/autonomy/emergency-locks', authenticate, createEmergencyLock);
+app.delete('/api/v1/autonomy/emergency-locks/:id', authenticate, liftEmergencyLock);
+app.get('/api/v1/autonomy/hitl-rules', authenticate, listHITLRules);
+app.post('/api/v1/autonomy/hitl-rules', authenticate, upsertHITLRule);
+app.put('/api/v1/autonomy/hitl-rules/:id', authenticate, upsertHITLRule);
+app.delete('/api/v1/autonomy/hitl-rules/:id', authenticate, deleteHITLRule);
+app.get('/api/v1/autonomy/negative-knowledge', authenticate, listNegativeKnowledge);
+app.post('/api/v1/autonomy/negative-knowledge', authenticate, createNegativeKnowledge);
+app.delete('/api/v1/autonomy/negative-knowledge/:id', authenticate, deleteNegativeKnowledge);
+
 app.get('/api/v1/agents', authenticate, listAgents);
 app.get('/api/v1/agents/workflows', authenticate, listWorkflows);
 app.get('/api/v1/agents/workflows/active', authenticate, getActiveOrchestrations);

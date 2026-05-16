@@ -30,11 +30,7 @@ export const listAgents = async (req: Request, res: Response, next: NextFunction
 
     const { data, error } = await supabaseAdmin
       .from('agents')
-      .select(`
-        *,
-        primary_dri:domain_users!primary_dri_id(full_name, email),
-        backup_dri:domain_users!backup_dri_id(full_name, email)
-      `)
+      .select(`*, primary_dri:users!primary_dri_id(full_name, email), backup_dri:users!backup_dri_id(full_name, email)`)
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: false });
 
@@ -58,12 +54,7 @@ export const getAgent = async (req: Request, res: Response, next: NextFunction) 
 
     const { data, error } = await supabaseAdmin
       .from('agents')
-      .select(`
-        *,
-        primary_dri:domain_users!primary_dri_id(full_name, email),
-        backup_dri:domain_users!backup_dri_id(full_name, email),
-        artifacts:agent_artifacts(*)
-      `)
+      .select(`*, primary_dri:users!primary_dri_id(full_name, email), backup_dri:users!backup_dri_id(full_name, email), artifacts:agent_artifacts(*)`)
       .eq('id', id)
       .single();
 
@@ -175,8 +166,8 @@ export const updateAutonomy = async (req: Request, res: Response, next: NextFunc
     const { id } = req.params;
     const { autonomy_level } = req.body;
 
-    if (!['L0', 'L1', 'L2', 'L3', 'L4'].includes(autonomy_level)) {
-      return res.status(400).json({ success: false, message: 'Invalid autonomy level' });
+    if (!['L0', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6'].includes(autonomy_level)) {
+      return res.status(400).json({ success: false, message: 'Invalid autonomy level. Valid: L0–L6' });
     }
 
     await logToDatabase('info', AGENT_SERVICE, `Manually updating agent ${id} autonomy to ${autonomy_level}`, { autonomy_level });
