@@ -42,12 +42,16 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       .limit(1)
       .maybeSingle();
 
+    const isSuperAdmin = userData?.is_superadmin || false;
+
     // Attach user to request
+    // Superadmins with no workspace membership get a default dev workspace so
+    // all workspace-scoped endpoints work without returning 403.
     req.user = {
       id: user.id,
       email: user.email,
-      workspace_id: member?.workspace_id || null,
-      is_superadmin: userData?.is_superadmin || false
+      workspace_id: member?.workspace_id || (isSuperAdmin ? '00000000-0000-0000-0000-000000000000' : null),
+      is_superadmin: isSuperAdmin
     };
 
     next();

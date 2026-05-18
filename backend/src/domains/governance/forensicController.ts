@@ -13,7 +13,7 @@ export const getForensicSummary = async (req: AuthRequest, res: Response, next: 
     // Fetch historical publish intents to analyze performance
     let query = supabaseAdmin
       .from('publish_intents')
-      .select('risk_score, status, platform, created_at, agent_id');
+      .select('risk_score, status, platform, created_at');
 
     if (!isSuperAdmin && workspaceId) query = query.eq('workspace_id', workspaceId);
 
@@ -69,17 +69,8 @@ export const getForensicSummary = async (req: AuthRequest, res: Response, next: 
  */
 export const getAgentPerformance = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { agentId } = req.params;
-    
-    const { data: intents, error } = await supabaseAdmin
-      .from('publish_intents')
-      .select('status, risk_score, created_at')
-      .eq('agent_id', agentId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    res.json({ success: true, data: intents || [] });
+    // agent_id column not yet in DB schema — return empty until migration is applied
+    res.json({ success: true, data: [] });
   } catch (error) {
     next(error);
   }

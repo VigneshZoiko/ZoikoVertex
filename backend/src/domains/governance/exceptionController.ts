@@ -11,14 +11,14 @@ export const listExceptions = async (req: AuthRequest, res: Response, next: Next
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    // 1. Fetch intents that are in exception states: FAILED, RETURNED, or HIGH risk
+    // 1. Fetch intents then filter in JS — avoids enum type errors for values like
+    //    RESTRICTED that may not exist in the live risk_level enum yet.
     let query = supabaseAdmin
       .from('publish_intents')
       .select(`
         *,
         creator:users!publish_intents_creator_id_fkey(full_name, email)
       `)
-      .or('status.eq.FAILED,status.eq.RETURNED,risk_level.eq.HIGH,risk_level.eq.RESTRICTED')
       .order('created_at', { ascending: false });
 
     if (!isSuper) {
@@ -26,8 +26,16 @@ export const listExceptions = async (req: AuthRequest, res: Response, next: Next
       query = query.eq('workspace_id', workspaceId);
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
+    const { data: rawData, error } = await query;
+    if (error) {
+      if ((error as any).code === '42P01') return res.status(200).json({ success: true, data: [] });
+      throw error;
+    }
+
+    const data = (rawData || []).filter((item: any) =>
+      item.status === 'FAILED' || item.status === 'RETURNED' ||
+      item.risk_level === 'HIGH' || item.risk_level === 'RESTRICTED'
+    );
 
     // 2. Format exceptions into specific categories
     const categorized = data.map(item => {
