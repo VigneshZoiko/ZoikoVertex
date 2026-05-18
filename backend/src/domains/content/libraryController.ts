@@ -73,7 +73,7 @@ export const listLibrary = async (req: AuthRequest, res: Response, next: NextFun
  */
 export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { title, urls, file_type } = req.body;
+    const { title, description, urls, file_type } = req.body;
     const userId = req.user?.id;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
@@ -82,23 +82,19 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(400).json({ error: 'Missing required fields: title, urls, file_type' });
     }
 
-    const { data: member } = await supabaseAdmin
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', userId)
-      .single();
-
-    if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace context missing' });
 
     const { data, error } = await supabaseAdmin
       .from('media_library')
       .insert({
         title,
+        description: description || null,
         urls,
-        url: urls[0], // Keep first for backward compatibility
+        url: urls[0],
         file_type,
         uploader_id: userId,
-        workspace_id: member.workspace_id,
+        workspace_id: workspaceId,
         status: 'available'
       })
       .select()
