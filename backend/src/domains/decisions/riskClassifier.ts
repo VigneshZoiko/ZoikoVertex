@@ -5,6 +5,9 @@
  * to determine appropriate approval workflows and governance controls.
  */
 
+import { supabaseAdmin } from '../../shared/supabase';
+import { nksStore } from '../agents/autonomyController';
+
 export interface RiskAssessment {
   level: "LOW" | "STANDARD" | "ELEVATED" | "HIGH" | "RESTRICTED";
   score: number; // 0-100
@@ -339,5 +342,287 @@ export class RiskClassifier {
     };
 
     return summaries[assessment.level] || "Review required.";
+  }
+
+  /**
+   * Perform advanced, interconnected dynamic context assessment using database guardrails.
+   * Scans content against allowed/prohibited brand standard lexicons, NKS prohibited terms, 
+   * and verifies agent trust score boundaries for active levels.
+   */
+  static async assessContentAdvanced(
+    content: string,
+    platform: string = "linkedin",
+    workspaceId: string = "global",
+    agentId?: string
+  ): Promise<{
+    assessment: RiskAssessment;
+    nksViolations: string[];
+    brandViolations: string[];
+    agentCompliance: {
+      trustScore: number;
+      faithfulnessScore: number;
+      isSuspended: boolean;
+      allowedMaxLevel: string;
+      requiresHumanEscalation: boolean;
+      escalationReason?: string;
+    };
+  }> {
+    // 1. Perform baseline risk classification
+    const assessment = this.assessContent(content, platform);
+    const lowerContent = content.toLowerCase();
+    const factors = [...assessment.factors];
+    const nksViolations: string[] = [];
+    const brandViolations: string[] = [];
+    
+    let trustScore = 1.0;
+    let faithfulnessScore = 1.0;
+    let isSuspended = false;
+    let allowedMaxLevel = "L6";
+    let requiresHumanEscalation = false;
+    let escalationReason: string | undefined = undefined;
+
+    // 2. Scan dynamic Negative Knowledge Sets (NKS)
+    try {
+      const { data: dbNks } = await supabaseAdmin
+        .from('negative_knowledge_sets')
+        .select('*')
+        .eq('workspace_id', workspaceId);
+      
+      const allNks = [...(dbNks || [])];
+
+      for (const nksItem of nksStore.values()) {
+        if (nksItem.workspace_id === workspaceId && !allNks.some(n => n.id === nksItem.id)) {
+          allNks.push(nksItem);
+        }
+      }
+
+      for (const nks of allNks) {
+        const matchingTerms = nks.prohibited_terms.filter((term: string) => 
+          lowerContent.includes(term.toLowerCase())
+        );
+
+        if (matchingTerms.length > 0) {
+          nksViolations.push(...matchingTerms);
+          
+          let scorePenalty = 20;
+          let levelRequirement: RiskAssessment["approvalLevel"] = "VALIDATOR";
+          
+          if (nks.severity === "BLOCK") {
+            scorePenalty = 40;
+            levelRequirement = "FINAL_APPROVER";
+          } else if (nks.severity === "ESCALATE") {
+            scorePenalty = 30;
+            levelRequirement = "GOVERNANCE_ADMIN";
+          } else if (nks.severity === "REQUIRE_APPROVAL") {
+            scorePenalty = 20;
+            levelRequirement = "VALIDATOR";
+          } else if (nks.severity === "WARN") {
+            scorePenalty = 10;
+            levelRequirement = "REVIEWER";
+          }
+
+          assessment.score += scorePenalty;
+          factors.push(`NKS Prohibited term detected: [${matchingTerms.join(", ")}] in set '${nks.name}' (Severity: ${nks.severity})`);
+
+          if (assessment.score >= 20) assessment.requiresApproval = true;
+          if (levelRequirement === "FINAL_APPROVER") {
+            assessment.approvalLevel = "FINAL_APPROVER";
+          } else if (levelRequirement === "GOVERNANCE_ADMIN" && assessment.approvalLevel !== "FINAL_APPROVER") {
+            assessment.approvalLevel = "GOVERNANCE_ADMIN";
+          } else if (levelRequirement === "VALIDATOR" && !["FINAL_APPROVER", "GOVERNANCE_ADMIN"].includes(assessment.approvalLevel || "")) {
+            assessment.approvalLevel = "VALIDATOR";
+          }
+        }
+      }
+    } catch (err) {
+      // Graceful fallback
+    }
+
+    // 3. Scan brand standards allowed/prohibited linguistic rules + Evidence Dependency check
+    try {
+      const { data: dbLinguistic } = await supabaseAdmin
+        .from('brand_linguistic_rules')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .limit(1)
+        .maybeSingle();
+
+      const prohibitedLexicon = dbLinguistic?.prohibited_lexicon || [
+        "guarantee", "bulletproof", "risk-free", "absolute-security", "perfect-accuracy"
+      ];
+      const allowedLexicon = dbLinguistic?.allowed_lexicon || [
+        "sustainable", "governed-autonomy", "verifiable-provenance", "sovereign-agent", "deterministic"
+      ];
+
+      const violatedProhibited = prohibitedLexicon.filter((term: string) => 
+        lowerContent.includes(term.toLowerCase())
+      );
+      if (violatedProhibited.length > 0) {
+        brandViolations.push(...violatedProhibited);
+        assessment.score += violatedProhibited.length * 25;
+        factors.push(`Prohibited Brand Lexicon violated: [${violatedProhibited.join(", ")}]`);
+        assessment.requiresApproval = true;
+        assessment.approvalLevel = "GOVERNANCE_ADMIN";
+      }
+
+      const alignedAllowed = allowedLexicon.filter((term: string) => 
+        lowerContent.includes(term.toLowerCase())
+      );
+      if (alignedAllowed.length > 0) {
+        assessment.score = Math.max(0, assessment.score - alignedAllowed.length * 5);
+        factors.push(`Aligned Brand Lexicon bonus: [${alignedAllowed.join(", ")}]`);
+      }
+
+      // GAP FIX 1: Evidence Dependency enforcement (Brand Standards spec - voice.evidence_dependency index)
+      // If evidence_dependency threshold is high and content contains factual/statistical language
+      // without an evidence anchor, escalate per Brand Standards Architecture doc.
+      const evidenceDependency: number = dbLinguistic?.evidence_dependency ?? 0.5;
+      const factuallanguageTerms = ["proven", "study shows", "research shows", "data shows",
+        "according to", "statistics show", "evidence shows", "survey", "report"];
+      const hasFactualLanguage = factuallanguageTerms.some(t => lowerContent.includes(t));
+      const hasEvidenceAnchor = ["http", "source:", "citation:", "ref:", "see:"].some(t => lowerContent.includes(t));
+
+      if (evidenceDependency >= 0.6 && hasFactualLanguage && !hasEvidenceAnchor) {
+        assessment.score += Math.round(evidenceDependency * 30); // up to +30 based on threshold
+        assessment.requiresApproval = true;
+        factors.push(
+          `Evidence Dependency violation: Brand requires evidence anchors (threshold: ${Math.round(evidenceDependency * 100)}%) for factual language but none found.`
+        );
+        if (assessment.approvalLevel !== "FINAL_APPROVER") {
+          assessment.approvalLevel = "GOVERNANCE_ADMIN";
+        }
+      }
+    } catch (err) {
+      // Fallback
+    }
+
+    // 4. Validate agent trust, faithfulness, and policy violation history (Approval Integrity)
+    if (agentId) {
+      try {
+        const { data: agent } = await supabaseAdmin
+          .from('agents')
+          .select('name, trust_score, faithfulness_score, autonomy_level, status')
+          .eq('id', agentId)
+          .single();
+
+        if (agent) {
+          trustScore = agent.trust_score ?? 1.0;
+          faithfulnessScore = agent.faithfulness_score ?? 1.0;
+          isSuspended = agent.status === "SUSPENDED" || agent.autonomy_level === "L0";
+
+          const trustPct = Math.round(trustScore * 100);
+          const faithPct = Math.round(faithfulnessScore * 100);
+
+          if (isSuspended) {
+            requiresHumanEscalation = true;
+            escalationReason = "Agent is currently SUSPENDED or set to L0 Assistive Only.";
+            assessment.score = 100;
+            assessment.requiresApproval = true;
+            assessment.approvalLevel = "FINAL_APPROVER";
+            factors.push("Blocked: Attempted publishing via a suspended agent.");
+          }
+
+          if (faithPct < 85) {
+            requiresHumanEscalation = true;
+            escalationReason = `Agent Faithfulness (${faithPct}%) falls below safety threshold of 85%.`;
+            assessment.score = Math.max(assessment.score, 80);
+            assessment.requiresApproval = true;
+            assessment.approvalLevel = "GOVERNANCE_ADMIN";
+            factors.push(`Faithfulness trigger: Agent faithfulness score is too low (${faithPct}%)`);
+          }
+
+          if (trustPct < 60) allowedMaxLevel = "L2";
+          else if (trustPct < 70) allowedMaxLevel = "L3";
+          else if (trustPct < 80) allowedMaxLevel = "L4";
+          else if (trustPct < 90) allowedMaxLevel = "L5";
+
+          const currentLvlNum = parseInt(agent.autonomy_level?.replace("L", "") || "0");
+          const allowedLvlNum = parseInt(allowedMaxLevel.replace("L", ""));
+
+          if (currentLvlNum > allowedLvlNum) {
+            requiresHumanEscalation = true;
+            escalationReason = `Agent Autonomy Level (${agent.autonomy_level}) exceeds limits allowed for trust score (${trustPct}%). Max permitted is ${allowedMaxLevel}.`;
+            assessment.score = Math.max(assessment.score, 70);
+            assessment.requiresApproval = true;
+            assessment.approvalLevel = "GOVERNANCE_ADMIN";
+            factors.push(`Trust threshold violation: Agent autonomy (${agent.autonomy_level}) exceeds trust boundary (${allowedMaxLevel})`);
+          }
+
+          // GAP FIX 2: Approval Integrity / Policy Violation History check
+          // Per HITL doc: if an agent produces 3+ consecutive policy-rejected outputs,
+          // it must automatically move to Supervised Mode for re-certification.
+          try {
+            const { data: recentRejections } = await supabaseAdmin
+              .from('publish_intents')
+              .select('id, status')
+              .eq('creator_id', agentId)
+              .in('status', ['REJECTED', 'GOVERNANCE_BLOCKED'])
+              .order('created_at', { ascending: false })
+              .limit(5);
+
+            const consecutiveViolations = (recentRejections || []).length;
+            if (consecutiveViolations >= 3) {
+              requiresHumanEscalation = true;
+              escalationReason = escalationReason ||
+                `Approval Integrity Alert: Agent has ${consecutiveViolations} recent rejected/blocked publish attempts. Re-certification required.`;
+              assessment.score = Math.max(assessment.score, 75);
+              assessment.requiresApproval = true;
+              assessment.approvalLevel = assessment.approvalLevel === "FINAL_APPROVER"
+                ? "FINAL_APPROVER" : "GOVERNANCE_ADMIN";
+              factors.push(
+                `Collusion/Integrity Flag: ${consecutiveViolations} recent policy violations detected. Agent routed for re-certification review.`
+              );
+            }
+          } catch (_) { /* Graceful fallback */ }
+        }
+      } catch (err) {
+        // Fallback
+      }
+    }
+
+    assessment.score = Math.min(assessment.score, 100);
+    assessment.factors = factors;
+
+    if (assessment.score >= 80) {
+      assessment.level = "RESTRICTED";
+      assessment.requiresApproval = true;
+      assessment.approvalLevel = "FINAL_APPROVER";
+    } else if (assessment.score >= 60) {
+      assessment.level = "HIGH";
+      assessment.requiresApproval = true;
+      if (assessment.approvalLevel !== "FINAL_APPROVER") {
+        assessment.approvalLevel = "GOVERNANCE_ADMIN";
+      }
+    } else if (assessment.score >= 40) {
+      assessment.level = "ELEVATED";
+      assessment.requiresApproval = true;
+      if (!["FINAL_APPROVER", "GOVERNANCE_ADMIN"].includes(assessment.approvalLevel || "")) {
+        assessment.approvalLevel = "VALIDATOR";
+      }
+    } else if (assessment.score >= 20) {
+      assessment.level = "STANDARD";
+      assessment.requiresApproval = true;
+      if (!["FINAL_APPROVER", "GOVERNANCE_ADMIN", "VALIDATOR"].includes(assessment.approvalLevel || "")) {
+        assessment.approvalLevel = "REVIEWER";
+      }
+    } else {
+      assessment.level = "LOW";
+      assessment.requiresApproval = false;
+      assessment.approvalLevel = undefined;
+    }
+
+    return {
+      assessment,
+      nksViolations,
+      brandViolations,
+      agentCompliance: {
+        trustScore,
+        faithfulnessScore,
+        isSuspended,
+        allowedMaxLevel,
+        requiresHumanEscalation,
+        escalationReason
+      }
+    };
   }
 }
