@@ -29,6 +29,7 @@ export const submitIntent = async (
 ) => {
   try {
     const { content, mediaUrls, mediaUrl, targetAccountIds } = SubmitIntentSchema.parse(req.body);
+    const platformPostTypes: Record<string, string> = req.body.platformPostTypes || {};
     const userId = req.user?.id;
 
     if (!userId) {
@@ -58,6 +59,7 @@ export const submitIntent = async (
       if (content.platforms && content.platforms[acc.platform]) {
         finalCaption = content.platforms[acc.platform];
       }
+      const postType = platformPostTypes[acc.platform] || null;
 
       return {
         workspace_id: targetWorkspaceId,
@@ -68,9 +70,10 @@ export const submitIntent = async (
         media_url: urlsToSave[0] || null,
         status: 'APPROVED',
         platform: acc.platform,
+        // post_type stored in risk_factors metadata until a dedicated column is migrated
         risk_level: 'LOW',
         risk_score: 0,
-        risk_factors: [],
+        risk_factors: postType ? [{ type: 'post_type', value: postType }] : [],
         requires_approval: false,
         approval_level: 'AUTO_APPROVE',
       };
