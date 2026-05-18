@@ -619,6 +619,85 @@ export const handleThreadsDataDeletion = async (req: Request, res: Response) => 
 };
 
 /**
+ * Handles the YouTube OAuth callback
+ */
+export const handleYoutubeCallback = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { code, state: stateParam, error: oauthError } = req.query;
+
+    if (oauthError) {
+      logger.warn(`[Social] YouTube OAuth denied: ${oauthError}`);
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent(oauthError as string)}`);
+    }
+
+    if (!code) {
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent('No authorization code returned from Google')}`);
+    }
+
+    const workspaceId = stateParam as string;
+    logger.info(`[Social] Handling YouTube callback for workspace: ${workspaceId}`);
+
+    const redirectUri = env.YOUTUBE_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/youtube/callback`;
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        code: code as string,
+        client_id: env.YOUTUBE_CLIENT_ID || '',
+        client_secret: env.YOUTUBE_CLIENT_SECRET || '',
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (tokenData.error) {
+      logger.error({ details: tokenData }, '[Social] YouTube token exchange failed');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
+    }
+
+    const accessToken = tokenData.access_token;
+
+    // Fetch YouTube channel details
+    const channelResponse = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    const channelData = await channelResponse.json();
+
+    if (channelData.error || !channelData.items || channelData.items.length === 0) {
+      logger.error({ details: channelData }, '[Social] YouTube channel fetch failed or no channel found');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent('No YouTube channel found for this Google account')}`);
+    }
+
+    const channel = channelData.items[0];
+
+    const accountData = {
+      workspace_id: workspaceId,
+      platform: 'youtube',
+      account_name: channel.snippet.title,
+      account_handle: channel.snippet.customUrl || channel.id,
+      avatar_url: channel.snippet.thumbnails?.default?.url,
+      access_token: accessToken,
+      status: 'active'
+    };
+
+    const { error: dbError } = await supabaseAdmin
+      .from('connected_accounts')
+      .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
+
+    if (dbError) throw dbError;
+
+    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=youtube`);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Disconnects a social account
  */
 export const disconnectAccount = async (req: any, res: Response, next: NextFunction) => {

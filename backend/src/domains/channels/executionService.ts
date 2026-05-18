@@ -102,6 +102,8 @@ export class ExecutionService {
         return await this.postToThreads(intent, account);
       } else if (account.platform === 'twitter') {
         return await this.postToTwitter(intent, account);
+      } else if (account.platform === 'youtube') {
+        return await this.postToYoutube(intent, account);
       }
       return { success: false, platform: account.platform, error: `Unsupported platform: ${account.platform}` };
     } catch (err: any) {
@@ -143,6 +145,57 @@ export class ExecutionService {
     } catch (err: any) {
       logger.error({ err }, `[Execution] Twitter Error`);
       return { success: false, platform: 'twitter', error: err.message };
+    }
+  }
+
+  private static async postToYoutube(intent: any, account: any): Promise<PublishResult> {
+    logger.info(`[Execution] Sending video to YouTube for ${account.account_handle}...`);
+    try {
+      if (!intent.media_url) {
+        throw new Error('YouTube requires a media URL (video) to publish.');
+      }
+
+      // 1. Fetch video from URL to binary
+      logger.info(`[Execution] Fetching video from ${intent.media_url} for YouTube upload...`);
+      const videoRes = await fetch(intent.media_url);
+      if (!videoRes.ok) throw new Error(`Failed to fetch video: ${videoRes.statusText}`);
+      const videoBuffer = await videoRes.arrayBuffer();
+
+      // 2. Upload video
+      const metadata = {
+        snippet: {
+          title: intent.title || 'ZoikoVertex Upload',
+          description: intent.content,
+          tags: intent.tags || ['ZoikoVertex']
+        },
+        status: {
+          privacyStatus: 'public',
+          selfDeclaredMadeForKids: false
+        }
+      };
+
+      const formData = new FormData();
+      formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      formData.append('file', new Blob([videoBuffer], { type: 'video/mp4' }));
+
+      const uploadUrl = 'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status';
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${account.access_token}`
+        },
+        body: formData as any
+      });
+
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error?.message || 'YouTube API Error');
+      }
+
+      return { success: true, platform: 'youtube', id: data.id };
+    } catch (err: any) {
+      logger.error({ err }, `[Execution] YouTube Error`);
+      return { success: false, platform: 'youtube', error: err.message };
     }
   }
 

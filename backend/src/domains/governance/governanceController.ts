@@ -283,17 +283,39 @@ export const getQueue = async (
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const userRoleResult = req.user?.workspace_id ? await supabaseAdmin.from('workspace_members').select('role').eq('user_id', userId).eq('workspace_id', req.user.workspace_id).maybeSingle() : null;
-    const role = userRoleResult?.data?.role || (req.user?.is_superadmin ? 'ADMIN' : null);
     const isSuperAdmin = req.user?.is_superadmin;
+    const workspaceId = req.user?.workspace_id;
 
-    let query = supabaseAdmin.from('publish_intents').select(`
-        *,
-        creator:users!publish_intents_creator_id_fkey(full_name, email)
-      `);
+    const userRoleResult = workspaceId
+      ? await supabaseAdmin.from('workspace_members').select('role').eq('user_id', userId).eq('workspace_id', workspaceId).maybeSingle()
+      : null;
+    const role = userRoleResult?.data?.role || (isSuperAdmin ? 'ADMIN' : null);
+
+    if (!role && !isSuperAdmin) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    let query = supabaseAdmin.from('publish_intents').select('*');
 
     if (isSuperAdmin) {
-      query = query.like('status', 'PENDING_%');
+      // Fetch all intents unfiltered, then filter in JS.
+      // The status column is a PostgreSQL enum whose exact values are managed
+      // in Supabase — using enum literals in the query risks "invalid input value"
+      // errors whenever new status names are introduced. JS filtering is safer.
+      const { data: allData, error: allErr } = await supabaseAdmin
+        .from('publish_intents')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (allErr) {
+        if ((allErr as any).code === '42P01') return res.status(200).json({ success: true, data: [] });
+        throw allErr;
+      }
+
+      const pending = (allData || []).filter((r: any) =>
+        typeof r.status === 'string' && r.status.startsWith('PENDING_')
+      );
+      return res.status(200).json({ success: true, data: pending });
     } else if (role === 'CREATOR') {
       query = query.eq('creator_id', userId).eq('status', 'RETURNED');
     } else {
@@ -301,7 +323,12 @@ export const getQueue = async (
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
-    if (error) throw error;
+    if (error) {
+      if ((error as any).code === '42P01') {
+        return res.status(200).json({ success: true, data: [] });
+      }
+      throw error;
+    }
 
     res.status(200).json({ success: true, data });
   } catch (error) {
