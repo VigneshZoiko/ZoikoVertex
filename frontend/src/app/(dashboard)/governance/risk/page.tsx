@@ -15,22 +15,25 @@ export default function RiskCommandCenterPage() {
   const [pauseMsg, setPauseMsg] = useState("");
 
   const fetchRiskData = async () => {
-    try {
-      setLoading(true);
-      const [pulseRes, feedRes, gapsRes] = await Promise.all([
-        api.get("/api/v1/governance/risk/pulse"),
-        api.get("/api/v1/governance/risk/feed"),
-        api.get("/api/v1/governance/risk/gaps"),
-      ]);
-      
-      if (pulseRes.success) setPulse(pulseRes.data);
-      if (feedRes.success) setFeed(feedRes.data);
-      if (gapsRes.success) setGaps(gapsRes.data);
-    } catch (error) {
-      console.error("Failed to fetch risk data:", error);
-    } finally {
-      setLoading(false);
+    setLoading(true);
+    // Each endpoint is fetched independently so one failure never blocks the others
+    const [pulseRes, feedRes, gapsRes] = await Promise.allSettled([
+      api.get("/api/v1/governance/risk/pulse").catch(() => null),
+      api.get("/api/v1/governance/risk/feed").catch(() => null),
+      api.get("/api/v1/governance/risk/gaps").catch(() => null),
+    ]);
+
+    if (pulseRes.status === "fulfilled" && pulseRes.value?.success) {
+      setPulse(pulseRes.value.data);
     }
+    if (feedRes.status === "fulfilled" && feedRes.value?.success) {
+      setFeed(feedRes.value.data ?? []);
+    }
+    if (gapsRes.status === "fulfilled" && gapsRes.value?.success) {
+      setGaps(gapsRes.value.data ?? []);
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => {
