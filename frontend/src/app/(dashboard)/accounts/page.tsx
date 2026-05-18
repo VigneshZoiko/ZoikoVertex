@@ -274,7 +274,7 @@ export default function AccountsPage() {
       const backendUrl =
         process.env.NEXT_PUBLIC_OAUTH_BACKEND_URL ||
         process.env.NEXT_PUBLIC_BACKEND_URL ||
-        "http://localhost:5005";
+        "http://localhost:5006";
 
       if (platformId === "facebook" || platformId === "instagram") {
         const appId = process.env.NEXT_PUBLIC_META_APP_ID || "989391590153112";
