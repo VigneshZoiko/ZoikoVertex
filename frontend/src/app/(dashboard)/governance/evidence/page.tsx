@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { useRoles } from "@/lib/hooks/useRoles";
 import { Archive, Scale, Download, ShieldAlert, CheckCircle2, AlertTriangle, FileLock2, Search, Filter, Upload, ShieldCheck } from "lucide-react";
 
@@ -12,7 +13,8 @@ export default function EvidenceVaultPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedTrace, setSelectedTrace] = useState<any>(null);
-   const [isBuildingPack, setIsBuildingPack] = useState(false);
+  const [isBuildingPack, setIsBuildingPack] = useState(false);
+  const [packFormat, setPackFormat] = useState("JSON");
   const [packMessage, setPackMessage] = useState<{type:"success"|"error", text:string}|null>(null);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{status: 'success'|'error', text: string, computed?: string, expected?: string} | null>(null);
@@ -60,27 +62,48 @@ export default function EvidenceVaultPage() {
       const res = await api.post("/api/v1/governance/evidence/packs", {
         purpose: "INTERNAL_AUDIT",
         scope_description: "Dynamic frontend export",
-        format: "JSON"
+        format: packFormat
       });
       if (res.success && res.data) {
-        // Trigger actual JSON file download
-        const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+        const pack = res.data.pack;
+        
+        // Fetch the file binary from the authenticated endpoint!
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = {};
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+        
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+        const fileRes = await fetch(`${backendUrl}/api/v1/governance/evidence/packs/${pack.id}/download`, {
+          headers
+        });
+        
+        if (!fileRes.ok) throw new Error("Failed to download evidence file.");
+        
+        const blob = await fileRes.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `evidence_pack_${res.data.pack.export_hash.slice(0, 8)}.json`;
+        
+        let ext = 'json';
+        if (packFormat === 'PDF') ext = 'pdf';
+        else if (packFormat === 'ZIP') ext = 'zip';
+        else if (packFormat === 'CSV') ext = 'csv';
+        
+        a.download = `evidence_pack_${pack.export_hash.slice(0, 8)}.${ext}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        setPackMessage({type: "success", text: "Evidence Pack downloaded!"});
+        setPackMessage({type: "success", text: `${packFormat} Evidence Pack downloaded!`});
         fetchEvidenceData();
       } else {
         setPackMessage({type: "error", text: "Failed to build Evidence Pack."});
       }
     } catch (e) {
-      setPackMessage({type: "error", text: "Network error building Evidence Pack."});
+      setPackMessage({type: "error", text: "Error generating/downloading Evidence Pack."});
     } finally {
       setIsBuildingPack(false);
       setTimeout(() => setPackMessage(null), 5000);
@@ -191,24 +214,35 @@ export default function EvidenceVaultPage() {
               Verify Bundle
             </button>
             <button 
-              onClick={handleApplyHold}
+              onClick={() => handleApplyHold()}
               className="px-4 py-2 bg-[#1a1a1a] border border-[#333] hover:border-indigo-500/50 text-white rounded-lg flex items-center gap-2 transition-colors">
               <FileLock2 className="w-4 h-4" />
               Apply Legal Hold
             </button>
-            <div className="flex flex-col items-end gap-1">
-              <button 
-                onClick={handleBuildPack}
-                disabled={isBuildingPack}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50">
-                <Download className="w-4 h-4" />
-                {isBuildingPack ? "Building..." : "Build Evidence Pack"}
-              </button>
-              {packMessage && (
-                <span className={`text-xs ${packMessage.type === "success" ? "text-green-400" : "text-red-400"}`}>
-                  {packMessage.text}
-                </span>
-              )}
+            <div className="flex items-center gap-2">
+              <select 
+                value={packFormat}
+                onChange={(e) => setPackFormat(e.target.value)}
+                className="bg-[#1a1a1a] border border-[#333] hover:border-[#444] text-white text-sm px-3 py-2 rounded-lg outline-none focus:border-indigo-500 transition-colors">
+                <option value="JSON">JSON Pack</option>
+                <option value="CSV">CSV Table</option>
+                <option value="PDF">PDF Report</option>
+                <option value="ZIP">ZIP Bundle</option>
+              </select>
+              <div className="flex flex-col items-end gap-1">
+                <button 
+                  onClick={handleBuildPack}
+                  disabled={isBuildingPack}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 whitespace-nowrap">
+                  <Download className="w-4 h-4" />
+                  {isBuildingPack ? "Building..." : `Export ${packFormat}`}
+                </button>
+                {packMessage && (
+                  <span className={`text-xs ${packMessage.type === "success" ? "text-green-400" : "text-red-400"}`}>
+                    {packMessage.text}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}

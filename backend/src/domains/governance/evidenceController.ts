@@ -4,6 +4,9 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { randomUUID, createHash } from 'crypto';
+import PDFDocument from 'pdfkit';
+import archiver from 'archiver';
+import { Readable } from 'stream';
 
 // ─── In-Memory Stores ─────────────────────────────────────────────────────────
 
@@ -557,4 +560,198 @@ export const listEvidencePacks = async (req: AuthRequest, res: Response, next: N
 
 export const isOnLegalHold = (objectId: string): boolean => {
   return [...legalHoldStore.values()].some(h => h.object_id === objectId);
+};
+
+// ─── Direct PDF Exporter helper ────────────────────────────────────────────────
+function generateEvidencePDF(pack: EvidencePack, artifacts: any[]): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    const chunks: Buffer[] = [];
+
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', err => reject(err));
+
+    // Sleek Title Header
+    doc.fillColor('#0f172a').fontSize(24).font('Helvetica-Bold').text('ZOIKOVERTEX');
+    doc.fillColor('#475569').fontSize(10).font('Helvetica-Bold').text('SOVEREIGN EVIDENCE VAULT & COMPLIANCE BUNDLE');
+    doc.moveDown(0.5);
+    doc.strokeColor('#e2e8f0').lineWidth(1).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+    doc.moveDown(1.5);
+
+    // Section 1: Certificate of Authenticity
+    doc.fillColor('#0f172a').fontSize(14).font('Helvetica-Bold').text('Certificate of Authenticity');
+    doc.moveDown(0.5);
+
+    const certY = doc.y;
+    doc.rect(50, certY, 495, 110).fill('#f8fafc');
+    doc.fillColor('#0f172a');
+    
+    doc.fontSize(9).font('Helvetica-Bold').text('Pack Reference ID:', 70, certY + 15);
+    doc.font('Helvetica').text(pack.id, 180, certY + 15);
+
+    doc.font('Helvetica-Bold').text('Requester ID:', 70, certY + 30);
+    doc.font('Helvetica').text(pack.requester_id, 180, certY + 30);
+
+    doc.font('Helvetica-Bold').text('Compliance Purpose:', 70, certY + 45);
+    doc.font('Helvetica').text(pack.purpose, 180, certY + 45);
+
+    doc.font('Helvetica-Bold').text('Scope Description:', 70, certY + 60);
+    doc.font('Helvetica').text(pack.scope_description, 180, certY + 60);
+
+    doc.font('Helvetica-Bold').text('Ledger Signature Hash:', 70, certY + 75);
+    doc.fillColor('#b91c1c').font('Helvetica-Bold').text(pack.export_hash, 180, certY + 75);
+
+    doc.fillColor('#0f172a');
+    doc.y = certY + 130;
+    doc.moveDown(1);
+
+    // Section 2: Audit Logs
+    doc.fontSize(14).font('Helvetica-Bold').text('Evidence Artifact List');
+    doc.fillColor('#64748b').fontSize(9).font('Helvetica-Oblique').text(`Total Extracted Records: ${artifacts.length} publish intents.`);
+    doc.fillColor('#0f172a');
+    doc.moveDown(1);
+
+    // Draw Table of Artifacts
+    const tableY = doc.y;
+    doc.strokeColor('#cbd5e1').lineWidth(1).moveTo(50, tableY).lineTo(545, tableY).stroke();
+    doc.moveDown(0.5);
+
+    doc.fontSize(8).font('Helvetica-Bold');
+    doc.text('Artifact ID', 50, tableY + 5, { width: 120 });
+    doc.text('Platform', 180, tableY + 5, { width: 60 });
+    doc.text('Status', 250, tableY + 5, { width: 70 });
+    doc.text('Risk Score', 330, tableY + 5, { width: 60 });
+    doc.text('Decision ID', 400, tableY + 5, { width: 140 });
+
+    doc.strokeColor('#cbd5e1').moveTo(50, tableY + 18).lineTo(545, tableY + 18).stroke();
+    
+    let currentY = tableY + 23;
+    artifacts.slice(0, 15).forEach((art: any) => {
+      if (currentY > 730) {
+        doc.addPage();
+        currentY = 50;
+      }
+      doc.fontSize(8).font('Helvetica');
+      doc.text(`ART-${String(art.id).slice(0, 8).toUpperCase()}`, 50, currentY, { width: 120 });
+      doc.text(String(art.platform || 'unknown').toUpperCase(), 180, currentY, { width: 60 });
+      doc.text(String(art.status || 'unknown'), 250, currentY, { width: 70 });
+      doc.text(`${art.risk_score || 0}%`, 330, currentY, { width: 60 });
+      doc.text(String(art.decision_id || 'N/A').slice(0, 20), 400, currentY, { width: 140 });
+
+      currentY += 15;
+    });
+
+    if (artifacts.length > 15) {
+      doc.moveDown(1);
+      doc.fontSize(8).font('Helvetica-Oblique').text(`... and ${artifacts.length - 15} more artifacts bundled securely in this export package.`);
+    }
+
+    doc.end();
+  });
+}
+
+// ─── Direct ZIP Exporter helper ────────────────────────────────────────────────
+function generateEvidenceZIP(pack: EvidencePack, artifacts: any[], pdfBuffer: Buffer): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    const chunks: Buffer[] = [];
+
+    archive.on('data', chunk => chunks.push(chunk));
+    archive.on('end', () => resolve(Buffer.concat(chunks)));
+    archive.on('error', err => reject(err));
+
+    // Append manifest
+    const manifest = JSON.stringify({ pack, artifacts }, null, 2);
+    archive.append(manifest, { name: 'evidence_manifest.json' });
+
+    // Append PDF Certificate
+    archive.append(pdfBuffer, { name: 'evidence_certificate.pdf' });
+
+    // Append README
+    const readme = `ZOIKOVERTEX SOVEREIGN EVIDENCE ZIP BUNDLE
+=========================================
+Export ID: ${pack.id}
+Created At: ${pack.created_at}
+Purpose: ${pack.purpose}
+Export Hash: ${pack.export_hash}
+
+HOW TO VERIFY THE INTEGRITY OF THIS COMPLIANCE BUNDLE:
+1. Open the ZoikoVertex Evidence review dashboard.
+2. Upload the 'evidence_manifest.json' file to the cryptographic verification widget.
+3. The widget recalculates the SHA-256 of 'artifacts' to cross-reference with 'export_hash'.
+`;
+    archive.append(readme, { name: 'README.txt' });
+
+    // Append individual JSON files under artifacts/
+    artifacts.forEach((art: any) => {
+      const artStr = JSON.stringify(art, null, 2);
+      archive.append(artStr, { name: `artifacts/artifact_ART-${String(art.id).slice(0, 8).toUpperCase()}.json` });
+    });
+
+    archive.finalize();
+  });
+}
+
+// ─── Download Evidence Pack controller ─────────────────────────────────────────
+export const downloadEvidencePack = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = String(req.params.id);
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const isSuperAdmin = req.user?.is_superadmin;
+    const workspaceId = req.user?.workspace_id;
+
+    // Fetch the pack metadata
+    const packs = await getEvidencePacks(workspaceId, isSuperAdmin);
+    const pack = packs.find(p => p.id === id);
+    if (!pack) {
+      res.status(404).json({ error: 'Evidence pack not found' });
+      return;
+    }
+
+    // Re-query the exact artifacts matching this scope/dates to rebuild the zip/pdf on the fly!
+    let query = supabaseAdmin
+      .from('publish_intents')
+      .select('id, content, platform, status, risk_level, risk_score, decision_id, feedback, created_at');
+
+    if (!isSuperAdmin && workspaceId) {
+      query = query.eq('workspace_id', workspaceId);
+    }
+    
+    const { data: artifacts } = await query.limit(500);
+
+    const pdfBuffer = await generateEvidencePDF(pack, artifacts || []);
+
+    if (pack.format === 'PDF') {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="evidence_pack_${pack.id.slice(0, 8)}.pdf"`);
+      res.send(pdfBuffer);
+      return;
+    } else if (pack.format === 'ZIP') {
+      const zipBuffer = await generateEvidenceZIP(pack, artifacts || [], pdfBuffer);
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="evidence_pack_${pack.id.slice(0, 8)}.zip"`);
+      res.send(zipBuffer);
+      return;
+    } else if (pack.format === 'CSV') {
+      let csv = 'id,content,platform,status,risk_level,risk_score,decision_id,feedback,created_at\n';
+      (artifacts || []).forEach((art: any) => {
+        csv += `"${art.id}","${(art.content || '').replace(/"/g, '""')}","${art.platform || ''}","${art.status || ''}","${art.risk_level || ''}","${art.risk_score || 0}","${art.decision_id || ''}","${(art.feedback || '').replace(/"/g, '""')}","${art.created_at}"\n`;
+      });
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="evidence_pack_${pack.id.slice(0, 8)}.csv"`);
+      res.send(Buffer.from(csv));
+      return;
+    } else {
+      // Fallback JSON download
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="evidence_pack_${pack.id.slice(0, 8)}.json"`);
+      res.send(JSON.stringify({ pack, artifacts: artifacts || [] }, null, 2));
+      return;
+    }
+  } catch (error) {
+    next(error);
+  }
 };

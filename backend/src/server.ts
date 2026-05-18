@@ -15,10 +15,11 @@ import {
   getAuditTrail, getAuditStats, 
   getEvidenceArtifacts, getEvidenceArtifactDetail, getEvidenceStats,
   applyLegalHold, listLegalHolds, releaseLegalHold,
-  buildEvidencePack, listEvidencePacks
+  buildEvidencePack, listEvidencePacks, downloadEvidencePack
 } from './domains/governance/evidenceController';
 import { getRiskPulse, getActiveRiskFeed, getGovernanceGaps, triggerEmergencyPause } from './domains/governance/riskController';
 import { getForensicSummary, getAgentPerformance } from './domains/governance/forensicController';
+import { getCollusionMetrics } from './domains/governance/collusionController';
 import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleTikTokCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
@@ -112,6 +113,7 @@ app.post('/api/v1/governance/evidence/holds', authenticate, govGuard, applyLegal
 app.delete('/api/v1/governance/evidence/holds/:id', authenticate, govGuard, releaseLegalHold);
 app.get('/api/v1/governance/evidence/packs', authenticate, govGuard, listEvidencePacks);
 app.post('/api/v1/governance/evidence/packs', authenticate, govGuard, buildEvidencePack);
+app.get('/api/v1/governance/evidence/packs/:id/download', authenticate, govGuard, downloadEvidencePack);
 
 // Protected Risk & Compliance Command Center
 app.get('/api/v1/governance/risk/pulse', authenticate, govGuard, getRiskPulse);
@@ -122,6 +124,7 @@ app.post('/api/v1/governance/risk/emergency-pause', authenticate, govGuard, trig
 // Forensic Analysis Engine
 app.get('/api/v1/governance/forensic/summary', authenticate, govGuard, getForensicSummary);
 app.get('/api/v1/governance/forensic/agents/:agentId', authenticate, govGuard, getAgentPerformance);
+app.get('/api/v1/governance/collusion/metrics', authenticate, govGuard, getCollusionMetrics);
 
 // Global Operations Telemetry
 app.get('/api/v1/operations/telemetry', authenticate, getSystemTelemetry);
