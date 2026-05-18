@@ -11,6 +11,7 @@ import {
 import { supabase } from "@/lib/supabase";
 
 import dynamic from "next/dynamic";
+import { getCompatibility, DEFAULT_POST_TYPES } from "@/components/publish/PlatformSelector";
 
 const PlatformSelector = dynamic(() => import("@/components/publish/PlatformSelector"), { ssr: false });
 const MediaUploader = dynamic(() => import("@/components/publish/MediaUploader"), { ssr: false });
@@ -52,6 +53,8 @@ function PublishPageInner() {
   const [activePlatformTab, setActivePlatformTab] = useState<string>("");
   const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  // Post type per platform (e.g. instagram→reel, youtube→short)
+  const [platformPostTypes, setPlatformPostTypes] = useState<Record<string, string>>({});
 
   const PLATFORM_LIMITS: Record<string, number> = {
     "Instagram": 2200,
@@ -117,7 +120,7 @@ function PublishPageInner() {
     setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
     setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
     setSuggestedTimes([]); setActiveRevisionId(null);
-    setSelectedAccountIds([]); setPlatformCaptions({});
+    setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({});
     setIsDirty(false);
     setMessage({ type: 'success', text: 'Draft discarded. Start fresh anytime.' });
   }, [setIsDirty]);
@@ -419,13 +422,49 @@ function PublishPageInner() {
     setGenerating(false);
   };
 
+  // Returns per-platform constraint violations for selected accounts given current media
+  const getPlatformViolations = useCallback(() => {
+    const count = selectedUrls.length || (media ? 1 : 0);
+    const type = assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : '');
+    if (!count || !type) return [];
+
+    const seen = new Set<string>();
+    const violations: { platform: string; postType: string; message: string }[] = [];
+
+    for (const id of selectedAccountIds) {
+      const acc = connectedAccounts.find(a => a.id === id);
+      if (!acc) continue;
+      if (seen.has(acc.platform)) continue;
+      seen.add(acc.platform);
+
+      const postType = platformPostTypes[acc.platform] ?? DEFAULT_POST_TYPES[acc.platform];
+      const { blocked, warning } = getCompatibility(acc.platform, postType, count, type);
+      if (blocked || warning) {
+        violations.push({
+          platform: acc.platform,
+          postType: postType ?? acc.platform,
+          message: (warning ?? `${acc.platform} does not support this media.`),
+        });
+      }
+    }
+    return violations;
+  }, [selectedAccountIds, connectedAccounts, selectedUrls, media, assetType, platformPostTypes]);
+
   const handleSubmitIntent = async () => {
     if (selectedAccountIds.length === 0) {
       setMessage({ type: 'error', text: 'Please select at least one target account in the sidebar.' });
       return;
     }
-    if (selectedAccountIds.length === 0) {
-      setMessage({ type: 'error', text: 'Please select at least one target account.' });
+
+    // Block hard constraint violations (incompatible media type)
+    const violations = getPlatformViolations();
+    const blocking = violations.filter(v => {
+      const type = assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : '');
+      const { blocked } = getCompatibility(v.platform, v.postType, selectedUrls.length || (media ? 1 : 0), type);
+      return blocked;
+    });
+    if (blocking.length > 0) {
+      setMessage({ type: 'error', text: `Media incompatible with: ${blocking.map(b => b.platform).join(', ')}. Deselect those accounts or change the post type.` });
       return;
     }
     
@@ -454,8 +493,9 @@ function PublishPageInner() {
           platforms: platformCaptions
         },
         mediaUrls: finalUrls,
-        mediaUrl: finalUrls[0] || null,  // backward compat
+        mediaUrl: finalUrls[0] || null,
         targetAccountIds: selectedAccountIds,
+        platformPostTypes,
         userId: user.id
       };
 
@@ -470,7 +510,7 @@ function PublishPageInner() {
       setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
       setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
       setSuggestedTimes([]); setActiveRevisionId(null);
-      setSelectedAccountIds([]); setPlatformCaptions({});
+      setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({});
       setCustomTime(""); setSelectedTime("immediate");
       setIsDirty(false);
       fetchUserData();
@@ -956,21 +996,58 @@ function PublishPageInner() {
           {/* Platform Selection */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
             <h3 className="text-sm font-bold text-[var(--foreground)] mb-4">Post To</h3>
-            <PlatformSelector 
+            <PlatformSelector
               connectedAccounts={connectedAccounts}
               selectedAccountIds={selectedAccountIds}
               onToggleAccount={toggleAccountSelection}
-
               userRole={userRole}
               mediaCount={selectedUrls.length || (media ? 1 : 0)}
               mediaType={assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : '')}
+              platformPostTypes={platformPostTypes}
+              onPostTypeChange={(platform, postType) =>
+                setPlatformPostTypes(prev => ({ ...prev, [platform]: postType }))
+              }
             />
           </div>
 
+          {/* Platform constraint warnings */}
+          {(() => {
+            const violations = getPlatformViolations();
+            if (violations.length === 0) return null;
+            const blocking = violations.filter(v => {
+              const type = assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : '');
+              const { blocked } = getCompatibility(v.platform, v.postType, selectedUrls.length || (media ? 1 : 0), type);
+              return blocked;
+            });
+            const warnings = violations.filter(v => !blocking.includes(v));
+            return (
+              <div className="space-y-2">
+                {blocking.map((v, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-rose-400 capitalize">{v.platform} — blocked</p>
+                      <p className="text-[11px] text-rose-300 mt-0.5">{v.message}</p>
+                    </div>
+                  </div>
+                ))}
+                {warnings.map((v, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-amber-500/8 border border-amber-500/20 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-amber-400 capitalize">{v.platform}</p>
+                      <p className="text-[11px] text-amber-300 mt-0.5">{v.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
           {/* Submit */}
-          <button 
-            onClick={handleSubmitIntent} 
-            disabled={submitting} 
+          <button
+            onClick={handleSubmitIntent}
+            disabled={submitting}
             className="w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-500"
           >
             {submitting ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
