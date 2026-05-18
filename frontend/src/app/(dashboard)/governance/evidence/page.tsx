@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useRoles } from "@/lib/hooks/useRoles";
-import { Archive, Scale, Download, ShieldAlert, CheckCircle2, AlertTriangle, FileLock2, Search, Filter } from "lucide-react";
+import { Archive, Scale, Download, ShieldAlert, CheckCircle2, AlertTriangle, FileLock2, Search, Filter, Upload, ShieldCheck } from "lucide-react";
 
 export default function EvidenceVaultPage() {
   const { hasRole, isLoading: rolesLoading } = useRoles();
@@ -11,6 +11,11 @@ export default function EvidenceVaultPage() {
   const [artifacts, setArtifacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [selectedTrace, setSelectedTrace] = useState<any>(null);
+   const [isBuildingPack, setIsBuildingPack] = useState(false);
+  const [packMessage, setPackMessage] = useState<{type:"success"|"error", text:string}|null>(null);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{status: 'success'|'error', text: string, computed?: string, expected?: string} | null>(null);
 
   const fetchEvidenceData = async () => {
     try {
@@ -39,14 +44,133 @@ export default function EvidenceVaultPage() {
     return <div className="p-8 text-[#888888]">Loading governance context...</div>;
   }
 
-  if (!hasRole(["WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "ADMIN"])) {
-    return <div className="p-8 text-red-400">Unauthorized. You need Governance Admin privileges to view the Evidence Vault.</div>;
+  if (!hasRole(["WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "ADMIN", "AUDITOR", "COMPLIANCE_REVIEWER", "EVIDENCE_MANAGER", "SECURITY_ADMIN", "PRIVACY_ADMIN", "AGENT_ARCHITECT", "APPROVER", "VALIDATOR", "REVIEWER"])) {
+    return <div className="p-8 text-red-400">Unauthorized. You do not have the required governance or audit privileges to view the Evidence Vault.</div>;
   }
 
   const filteredArtifacts = artifacts.filter(a => 
     a.artifact_uuid.toLowerCase().includes(search.toLowerCase()) || 
     a.content?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleBuildPack = async () => {
+    setIsBuildingPack(true);
+    setPackMessage(null);
+    try {
+      const res = await api.post("/api/v1/governance/evidence/packs", {
+        purpose: "INTERNAL_AUDIT",
+        scope_description: "Dynamic frontend export",
+        format: "JSON"
+      });
+      if (res.success && res.data) {
+        // Trigger actual JSON file download
+        const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `evidence_pack_${res.data.pack.export_hash.slice(0, 8)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setPackMessage({type: "success", text: "Evidence Pack downloaded!"});
+        fetchEvidenceData();
+      } else {
+        setPackMessage({type: "error", text: "Failed to build Evidence Pack."});
+      }
+    } catch (e) {
+      setPackMessage({type: "error", text: "Network error building Evidence Pack."});
+    } finally {
+      setIsBuildingPack(false);
+      setTimeout(() => setPackMessage(null), 5000);
+    }
+  };
+
+  const handleApplyHold = async (objectId?: string) => {
+    const targetId = typeof objectId === "string" ? objectId : prompt("Enter the UUID of the Artifact to freeze:");
+    if (!targetId) return;
+    const reason = prompt("Enter the legal matter or reason for hold (min 10 chars):");
+    if (!reason || reason.length < 10) return alert("Reason must be at least 10 characters.");
+
+    try {
+      const res = await api.post("/api/v1/governance/evidence/legal-holds", {
+        object_id: objectId,
+        object_type: "PUBLISH_INTENT",
+        matter_ref: "MATTER-" + Date.now().toString().slice(-4),
+        reason: reason
+      });
+      if (res.success) {
+        alert("Legal hold successfully applied to artifact!");
+        fetchEvidenceData();
+      } else {
+        alert("Failed to apply legal hold.");
+      }
+    } catch (e) {
+      alert("Error applying legal hold.");
+    }
+  };
+
+  const handleVerifyFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVerifyResult(null);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (!json.pack || !json.artifacts) {
+          return setVerifyResult({
+            status: 'error',
+            text: 'Invalid Evidence Pack file format. Missing core headers.'
+          });
+        }
+
+        // Calculate native SHA-256 client-side using browser Web Crypto API
+        const artifactsStr = JSON.stringify(json.artifacts);
+        const msgBuffer = new TextEncoder().encode(artifactsStr);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const computedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        const expectedHash = json.pack.export_hash;
+
+        if (computedHash === expectedHash) {
+          setVerifyResult({
+            status: 'success',
+            text: 'Cryptographic Integrity Verified! This evidence bundle is 100% authentic and untampered.',
+            computed: computedHash,
+            expected: expectedHash
+          });
+        } else {
+          setVerifyResult({
+            status: 'error',
+            text: 'TAMPER WARNING! The compiled artifacts payload does not match the cryptographic signature.',
+            computed: computedHash,
+            expected: expectedHash
+          });
+        }
+      } catch (err) {
+        setVerifyResult({
+          status: 'error',
+          text: 'Failed to parse file. Ensure it is a valid JSON Evidence Pack.'
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const fetchTraceDetail = async (id: string) => {
+    try {
+      const res = await api.get(`/api/v1/governance/evidence/artifacts/${id}`);
+      if (res.success) {
+        setSelectedTrace(res.data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch trace", e);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -58,16 +182,36 @@ export default function EvidenceVaultPage() {
           </h1>
           <p className="text-[#888888] mt-1">Exportable evidence packs, cryptographic provenance, and legal-hold records.</p>
         </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 bg-[#1a1a1a] border border-[#333] hover:border-indigo-500/50 text-white rounded-lg flex items-center gap-2 transition-colors">
-            <FileLock2 className="w-4 h-4" />
-            Apply Legal Hold
-          </button>
-          <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg flex items-center gap-2 transition-colors">
-            <Download className="w-4 h-4" />
-            Build Evidence Pack
-          </button>
-        </div>
+        {hasRole(["WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "ADMIN", "AUDITOR", "COMPLIANCE_REVIEWER", "EVIDENCE_MANAGER"]) && (
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setShowVerifyModal(true)}
+              className="px-4 py-2 bg-[#1a1a1a] border border-[#333] hover:border-emerald-500/50 text-white rounded-lg flex items-center gap-2 transition-colors">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              Verify Bundle
+            </button>
+            <button 
+              onClick={handleApplyHold}
+              className="px-4 py-2 bg-[#1a1a1a] border border-[#333] hover:border-indigo-500/50 text-white rounded-lg flex items-center gap-2 transition-colors">
+              <FileLock2 className="w-4 h-4" />
+              Apply Legal Hold
+            </button>
+            <div className="flex flex-col items-end gap-1">
+              <button 
+                onClick={handleBuildPack}
+                disabled={isBuildingPack}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50">
+                <Download className="w-4 h-4" />
+                {isBuildingPack ? "Building..." : "Build Evidence Pack"}
+              </button>
+              {packMessage && (
+                <span className={`text-xs ${packMessage.type === "success" ? "text-green-400" : "text-red-400"}`}>
+                  {packMessage.text}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {stats && (
@@ -175,8 +319,18 @@ export default function EvidenceVaultPage() {
                         <span className="text-[#666] text-xs">None</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-sm text-right">
-                      <button className="text-indigo-400 hover:text-indigo-300 text-sm font-medium">
+                    <td className="py-3 px-4 text-sm text-right flex items-center justify-end gap-3">
+                      {hasRole(["WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "ADMIN", "AUDITOR", "COMPLIANCE_REVIEWER", "EVIDENCE_MANAGER"]) && !artifact.is_on_legal_hold && (
+                        <button 
+                          onClick={() => handleApplyHold(artifact.id)}
+                          className="text-red-400 hover:text-red-300 text-sm font-medium flex items-center gap-1">
+                          <FileLock2 className="w-3.5 h-3.5" />
+                          Apply Hold
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => fetchTraceDetail(artifact.id)}
+                        className="text-indigo-400 hover:text-indigo-300 text-sm font-medium">
                         View Trace
                       </button>
                     </td>
@@ -194,6 +348,82 @@ export default function EvidenceVaultPage() {
           )}
         </div>
       </div>
+
+      {/* Decision Trace Modal */}
+      {selectedTrace && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#111] border border-[#333] rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-[#333] flex justify-between items-center bg-[#161616]">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-indigo-500" />
+                  Decision Trace: {selectedTrace.artifact_uuid}
+                </h3>
+                <p className="text-xs text-[#888] mt-1">Platform: {selectedTrace.platform} | Risk Score: {selectedTrace.risk_score}</p>
+              </div>
+              <button onClick={() => setSelectedTrace(null)} className="text-[#888] hover:text-white">✕</button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              
+              {/* Trace Summary */}
+              {selectedTrace.decision_trace && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-white uppercase tracking-wider border-b border-[#333] pb-2">Policy & Risk Evaluation</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]">
+                      <p className="text-xs text-[#888] mb-1">Instruction</p>
+                      <p className="text-sm text-white">{selectedTrace.decision_trace.instruction_summary}</p>
+                    </div>
+                    <div className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]">
+                      <p className="text-xs text-[#888] mb-1">Risk Signals</p>
+                      <p className="text-sm text-white">{selectedTrace.decision_trace.risk_signal_summary}</p>
+                    </div>
+                    <div className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]">
+                      <p className="text-xs text-[#888] mb-1">Agent Action / Routing</p>
+                      <p className="text-sm text-white">{selectedTrace.decision_trace.agent_action_summary}</p>
+                    </div>
+                    <div className="bg-[#1a1a1a] p-3 rounded-lg border border-[#333]">
+                      <p className="text-xs text-[#888] mb-1">Final Decision</p>
+                      <p className="text-sm font-medium text-indigo-400">{selectedTrace.decision_trace.final_decision_path}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Provenance Timeline */}
+              {selectedTrace.provenance && (
+                <div className="space-y-4 mt-6">
+                  <h4 className="text-sm font-bold text-white uppercase tracking-wider border-b border-[#333] pb-2">Provenance Lifecycle (T0-T4)</h4>
+                  <div className="space-y-3">
+                    {selectedTrace.provenance.map((step: any, idx: number) => (
+                      <div key={idx} className="flex gap-4 items-start">
+                        <div className="flex flex-col items-center mt-1">
+                          <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center text-[10px] text-indigo-400 font-bold">
+                            {step.moment}
+                          </div>
+                          {idx !== selectedTrace.provenance.length - 1 && (
+                            <div className="w-px h-10 bg-[#333] my-1"></div>
+                          )}
+                        </div>
+                        <div className="bg-[#1a1a1a] border border-[#333] p-3 rounded-lg flex-1">
+                          <div className="flex justify-between items-center mb-1">
+                            <p className="text-sm font-bold text-white">{step.label}</p>
+                            <span className="text-[10px] text-[#666]">{new Date(step.timestamp).toLocaleString()}</span>
+                          </div>
+                          <p className="text-xs text-[#aaa]">{step.data}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -33,7 +33,7 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
 
     let query = supabaseAdmin
       .from('agents')
-      .select(`*, primary_dri:users!primary_dri_id(full_name, email), backup_dri:users!backup_dri_id(full_name, email)`)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (!isSuper) {
@@ -42,12 +42,42 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
       query = query.eq('workspace_id', req.query.workspaceId);
     }
 
-    const { data, error } = await query;
+    const { data: agents, error } = await query;
     if (error) throw error;
+
+    if (!agents || agents.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    // Step 2: Fetch details for primary_dri and backup_dri manually
+    const driIds = [
+      ...new Set([
+        ...agents.map(a => a.primary_dri_id).filter(Boolean),
+        ...agents.map(a => a.backup_dri_id).filter(Boolean)
+      ])
+    ];
+
+    let userMap: Record<string, { full_name: string; email: string }> = {};
+    if (driIds.length > 0) {
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', driIds);
+
+      (users || []).forEach(u => {
+        userMap[u.id] = { full_name: u.full_name, email: u.email };
+      });
+    }
+
+    const merged = agents.map(agent => ({
+      ...agent,
+      primary_dri: userMap[agent.primary_dri_id] || null,
+      backup_dri: userMap[agent.backup_dri_id] || null
+    }));
 
     res.status(200).json({
       success: true,
-      data
+      data: merged
     });
   } catch (error) {
     next(error);
@@ -61,17 +91,36 @@ export const getAgent = async (req: Request, res: Response, next: NextFunction) 
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabaseAdmin
+    const { data: agent, error } = await supabaseAdmin
       .from('agents')
-      .select(`*, primary_dri:users!primary_dri_id(full_name, email), backup_dri:users!backup_dri_id(full_name, email), artifacts:agent_artifacts(*)`)
+      .select(`*, artifacts:agent_artifacts(*)`)
       .eq('id', id)
       .single();
 
     if (error) throw error;
 
+    if (agent) {
+      const driIds = [agent.primary_dri_id, agent.backup_dri_id].filter(Boolean);
+      let userMap: Record<string, { full_name: string; email: string }> = {};
+      
+      if (driIds.length > 0) {
+        const { data: users } = await supabaseAdmin
+          .from('users')
+          .select('id, full_name, email')
+          .in('id', driIds);
+
+        (users || []).forEach(u => {
+          userMap[u.id] = { full_name: u.full_name, email: u.email };
+        });
+      }
+
+      agent.primary_dri = userMap[agent.primary_dri_id] || null;
+      agent.backup_dri = userMap[agent.backup_dri_id] || null;
+    }
+
     res.status(200).json({
       success: true,
-      data
+      data: agent
     });
   } catch (error) {
     next(error);

@@ -227,6 +227,21 @@ export const deleteIntent = async (
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+    // 1. Spoliation Check: Block deletion if under an active Legal Hold
+    const { data: hold } = await supabaseAdmin
+      .from('legal_holds')
+      .select('id')
+      .eq('object_id', id)
+      .eq('object_type', 'PUBLISH_INTENT')
+      .maybeSingle();
+
+    if (hold) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Spoliation Block: This content is frozen under an active Legal Hold and cannot be deleted.' 
+      });
+    }
+
     const { data: member } = await supabaseAdmin
       .from('workspace_members')
       .select('role')

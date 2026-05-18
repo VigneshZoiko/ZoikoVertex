@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logToDatabase } from '../../shared/databaseLogger';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 
 // ─── In-Memory Stores ─────────────────────────────────────────────────────────
 
@@ -76,9 +76,10 @@ export function calculateDefensibility(intent: Record<string, unknown>): number 
   if (intent.platform)                             score += 5;   // destination captured
   if (intent.risk_level)                           score += 10;  // risk assessed
   if ((intent.risk_score as number) > 0)           score += 10;  // risk scored
-  if (intent.decision_id)                          score += 20;  // decision engine ran
+  if (intent.decision_id)                          score += 15;  // decision engine ran
+  if (intent.governance_token || intent.policy_signature) score += 10; // Cryptographic policy verification
   if (intent.feedback)                             score += 10;  // human feedback
-  if (intent.status === 'APPROVED')                score += 15;  // authorized
+  if (intent.status === 'APPROVED')                score += 10;  // authorized
   if (Array.isArray(intent.target_account_ids) && (intent.target_account_ids as string[]).length > 0) score += 5;
   return Math.min(score, 100);
 }
@@ -136,6 +137,25 @@ export const logAuditEvent = async (params: {
   riskLevel?: string;
   metadata?: Record<string, unknown>;
 }) => {
+  let prevHash = '0000000000000000000000000000000000000000000000000000000000000000';
+  try {
+    const { data: lastLog } = await supabaseAdmin
+      .from('system_logs')
+      .select('meta')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (lastLog?.meta && typeof lastLog.meta === 'object' && 'hash' in lastLog.meta) {
+      prevHash = String((lastLog.meta as any).hash);
+    }
+  } catch (err) {
+    // Graceful fallback to default genesis hash if table is empty or offline
+  }
+
+  const payloadToHash = `${params.workspaceId}-${params.actorId}-${params.action}-${prevHash}`;
+  const currentHash = createHash('sha256').update(payloadToHash).digest('hex');
+
   await logToDatabase('info', params.module, params.action, {
     actor_id:    params.actorId,
     actor_type:  params.actorType || 'USER',
@@ -144,6 +164,8 @@ export const logAuditEvent = async (params: {
     risk_level:  params.riskLevel,
     workspace_id: params.workspaceId,
     ...params.metadata,
+    prev_hash:   prevHash,
+    hash:        currentHash,
     _audit: true,
   });
 };
