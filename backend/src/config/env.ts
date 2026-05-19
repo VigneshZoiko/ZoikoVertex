@@ -21,6 +21,7 @@ const envSchema = z.object({
   PINTEREST_CLIENT_ID: z.string().optional(),
   PINTEREST_CLIENT_SECRET: z.string().optional(),
   PINTEREST_REDIRECT_URI: z.string().optional(),
+  PINTEREST_API_BASE: z.string().url().optional(),
   THREADS_APP_ID: z.string().optional(),
   THREADS_APP_SECRET: z.string().optional(),
   THREADS_REDIRECT_URI: z.string().optional(),

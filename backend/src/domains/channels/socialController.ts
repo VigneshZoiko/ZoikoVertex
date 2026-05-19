@@ -339,12 +339,12 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
     logger.info(`[Social] Handling Pinterest callback for workspace: ${workspaceId}`);
 
     const credentials = Buffer.from(`${env.PINTEREST_CLIENT_ID}:${env.PINTEREST_CLIENT_SECRET}`).toString('base64');
-    
+    const pinterestBase = env.PINTEREST_API_BASE || 'https://api.pinterest.com';
     const redirectUri = env.PINTEREST_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/pinterest/callback`;
-    
-    const tokenResponse = await fetch('https://api.pinterest.com/v5/oauth/token', {
+
+    const tokenResponse = await fetch(`${pinterestBase}/v5/oauth/token`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Basic ${credentials}`
       },
@@ -362,7 +362,7 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
 
     const accessToken = tokenData.access_token;
 
-    const profileResponse = await fetch('https://api.pinterest.com/v5/user_account', {
+    const profileResponse = await fetch(`${pinterestBase}/v5/user_account`, {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     const profileData = await profileResponse.json();

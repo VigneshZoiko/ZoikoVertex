@@ -1,0 +1,83 @@
+services:
+  - type: web
+    name: zoikovertex-api
+    runtime: node
+    region: singapore
+    plan: starter
+    rootDir: backend
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        value: https://app.getzoikovertex.com
+      # Supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      # AI
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      # Meta (Facebook + Instagram + Threads)
+      - key: META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      - key: META_REDIRECT_URI
+        value: https://api.getzoikovertex.com/api/auth/facebook/callback
+      # LinkedIn
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: LINKEDIN_REDIRECT_URI
+        value: https://api.getzoikovertex.com/api/auth/linkedin/callback
+      # Pinterest
+      - key: PINTEREST_CLIENT_ID
+        sync: false
+      - key: PINTEREST_CLIENT_SECRET
+        sync: false
+      - key: PINTEREST_REDIRECT_URI
+        value: https://api.getzoikovertex.com/api/auth/pinterest/callback
+      - key: PINTEREST_API_BASE
+        value: https://api.pinterest.com
+      # Threads
+      - key: THREADS_APP_ID
+        sync: false
+      - key: THREADS_APP_SECRET
+        sync: false
+      - key: THREADS_REDIRECT_URI
+        value: https://api.getzoikovertex.com/api/auth/threads/callback
+      # Twitter / X
+      - key: TWITTER_CLIENT_ID
+        sync: false
+      - key: TWITTER_CLIENT_SECRET
+        sync: false
+      - key: TWITTER_REDIRECT_URI
+        value: https://api.getzoikovertex.com/api/auth/twitter/callback
+      # YouTube
+      - key: YOUTUBE_CLIENT_ID
+        sync: false
+      - key: YOUTUBE_CLIENT_SECRET
+        sync: false
+      - key: YOUTUBE_REDIRECT_URI
+        value: https://api.getzoikovertex.com/api/auth/youtube/callback
+      # Redis
+      - key: REDIS_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      # Internal
+      - key: INTERNAL_SERVICE_SECRET
+        sync: false
