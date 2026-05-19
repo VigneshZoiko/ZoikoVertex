@@ -43,10 +43,11 @@ export const supabase = client;
 if (typeof window !== 'undefined') {
   client.auth.onAuthStateChange((event, session) => {
     if (session) {
-      // 1-hour expiry matches the Supabase access token lifetime
       document.cookie = 'zv_auth=1; path=/; SameSite=Strict; max-age=3600';
     } else {
       document.cookie = 'zv_auth=; path=/; SameSite=Strict; max-age=0';
+      // Clear role cache so a new login always gets fresh data
+      try { localStorage.removeItem('zv_role_cache'); } catch {}
     }
   });
 }
