@@ -23,7 +23,15 @@ import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRul
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleTikTokCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
-import { listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy } from './domains/agents/agentController';
+import {
+  listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy,
+  getAgentCapabilities, getAgentVersions, rollbackAgent,
+  runAgentSandbox, getAgentTestHistory,
+  getAgentLinkedResources, updateLinkedResources,
+  getChecklist, getAgentEvidence, getEvidence,
+  cloneAgent, deployAgent, pauseAgent, resumeAgent, retireAgent, requestApproval,
+  approveAgent, rejectAgentApproval, updateRuntimeControls
+} from './domains/agents/agentController';
 import {
   getAutonomyStats, updateAgentLevel, suspendAgent,
   createEmergencyLock, listEmergencyLocks, liftEmergencyLock,
@@ -209,6 +217,27 @@ app.get('/api/v1/agents/:id', authenticate, getAgent);
 app.post('/api/v1/agents', authenticate, registerAgent);
 app.post('/api/v1/agents/:id/certify', authenticate, certifyAgent);
 app.patch('/api/v1/agents/:id/autonomy', authenticate, updateAutonomy);
+app.get('/api/v1/agents/:id/capabilities', authenticate, getAgentCapabilities);
+app.get('/api/v1/agents/:id/versions', authenticate, getAgentVersions);
+app.post('/api/v1/agents/:id/rollback', authenticate, rollbackAgent);
+app.post('/api/v1/agents/:id/test', authenticate, runAgentSandbox);
+app.get('/api/v1/agents/:id/tests', authenticate, getAgentTestHistory);
+app.get('/api/v1/agents/:id/resources', authenticate, getAgentLinkedResources);
+app.patch('/api/v1/agents/:id/resources', authenticate, updateLinkedResources);
+app.get('/api/v1/agents/:id/checklist', authenticate, getChecklist);
+app.get('/api/v1/agents/:id/evidence', authenticate, getAgentEvidence);
+app.get('/api/v1/agents/evidence/:bundleId', authenticate, getEvidence);
+
+// Agent Lifecycle — Deployment & Retirement
+app.post('/api/v1/agents/:id/deploy', authenticate, deployAgent);
+app.post('/api/v1/agents/:id/pause', authenticate, pauseAgent);
+app.post('/api/v1/agents/:id/resume', authenticate, resumeAgent);
+app.post('/api/v1/agents/:id/retire', authenticate, retireAgent);
+app.post('/api/v1/agents/:id/clone', authenticate, cloneAgent);
+app.post('/api/v1/agents/:id/approval/request', authenticate, requestApproval);
+app.post('/api/v1/agents/:id/approval/approve', authenticate, approveAgent);
+app.post('/api/v1/agents/:id/approval/reject', authenticate, rejectAgentApproval);
+app.patch('/api/v1/agents/:id/runtime', authenticate, updateRuntimeControls);
 
 // Monitoring Routes
 app.get('/api/v1/monitoring/usage', authenticate, getResourceUsage);
