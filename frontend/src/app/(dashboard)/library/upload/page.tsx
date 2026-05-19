@@ -185,7 +185,6 @@ export default function CreatorUploadPage() {
 
       await api.post('/api/v1/library/upload', {
         title: title.trim(),
-        description: description.trim() || undefined,
         urls: publicUrls,
         file_type: fileType,
       });
