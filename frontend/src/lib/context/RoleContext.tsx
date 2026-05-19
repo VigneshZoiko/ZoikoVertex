@@ -72,10 +72,18 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
 
+      if (!user) {
+        setRole(null);
+        setIsSuperAdmin(false);
+        setIsLoading(false);
+        clearCache();
+        return;
+      }
+
       let nextRole: string | null = role;
       let nextIsSuperAdmin = isSuperAdmin;
 
-      if (user?.email === 'developer@zoikogroup.com') {
+      if (user.email === 'developer@zoikogroup.com') {
         nextIsSuperAdmin = true;
         nextRole = "SUPERADMIN";
         setIsSuperAdmin(true);
@@ -109,6 +117,24 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // If cache seeded state → fetch quietly in background; otherwise fetch normally
     fetchUserRole(!!cached);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        fetchUserRole(false);
+      } else if (event === 'SIGNED_OUT') {
+        setRole(null);
+        setOrgStatus(null);
+        setOrgName(null);
+        setFullName(null);
+        setIsSuperAdmin(false);
+        setIsLoading(false);
+        clearCache();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
