@@ -14,7 +14,7 @@ services:
       - key: PORT
         value: 10000
       - key: FRONTEND_URL
-        value: https://app.getzoikovertex.com
+        value: https://getzoikovertex.com
       # Supabase
       - key: SUPABASE_URL
         sync: false
