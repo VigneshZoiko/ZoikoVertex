@@ -570,9 +570,9 @@ function generateEvidencePDF(pack: EvidencePack, artifacts: any[]): Promise<Buff
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
     const chunks: Buffer[] = [];
 
-    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', err => reject(err));
+    doc.on('error', (err: Error) => reject(err));
 
     // Sleek Title Header
     doc.fillColor('#0f172a').fontSize(24).font('Helvetica-Bold').text('ZOIKOVERTEX');
