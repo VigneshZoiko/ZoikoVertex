@@ -4,9 +4,11 @@ import { useState } from "react";
 import { Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -20,10 +22,10 @@ export default function LoginPage() {
     try {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) throw authError;
-      window.location.href = "/dashboard";
+      router.push("/dashboard");
+      // keep loading=true while navigating — spinner stays until page transitions
     } catch (err: any) {
       setError(err.message || "Invalid credentials");
-    } finally {
       setLoading(false);
     }
   };
@@ -101,8 +103,8 @@ export default function LoginPage() {
               className="w-full h-[46px] bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-500 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2.5 mt-2 shadow-lg shadow-indigo-500/25 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <><Lock className="w-3.5 h-3.5" /> Authenticate</>
+                ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Signing in...</span></>
+                : <><Lock className="w-3.5 h-3.5" /><span>Authenticate</span></>
               }
             </button>
           </form>

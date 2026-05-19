@@ -9,16 +9,22 @@ interface MediaUploaderProps {
   onClear: () => void;
 }
 
-const MediaUploader: React.FC<MediaUploaderProps> = ({ 
-  mediaPreview, 
-  mediaType, 
-  onUpload, 
-  onClear 
+const VIDEO_EXT = /\.(mp4|mov|webm|avi|mkv|m4v|ogv)(\?.*)?$/i;
+
+const MediaUploader: React.FC<MediaUploaderProps> = ({
+  mediaPreview,
+  mediaType,
+  onUpload,
+  onClear
 }) => {
+  const isVideo =
+    mediaType?.startsWith('video') ||
+    (!mediaType && !!mediaPreview && VIDEO_EXT.test(mediaPreview));
+
   return (
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
       <h2 className="text-lg font-bold text-[var(--foreground)] mb-4">Media Assets</h2>
-      
+
       {!mediaPreview ? (
         <label className="w-full h-48 border-2 border-dashed border-[var(--border)] hover:border-indigo-500 hover:bg-indigo-500/5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors">
           <div className="flex items-center gap-4 mb-2">
@@ -26,17 +32,17 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
             <Video className="w-6 h-6 text-[var(--foreground-muted)]" />
           </div>
           <span className="text-sm font-medium text-[var(--foreground)]">Click to upload Image or Video</span>
-          <span className="text-xs text-[var(--foreground-muted)] mt-1">MP4, JPG, PNG (Max 50MB)</span>
+          <span className="text-xs text-[var(--foreground-muted)] mt-1">MP4, MOV, JPG, PNG (Max 50MB)</span>
           <input type="file" className="hidden" accept="image/*,video/*" onChange={onUpload} />
         </label>
       ) : (
         <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-[var(--border)]">
-          {mediaType?.startsWith('video') ? (
-            <video src={mediaPreview} controls className="max-h-full max-w-full" />
+          {isVideo ? (
+            <video src={mediaPreview} controls className="max-h-full max-w-full w-full h-full object-contain" />
           ) : (
             <Image src={mediaPreview} alt="Media Preview" width={600} height={400} className="object-contain max-h-full" />
           )}
-          <button 
+          <button
             onClick={onClear}
             className="absolute top-3 right-3 bg-zinc-950/80 hover:bg-rose-500 text-white p-2 rounded-xl backdrop-blur-md transition-all border border-white/10"
             title="Remove Media"
