@@ -50,9 +50,9 @@ interface NegativeKnowledgeSet {
   created_at: string;
 }
 
-const lockStore = new Map<string, EmergencyLock>();
-const hitlStore = new Map<string, HITLRule>();
-const nksStore  = new Map<string, NegativeKnowledgeSet>();
+export const lockStore = new Map<string, EmergencyLock>();
+export const hitlStore = new Map<string, HITLRule>();
+export const nksStore  = new Map<string, NegativeKnowledgeSet>();
 
 // Default HITL rules pre-loaded per workspace (first access)
 const DEFAULT_HITL_RULES: Omit<HITLRule, 'workspace_id'>[] = [

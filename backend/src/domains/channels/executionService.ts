@@ -288,48 +288,151 @@ export class ExecutionService {
 
   private static async postToPinterest(intent: any, account: any): Promise<PublishResult> {
     logger.info(`[Execution] Sending PIN to Pinterest for ${account.account_handle}...`);
-    
+
+    const pBase = process.env.PINTEREST_API_BASE || 'https://api.pinterest.com';
+
     try {
-      // 1. Fetch Boards to find a place to pin (if not specified in intent)
-      // For now, we take the first board found
-      const boardsRes = await fetch('https://api.pinterest.com/v5/boards', {
-        headers: { 'Authorization': `Bearer ${account.access_token}` }
+      // 1. Fetch boards — auto-create a default board if none exist
+      const boardsRes = await fetch(`${pBase}/v5/boards`, {
+        headers: { 'Authorization': `Bearer ${account.access_token}` },
       });
       const boardsData = await boardsRes.json();
-      
-      if (boardsData.error || !boardsData.items || boardsData.items.length === 0) {
-        throw new Error('No Pinterest boards found. Please create a board first.');
+
+      let boardId = '';
+
+      const existingBoard = boardsData.items?.find((b: any) => b.name === 'ZoikoVertex') || boardsData.items?.[0];
+
+      if (existingBoard) {
+        boardId = existingBoard.id;
+        logger.info(`[Execution] Pinterest using existing board: ${boardId}`);
+      } else {
+        // No boards listed — create one. Sandbox has global name uniqueness so fall back to a
+        // unique name if the default is already taken by a different sandbox session.
+        const nameCandidates = ['ZoikoVertex', `ZoikoVertex_${Date.now()}`];
+        let created = false;
+
+        for (const name of nameCandidates) {
+          logger.info(`[Execution] Pinterest creating board "${name}"...`);
+          const createRes = await fetch(`${pBase}/v5/boards`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${account.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name, description: 'Posts published via ZoikoVertex', privacy: 'PUBLIC' }),
+          });
+          const createData = await createRes.json();
+
+          if (createRes.ok && !createData.code) {
+            boardId = createData.id;
+            logger.info(`[Execution] Pinterest board created: ${boardId} ("${name}")`);
+            created = true;
+            break;
+          }
+
+          const msg: string = createData.message || '';
+          if (msg.toLowerCase().includes('already have a board')) {
+            logger.warn(`[Execution] Pinterest board name "${name}" taken — trying next...`);
+            continue;
+          }
+
+          throw new Error(`Failed to create Pinterest board: ${msg || JSON.stringify(createData)}`);
+        }
+
+        if (!created) throw new Error('Could not create a Pinterest board — all name candidates taken.');
       }
 
-      const boardId = boardsData.items[0].id;
+      // 2. Build media_source — image vs video
+      let mediaSource: Record<string, string>;
 
-      // 2. Create the Pin
-      const pinBody = {
+      if (intent.media_url && this.isVideoUrl(intent.media_url)) {
+        // ── Video pin: upload via Pinterest v5 media API ──────────────────────
+        logger.info(`[Execution] Pinterest video upload flow starting...`);
+
+        // 2a. Register a video upload slot
+        const registerRes = await fetch(`${pBase}/v5/media`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${account.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ media_type: 'video' }),
+        });
+        const registerData = await registerRes.json();
+        if (registerData.code) throw new Error(`Pinterest media register failed: ${registerData.message || JSON.stringify(registerData)}`);
+
+        const mediaId: string = registerData.media_id;
+        const uploadUrl: string = registerData.upload_url;
+        const uploadParams: Record<string, string> = registerData.upload_parameters || {};
+        logger.info(`[Execution] Pinterest media_id: ${mediaId}`);
+
+        // 2b. Fetch video bytes
+        const videoRes = await fetch(intent.media_url);
+        if (!videoRes.ok) throw new Error(`Failed to fetch video: ${videoRes.statusText}`);
+        const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+
+        // 2c. Upload to Pinterest's S3-backed endpoint (multipart/form-data)
+        const form = new FormData();
+        for (const [key, value] of Object.entries(uploadParams)) {
+          form.append(key, value);
+        }
+        form.append('file', new Blob([videoBuffer], { type: 'video/mp4' }), 'video.mp4');
+
+        const uploadRes = await fetch(uploadUrl, { method: 'POST', body: form as any });
+        if (!uploadRes.ok) {
+          const body = await uploadRes.text();
+          throw new Error(`Pinterest video upload failed (${uploadRes.status}): ${body}`);
+        }
+        logger.info(`[Execution] Pinterest video upload complete (HTTP ${uploadRes.status})`);
+
+        // 2d. Poll until Pinterest finishes processing (up to 90s)
+        for (let attempt = 0; attempt < 18; attempt++) {
+          await new Promise(r => setTimeout(r, 5000));
+          const statusRes = await fetch(`${pBase}/v5/media/${mediaId}`, {
+            headers: { 'Authorization': `Bearer ${account.access_token}` },
+          });
+          const statusData = await statusRes.json();
+          logger.info(`[Execution] Pinterest media status [${attempt + 1}/18]: ${statusData.status}`);
+          if (statusData.status === 'succeeded') break;
+          if (statusData.status === 'failed') throw new Error(`Pinterest video processing failed for media_id ${mediaId}`);
+          if (attempt === 17) throw new Error('Pinterest video processing timed out after 90s');
+        }
+
+        mediaSource = { source_type: 'video_id', media_id: mediaId };
+
+      } else if (intent.media_url) {
+        // ── Image pin ─────────────────────────────────────────────────────────
+        mediaSource = { source_type: 'image_url', url: intent.media_url };
+      } else {
+        throw new Error('Pinterest requires a media URL (image or video) to create a pin.');
+      }
+
+      // 3. Create the Pin
+      const pinBody: Record<string, unknown> = {
         board_id: boardId,
-        media_source: {
-          source_type: 'image_url',
-          url: intent.media_url || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800' // Fallback image if none
-        },
-        title: intent.title || 'New Pin from ZoikoVertex',
-        description: intent.content
+        media_source: mediaSource,
+        title: (intent.title || '').substring(0, 100),
+        description: (intent.content || '').substring(0, 500),
       };
 
-      const response = await fetch('https://api.pinterest.com/v5/pins', {
+      const response = await fetch(`${pBase}/v5/pins`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${account.access_token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(pinBody),
       });
 
       const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error_description || JSON.stringify(data.error));
+      if (!response.ok || data.code) {
+        throw new Error(data.message || JSON.stringify(data));
       }
 
+      logger.info(`[Execution] Pinterest pin created: ${data.id}`);
       return { success: true, platform: 'pinterest', id: data.id };
     } catch (err: any) {
+      logger.error({ err }, '[Execution] Pinterest Error');
       return { success: false, platform: 'pinterest', error: err.message };
     }
   }

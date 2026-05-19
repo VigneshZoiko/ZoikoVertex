@@ -64,9 +64,11 @@ export const submitForReview = async (req: AuthRequest, res: Response, next: Nex
       .single();
     if (!member) return res.status(403).json({ error: 'No workspace membership' });
 
-    const assessment = risk_override
-      ? { level: risk_override, score: 0, factors: [] }
-      : RiskClassifier.assessContent(content, platform);
+    const safetyResult = risk_override
+      ? { assessment: { level: risk_override, score: 0, factors: [] as string[] }, nksViolations: [] as string[], brandViolations: [] as string[] }
+      : await RiskClassifier.assessContentAdvanced(content, platform, member.workspace_id);
+
+    const assessment = safetyResult.assessment;
 
     const path = RISK_PATHS[assessment.level] ?? RISK_PATHS.STANDARD;
     const initialStatus = path[0];
@@ -202,7 +204,7 @@ export const getApprovalStats = async (req: AuthRequest, res: Response, next: Ne
     counts.total_pending = counts.pending_review + counts.pending_validation + counts.pending_authorization + counts.pending_governance;
 
     // Recent decisions (last 10 approved/rejected)
-    const recentQuery = supabaseAdmin
+    let recentQuery = supabaseAdmin
       .from('publish_intents')
       .select('id, content, platform, status, risk_level, created_at, creator:users!publish_intents_creator_id_fkey(full_name)')
       .in('status', ['APPROVED', 'REJECTED', 'BLOCKED', 'GOVERNANCE_BLOCKED'])
@@ -210,7 +212,7 @@ export const getApprovalStats = async (req: AuthRequest, res: Response, next: Ne
       .limit(10);
 
     if (!userCtx?.is_superadmin && member?.workspace_id) {
-      recentQuery.eq('workspace_id', member.workspace_id);
+      recentQuery = recentQuery.eq('workspace_id', member.workspace_id);
     }
     const { data: recent } = await recentQuery;
 

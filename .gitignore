@@ -26,3 +26,17 @@ scratch/
 package-lock.json
 !**/backend/package-lock.json
 !**/frontend/package-lock.json
+
+# Logs
+backend/backend.log
+frontend/frontend.log
+frontend/lint.log
+
+# Claude Code
+.claude/
+
+# Temporary deploy env files — delete after setup
+deploy/
+
+# Docs
+ZoikoVertex_All_Docs/
