@@ -35,5 +35,8 @@ frontend/lint.log
 # Claude Code
 .claude/
 
+# Temporary deploy env files — delete after setup
+deploy/
+
 # Docs
 ZoikoVertex_All_Docs/
