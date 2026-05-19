@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { 
@@ -79,6 +79,7 @@ function PublishPageInner() {
   
   // Recent publish intents (for status diagnostics)
   const [recentPosts, setRecentPosts] = useState<any[]>([]);
+  const pollTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Scheduled Posts State
   const [scheduledPosts, setScheduledPosts] = useState<any[]>([]);
@@ -92,6 +93,10 @@ function PublishPageInner() {
   const assetUrl  = searchParams.get('assetUrl');   // legacy single-url fallback
   const assetType = searchParams.get('assetType');
   const assetTitle = searchParams.get('assetTitle');
+
+  useEffect(() => {
+    return () => { pollTimers.current.forEach(clearTimeout); };
+  }, []);
 
   useEffect(() => {
     if (assetUrls) {
@@ -618,9 +623,10 @@ function PublishPageInner() {
       setCustomTime(""); setSelectedTime("immediate");
       setIsDirty(false);
       fetchUserData();
-      // Poll for publish result after a short delay so status has time to update
-      setTimeout(() => fetchRecentPosts(), 3000);
-      setTimeout(() => fetchRecentPosts(), 8000);
+      // Poll for publish result — backend needs a moment to process
+      const t1 = setTimeout(() => fetchRecentPosts(), 3000);
+      const t2 = setTimeout(() => fetchRecentPosts(), 8000);
+      pollTimers.current.push(t1, t2);
     } catch (err: any) {
       setMessage({ type: 'error', text: 'Failed to publish. Please try again.' });
     }

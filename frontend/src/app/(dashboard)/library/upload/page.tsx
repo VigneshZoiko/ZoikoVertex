@@ -12,8 +12,6 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { api } from "@/lib/api";
 
-export const dynamic = 'force-dynamic';
-
 const MAX_IMAGE_MB = 50;
 const MAX_VIDEO_MB = 500;
 

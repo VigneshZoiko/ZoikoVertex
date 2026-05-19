@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Bot, Activity, RefreshCcw, Lock, AlertCircle, CheckCircle2, Loader2, Zap, ShieldCheck, ShieldAlert } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -53,9 +53,10 @@ export default function AgentOperationsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const initialLoad = useRef(true);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
+    if (initialLoad.current) setLoading(true);
     setError(null);
     try {
       const [ctxRes, statsRes] = await Promise.all([
@@ -71,7 +72,10 @@ export default function AgentOperationsPage() {
     } catch {
       setError("Failed to load agent operations.");
     } finally {
-      setLoading(false);
+      if (initialLoad.current) {
+        setLoading(false);
+        initialLoad.current = false;
+      }
     }
   }, []);
 
