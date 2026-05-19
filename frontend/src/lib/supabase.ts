@@ -37,3 +37,16 @@ try {
 }
 
 export const supabase = client;
+
+// Keep the zv_auth cookie in sync with the Supabase session so that
+// middleware can make lightweight routing decisions without needing @supabase/ssr.
+if (typeof window !== 'undefined') {
+  client.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      // 1-hour expiry matches the Supabase access token lifetime
+      document.cookie = 'zv_auth=1; path=/; SameSite=Strict; max-age=3600';
+    } else {
+      document.cookie = 'zv_auth=; path=/; SameSite=Strict; max-age=0';
+    }
+  });
+}

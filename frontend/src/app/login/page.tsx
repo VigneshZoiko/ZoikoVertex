@@ -1,19 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Redirect already-authenticated users away from the login page
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace('/dashboard');
+    });
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +30,9 @@ export default function LoginPage() {
     try {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) throw authError;
-      router.push("/dashboard");
+      // router.replace removes /login from history so back-button can't return here
+      const next = searchParams.get('next');
+      router.replace(next && next.startsWith('/') ? next : '/dashboard');
       // keep loading=true while navigating — spinner stays until page transitions
     } catch (err: any) {
       setError(err.message || "Invalid credentials");
@@ -121,5 +131,13 @@ export default function LoginPage() {
         </p>
       </div>
     </AuthLayout>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
