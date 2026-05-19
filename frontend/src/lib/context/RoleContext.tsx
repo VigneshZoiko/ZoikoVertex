@@ -31,7 +31,14 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
 
-      if (user?.email === 'developer@zoikogroup.com') {
+      if (!user) {
+        setRole(null);
+        setIsSuperAdmin(false);
+        setIsLoading(false);
+        return;
+      }
+
+      if (user.email === 'developer@zoikogroup.com') {
         setIsSuperAdmin(true);
         setRole("SUPERADMIN");
       }
@@ -53,6 +60,23 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchUserRole();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        fetchUserRole();
+      } else if (event === 'SIGNED_OUT') {
+        setRole(null);
+        setOrgStatus(null);
+        setOrgName(null);
+        setFullName(null);
+        setIsSuperAdmin(false);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const hasRole = (allowedRoles: string[]) => {

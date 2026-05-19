@@ -85,19 +85,62 @@ export const getClaimsLedger = async (req: AuthRequest, res: Response) => {
 export const updateBrandRule = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = req.user?.workspace_id;
+    const actorId = req.user?.id;
+    if (!workspaceId) return res.status(401).json({ error: 'Unauthorized' });
+
     const { target, value } = req.body;
 
+    // 1. Log the audit event immediately to the evidence vault
     await logAuditEvent({
       workspaceId: workspaceId || '00000000-0000-0000-0000-000000000000',
-      actorId: req.user?.id || 'system',
+      actorId: actorId || 'system',
       module: 'BrandGovernance',
-      action: `Brand rule updated: ${target} set to ${value}`,
+      action: `Brand rule updated: ${target} set to ${JSON.stringify(value)}`,
       riskLevel: 'HIGH',
       objectType: 'BRAND_RULE'
     });
 
-    res.json({ success: true, message: 'Brand rule updated and recorded in Evidence Vault.' });
-  } catch {
-    res.status(500).json({ success: false, error: 'Failed to update rule' });
+    // 2. Persist the updated configuration inside brand_linguistic_rules table
+    const { data: currentRule } = await supabaseAdmin
+      .from('brand_linguistic_rules')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .limit(1)
+      .maybeSingle();
+
+    const payload: any = {};
+    if (['warmth', 'authority', 'restraint'].includes(target)) {
+      payload[target] = Number(value);
+    } else if (['allowed_lexicon', 'prohibited_lexicon'].includes(target)) {
+      payload[target] = Array.isArray(value) ? value : [value];
+    } else {
+      payload[target] = value;
+    }
+
+    if (currentRule) {
+      await supabaseAdmin
+        .from('brand_linguistic_rules')
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq('workspace_id', workspaceId);
+    } else {
+      await supabaseAdmin
+        .from('brand_linguistic_rules')
+        .insert({
+          workspace_id: workspaceId,
+          warmth: 50,
+          authority: 50,
+          restraint: 50,
+          allowed_lexicon: [],
+          prohibited_lexicon: [],
+          ...payload,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+    }
+
+    res.json({ success: true, message: 'Brand rule updated, persisted in Database, and recorded in Evidence Vault.' });
+  } catch (error) {
+    console.error("Failed to update brand rule:", error);
+    res.status(500).json({ success: false, error: 'Failed to update brand rule' });
   }
 };
