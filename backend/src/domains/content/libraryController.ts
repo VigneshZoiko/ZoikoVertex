@@ -73,7 +73,7 @@ export const listLibrary = async (req: AuthRequest, res: Response, next: NextFun
  */
 export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { title, description, urls, file_type } = req.body;
+    const { title, urls, file_type } = req.body;
     const userId = req.user?.id;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
@@ -89,7 +89,6 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
       .from('media_library')
       .insert({
         title,
-        description: description || null,
         urls,
         url: urls[0],
         file_type,
