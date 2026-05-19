@@ -5,7 +5,8 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { randomUUID, createHash } from 'crypto';
 import PDFDocument from 'pdfkit';
-import archiver from 'archiver';
+import * as archiverLib from 'archiver';
+const { ZipArchive } = archiverLib as any;
 import { Readable } from 'stream';
 
 // ─── In-Memory Stores ─────────────────────────────────────────────────────────
@@ -351,10 +352,11 @@ export const getEvidenceStats = async (req: AuthRequest, res: Response, next: Ne
     const isSuperAdmin = req.user?.is_superadmin;
     const workspaceId = req.user?.workspace_id;
 
-    let query = supabaseAdmin.from('publish_intents').select('id, status, risk_level, risk_score, decision_id, feedback, target_account_ids, platform, content, workspace_id, creator_id');
+    let query = supabaseAdmin.from('publish_intents').select('id, status, risk_level, risk_score, feedback, target_account_ids, platform, content, workspace_id, creator_id');
     if (!isSuperAdmin && workspaceId) query = query.eq('workspace_id', workspaceId);
 
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) throw error;
 
     let defensible = 0, gaps = 0, failures = 0, reviewRecommended = 0;
     for (const intent of data || []) {
@@ -654,12 +656,12 @@ function generateEvidencePDF(pack: EvidencePack, artifacts: any[]): Promise<Buff
 // ─── Direct ZIP Exporter helper ────────────────────────────────────────────────
 function generateEvidenceZIP(pack: EvidencePack, artifacts: any[], pdfBuffer: Buffer): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const archive = archiver('zip', { zlib: { level: 9 } });
+    const archive = new ZipArchive({ zlib: { level: 9 } });
     const chunks: Buffer[] = [];
 
-    archive.on('data', chunk => chunks.push(chunk));
+    archive.on('data', (chunk: any) => chunks.push(chunk));
     archive.on('end', () => resolve(Buffer.concat(chunks)));
-    archive.on('error', err => reject(err));
+    archive.on('error', (err: any) => reject(err));
 
     // Append manifest
     const manifest = JSON.stringify({ pack, artifacts }, null, 2);
