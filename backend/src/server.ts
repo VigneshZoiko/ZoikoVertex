@@ -30,7 +30,13 @@ import {
   getAgentLinkedResources, updateLinkedResources,
   getChecklist, getAgentEvidence, getEvidence,
   cloneAgent, deployAgent, pauseAgent, resumeAgent, retireAgent, requestApproval,
-  approveAgent, rejectAgentApproval, updateRuntimeControls
+  approveAgent, rejectAgentApproval, updateRuntimeControls,
+  updateAgent, listAgentTemplates, getAgentTemplate, createAgentFromTemplate,
+  getAgentProfile, getAgentGovernanceGates,
+  getAgentPermissionSets, updateAgentPermissionSets,
+  runAgentSafetyChecks, getAgentSafetyResults,
+  runAgentPlatformChecks, getAgentPlatformCheckHistory,
+  getAgentIncidents, createAgentIncident, resolveAgentIncident
 } from './domains/agents/agentController';
 import {
   getAutonomyStats, updateAgentLevel, suspendAgent,
@@ -45,7 +51,10 @@ import { listAccounts } from './domains/channels/accountsController';
 import { listMembers, listRequests, createRequest, updateRequest } from './domains/identity/teamController';
 import { performQualityCheck } from './domains/governance/qaController';
 import { listExceptions, resolveException } from './domains/governance/exceptionController';
-import { KnowledgeController } from './modules/knowledge/knowledgeController';
+import {
+  KnowledgeController,
+} from './modules/knowledge/knowledgeController';
+import { PromptController } from './modules/prompts/promptController';
 import { getResourceUsage } from './domains/monitoring/usageController';
 import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemetryController';
 import { performGlobalSearch } from './domains/admin/globalSearchController';
@@ -55,7 +64,44 @@ import { enterpriseSignup } from './domains/identity/enterpriseSignupController'
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
 import { listRules, createRule } from './domains/governance/ruleController';
-import { listWorkflows, getActiveOrchestrations, getWorkflowGraph, getWorkflowStats, getEscalationPaths } from './domains/agents/workflowController';
+import {
+  listWorkflows,
+  getWorkflow,
+  createWorkflow,
+  updateWorkflow,
+  duplicateWorkflow,
+  deleteWorkflow,
+  listVersions,
+  createDraftVersion,
+  submitForApproval,
+  approveVersion,
+  rejectVersion,
+  activateVersion,
+  rollbackVersion,
+  pauseWorkflow,
+  retireWorkflow,
+  getWorkflowGraph,
+  getWorkflowGraphGeneral,
+  validateReadiness,
+  getActiveOrchestrations,
+  getWorkflowStats,
+  getWorkflowAnalytics,
+  getControlStrip,
+  getEscalationPaths,
+  startWorkflowInstance,
+  listInstances,
+  getInstance,
+  transitionInstance,
+  getInstanceStepRuns,
+  getApprovals,
+  recordApproval,
+  getApprovalStats,
+  runSimulation,
+  listSimulations,
+  getDependencies,
+  getWorkflowEvidence,
+  createEvidence
+} from './domains/agents/workflowController';
 import {
   getPerformanceSummary,
   getPerformanceTrends,
@@ -63,7 +109,7 @@ import {
   getAgentLeaderboard
 } from './domains/monitoring/modelPerformanceController';
 
-import { submitForReview, getApprovalQueue, getApprovalStats, takeApprovalAction } from './domains/decisions/approvalController';
+import { submitForReview, getApprovalQueue, getApprovalStats as getApprovalStatsLegacy, takeApprovalAction } from './domains/decisions/approvalController';
 import { authenticate, provisionGuard } from './shared/authMiddleware';
 import { requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';
@@ -83,7 +129,17 @@ import {
   resolveIncident,
   getOperationsStats,
   getRunEvidence,
-  exportEvidence
+  exportEvidence,
+  emergencyPause,
+  escalateRun,
+  restrictedMode,
+  runPolicyCheck,
+  getPolicyResults,
+  getRuntimeControlLog,
+  getAnalyticsMetrics,
+  createEvidenceBundle,
+  lockEvidenceBundle,
+  listEvidenceBundles
 } from './domains/agents/operationsController';
 
 const upload = multer({ dest: os.tmpdir() });
@@ -227,10 +283,41 @@ app.delete('/api/v1/autonomy/negative-knowledge/:id', authenticate, deleteNegati
 
 app.get('/api/v1/agents', authenticate, listAgents);
 app.get('/api/v1/agents/workflows', authenticate, listWorkflows);
-app.get('/api/v1/agents/workflows/active', authenticate, getActiveOrchestrations);
-app.get('/api/v1/agents/workflows/graph', authenticate, getWorkflowGraph);
 app.get('/api/v1/agents/workflows/stats', authenticate, getWorkflowStats);
+app.get('/api/v1/agents/workflows/control-strip', authenticate, getControlStrip);
+app.get('/api/v1/agents/workflows/analytics', authenticate, getWorkflowAnalytics);
 app.get('/api/v1/agents/workflows/escalations', authenticate, getEscalationPaths);
+app.get('/api/v1/agents/workflows/approvals', authenticate, getApprovals);
+app.get('/api/v1/agents/workflows/approvals/stats', authenticate, getApprovalStats);
+app.post('/api/v1/agents/workflows', authenticate, createWorkflow);
+app.get('/api/v1/agents/workflows/active', authenticate, getActiveOrchestrations);
+app.get('/api/v1/agents/workflows/graph', authenticate, getWorkflowGraphGeneral);
+app.get('/api/v1/agents/workflows/versions/:versionId/submit', authenticate, submitForApproval);
+app.post('/api/v1/agents/workflows/versions/:versionId/approve', authenticate, approveVersion);
+app.post('/api/v1/agents/workflows/versions/:versionId/reject', authenticate, rejectVersion);
+app.post('/api/v1/agents/workflows/versions/:versionId/activate', authenticate, activateVersion);
+app.post('/api/v1/agents/workflows/versions/:versionId/pause', authenticate, pauseWorkflow);
+app.post('/api/v1/agents/workflows/versions/:versionId/retire', authenticate, retireWorkflow);
+app.get('/api/v1/agents/workflows/versions/:versionId/graph', authenticate, getWorkflowGraph);
+app.get('/api/v1/agents/workflows/versions/:versionId/validate', authenticate, validateReadiness);
+app.post('/api/v1/agents/workflows/versions/:versionId/simulate', authenticate, runSimulation);
+app.get('/api/v1/agents/workflows/versions/:versionId/simulations', authenticate, listSimulations);
+app.post('/api/v1/agents/workflows/instances', authenticate, startWorkflowInstance);
+app.get('/api/v1/agents/workflows/instances', authenticate, listInstances);
+app.get('/api/v1/agents/workflows/instances/:instanceId', authenticate, getInstance);
+app.patch('/api/v1/agents/workflows/instances/:instanceId/transition', authenticate, transitionInstance);
+app.get('/api/v1/agents/workflows/instances/:instanceId/step-runs', authenticate, getInstanceStepRuns);
+app.get('/api/v1/agents/workflows/instances/:instanceId/evidence', authenticate, getWorkflowEvidence);
+app.post('/api/v1/agents/workflows/instances/:instanceId/evidence', authenticate, createEvidence);
+app.post('/api/v1/agents/workflows/approvals/:approvalId/decide', authenticate, recordApproval);
+app.get('/api/v1/agents/workflows/:id', authenticate, getWorkflow);
+app.patch('/api/v1/agents/workflows/:id', authenticate, updateWorkflow);
+app.delete('/api/v1/agents/workflows/:id', authenticate, deleteWorkflow);
+app.post('/api/v1/agents/workflows/:id/duplicate', authenticate, duplicateWorkflow);
+app.get('/api/v1/agents/workflows/:id/versions', authenticate, listVersions);
+app.post('/api/v1/agents/workflows/:id/versions', authenticate, createDraftVersion);
+app.post('/api/v1/agents/workflows/:id/rollback', authenticate, rollbackVersion);
+app.get('/api/v1/agents/workflows/:id/dependencies', authenticate, getDependencies);
 app.get('/api/v1/agents/:id', authenticate, getAgent);
 app.post('/api/v1/agents', authenticate, registerAgent);
 app.post('/api/v1/agents/:id/certify', authenticate, certifyAgent);
@@ -257,6 +344,23 @@ app.post('/api/v1/agents/:id/approval/approve', authenticate, approveAgent);
 app.post('/api/v1/agents/:id/approval/reject', authenticate, rejectAgentApproval);
 app.patch('/api/v1/agents/:id/runtime', authenticate, updateRuntimeControls);
 
+// Agent Studio Extended Routes — Profile, Templates, Permission Sets, Safety, Platform, Incidents
+app.patch('/api/v1/agents/:id/update', authenticate, updateAgent);
+app.get('/api/v1/agents/templates', authenticate, listAgentTemplates);
+app.get('/api/v1/agents/templates/:id', authenticate, getAgentTemplate);
+app.post('/api/v1/agents/from-template', authenticate, createAgentFromTemplate);
+app.get('/api/v1/agents/:id/profile', authenticate, getAgentProfile);
+app.get('/api/v1/agents/:id/governance-gates', authenticate, getAgentGovernanceGates);
+app.get('/api/v1/agents/:id/permissions', authenticate, getAgentPermissionSets);
+app.patch('/api/v1/agents/:id/permissions', authenticate, updateAgentPermissionSets);
+app.post('/api/v1/agents/:id/safety-checks/run', authenticate, runAgentSafetyChecks);
+app.get('/api/v1/agents/:id/safety-checks', authenticate, getAgentSafetyResults);
+app.post('/api/v1/agents/:id/platform-checks/run', authenticate, runAgentPlatformChecks);
+app.get('/api/v1/agents/:id/platform-checks', authenticate, getAgentPlatformCheckHistory);
+app.get('/api/v1/agents/:id/incidents', authenticate, getAgentIncidents);
+app.post('/api/v1/agents/:id/incidents', authenticate, createAgentIncident);
+app.patch('/api/v1/agents/:id/incidents/:incidentId/resolve', authenticate, resolveAgentIncident);
+
 // Agent Operations Routes
 app.get('/api/v1/operations/runs', authenticate, listAgentRuns);
 app.get('/api/v1/operations/runs/:id', authenticate, getAgentRun);
@@ -274,6 +378,16 @@ app.patch('/api/v1/operations/incidents/:id/resolve', authenticate, resolveIncid
 app.get('/api/v1/operations/stats', authenticate, getOperationsStats);
 app.get('/api/v1/operations/evidence/:bundleId', authenticate, getRunEvidence);
 app.post('/api/v1/operations/evidence/:bundleId/export', authenticate, exportEvidence);
+app.post('/api/v1/operations/runs/:id/emergency-pause', authenticate, emergencyPause);
+app.post('/api/v1/operations/runs/:id/escalate', authenticate, escalateRun);
+app.post('/api/v1/operations/runs/:id/restricted-mode', authenticate, restrictedMode);
+app.post('/api/v1/operations/runs/:id/policy-check', authenticate, runPolicyCheck);
+app.get('/api/v1/operations/runs/:id/policy-results', authenticate, getPolicyResults);
+app.get('/api/v1/operations/runs/:id/control-log', authenticate, getRuntimeControlLog);
+app.get('/api/v1/operations/analytics', authenticate, getAnalyticsMetrics);
+app.post('/api/v1/operations/evidence', authenticate, createEvidenceBundle);
+app.post('/api/v1/operations/evidence/:bundleId/lock', authenticate, lockEvidenceBundle);
+app.get('/api/v1/operations/evidence', authenticate, listEvidenceBundles);
 
 // Monitoring Routes
 app.get('/api/v1/monitoring/usage', authenticate, getResourceUsage);
@@ -291,7 +405,8 @@ app.get('/api/v1/superadmin/stats', authenticate, superAdminGuard, SuperAdminCon
 app.get('/api/v1/superadmin/tickets', authenticate, superAdminGuard, SupportController.listAllTickets);
 app.patch('/api/v1/superadmin/tickets/:id', authenticate, superAdminGuard, SupportController.updateTicketStatus);
 
-// Knowledge Base Routes
+// Knowledge Base Routes — Governed Knowledge Layer
+// Legacy endpoints (backward compat)
 app.get('/api/v1/knowledge/bases', authenticate, KnowledgeController.listBases);
 app.post('/api/v1/knowledge/bases', authenticate, KnowledgeController.createBase);
 app.delete('/api/v1/knowledge/bases/:baseId', authenticate, KnowledgeController.deleteBase);
@@ -300,12 +415,108 @@ app.post('/api/v1/knowledge/bases/:baseId/entries', authenticate, upload.single(
 app.delete('/api/v1/knowledge/entries/:entryId', authenticate, KnowledgeController.deleteEntry);
 app.get('/api/v1/knowledge/ai-context', authenticate, KnowledgeController.getAIContext);
 
+// Collections API (governed)
+app.get('/api/v1/knowledge/collections', authenticate, KnowledgeController.listCollections);
+app.get('/api/v1/knowledge/collections/:id', authenticate, KnowledgeController.getCollection);
+app.post('/api/v1/knowledge/collections', authenticate, KnowledgeController.createCollection);
+app.patch('/api/v1/knowledge/collections/:id', authenticate, KnowledgeController.updateCollection);
+app.delete('/api/v1/knowledge/collections/:id', authenticate, KnowledgeController.deleteCollection);
+
+// Sources API (governed)
+app.get('/api/v1/knowledge/sources', authenticate, KnowledgeController.listSources);
+app.get('/api/v1/knowledge/sources/:id', authenticate, KnowledgeController.getSource);
+app.post('/api/v1/knowledge/collections/:collectionId/sources', authenticate, upload.single('file'), KnowledgeController.createSource);
+app.patch('/api/v1/knowledge/sources/:id', authenticate, KnowledgeController.updateSource);
+app.delete('/api/v1/knowledge/sources/:id', authenticate, KnowledgeController.deleteSource);
+
+// Source lifecycle management
+app.post('/api/v1/knowledge/entries/:id/approve', authenticate, KnowledgeController.approveSource);
+app.post('/api/v1/knowledge/entries/:id/reject', authenticate, KnowledgeController.rejectSource);
+app.post('/api/v1/knowledge/entries/:id/retire', authenticate, KnowledgeController.retireSource);
+app.post('/api/v1/knowledge/sources/:id/approve', authenticate, KnowledgeController.approveSource);
+app.post('/api/v1/knowledge/sources/:id/reject', authenticate, KnowledgeController.rejectSource);
+app.post('/api/v1/knowledge/sources/:id/retire', authenticate, KnowledgeController.retireSource);
+app.post('/api/v1/knowledge/sources/:id/activate', authenticate, KnowledgeController.activateSource);
+app.post('/api/v1/knowledge/sources/:id/publish', authenticate, KnowledgeController.publishSource);
+app.post('/api/v1/knowledge/sources/:id/restrict', authenticate, KnowledgeController.restrictSource);
+app.post('/api/v1/knowledge/sources/:id/quarantine', authenticate, KnowledgeController.quarantineSource);
+
+// Stats
+app.get('/api/v1/knowledge/stats', authenticate, KnowledgeController.getStats);
+
+// Conflicts API
+app.get('/api/v1/knowledge/conflicts', authenticate, KnowledgeController.listConflicts);
+app.get('/api/v1/knowledge/conflicts/:id', authenticate, KnowledgeController.getConflict);
+app.post('/api/v1/knowledge/conflicts', authenticate, KnowledgeController.createConflict);
+app.post('/api/v1/knowledge/conflicts/:id/resolve', authenticate, KnowledgeController.resolveConflict);
+
+// Retrieval Logs API
+app.get('/api/v1/knowledge/retrieval-logs', authenticate, KnowledgeController.listRetrievalLogs);
+app.post('/api/v1/knowledge/retrieval-logs', authenticate, KnowledgeController.logRetrievalEvent);
+
+// Reviews API
+app.get('/api/v1/knowledge/reviews', authenticate, KnowledgeController.listReviews);
+
+// Chunks API
+app.get('/api/v1/knowledge/sources/:sourceId/chunks', authenticate, KnowledgeController.listChunks);
+
+// Search API
+app.get('/api/v1/knowledge/search', authenticate, KnowledgeController.searchSources);
+
+// Access Policy API
+app.get('/api/v1/knowledge/access-policy', authenticate, KnowledgeController.getAccessPolicy);
+app.post('/api/v1/knowledge/access-policy', authenticate, KnowledgeController.upsertAccessPolicy);
+
+// ─── Prompt Governance Routes ────────────────────────────────────────────
+// Static routes (must come before parameterized :id routes)
+app.get('/api/v1/prompts/stats', authenticate, PromptController.getPromptStats);
+app.get('/api/v1/prompts/approvals/stats', authenticate, PromptController.getApprovalStats);
+
+// Versions sub-routes (no :id prefix)
+app.post('/api/v1/prompts/versions/:versionId/approve', authenticate, PromptController.approveVersion);
+app.post('/api/v1/prompts/versions/:versionId/reject', authenticate, PromptController.rejectVersion);
+app.post('/api/v1/prompts/versions/:versionId/deploy', authenticate, PromptController.deployVersion);
+app.get('/api/v1/prompts/versions/:versionId/tests/runs', authenticate, PromptController.listTestRuns);
+app.post('/api/v1/prompts/versions/:versionId/tests/run', authenticate, PromptController.runTests);
+app.get('/api/v1/prompts/versions/:versionId/approvals', authenticate, PromptController.listApprovals);
+app.get('/api/v1/prompts/versions/:versionId/deployments', authenticate, PromptController.listDeployments);
+app.get('/api/v1/prompts/versions/:versionId/bindings', authenticate, PromptController.listBindings);
+app.post('/api/v1/prompts/versions/:versionId/bindings', authenticate, PromptController.createBinding);
+app.get('/api/v1/prompts/versions/:versionId/knowledge', authenticate, PromptController.listKnowledgeBindings);
+app.post('/api/v1/prompts/versions/:versionId/knowledge', authenticate, PromptController.createKnowledgeBinding);
+app.get('/api/v1/prompts/versions/:versionId/tools', authenticate, PromptController.listToolPermissions);
+app.post('/api/v1/prompts/versions/:versionId/tools', authenticate, PromptController.createToolPermission);
+
+// Prompt CRUD (parameterized :id routes)
+app.get('/api/v1/prompts', authenticate, PromptController.listPrompts);
+app.post('/api/v1/prompts', authenticate, PromptController.createPrompt);
+app.get('/api/v1/prompts/:id', authenticate, PromptController.getPrompt);
+app.patch('/api/v1/prompts/:id', authenticate, PromptController.updatePrompt);
+app.post('/api/v1/prompts/:id/clone', authenticate, PromptController.clonePrompt);
+
+// Lifecycle actions
+app.post('/api/v1/prompts/:id/pause', authenticate, PromptController.pausePrompt);
+app.post('/api/v1/prompts/:id/resume', authenticate, PromptController.resumePrompt);
+app.post('/api/v1/prompts/:id/archive', authenticate, PromptController.archivePrompt);
+app.post('/api/v1/prompts/:id/retire', authenticate, PromptController.retirePrompt);
+app.post('/api/v1/prompts/:id/submit-review', authenticate, PromptController.submitForReview);
+app.post('/api/v1/prompts/:id/rollback', authenticate, PromptController.rollbackPrompt);
+
+// Versions (under :id)
+app.get('/api/v1/prompts/:id/versions', authenticate, PromptController.listVersions);
+app.post('/api/v1/prompts/:id/versions', authenticate, PromptController.createVersion);
+app.get('/api/v1/prompts/:id/versions/:versionId', authenticate, PromptController.getVersion);
+
+// Tests (under :id)
+app.get('/api/v1/prompts/:id/tests/suites', authenticate, PromptController.listTestSuites);
+app.post('/api/v1/prompts/:id/tests/suites', authenticate, PromptController.createTestSuite);
+
 app.get('/api/v1/integrations/health', authenticate, getIntegrationHealth);
 
 // Approval Workflow Routes
 app.post('/api/v1/approvals/submit', authenticate, submitForReview);
 app.get('/api/v1/approvals/queue', authenticate, getApprovalQueue);
-app.get('/api/v1/approvals/stats', authenticate, getApprovalStats);
+app.get('/api/v1/approvals/stats', authenticate, getApprovalStatsLegacy);
 app.post('/api/v1/approvals/items/:id/action', authenticate, takeApprovalAction);
 
 // Support Routes

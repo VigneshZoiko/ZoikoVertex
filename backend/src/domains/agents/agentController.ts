@@ -1,13 +1,23 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { getAgentCapabilities as fetchAgentCapabilities } from '../../services/agentCapability.service';
-import { getAgentVersions as fetchAgentVersions, rollbackAgentVersion as doRollback } from '../../services/agentVersion.service';
+import { getAgentVersions as fetchAgentVersions, rollbackAgentVersion as doRollback, createAgentVersion } from '../../services/agentVersion.service';
 import { runSandboxTests, getSandboxTestHistory } from '../../services/agentSandbox.service';
 import { getAgentLinkedResources as fetchAgentLinkedResources, updateAgentLinkedResources as modifyAgentLinkedResources, getActivationChecklist as fetchActivationChecklist } from '../../services/agentLinkedResources.service';
 import { getEvidenceBundles as fetchEvidenceBundles, getEvidenceBundle as fetchEvidenceBundle } from '../../services/agentEvidence.service';
+import { getPermissionSet, upsertPermissionSet, computeDefaultPermissionsFromTemplate } from '../../services/agentPermissionSets.service';
+import { runSafetyCheck, getSafetyResults, SAFETY_TEST_SUITE } from '../../services/agentSafetyPolicy.service';
+import { runPlatformChecks, getPlatformCheckHistory } from '../../services/agentPlatformChecks.service';
+import { listTemplates, getTemplate, createAgentFromTemplate as createAgentFromTemplateService } from '../../services/agentTemplates.service';
+import { listAgentIncidents, createIncident, resolveIncident } from '../../services/agentIncidents.service';
+import { evaluateAllGates } from '../../services/agentGovernanceGates.service';
+import { getFullAgentProfile } from '../../services/agentProfile.service';
+import { logAgentEvent, createEvidenceRecord } from '../../services/agentEventLogger.service';
+import { getParam, getQueryValue } from '../../shared/request';
 
 const AGENT_SERVICE = 'AgentStudio';
 
@@ -21,7 +31,7 @@ export const MODE_TO_AUTONOMY: Record<string, string> = {
 
 export const approveAgent = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const { approval_id, notes } = req.body as { approval_id?: string; notes?: string };
     const userId = (req as AuthRequest).user?.id;
     const userRole = (req as AuthRequest).user?.role;
@@ -89,7 +99,7 @@ export const approveAgent = async (req: Request, res: Response, next: NextFuncti
 
 export const rejectAgentApproval = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const { approval_id, notes } = req.body as { approval_id?: string; notes?: string };
     const userId = (req as AuthRequest).user?.id;
     const userRole = (req as AuthRequest).user?.role;
@@ -132,7 +142,7 @@ export const rejectAgentApproval = async (req: Request, res: Response, next: Nex
 
 export const updateRuntimeControls = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const {
       rate_limit,
       token_budget,
@@ -216,7 +226,7 @@ const CreateAgentSchema = z.object({
 
 export const cloneAgent = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const userId = (req as AuthRequest).user?.id;
     
     const { data: original, error: fetchError } = await supabaseAdmin
@@ -279,7 +289,7 @@ export const cloneAgent = async (req: Request, res: Response, next: NextFunction
 
 export const deployAgent = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const { environment = 'production' } = req.body as { environment?: string };
     const userId = (req as AuthRequest).user?.id;
     let deploymentId: string | null = null;
@@ -351,7 +361,7 @@ export const deployAgent = async (req: Request, res: Response, next: NextFunctio
 
 export const pauseAgent = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const { reason } = req.body as { reason?: string };
     const userId = (req as AuthRequest).user?.id;
 
@@ -416,7 +426,7 @@ export const pauseAgent = async (req: Request, res: Response, next: NextFunction
 
 export const resumeAgent = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const { reason } = req.body as { reason?: string };
     const userId = (req as AuthRequest).user?.id;
     
@@ -466,7 +476,7 @@ export const resumeAgent = async (req: Request, res: Response, next: NextFunctio
 
 export const retireAgent = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const { reason } = req.body as { reason?: string };
     const userId = (req as AuthRequest).user?.id;
     
@@ -531,7 +541,7 @@ export const retireAgent = async (req: Request, res: Response, next: NextFunctio
 
 export const requestApproval = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const { notes } = req.body as { notes?: string };
     const userId = (req as AuthRequest).user?.id;
     
@@ -636,9 +646,9 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     const isSuper = req.user?.is_superadmin;
     const userWorkspaceId = req.user?.workspace_id;
-    const targetWorkspaceId = (req.query.workspaceId as string) || userWorkspaceId;
-    const statusFilter = req.query.status as string;
-    const riskFilter = req.query.risk_level as string;
+    const targetWorkspaceId = getQueryValue(req, 'workspaceId') || userWorkspaceId;
+    const statusFilter = getQueryValue(req, 'status');
+    const riskFilter = getQueryValue(req, 'risk_level');
 
     if (!targetWorkspaceId && !isSuper) {
       return res.status(400).json({ success: false, message: 'workspaceId is required' });
@@ -655,8 +665,8 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
 
     if (!isSuper) {
       query = query.eq('workspace_id', targetWorkspaceId);
-    } else if (req.query.workspaceId) {
-      query = query.eq('workspace_id', req.query.workspaceId);
+    } else if (getQueryValue(req, 'workspaceId')) {
+      query = query.eq('workspace_id', getQueryValue(req, 'workspaceId'));
     }
 
     if (statusFilter) query = query.eq('status', statusFilter);
@@ -673,7 +683,7 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
 
 export const getAgent = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
 
     const { data: agent, error } = await supabaseAdmin
       .from('agents')
@@ -752,7 +762,7 @@ export const registerAgent = async (req: Request, res: Response, next: NextFunct
 
 export const certifyAgent = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const { level, evidence_score } = req.body;
     const userId = (req as AuthRequest).user?.id;
 
@@ -809,7 +819,7 @@ export const certifyAgent = async (req: Request, res: Response, next: NextFuncti
 
 export const updateAutonomy = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const { autonomy_level } = req.body;
     const userId = (req as AuthRequest).user?.id;
 
@@ -848,7 +858,7 @@ export const updateAutonomy = async (req: Request, res: Response, next: NextFunc
 
 export const getAgentCapabilities = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const result = await fetchAgentCapabilities(id);
     res.status(200).json({ success: result.success, capabilities: result.capabilities });
   } catch (error) {
@@ -858,7 +868,7 @@ export const getAgentCapabilities = async (req: Request, res: Response, next: Ne
 
 export const getAgentVersions = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const versions = await fetchAgentVersions(id);
     res.status(200).json({ success: true, versions });
   } catch (error) {
@@ -868,7 +878,7 @@ export const getAgentVersions = async (req: Request, res: Response, next: NextFu
 
 export const rollbackAgent = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const { version_id } = req.body as { version_id: string };
     const userId = (req as AuthRequest).user?.id;
 
@@ -885,7 +895,7 @@ export const rollbackAgent = async (req: Request, res: Response, next: NextFunct
 
 export const runAgentSandbox = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const { target_level, risk_level } = req.body as { target_level: string; risk_level?: string };
 
     if (!target_level) {
@@ -905,7 +915,7 @@ export const runAgentSandbox = async (req: Request, res: Response, next: NextFun
 
 export const getAgentTestHistory = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const history = await getSandboxTestHistory(id);
     res.status(200).json({ success: true, tests: history });
   } catch (error) {
@@ -915,7 +925,7 @@ export const getAgentTestHistory = async (req: Request, res: Response, next: Nex
 
 export const getAgentLinkedResources = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const resources = await fetchAgentLinkedResources(id);
     res.status(200).json({ success: true, resources });
   } catch (error) {
@@ -925,7 +935,7 @@ export const getAgentLinkedResources = async (req: Request, res: Response, next:
 
 export const updateLinkedResources = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const { linked_prompts, linked_workflows, linked_policies, linked_knowledge_sources } = req.body;
     const userId = (req as AuthRequest).user?.id;
 
@@ -949,7 +959,7 @@ export const updateLinkedResources = async (req: Request, res: Response, next: N
 
 export const getChecklist = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const checklist = await fetchActivationChecklist(id);
     res.status(200).json({ success: true, checklist });
   } catch (error) {
@@ -959,9 +969,9 @@ export const getChecklist = async (req: Request, res: Response, next: NextFuncti
 
 export const getAgentEvidence = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params as { id: string };
+    const id = getParam(req, 'id');
     const bundles = await fetchEvidenceBundles(id);
-    res.status(200).json({ success: true, evidence: bundles });
+    res.status(200).json({ success: true, data: bundles, evidence: bundles });
   } catch (error) {
     next(error);
   }
@@ -969,12 +979,246 @@ export const getAgentEvidence = async (req: Request, res: Response, next: NextFu
 
 export const getEvidence = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { bundleId } = req.params as { bundleId: string };
+    const bundleId = getParam(req, 'bundleId');
     const bundle = await fetchEvidenceBundle(bundleId);
     if (!bundle) {
       return res.status(404).json({ success: false, message: 'Evidence bundle not found' });
     }
     res.status(200).json({ success: true, bundle });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateAgent = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const userId = (req as AuthRequest).user?.id;
+    const allowed = ['name', 'purpose', 'type', 'primary_dri_id', 'backup_dri_id', 'assigned_brand',
+      'permitted_actions', 'prohibited_actions', 'linked_channels', 'linked_prompts', 'linked_workflows',
+      'linked_policies', 'linked_knowledge_sources', 'risk_level', 'evidence_required', 'approval_required',
+      'success_metrics', 'prohibited_outcomes', 'compliance_notes', 'mode'];
+
+    const updates: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    updates.updated_at = new Date().toISOString();
+
+    const { data: agent, error } = await supabaseAdmin
+      .from('agents')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (userId) await createAgentVersion(id, userId, 'Agent updated', `Updated fields: ${Object.keys(updates).join(', ')}`);
+    await logAgentEvent('agent.updated', id, userId, { updates });
+    res.status(200).json({ success: true, data: agent });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listAgentTemplates = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const templates = await listTemplates();
+    res.status(200).json({ success: true, templates });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAgentTemplate = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const template = await getTemplate(id);
+    if (!template) return res.status(404).json({ success: false, message: 'Template not found' });
+    res.status(200).json({ success: true, template });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createAgentFromTemplate = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = (req as AuthRequest).user?.id;
+    const { template_id, name, workspace_id, org_id, primary_dri_id, assigned_brand } = req.body;
+
+    if (!template_id || !name || !workspace_id || !org_id || !primary_dri_id) {
+      return res.status(400).json({ success: false, message: 'Missing required fields: template_id, name, workspace_id, org_id, primary_dri_id' });
+    }
+
+    const result = await createAgentFromTemplateService(
+      template_id,
+      { name, workspace_id, org_id, primary_dri_id, assigned_brand },
+      userId || 'system'
+    );
+
+    if (!result.success) return res.status(400).json(result);
+    await logAgentEvent('agent.created', result.agent.id, userId, { template_id, name });
+    res.status(201).json({ success: true, data: result.agent });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAgentProfile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const profile = await getFullAgentProfile(id);
+    if (!profile.agent || Object.keys(profile.agent).length === 0) {
+      return res.status(404).json({ success: false, message: 'Agent not found' });
+    }
+    res.status(200).json({ success: true, data: profile, profile });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAgentGovernanceGates = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const gates = await evaluateAllGates(id);
+    res.status(200).json({ success: true, data: gates, gates });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAgentPermissionSets = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const permissionSet = await getPermissionSet(id);
+    res.status(200).json({ success: true, data: permissionSet, permission_set: permissionSet });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateAgentPermissionSets = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const userId = (req as AuthRequest).user?.id;
+    const result = await upsertPermissionSet(id, req.body, userId);
+    if (!result.success) return res.status(400).json(result);
+    if (userId) await createAgentVersion(id, userId, 'Permission set updated', 'Updated action class, tools, and rate limits');
+    res.status(200).json({ success: true, permission_set: result.data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const runAgentSafetyChecks = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const { content } = req.body;
+    if (!content) return res.status(400).json({ success: false, message: 'Content text is required' });
+
+    const results = await Promise.all(
+      SAFETY_TEST_SUITE.map(test => runSafetyCheck(id, test.category, content))
+    );
+
+    const blocked = results.filter(r => !r.pass_fail);
+    const passed = results.filter(r => r.pass_fail);
+    const allPassed = blocked.length === 0;
+
+    await logAgentEvent('agent.test_passed', id, (req as AuthRequest).user?.id, { allPassed, blocked_count: blocked.length });
+    res.status(200).json({
+      success: true,
+      results,
+      summary: { all_passed: allPassed, passed: passed.length, blocked: blocked.length },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAgentSafetyResults = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const results = await getSafetyResults(id);
+    res.status(200).json({ success: true, results });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const runAgentPlatformChecks = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const { platforms, content } = req.body;
+    if (!platforms || !Array.isArray(platforms) || platforms.length === 0) {
+      return res.status(400).json({ success: false, message: 'Platforms array is required' });
+    }
+
+    const result = await runPlatformChecks(id, platforms, content);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAgentPlatformCheckHistory = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const platform = getQueryValue(req, 'platform');
+    const checks = await getPlatformCheckHistory(id, platform);
+    res.status(200).json({ success: true, checks });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAgentIncidents = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const incidents = await listAgentIncidents(id);
+    res.status(200).json({ success: true, incidents });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createAgentIncident = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const userId = (req as AuthRequest).user?.id;
+    const { severity, incident_type, description, affected_channel, output_id } = req.body;
+
+    if (!severity || !incident_type || !description) {
+      return res.status(400).json({ success: false, message: 'severity, incident_type, and description are required' });
+    }
+
+    const result = await createIncident({
+      agent_id: id,
+      severity,
+      incident_type,
+      description,
+      affected_channel,
+      output_id,
+      owner_id: userId,
+    });
+
+    if (!result.success) return res.status(400).json(result);
+    await logAgentEvent('agent.incident_opened', id, userId, { incident_type, severity });
+    res.status(201).json({ success: true, incident: result.incident });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resolveAgentIncident = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const incidentId = getParam(req, 'incidentId');
+    const userId = (req as AuthRequest).user?.id;
+    const { remediation } = req.body;
+
+    if (!remediation) return res.status(400).json({ success: false, message: 'Remediation note is required' });
+    const result = await resolveIncident(incidentId, remediation, userId || 'system');
+    if (!result.success) return res.status(400).json(result);
+    res.status(200).json({ success: true });
   } catch (error) {
     next(error);
   }

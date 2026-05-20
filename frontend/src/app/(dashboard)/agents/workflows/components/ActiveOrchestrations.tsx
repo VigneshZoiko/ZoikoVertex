@@ -6,7 +6,7 @@ import { GitMerge, Loader2, Clock, CheckCircle2, AlertCircle, XCircle, Pause, Sh
 // Per doc section 8 — Runtime Operations Requirements
 // Visible data: workflow name, instance ID, current step, owner, SLA, risk score,
 // confidence score, status, blocker
-// User actions: Open, assign, pause, escalate, view evidence
+// User actions: Open, assign, pause, escalate, view evidence.
 
 interface Orchestration {
   id: string;

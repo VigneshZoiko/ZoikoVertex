@@ -35,6 +35,7 @@ import {
   Cpu,
   Network,
   BarChart3,
+  Loader2,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -98,6 +99,7 @@ interface PromptRecord {
   risk_tier: RiskTier;
   status: LifecycleStatus;
   active_version: string;
+  active_version_id?: string;
   last_test: TestResult | null;
   approvals: ApprovalRecord[];
   last_deployed: string;
@@ -164,122 +166,6 @@ const LIFECYCLE_STAGES: LifecycleStatus[] = [
   "PAUSED",
   "RETIRED",
   "ARCHIVED",
-];
-
-// Seed mock data that mirrors the spec's object model
-const MOCK_PROMPTS: PromptRecord[] = [
-  {
-    id: "pmt-001",
-    name: "Brand Voice — Content Lead",
-    prompt_type: "agent_role",
-    owner: "Harsha R.",
-    linked_agent: "Nexus Content Lead",
-    linked_workflow: "Campaign Content Flow",
-    risk_tier: "TIER_3_HIGH",
-    status: "PRODUCTION_ACTIVE",
-    active_version: "v4.2",
-    description: "Defines tone, style, vocabulary, and claim boundaries for the Nexus Content Lead agent across all brand channels.",
-    knowledge_sources: ["Brand Standards KB", "Compliance Rules v3"],
-    tools_permitted: ["caption_generator", "image_analyzer"],
-    last_deployed: "2026-05-18T09:12:00Z",
-    last_test: { suite_name: "Brand + Safety Suite", pass_fail: "PASS", score: 96, run_at: "2026-05-17T14:00:00Z", environment: "staging" },
-    approvals: [
-      { reviewer_role: "BRAND_REVIEWER", decision: "APPROVED", timestamp: "2026-05-17T16:00:00Z", notes: "Tone aligned." },
-      { reviewer_role: "COMPLIANCE_REVIEWER", decision: "APPROVED", timestamp: "2026-05-17T18:00:00Z", notes: "Claims verified." },
-    ],
-  },
-  {
-    id: "pmt-002",
-    name: "Safety Refusal Logic — Healthcare",
-    prompt_type: "refusal",
-    owner: "Minit S.",
-    linked_agent: "Sentinel Optimizer",
-    linked_workflow: "Healthcare Division Flow",
-    risk_tier: "TIER_4_CRITICAL",
-    status: "REVIEW_REQUESTED",
-    active_version: "v2.0",
-    description: "Governs how agents refuse or escalate healthcare claims. Maps directly to FDA, diagnostic, and prescription prohibited-term lists.",
-    knowledge_sources: ["Healthcare Negative Knowledge", "FDA Compliance Pack"],
-    tools_permitted: [],
-    last_deployed: "2026-05-10T11:00:00Z",
-    last_test: { suite_name: "Adversarial Safety Suite", pass_fail: "PASS", score: 99, run_at: "2026-05-19T08:00:00Z", environment: "staging" },
-    approvals: [
-      { reviewer_role: "COMPLIANCE_REVIEWER", decision: "APPROVED", timestamp: "2026-05-19T10:00:00Z", notes: "Passed adversarial." },
-      { reviewer_role: "SECURITY_ADMIN", decision: "PENDING", timestamp: "", notes: "" },
-    ],
-  },
-  {
-    id: "pmt-003",
-    name: "Tool-Use — Social Scheduler",
-    prompt_type: "tool_use",
-    owner: "Naresh K.",
-    linked_agent: "Vision Research Bot",
-    linked_workflow: "Post Scheduling Flow",
-    risk_tier: "TIER_2_MEDIUM",
-    status: "APPROVED_STAGING",
-    active_version: "v1.5",
-    description: "Defines when the scheduler tool may be called, conditions for BullMQ handoff, and rollback on failed publish.",
-    knowledge_sources: ["Platform API Rules"],
-    tools_permitted: ["scheduler", "platform_publisher"],
-    last_deployed: "2026-05-15T07:30:00Z",
-    last_test: { suite_name: "Tool-Use Safety Suite", pass_fail: "PASS", score: 91, run_at: "2026-05-14T12:00:00Z", environment: "staging" },
-    approvals: [
-      { reviewer_role: "BRAND_REVIEWER", decision: "APPROVED", timestamp: "2026-05-14T15:00:00Z", notes: "" },
-    ],
-  },
-  {
-    id: "pmt-004",
-    name: "Crisis Response — Escalation Protocol",
-    prompt_type: "escalation",
-    owner: "Harsha R.",
-    linked_agent: "Brand Guardian",
-    linked_workflow: "Brand Crisis Flow",
-    risk_tier: "TIER_4_CRITICAL",
-    status: "DRAFT",
-    active_version: "v0.1",
-    description: "Draft escalation logic for crisis events. Defines HITL handoff, emergency lock trigger, and governance notification chain.",
-    knowledge_sources: [],
-    tools_permitted: ["kill_switch_api"],
-    last_deployed: "",
-    last_test: null,
-    approvals: [],
-  },
-  {
-    id: "pmt-005",
-    name: "Localization — Asia Pacific",
-    prompt_type: "localization",
-    owner: "Minit S.",
-    linked_agent: "Nexus Content Lead",
-    linked_workflow: "Localization Flow",
-    risk_tier: "TIER_2_MEDIUM",
-    status: "INTERNAL_TEST",
-    active_version: "v1.0",
-    description: "Locale-specific constraints for APAC: cultural sensitivity, legal disclaimers, platform limits, and prohibited expressions.",
-    knowledge_sources: ["APAC Legal Compliance KB"],
-    tools_permitted: ["caption_generator"],
-    last_deployed: "",
-    last_test: { suite_name: "Localization Suite", pass_fail: "FAIL", score: 68, run_at: "2026-05-20T06:00:00Z", environment: "draft" },
-    approvals: [],
-  },
-  {
-    id: "pmt-006",
-    name: "System Prompt — Governance Agent",
-    prompt_type: "system",
-    owner: "Harsha R.",
-    linked_agent: "Brand Guardian",
-    linked_workflow: "Governance Oversight Flow",
-    risk_tier: "TIER_3_HIGH",
-    status: "PAUSED",
-    active_version: "v3.1",
-    description: "Core system identity prompt for the governance agent. Paused pending drift investigation after output variance detected.",
-    knowledge_sources: ["Platform Policy Center", "Brand Standards KB"],
-    tools_permitted: ["audit_writer", "evidence_exporter"],
-    last_deployed: "2026-05-01T08:00:00Z",
-    last_test: { suite_name: "Regression Suite", pass_fail: "PASS", score: 87, run_at: "2026-04-29T10:00:00Z", environment: "production" },
-    approvals: [
-      { reviewer_role: "GOVERNANCE_ADMIN", decision: "APPROVED", timestamp: "2026-04-30T12:00:00Z", notes: "Cleared for prod." },
-    ],
-  },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -465,7 +351,7 @@ function LifecycleTab({ prompts }: { prompts: PromptRecord[] }) {
   return (
     <div className="space-y-6">
       <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
-        The lifecycle pipeline shows every prompt's current state. Prompts must progress through testing and required approvals before reaching production. Archived prompts cannot be reactivated — they must be cloned into a new draft.
+        The lifecycle pipeline shows every prompt&apos;s current state. Prompts must progress through testing and required approvals before reaching production. Archived prompts cannot be reactivated — they must be cloned into a new draft.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4">
         {LIFECYCLE_STAGES.map((stage) => {
@@ -604,7 +490,7 @@ function TestingTab({ prompts }: { prompts: PromptRecord[] }) {
 
 // ─── Tab: Approvals ────────────────────────────────────────────────────────────
 
-function ApprovalsTab({ prompts, approvalStats }: { prompts: PromptRecord[]; approvalStats: ApprovalStats | null }) {
+function ApprovalsTab({ prompts, approvalStats, onApprovalAction }: { prompts: PromptRecord[]; approvalStats: ApprovalStats | null; onApprovalAction: (versionId: string, decision: string, comments?: string) => void }) {
   const pending = prompts.filter((p) => p.status === "REVIEW_REQUESTED" || p.status === "PRODUCTION_PENDING");
 
   const APPROVAL_MATRIX = [
@@ -647,9 +533,9 @@ function ApprovalsTab({ prompts, approvalStats }: { prompts: PromptRecord[]; app
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <button className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all">Approve</button>
-                  <button className="px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all">Request Changes</button>
-                  <button className="px-4 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-rose-500/20 transition-all">Reject</button>
+                  <button onClick={() => p.active_version_id && onApprovalAction(p.active_version_id, 'APPROVED')} disabled={!p.active_version_id} className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all disabled:opacity-50">Approve</button>
+                  <button onClick={() => p.active_version_id && onApprovalAction(p.active_version_id, 'REJECTED', 'Changes requested')} disabled={!p.active_version_id} className="px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all disabled:opacity-50">Request Changes</button>
+                  <button onClick={() => p.active_version_id && onApprovalAction(p.active_version_id, 'REJECTED')} disabled={!p.active_version_id} className="px-4 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-rose-500/20 transition-all disabled:opacity-50">Reject</button>
                 </div>
               </div>
             ))}
@@ -860,9 +746,65 @@ function RuntimeTab({ prompts, hitlRules }: { prompts: PromptRecord[]; hitlRules
   );
 }
 
+// ─── Create Prompt Modal ────────────────────────────────────────────────────────
+
+function CreatePromptModal({ onClose, onCreate, creating }: {
+  onClose: () => void;
+  onCreate: (data: any) => void;
+  creating: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [promptType, setPromptType] = useState<PromptType>("system");
+  const [riskTier, setRiskTier] = useState<RiskTier>("TIER_2_MEDIUM");
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-slate-950 border border-slate-800 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-white">New Prompt</h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
+        </div>
+        <div className="p-8 space-y-5">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Prompt Name *</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Brand Voice — Content Lead" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Description</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose and scope of this prompt..." className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all h-20 resize-none text-sm" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Type</label>
+              <select value={promptType} onChange={(e) => setPromptType(e.target.value as PromptType)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
+                {(["system","agent_role","task","channel","tool_use","escalation","refusal","safety","localization"] as const).map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Risk Tier</label>
+              <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
+                {(Object.keys(RISK_META) as RiskTier[]).map((r) => <option key={r} value={r}>{RISK_META[r].label}</option>)}
+              </select>
+            </div>
+          </div>
+          <button onClick={() => onCreate({ name, description, prompt_type: promptType, risk_tier: riskTier })} disabled={creating || !name} className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20">
+            {creating ? <><Loader2 className="w-4 h-4 animate-spin" />CREATING...</> : <><Plus className="w-4 h-4" />CREATE PROMPT</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Prompt Detail Drawer ──────────────────────────────────────────────────────
 
-function PromptDetailDrawer({ prompt, onClose }: { prompt: PromptRecord; onClose: () => void }) {
+function PromptDetailDrawer({ prompt, onClose, onLifecycleAction, onVersionAction }: {
+  prompt: PromptRecord;
+  onClose: () => void;
+  onLifecycleAction: (id: string, action: string) => void;
+  onVersionAction: (versionId: string, action: string, extra?: any) => void;
+}) {
   const [drawerTab, setDrawerTab] = useState<"overview" | "body" | "bindings" | "history">("overview");
 
   return (
@@ -928,7 +870,7 @@ function PromptDetailDrawer({ prompt, onClose }: { prompt: PromptRecord; onClose
                       <div className={`w-2 h-2 rounded-full ${a.decision === "APPROVED" ? "bg-emerald-500" : a.decision === "REJECTED" ? "bg-rose-500" : "bg-amber-500/40 border border-amber-500"}`} />
                       <span className="font-bold text-slate-300">{a.reviewer_role}</span>
                       <span>{a.decision}</span>
-                      {a.notes && <span className="text-slate-600 italic">"{a.notes}"</span>}
+                      {a.notes && <span className="text-slate-600 italic">&quot;{a.notes}&quot;</span>}
                     </div>
                   ))}
                 </div>
@@ -1001,28 +943,28 @@ function PromptDetailDrawer({ prompt, onClose }: { prompt: PromptRecord; onClose
           <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Deployment Controls</div>
           <div className="flex flex-wrap gap-2">
             {prompt.status === "DRAFT" && (
-              <button className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-500/20 transition-all">Run Tests</button>
+              <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'run_tests')} className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Run Tests</button>
             )}
             {prompt.status === "INTERNAL_TEST" && (
-              <button className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all">Submit for Review</button>
+              <button onClick={() => onLifecycleAction(prompt.id, 'submit_review')} className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all">Submit for Review</button>
             )}
             {prompt.status === "APPROVED_STAGING" && (
-              <button className="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all">Request Production Approval</button>
+              <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'deploy_production')} className="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Request Production Approval</button>
             )}
             {prompt.status === "PRODUCTION_ACTIVE" && (
               <>
-                <button className="px-4 py-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-500/20 transition-all flex items-center gap-1.5">
+                <button onClick={() => onLifecycleAction(prompt.id, 'pause')} className="px-4 py-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-500/20 transition-all flex items-center gap-1.5">
                   <PauseCircle className="w-3 h-3" /> Pause
                 </button>
-                <button className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all flex items-center gap-1.5">
+                <button onClick={() => onLifecycleAction(prompt.id, 'rollback')} className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all flex items-center gap-1.5">
                   <RotateCcw className="w-3 h-3" /> Rollback
                 </button>
               </>
             )}
             {prompt.status === "PAUSED" && (
               <>
-                <button className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all">Resume</button>
-                <button className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all flex items-center gap-1.5">
+                <button onClick={() => onLifecycleAction(prompt.id, 'resume')} className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all">Resume</button>
+                <button onClick={() => onLifecycleAction(prompt.id, 'rollback')} className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all flex items-center gap-1.5">
                   <RotateCcw className="w-3 h-3" /> Rollback
                 </button>
               </>
@@ -1030,7 +972,7 @@ function PromptDetailDrawer({ prompt, onClose }: { prompt: PromptRecord; onClose
             <button className="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all flex items-center gap-1.5">
               <Download className="w-3 h-3" /> Export Evidence
             </button>
-            <button className="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all flex items-center gap-1.5">
+            <button onClick={() => onLifecycleAction(prompt.id, 'clone')} className="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all flex items-center gap-1.5">
               <GitBranch className="w-3 h-3" /> Clone to Draft
             </button>
           </div>
@@ -1042,8 +984,29 @@ function PromptDetailDrawer({ prompt, onClose }: { prompt: PromptRecord; onClose
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
+function mapBackendPrompt(b: any): PromptRecord {
+  return {
+    id: b.id,
+    name: b.name || b.prompt_name || 'Untitled',
+    prompt_type: b.prompt_type || 'system',
+    owner: b.owner_name || b.created_by || 'Unknown',
+    linked_agent: b.linked_agent || b.agent_id || '—',
+    linked_workflow: b.linked_workflow || b.workflow_id || '—',
+    risk_tier: b.risk_tier || 'TIER_2_MEDIUM',
+    status: b.status || 'DRAFT',
+    active_version: b.active_version || b.current_version || 'v0.0',
+    active_version_id: b.active_version_id || b.current_version_id || undefined,
+    last_test: b.last_test || null,
+    approvals: b.approvals || [],
+    last_deployed: b.last_deployed || b.last_deployed_at || '',
+    description: b.description || b.prompt_description || '',
+    knowledge_sources: b.knowledge_sources || [],
+    tools_permitted: b.tools_permitted || [],
+  };
+}
+
 export default function PromptsPage() {
-  const [prompts, setPrompts] = useState<PromptRecord[]>(MOCK_PROMPTS);
+  const [prompts, setPrompts] = useState<PromptRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("ALL");
@@ -1054,6 +1017,103 @@ export default function PromptsPage() {
   const [hitlRules, setHitlRules] = useState<HitlRule[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<PromptRecord | null>(null);
+  const [promptsLoading, setPromptsLoading] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creatingPrompt, setCreatingPrompt] = useState(false);
+  const [promptStats, setPromptStats] = useState<any>(null);
+
+  const fetchPrompts = useCallback(async () => {
+    setPromptsLoading(true);
+    try {
+      const [promptsRes, statsRes] = await Promise.all([
+        api.get("/api/v1/prompts").catch(() => ({ success: false, data: null })),
+        api.get("/api/v1/prompts/stats").catch(() => ({ success: false, data: null })),
+      ]);
+      if (promptsRes?.success && Array.isArray(promptsRes.data)) {
+        setPrompts(promptsRes.data.map(mapBackendPrompt));
+      } else {
+        setPrompts([]);
+      }
+      if (statsRes?.success) {
+        setPromptStats(statsRes.data);
+      }
+    } catch {
+      // non-critical
+    } finally {
+      setPromptsLoading(false);
+    }
+  }, []);
+
+  const handleCreatePrompt = async (data: any) => {
+    setCreatingPrompt(true);
+    try {
+      const res = await api.post("/api/v1/prompts", data);
+      if (res.success) {
+        setShowCreateModal(false);
+        fetchPrompts();
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to create prompt');
+    } finally {
+      setCreatingPrompt(false);
+    }
+  };
+
+  const handleLifecycleAction = async (id: string, action: string) => {
+    try {
+      const endpointMap: Record<string, string> = {
+        pause: `/api/v1/prompts/${id}/pause`,
+        resume: `/api/v1/prompts/${id}/resume`,
+        archive: `/api/v1/prompts/${id}/archive`,
+        retire: `/api/v1/prompts/${id}/retire`,
+        submit_review: `/api/v1/prompts/${id}/submit-review`,
+        rollback: `/api/v1/prompts/${id}/rollback`,
+        clone: `/api/v1/prompts/${id}/clone`,
+      };
+      const endpoint = endpointMap[action];
+      if (!endpoint) return;
+      const res = await api.post(endpoint, {});
+      if (res.success) fetchPrompts();
+    } catch (e: any) {
+      setError(e.message || `Failed to ${action} prompt`);
+    }
+  };
+
+  const handleVersionAction = async (versionId: string, action: string, extra?: any) => {
+    try {
+      const endpointMap: Record<string, string> = {
+        approve: `/api/v1/prompts/versions/${versionId}/approve`,
+        reject: `/api/v1/prompts/versions/${versionId}/reject`,
+        deploy_staging: `/api/v1/prompts/versions/${versionId}/deploy`,
+        deploy_production: `/api/v1/prompts/versions/${versionId}/deploy`,
+        run_tests: `/api/v1/prompts/versions/${versionId}/tests/run`,
+      };
+      const endpoint = endpointMap[action];
+      if (!endpoint) return;
+      const body = action === 'deploy_staging' ? { environment: 'staging' }
+        : action === 'deploy_production' ? { environment: 'production' }
+        : extra || {};
+      const res = await api.post(endpoint, body);
+      if (res.success) fetchPrompts();
+    } catch (e: any) {
+      setError(e.message || `Version action failed: ${action}`);
+    }
+  };
+
+  const handleApprovalAction = async (versionId: string, decision: string, comments?: string) => {
+    try {
+      const endpoint = decision === 'APPROVED'
+        ? `/api/v1/prompts/versions/${versionId}/approve`
+        : `/api/v1/prompts/versions/${versionId}/reject`;
+      const res = await api.post(endpoint, { comments, reviewer_role: 'PROMPT_OWNER' });
+      if (res.success) {
+        fetchPrompts();
+        setSelectedPrompt(null);
+      }
+    } catch (e: any) {
+      setError(e.message || `Approval action failed`);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -1075,7 +1135,8 @@ export default function PromptsPage() {
       }
     };
     load();
-  }, []);
+    fetchPrompts();
+  }, [fetchPrompts]);
 
   // Computed health metrics
   const productionCount = prompts.filter((p) => p.status === "PRODUCTION_ACTIVE").length;
@@ -1116,7 +1177,7 @@ export default function PromptsPage() {
               <Download className="w-4 h-4" />
               Audit Export
             </button>
-            <button className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-indigo-600/20 active:scale-95">
+            <button onClick={() => setShowCreateModal(true)} className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-indigo-600/20 active:scale-95">
               <Plus className="w-4 h-4" />
               New Prompt
             </button>
@@ -1195,13 +1256,16 @@ export default function PromptsPage() {
         )}
         {activeTab === "lifecycle" && <LifecycleTab prompts={prompts} />}
         {activeTab === "testing" && <TestingTab prompts={prompts} />}
-        {activeTab === "approvals" && <ApprovalsTab prompts={prompts} approvalStats={approvalStats} />}
+        {activeTab === "approvals" && <ApprovalsTab prompts={prompts} approvalStats={approvalStats} onApprovalAction={handleApprovalAction} />}
         {activeTab === "evidence" && <EvidenceTab prompts={prompts} auditStats={auditStats} />}
         {activeTab === "runtime" && <RuntimeTab prompts={prompts} hitlRules={hitlRules} />}
       </div>
 
       {/* Prompt detail drawer */}
-      {selectedPrompt && <PromptDetailDrawer prompt={selectedPrompt} onClose={() => setSelectedPrompt(null)} />}
+      {selectedPrompt && <PromptDetailDrawer prompt={selectedPrompt} onClose={() => setSelectedPrompt(null)} onLifecycleAction={handleLifecycleAction} onVersionAction={handleVersionAction} />}
+
+      {/* Create prompt modal */}
+      {showCreateModal && <CreatePromptModal onClose={() => setShowCreateModal(false)} onCreate={handleCreatePrompt} creating={creatingPrompt} />}
     </div>
   );
 }

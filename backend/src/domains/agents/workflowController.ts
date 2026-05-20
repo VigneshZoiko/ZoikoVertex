@@ -1,179 +1,569 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
+import { logger } from '../../shared/logger';
+import { AuthRequest } from '../../shared/authMiddleware';
+import * as templateService from '../../services/workflowTemplate.service';
+import * as versionService from '../../services/workflowVersion.service';
+import * as runtimeService from '../../services/workflowRuntime.service';
+import * as approvalService from '../../services/workflowApproval.service';
+import * as simulationService from '../../services/workflowSimulation.service';
+import * as analyticsService from '../../services/workflowAnalytics.service';
+import * as evidenceService from '../../services/workflowEvidence.service';
+import * as dependencyService from '../../services/workflowDependency.service';
+import * as builderService from '../../services/workflowBuilder.service';
+import { getParam, getQueryNumber, getQueryValue } from '../../shared/request';
 
+function normalizeWorkflowGraph(steps: any[], edges: any[]) {
+  const columnWidth = 170;
+  const startX = 120;
+  const centerY = 210;
 
-/**
- * GET /api/v1/agents/workflows
- * Returns configured orchestration graphs and conditional logics
- */
-export const listWorkflows = async (req: Request, res: Response, next: NextFunction) => {
+  return {
+    nodes: (steps || []).map((step: any, index: number) => ({
+      id: step.id,
+      type: step.step_type || 'action',
+      label: step.name || step.step_type || `Step ${index + 1}`,
+      x: startX + index * columnWidth,
+      y: centerY,
+    })),
+    edges: (edges || []).map((edge: any) => ({
+      id: edge.id,
+      source: edge.from_step_id,
+      target: edge.to_step_id,
+      label: edge.branch_label || edge.condition || undefined,
+    })),
+  };
+}
+
+export const listWorkflows = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const workflows = [
-      {
-        id: 'wf-1',
-        name: 'Automated Content Publishing pipeline',
-        status: 'Active',
-        nodes: 5,
-        conditionalGates: 2,
-        lastRun: new Date().toISOString()
-      },
-      {
-        id: 'wf-2',
-        name: 'Inbound Support Triage',
-        status: 'Active',
-        nodes: 3,
-        conditionalGates: 1,
-        lastRun: new Date(Date.now() - 1000 * 60 * 5).toISOString()
-      },
-      {
-        id: 'wf-3',
-        name: 'Lead Qualification & Hand-off',
-        status: 'Draft',
-        nodes: 4,
-        conditionalGates: 2,
-        lastRun: null
-      }
-    ];
-
-    res.status(200).json({ success: true, data: workflows });
-  } catch (error) {
-    next(error);
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const status = getQueryValue(req, 'status');
+    const risk_level = getQueryValue(req, 'risk_level');
+    const type = getQueryValue(req, 'type');
+    const owner_id = getQueryValue(req, 'owner_id');
+    const search = getQueryValue(req, 'search');
+    const limit = getQueryNumber(req, 'limit', 50);
+    const offset = getQueryNumber(req, 'offset', 0);
+    const result = await templateService.listTemplates({
+      workspace_id: workspaceId,
+      status,
+      risk_level,
+      type,
+      owner_id,
+      search,
+      limit,
+      offset,
+    });
+    res.json({ success: true, data: result.templates, total: result.total });
+  } catch (err) {
+    logger.error({ err }, 'Failed to list workflows');
+    next(err);
   }
 };
 
-/**
- * GET /api/v1/agents/workflows/active
- * Returns real-time status of running orchestrations, chained actions
- */
-export const getActiveOrchestrations = async (req: Request, res: Response, next: NextFunction) => {
+export const getWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const orchestrations = [
-      {
-        id: 'orch-101',
-        workflowId: 'wf-1',
-        workflowName: 'Automated Content Publishing pipeline',
-        currentStep: 'Review Handoff',
-        agentAssigned: 'QA Reviewer Bot',
-        status: 'In Progress',
-        timeInStep: '2m 14s',
-        startedAt: new Date(Date.now() - 1000 * 60 * 5).toISOString()
-      },
-      {
-        id: 'orch-102',
-        workflowId: 'wf-2',
-        workflowName: 'Inbound Support Triage',
-        currentStep: 'Sentiment Analysis',
-        agentAssigned: 'Triage Agent L1',
-        status: 'Processing',
-        timeInStep: '12s',
-        startedAt: new Date(Date.now() - 1000 * 12).toISOString()
-      },
-      {
-        id: 'orch-103',
-        workflowId: 'wf-1',
-        workflowName: 'Automated Content Publishing pipeline',
-        currentStep: 'Publishing Handoff',
-        agentAssigned: 'System API',
-        status: 'Pending',
-        timeInStep: '45s',
-        startedAt: new Date(Date.now() - 1000 * 60 * 10).toISOString()
-      }
-    ];
-
-    res.status(200).json({ success: true, data: orchestrations });
-  } catch (error) {
-    next(error);
+    const id = getParam(req, 'id');
+    const template = await templateService.getTemplate(id);
+    res.json({ success: true, data: template });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get workflow');
+    next(err);
   }
 };
 
-/**
- * GET /api/v1/agents/workflows/graph
- * Returns a node-link JSON representing the logic pathways
- */
-export const getWorkflowGraph = async (req: Request, res: Response, next: NextFunction) => {
+export const createWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const graph = {
-      nodes: [
-        { id: 'n1', type: 'trigger', label: 'Draft Created', x: 50, y: 150 },
-        { id: 'n2', type: 'agent', label: 'Content Writer (GPT-4o)', x: 250, y: 150 },
-        { id: 'n3', type: 'condition', label: 'Brand Check', x: 450, y: 150 },
-        { id: 'n4', type: 'human', label: 'Manager Review', x: 650, y: 50 },
-        { id: 'n5', type: 'agent', label: 'QA Reviewer (Claude 3.5)', x: 650, y: 250 },
-        { id: 'n6', type: 'action', label: 'Publish to LinkedIn', x: 850, y: 150 }
-      ],
-      edges: [
-        { id: 'e1', source: 'n1', target: 'n2' },
-        { id: 'e2', source: 'n2', target: 'n3' },
-        { id: 'e3', source: 'n3', target: 'n4', label: 'Fails guidelines' },
-        { id: 'e4', source: 'n3', target: 'n5', label: 'Passes guidelines' },
-        { id: 'e5', source: 'n4', target: 'n2', label: 'Reject/Revise' },
-        { id: 'e6', source: 'n4', target: 'n6', label: 'Approve' },
-        { id: 'e7', source: 'n5', target: 'n6', label: 'Approve' }
-      ]
-    };
-
-    res.status(200).json({ success: true, data: graph });
-  } catch (error) {
-    next(error);
+    const workspaceId = req.user?.workspace_id;
+    const userId = req.user?.id;
+    const userName = req.user?.email || 'Unknown';
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const { name, description, risk_level, brand_ids, platforms, type } = req.body;
+    const result = await templateService.createTemplate({
+      workspace_id: workspaceId,
+      name,
+      description,
+      risk_level,
+      owner_id: userId || 'system',
+      owner_name: userName,
+      brand_ids,
+      platforms,
+      type,
+    });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to create workflow');
+    next(err);
   }
 };
 
-/**
- * GET /api/v1/agents/workflows/stats
- * Returns KPIs for workflow efficiency
- */
-export const getWorkflowStats = async (req: Request, res: Response, next: NextFunction) => {
+export const updateWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const stats = {
-      completionRate: 98.4,
-      avgHandoffDelay: '1.2s',
-      escalationRate: 4.2,
-      activeOrchestrations: 12
-    };
-
-    res.status(200).json({ success: true, data: stats });
-  } catch (error) {
-    next(error);
+    const id = getParam(req, 'id');
+    const { name, description, risk_level, owner_id, owner_name, brand_ids, platforms } = req.body;
+    const result = await templateService.updateTemplate(id, { name, description, risk_level, owner_id, owner_name, brand_ids, platforms });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to update workflow');
+    next(err);
   }
 };
 
-/**
- * GET /api/v1/agents/workflows/escalations
- * Returns escalation events — human override and review handoff branches
- */
-export const getEscalationPaths = async (req: Request, res: Response, next: NextFunction) => {
+export const duplicateWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const escalations = [
-      {
-        id: 'esc-1',
-        workflowName: 'Automated Content Publishing Pipeline',
-        trigger: 'Brand Compliance Check',
-        handoffTo: 'Content Manager',
-        reason: 'AI flagged potential brand guideline violation in generated caption.',
-        escalatedAt: new Date(Date.now() - 1000 * 60 * 8).toISOString(),
-        resolved: false
-      },
-      {
-        id: 'esc-2',
-        workflowName: 'Inbound Support Triage',
-        trigger: 'Sentiment Score < 20',
-        handoffTo: 'Senior Support Agent',
-        reason: 'Customer expressed extreme dissatisfaction; escalated for human empathy response.',
-        escalatedAt: new Date(Date.now() - 1000 * 60 * 34).toISOString(),
-        resolved: true
-      },
-      {
-        id: 'esc-3',
-        workflowName: 'Lead Qualification Pipeline',
-        trigger: 'Enterprise deal size > $50K',
-        handoffTo: 'Account Executive',
-        reason: 'High-value deal automatically escalated to senior sales for personal outreach.',
-        escalatedAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-        resolved: true
-      }
-    ];
+    const id = getParam(req, 'id');
+    const { name } = req.body;
+    const result = await templateService.duplicateTemplate(id, name);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to duplicate workflow');
+    next(err);
+  }
+};
 
-    res.status(200).json({ success: true, data: escalations });
-  } catch (error) {
-    next(error);
+export const deleteWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    await templateService.deleteDraftTemplate(id);
+    res.json({ success: true, message: 'Workflow deleted' });
+  } catch (err) {
+    logger.error({ err }, 'Failed to delete workflow');
+    next(err);
+  }
+};
+
+export const listVersions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const versions = await versionService.listVersions(id);
+    res.json({ success: true, data: versions });
+  } catch (err) {
+    logger.error({ err }, 'Failed to list versions');
+    next(err);
+  }
+};
+
+export const createDraftVersion = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const { change_summary, change_reason } = req.body;
+    const userId = req.user?.id || 'system';
+    const result = await versionService.createDraftVersion(id, change_summary, change_reason, userId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to create draft version');
+    next(err);
+  }
+};
+
+export const submitForApproval = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const versionId = getParam(req, 'versionId');
+    const result = await versionService.submitForApproval(versionId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to submit for approval');
+    next(err);
+  }
+};
+
+export const approveVersion = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const versionId = getParam(req, 'versionId');
+    const userId = req.user?.id || 'system';
+    const result = await versionService.approveVersion(versionId, userId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to approve version');
+    next(err);
+  }
+};
+
+export const rejectVersion = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const versionId = getParam(req, 'versionId');
+    const { reason } = req.body;
+    const result = await versionService.rejectVersion(versionId, reason);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to reject version');
+    next(err);
+  }
+};
+
+export const activateVersion = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const versionId = getParam(req, 'versionId');
+    const userId = req.user?.id || 'system';
+    const result = await versionService.activateVersion(versionId, userId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to activate version');
+    next(err);
+  }
+};
+
+export const rollbackVersion = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const { target_version_id, reason } = req.body;
+    const userId = req.user?.id || 'system';
+    const result = await versionService.rollbackVersion(id, target_version_id, reason, userId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to rollback version');
+    next(err);
+  }
+};
+
+export const pauseWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const result = await versionService.pauseVersion(id);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to pause workflow');
+    next(err);
+  }
+};
+
+export const retireWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const result = await versionService.retireVersion(id);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to retire workflow');
+    next(err);
+  }
+};
+
+export const getWorkflowGraphGeneral = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = (req as any).user?.workspace_id;
+    const { data: versions } = await (await import('../../shared/supabase')).supabaseAdmin
+      .from('workflow_versions')
+      .select('id, workflow_id')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (!versions || versions.length === 0) {
+      return res.json({ success: true, data: { nodes: [], edges: [] } });
+    }
+    const latestVersionId = versions[0].id;
+    const [stepsResult, edgesResult] = await Promise.all([
+      (await import('../../shared/supabase')).supabaseAdmin.from('workflow_steps').select('*').eq('version_id', latestVersionId).order('sequence', { ascending: true }),
+      (await import('../../shared/supabase')).supabaseAdmin.from('workflow_edges').select('*').eq('version_id', latestVersionId),
+    ]);
+    if (stepsResult.error) throw stepsResult.error;
+    if (edgesResult.error) throw edgesResult.error;
+    res.json({ success: true, data: normalizeWorkflowGraph(stepsResult.data || [], edgesResult.data || []) });
+  } catch (err) {
+    const logger = (await import('../../shared/logger')).logger;
+    logger.error({ err }, 'Failed to get general workflow graph');
+    next(err);
+  }
+};
+
+export const getWorkflowGraph = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const versionId = getParam(req, 'versionId');
+    const [stepsResult, edgesResult] = await Promise.all([
+      import('../../shared/supabase').then((m) => m.supabaseAdmin.from('workflow_steps').select('*').eq('version_id', versionId).order('sequence', { ascending: true })),
+      import('../../shared/supabase').then((m) => m.supabaseAdmin.from('workflow_edges').select('*').eq('version_id', versionId)),
+    ]);
+    if (stepsResult.error) throw stepsResult.error;
+    if (edgesResult.error) throw edgesResult.error;
+    res.json({ success: true, data: normalizeWorkflowGraph(stepsResult.data || [], edgesResult.data || []) });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get workflow graph');
+    next(err);
+  }
+};
+
+export const validateReadiness = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const versionId = getParam(req, 'versionId');
+    const result = await builderService.validateWorkflowReadiness(versionId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to validate readiness');
+    next(err);
+  }
+};
+
+export const getActiveOrchestrations = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const result = await runtimeService.listInstances({
+      workspace_id: workspaceId,
+      status: getQueryValue(req, 'status'),
+      limit: getQueryNumber(req, 'limit', 50),
+      offset: getQueryNumber(req, 'offset', 0),
+    });
+    res.json({ success: true, data: result.instances });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get active orchestrations');
+    next(err);
+  }
+};
+
+export const getWorkflowStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const m = await analyticsService.getWorkflowAnalytics(workspaceId);
+    const cs = await analyticsService.getControlStripData(workspaceId);
+    res.json({
+      success: true,
+      data: {
+        completionRate: m.completion_rate,
+        avgHandoffDelay: '—',
+        escalationRate: 0,
+        activeOrchestrations: m.active_runs,
+        blockedRunRate: m.blocked_run_rate,
+        slaBreachRate: m.sla_breach_rate,
+        policyFailureRate: m.failure_rate,
+        evidenceComplete: m.evidence_completeness,
+        avgApprovalTime: '—',
+        overrideRate: 0,
+        activeWorkflows: cs.activeWorkflows,
+        pendingApprovals: cs.pendingApprovals + m.pending_approvals,
+        blockedRuns: cs.blockedRuns,
+        failedRuns: cs.failedRuns,
+        slaBreach: cs.slaBreach,
+        staleDependencies: cs.staleDependencies,
+        criticalRiskItems: cs.criticalRiskItems,
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get workflow stats');
+    next(err);
+  }
+};
+
+export const getWorkflowAnalytics = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const metrics = await analyticsService.getWorkflowAnalytics(workspaceId);
+    res.json({ success: true, data: metrics });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get analytics');
+    next(err);
+  }
+};
+
+export const getControlStrip = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const data = await analyticsService.getControlStripData(workspaceId);
+    res.json({ success: true, data });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get control strip data');
+    next(err);
+  }
+};
+
+export const getEscalationPaths = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const { data: incidents, error } = await import('../../shared/supabase').then((m) =>
+      m.supabaseAdmin.from('incidents').select('*').eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(10)
+    );
+    if (error) throw error;
+    res.json({ success: true, data: incidents || [] });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get escalation paths');
+    next(err);
+  }
+};
+
+export const startWorkflowInstance = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { workflow_id, version_id, trigger_type, trigger_source, priority } = req.body;
+    const userId = req.user?.id || 'system';
+    const result = await runtimeService.startInstance(workflow_id, version_id, userId, trigger_type, trigger_source, priority);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to start workflow instance');
+    next(err);
+  }
+};
+
+export const listInstances = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const workflow_id = getQueryValue(req, 'workflow_id');
+    const status = getQueryValue(req, 'status');
+    const limit = getQueryNumber(req, 'limit', 50);
+    const offset = getQueryNumber(req, 'offset', 0);
+    const result = await runtimeService.listInstances({
+      workspace_id: workspaceId,
+      workflow_id,
+      status,
+      limit,
+      offset,
+    });
+    res.json({ success: true, data: result.instances, total: result.total });
+  } catch (err) {
+    logger.error({ err }, 'Failed to list instances');
+    next(err);
+  }
+};
+
+export const getInstance = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const instanceId = getParam(req, 'instanceId');
+    const instance = await runtimeService.getInstance(instanceId);
+    res.json({ success: true, data: instance });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get instance');
+    next(err);
+  }
+};
+
+export const transitionInstance = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const instanceId = getParam(req, 'instanceId');
+    const { status, reason } = req.body;
+    const result = await runtimeService.transitionInstance(instanceId, status, reason);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to transition instance');
+    next(err);
+  }
+};
+
+export const getInstanceStepRuns = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const instanceId = getParam(req, 'instanceId');
+    const stepRuns = await runtimeService.getStepRuns(instanceId);
+    res.json({ success: true, data: stepRuns });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get step runs');
+    next(err);
+  }
+};
+
+export const getApprovals = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const required_role = getQueryValue(req, 'required_role');
+    const limit = getQueryNumber(req, 'limit', 50);
+    const offset = getQueryNumber(req, 'offset', 0);
+    const result = await approvalService.listPendingApprovals({
+      workspace_id: workspaceId,
+      required_role: required_role || '',
+      limit,
+      offset,
+    });
+    res.json({ success: true, data: result.approvals, total: result.total });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get approvals');
+    next(err);
+  }
+};
+
+export const recordApproval = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const approvalId = getParam(req, 'approvalId');
+    const { decision, decision_reason, edited_output_ref, requested_changes } = req.body;
+    const userId = req.user?.id || 'system';
+    const userName = req.user?.email || 'Unknown';
+    const result = await approvalService.recordDecision({
+      approvalId,
+      approverId: userId,
+      approverName: userName,
+      decision,
+      decisionReason: decision_reason,
+      editedOutputRef: edited_output_ref,
+      requestedChanges: requested_changes,
+    });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to record approval');
+    next(err);
+  }
+};
+
+export const getApprovalStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const stats = await approvalService.getApprovalStats(workspaceId);
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get approval stats');
+    next(err);
+  }
+};
+
+export const runSimulation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const versionId = getParam(req, 'versionId');
+    const { scenario_name, sample_input_ref } = req.body;
+    const userId = req.user?.id || 'system';
+    const result = await simulationService.runSimulation({
+      workflow_version_id: versionId,
+      scenario_name,
+      sample_input_ref,
+      created_by: userId,
+    });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to run simulation');
+    next(err);
+  }
+};
+
+export const listSimulations = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const versionId = getParam(req, 'versionId');
+    const simulations = await simulationService.listSimulations(versionId);
+    res.json({ success: true, data: simulations });
+  } catch (err) {
+    logger.error({ err }, 'Failed to list simulations');
+    next(err);
+  }
+};
+
+export const getDependencies = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const deps = await dependencyService.checkWorkflowDependencies(id);
+    res.json({ success: true, data: deps });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get dependencies');
+    next(err);
+  }
+};
+
+export const getWorkflowEvidence = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const instanceId = getParam(req, 'instanceId');
+    const bundle = await evidenceService.getWorkflowEvidence(instanceId);
+    res.json({ success: true, data: bundle });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get workflow evidence');
+    next(err);
+  }
+};
+
+export const createEvidence = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const { instance_id } = req.body;
+    const result = await evidenceService.createEvidenceBundle({ workspace_id: workspaceId, instance_id });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to create evidence');
+    next(err);
   }
 };

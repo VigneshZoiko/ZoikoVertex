@@ -1,88 +1,15 @@
 import { Response, NextFunction } from 'express';
-import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { AuthRequest } from '../../shared/authMiddleware';
-
-async function asyncMap<T, U>(arr: T[], fn: (item: T) => Promise<U>): Promise<U[]> {
-  return Promise.all(arr.map(fn));
-}
-
-interface AgentRun {
-  id: string;
-  tenant_id: string;
-  workspace_id: string;
-  brand_id: string;
-  environment: string;
-  agent_id: string;
-  agent_name: string;
-  agent_type: string;
-  workflow_id: string;
-  workflow_name: string;
-  workflow_version: string;
-  task_id: string;
-  task_objective: string;
-  status: string;
-  severity: string;
-  owner_id: string;
-  owner_name: string;
-  priority: number;
-  created_at: string;
-  started_at: string | null;
-  completed_at: string | null;
-  due_at: string | null;
-  last_event_at: string;
-  policy_result: string;
-  evidence_status: string;
-}
-
-interface RunEvent {
-  id: string;
-  run_id: string;
-  event_type: string;
-  actor_type: string;
-  actor_id: string;
-  actor_name: string;
-  previous_state: string | null;
-  new_state: string;
-  reason: string;
-  payload_ref: string | null;
-  created_at: string;
-}
-
-interface QueueItem {
-  id: string;
-  run_id: string;
-  queue_type: string;
-  priority: number;
-  assignee_id: string | null;
-  assignee_name: string | null;
-  team_id: string | null;
-  due_at: string | null;
-  status: string;
-  claimed_by: string | null;
-  claimed_at: string | null;
-  resolved_at: string | null;
-}
-
-interface Incident {
-  id: string;
-  run_id: string;
-  run_name: string;
-  severity: string;
-  category: string;
-  owner_id: string | null;
-  owner_name: string | null;
-  status: string;
-  created_by: string;
-  created_by_name: string;
-  created_at: string;
-  due_at: string | null;
-  root_cause: string | null;
-  remediation: string | null;
-  closed_by: string | null;
-  closed_at: string | null;
-}
+import * as runService from '../../services/operationsRun.service';
+import * as queueService from '../../services/operationsQueue.service';
+import * as policyService from '../../services/operationsPolicy.service';
+import * as analyticsService from '../../services/operationsAnalytics.service';
+import * as incidentService from '../../services/operationsIncident.service';
+import * as evidenceService from '../../services/operationsEvidence.service';
+import * as runtimeControlService from '../../services/operationsRuntimeControl.service';
+import { getParam, getQueryNumber, getQueryValue } from '../../shared/request';
 
 const STATUS_MAP: Record<string, { label: string; color: string; severity: string }> = {
   SCHEDULED: { label: 'Scheduled', color: 'text-blue-400', severity: 'normal' },
@@ -96,83 +23,69 @@ const STATUS_MAP: Record<string, { label: string; color: string; severity: strin
   QUARANTINED: { label: 'Quarantined', color: 'text-rose-400', severity: 'critical' },
 };
 
-export const listAgentRuns = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+function withStatusMeta(run: any) {
+  return { ...run, status_config: STATUS_MAP[run.status] || { label: run.status, color: 'text-gray-400', severity: 'normal' } };
+}
+
+export const listAgentRuns = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const workspaceId = req.user?.workspace_id;
-    const { status, severity, owner_id, brand_id, channel, limit = 50, offset = 0 } = req.query;
-
-    if (!workspaceId) {
-      return res.status(403).json({ error: 'Workspace not found' });
-    }
-
-    let query = supabaseAdmin
-      .from('agent_runs')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false })
-      .range(Number(offset), Number(offset) + Number(limit) - 1);
-
-    if (status) query = query.eq('status', status as string);
-    if (severity) query = query.eq('severity', severity as string);
-    if (owner_id) query = query.eq('owner_id', owner_id as string);
-    if (brand_id) query = query.eq('brand_id', brand_id as string);
-
-    const { data: runs, error } = await query;
-
-    if (error) throw error;
-
-    const runsWithMeta = (runs || []).map((run: AgentRun) => ({
-      ...run,
-      status_config: STATUS_MAP[run.status] || { label: run.status, color: 'text-gray-400', severity: 'normal' },
-    }));
-
-    const { count } = await supabaseAdmin
-      .from('agent_runs')
-      .select('*', { count: 'exact', head: true })
-      .eq('workspace_id', workspaceId);
-
-    res.json({
-      runs: runsWithMeta,
-      total: count || 0,
-      limit: Number(limit),
-      offset: Number(offset),
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const status = getQueryValue(req, 'status');
+    const agent_id = getQueryValue(req, 'agent_id');
+    const environment = getQueryValue(req, 'environment');
+    const severity = getQueryValue(req, 'severity');
+    const search = getQueryValue(req, 'search');
+    const limit = getQueryNumber(req, 'limit', 50);
+    const offset = getQueryNumber(req, 'offset', 0);
+    const result = await runService.listAgentRuns({
+      workspace_id: workspaceId,
+      status,
+      agent_id,
+      environment,
+      severity,
+      search,
+      limit,
+      offset,
     });
+    res.json({ runs: result.runs.map(withStatusMeta), total: result.total, limit, offset });
   } catch (err) {
     logger.error({ err }, 'Failed to list agent runs');
     next(err);
   }
 };
 
-export const getAgentRun = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const getAgentRun = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const workspaceId = req.user?.workspace_id;
+    const run = await runService.getAgentRun(id);
+    if (!run) return res.status(404).json({ error: 'Agent run not found' });
+    const [policyResults, timeline, evidenceBundles] = await Promise.all([
+      policyService.getPolicyResultsForRun(id).catch(() => []),
+      runService.getRunTimeline(id).catch(() => []),
+      workspaceId
+        ? evidenceService.listEvidenceBundles({ workspace_id: workspaceId, run_id: id, limit: 1, offset: 0 }).catch(() => ({ bundles: [] as any[] }))
+        : Promise.resolve({ bundles: [] as any[] }),
+    ]);
 
-    const { data: run, error } = await supabaseAdmin
-      .from('agent_runs')
-      .select('*')
-      .eq('id', id)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (error) throw error;
-    if (!run) {
-      return res.status(404).json({ error: 'Agent run not found' });
-    }
+    const approvalChain = timeline
+      .filter((event: any) => String(event.event_type || '').includes('approval') || String(event.event_type || '').includes('review'))
+      .map((event: any) => ({
+        actor: event.actor_name || event.actor_id || 'Unknown',
+        action: event.event_type,
+        timestamp: event.created_at,
+        reason: event.reason || undefined,
+      }));
 
     res.json({
-      run: {
-        ...run,
-        status_config: STATUS_MAP[run.status] || { label: run.status, color: 'text-gray-400', severity: 'normal' },
-      },
+      run: withStatusMeta(run),
+      prompt_version: run.agent_version || undefined,
+      knowledge_sources: [],
+      policy_results: policyResults,
+      output_snapshot: undefined,
+      approval_chain: approvalChain,
+      evidence_bundle: evidenceBundles.bundles?.[0] || undefined,
     });
   } catch (err) {
     logger.error({ err }, 'Failed to get agent run');
@@ -180,633 +93,286 @@ export const getAgentRun = async (
   }
 };
 
-export const getRunTimeline = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const getRunTimeline = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
-    const workspaceId = req.user?.workspace_id;
-
-    const { data: run, error: runError } = await supabaseAdmin
-      .from('agent_runs')
-      .select('workspace_id')
-      .eq('id', id)
-      .single();
-
-    if (runError || !run || run.workspace_id !== workspaceId) {
-      return res.status(404).json({ error: 'Agent run not found' });
-    }
-
-    const { data: events, error } = await supabaseAdmin
-      .from('run_events')
-      .select('*')
-      .eq('run_id', id)
-      .order('created_at', { ascending: true });
-
-    if (error) throw error;
-
-    res.json({ events: events || [] });
+    const id = getParam(req, 'id');
+    const events = await runService.getRunTimeline(id);
+    res.json({ events });
   } catch (err) {
     logger.error({ err }, 'Failed to get run timeline');
     next(err);
   }
 };
 
-export const pauseRun = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const pauseRun = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
-    const { reason, duration_minutes } = req.body;
-    const userId = req.user?.id;
+    const id = getParam(req, 'id');
+    const { reason } = req.body;
+    const userId = req.user?.id || 'system';
     const userName = req.user?.email || 'Unknown';
-    const workspaceId = req.user?.workspace_id;
-
-    const { data: run, error: runError } = await supabaseAdmin
-      .from('agent_runs')
-      .select('*')
-      .eq('id', id)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (runError || !run) {
-      return res.status(404).json({ error: 'Agent run not found' });
-    }
-
-    if (!['RUNNING', 'QUEUED', 'SCHEDULED', 'WAITING_HUMAN_REVIEW'].includes(run.status)) {
-      return res.status(400).json({ error: 'Cannot pause run in current status' });
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from('agent_runs')
-      .update({ 
-        status: 'PAUSED',
-        severity: 'warning',
-      })
-      .eq('id', id);
-
-    if (updateError) throw updateError;
-
-    await supabaseAdmin.from('run_events').insert({
-      run_id: id,
-      event_type: 'run.paused',
-      actor_type: 'user',
-      actor_id: userId,
-      actor_name: userName,
-      previous_state: run.status,
-      new_state: 'PAUSED',
-      reason: reason || 'Manual pause',
+    const result = await runService.pauseRun(id, reason || 'Manual pause', userId, userName);
+    await runtimeControlService.recordRuntimeControlAction({
+      run_id: id, action_type: 'pause', requested_by: userId, reason: reason || 'Manual pause', result: 'completed',
     });
-
     await logToDatabase('info', 'Operations', `Agent run ${id} paused by ${userName}`, { runId: id, reason });
-
-    res.json({ success: true, message: 'Run paused successfully' });
+    res.json({ success: true, ...result });
   } catch (err) {
     logger.error({ err }, 'Failed to pause run');
     next(err);
   }
 };
 
-export const resumeRun = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const resumeRun = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const { reason } = req.body;
-    const userId = req.user?.id;
+    const userId = req.user?.id || 'system';
     const userName = req.user?.email || 'Unknown';
-    const workspaceId = req.user?.workspace_id;
-
-    const { data: run, error: runError } = await supabaseAdmin
-      .from('agent_runs')
-      .select('*')
-      .eq('id', id)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (runError || !run) {
-      return res.status(404).json({ error: 'Agent run not found' });
-    }
-
-    if (run.status !== 'PAUSED') {
-      return res.status(400).json({ error: 'Can only resume paused runs' });
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from('agent_runs')
-      .update({ 
-        status: run.previous_status || 'QUEUED',
-        severity: 'normal',
-      })
-      .eq('id', id);
-
-    if (updateError) throw updateError;
-
-    await supabaseAdmin.from('run_events').insert({
-      run_id: id,
-      event_type: 'run.resumed',
-      actor_type: 'user',
-      actor_id: userId,
-      actor_name: userName,
-      previous_state: 'PAUSED',
-      new_state: run.previous_status || 'QUEUED',
-      reason: reason || 'Manual resume',
+    const result = await runService.resumeRun(id, reason || 'Manual resume', userId, userName);
+    await runtimeControlService.recordRuntimeControlAction({
+      run_id: id, action_type: 'resume', requested_by: userId, reason: reason || 'Manual resume', result: 'completed',
     });
-
     await logToDatabase('info', 'Operations', `Agent run ${id} resumed by ${userName}`, { runId: id });
-
-    res.json({ success: true, message: 'Run resumed successfully' });
+    res.json({ success: true, ...result });
   } catch (err) {
     logger.error({ err }, 'Failed to resume run');
     next(err);
   }
 };
 
-export const stopRun = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const stopRun = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const { reason } = req.body;
-    const userId = req.user?.id;
+    const userId = req.user?.id || 'system';
     const userName = req.user?.email || 'Unknown';
-    const workspaceId = req.user?.workspace_id;
-
-    const { data: run, error: runError } = await supabaseAdmin
-      .from('agent_runs')
-      .select('*')
-      .eq('id', id)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (runError || !run) {
-      return res.status(404).json({ error: 'Agent run not found' });
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from('agent_runs')
-      .update({ 
-        status: 'FAILED',
-        severity: 'critical',
-      })
-      .eq('id', id);
-
-    if (updateError) throw updateError;
-
-    await supabaseAdmin.from('run_events').insert({
-      run_id: id,
-      event_type: 'run.stopped',
-      actor_type: 'user',
-      actor_id: userId,
-      actor_name: userName,
-      previous_state: run.status,
-      new_state: 'FAILED',
-      reason: reason || 'Manual stop',
+    const result = await runService.stopRun(id, reason || 'Manual stop', userId, userName);
+    await runtimeControlService.recordRuntimeControlAction({
+      run_id: id, action_type: 'stop', requested_by: userId, reason: reason || 'Manual stop', result: 'completed',
     });
-
     await logToDatabase('warn', 'Operations', `Agent run ${id} stopped by ${userName}`, { runId: id, reason });
-
-    res.json({ success: true, message: 'Run stopped successfully' });
+    res.json({ success: true, ...result });
   } catch (err) {
     logger.error({ err }, 'Failed to stop run');
     next(err);
   }
 };
 
-export const retryRun = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const retryRun = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
-    const { scope } = req.body;
-    const userId = req.user?.id;
+    const id = getParam(req, 'id');
+    const { reason } = req.body;
+    const userId = req.user?.id || 'system';
     const userName = req.user?.email || 'Unknown';
-    const workspaceId = req.user?.workspace_id;
-
-    const { data: originalRun, error: runError } = await supabaseAdmin
-      .from('agent_runs')
-      .select('*')
-      .eq('id', id)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (runError || !originalRun) {
-      return res.status(404).json({ error: 'Agent run not found' });
-    }
-
-    if (!['FAILED', 'COMPLETED'].includes(originalRun.status)) {
-      return res.status(400).json({ error: 'Can only retry failed or completed runs' });
-    }
-
-    const { data: newRun, error: createError } = await supabaseAdmin
-      .from('agent_runs')
-      .insert({
-        workspace_id: workspaceId,
-        brand_id: originalRun.brand_id,
-        environment: originalRun.environment,
-        agent_id: originalRun.agent_id,
-        agent_name: originalRun.agent_name,
-        agent_type: originalRun.agent_type,
-        workflow_id: originalRun.workflow_id,
-        workflow_name: originalRun.workflow_name,
-        workflow_version: originalRun.workflow_version,
-        task_id: originalRun.task_id,
-        task_objective: originalRun.task_objective,
-        status: 'QUEUED',
-        severity: 'normal',
-        owner_id: originalRun.owner_id,
-        priority: originalRun.priority || 5,
-      })
-      .select()
-      .single();
-
-    if (createError) throw createError;
-
-    await supabaseAdmin.from('run_events').insert({
-      run_id: newRun.id,
-      event_type: 'run.retry_requested',
-      actor_type: 'user',
-      actor_id: userId,
-      actor_name: userName,
-      previous_state: originalRun.status,
-      new_state: 'QUEUED',
-      reason: `Retry of run ${id}`,
-      payload_ref: id,
-    });
-
-    await logToDatabase('info', 'Operations', `Agent run ${id} retry created as ${newRun.id}`, { originalRunId: id, newRunId: newRun.id });
-
-    res.json({ success: true, new_run_id: newRun.id, message: 'Retry run created successfully' });
+    const result = await runService.retryRun(id, reason || 'Manual retry', userId, userName);
+    await logToDatabase('info', 'Operations', `Agent run ${id} retry created as ${result.new_run_id}`, { originalRunId: id, newRunId: result.new_run_id });
+    res.json({ success: true, ...result, message: 'Retry run created successfully' });
   } catch (err) {
     logger.error({ err }, 'Failed to retry run');
     next(err);
   }
 };
 
-export const quarantineRun = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const quarantineRun = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = getParam(req, 'id');
     const { reason } = req.body;
-    const userId = req.user?.id;
+    const userId = req.user?.id || 'system';
     const userName = req.user?.email || 'Unknown';
-    const workspaceId = req.user?.workspace_id;
-
-    const { data: run, error: runError } = await supabaseAdmin
-      .from('agent_runs')
-      .select('*')
-      .eq('id', id)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (runError || !run) {
-      return res.status(404).json({ error: 'Agent run not found' });
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from('agent_runs')
-      .update({ 
-        status: 'QUARANTINED',
-        severity: 'critical',
-      })
-      .eq('id', id);
-
-    if (updateError) throw updateError;
-
-    await supabaseAdmin.from('run_events').insert({
-      run_id: id,
-      event_type: 'output.quarantined',
-      actor_type: 'user',
-      actor_id: userId,
-      actor_name: userName,
-      previous_state: run.status,
-      new_state: 'QUARANTINED',
-      reason: reason || 'Safety concern',
+    const result = await runService.quarantineRun(id, reason || 'Safety concern', userId, userName);
+    await runtimeControlService.recordRuntimeControlAction({
+      run_id: id, action_type: 'quarantine', requested_by: userId, reason: reason || 'Safety concern', result: 'completed',
     });
-
     await logToDatabase('warn', 'Operations', `Agent run ${id} quarantined by ${userName}`, { runId: id, reason });
-
-    res.json({ success: true, message: 'Run quarantined successfully' });
+    res.json({ success: true, ...result });
   } catch (err) {
     logger.error({ err }, 'Failed to quarantine run');
     next(err);
   }
 };
 
-export const listQueues = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const emergencyPause = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const { reason } = req.body;
+    const userId = req.user?.id || 'system';
+    const userName = req.user?.email || 'Unknown';
+    const result = await runService.emergencyPauseRun(id, reason || 'Emergency pause', userId, userName);
+    await runtimeControlService.recordRuntimeControlAction({
+      run_id: id, action_type: 'emergency_pause', requested_by: userId, reason: `[EMERGENCY] ${reason || 'No reason provided'}`, result: 'completed',
+    });
+    await logToDatabase('warn', 'Operations', `[EMERGENCY PAUSE] Run ${id} paused by ${userName}`, { runId: id, reason });
+    res.json({ success: true, ...result, message: 'Emergency pause applied' });
+  } catch (err) {
+    logger.error({ err }, 'Failed to emergency pause');
+    next(err);
+  }
+};
+
+export const escalateRun = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const { reason } = req.body;
+    const userId = req.user?.id || 'system';
+    const userName = req.user?.email || 'Unknown';
+    const incidentId = req.body?.incident_id;
+    await runtimeControlService.recordRuntimeControlAction({
+      run_id: id, action_type: 'escalate', requested_by: userId, reason: reason || 'Escalated', result: 'completed',
+    });
+    await logToDatabase('warn', 'Operations', `Run ${id} escalated by ${userName}`, { runId: id, reason, incidentId });
+    res.json({ success: true, message: 'Run escalated', data: { run_id: id, escalated_at: new Date().toISOString() } });
+  } catch (err) {
+    logger.error({ err }, 'Failed to escalate run');
+    next(err);
+  }
+};
+
+export const restrictedMode = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const { reason } = req.body;
+    const userId = req.user?.id || 'system';
+    const userName = req.user?.email || 'Unknown';
+    const result = await runService.restrictedModeRun(id, reason || 'Restricted mode activated', userId, userName);
+    await runtimeControlService.recordRuntimeControlAction({
+      run_id: id, action_type: 'restricted_mode', requested_by: userId, reason: reason || 'Restricted mode', result: 'completed',
+    });
+    await logToDatabase('warn', 'Operations', `Run ${id} entered restricted mode by ${userName}`, { runId: id, reason });
+    res.json({ success: true, ...result, message: 'Restricted mode activated' });
+  } catch (err) {
+    logger.error({ err }, 'Failed to set restricted mode');
+    next(err);
+  }
+};
+
+export const listQueues = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const workspaceId = req.user?.workspace_id;
-    const { queue_type, status, owner_id, limit = 50, offset = 0 } = req.query;
-
-    if (!workspaceId) {
-      return res.status(403).json({ error: 'Workspace not found' });
-    }
-
-    let query = supabaseAdmin
-      .from('queue_items')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .order('priority', { ascending: false })
-      .order('due_at', { ascending: true })
-      .range(Number(offset), Number(offset) + Number(limit) - 1);
-
-    if (queue_type) query = query.eq('queue_type', queue_type as string);
-    if (status) query = query.eq('status', status as string);
-    if (owner_id) query = query.eq('assignee_id', owner_id as string);
-
-    const { data: items, error } = await query;
-
-    if (error) throw error;
-
-    res.json({
-      items: items || [],
-      total: items?.length || 0,
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const queue_type = getQueryValue(req, 'queue_type');
+    const status = getQueryValue(req, 'status');
+    const limit = getQueryNumber(req, 'limit', 50);
+    const offset = getQueryNumber(req, 'offset', 0);
+    const result = await queueService.listQueues({
+      workspace_id: workspaceId,
+      queue_type: queue_type || '',
+      status: status || '',
+      limit,
+      offset,
     });
+    res.json({ items: result.queues, total: result.total });
   } catch (err) {
     logger.error({ err }, 'Failed to list queue items');
     next(err);
   }
 };
 
-export const assignQueueItem = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const assignQueueItem = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
-    const { assignee_id } = req.body;
-    const userId = req.user?.id;
-    const workspaceId = req.user?.workspace_id;
-
-    const { data: item, error: itemError } = await supabaseAdmin
-      .from('queue_items')
-      .select('*')
-      .eq('id', id)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (itemError || !item) {
-      return res.status(404).json({ error: 'Queue item not found' });
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from('queue_items')
-      .update({ 
-        assignee_id,
-        claimed_by: userId,
-        claimed_at: new Date().toISOString(),
-        status: 'IN_PROGRESS',
-      })
-      .eq('id', id);
-
-    if (updateError) throw updateError;
-
-    res.json({ success: true, message: 'Queue item assigned successfully' });
+    const id = getParam(req, 'id');
+    const { assignee_id, assignee_name } = req.body;
+    const userId = req.user?.id || 'system';
+    const userName = req.user?.email || 'Unknown';
+    const result = await queueService.assignQueueItem(id, assignee_id || userId, assignee_name || userName);
+    res.json({ success: true, ...result, message: 'Queue item assigned successfully' });
   } catch (err) {
     logger.error({ err }, 'Failed to assign queue item');
     next(err);
   }
 };
 
-export const createIncident = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const createIncident = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { run_id, severity, category, root_cause, due_at } = req.body;
-    const userId = req.user?.id;
+    const { run_id, severity, category, owner_id, owner_name, root_cause, due_at } = req.body;
+    const userId = req.user?.id || 'system';
     const userName = req.user?.email || 'Unknown';
     const workspaceId = req.user?.workspace_id;
-
-    if (!workspaceId) {
-      return res.status(403).json({ error: 'Workspace not found' });
-    }
-
-    let runName = 'System';
-    if (run_id) {
-      const { data: run } = await supabaseAdmin
-        .from('agent_runs')
-        .select('task_objective')
-        .eq('id', run_id)
-        .single();
-      runName = run?.task_objective || 'Unknown Task';
-    }
-
-    const { data: incident, error } = await supabaseAdmin
-      .from('incidents')
-      .insert({
-        workspace_id: workspaceId,
-        run_id: run_id || null,
-        severity,
-        category,
-        owner_id: userId,
-        status: 'OPEN',
-        created_by: userId,
-        root_cause: root_cause || null,
-        due_at: due_at || null,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    await logToDatabase('warn', 'Operations', `Incident ${incident.id} created by ${userName}`, { 
-      incidentId: incident.id, 
-      runId: run_id, 
-      severity, 
-      category 
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const result = await incidentService.createIncident({
+      workspace_id: workspaceId,
+      run_id,
+      severity,
+      category,
+      owner_id: owner_id || userId,
+      owner_name: owner_name || userName,
+      created_by: userId,
+      created_by_name: userName,
+      due_at,
+      root_cause,
     });
-
-    res.json({ 
-      success: true, 
-      incident: {
-        ...incident,
-        run_name: runName,
-        created_by_name: userName,
-      }
-    });
+    await logToDatabase('warn', 'Operations', `Incident ${result.id} created by ${userName}`, { incidentId: result.id, runId: run_id, severity, category });
+    res.json({ success: true, incident: { id: result.id, severity, category, run_id, created_by: userId, created_by_name: userName } });
   } catch (err) {
     logger.error({ err }, 'Failed to create incident');
     next(err);
   }
 };
 
-export const listIncidents = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const listIncidents = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const workspaceId = req.user?.workspace_id;
-    const { severity, status, owner_id, limit = 50, offset = 0 } = req.query;
-
-    if (!workspaceId) {
-      return res.status(403).json({ error: 'Workspace not found' });
-    }
-
-    let query = supabaseAdmin
-      .from('incidents')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false })
-      .range(Number(offset), Number(offset) + Number(limit) - 1);
-
-    if (severity) query = query.eq('severity', severity as string);
-    if (status) query = query.eq('status', status as string);
-    if (owner_id) query = query.eq('owner_id', owner_id as string);
-
-    const { data: incidents, error } = await query;
-
-    if (error) throw error;
-
-    const incidentsWithRuns = await Promise.all((incidents || []).asyncMap(async (inc: Incident) => {
-      if (inc.run_id) {
-        const { data: run } = await supabaseAdmin
-          .from('agent_runs')
-          .select('task_objective')
-          .eq('id', inc.run_id)
-          .single();
-        return { ...inc, run_name: run?.task_objective || 'Unknown' };
-      }
-      return { ...inc, run_name: 'System' };
-    }));
-
-    res.json({ incidents: incidentsWithRuns });
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const status = getQueryValue(req, 'status');
+    const severity = getQueryValue(req, 'severity');
+    const category = getQueryValue(req, 'category');
+    const limit = getQueryNumber(req, 'limit', 50);
+    const offset = getQueryNumber(req, 'offset', 0);
+    const result = await incidentService.listIncidents({
+      workspace_id: workspaceId,
+      status: status || '',
+      severity: severity || '',
+      category: category || '',
+      limit,
+      offset,
+    });
+    res.json({ incidents: result.incidents, total: result.total });
   } catch (err) {
     logger.error({ err }, 'Failed to list incidents');
     next(err);
   }
 };
 
-export const resolveIncident = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const resolveIncident = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
-    const { resolution, remediation } = req.body;
-    const userId = req.user?.id;
-    const workspaceId = req.user?.workspace_id;
-
-    const { data: incident, error: incidentError } = await supabaseAdmin
-      .from('incidents')
-      .select('*')
-      .eq('id', id)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (incidentError || !incident) {
-      return res.status(404).json({ error: 'Incident not found' });
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from('incidents')
-      .update({
-        status: 'RESOLVED',
-        closed_by: userId,
-        closed_at: new Date().toISOString(),
-        remediation: remediation || null,
-      })
-      .eq('id', id);
-
-    if (updateError) throw updateError;
-
-    res.json({ success: true, message: 'Incident resolved' });
+    const id = getParam(req, 'id');
+    const { remediation } = req.body;
+    const userId = req.user?.id || 'system';
+    const result = await incidentService.resolveIncident(id, userId, remediation);
+    res.json({ success: true, ...result, message: 'Incident resolved' });
   } catch (err) {
     logger.error({ err }, 'Failed to resolve incident');
     next(err);
   }
 };
 
-export const getOperationsStats = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const getOperationsStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const workspaceId = req.user?.workspace_id;
-
-    if (!workspaceId) {
-      return res.status(403).json({ error: 'Workspace not found' });
-    }
-
-    const [
-      { count: activeRuns },
-      { count: queuedItems },
-      { count: failedRuns },
-      { count: openIncidents },
-      { count: policyBlocks },
-    ] = await Promise.all([
-      supabaseAdmin.from('agent_runs').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'RUNNING'),
-      supabaseAdmin.from('queue_items').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'PENDING'),
-      supabaseAdmin.from('agent_runs').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'FAILED'),
-      supabaseAdmin.from('incidents').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'OPEN'),
-      supabaseAdmin.from('agent_runs').select('*', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'POLICY_BLOCKED'),
-    ]);
-
-    const { data: avgTrust } = await supabaseAdmin
-      .from('agents')
-      .select('trust_score')
-      .eq('workspace_id', workspaceId);
-
-    const trustAvg = avgTrust?.length 
-      ? Math.round(avgTrust.reduce((sum, a) => sum + (a.trust_score || 0), 0) / avgTrust.length * 100) 
-      : 0;
-
-    res.json({
-      active_runs: activeRuns || 0,
-      queued_tasks: queuedItems || 0,
-      failed_runs: failedRuns || 0,
-      open_incidents: openIncidents || 0,
-      policy_blocks: policyBlocks || 0,
-      avg_trust_score: trustAvg,
-    });
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const stats = await analyticsService.getOperationsStats(workspaceId);
+    res.json(stats);
   } catch (err) {
     logger.error({ err }, 'Failed to get operations stats');
     next(err);
   }
 };
 
-export const getRunEvidence = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const getAnalyticsMetrics = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { bundleId } = req.params;
     const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const metrics = await analyticsService.getAnalyticsMetrics(workspaceId);
+    res.json(metrics);
+  } catch (err) {
+    logger.error({ err }, 'Failed to get analytics metrics');
+    next(err);
+  }
+};
 
-    const { data: evidence, error } = await supabaseAdmin
-      .from('evidence_bundles')
-      .select('*')
-      .eq('id', bundleId)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (error || !evidence) {
-      return res.status(404).json({ error: 'Evidence bundle not found' });
-    }
-
+export const getRunEvidence = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const bundleId = getParam(req, 'bundleId');
+    const evidence = await evidenceService.getRunEvidence(bundleId);
     res.json({ evidence });
   } catch (err) {
     logger.error({ err }, 'Failed to get run evidence');
@@ -814,43 +380,104 @@ export const getRunEvidence = async (
   }
 };
 
-export const exportEvidence = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
+export const exportEvidence = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { bundleId } = req.params;
+    const bundleId = getParam(req, 'bundleId');
     const { reason } = req.body;
-    const userId = req.user?.id;
+    const userId = req.user?.id || 'system';
     const userName = req.user?.email || 'Unknown';
-    const workspaceId = req.user?.workspace_id;
-
-    const { data: evidence, error } = await supabaseAdmin
-      .from('evidence_bundles')
-      .select('*')
-      .eq('id', bundleId)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (error || !evidence) {
-      return res.status(404).json({ error: 'Evidence bundle not found' });
-    }
-
-    await supabaseAdmin
-      .from('evidence_bundles')
-      .update({
-        exported_by: userId,
-        exported_at: new Date().toISOString(),
-        export_reason: reason || 'Manual export',
-      })
-      .eq('id', bundleId);
-
+    const result = await evidenceService.exportEvidence({
+      bundleId,
+      exportedBy: userId,
+      exportReason: reason || 'Manual export',
+    });
     await logToDatabase('info', 'Operations', `Evidence bundle ${bundleId} exported by ${userName}`, { bundleId, reason });
-
-    res.json({ success: true, message: 'Evidence exported successfully', download_url: evidence.storage_ref });
+    res.json({ success: true, ...result, message: 'Evidence exported successfully' });
   } catch (err) {
     logger.error({ err }, 'Failed to export evidence');
+    next(err);
+  }
+};
+
+export const runPolicyCheck = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const userId = req.user?.id || 'system';
+    const result = await policyService.runPolicyCheck(id);
+    await runtimeControlService.recordRuntimeControlAction({
+      run_id: id, action_type: 'policy_check', requested_by: userId, reason: 'Policy check triggered', result: result.summary,
+    });
+    res.json(result);
+  } catch (err) {
+    logger.error({ err }, 'Failed to run policy check');
+    next(err);
+  }
+};
+
+export const getPolicyResults = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const results = await policyService.getPolicyResultsForRun(id);
+    res.json({ policy_results: results });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get policy results');
+    next(err);
+  }
+};
+
+export const getRuntimeControlLog = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParam(req, 'id');
+    const actions = await runtimeControlService.getRuntimeControlActions(id);
+    res.json({ runtime_actions: actions });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get runtime control log');
+    next(err);
+  }
+};
+
+export const createEvidenceBundle = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { run_id } = req.body;
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const result = await evidenceService.createEvidenceBundle({ workspace_id: workspaceId, run_id });
+    res.json(result);
+  } catch (err) {
+    logger.error({ err }, 'Failed to create evidence bundle');
+    next(err);
+  }
+};
+
+export const lockEvidenceBundle = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const bundleId = getParam(req, 'bundleId');
+    const result = await evidenceService.lockEvidenceBundle(bundleId);
+    res.json({ success: true, ...result, message: 'Evidence bundle locked' });
+  } catch (err) {
+    logger.error({ err }, 'Failed to lock evidence bundle');
+    next(err);
+  }
+};
+
+export const listEvidenceBundles = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const run_id = getQueryValue(req, 'run_id');
+    const status = getQueryValue(req, 'status');
+    const limit = getQueryNumber(req, 'limit', 50);
+    const offset = getQueryNumber(req, 'offset', 0);
+    const result = await evidenceService.listEvidenceBundles({
+      workspace_id: workspaceId,
+      run_id: run_id || '',
+      status: status || '',
+      limit,
+      offset,
+    });
+    res.json({ bundles: result.bundles, total: result.total });
+  } catch (err) {
+    logger.error({ err }, 'Failed to list evidence bundles');
     next(err);
   }
 };

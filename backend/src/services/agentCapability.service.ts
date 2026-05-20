@@ -1,5 +1,5 @@
-import { supabaseAdmin } from '../../shared/supabase';
-import { logToDatabase } from '../../shared/databaseLogger';
+import { supabaseAdmin } from '../shared/supabase';
+import { logToDatabase } from '../shared/databaseLogger';
 
 const SERVICE = 'AgentCapability';
 

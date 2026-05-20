@@ -182,7 +182,7 @@ export const api = {
     return this.post(`/api/v1/operations/queues/${id}/assign`, { assignee_id });
   },
 
-  async createIncident(data: { run_id?: string; severity: string; category: string; root_cause?: string; due_at?: string }) {
+  async createIncident(data: { run_id?: string; severity: string; category: string; root_cause?: string; due_at?: string; remediation?: string }) {
     return this.post('/api/v1/operations/incidents', data);
   },
 
@@ -203,5 +203,24 @@ export const api = {
 
   async exportEvidence(bundleId: string, reason?: string) {
     return this.post(`/api/v1/operations/evidence/${bundleId}/export`, { reason });
+  },
+
+  async getRunDetail(id: string) {
+    return this.get(`/api/v1/operations/runs/${id}`);
+  },
+
+  async getOperationsAnalytics(params?: { time_range?: string; metric?: string }) {
+    const query = new URLSearchParams();
+    if (params?.time_range) query.set('time_range', params.time_range);
+    if (params?.metric) query.set('metric', params.metric);
+    return this.get(`/api/v1/operations/analytics?${query.toString()}`);
+  },
+
+  async emergencyPause(id: string, reason?: string) {
+    return this.post(`/api/v1/operations/runs/${id}/emergency-pause`, { reason });
+  },
+
+  async escalateRun(id: string, reason?: string) {
+    return this.post(`/api/v1/operations/runs/${id}/escalate`, { reason });
   },
 };

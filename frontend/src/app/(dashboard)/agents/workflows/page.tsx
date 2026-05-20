@@ -85,6 +85,104 @@ interface ControlStripData {
   criticalRiskItems: number;
 }
 
+const WORKFLOW_STATUS_MAP: Record<string, WorkflowStatus> = {
+  Draft: "Draft",
+  Testing: "Testing",
+  "Pending Approval": "Pending Approval",
+  Approved: "Approved",
+  Active: "Active",
+  Paused: "Paused",
+  Blocked: "Blocked",
+  Deprecated: "Deprecated",
+  Retired: "Retired",
+  Failed: "Failed",
+};
+
+const INSTANCE_STATUS_MAP: Record<string, string> = {
+  QUEUED: "Pending",
+  RUNNING: "In Progress",
+  WAITING_REVIEW: "Waiting",
+  WAITING_HUMAN_REVIEW: "Waiting",
+  BLOCKED: "Blocked",
+  PAUSED: "Paused",
+  COMPLETED: "Completed",
+  FAILED: "Failed",
+  CANCELLED: "Failed",
+};
+
+const RISK_LEVEL_MAP: Record<string, RiskLevel> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  critical: "Critical",
+};
+
+function formatRelativeMinutes(date?: string | null) {
+  if (!date) return "Just now";
+  const diff = Math.max(0, Date.now() - new Date(date).getTime());
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ${mins % 60}m`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
+}
+
+function mapWorkflowRecord(workflow: any): WorkflowRecord {
+  return {
+    id: workflow.id,
+    name: workflow.name || "Untitled Workflow",
+    status: WORKFLOW_STATUS_MAP[workflow.status] || "Draft",
+    nodes: workflow.nodes ?? workflow.node_count ?? 0,
+    conditionalGates: workflow.conditionalGates ?? workflow.gate_count ?? 0,
+    lastRun: workflow.lastRun ?? workflow.last_run ?? workflow.updated_at ?? null,
+    owner: workflow.owner || workflow.owner_name || "Unassigned",
+    riskLevel: RISK_LEVEL_MAP[(workflow.riskLevel || workflow.risk_level || "").toLowerCase()] || "Medium",
+    linkedAgents: workflow.linkedAgents || workflow.linked_agents || [],
+    activeRuns: workflow.activeRuns ?? workflow.active_runs_count ?? 0,
+    health: workflow.health || "Healthy",
+    brandIds: workflow.brandIds || workflow.brand_ids || [],
+    updatedAt: workflow.updatedAt || workflow.updated_at || "",
+  };
+}
+
+function mapActiveInstance(instance: any) {
+  return {
+    id: instance.id,
+    workflowId: instance.workflow_id,
+    workflowName: instance.workflowName || instance.workflow_templates?.name || "Workflow Run",
+    currentStep: instance.currentStep || instance.current_step_name || instance.current_step_id || "Awaiting Step",
+    agentAssigned: instance.agentAssigned || instance.assigned_agent_name || "Assigned Agent",
+    owner: instance.owner || instance.started_by || undefined,
+    status: INSTANCE_STATUS_MAP[instance.status] || instance.status || "Pending",
+    timeInStep: formatRelativeMinutes(instance.started_at || instance.created_at),
+    startedAt: instance.started_at || instance.created_at,
+    riskScore: instance.risk_score ?? undefined,
+    confidenceScore: instance.confidence_score ?? undefined,
+    sla: instance.due_at ? new Date(instance.due_at).toLocaleString() : undefined,
+    blocker: instance.blocker || instance.reason_code || undefined,
+  };
+}
+
+function mapEscalation(event: any) {
+  const severity = `${event.severity || "medium"}`.toLowerCase();
+  const status = `${event.status || ""}`.toLowerCase();
+  return {
+    id: event.id,
+    workflowName: event.workflowName || event.run_name || event.category || "Workflow escalation",
+    trigger: event.trigger || event.category || "workflow_event",
+    handoffTo: event.handoffTo || event.owner_name || "Governance queue",
+    reason: event.reason || event.root_cause || "Escalation raised from workflow authority layer.",
+    escalatedAt: event.escalatedAt || event.created_at || new Date().toISOString(),
+    resolved: ["resolved", "closed", "completed"].includes(status),
+    severity: severity === "critical" ? "Critical" : severity === "high" ? "High" : severity === "low" ? "Low" : "Medium",
+    sla: event.sla || event.due_at || undefined,
+    evidenceBundleId: event.evidenceBundleId || event.evidence_bundle_id || undefined,
+    overrideReason: event.overrideReason || event.remediation || undefined,
+  };
+}
+
 // ── Status helpers ─────────────────────────────────────────────────────────
 
 const WORKFLOW_STATUS_STYLES: Record<WorkflowStatus, string> = {
@@ -507,9 +605,9 @@ export default function WorkflowsPage() {
       ]);
       if (statsRes.success)      setStats(statsRes.data);
       if (graphRes.success)      setGraph(graphRes.data);
-      if (activeRes.success)     setActive(activeRes.data);
-      if (escalationsRes.success) setEscalations(escalationsRes.data);
-      if (workflowsRes.success)  setWorkflows(workflowsRes.data || []);
+      if (activeRes.success)     setActive((activeRes.data || []).map(mapActiveInstance));
+      if (escalationsRes.success) setEscalations((escalationsRes.data || []).map(mapEscalation));
+      if (workflowsRes.success)  setWorkflows((workflowsRes.data || []).map(mapWorkflowRecord));
       if (approvalsRes.success)  setApprovalStats(approvalsRes.data || null);
     } catch (err) {
       console.error("Failed to load workflows data", err);
@@ -524,9 +622,25 @@ export default function WorkflowsPage() {
     return () => clearInterval(interval);
   }, [fetchAll]);
 
-  const handleEmergencyPause = () => {
-    // Triggers emergency pause modal — wired to /api/v1/autonomy/emergency-locks at L2+ scope
-    console.warn("Emergency pause triggered — implement confirmation modal");
+  const handleEmergencyPause = async () => {
+    if (window.confirm("Are you sure you want to trigger an Emergency Pause? This will suspend all active workflows and agents.")) {
+      try {
+        const res = await api.post("/api/v1/autonomy/emergency-locks", {
+          lock_level: "L4",
+          scope: "global",
+          reason: "Emergency Pause triggered from Workflows Dashboard"
+        });
+        if (res.success) {
+          alert("Emergency Lock L4 applied successfully.");
+          fetchAll();
+        } else {
+          alert("Failed to apply Emergency Lock.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Error applying Emergency Lock.");
+      }
+    }
   };
 
   return (

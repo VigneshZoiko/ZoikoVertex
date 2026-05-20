@@ -150,8 +150,6 @@ export default function CreateAgentWizard({ isOpen, onClose, onSuccess }: Create
     fetchData();
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const handleBack = useCallback(() => {
     if (currentStep === 2 && !showTemplates) {
       setShowTemplates(true);
@@ -252,6 +250,8 @@ export default function CreateAgentWizard({ isOpen, onClose, onSuccess }: Create
   };
 
   const requiredStep = currentStep < 7;
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] backdrop-blur-sm animate-in fade-in duration-300">

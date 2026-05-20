@@ -7,6 +7,7 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     email?: string;
+    role?: string | null;
     workspace_id?: string | null;
     is_superadmin?: boolean;
   };
@@ -31,7 +32,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     // Fetch workspace_id and superadmin status
     const { data: userData } = await supabaseAdmin
       .from('users')
-      .select('is_superadmin')
+      .select('is_superadmin, role')
       .eq('id', user.id)
       .single();
 
@@ -50,6 +51,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     req.user = {
       id: user.id,
       email: user.email,
+      role: userData?.role || null,
       workspace_id: member?.workspace_id || (isSuperAdmin ? '00000000-0000-0000-0000-000000000000' : null),
       is_superadmin: isSuperAdmin
     };
