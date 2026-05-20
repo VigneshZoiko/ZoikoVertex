@@ -25,7 +25,7 @@ export const ENTERPRISE_POLICIES: PolicyRule[] = [
     id: 'pol-financial-disclaimer',
     name: 'Regulated Financial Disclosure Policy',
     description: 'Enforces that forward-looking statements or earnings disclosures contain a standard liability disclaimer.',
-    triggerCondition: (intent, risk) => {
+    triggerCondition: (intent, _risk) => {
       const content = (intent.content || '').toLowerCase();
       const hasFinancialTerms = ['earnings', 'revenue', 'profit', 'investment', 'roi', 'stock'].some(t => content.includes(t));
       const hasDisclaimer = ['disclaimer', 'not financial advice', 'past performance', 'capital at risk'].some(t => content.includes(t));
@@ -38,7 +38,7 @@ export const ENTERPRISE_POLICIES: PolicyRule[] = [
     id: 'pol-healthcare-claims',
     name: 'Healthcare Claim Substantiation Policy',
     description: 'Restricts medical cures or therapeutic efficacy assertions without clinical evidence referencing.',
-    triggerCondition: (intent, risk) => {
+    triggerCondition: (intent, _risk) => {
       const content = (intent.content || '').toLowerCase();
       const hasMedicalClaims = ['cure', 'remedy', 'treatment', 'fda approved', 'clinically proven'].some(t => content.includes(t));
       const hasEvidenceAnchor = ['source', 'evidence', 'study', 'clinical trial', 'http'].some(t => content.includes(t));
@@ -61,7 +61,7 @@ export const ENTERPRISE_POLICIES: PolicyRule[] = [
     id: 'pol-platform-overflow',
     name: 'Platform Constraints Integrity Policy',
     description: 'Enforces hard length constraints matching specific target platform layouts.',
-    triggerCondition: (intent, risk) => {
+    triggerCondition: (intent, _risk) => {
       const platform = (intent.platform || '').toLowerCase();
       return platform === 'twitter' && (intent.content || '').length > 280;
     },
@@ -186,7 +186,7 @@ export async function evaluateIntent(
             agent_compliance: safetyResult.agentCompliance
           }
         });
-      } catch (dbErr) {
+      } catch {
         await supabaseAdmin.from('policy_evaluations').insert(evaluationPayload);
       }
 

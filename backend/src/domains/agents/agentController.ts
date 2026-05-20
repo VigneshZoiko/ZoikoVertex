@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
-import { logToDatabase } from '../../shared/databaseLogger';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logAuditEvent } from '../governance/evidenceController';
 
@@ -58,7 +57,7 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
       ])
     ];
 
-    let userMap: Record<string, { full_name: string; email: string }> = {};
+    const userMap: Record<string, { full_name: string; email: string }> = {};
     if (driIds.length > 0) {
       const { data: users } = await supabaseAdmin
         .from('users')
@@ -102,7 +101,7 @@ export const getAgent = async (req: Request, res: Response, next: NextFunction) 
 
     if (agent) {
       const driIds = [agent.primary_dri_id, agent.backup_dri_id].filter(Boolean);
-      let userMap: Record<string, { full_name: string; email: string }> = {};
+      const userMap: Record<string, { full_name: string; email: string }> = {};
       
       if (driIds.length > 0) {
         const { data: users } = await supabaseAdmin

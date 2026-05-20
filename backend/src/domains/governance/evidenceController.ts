@@ -7,7 +7,6 @@ import { randomUUID, createHash } from 'crypto';
 import PDFDocument from 'pdfkit';
 import * as archiverLib from 'archiver';
 const { ZipArchive } = archiverLib as any;
-import { Readable } from 'stream';
 
 // ─── In-Memory Stores ─────────────────────────────────────────────────────────
 
@@ -153,7 +152,7 @@ export const logAuditEvent = async (params: {
     if (lastLog?.meta && typeof lastLog.meta === 'object' && 'hash' in lastLog.meta) {
       prevHash = String((lastLog.meta as any).hash);
     }
-  } catch (err) {
+  } catch {
     // Graceful fallback to default genesis hash if table is empty or offline
   }
 

@@ -2,7 +2,6 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
-import { logToDatabase } from '../../shared/databaseLogger';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { evaluateIntent } from './decisionEngine';
 import { RiskClassifier } from './riskClassifier';
