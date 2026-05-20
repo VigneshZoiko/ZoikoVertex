@@ -226,8 +226,7 @@ function UnitsTab() {
     }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchUnits(); }, []);
+  useEffect(() => { fetchUnits(); }, []); // fetchUnits is stable — defined once, no deps
 
   const handleCreate = async () => {
     if (!name.trim()) return;
