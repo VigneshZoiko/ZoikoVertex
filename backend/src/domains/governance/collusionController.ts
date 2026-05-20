@@ -30,7 +30,7 @@ export const getCollusionMetrics = async (req: AuthRequest, res: Response, next:
     let rubberStampCount = 0;
     let segregationViolations = 0;
     let warningOverrides = 0;
-    let monopolizedApprovals = 0;
+    const monopolizedApprovals = 0;
 
     const incidentList: any[] = [];
 
@@ -82,7 +82,7 @@ export const getCollusionMetrics = async (req: AuthRequest, res: Response, next:
     }
 
     // Heuristics calculation
-    const totalCount = intents?.length || 0;
+
     const collusionIndex = Math.min(
       100,
       Math.round(

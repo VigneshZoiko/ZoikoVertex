@@ -2,12 +2,12 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
-import { logToDatabase } from '../../shared/databaseLogger';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { AuthRequest } from '../../shared/authMiddleware';
 
 import { evaluateIntent } from '../decisions/decisionEngine';
 import { ApprovalEngine } from '../decisions/approvalEngine';
+import { logAuditEvent } from './evidenceController';
 
 const SubmitIntentSchema = z.object({
   content: z.object({
@@ -91,12 +91,15 @@ export const submitIntent = async (
       internalEventBus.emit('execution.requested', { intentId: intent.id });
     }
 
-    await logToDatabase(
-      'info',
-      'Governance',
-      `Directly publishing ${data.length} intents (testing mode)`,
-      { userId, count: data.length },
-    );
+    await logAuditEvent({
+      workspaceId: targetWorkspaceId,
+      actorId: userId,
+      actorType: 'USER',
+      action: `Directly publishing ${data.length} intents (testing mode)`,
+      objectType: 'PUBLISH_INTENT',
+      module: 'Governance',
+      metadata: { count: data.length },
+    });
 
     res.status(200).json({
       success: true,
@@ -129,12 +132,18 @@ export const transitionStatus = async (
       return res.status(403).json({ error: 'Creators can only cancel their own intents' });
     }
 
-    await logToDatabase(
-      'info',
-      'Governance',
-      `Transitioning ${intentId} to ${newStatus} by ${userRole}`,
-      { intentId, newStatus, feedback, userId },
-    );
+    const targetWorkspaceId = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+
+    await logAuditEvent({
+      workspaceId: targetWorkspaceId,
+      actorId: userId,
+      actorType: 'USER',
+      action: `Transitioning ${intentId} to ${newStatus} by ${userRole}`,
+      objectType: 'PUBLISH_INTENT',
+      objectId: intentId,
+      module: 'Governance',
+      metadata: { newStatus, feedback },
+    });
 
     if (newStatus === 'APPROVED') {
       const { data: intent, error: fetchErr } = await supabaseAdmin
@@ -145,12 +154,32 @@ export const transitionStatus = async (
 
       if (fetchErr || !intent) throw new Error('Intent context missing');
 
+      // Separation of Duties: Creators cannot approve their own content
+      if (intent.creator_id === userId && !isSuperAdmin) {
+        return res.status(403).json({ error: 'Separation of Duties: Creators cannot approve their own content.' });
+      }
+
       const currentPath = intent.approval_level ? intent.approval_level.split(' -> ') : ['MANAGER'];
       const currentStatus = intent.status;
       const currentRequiredRole = currentStatus.startsWith('PENDING_') ? currentStatus.replace('PENDING_', '') : currentPath[0];
 
       if (!ApprovalEngine.canUserApprove(userRole, currentRequiredRole, isSuperAdmin)) {
         return res.status(403).json({ error: `You do not have the required role (${currentRequiredRole}) to approve this step.` });
+      }
+
+      // Log Emergency Override if bypassed
+      if (isSuperAdmin && !ApprovalEngine.canUserApprove(userRole, currentRequiredRole, false)) {
+        await logAuditEvent({
+          workspaceId: targetWorkspaceId,
+          actorId: userId,
+          actorType: 'USER',
+          action: 'EMERGENCY_OVERRIDE_ACTIVATED',
+          objectType: 'PUBLISH_INTENT',
+          objectId: intentId,
+          module: 'Governance',
+          riskLevel: intent.risk_level,
+          metadata: { bypassedRole: currentRequiredRole, reason: feedback || 'No reason provided' },
+        });
       }
 
       const currentIndex = currentPath.indexOf(currentRequiredRole);
@@ -179,6 +208,13 @@ export const transitionStatus = async (
           });
         }
 
+        // Global Context Scan (Pre-Publishing Check)
+        // Ensure content is contextually safe for target market before final authorization
+        const contextSafe = true; // Placeholder for await runGlobalContextScan(intent.content, intent.platform);
+        if (!contextSafe) {
+          return res.status(403).json({ error: 'Global Context Block: Emerging market risk detected. Approval paused.' });
+        }
+
         const { data, error } = await supabaseAdmin
           .from('publish_intents')
           .update({ status: statusToSet, feedback: feedback || null, decision_id: decisionResult.decision_id })
@@ -201,6 +237,22 @@ export const transitionStatus = async (
 
         if (error) throw error;
         return res.status(200).json({ success: true, data });
+      }
+    }
+
+    if (newStatus === 'REJECTED' || newStatus === 'GOVERNANCE_BLOCKED') {
+      const { data: intentToReject } = await supabaseAdmin
+        .from('publish_intents')
+        .select('agent_id')
+        .eq('id', intentId)
+        .single();
+        
+      if (intentToReject?.agent_id) {
+        internalEventBus.emit('agent.trust.penalized', {
+          agentId: intentToReject.agent_id,
+          reason: `Content rejected or blocked during governance review.`,
+          penalty: -5
+        });
       }
     }
 
@@ -261,7 +313,16 @@ export const deleteIntent = async (
 
     if (error) throw error;
 
-    await logToDatabase('info', 'Governance', `Deleted publish intent ${id}`, { userId });
+    const targetWorkspaceId = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+    await logAuditEvent({
+      workspaceId: targetWorkspaceId,
+      actorId: userId,
+      actorType: 'USER',
+      action: `Deleted publish intent ${id}`,
+      objectType: 'PUBLISH_INTENT',
+      objectId: String(id),
+      module: 'Governance',
+    });
 
     res.status(200).json({ success: true, message: 'Post deleted successfully' });
   } catch (error) {

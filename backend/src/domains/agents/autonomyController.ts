@@ -2,8 +2,8 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
-import { logToDatabase } from '../../shared/databaseLogger';
 import { randomUUID } from 'crypto';
+import { logAuditEvent } from '../governance/evidenceController';
 
 // ─── Spec-aligned Level Definitions ──────────────────────────────────────────
 
@@ -186,7 +186,16 @@ export const updateAgentLevel = async (req: AuthRequest, res: Response, next: Ne
       .single();
     if (updateErr) throw updateErr;
 
-    await logToDatabase('info', 'Autonomy', `Agent ${agent.name} level changed to ${level}`, { agentId: id, level, reason, userId, from: agent.autonomy_level });
+    await logAuditEvent({
+      workspaceId: updated.workspace_id || '00000000-0000-0000-0000-000000000000',
+      actorId: userId,
+      actorType: 'USER',
+      action: `Agent ${agent.name} level changed to ${level}`,
+      objectType: 'AGENT',
+      objectId: id,
+      module: 'Autonomy',
+      metadata: { level, reason, from: agent.autonomy_level },
+    });
 
     res.json({ success: true, data: updated, message: `Agent updated to ${level} — ${AUTONOMY_LEVELS[level].name}` });
   } catch (error) {
@@ -213,7 +222,16 @@ export const suspendAgent = async (req: AuthRequest, res: Response, next: NextFu
       .single();
     if (updateErr) throw updateErr;
 
-    await logToDatabase('warn', 'Autonomy', `Agent ${agent.name} SUSPENDED — ${reason}`, { agentId: id, reason, userId });
+    await logAuditEvent({
+      workspaceId: updated.workspace_id || '00000000-0000-0000-0000-000000000000',
+      actorId: userId,
+      actorType: 'USER',
+      action: `Agent ${agent.name} SUSPENDED — ${reason}`,
+      objectType: 'AGENT',
+      objectId: id,
+      module: 'Autonomy',
+      metadata: { reason },
+    });
 
     res.json({ success: true, data: updated, message: `Agent ${agent.name} suspended` });
   } catch (error) {
@@ -253,7 +271,16 @@ export const createEmergencyLock = async (req: AuthRequest, res: Response, next:
       await query;
     }
 
-    await logToDatabase('warn', 'Autonomy', `Emergency Lock ${lock_level} applied — ${scope}`, { lock, userId });
+    await logAuditEvent({
+      workspaceId: finalWorkspaceId === 'global' ? '00000000-0000-0000-0000-000000000000' : finalWorkspaceId,
+      actorId: userId,
+      actorType: 'USER',
+      action: `Emergency Lock ${lock_level} applied — ${scope}`,
+      objectType: 'EMERGENCY_LOCK',
+      objectId: lock.id,
+      module: 'Autonomy',
+      metadata: { lockLevel: lock_level, scope, reason },
+    });
 
     res.status(201).json({ success: true, data: lock });
   } catch (error) {
@@ -290,7 +317,15 @@ export const liftEmergencyLock = async (req: AuthRequest, res: Response, next: N
 
     lockStore.delete(id);
 
-    await logToDatabase('info', 'Autonomy', `Emergency Lock ${lock.level} lifted on ${lock.scope}`, { lockId: id, userId });
+    await logAuditEvent({
+      workspaceId: lock.workspace_id === 'global' ? '00000000-0000-0000-0000-000000000000' : lock.workspace_id,
+      actorId: userId,
+      actorType: 'USER',
+      action: `Emergency Lock ${lock.level} lifted on ${lock.scope}`,
+      objectType: 'EMERGENCY_LOCK',
+      objectId: id,
+      module: 'Autonomy',
+    });
 
     res.json({ success: true, message: 'Emergency lock lifted' });
   } catch (error) {
@@ -393,7 +428,15 @@ export const createNegativeKnowledge = async (req: AuthRequest, res: Response, n
     };
     nksStore.set(nks.id, nks);
 
-    await logToDatabase('info', 'Autonomy', `Negative Knowledge Set created: ${nks.name}`, { nks, userId });
+    await logAuditEvent({
+      workspaceId: finalWorkspaceId === 'global' ? '00000000-0000-0000-0000-000000000000' : finalWorkspaceId,
+      actorId: userId,
+      actorType: 'USER',
+      action: `Negative Knowledge Set created: ${nks.name}`,
+      objectType: 'NKS',
+      objectId: nks.id,
+      module: 'Autonomy',
+    });
 
     res.status(201).json({ success: true, data: nks });
   } catch (error) {

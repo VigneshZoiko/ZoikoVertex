@@ -434,7 +434,7 @@ export class RiskClassifier {
           }
         }
       }
-    } catch (err) {
+    } catch {
       // Graceful fallback
     }
 
@@ -492,7 +492,7 @@ export class RiskClassifier {
           assessment.approvalLevel = "GOVERNANCE_ADMIN";
         }
       }
-    } catch (err) {
+    } catch {
       // Fallback
     }
 
@@ -573,9 +573,9 @@ export class RiskClassifier {
                 `Collusion/Integrity Flag: ${consecutiveViolations} recent policy violations detected. Agent routed for re-certification review.`
               );
             }
-          } catch (_) { /* Graceful fallback */ }
+          } catch { /* Graceful fallback */ }
         }
-      } catch (err) {
+      } catch {
         // Fallback
       }
     }
