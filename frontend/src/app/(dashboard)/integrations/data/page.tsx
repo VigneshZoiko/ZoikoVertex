@@ -86,10 +86,6 @@ export default function DataPage() {
   const [urlKey, setUrlKey] = useState("");
   const [schedule, setSchedule] = useState("manual");
 
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
-
   const fetchInitialData = async () => {
     setLoading(true);
     try {
@@ -97,7 +93,6 @@ export default function DataPage() {
         api.get('/api/v1/integrations/connectors'),
         api.get('/api/v1/knowledge/bases')
       ]);
-
       if (connRes.success) {
         setConnectors(connRes.data);
         if (connRes.data.length > 0) {
@@ -117,6 +112,9 @@ export default function DataPage() {
       setLoading(false);
     }
   };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchInitialData(); }, []);
 
   const fetchConnectorsOnly = async () => {
     try {
