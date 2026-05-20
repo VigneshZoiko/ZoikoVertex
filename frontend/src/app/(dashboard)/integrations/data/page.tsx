@@ -86,6 +86,20 @@ export default function DataPage() {
   const [urlKey, setUrlKey] = useState("");
   const [schedule, setSchedule] = useState("manual");
 
+  const fetchLogs = async (connectorId: string) => {
+    setFetchingLogs(true);
+    try {
+      const res = await api.get(`/api/v1/integrations/connectors/${connectorId}/logs`);
+      if (res.success) {
+        setLogs(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setFetchingLogs(false);
+    }
+  };
+
   const fetchInitialData = async () => {
     setLoading(true);
     try {
@@ -128,20 +142,6 @@ export default function DataPage() {
       }
     } catch (err) {
       console.error(err);
-    }
-  };
-
-  const fetchLogs = async (connectorId: string) => {
-    setFetchingLogs(true);
-    try {
-      const res = await api.get(`/api/v1/integrations/connectors/${connectorId}/logs`);
-      if (res.success) {
-        setLogs(res.data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setFetchingLogs(false);
     }
   };
 
