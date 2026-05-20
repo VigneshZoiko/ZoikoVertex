@@ -20,7 +20,7 @@ import {
 import { getRiskPulse, getActiveRiskFeed, getGovernanceGaps, triggerEmergencyPause } from './domains/governance/riskController';
 import { getForensicSummary, getAgentPerformance } from './domains/governance/forensicController';
 import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
-import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
+import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleTikTokCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import { listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy } from './domains/agents/agentController';
@@ -144,6 +144,8 @@ app.get('/api/auth/threads/callback', handleThreadsCallback);
 app.post('/api/auth/threads/deauthorize', handleThreadsDeauthorize);
 app.post('/api/auth/threads/data-deletion', handleThreadsDataDeletion);
 app.get('/api/auth/twitter/callback', handleTwitterCallback);
+app.get('/api/auth/youtube/callback', handleYoutubeCallback);
+app.get('/api/auth/tiktok/callback', handleTikTokCallback);
 
 // Protected Social/Account Routes
 app.delete('/api/v1/accounts/:id', authenticate, disconnectAccount);

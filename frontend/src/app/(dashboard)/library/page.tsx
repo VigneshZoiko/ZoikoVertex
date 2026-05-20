@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { 
-  Search, Filter, Image as ImageIcon, Video as VideoIcon, 
+import {
+  Search, Filter, Image as ImageIcon, Video as VideoIcon,
   ExternalLink, Send, Trash2, Loader2, User, Calendar
 } from "lucide-react";
 import Image from "next/image";
@@ -41,14 +41,34 @@ export default function MediaLibraryPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setCurrentUserId(user.id);
-      
+
       try {
         const result = await api.get('/api/v1/user/context');
-        if (result.success && result.data.role) {
+        if (result.success && result.data?.role) {
           setUserRole(result.data.role);
+          return;
         }
       } catch {
-        // fallback
+        // fall through to Supabase direct query
+      }
+
+      // Fallback: query workspace_members directly
+      const { data: member } = await supabase
+        .from('workspace_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (member?.role) {
+        setUserRole(member.role);
+      } else {
+        // Superadmin with no membership row still gets full access
+        const { data: userData } = await supabase
+          .from('users')
+          .select('is_superadmin')
+          .eq('id', user.id)
+          .single();
+        if (userData?.is_superadmin) setUserRole('ADMIN');
       }
     };
     fetchUserContext();
@@ -89,7 +109,7 @@ export default function MediaLibraryPage() {
 
     try {
       await api.delete(`/api/v1/library/${id}`);
-      
+
       // Optimistic update
       setAssets(prev => prev.filter(a => a.id !== id));
     } catch (err: any) {
@@ -104,8 +124,8 @@ export default function MediaLibraryPage() {
           <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">Common Media Library</h1>
           <p className="text-[var(--foreground-muted)]">Browse and pick assets uploaded by Creators to start publishing.</p>
         </div>
-        
-        <button 
+
+        <button
           onClick={() => router.push('/library/upload')}
           className="bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--foreground)] px-6 py-3 rounded-2xl font-medium transition-all flex items-center gap-2"
         >
@@ -126,15 +146,14 @@ export default function MediaLibraryPage() {
             className="w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl py-4 pl-12 pr-4 text-[var(--foreground)] focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
           />
         </div>
-        
+
         <div className="flex bg-[var(--card)] border border-[var(--border)] rounded-2xl p-1">
           {['all', 'image', 'video'].map((t) => (
             <button
               key={t}
               onClick={() => setFilter(t)}
-              className={`px-6 py-3 rounded-xl text-sm font-medium transition-all ${
-                filter === t ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
-              }`}
+              className={`px-6 py-3 rounded-xl text-sm font-medium transition-all ${filter === t ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                }`}
             >
               {t.charAt(0).toUpperCase() + t.slice(1)}s
             </button>
@@ -201,15 +220,17 @@ export default function MediaLibraryPage() {
                   );
                 })()}
 
-                {/* Overlay on hover - Only for Admin/Manager */}
-                {(userRole === 'ADMIN' || userRole === 'MANAGER') && (
+                {/* Overlay on hover — visible to anyone who can submit/publish */}
+                {userRole !== 'VIEWER' && (
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6">
                     <button
                       onClick={() => handleUseAsset(asset)}
                       className="w-full bg-white text-black py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-500 hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-300"
                     >
                       <Send className="w-4 h-4" />
-                      Pick &amp; Publish
+                      {['ADMIN', 'MANAGER', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'PUBLISHER'].includes(userRole ?? '')
+                        ? 'Pick & Publish'
+                        : 'Use in Post'}
                     </button>
                   </div>
                 )}

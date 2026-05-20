@@ -28,6 +28,22 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.pinimg.com",
       },
+      {
+        protocol: "https",
+        hostname: "yt3.ggpht.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "graph.facebook.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.threads.net",
+      },
     ],
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60,

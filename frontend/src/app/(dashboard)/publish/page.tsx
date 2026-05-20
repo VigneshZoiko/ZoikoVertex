@@ -11,6 +11,7 @@ import {
 import { supabase } from "@/lib/supabase";
 
 import dynamic from "next/dynamic";
+import { getCompatibility, DEFAULT_POST_TYPES, type MediaMeta } from "@/components/publish/PlatformSelector";
 
 const PlatformSelector = dynamic(() => import("@/components/publish/PlatformSelector"), { ssr: false });
 const MediaUploader = dynamic(() => import("@/components/publish/MediaUploader"), { ssr: false });
@@ -52,6 +53,10 @@ function PublishPageInner() {
   const [activePlatformTab, setActivePlatformTab] = useState<string>("");
   const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  // Post type per platform (e.g. instagram→reel, youtube→short)
+  const [platformPostTypes, setPlatformPostTypes] = useState<Record<string, string>>({});
+  // Detected media dimensions/duration for smart platform constraint warnings
+  const [mediaMeta, setMediaMeta] = useState<MediaMeta | null>(null);
 
   const PLATFORM_LIMITS: Record<string, number> = {
     "Instagram": 2200,
@@ -117,7 +122,7 @@ function PublishPageInner() {
     setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
     setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
     setSuggestedTimes([]); setActiveRevisionId(null);
-    setSelectedAccountIds([]); setPlatformCaptions({});
+    setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
     setIsDirty(false);
     setMessage({ type: 'success', text: 'Draft discarded. Start fresh anytime.' });
   }, [setIsDirty]);
@@ -304,48 +309,87 @@ function PublishPageInner() {
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setHasImageAnalysis(false); 
-      setIsAnalyzing(true);
-      setMedia(file);
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const rawBase64 = reader.result as string;
-        setMediaPreview(rawBase64);
-        
-        try {
-          // Resize for AI processing to avoid payload limits
-          const img = document.createElement('img');
-          img.src = rawBase64;
-          await new Promise(r => img.onload = r);
-          const canvas = document.createElement('canvas');
-          const scale = Math.min(1, 1024 / img.width);
-          canvas.width = img.width * scale;
-          canvas.height = img.height * scale;
-          canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+    if (!file) return;
 
-          const data = await api.post('/api/v1/ai/analyze-image', { imageBase64: optimizedBase64 });
-          console.log("[VISION] Analysis Result:", data);
-          if (data.success && data.analysis) {
-            sessionStorage.setItem('lastImageAnalysis', data.analysis);
-            setHasImageAnalysis(true);
-            setShowAIWriter(true); 
-          } else {
-            const errorMsg = data.error?.message || data.error || 'Vision analysis returned no data';
-            const errorDetails = data.error?.details || '';
-            console.error("[VISION] Failed:", errorMsg, errorDetails);
-            setMessage({ type: 'error', text: `AI Vision: ${errorMsg}. ${errorDetails}` });
-          }
-        } catch (err: any) {
-          console.error("[VISION] Network Error:", err);
-          setMessage({ type: 'error', text: `Connection Error: Could not reach AI server` });
-        } finally {
-          setIsAnalyzing(false);
-        }
+    setHasImageAnalysis(false);
+    setMedia(file);
+    setMediaMeta(null);
+
+    // --- Detect video metadata (dimensions + duration) via object URL ---
+    if (file.type.startsWith('video')) {
+      const objUrl = URL.createObjectURL(file);
+      const videoEl = document.createElement('video');
+      videoEl.preload = 'metadata';
+      videoEl.src = objUrl;
+      videoEl.onloadedmetadata = () => {
+        const w = videoEl.videoWidth || 0, h = videoEl.videoHeight || 0;
+        setMediaMeta({
+          width: w, height: h,
+          duration: isFinite(videoEl.duration) ? videoEl.duration : undefined,
+          aspectRatio: h > 0 ? w / h : 1,
+          isVertical: w > 0 && h > 0 && w < h,
+          fileSize: file.size,
+        });
+        URL.revokeObjectURL(objUrl);
       };
-      reader.readAsDataURL(file);
+      // Use object URL as preview for videos (efficient — no base64 for large files)
+      setMediaPreview(objUrl);
+      setIsAnalyzing(false);
+      return;
     }
+
+    // --- Image path: FileReader for base64 preview + AI analysis ---
+    setIsAnalyzing(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const rawBase64 = reader.result as string;
+      setMediaPreview(rawBase64);
+
+      // Detect image dimensions
+      const imgMeta = document.createElement('img');
+      imgMeta.src = rawBase64;
+      imgMeta.onload = () => {
+        const w = imgMeta.naturalWidth, h = imgMeta.naturalHeight;
+        setMediaMeta({
+          width: w, height: h,
+          aspectRatio: h > 0 ? w / h : 1,
+          isVertical: w < h,
+          fileSize: file.size,
+        });
+      };
+
+      try {
+        // Resize for AI processing to avoid payload limits
+        const img = document.createElement('img');
+        img.src = rawBase64;
+        await new Promise(r => img.onload = r);
+        const canvas = document.createElement('canvas');
+        const scale = Math.min(1, 1024 / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+        const data = await api.post('/api/v1/ai/analyze-image', { imageBase64: optimizedBase64 });
+        console.log("[VISION] Analysis Result:", data);
+        if (data.success && data.analysis) {
+          sessionStorage.setItem('lastImageAnalysis', data.analysis);
+          setHasImageAnalysis(true);
+          setShowAIWriter(true);
+        } else {
+          const errorMsg = data.error?.message || data.error || 'Vision analysis returned no data';
+          const errorDetails = data.error?.details || '';
+          console.error("[VISION] Failed:", errorMsg, errorDetails);
+          setMessage({ type: 'error', text: `AI Vision: ${errorMsg}. ${errorDetails}` });
+        }
+      } catch (err: any) {
+        console.error("[VISION] Network Error:", err);
+        setMessage({ type: 'error', text: `Connection Error: Could not reach AI server` });
+      } finally {
+        setIsAnalyzing(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAddImageInsight = () => {
@@ -361,6 +405,59 @@ function PublishPageInner() {
       // setHasImageAnalysis(false);
     }
   };
+
+  // Probe media dimensions/duration from library URL (no local File object)
+  useEffect(() => {
+    if (media || !mediaPreview) return; // local file handled in handleMediaUpload
+    const type = assetType || '';
+    if (type === 'video') {
+      const videoEl = document.createElement('video');
+      videoEl.preload = 'metadata';
+      videoEl.crossOrigin = 'anonymous';
+      videoEl.src = mediaPreview;
+      videoEl.onloadedmetadata = () => {
+        const w = videoEl.videoWidth || 0, h = videoEl.videoHeight || 0;
+        setMediaMeta({
+          width: w, height: h,
+          duration: isFinite(videoEl.duration) ? videoEl.duration : undefined,
+          aspectRatio: h > 0 ? w / h : 1,
+          isVertical: w > 0 && h > 0 && w < h,
+          fileSize: 0,
+        });
+      };
+    } else if (type === 'image') {
+      const imgEl = document.createElement('img');
+      imgEl.crossOrigin = 'anonymous';
+      imgEl.src = mediaPreview;
+      imgEl.onload = () => {
+        const w = imgEl.naturalWidth, h = imgEl.naturalHeight;
+        setMediaMeta({
+          width: w, height: h,
+          aspectRatio: h > 0 ? w / h : 1,
+          isVertical: w < h,
+          fileSize: 0,
+        });
+      };
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaPreview, assetType]);
+
+  // Auto-switch YouTube post type based on detected video metadata
+  useEffect(() => {
+    if (!mediaMeta?.width || mediaMeta.duration === undefined) return;
+    const willBeShort = mediaMeta.isVertical && mediaMeta.duration <= 180;
+    setPlatformPostTypes(prev => {
+      const current = prev['youtube'] ?? DEFAULT_POST_TYPES['youtube'] ?? 'video';
+      if (willBeShort && current !== 'short') {
+        setTimeout(() => setMessage({ type: 'success', text: 'YouTube post type auto-switched to "Short" — vertical video ≤ 3 min detected.' }), 50);
+        return { ...prev, youtube: 'short' };
+      }
+      if (!willBeShort && current === 'short') {
+        return { ...prev, youtube: 'video' };
+      }
+      return prev;
+    });
+  }, [mediaMeta]);
 
   const handleGenerateAI = async () => {
     if (!topic) return;
@@ -419,13 +516,59 @@ function PublishPageInner() {
     setGenerating(false);
   };
 
+  // Returns per-platform constraint violations for selected accounts given current media
+  const getPlatformViolations = useCallback(() => {
+    const count = selectedUrls.length || (media ? 1 : 0);
+    const type = assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : '');
+    if (!count || !type) return [];
+
+    const seen = new Set<string>();
+    const violations: { platform: string; postType: string; message: string }[] = [];
+
+    for (const id of selectedAccountIds) {
+      const acc = connectedAccounts.find(a => a.id === id);
+      if (!acc) continue;
+      if (seen.has(acc.platform)) continue;
+      seen.add(acc.platform);
+
+      const postType = platformPostTypes[acc.platform] ?? DEFAULT_POST_TYPES[acc.platform];
+      const { blocked, warning } = getCompatibility(acc.platform, postType, count, type, mediaMeta);
+      if (blocked || warning) {
+        violations.push({
+          platform: acc.platform,
+          postType: postType ?? acc.platform,
+          message: (warning ?? `${acc.platform} does not support this media.`),
+        });
+      }
+    }
+    return violations;
+  }, [selectedAccountIds, connectedAccounts, selectedUrls, media, assetType, platformPostTypes, mediaMeta]);
+
   const handleSubmitIntent = async () => {
     if (selectedAccountIds.length === 0) {
       setMessage({ type: 'error', text: 'Please select at least one target account in the sidebar.' });
       return;
     }
-    if (selectedAccountIds.length === 0) {
-      setMessage({ type: 'error', text: 'Please select at least one target account.' });
+
+    // Require at least one non-empty caption
+    const hasCaption = isPlatformSpecific
+      ? Object.values(platformCaptions).some(v => v.trim().length > 0)
+      : description.trim().length > 0;
+
+    if (!hasCaption) {
+      setMessage({ type: 'error', text: 'Please write a caption before publishing.' });
+      return;
+    }
+
+    // Block hard constraint violations (incompatible media type)
+    const violations = getPlatformViolations();
+    const blocking = violations.filter(v => {
+      const type = assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : '');
+      const { blocked } = getCompatibility(v.platform, v.postType, selectedUrls.length || (media ? 1 : 0), type);
+      return blocked;
+    });
+    if (blocking.length > 0) {
+      setMessage({ type: 'error', text: `Media incompatible with: ${blocking.map(b => b.platform).join(', ')}. Deselect those accounts or change the post type.` });
       return;
     }
     
@@ -454,8 +597,9 @@ function PublishPageInner() {
           platforms: platformCaptions
         },
         mediaUrls: finalUrls,
-        mediaUrl: finalUrls[0] || null,  // backward compat
+        mediaUrl: finalUrls[0] || null,
         targetAccountIds: selectedAccountIds,
+        platformPostTypes,
         userId: user.id
       };
 
@@ -470,7 +614,7 @@ function PublishPageInner() {
       setTopic(""); setDescription(""); setMedia(null); setMediaPreview(null);
       setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
       setSuggestedTimes([]); setActiveRevisionId(null);
-      setSelectedAccountIds([]); setPlatformCaptions({});
+      setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
       setCustomTime(""); setSelectedTime("immediate");
       setIsDirty(false);
       fetchUserData();
@@ -811,9 +955,9 @@ function PublishPageInner() {
             ) : (
               <MediaUploader
                 mediaPreview={mediaPreview}
-                mediaType={media?.type}
+                mediaType={media?.type || (assetType === 'video' ? 'video/mp4' : assetType === 'image' ? 'image/jpeg' : undefined)}
                 onUpload={handleMediaUpload}
-                onClear={() => { setMedia(null); setMediaPreview(null); setMediaUrls([]); setSelectedUrls([]); }}
+                onClear={() => { setMedia(null); setMediaPreview(null); setMediaUrls([]); setSelectedUrls([]); setMediaMeta(null); }}
               />
             )}
           </div>
@@ -956,21 +1100,78 @@ function PublishPageInner() {
           {/* Platform Selection */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
             <h3 className="text-sm font-bold text-[var(--foreground)] mb-4">Post To</h3>
-            <PlatformSelector 
+            {/* Smart media info badge */}
+            {mediaMeta && mediaMeta.width > 0 && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)]">
+                  {mediaMeta.width}×{mediaMeta.height}
+                  {mediaMeta.isVertical ? ' · Vertical (9:16)' : mediaMeta.aspectRatio > 1.5 ? ' · Landscape (16:9)' : ' · Square'}
+                </span>
+                {mediaMeta.duration !== undefined && (
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)]">
+                    {mediaMeta.duration < 60 ? `${Math.round(mediaMeta.duration)}s` : `${Math.floor(mediaMeta.duration / 60)}m ${Math.round(mediaMeta.duration % 60)}s`}
+                  </span>
+                )}
+                {mediaMeta.fileSize > 0 && (
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)]">
+                    {mediaMeta.fileSize > 1024 ** 3 ? `${(mediaMeta.fileSize / 1024 ** 3).toFixed(1)} GB` : mediaMeta.fileSize > 1024 ** 2 ? `${(mediaMeta.fileSize / 1024 ** 2).toFixed(1)} MB` : `${(mediaMeta.fileSize / 1024).toFixed(0)} KB`}
+                  </span>
+                )}
+              </div>
+            )}
+            <PlatformSelector
               connectedAccounts={connectedAccounts}
               selectedAccountIds={selectedAccountIds}
               onToggleAccount={toggleAccountSelection}
-
               userRole={userRole}
               mediaCount={selectedUrls.length || (media ? 1 : 0)}
               mediaType={assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : '')}
+              mediaMeta={mediaMeta}
+              platformPostTypes={platformPostTypes}
+              onPostTypeChange={(platform, postType) =>
+                setPlatformPostTypes(prev => ({ ...prev, [platform]: postType }))
+              }
             />
           </div>
 
+          {/* Platform constraint warnings */}
+          {(() => {
+            const violations = getPlatformViolations();
+            if (violations.length === 0) return null;
+            const blocking = violations.filter(v => {
+              const type = assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : '');
+              const { blocked } = getCompatibility(v.platform, v.postType, selectedUrls.length || (media ? 1 : 0), type);
+              return blocked;
+            });
+            const warnings = violations.filter(v => !blocking.includes(v));
+            return (
+              <div className="space-y-2">
+                {blocking.map((v, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-rose-400 capitalize">{v.platform} — blocked</p>
+                      <p className="text-[11px] text-rose-300 mt-0.5">{v.message}</p>
+                    </div>
+                  </div>
+                ))}
+                {warnings.map((v, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-amber-500/8 border border-amber-500/20 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-amber-400 capitalize">{v.platform}</p>
+                      <p className="text-[11px] text-amber-300 mt-0.5">{v.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
           {/* Submit */}
-          <button 
-            onClick={handleSubmitIntent} 
-            disabled={submitting} 
+          <button
+            onClick={handleSubmitIntent}
+            disabled={submitting}
             className="w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-500"
           >
             {submitting ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Send className="w-4 h-4" />}

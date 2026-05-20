@@ -7,18 +7,13 @@ export const listAccounts = async (req: AuthRequest, res: Response, next: NextFu
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: member } = await supabaseAdmin
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', userId)
-      .single();
-
-    if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.json({ success: true, data: [] });
 
     const { data: accounts, error } = await supabaseAdmin
       .from('connected_accounts')
       .select('*')
-      .eq('workspace_id', member.workspace_id)
+      .eq('workspace_id', workspaceId)
       .order('platform', { ascending: true });
 
     if (error) throw error;

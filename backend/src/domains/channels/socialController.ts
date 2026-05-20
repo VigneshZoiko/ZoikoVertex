@@ -339,12 +339,12 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
     logger.info(`[Social] Handling Pinterest callback for workspace: ${workspaceId}`);
 
     const credentials = Buffer.from(`${env.PINTEREST_CLIENT_ID}:${env.PINTEREST_CLIENT_SECRET}`).toString('base64');
-    
+    const pinterestBase = env.PINTEREST_API_BASE || 'https://api.pinterest.com';
     const redirectUri = env.PINTEREST_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/pinterest/callback`;
-    
-    const tokenResponse = await fetch('https://api.pinterest.com/v5/oauth/token', {
+
+    const tokenResponse = await fetch(`${pinterestBase}/v5/oauth/token`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Basic ${credentials}`
       },
@@ -362,7 +362,7 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
 
     const accessToken = tokenData.access_token;
 
-    const profileResponse = await fetch('https://api.pinterest.com/v5/user_account', {
+    const profileResponse = await fetch(`${pinterestBase}/v5/user_account`, {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     const profileData = await profileResponse.json();
@@ -616,6 +616,164 @@ export const handleThreadsDataDeletion = async (req: Request, res: Response) => 
     url: `https://hacker-despise-ipad.ngrok-free.dev/api/auth/threads/deletion-status?code=${confirmationCode}`,
     confirmation_code: confirmationCode,
   });
+};
+
+/**
+ * Handles the YouTube OAuth callback
+ */
+export const handleYoutubeCallback = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { code, state: stateParam, error: oauthError } = req.query;
+
+    if (oauthError) {
+      logger.warn(`[Social] YouTube OAuth denied: ${oauthError}`);
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent(oauthError as string)}`);
+    }
+
+    if (!code) {
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent('No authorization code returned from Google')}`);
+    }
+
+    const workspaceId = stateParam as string;
+    logger.info(`[Social] Handling YouTube callback for workspace: ${workspaceId}`);
+
+    const redirectUri = env.YOUTUBE_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/youtube/callback`;
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        code: code as string,
+        client_id: env.YOUTUBE_CLIENT_ID || '',
+        client_secret: env.YOUTUBE_CLIENT_SECRET || '',
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (tokenData.error) {
+      logger.error({ details: tokenData }, '[Social] YouTube token exchange failed');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
+    }
+
+    const accessToken = tokenData.access_token;
+    const refreshToken = tokenData.refresh_token || null;
+
+    // Fetch YouTube channel details
+    const channelResponse = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    const channelData = await channelResponse.json();
+
+    if (channelData.error || !channelData.items || channelData.items.length === 0) {
+      logger.error({ details: channelData }, '[Social] YouTube channel fetch failed or no channel found');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=youtube&reason=${encodeURIComponent('No YouTube channel found for this Google account')}`);
+    }
+
+    const channel = channelData.items[0];
+
+    const accountData: Record<string, unknown> = {
+      workspace_id: workspaceId,
+      platform: 'youtube',
+      account_name: channel.snippet.title,
+      account_handle: channel.snippet.customUrl || channel.id,
+      avatar_url: channel.snippet.thumbnails?.default?.url,
+      access_token: accessToken,
+      status: 'active'
+    };
+    // Only set refresh_token when Google returns one (not returned on every re-auth)
+    if (refreshToken) accountData.refresh_token = refreshToken;
+
+    const { error: dbError } = await supabaseAdmin
+      .from('connected_accounts')
+      .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
+
+    if (dbError) throw dbError;
+
+    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=youtube`);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Handles the TikTok OAuth callback
+ */
+export const handleTikTokCallback = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { code, state: stateParam, error: oauthError, error_description } = req.query;
+
+    if (oauthError) {
+      logger.warn(`[Social] TikTok OAuth denied: ${oauthError}`);
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=tiktok&reason=${encodeURIComponent((error_description as string) || (oauthError as string))}`);
+    }
+
+    if (!code) {
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=tiktok&reason=${encodeURIComponent('No authorization code returned from TikTok')}`);
+    }
+
+    const workspaceId = stateParam as string;
+    logger.info(`[Social] Handling TikTok callback for workspace: ${workspaceId}`);
+
+    const redirectUri = env.TIKTOK_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/tiktok/callback`;
+
+    // Exchange code for access token
+    const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cache-Control': 'no-cache' },
+      body: new URLSearchParams({
+        client_key: env.TIKTOK_CLIENT_KEY || '',
+        client_secret: env.TIKTOK_CLIENT_SECRET || '',
+        code: code as string,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+      }),
+    });
+
+    const tokenData = await tokenRes.json();
+    if (tokenData.error) {
+      logger.error({ details: tokenData }, '[Social] TikTok token exchange failed');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=tiktok&reason=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
+    }
+
+    const accessToken: string = tokenData.access_token;
+    const refreshToken: string | null = tokenData.refresh_token || null;
+    const openId: string = tokenData.open_id;
+
+    // Fetch user profile
+    const userRes = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name,username', {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+    const userData = await userRes.json();
+    const user = userData.data?.user || {};
+    logger.info(`[Social] TikTok user connected: ${user.display_name} (${openId})`);
+
+    const accountData: Record<string, unknown> = {
+      workspace_id: workspaceId,
+      platform: 'tiktok',
+      account_name: user.display_name || 'TikTok User',
+      account_handle: user.username || openId,
+      avatar_url: user.avatar_url || null,
+      access_token: accessToken,
+      status: 'active',
+    };
+    if (refreshToken) accountData.refresh_token = refreshToken;
+
+    const { error: dbError } = await supabaseAdmin
+      .from('connected_accounts')
+      .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
+
+    if (dbError) throw dbError;
+
+    logger.info(`[Social] TikTok account saved for workspace ${workspaceId}`);
+    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=tiktok`);
+  } catch (error) {
+    next(error);
+  }
 };
 
 /**

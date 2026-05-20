@@ -112,12 +112,12 @@ export const getApprovalQueue = async (req: AuthRequest, res: Response, next: Ne
 
     const [{ data: userCtx }, { data: member }] = await Promise.all([
       supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single(),
-      supabaseAdmin.from('workspace_members').select('workspace_id, role').eq('user_id', userId).single(),
+      supabaseAdmin.from('workspace_members').select('workspace_id, role').eq('user_id', userId).maybeSingle(),
     ]);
 
-    const isSuperAdmin = userCtx?.is_superadmin || false;
-    const role = (member?.role || '').toUpperCase();
-    const workspaceId = member?.workspace_id;
+    const isSuperAdmin = userCtx?.is_superadmin || req.user?.is_superadmin || false;
+    const role = (member?.role || (isSuperAdmin ? 'ADMIN' : '')).toUpperCase();
+    const workspaceId = member?.workspace_id || req.user?.workspace_id;
 
     let statusFilter: string[];
     if (isSuperAdmin) {
@@ -128,10 +128,11 @@ export const getApprovalQueue = async (req: AuthRequest, res: Response, next: Ne
       statusFilter = ROLE_QUEUE_STATUSES[role] || [];
     }
 
+    // Fetch all (workspace-scoped) and filter by status in JS to avoid enum type errors
+    // for status values not yet present in the DB's intent_status enum.
     let query = supabaseAdmin
       .from('publish_intents')
       .select('*, creator:users!publish_intents_creator_id_fkey(full_name, email)')
-      .in('status', statusFilter)
       .order('created_at', { ascending: true });
 
     if (!isSuperAdmin && workspaceId) {
@@ -142,9 +143,13 @@ export const getApprovalQueue = async (req: AuthRequest, res: Response, next: Ne
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      if ((error as any).code === '42P01') return res.json({ success: true, data: [], role });
+      throw error;
+    }
 
-    res.json({ success: true, data: data || [], role });
+    const filtered = (data || []).filter((item: any) => statusFilter.includes(item.status));
+    res.json({ success: true, data: filtered, role });
   } catch (error) {
     next(error);
   }
