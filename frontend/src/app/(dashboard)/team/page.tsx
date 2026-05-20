@@ -441,7 +441,7 @@ export default function TeamPage() {
 
             {canManageMembers && (
               <p className="text-[11px] text-[var(--foreground-muted)] mt-4 opacity-60">
-                Deleting a member permanently removes their account and access. Their name will appear as "Name (ex-Role)" in audit logs.
+                Deleting a member permanently removes their account and access. Their name will appear as &quot;Name (ex-Role)&quot; in audit logs.
               </p>
             )}
           </div>

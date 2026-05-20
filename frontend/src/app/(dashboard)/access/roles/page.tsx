@@ -214,10 +214,6 @@ function UnitsTab() {
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(COLOR_PRESETS[0]);
 
-  useEffect(() => {
-    fetchUnits();
-  }, []);
-
   const fetchUnits = async () => {
     setLoading(true);
     try {
@@ -229,6 +225,9 @@ function UnitsTab() {
       setLoading(false);
     }
   };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchUnits(); }, []);
 
   const handleCreate = async () => {
     if (!name.trim()) return;

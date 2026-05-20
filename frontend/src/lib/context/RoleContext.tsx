@@ -148,7 +148,6 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     });
 
     return () => { subscription.unsubscribe(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hasRole = (allowedRoles: string[]) => {
