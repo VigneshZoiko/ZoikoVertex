@@ -11,6 +11,15 @@ async function getAuthHeader(): Promise<Record<string, string>> {
   return headers;
 }
 
+async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (err) {
+    console.error(`[API Network Error] Failed to connect to backend at ${url}. Ensure the server is running.`, err);
+    throw new Error('Connection to backend failed. Please ensure the backend server is running and accessible.');
+  }
+}
+
 async function handleResponse(response: Response, endpoint: string, method: string) {
   if (!response.ok) {
     if (response.status === 404) {
@@ -29,7 +38,7 @@ async function handleResponse(response: Response, endpoint: string, method: stri
 export const api = {
   async get(endpoint: string) {
     const authHeader = await getAuthHeader();
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+    const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       headers: {
         ...authHeader,
       },
@@ -49,7 +58,7 @@ export const api = {
 
   async post(endpoint: string, body: any) {
     const authHeader = await getAuthHeader();
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+    const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -67,7 +76,7 @@ export const api = {
 
   async postMultipart(endpoint: string, formData: FormData) {
     const authHeader = await getAuthHeader();
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+    const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: 'POST',
       headers: {
         ...authHeader,
@@ -79,7 +88,7 @@ export const api = {
 
   async put(endpoint: string, body: any) {
     const authHeader = await getAuthHeader();
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+    const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -97,7 +106,7 @@ export const api = {
 
   async delete(endpoint: string) {
     const authHeader = await getAuthHeader();
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+    const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: 'DELETE',
       headers: {
         ...authHeader,
@@ -113,7 +122,7 @@ export const api = {
 
   async patch(endpoint: string, body: any) {
     const authHeader = await getAuthHeader();
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+    const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

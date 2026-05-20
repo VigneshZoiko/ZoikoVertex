@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Calendar, Clock, Sparkles, X, Edit3, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime } from "@/lib/utils";
@@ -28,6 +29,7 @@ interface Recommendation {
 }
 
 export default function CalendarPage() {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ export default function CalendarPage() {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        window.location.href = '/login';
+        router.push('/login');
         return;
       }
       setUser(user);

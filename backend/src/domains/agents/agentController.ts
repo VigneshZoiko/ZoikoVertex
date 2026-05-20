@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
-import { logToDatabase } from '../../shared/databaseLogger';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { logAuditEvent } from '../governance/evidenceController';
 
 const AGENT_SERVICE = 'AgentStudio';
 
@@ -33,7 +33,7 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
 
     let query = supabaseAdmin
       .from('agents')
-      .select(`*, primary_dri:users!primary_dri_id(full_name, email), backup_dri:users!backup_dri_id(full_name, email)`)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (!isSuper) {
@@ -42,12 +42,42 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
       query = query.eq('workspace_id', req.query.workspaceId);
     }
 
-    const { data, error } = await query;
+    const { data: agents, error } = await query;
     if (error) throw error;
+
+    if (!agents || agents.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    // Step 2: Fetch details for primary_dri and backup_dri manually
+    const driIds = [
+      ...new Set([
+        ...agents.map(a => a.primary_dri_id).filter(Boolean),
+        ...agents.map(a => a.backup_dri_id).filter(Boolean)
+      ])
+    ];
+
+    const userMap: Record<string, { full_name: string; email: string }> = {};
+    if (driIds.length > 0) {
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', driIds);
+
+      (users || []).forEach(u => {
+        userMap[u.id] = { full_name: u.full_name, email: u.email };
+      });
+    }
+
+    const merged = agents.map(agent => ({
+      ...agent,
+      primary_dri: userMap[agent.primary_dri_id] || null,
+      backup_dri: userMap[agent.backup_dri_id] || null
+    }));
 
     res.status(200).json({
       success: true,
-      data
+      data: merged
     });
   } catch (error) {
     next(error);
@@ -61,17 +91,36 @@ export const getAgent = async (req: Request, res: Response, next: NextFunction) 
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabaseAdmin
+    const { data: agent, error } = await supabaseAdmin
       .from('agents')
-      .select(`*, primary_dri:users!primary_dri_id(full_name, email), backup_dri:users!backup_dri_id(full_name, email), artifacts:agent_artifacts(*)`)
+      .select(`*, artifacts:agent_artifacts(*)`)
       .eq('id', id)
       .single();
 
     if (error) throw error;
 
+    if (agent) {
+      const driIds = [agent.primary_dri_id, agent.backup_dri_id].filter(Boolean);
+      const userMap: Record<string, { full_name: string; email: string }> = {};
+      
+      if (driIds.length > 0) {
+        const { data: users } = await supabaseAdmin
+          .from('users')
+          .select('id, full_name, email')
+          .in('id', driIds);
+
+        (users || []).forEach(u => {
+          userMap[u.id] = { full_name: u.full_name, email: u.email };
+        });
+      }
+
+      agent.primary_dri = userMap[agent.primary_dri_id] || null;
+      agent.backup_dri = userMap[agent.backup_dri_id] || null;
+    }
+
     res.status(200).json({
       success: true,
-      data
+      data: agent
     });
   } catch (error) {
     next(error);
@@ -85,7 +134,15 @@ export const registerAgent = async (req: Request, res: Response, next: NextFunct
   try {
     const payload = CreateAgentSchema.parse(req.body);
     
-    await logToDatabase('info', AGENT_SERVICE, `Registering new agent: ${payload.name}`, { payload });
+    await logAuditEvent({
+      workspaceId: payload.workspace_id,
+      actorId: payload.primary_dri_id,
+      actorType: 'USER',
+      action: `Registering new agent: ${payload.name}`,
+      objectType: 'AGENT',
+      module: AGENT_SERVICE,
+      metadata: { name: payload.name },
+    });
 
     const { data, error } = await supabaseAdmin
       .from('agents')
@@ -119,8 +176,6 @@ export const certifyAgent = async (req: Request, res: Response, next: NextFuncti
     const { id } = req.params;
     const { level, evidence_score } = req.body;
 
-    await logToDatabase('info', AGENT_SERVICE, `Certifying agent ${id} to ${level}`, { level, evidence_score });
-
     // 1. Update the agent's autonomy level and status
     const { data: agent, error: updateError } = await supabaseAdmin
       .from('agents')
@@ -134,6 +189,17 @@ export const certifyAgent = async (req: Request, res: Response, next: NextFuncti
       .single();
 
     if (updateError) throw updateError;
+
+    await logAuditEvent({
+      workspaceId: agent.workspace_id || '00000000-0000-0000-0000-000000000000',
+      actorId: agent.primary_dri_id || '00000000-0000-0000-0000-000000000000',
+      actorType: 'USER',
+      action: `Certifying agent ${id} to ${level}`,
+      objectType: 'AGENT',
+      objectId: String(id),
+      module: AGENT_SERVICE,
+      metadata: { level, evidence_score },
+    });
 
     // 2. Create a certification record
     const { data: latestArtifact } = await supabaseAdmin
@@ -179,8 +245,6 @@ export const updateAutonomy = async (req: Request, res: Response, next: NextFunc
       return res.status(400).json({ success: false, message: 'Invalid autonomy level. Valid: L0–L6' });
     }
 
-    await logToDatabase('info', AGENT_SERVICE, `Manually updating agent ${id} autonomy to ${autonomy_level}`, { autonomy_level });
-
     const { data, error } = await supabaseAdmin
       .from('agents')
       .update({ 
@@ -192,6 +256,17 @@ export const updateAutonomy = async (req: Request, res: Response, next: NextFunc
       .single();
 
     if (error) throw error;
+
+    await logAuditEvent({
+      workspaceId: data.workspace_id || '00000000-0000-0000-0000-000000000000',
+      actorId: data.primary_dri_id || '00000000-0000-0000-0000-000000000000',
+      actorType: 'USER',
+      action: `Manually updating agent ${id} autonomy to ${autonomy_level}`,
+      objectType: 'AGENT',
+      objectId: String(id),
+      module: AGENT_SERVICE,
+      metadata: { autonomy_level },
+    });
 
     res.status(200).json({
       success: true,

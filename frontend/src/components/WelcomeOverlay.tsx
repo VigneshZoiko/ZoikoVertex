@@ -12,20 +12,17 @@ export default function WelcomeOverlay() {
     const hasSeenWelcome = localStorage.getItem('zoiko_welcome_seen');
     if (!hasSeenWelcome) {
       setShouldRender(true);
-      // Brief delay before showing to ensure smooth transition
       const showTimer = setTimeout(() => setVisible(true), 100);
-      
-      // Auto-dismiss after 4 seconds
       const hideTimer = setTimeout(() => {
         setVisible(false);
         localStorage.setItem('zoiko_welcome_seen', 'true');
-        // Remove from DOM after fade out
-        setTimeout(() => setShouldRender(false), 1000);
       }, 4000);
+      const removeTimer = setTimeout(() => setShouldRender(false), 5000);
 
       return () => {
         clearTimeout(showTimer);
         clearTimeout(hideTimer);
+        clearTimeout(removeTimer);
       };
     }
   }, []);

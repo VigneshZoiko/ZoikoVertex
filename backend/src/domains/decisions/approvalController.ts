@@ -2,10 +2,10 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
-import { logToDatabase } from '../../shared/databaseLogger';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { evaluateIntent } from './decisionEngine';
 import { RiskClassifier } from './riskClassifier';
+import { logAuditEvent } from '../governance/evidenceController';
 
 // Which statuses each role sees in the queue
 const ROLE_QUEUE_STATUSES: Record<string, string[]> = {
@@ -95,8 +95,16 @@ export const submitForReview = async (req: AuthRequest, res: Response, next: Nex
 
     if (error) throw error;
 
-    await logToDatabase('info', 'Approval', `Content submitted for review at ${initialStatus}`, {
-      userId, intentId: data.id, riskLevel: assessment.level,
+    await logAuditEvent({
+      workspaceId: member.workspace_id,
+      actorId: userId,
+      actorType: 'USER',
+      action: `Content submitted for review at ${initialStatus}`,
+      objectType: 'PUBLISH_INTENT',
+      objectId: data.id,
+      module: 'Approval',
+      riskLevel: assessment.level,
+      metadata: { initialStatus },
     });
 
     res.status(201).json({ success: true, data, risk: assessment });
@@ -290,7 +298,17 @@ export const takeApprovalAction = async (req: AuthRequest, res: Response, next: 
         .eq('id', id);
     }
 
-    await logToDatabase('info', 'Approval', `${action} on ${id} → ${nextStatus} by ${role}`, { id, action, nextStatus, userId });
+    await logAuditEvent({
+      workspaceId: intent.workspace_id,
+      actorId: userId,
+      actorType: 'USER',
+      action: `${action} on ${id} → ${nextStatus} by ${role}`,
+      objectType: 'PUBLISH_INTENT',
+      objectId: String(id),
+      module: 'Approval',
+      riskLevel: intent.risk_level,
+      metadata: { action, nextStatus, role },
+    });
 
     res.json({ success: true, newStatus: nextStatus });
   } catch (error) {

@@ -100,6 +100,16 @@ export async function evaluateIntent(
   const riskAssessment = safetyResult.assessment;
   const riskScore = Math.max(intent.risk_score ?? 0, riskAssessment.score);
 
+  // 1.5 Evaluate AI Faithfulness Score (Accountability Layer Requirement)
+  // If Faithfulness Score falls below the threshold, route to Validator.
+  const faithfulnessScore = 100 - riskScore; // Placeholder logic
+  if (faithfulnessScore < 85) {
+    await supabaseAdmin.from('publish_intents')
+      .update({ 
+         approval_level: 'REVIEWER -> VALIDATOR -> APPROVER'
+      }).eq('id', intentId);
+  }
+
   // 2. Evaluate Dynamic Enterprise Policies (Policy Center)
   const policyResults = ENTERPRISE_POLICIES.map(p => {
     const triggered = p.triggerCondition(intent, riskAssessment);
