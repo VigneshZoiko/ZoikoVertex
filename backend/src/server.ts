@@ -67,6 +67,24 @@ import { submitForReview, getApprovalQueue, getApprovalStats, takeApprovalAction
 import { authenticate, provisionGuard } from './shared/authMiddleware';
 import { requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';
+import {
+  listAgentRuns,
+  getAgentRun,
+  getRunTimeline,
+  pauseRun,
+  resumeRun,
+  stopRun,
+  retryRun,
+  quarantineRun,
+  listQueues,
+  assignQueueItem,
+  createIncident,
+  listIncidents,
+  resolveIncident,
+  getOperationsStats,
+  getRunEvidence,
+  exportEvidence
+} from './domains/agents/operationsController';
 
 const upload = multer({ dest: os.tmpdir() });
 const app = express();
@@ -238,6 +256,24 @@ app.post('/api/v1/agents/:id/approval/request', authenticate, requestApproval);
 app.post('/api/v1/agents/:id/approval/approve', authenticate, approveAgent);
 app.post('/api/v1/agents/:id/approval/reject', authenticate, rejectAgentApproval);
 app.patch('/api/v1/agents/:id/runtime', authenticate, updateRuntimeControls);
+
+// Agent Operations Routes
+app.get('/api/v1/operations/runs', authenticate, listAgentRuns);
+app.get('/api/v1/operations/runs/:id', authenticate, getAgentRun);
+app.get('/api/v1/operations/runs/:id/timeline', authenticate, getRunTimeline);
+app.post('/api/v1/operations/runs/:id/pause', authenticate, pauseRun);
+app.post('/api/v1/operations/runs/:id/resume', authenticate, resumeRun);
+app.post('/api/v1/operations/runs/:id/stop', authenticate, stopRun);
+app.post('/api/v1/operations/runs/:id/retry', authenticate, retryRun);
+app.post('/api/v1/operations/runs/:id/quarantine', authenticate, quarantineRun);
+app.get('/api/v1/operations/queues', authenticate, listQueues);
+app.post('/api/v1/operations/queues/:id/assign', authenticate, assignQueueItem);
+app.post('/api/v1/operations/incidents', authenticate, createIncident);
+app.get('/api/v1/operations/incidents', authenticate, listIncidents);
+app.patch('/api/v1/operations/incidents/:id/resolve', authenticate, resolveIncident);
+app.get('/api/v1/operations/stats', authenticate, getOperationsStats);
+app.get('/api/v1/operations/evidence/:bundleId', authenticate, getRunEvidence);
+app.post('/api/v1/operations/evidence/:bundleId/export', authenticate, exportEvidence);
 
 // Monitoring Routes
 app.get('/api/v1/monitoring/usage', authenticate, getResourceUsage);
