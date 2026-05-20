@@ -24,7 +24,7 @@ export const getRiskPulse = async (req: AuthRequest, res: Response) => {
         .select('*', { count: 'exact', head: true })
         .in('level', ['CRITICAL', 'error', 'HIGH']);
       criticalEvents = count || 0;
-    } catch (_) { /* system_logs may not exist yet — safe fallback */ }
+    } catch { /* system_logs may not exist yet — safe fallback */ }
 
     let openCases = 0;
     try {
@@ -36,7 +36,7 @@ export const getRiskPulse = async (req: AuthRequest, res: Response) => {
       if (!isSuperAdmin && workspaceId) q = q.eq('workspace_id', workspaceId);
       const { count } = await q;
       openCases = count || 0;
-    } catch (_) { /* publish_intents may not exist yet */ }
+    } catch { /* publish_intents may not exist yet */ }
 
     let governanceGaps = 0;
     try {
@@ -48,7 +48,7 @@ export const getRiskPulse = async (req: AuthRequest, res: Response) => {
       if (!isSuperAdmin && workspaceId) gq = gq.eq('workspace_id', workspaceId);
       const { count } = await gq;
       governanceGaps = count || 0;
-    } catch (_) { /* safe fallback */ }
+    } catch { /* safe fallback */ }
 
     let lowTrustAgents = 0;
     try {
@@ -56,7 +56,7 @@ export const getRiskPulse = async (req: AuthRequest, res: Response) => {
       if (!isSuperAdmin && workspaceId) aq = aq.eq('workspace_id', workspaceId);
       const { data: agents } = await aq;
       lowTrustAgents = (agents || []).filter(a => (a.trust_score || 0) < 0.6).length;
-    } catch (_) { /* safe fallback */ }
+    } catch { /* safe fallback */ }
 
     const totalGaps = governanceGaps + lowTrustAgents;
 
