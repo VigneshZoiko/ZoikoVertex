@@ -140,7 +140,6 @@ export class RiskClassifier {
     facebook: 1.0, // Standard risk
     instagram: 0.9, // Visual platform, slightly lower
     threads: 1.1, // Text-based, higher risk
-    tiktok: 1.15, // Younger audience, higher scrutiny
     youtube: 1.05, // Long-form, moderate risk
     pinterest: 0.85, // Visual, lower risk
   };

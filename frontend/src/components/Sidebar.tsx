@@ -43,7 +43,6 @@ import {
   Webhook,
   HeartPulse,
   Building2,
-  Handshake,
   CreditCard,
   Lock,
   TrendingUp,
@@ -185,7 +184,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { name: "Users & Access",      href: "/team",             icon: Users,        roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"] },
       { name: "Roles & Units",       href: "/access/roles",     icon: Building2,    roles: ["ADMIN","WORKSPACE_OWNER"] },
-      { name: "External Partners",   href: "/access/partners",  icon: Handshake,    roles: ["ADMIN","WORKSPACE_OWNER"] },
     ],
   },
   {

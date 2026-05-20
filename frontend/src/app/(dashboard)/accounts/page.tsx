@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import {
   Plus, Trash2, AlertCircle, X, Shield,
   RefreshCw, Link2, CheckCircle2, Zap,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
@@ -152,6 +153,14 @@ export default function AccountsPage() {
   const [liPages, setLiPages]                           = useState<{ id: string; name: string; urn: string }[]>([]);
   const [selectedPageIds, setSelectedPageIds]           = useState<Set<string>>(new Set());
   const [savingPages, setSavingPages]                   = useState(false);
+  const [expandedPlatforms, setExpandedPlatforms]       = useState<Record<string, boolean>>({});
+
+  const togglePlatform = (platformId: string) => {
+    setExpandedPlatforms((prev) => ({
+      ...prev,
+      [platformId]: !prev[platformId],
+    }));
+  };
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -333,7 +342,7 @@ export default function AccountsPage() {
   /* ── Skeleton ── */
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto px-4 md:px-8 space-y-6">
         <div className="space-y-2">
           <div className="h-8 w-56 skeleton-shimmer rounded-xl" />
           <div className="h-4 w-72 skeleton-shimmer rounded-lg" />
@@ -348,7 +357,7 @@ export default function AccountsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-20">
+    <div className="max-w-6xl mx-auto px-4 md:px-8 space-y-6 pb-20">
 
       {/* ── Header ── */}
       <div>
@@ -402,34 +411,83 @@ export default function AccountsPage() {
           const Icon = platform.Icon;
           const platformAccounts = accounts.filter(a => a.platform === platform.id);
           const isConnecting = isSubmitting === platform.id;
+          const hasAccounts = platformAccounts.length > 0;
+          const isExpanded = !!expandedPlatforms[platform.id];
+          const isDarkThemePlatform = platform.id === "twitter" || platform.id === "threads";
 
           return (
             <div key={platform.id}>
 
               {/* Platform row */}
-              <div className="flex items-center gap-4 px-5 py-4">
+              <div 
+                className="flex items-center gap-4 px-5 py-4 transition-colors duration-150 cursor-pointer hover:bg-[var(--surface-hover)]"
+                onClick={(e) => {
+                  if (!(e.target as HTMLElement).closest('button')) {
+                    togglePlatform(platform.id);
+                  }
+                }}
+              >
+                {/* Chevron dropdown toggle */}
+                <div className="w-6 flex items-center justify-center shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePlatform(platform.id);
+                    }}
+                    className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] p-1 rounded-lg hover:bg-[var(--border)] transition-all duration-150"
+                  >
+                    {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  </button>
+                </div>
+
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm${platform.comingSoon ? " opacity-40" : ""}`}
-                  style={{ backgroundColor: platform.color }}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
+                    platform.comingSoon && platformAccounts.length === 0 ? "opacity-40" : ""
+                  } ${
+                    isDarkThemePlatform
+                      ? "bg-black dark:bg-zinc-800 text-white dark:text-zinc-100 border border-zinc-800 dark:border-zinc-700"
+                      : "text-white"
+                  }`}
+                  style={isDarkThemePlatform ? {} : { backgroundColor: platform.color }}
                 >
                   <Icon />
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className={`font-semibold text-sm${platform.comingSoon ? " text-[var(--foreground-muted)]" : " text-[var(--foreground)]"}`}>
+                    <p className={`font-semibold text-sm${platform.comingSoon && platformAccounts.length === 0 ? " text-[var(--foreground-muted)]" : " text-[var(--foreground)]"}`}>
                       {platform.name}
                     </p>
-                    {platform.comingSoon && (
+                    {platform.comingSoon && platformAccounts.length === 0 && (
                       <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold rounded-full">
                         Coming Soon
                       </span>
                     )}
-                    {!platform.comingSoon && platformAccounts.length > 0 && (
-                      <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full">
+                    {platformAccounts.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePlatform(platform.id);
+                        }}
+                        className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full hover:bg-emerald-500/20 transition-colors"
+                      >
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                         {platformAccounts.length} connected
-                      </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePlatform(platform.id);
+                        }}
+                        className="flex items-center gap-1 px-2 py-0.5 bg-zinc-500/10 border border-zinc-500/20 text-[var(--foreground-muted)] text-[10px] font-bold rounded-full hover:bg-zinc-500/20 transition-colors"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+                        No accounts
+                      </button>
                     )}
                   </div>
                   <p className="text-xs text-[var(--foreground-muted)] mt-0.5">{platform.description}</p>
@@ -454,8 +512,12 @@ export default function AccountsPage() {
                     <button
                       onClick={() => handleConnect(platform.id)}
                       disabled={isConnecting}
-                      className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white rounded-lg transition-all duration-150 disabled:opacity-60 hover:opacity-90 active:scale-95"
-                      style={{ backgroundColor: platform.color }}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg transition-all duration-150 disabled:opacity-60 hover:opacity-90 active:scale-95 ${
+                        isDarkThemePlatform
+                          ? "bg-black dark:bg-white text-white dark:text-black border border-zinc-800 dark:border-zinc-200"
+                          : "text-white"
+                      }`}
+                      style={isDarkThemePlatform ? {} : { backgroundColor: platform.color }}
                     >
                       {isConnecting
                         ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -467,85 +529,92 @@ export default function AccountsPage() {
                 )}
               </div>
 
-              {/* Connected accounts */}
-              {!platform.comingSoon && platformAccounts.length > 0 && (
-                <div className="bg-[var(--surface)] border-t border-[var(--border)] divide-y divide-[var(--border)]">
-                  {platformAccounts.map((account) => (
-                    <div
-                      key={account.id}
-                      className="flex items-center gap-3 px-5 py-3 pl-[72px]"
-                    >
-                      {/* Avatar */}
-                      {account.avatar_url ? (
-                        <div className="w-8 h-8 rounded-full overflow-hidden border border-[var(--border)] shrink-0">
-                          <Image
-                            src={account.avatar_url}
-                            alt={account.account_name}
-                            width={32} height={32}
-                            className="object-cover w-full h-full"
-                          />
-                        </div>
-                      ) : (
-                        <div className={`w-8 h-8 rounded-full ${platform.lightBg} border ${platform.border} flex items-center justify-center shrink-0`}>
-                          <span className={`text-xs font-bold ${platform.text}`}>
-                            {account.account_name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Name */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[var(--foreground)] truncate">
-                          {account.account_name}
-                        </p>
-                        <p className="text-xs text-[var(--foreground-muted)] truncate">
-                          {account.account_handle
-                            ? `@${account.account_handle.replace(/^@/, "")}`
-                            : `ID: ${account.id.substring(0, 12)}…`}
-                        </p>
-                      </div>
-
-                      {/* Status + disconnect */}
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="hidden sm:flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Active
-                        </span>
-                        {(userRole !== "CREATOR" || isSuperAdmin) && (
-                          confirmingDisconnect === account.id ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-[var(--foreground-muted)]">Remove?</span>
-                              <button
-                                onClick={() => disconnectAccount(account.id)}
-                                disabled={disconnecting === account.id}
-                                className="px-2.5 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 text-[11px] font-semibold rounded-lg transition-all duration-150 disabled:opacity-50"
-                              >
-                                Yes
-                              </button>
-                              <button
-                                onClick={() => setConfirmingDisconnect(null)}
-                                className="px-2.5 py-1.5 bg-[var(--surface)] hover:bg-[var(--border)] border border-[var(--border)] text-[var(--foreground-muted)] text-[11px] font-semibold rounded-lg transition-all duration-150"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setConfirmingDisconnect(account.id)}
-                              disabled={disconnecting === account.id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-[11px] font-semibold rounded-lg transition-all duration-150 disabled:opacity-50"
-                            >
-                              {disconnecting === account.id
-                                ? <RefreshCw className="w-3 h-3 animate-spin" />
-                                : <Trash2 className="w-3 h-3" />
-                              }
-                              Remove
-                            </button>
-                          )
+              {/* Connected accounts — collapsible dropdown */}
+              {isExpanded && (
+                <div className="bg-[var(--surface)] border-t border-[var(--border)] divide-y divide-[var(--border)] transition-all duration-200">
+                  {platformAccounts.length > 0 ? (
+                    platformAccounts.map((account) => (
+                      <div
+                        key={account.id}
+                        className="flex items-center gap-3 px-5 py-3 pl-[80px]"
+                      >
+                        {/* Avatar */}
+                        {account.avatar_url ? (
+                          <div className="w-8 h-8 rounded-full overflow-hidden border border-[var(--border)] shrink-0">
+                            <Image
+                              src={account.avatar_url}
+                              alt={account.account_name}
+                              width={32} height={32}
+                              className="object-cover w-full h-full"
+                            />
+                          </div>
+                        ) : (
+                          <div className={`w-8 h-8 rounded-full ${platform.lightBg} border ${platform.border} flex items-center justify-center shrink-0`}>
+                            <span className={`text-xs font-bold ${platform.text}`}>
+                              {account.account_name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
                         )}
+
+                        {/* Name */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-[var(--foreground)] truncate">
+                            {account.account_name}
+                          </p>
+                          <p className="text-xs text-[var(--foreground-muted)] truncate">
+                            {account.account_handle
+                              ? `@${account.account_handle.replace(/^@/, "")}`
+                              : `ID: ${account.id.substring(0, 12)}…`}
+                          </p>
+                        </div>
+
+                        {/* Status + disconnect */}
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="hidden sm:flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Active
+                          </span>
+                          {(userRole !== "CREATOR" || isSuperAdmin) && (
+                            confirmingDisconnect === account.id ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] text-[var(--foreground-muted)]">Remove?</span>
+                                <button
+                                  onClick={() => disconnectAccount(account.id)}
+                                  disabled={disconnecting === account.id}
+                                  className="px-2.5 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 text-[11px] font-semibold rounded-lg transition-all duration-150 disabled:opacity-50"
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  onClick={() => setConfirmingDisconnect(null)}
+                                  className="px-2.5 py-1.5 bg-[var(--surface)] hover:bg-[var(--border)] border border-[var(--border)] text-[var(--foreground-muted)] text-[11px] font-semibold rounded-lg transition-all duration-150"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmingDisconnect(account.id)}
+                                disabled={disconnecting === account.id}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-[11px] font-semibold rounded-lg transition-all duration-150 disabled:opacity-50"
+                              >
+                                {disconnecting === account.id
+                                  ? <RefreshCw className="w-3 h-3 animate-spin" />
+                                  : <Trash2 className="w-3 h-3" />
+                                }
+                                Remove
+                              </button>
+                            )
+                          )}
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="flex items-center gap-2 px-5 py-4 pl-[80px] text-xs text-[var(--foreground-muted)] italic">
+                      <AlertCircle className="w-3.5 h-3.5 text-[var(--foreground-muted)] shrink-0 opacity-60" />
+                      <span>No accounts connected.</span>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
 

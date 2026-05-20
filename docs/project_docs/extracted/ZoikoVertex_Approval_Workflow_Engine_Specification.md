@@ -41,7 +41,7 @@ Required metrics: Pending Review, Awaiting Validation, Awaiting Authorization, B
 4.2 Content Detail Review Screen
 Layout: three-panel enterprise layout: left context panel, center content preview, right decision and governance panel.
 Left panel: content title, campaign, project, brand, business unit, owner, creator, agent, content type, destination, market, audience, schedule, workflow status, risk level, and approval route.
-Center panel: platform-accurate preview for LinkedIn, Instagram, Facebook, TikTok, YouTube, X, Threads, mobile, and desktop variants.
+Center panel: platform-accurate preview for LinkedIn, Instagram, Facebook, YouTube, X, Threads, mobile, and desktop variants.
 Right panel: required decision, assigned role, risk classification, intelligence recommendation, citation status, faithfulness score, policy checks, brand checks, approval route, evidence status, and decision buttons.
 
 5. Review, Validation, Authorization, and Remediation Model
@@ -137,7 +137,7 @@ AI-Generated / Human-Created / Hybrid | Identifies the level of AI involvement f
 Faithfulness / Citation / Policy / Brand Status | Highlights unsupported claims, policy warnings, and brand deviations.
 Queue Column | Specification
 Content | Thumbnail, title, campaign, content type, and localization version.
-Platform | LinkedIn, Instagram, TikTok, YouTube, X, Facebook, Threads, or other connected destination.
+Platform | LinkedIn, Instagram, YouTube, X, Facebook, Threads, or other connected destination.
 Market | Country, state, region, target audience, and language.
 Owner | Human accountable for the item.
 Agent | AI agent involved, if applicable.

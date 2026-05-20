@@ -1,17 +1,20 @@
 "use client";
 
 import { Terminal, Key, Webhook, Database, Activity, Code2, Cpu, ShieldAlert } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function DeveloperConsolePage() {
+  const router = useRouter();
+
   const devOptions = [
-    { name: "API Management", desc: "Manage platform access keys and OAuth credentials.", icon: Key, status: "Active" },
-    { name: "Webhook Endpoints", desc: "Configure real-time event notifications for external systems.", icon: Webhook, status: "2 Configured" },
-    { name: "Sandbox Environment", desc: "Test agent workflows and content generation without live publishing.", icon: Database, status: "Isolated" },
-    { name: "Execution Logs", desc: "Detailed technical trace of AI decision engine and API calls.", icon: Activity, status: "Healthy" },
-    { name: "SDK & Documentation", desc: "Access the ZoikoVertex library and integration guides.", icon: Code2, status: "v1.4.2" },
-    { name: "Resource Quotas", desc: "Monitor rate limits and compute usage for your API keys.", icon: Cpu, status: "42% Used" },
-    { name: "Security Audit Logs", desc: "Low-level system access and identity verification trails.", icon: ShieldAlert, status: "Encrypted" },
-    { name: "System Diagnostics", desc: "Check health of individual platform nodes and database clusters.", icon: Activity, status: "Online" },
+    { name: "API Management", desc: "Manage platform access keys and OAuth credentials.", icon: Key, status: "Active", href: "/integrations/api" },
+    { name: "Webhook Endpoints", desc: "Configure real-time event notifications for external systems.", icon: Webhook, status: "Configure", href: "/integrations/api?tab=webhooks" },
+    { name: "Sandbox Environment", desc: "Test agent workflows and content generation without live publishing.", icon: Database, status: "Isolated", href: null },
+    { name: "Execution Logs", desc: "Detailed technical trace of AI decision engine and API calls.", icon: Activity, status: "Healthy", href: null },
+    { name: "SDK & Documentation", desc: "Access the ZoikoVertex library and integration guides.", icon: Code2, status: "v1.4.2", href: null },
+    { name: "Resource Quotas", desc: "Monitor rate limits and compute usage for your API keys.", icon: Cpu, status: "42% Used", href: null },
+    { name: "Security Audit Logs", desc: "Low-level system access and identity verification trails.", icon: ShieldAlert, status: "Encrypted", href: null },
+    { name: "System Diagnostics", desc: "Check health of individual platform nodes and database clusters.", icon: Activity, status: "Online", href: "/integrations/health" },
   ];
 
   return (
@@ -30,7 +33,11 @@ export default function DeveloperConsolePage() {
         {devOptions.map((opt) => {
           const Icon = opt.icon;
           return (
-            <div key={opt.name} className="p-5 rounded-2xl bg-[#111] border border-[#222] hover:border-indigo-500/30 transition-all group">
+            <div
+              key={opt.name}
+              onClick={() => opt.href && router.push(opt.href)}
+              className={`p-5 rounded-2xl bg-[#111] border border-[#222] transition-all group ${opt.href ? "hover:border-indigo-500/30 cursor-pointer" : "opacity-60"}`}
+            >
               <div className="flex items-center justify-between mb-4">
                 <div className="p-2 rounded-lg bg-[#1a1a1a] group-hover:bg-indigo-500/10 transition-colors">
                   <Icon className="w-5 h-5 text-[#888] group-hover:text-indigo-400" />

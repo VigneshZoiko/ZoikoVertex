@@ -197,6 +197,39 @@ export class KnowledgeController {
   }
 
   /**
+   * Update an entry
+   */
+  static async updateEntry(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { entryId } = req.params;
+      const { title, content, source_url } = req.body;
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
+
+      // Join check to ensure entry's base belongs to org
+      const { data: entry } = await supabaseAdmin
+        .from('knowledge_entries')
+        .select('id, knowledge_bases!inner(org_id)')
+        .eq('id', entryId)
+        .eq('knowledge_bases.org_id', orgId)
+        .single();
+
+      if (!entry) return res.status(404).json({ error: 'Entry not found' });
+
+      const { data, error } = await supabaseAdmin
+        .from('knowledge_entries')
+        .update({ title, content, source_url, updated_at: new Date().toISOString() })
+        .eq('id', entryId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * ─── AI CONTEXT ENDPOINT ─────────────────────────────────────────────────────
    * Assembles a complete, structured knowledge context for the org's AI services.
    * Called internally by the intelligence controller before each generation run.

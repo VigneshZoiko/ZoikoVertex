@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
 import {
   RefreshCw, CheckCircle2, AlertCircle, XCircle,
-  Activity, Link2, Zap, Clock, AlertTriangle,
+  Activity, Link2, Zap, Clock, AlertTriangle, Webhook,
 } from "lucide-react";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
@@ -13,8 +13,18 @@ interface Account {
   platform: string;
   account_name: string;
   account_handle: string;
+  avatar_url: string | null;
   status: string;
   created_at: string;
+}
+
+interface WebhookEndpoint {
+  id: string;
+  name: string;
+  url: string;
+  events: string[];
+  last_triggered_at: string | null;
+  failure_count: number;
 }
 
 interface PlatformStat {
@@ -50,24 +60,28 @@ interface HealthData {
   platform_breakdown: Record<string, PlatformStat>;
   failed_jobs: FailedJob[];
   recent_errors: ErrorLog[];
+  webhooks: {
+    active_count: number;
+    endpoints: WebhookEndpoint[];
+    delivery_total: number;
+    delivery_success: number;
+    health_pct: number;
+  };
 }
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
-const PLATFORM_COLORS: Record<string, string> = {
-  facebook:  "#1877F2",
-  instagram: "#E4405F",
-  linkedin:  "#0A66C2",
-  twitter:   "#1DA1F2",
-  threads:   "#000000",
-  pinterest: "#E60023",
+const PLATFORM_META: Record<string, { color: string; bg: string; label: string }> = {
+  facebook:  { color: "#1877F2", bg: "#1877F220", label: "Facebook"  },
+  instagram: { color: "#E4405F", bg: "#E4405F20", label: "Instagram" },
+  linkedin:  { color: "#0A66C2", bg: "#0A66C220", label: "LinkedIn"  },
+  twitter:   { color: "#1DA1F2", bg: "#1DA1F220", label: "Twitter"   },
+  threads:   { color: "#aaaaaa", bg: "#aaaaaa20", label: "Threads"   },
+  pinterest: { color: "#E60023", bg: "#E6002320", label: "Pinterest" },
+  youtube:   { color: "#FF0000", bg: "#FF000020", label: "YouTube"   },
 };
 
-function platformColor(p: string) {
-  return PLATFORM_COLORS[p.toLowerCase()] ?? "#6B7280";
-}
-
-function capitalize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
+function pm(p: string) {
+  return PLATFORM_META[p.toLowerCase()] ?? { color: "#6B7280", bg: "#6B728020", label: p };
 }
 
 function timeAgo(iso: string) {
@@ -80,22 +94,37 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function scoreColor(score: number) {
-  if (score >= 90) return { text: "text-emerald-400", bg: "bg-emerald-500", ring: "border-emerald-500/40", label: "Healthy" };
-  if (score >= 70) return { text: "text-amber-400",   bg: "bg-amber-500",   ring: "border-amber-500/40",   label: "Degraded" };
-  return               { text: "text-rose-400",   bg: "bg-rose-500",     ring: "border-rose-500/40",     label: "Critical" };
+function scoreColor(s: number) {
+  if (s >= 90) return { text: "text-emerald-400", stroke: "#10b981", ring: "border-emerald-500/30", label: "Healthy" };
+  if (s >= 70) return { text: "text-amber-400",   stroke: "#f59e0b", ring: "border-amber-500/30",   label: "Degraded" };
+  return             { text: "text-rose-400",     stroke: "#f43f5e", ring: "border-rose-500/30",     label: "Critical" };
 }
 
 function successRate(stat: PlatformStat) {
-  const total = stat.published + stat.failed;
-  return total > 0 ? Math.round((stat.published / total) * 100) : 100;
+  const t = stat.published + stat.failed;
+  return t > 0 ? Math.round((stat.published / t) * 100) : 100;
+}
+
+function StatCard({ icon, label, value, sub, accent }: {
+  icon: React.ReactNode; label: string; value: number | string; sub: string; accent?: string;
+}) {
+  return (
+    <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5">
+      <div className="flex items-center gap-2 mb-2">
+        <span className={accent ?? "text-[var(--foreground-muted)]"}>{icon}</span>
+        <p className="text-xs text-[var(--foreground-muted)]">{label}</p>
+      </div>
+      <p className={`text-2xl font-bold ${accent ?? "text-[var(--foreground)]"}`}>{value}</p>
+      <p className="text-[11px] text-[var(--foreground-muted)] mt-0.5">{sub}</p>
+    </div>
+  );
 }
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
 export default function HealthPage() {
-  const [data, setData]         = useState<HealthData | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
+  const [data, setData]           = useState<HealthData | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState<string | null>(null);
   const [refreshed, setRefreshed] = useState<Date | null>(null);
 
   const fetchHealth = useCallback(async () => {
@@ -118,7 +147,6 @@ export default function HealthPage() {
 
   useEffect(() => { fetchHealth(); }, [fetchHealth]);
 
-  /* ── Loading ── */
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -127,7 +155,6 @@ export default function HealthPage() {
     );
   }
 
-  /* ── Error ── */
   if (error && !data) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
@@ -141,7 +168,22 @@ export default function HealthPage() {
   if (!data) return null;
 
   const sc = scoreColor(data.health_score);
-  const platforms = Object.entries(data.platform_breakdown);
+  const wh = data.webhooks;
+
+  // Build platform list from connected accounts — always shows real data.
+  // Overlay post stats from platform_breakdown when available.
+  const platformMap: Record<string, { stat: PlatformStat; accountCount: number }> = {};
+  data.accounts.forEach((acc) => {
+    const key = acc.platform.toLowerCase();
+    if (!platformMap[key]) platformMap[key] = { stat: { published: 0, failed: 0, scheduled: 0 }, accountCount: 0 };
+    platformMap[key].accountCount++;
+  });
+  Object.entries(data.platform_breakdown).forEach(([p, stat]) => {
+    const key = p.toLowerCase();
+    if (!platformMap[key]) platformMap[key] = { stat, accountCount: 0 };
+    else platformMap[key].stat = stat;
+  });
+  const platforms = Object.entries(platformMap);
 
   return (
     <div className="space-y-6 p-6 max-w-6xl mx-auto">
@@ -164,17 +206,15 @@ export default function HealthPage() {
         </button>
       </div>
 
-      {/* ── Score + Stats Row ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* ── Score Row ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
 
-        {/* Health Score */}
+        {/* Health Score Ring */}
         <div className={`col-span-2 sm:col-span-1 bg-[var(--card)] border ${sc.ring} rounded-2xl p-5 flex items-center gap-4`}>
           <div className="relative w-14 h-14 shrink-0">
             <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
               <circle cx="28" cy="28" r="22" fill="none" stroke="var(--border)" strokeWidth="5" />
-              <circle
-                cx="28" cy="28" r="22" fill="none"
-                stroke={data.health_score >= 90 ? "#10b981" : data.health_score >= 70 ? "#f59e0b" : "#f43f5e"}
+              <circle cx="28" cy="28" r="22" fill="none" stroke={sc.stroke}
                 strokeWidth="5"
                 strokeDasharray={`${(data.health_score / 100) * 138.2} 138.2`}
                 strokeLinecap="round"
@@ -190,70 +230,73 @@ export default function HealthPage() {
           </div>
         </div>
 
-        {/* Accounts */}
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Link2 className="w-4 h-4 text-[var(--foreground-muted)]" />
-            <p className="text-xs text-[var(--foreground-muted)]">Connected</p>
-          </div>
-          <p className="text-2xl font-bold text-[var(--foreground)]">{data.stats.total_accounts}</p>
-          <p className="text-[11px] text-[var(--foreground-muted)] mt-0.5">accounts</p>
-        </div>
-
-        {/* Published */}
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <p className="text-xs text-[var(--foreground-muted)]">Published</p>
-          </div>
-          <p className="text-2xl font-bold text-[var(--foreground)]">{data.stats.published}</p>
-          <p className="text-[11px] text-[var(--foreground-muted)] mt-0.5">last 7 days</p>
-        </div>
-
-        {/* Failed */}
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <XCircle className="w-4 h-4 text-rose-400" />
-            <p className="text-xs text-[var(--foreground-muted)]">Failed</p>
-          </div>
-          <p className="text-2xl font-bold text-[var(--foreground)]">{data.stats.failed}</p>
-          <p className="text-[11px] text-[var(--foreground-muted)] mt-0.5">last 7 days</p>
-        </div>
+        <StatCard icon={<Link2 className="w-4 h-4" />}        label="Connected"  value={data.stats.total_accounts} sub="accounts"      />
+        <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="Published"  value={data.stats.published}      sub="last 7 days"   accent="text-emerald-400" />
+        <StatCard icon={<XCircle className="w-4 h-4" />}      label="Failed"     value={data.stats.failed}         sub="last 7 days"   accent={data.stats.failed > 0 ? "text-rose-400" : undefined} />
+        <StatCard icon={<Webhook className="w-4 h-4" />}      label="Webhooks"   value={wh.active_count}           sub={wh.delivery_total > 0 ? `${wh.health_pct}% delivery rate` : "no deliveries"} accent={wh.health_pct < 80 ? "text-amber-400" : undefined} />
       </div>
 
-      {/* ── Accounts + Platform Breakdown ── */}
+      {/* ── Connected Accounts + Platform Breakdown ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* Connected Accounts */}
+        {/* Connected Accounts — real data, active only */}
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden">
           <div className="px-5 py-4 border-b border-[var(--border)] flex items-center gap-2">
             <Activity className="w-4 h-4 text-[var(--foreground-muted)]" />
             <h2 className="text-sm font-semibold text-[var(--foreground)]">Connected Accounts</h2>
+            <span className="ml-auto text-[11px] text-[var(--foreground-muted)]">{data.stats.total_accounts} active</span>
           </div>
+
           {data.accounts.length === 0 ? (
-            <div className="px-5 py-10 text-center text-xs text-[var(--foreground-muted)]">
-              No accounts connected yet.
+            <div className="px-5 py-12 flex flex-col items-center gap-2 text-center">
+              <Link2 className="w-6 h-6 text-[var(--foreground-muted)] opacity-40" />
+              <p className="text-sm text-[var(--foreground-muted)]">No accounts connected</p>
+              <p className="text-xs text-[var(--foreground-muted)] opacity-60">Connect social accounts from Platform Accounts</p>
             </div>
           ) : (
             <div className="divide-y divide-[var(--border)]">
-              {data.accounts.map((acc) => (
-                <div key={acc.id} className="flex items-center gap-3 px-5 py-3">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
-                    style={{ backgroundColor: platformColor(acc.platform) }}
-                  >
-                    {acc.platform.charAt(0).toUpperCase()}
+              {data.accounts.map((acc) => {
+                const meta = pm(acc.platform);
+                return (
+                  <div key={acc.id} className="flex items-center gap-3 px-5 py-3.5">
+                    {/* Avatar or platform initial */}
+                    {acc.avatar_url ? (
+                      <img src={acc.avatar_url} alt={acc.account_name}
+                        className="w-9 h-9 rounded-full object-cover shrink-0 border border-[var(--border)]"
+                      />
+                    ) : (
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        style={{ backgroundColor: meta.color }}
+                      >
+                        {acc.platform.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[var(--foreground)] truncate">{acc.account_name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                          style={{ color: meta.color, backgroundColor: meta.bg }}
+                        >
+                          {meta.label}
+                        </span>
+                        {acc.account_handle && (
+                          <span className="text-[11px] text-[var(--foreground-muted)] truncate">
+                            @{acc.account_handle.replace(/^@/, '')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span className="text-[11px] text-emerald-400 font-medium">Live</span>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--foreground)] truncate">{acc.account_name}</p>
-                    <p className="text-[11px] text-[var(--foreground-muted)] truncate">{capitalize(acc.platform)}</p>
-                  </div>
-                  <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full shrink-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    Active
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -265,40 +308,61 @@ export default function HealthPage() {
             <h2 className="text-sm font-semibold text-[var(--foreground)]">Platform Breakdown</h2>
             <span className="text-[11px] text-[var(--foreground-muted)] ml-auto">last 7 days</span>
           </div>
+
           {platforms.length === 0 ? (
-            <div className="px-5 py-10 text-center text-xs text-[var(--foreground-muted)]">
-              No publish activity yet.
+            <div className="px-5 py-12 flex flex-col items-center gap-2 text-center">
+              <Link2 className="w-6 h-6 text-[var(--foreground-muted)] opacity-40" />
+              <p className="text-sm text-[var(--foreground-muted)]">No accounts connected</p>
+              <p className="text-xs text-[var(--foreground-muted)] opacity-60">Connect social accounts to see platform stats</p>
             </div>
           ) : (
             <div className="divide-y divide-[var(--border)]">
-              {platforms.map(([platform, stat]) => {
-                const rate = successRate(stat);
-                const color = platformColor(platform);
+              {platforms.map(([platform, { stat, accountCount }]) => {
+                const hasActivity = stat.published + stat.failed + stat.scheduled > 0;
+                const rate  = successRate(stat);
+                const meta  = pm(platform);
                 return (
-                  <div key={platform} className="px-5 py-3.5">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: color }}>
+                  <div key={platform} className="px-5 py-4">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-bold shrink-0"
+                          style={{ backgroundColor: meta.color }}
+                        >
                           {platform.charAt(0).toUpperCase()}
                         </div>
-                        <span className="text-sm font-medium text-[var(--foreground)]">{capitalize(platform)}</span>
+                        <div>
+                          <span className="text-sm font-medium text-[var(--foreground)]">{meta.label}</span>
+                          <p className="text-[10px] text-[var(--foreground-muted)]">{accountCount} account{accountCount !== 1 ? 's' : ''} connected</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 text-[11px] text-[var(--foreground-muted)]">
-                        <span className="text-emerald-400 font-semibold">{stat.published} ok</span>
-                        {stat.failed > 0 && <span className="text-rose-400 font-semibold">{stat.failed} failed</span>}
-                        {stat.scheduled > 0 && <span>{stat.scheduled} pending</span>}
+                      <div className="flex items-center gap-3 text-[11px]">
+                        {hasActivity ? (
+                          <>
+                            <span className="text-emerald-400 font-semibold">{stat.published} ok</span>
+                            {stat.failed > 0    && <span className="text-rose-400 font-semibold">{stat.failed} failed</span>}
+                            {stat.scheduled > 0 && <span className="text-[var(--foreground-muted)]">{stat.scheduled} pending</span>}
+                          </>
+                        ) : (
+                          <span className="text-[var(--foreground-muted)] italic">no posts yet</span>
+                        )}
                       </div>
                     </div>
                     <div className="h-1.5 bg-[var(--surface)] rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{
-                          width: `${rate}%`,
-                          backgroundColor: rate >= 90 ? "#10b981" : rate >= 70 ? "#f59e0b" : "#f43f5e",
+                          width: hasActivity ? `${rate}%` : '100%',
+                          backgroundColor: hasActivity
+                            ? (rate >= 90 ? "#10b981" : rate >= 70 ? "#f59e0b" : "#f43f5e")
+                            : meta.color,
+                          opacity: hasActivity ? 1 : 0.25,
                         }}
                       />
                     </div>
-                    <p className="text-[10px] text-[var(--foreground-muted)] mt-1 text-right">{rate}% success rate</p>
+                    <p className="text-[10px] text-[var(--foreground-muted)] mt-1 text-right">
+                      {hasActivity ? `${rate}% success rate` : 'No activity in last 7 days'}
+                    </p>
                   </div>
                 );
               })}
@@ -306,6 +370,54 @@ export default function HealthPage() {
           )}
         </div>
       </div>
+
+      {/* ── Webhook Endpoints ── */}
+      {wh.active_count > 0 && (
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-[var(--border)] flex items-center gap-2">
+            <Webhook className="w-4 h-4 text-[var(--foreground-muted)]" />
+            <h2 className="text-sm font-semibold text-[var(--foreground)]">Active Webhooks</h2>
+            <span className="ml-auto flex items-center gap-2 text-[11px]">
+              {wh.delivery_total > 0 && (
+                <span className={wh.health_pct >= 90 ? "text-emerald-400 font-semibold" : "text-amber-400 font-semibold"}>
+                  {wh.health_pct}% delivery rate
+                </span>
+              )}
+              <span className="text-[var(--foreground-muted)]">{wh.delivery_total} deliveries / 7d</span>
+            </span>
+          </div>
+          <div className="divide-y divide-[var(--border)]">
+            {wh.endpoints.map((ep) => (
+              <div key={ep.id} className="flex items-center gap-4 px-5 py-3.5">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[var(--foreground)] truncate">{ep.name}</p>
+                  <p className="text-[11px] text-[var(--foreground-muted)] truncate mt-0.5">{ep.url}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {ep.failure_count > 0 && (
+                    <span className="text-[11px] text-amber-400 font-semibold">{ep.failure_count} failures</span>
+                  )}
+                  {ep.last_triggered_at && (
+                    <span className="text-[11px] text-[var(--foreground-muted)]">{timeAgo(ep.last_triggered_at)}</span>
+                  )}
+                  <div className="flex gap-1 flex-wrap max-w-[160px] justify-end">
+                    {ep.events.slice(0, 3).map((ev) => (
+                      <span key={ev} className="text-[10px] px-1.5 py-0.5 bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] rounded font-mono">
+                        {ev}
+                      </span>
+                    ))}
+                    {ep.events.length > 3 && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] rounded">
+                        +{ep.events.length - 3}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Failed Jobs ── */}
       {data.failed_jobs.length > 0 && (
@@ -318,34 +430,35 @@ export default function HealthPage() {
             </span>
           </div>
           <div className="divide-y divide-[var(--border)]">
-            {data.failed_jobs.map((job, i) => (
-              <div key={i} className="flex items-start gap-4 px-5 py-3.5">
-                <div
-                  className="w-7 h-7 rounded flex items-center justify-center text-white text-[10px] font-bold shrink-0 mt-0.5"
-                  style={{ backgroundColor: job.post ? platformColor(job.post.platform) : "#6B7280" }}
-                >
-                  {job.post ? job.post.platform.charAt(0).toUpperCase() : "?"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-[var(--foreground)] truncate">
-                    {job.post?.content?.slice(0, 80) || "Unknown post"}
-                    {(job.post?.content?.length ?? 0) > 80 ? "…" : ""}
-                  </p>
-                  <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-[11px] text-[var(--foreground-muted)]">
-                      {job.post ? capitalize(job.post.platform) : "Unknown"}
-                    </span>
-                    {job.retry_count > 0 && (
-                      <span className="text-[11px] text-amber-400">{job.retry_count} retries</span>
-                    )}
-                    <span className="text-[11px] text-[var(--foreground-muted)]">{timeAgo(job.created_at)}</span>
+            {data.failed_jobs.map((job, i) => {
+              const meta = job.post ? pm(job.post.platform) : pm('unknown');
+              return (
+                <div key={i} className="flex items-start gap-4 px-5 py-3.5">
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0 mt-0.5"
+                    style={{ backgroundColor: meta.color }}
+                  >
+                    {job.post ? job.post.platform.charAt(0).toUpperCase() : "?"}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-[var(--foreground)] truncate">
+                      {job.post?.content?.slice(0, 80) || "Unknown post"}
+                      {(job.post?.content?.length ?? 0) > 80 ? "…" : ""}
+                    </p>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <span className="text-[11px] text-[var(--foreground-muted)]">{meta.label}</span>
+                      {job.retry_count > 0 && (
+                        <span className="text-[11px] text-amber-400">{job.retry_count} retries</span>
+                      )}
+                      <span className="text-[11px] text-[var(--foreground-muted)]">{timeAgo(job.created_at)}</span>
+                    </div>
+                  </div>
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold rounded-full shrink-0">
+                    <XCircle className="w-3 h-3" /> Failed
+                  </span>
                 </div>
-                <span className="flex items-center gap-1 px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold rounded-full shrink-0">
-                  <XCircle className="w-3 h-3" /> Failed
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -377,7 +490,7 @@ export default function HealthPage() {
         </div>
       )}
 
-      {/* Empty state when everything is healthy */}
+      {/* ── All clear ── */}
       {data.failed_jobs.length === 0 && data.recent_errors.length === 0 && (
         <div className="bg-[var(--card)] border border-emerald-500/20 rounded-2xl p-8 flex flex-col items-center gap-3">
           <CheckCircle2 className="w-8 h-8 text-emerald-400" />

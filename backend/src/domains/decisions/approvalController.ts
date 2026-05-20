@@ -6,6 +6,7 @@ import { internalEventBus } from '../../shared/internalEventBus';
 import { evaluateIntent } from './decisionEngine';
 import { RiskClassifier } from './riskClassifier';
 import { logAuditEvent } from '../governance/evidenceController';
+import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
 
 // Which statuses each role sees in the queue
 const ROLE_QUEUE_STATUSES: Record<string, string[]> = {
@@ -106,6 +107,15 @@ export const submitForReview = async (req: AuthRequest, res: Response, next: Nex
       riskLevel: assessment.level,
       metadata: { initialStatus },
     });
+
+    broadcastWebhookEvent(member.workspace_id, 'approval.requested', {
+      intent_id: data.id,
+      platform,
+      content: content.substring(0, 500),
+      risk_level: assessment.level,
+      status: initialStatus,
+      submitted_at: new Date().toISOString(),
+    }).catch(() => {});
 
     res.status(201).json({ success: true, data, risk: assessment });
   } catch (error) {
@@ -309,6 +319,16 @@ export const takeApprovalAction = async (req: AuthRequest, res: Response, next: 
       riskLevel: intent.risk_level,
       metadata: { action, nextStatus, role },
     });
+
+    broadcastWebhookEvent(intent.workspace_id, 'approval.completed', {
+      intent_id: id,
+      action,
+      new_status: nextStatus,
+      platform: intent.platform,
+      content: (intent.content || '').substring(0, 500),
+      feedback: feedback || null,
+      decided_at: new Date().toISOString(),
+    }).catch(() => {});
 
     res.json({ success: true, newStatus: nextStatus });
   } catch (error) {
