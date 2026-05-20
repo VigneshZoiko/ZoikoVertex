@@ -8,9 +8,10 @@ import {
   Plus, 
   Trash2, 
   Link as LinkIcon, 
-  FileText, 
+  FileText,
   ChevronRight,
   Loader2,
+  CheckCircle2,
   Globe,
   ShieldCheck,
   Search,
@@ -59,6 +60,8 @@ export default function KnowledgePage() {
   const [selectedBase, setSelectedBase] = useState<KnowledgeBase | null>(null);
   const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
   const [fetchingEntries, setFetchingEntries] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   
   // Modals
   const [showCreateBase, setShowCreateBase] = useState(false);
@@ -72,6 +75,13 @@ export default function KnowledgePage() {
   const [creatingEntry, setCreatingEntry] = useState(false);
   const [creatingBase, setCreatingBase] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+
+  // Edit Entry States
+  const [editingEntry, setEditingEntry] = useState<KnowledgeEntry | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Brand Asset States
   const [primaryColor, setPrimaryColor] = useState("");
@@ -95,6 +105,7 @@ export default function KnowledgePage() {
 
   const fetchEntries = async (baseId: string) => {
     setFetchingEntries(true);
+    setCurrentPage(1);
     try {
       const result = await api.get(`/api/v1/knowledge/bases/${baseId}/entries`);
       if (result.success) {
@@ -187,6 +198,39 @@ export default function KnowledgePage() {
       setEntries(entries.filter(e => e.id !== entryId));
     } catch (err) {
       console.error("Failed to delete entry", err);
+    }
+  };
+
+  const handleDeleteBase = async () => {
+    if (!selectedBase) return;
+    if (!confirm(`Are you sure you want to delete the knowledge base "${selectedBase.name}"? This will permanently delete all its entries.`)) return;
+    try {
+      await api.delete(`/api/v1/knowledge/bases/${selectedBase.id}`);
+      setBases(bases.filter(b => b.id !== selectedBase.id));
+      setSelectedBase(null);
+      setEntries([]);
+    } catch (err) {
+      console.error("Failed to delete base", err);
+    }
+  };
+
+  const handleUpdateEntry = async () => {
+    if (!editingEntry) return;
+    setIsUpdating(true);
+    try {
+      const result = await api.put(`/api/v1/knowledge/entries/${editingEntry.id}`, {
+        title: editTitle,
+        content: editContent,
+        source_url: editUrl
+      });
+      if (result.success) {
+        setEntries(entries.map(e => e.id === editingEntry.id ? result.data : e));
+        setEditingEntry(null);
+      }
+    } catch (err) {
+      console.error("Failed to update entry", err);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -352,13 +396,22 @@ export default function KnowledgePage() {
                   <h2 className="text-xl font-bold text-white">{selectedBase.name}</h2>
                   <p className="text-xs text-zinc-500 font-medium mt-1">{selectedBase.description}</p>
                 </div>
-                <button 
-                  onClick={() => setShowCreateEntry(true)}
-                  className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-black hover:bg-indigo-600 transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20"
-                >
-                  <Plus className="w-4 h-4" />
-                  NEW ENTRY
-                </button>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={handleDeleteBase}
+                    className="p-2 bg-zinc-900 text-zinc-500 rounded-xl hover:bg-rose-500/10 hover:text-rose-500 border border-zinc-800 transition-all shadow-lg"
+                    title="Delete Knowledge Base"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setShowCreateEntry(true)}
+                    className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-black hover:bg-indigo-600 transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+                  >
+                    <Plus className="w-4 h-4" />
+                    NEW ENTRY
+                  </button>
+                </div>
               </div>
 
               <div className="flex-1 p-8">
@@ -368,41 +421,84 @@ export default function KnowledgePage() {
                     <span className="text-xs font-bold uppercase tracking-widest">Retrieving entries...</span>
                   </div>
                 ) : entries.length > 0 ? (
-                  <div className="space-y-4">
-                    {entries.map(entry => (
-                      <div key={entry.id} className="group bg-zinc-950/50 border border-zinc-800/50 rounded-2xl p-6 hover:border-zinc-700 transition-all">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="space-y-3 flex-1">
-                            <div className="flex items-center gap-2">
-                              {entry.source_url ? (
-                                <Globe className="w-4 h-4 text-emerald-400" />
-                              ) : (
-                                <FileText className="w-4 h-4 text-blue-400" />
-                              )}
-                              <h3 className="font-bold text-white">{entry.title}</h3>
-                            </div>
-                            
-                            {entry.content && (
-                              <p className="text-sm text-zinc-400 leading-relaxed line-clamp-3">{entry.content}</p>
-                            )}
-
-                            {entry.source_url && (
-                              <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-lg w-fit">
-                                <LinkIcon className="w-3 h-3 text-zinc-500" />
-                                <span className="text-[10px] text-zinc-500 font-medium">{entry.source_url}</span>
+                  <div className="space-y-4 flex flex-col h-full">
+                    <div className="space-y-4 flex-1">
+                      {entries.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map(entry => (
+                        <div key={entry.id} className="group bg-zinc-950/50 border border-zinc-800/50 rounded-2xl p-6 hover:border-zinc-700 transition-all">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="space-y-3 flex-1">
+                              <div className="flex items-center gap-2">
+                                {entry.source_url ? (
+                                  <Globe className="w-4 h-4 text-emerald-400" />
+                                ) : (
+                                  <FileText className="w-4 h-4 text-blue-400" />
+                                )}
+                                <h3 className="font-bold text-white">{entry.title}</h3>
                               </div>
-                            )}
+                              
+                              {entry.content && (
+                                <p className="text-sm text-zinc-400 leading-relaxed line-clamp-3">{entry.content}</p>
+                              )}
+  
+                              {entry.source_url && (
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-lg w-fit">
+                                  <LinkIcon className="w-3 h-3 text-zinc-500" />
+                                  <span className="text-[10px] text-zinc-500 font-medium">{entry.source_url}</span>
+                                </div>
+                              )}
+                            </div>
+  
+                            <div className="flex items-center gap-1">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingEntry(entry);
+                                  setEditTitle(entry.title);
+                                  setEditContent(entry.content || "");
+                                  setEditUrl(entry.source_url || "");
+                                }}
+                                className="p-2 text-zinc-600 hover:text-indigo-400 transition-colors"
+                              >
+                                <span className="sr-only">Edit</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteEntry(entry.id)}
+                                className="p-2 text-zinc-600 hover:text-rose-500 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
-
-                          <button 
-                            onClick={() => handleDeleteEntry(entry.id)}
-                            className="p-2 text-zinc-600 hover:text-rose-500 transition-colors"
+                        </div>
+                      ))}
+                    </div>
+                    {Math.ceil(entries.length / ITEMS_PER_PAGE) > 1 && (
+                      <div className="flex items-center justify-between pt-6 mt-4 border-t border-zinc-800/50">
+                        <span className="text-xs text-zinc-500 font-medium">
+                          Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, entries.length)} of {entries.length} entries
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            Previous
+                          </button>
+                          <div className="px-3 py-1.5 text-xs font-semibold text-white">
+                            {currentPage} / {Math.ceil(entries.length / ITEMS_PER_PAGE)}
+                          </div>
+                          <button
+                            onClick={() => setCurrentPage(p => Math.min(Math.ceil(entries.length / ITEMS_PER_PAGE), p + 1))}
+                            disabled={currentPage === Math.ceil(entries.length / ITEMS_PER_PAGE)}
+                            className="px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Next
                           </button>
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-40">
@@ -660,6 +756,73 @@ export default function KnowledgePage() {
                   <>
                     <Plus className="w-4 h-4" />
                     COMMIT ENTRY TO BASE
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Entry */}
+      {editingEntry && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                </div>
+                <h3 className="text-lg font-bold text-white">Edit Entry</h3>
+              </div>
+              <button onClick={() => setEditingEntry(null)} className="text-zinc-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            
+            <div className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Title / Headline</label>
+                <input 
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 transition-all"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Source URL (Optional)</label>
+                <div className="relative">
+                  <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-700" />
+                  <input 
+                    value={editUrl}
+                    onChange={(e) => setEditUrl(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-11 pr-4 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Content / Body</label>
+                <textarea 
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 transition-all min-h-[300px] resize-none text-sm"
+                />
+              </div>
+
+              <button 
+                onClick={handleUpdateEntry}
+                disabled={isUpdating || !editTitle}
+                className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-2"
+              >
+                {isUpdating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    SAVING CHANGES...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    SAVE CHANGES
                   </>
                 )}
               </button>

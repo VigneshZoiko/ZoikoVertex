@@ -180,7 +180,7 @@ Claim Lineage | Verifies that factual statements are backed by approved source a
 Cultural Resonancy | Checks whether language, metaphor, idiom, humor, and timing fit the target market.
 Executive Proxemics | Ensures content for investors, board members, regulators, and enterprise buyers uses reserved executive tone.
 Visual Compliance | Checks asset use, logo treatment, colors, typography, image rules, and template fit.
-Platform Fit | Evaluates whether content is suitable for LinkedIn, X, Instagram, TikTok, YouTube, Facebook, or other connected channels.
+Platform Fit | Evaluates whether content is suitable for LinkedIn, X, Instagram, YouTube, Facebook, or other connected channels.
 Remediation Vector | Returns precise rewrite instruction to the agent or creator, not just a pass/fail result.
 Score | Status | Required Action
 95-100 | Certified Brand-Aligned | Eligible for normal workflow based on autonomy level and policy rules.

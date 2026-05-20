@@ -2,6 +2,7 @@
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { internalEventBus } from '../../shared/internalEventBus';
+import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
 
 export function registerExecutionListeners(): void {
   internalEventBus.on('execution.requested', (payload: unknown) => {
@@ -76,11 +77,21 @@ export class ExecutionService {
       // 3. Update final status
       await supabaseAdmin
         .from('publish_intents')
-        .update({ 
+        .update({
           status: allSuccessful ? 'PUBLISHED' : 'FAILED',
           feedback: allSuccessful ? null : (firstError || 'One or more platforms failed to publish.')
         })
         .eq('id', intentId);
+
+      // 4. Broadcast webhook event
+      broadcastWebhookEvent(intent.workspace_id, allSuccessful ? 'post.published' : 'post.failed', {
+        intent_id: intentId,
+        platform: intent.platform,
+        content: (intent.content || '').substring(0, 500),
+        status: allSuccessful ? 'PUBLISHED' : 'FAILED',
+        error: allSuccessful ? undefined : (firstError || 'One or more platforms failed'),
+        published_at: new Date().toISOString(),
+      }).catch(() => {});
 
     } catch (err) {
       logger.error({ err }, `[Execution] Fatal error during publication of ${intentId}`);
@@ -104,8 +115,6 @@ export class ExecutionService {
         return await this.postToTwitter(intent, account);
       } else if (account.platform === 'youtube') {
         return await this.postToYoutube(intent, account);
-      } else if (account.platform === 'tiktok') {
-        return await this.postToTikTok(intent, account);
       }
       return { success: false, platform: account.platform, error: `Unsupported platform: ${account.platform}` };
     } catch (err: any) {
@@ -663,115 +672,4 @@ export class ExecutionService {
     }
   }
 
-  private static async postToTikTok(intent: any, account: any): Promise<PublishResult> {
-    logger.info(`[Execution] Posting to TikTok for @${account.account_handle}...`);
-    try {
-      if (!intent.media_url) throw new Error('TikTok requires a video URL to publish.');
-      if (!this.isVideoUrl(intent.media_url)) throw new Error('TikTok only supports video content.');
-
-      const title = (intent.content || intent.title || 'ZoikoVertex Upload').substring(0, 150);
-
-      // Step 1: Fetch video bytes (FILE_UPLOAD avoids domain verification requirement)
-      logger.info(`[Execution] Fetching video bytes for TikTok FILE_UPLOAD...`);
-      const videoRes = await fetch(intent.media_url);
-      if (!videoRes.ok) throw new Error(`Failed to fetch video: ${videoRes.status} ${videoRes.statusText}`);
-      const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
-      const videoSize = videoBuffer.length;
-      logger.info(`[Execution] TikTok video fetched: ${(videoSize / 1024 / 1024).toFixed(2)}MB`);
-
-      // Step 2: Calculate chunks (TikTok requires 5MB–64MB per chunk, except last)
-      const MIN_CHUNK = 5 * 1024 * 1024;
-      const MAX_CHUNK = 64 * 1024 * 1024;
-      const chunkSize = videoSize <= MIN_CHUNK ? videoSize : Math.min(MAX_CHUNK, Math.max(MIN_CHUNK, videoSize));
-      const totalChunks = Math.ceil(videoSize / chunkSize);
-
-      // Step 3: Init FILE_UPLOAD
-      const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${account.access_token}`,
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: JSON.stringify({
-          post_info: {
-            title,
-            privacy_level: 'SELF_ONLY',
-            disable_duet: true,
-            disable_comment: true,
-            disable_stitch: true,
-            video_cover_timestamp_ms: 1000,
-          },
-          source_info: {
-            source: 'FILE_UPLOAD',
-            video_size: videoSize,
-            chunk_size: chunkSize,
-            total_chunk_count: totalChunks,
-          },
-        }),
-      });
-
-      const initData = await initRes.json();
-      logger.info({ initData }, '[Execution] TikTok init response');
-      const errCode = initData.error?.code;
-      if (errCode && errCode !== 'ok') {
-        throw new Error(initData.error?.message || `TikTok init error: ${errCode}`);
-      }
-
-      const publishId: string = initData.data?.publish_id;
-      const uploadUrl: string = initData.data?.upload_url;
-      if (!publishId || !uploadUrl) throw new Error('TikTok did not return publish_id or upload_url');
-      logger.info(`[Execution] TikTok FILE_UPLOAD init ok — publish_id: ${publishId}, chunks: ${totalChunks}`);
-
-      // Step 4: Upload chunks
-      for (let i = 0; i < totalChunks; i++) {
-        const start = i * chunkSize;
-        const end = Math.min(start + chunkSize, videoSize);
-        const chunk = videoBuffer.slice(start, end);
-
-        logger.info(`[Execution] TikTok uploading chunk ${i + 1}/${totalChunks} (bytes ${start}-${end - 1})...`);
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'video/mp4',
-            'Content-Range': `bytes ${start}-${end - 1}/${videoSize}`,
-            'Content-Length': String(chunk.length),
-          },
-          body: chunk,
-        });
-
-        if (!uploadRes.ok && uploadRes.status !== 206) {
-          const errBody = await uploadRes.text();
-          throw new Error(`TikTok chunk ${i + 1} upload failed (${uploadRes.status}): ${errBody}`);
-        }
-        logger.info(`[Execution] TikTok chunk ${i + 1}/${totalChunks} uploaded (HTTP ${uploadRes.status})`);
-      }
-
-      // Step 5: Poll publish status (up to 60s)
-      for (let attempt = 0; attempt < 15; attempt++) {
-        await new Promise(r => setTimeout(r, 4000));
-        const statusRes = await fetch('https://open.tiktokapis.com/v2/post/publish/status/fetch/', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${account.access_token}`,
-            'Content-Type': 'application/json; charset=UTF-8',
-          },
-          body: JSON.stringify({ publish_id: publishId }),
-        });
-        const statusData = await statusRes.json();
-        const status: string = statusData.data?.status;
-        logger.info(`[Execution] TikTok status [${attempt + 1}/15]: ${status}`);
-        if (status === 'PUBLISH_COMPLETE') {
-          return { success: true, platform: 'tiktok', id: publishId };
-        }
-        if (status === 'FAILED') {
-          throw new Error(`TikTok publish failed: ${statusData.data?.fail_reason || 'unknown reason'}`);
-        }
-      }
-
-      throw new Error('TikTok publish timed out — check TikTok app for video status.');
-    } catch (err: any) {
-      logger.error({ err }, '[Execution] TikTok Error');
-      return { success: false, platform: 'tiktok', error: err.message };
-    }
-  }
 }
