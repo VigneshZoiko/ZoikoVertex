@@ -14,6 +14,9 @@ function getConnection(): IORedis | null {
   if (!env.REDIS_URL) return null;
   if (!connection) {
     connection = new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null });
+    connection.on('error', (err: any) => {
+      logger.error(`[Redis] Connection error: ${err.message}`);
+    });
   }
   return connection;
 }

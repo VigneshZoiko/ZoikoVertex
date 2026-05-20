@@ -163,7 +163,7 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 .page-enter {
-  animation: page-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: page-enter 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ─── Chart Bar Grow ─────────────────────────────────────────────────────── */

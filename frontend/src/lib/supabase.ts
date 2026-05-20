@@ -37,3 +37,17 @@ try {
 }
 
 export const supabase = client;
+
+// Keep the zv_auth cookie in sync with the Supabase session so that
+// middleware can make lightweight routing decisions without needing @supabase/ssr.
+if (typeof window !== 'undefined') {
+  client.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      document.cookie = 'zv_auth=1; path=/; SameSite=Strict; max-age=3600';
+    } else {
+      document.cookie = 'zv_auth=; path=/; SameSite=Strict; max-age=0';
+      // Clear role cache so a new login always gets fresh data
+      try { localStorage.removeItem('zv_role_cache'); } catch {}
+    }
+  });
+}

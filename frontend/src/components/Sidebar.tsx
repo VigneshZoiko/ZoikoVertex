@@ -43,7 +43,6 @@ import {
   Webhook,
   HeartPulse,
   Building2,
-  Handshake,
   CreditCard,
   Lock,
   TrendingUp,
@@ -185,7 +184,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { name: "Users & Access",      href: "/team",             icon: Users,        roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"] },
       { name: "Roles & Units",       href: "/access/roles",     icon: Building2,    roles: ["ADMIN","WORKSPACE_OWNER"] },
-      { name: "External Partners",   href: "/access/partners",  icon: Handshake,    roles: ["ADMIN","WORKSPACE_OWNER"] },
     ],
   },
   {
@@ -281,11 +279,18 @@ export default function Sidebar() {
     }
   }, [isDirty, pathname]);
 
-  const handleDiscardConfirm = useCallback(() => {
+  const handleDiscardConfirm = useCallback(async () => {
     setIsDirty(false);
     setShowDiscardModal(false);
-    if (pendingHref) router.push(pendingHref);
+    const dest = pendingHref;
     setPendingHref(null);
+    if (!dest) return;
+    if (dest === '/login') {
+      await supabase.auth.signOut();
+      router.replace('/login');
+    } else {
+      router.push(dest);
+    }
   }, [pendingHref, router, setIsDirty]);
 
   const handleDiscardCancel = useCallback(() => {
@@ -296,7 +301,7 @@ export default function Sidebar() {
   const handleLogout = async () => {
     if (isDirty) { setPendingHref("/login"); setShowDiscardModal(true); return; }
     await supabase.auth.signOut();
-    window.location.href = "/login";
+    router.replace("/login");
   };
 
   const visibleGroups = useMemo(() => {

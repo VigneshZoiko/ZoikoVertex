@@ -1,6 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import WelcomeOverlay from "@/components/WelcomeOverlay";
@@ -8,6 +9,9 @@ import PendingApproval from "@/components/PendingApproval";
 import { DraftGuardProvider } from "@/lib/context/DraftGuardContext";
 import { NotificationProvider } from "@/lib/context/NotificationContext";
 import { useRoleContext } from "@/lib/context/RoleContext";
+import { supabase } from "@/lib/supabase";
+import { canAccess } from "@/lib/routeAccess";
+import { ShieldOff, ArrowLeft } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -15,8 +19,30 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
-  const { orgStatus, isSuperAdmin, isLoading } = useRoleContext();
+  const router = useRouter();
+  const { orgStatus, orgName, isSuperAdmin, isLoading, role } = useRoleContext();
+  const [isUnauthorized, setIsUnauthorized] = useState(false);
 
+  // ── Auth guard ──────────────────────────────────────────────────────────────
+  // Runs on every route change. getSession() reads from localStorage so it's
+  // synchronous-fast. Redirects to /login if no valid session exists.
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      if (!session) router.replace('/login');
+    });
+    return () => { cancelled = true; };
+  }, [pathname, router]);
+
+  // ── Role guard ──────────────────────────────────────────────────────────────
+  // Waits for the role to load, then checks if this pathname is allowed.
+  useEffect(() => {
+    if (isLoading) return;
+    setIsUnauthorized(!canAccess(pathname, role, isSuperAdmin));
+  }, [pathname, isLoading, role, isSuperAdmin]);
+
+  // ── Loading skeleton (initial role fetch) ───────────────────────────────────
   if (isLoading) {
     return (
       <div className="h-screen bg-[var(--background,#111111)] flex overflow-hidden">
@@ -58,9 +84,9 @@ export default function DashboardLayout({
     );
   }
 
-  // Gate access if org is PENDING (and not a superadmin)
+  // ── Pending org approval gate ────────────────────────────────────────────────
   if (!isSuperAdmin && orgStatus === "PENDING") {
-    return <PendingApproval />;
+    return <PendingApproval orgName={orgName ?? undefined} />;
   }
 
   return (
@@ -72,13 +98,51 @@ export default function DashboardLayout({
           <div className="flex-1 flex flex-col min-w-0 h-screen">
             <Header />
             <main className="flex-1 overflow-y-auto p-8 bg-[var(--background)] transition-colors">
-              <div key={pathname} className="page-enter">
-                {children}
-              </div>
+              {isUnauthorized ? (
+                <UnauthorizedView pathname={pathname} onBack={() => router.replace('/dashboard')} />
+              ) : (
+                <div key={pathname} className="page-enter">
+                  {children}
+                </div>
+              )}
             </main>
           </div>
         </div>
       </DraftGuardProvider>
     </NotificationProvider>
+  );
+}
+
+// ── Inline 403 component ─────────────────────────────────────────────────────
+function UnauthorizedView({ pathname, onBack }: { pathname: string; onBack: () => void }) {
+  // Derive a readable section name from the first path segment
+  const section = pathname.split('/').filter(Boolean)[0];
+  const label = section
+    ? section.charAt(0).toUpperCase() + section.slice(1).replace(/-/g, ' ')
+    : 'this page';
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 page-enter">
+      <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-6">
+        <ShieldOff className="w-7 h-7 text-rose-400" />
+      </div>
+
+      <h1 className="text-2xl font-bold text-[var(--foreground)] mb-2 tracking-tight">
+        Access Restricted
+      </h1>
+      <p className="text-[var(--foreground-muted)] text-sm max-w-sm leading-relaxed mb-8">
+        Your current role does not have permission to view{' '}
+        <span className="text-[var(--foreground)] font-semibold">{label}</span>.
+        Contact your workspace administrator if you need access.
+      </p>
+
+      <button
+        onClick={onBack}
+        className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-all duration-200"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back to Dashboard
+      </button>
+    </div>
   );
 }

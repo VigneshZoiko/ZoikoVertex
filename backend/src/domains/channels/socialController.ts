@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { env } from '../../config/env';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
+import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
 
 // In-memory session store for short-lived OAuth page-selection sessions (10 min TTL)
 const _sessionStore = new Map<string, { data: string; expiresAt: number }>();
@@ -111,6 +112,8 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
           .from('connected_accounts')
           .upsert(facebookAccount, { onConflict: 'workspace_id,platform,account_handle' });
 
+        broadcastWebhookEvent(workspaceId, 'account.connected', { platform: 'facebook', account_handle: facebookAccount.account_handle, account_name: facebookAccount.account_name, connected_at: new Date().toISOString() }).catch(() => {});
+
         // 4c. Save Linked Instagram Account (if exists)
         if (pageDetails.instagram_business_account) {
           const ig = pageDetails.instagram_business_account;
@@ -132,6 +135,7 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
             logger.error({ igSaveError }, `[Social] Database error saving IG: ${ig.username}`);
           } else {
             logger.info(`[Social] Successfully connected Instagram: ${ig.username}`);
+            broadcastWebhookEvent(workspaceId, 'account.connected', { platform: 'instagram', account_handle: ig.id, account_name: ig.username, connected_at: new Date().toISOString() }).catch(() => {});
           }
         }
       } catch (err) {
@@ -258,6 +262,8 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
 
     if (dbError) throw dbError;
 
+    broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
+
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=linkedin`);
 
   } catch (error) {
@@ -339,12 +345,12 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
     logger.info(`[Social] Handling Pinterest callback for workspace: ${workspaceId}`);
 
     const credentials = Buffer.from(`${env.PINTEREST_CLIENT_ID}:${env.PINTEREST_CLIENT_SECRET}`).toString('base64');
-    
+    const pinterestBase = env.PINTEREST_API_BASE || 'https://api.pinterest.com';
     const redirectUri = env.PINTEREST_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/pinterest/callback`;
-    
-    const tokenResponse = await fetch('https://api.pinterest.com/v5/oauth/token', {
+
+    const tokenResponse = await fetch(`${pinterestBase}/v5/oauth/token`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Basic ${credentials}`
       },
@@ -362,7 +368,7 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
 
     const accessToken = tokenData.access_token;
 
-    const profileResponse = await fetch('https://api.pinterest.com/v5/user_account', {
+    const profileResponse = await fetch(`${pinterestBase}/v5/user_account`, {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
     const profileData = await profileResponse.json();
@@ -382,6 +388,8 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
       .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
 
     if (dbError) throw dbError;
+
+    broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=pinterest`);
 
@@ -461,6 +469,8 @@ export const handleThreadsCallback = async (req: Request, res: Response, next: N
       .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
 
     if (dbError) throw dbError;
+
+    broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=threads`);
 
@@ -546,6 +556,8 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
       .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
 
     if (dbError) throw dbError;
+
+    broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=twitter`);
 
@@ -693,6 +705,8 @@ export const handleYoutubeCallback = async (req: Request, res: Response, next: N
 
     if (dbError) throw dbError;
 
+    broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
+
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=youtube`);
 
   } catch (error) {
@@ -700,81 +714,6 @@ export const handleYoutubeCallback = async (req: Request, res: Response, next: N
   }
 };
 
-/**
- * Handles the TikTok OAuth callback
- */
-export const handleTikTokCallback = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { code, state: stateParam, error: oauthError, error_description } = req.query;
-
-    if (oauthError) {
-      logger.warn(`[Social] TikTok OAuth denied: ${oauthError}`);
-      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=tiktok&reason=${encodeURIComponent((error_description as string) || (oauthError as string))}`);
-    }
-
-    if (!code) {
-      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=tiktok&reason=${encodeURIComponent('No authorization code returned from TikTok')}`);
-    }
-
-    const workspaceId = stateParam as string;
-    logger.info(`[Social] Handling TikTok callback for workspace: ${workspaceId}`);
-
-    const redirectUri = env.TIKTOK_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/tiktok/callback`;
-
-    // Exchange code for access token
-    const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cache-Control': 'no-cache' },
-      body: new URLSearchParams({
-        client_key: env.TIKTOK_CLIENT_KEY || '',
-        client_secret: env.TIKTOK_CLIENT_SECRET || '',
-        code: code as string,
-        grant_type: 'authorization_code',
-        redirect_uri: redirectUri,
-      }),
-    });
-
-    const tokenData = await tokenRes.json();
-    if (tokenData.error) {
-      logger.error({ details: tokenData }, '[Social] TikTok token exchange failed');
-      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=tiktok&reason=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
-    }
-
-    const accessToken: string = tokenData.access_token;
-    const refreshToken: string | null = tokenData.refresh_token || null;
-    const openId: string = tokenData.open_id;
-
-    // Fetch user profile
-    const userRes = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name,username', {
-      headers: { 'Authorization': `Bearer ${accessToken}` },
-    });
-    const userData = await userRes.json();
-    const user = userData.data?.user || {};
-    logger.info(`[Social] TikTok user connected: ${user.display_name} (${openId})`);
-
-    const accountData: Record<string, unknown> = {
-      workspace_id: workspaceId,
-      platform: 'tiktok',
-      account_name: user.display_name || 'TikTok User',
-      account_handle: user.username || openId,
-      avatar_url: user.avatar_url || null,
-      access_token: accessToken,
-      status: 'active',
-    };
-    if (refreshToken) accountData.refresh_token = refreshToken;
-
-    const { error: dbError } = await supabaseAdmin
-      .from('connected_accounts')
-      .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
-
-    if (dbError) throw dbError;
-
-    logger.info(`[Social] TikTok account saved for workspace ${workspaceId}`);
-    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=tiktok`);
-  } catch (error) {
-    next(error);
-  }
-};
 
 /**
  * Disconnects a social account
@@ -814,6 +753,8 @@ export const disconnectAccount = async (req: any, res: Response, next: NextFunct
     const { error: deleteError } = await query;
 
     if (deleteError) throw deleteError;
+
+    broadcastWebhookEvent(member.workspace_id, 'account.disconnected', { account_id: id, disconnected_by: userId, disconnected_at: new Date().toISOString() }).catch(() => {});
 
     logger.info(`[Social] Account ${id} disconnected by user ${userId}`);
     res.status(200).json({ success: true, message: 'Account disconnected successfully' });

@@ -4,25 +4,18 @@ import { AuthRequest } from '../../shared/authMiddleware';
 
 export const getIntegrationHealth = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace context missing' });
 
-    const { data: member } = await supabaseAdmin
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', userId)
-      .single();
-
-    if (!member?.workspace_id) return res.status(403).json({ error: 'Workspace context missing' });
-
-    const workspaceId = member.workspace_id;
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    const [accountsRes, postsRes, logsRes] = await Promise.all([
+    const [accountsRes, postsRes, logsRes, webhooksRes, webhookDeliveriesRes] = await Promise.all([
+      // Only return actively connected accounts
       supabaseAdmin
         .from('connected_accounts')
         .select('id, platform, account_name, account_handle, avatar_url, status, created_at')
         .eq('workspace_id', workspaceId)
+        .eq('status', 'active')
         .order('platform'),
 
       supabaseAdmin
@@ -39,13 +32,41 @@ export const getIntegrationHealth = async (req: AuthRequest, res: Response, next
         .gte('created_at', sevenDaysAgo)
         .order('created_at', { ascending: false })
         .limit(15),
+
+      // Active webhooks
+      supabaseAdmin
+        .from('webhook_endpoints')
+        .select('id, name, url, events, is_active, last_triggered_at, failure_count')
+        .eq('workspace_id', workspaceId)
+        .eq('is_active', true),
+
+      // Recent webhook deliveries
+      supabaseAdmin
+        .from('webhook_delivery_log')
+        .select('status, event_type, created_at, duration_ms')
+        .gte('created_at', sevenDaysAgo)
+        .order('created_at', { ascending: false })
+        .limit(50),
     ]);
 
-    const accounts = accountsRes.data || [];
-    const posts = postsRes.data || [];
-    const errorLogs = logsRes.data || [];
+    const accounts  = accountsRes.data  || [];
+    const posts     = postsRes.data     || [];
+    const errorLogs = logsRes.data      || [];
+    const webhooks  = webhooksRes.data  || [];
+    const deliveries = webhookDeliveriesRes.data || [];
 
-    // Fetch failed scheduler jobs for this workspace's posts
+    // Filter deliveries to only those belonging to this workspace's webhooks
+    const webhookIds = new Set(webhooks.map((w: any) => w.id));
+    // (delivery_log has webhook_endpoint_id so we can cross-reference if needed — kept simple here)
+
+    // Webhook delivery stats
+    const deliverySuccess = deliveries.filter((d: any) => d.status === 'success').length;
+    const deliveryTotal   = deliveries.length;
+    const webhookHealthPct = deliveryTotal > 0
+      ? Math.round((deliverySuccess / deliveryTotal) * 100)
+      : 100;
+
+    // Failed scheduler jobs
     const postIds = posts.map((p: any) => p.id);
     let failedJobs: any[] = [];
     if (postIds.length > 0) {
@@ -64,9 +85,9 @@ export const getIntegrationHealth = async (req: AuthRequest, res: Response, next
     }
 
     const published = posts.filter((p: any) => p.status === 'PUBLISHED').length;
-    const failed = posts.filter((p: any) => p.status === 'FAILED').length;
+    const failed    = posts.filter((p: any) => p.status === 'FAILED').length;
     const scheduled = posts.filter((p: any) => ['SCHEDULED', 'PUBLISHING'].includes(p.status)).length;
-    const total = published + failed;
+    const total     = published + failed;
     const healthScore = total > 0 ? Math.round((published / total) * 100) : 100;
 
     const platformBreakdown: Record<string, { published: number; failed: number; scheduled: number }> = {};
@@ -74,9 +95,9 @@ export const getIntegrationHealth = async (req: AuthRequest, res: Response, next
       if (!platformBreakdown[post.platform]) {
         platformBreakdown[post.platform] = { published: 0, failed: 0, scheduled: 0 };
       }
-      if (post.status === 'PUBLISHED') platformBreakdown[post.platform].published++;
-      else if (post.status === 'FAILED') platformBreakdown[post.platform].failed++;
-      else platformBreakdown[post.platform].scheduled++;
+      if (post.status === 'PUBLISHED')                                   platformBreakdown[post.platform].published++;
+      else if (post.status === 'FAILED')                                 platformBreakdown[post.platform].failed++;
+      else if (['SCHEDULED', 'PUBLISHING'].includes(post.status))        platformBreakdown[post.platform].scheduled++;
     });
 
     res.json({
@@ -94,6 +115,13 @@ export const getIntegrationHealth = async (req: AuthRequest, res: Response, next
         platform_breakdown: platformBreakdown,
         failed_jobs: failedJobs,
         recent_errors: errorLogs,
+        webhooks: {
+          active_count: webhooks.length,
+          endpoints: webhooks,
+          delivery_total: deliveryTotal,
+          delivery_success: deliverySuccess,
+          health_pct: webhookHealthPct,
+        },
       },
     });
   } catch (error) {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import PerformanceOverviewCards from './components/PerformanceOverviewCards';
 import TrendCharts from './components/TrendCharts';
@@ -14,9 +14,10 @@ export default function ModelPerformancePage() {
   const [hallucinations, setHallucinations] = useState();
   const [leaderboard, setLeaderboard] = useState();
   const [loading, setLoading] = useState(true);
+  const initialLoad = useRef(true);
 
   const fetchData = async () => {
-    setLoading(true);
+    if (initialLoad.current) setLoading(true);
     try {
       const [sumRes, trendRes, halRes, leadRes] = await Promise.all([
         api.get('/api/v1/monitoring/models/performance/summary'),
@@ -32,13 +33,15 @@ export default function ModelPerformancePage() {
     } catch (err) {
       console.error('Failed to fetch model performance metrics', err);
     } finally {
-      setLoading(false);
+      if (initialLoad.current) {
+        setLoading(false);
+        initialLoad.current = false;
+      }
     }
   };
 
   useEffect(() => {
     fetchData();
-    // Auto-refresh every 30 seconds
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);

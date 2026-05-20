@@ -1,12 +1,14 @@
 "use client";
 
 import { ShieldAlert, Loader2, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function PendingApproval({ orgName }: { orgName?: string }) {
+  const router = useRouter();
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.href = "/login";
+    router.replace("/login");
   };
 
   return (
