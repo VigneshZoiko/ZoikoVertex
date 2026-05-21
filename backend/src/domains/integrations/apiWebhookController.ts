@@ -53,7 +53,7 @@ function isPrivateUrl(rawUrl: string): boolean {
   // IPv4 private/loopback ranges
   const v4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if (v4) {
-    const [, a, b, c] = v4.map(Number);
+    const [, a, b] = v4.map(Number);
     if (a === 127) return true;                              // 127.0.0.0/8  loopback
     if (a === 10) return true;                               // 10.0.0.0/8   private
     if (a === 172 && b >= 16 && b <= 31) return true;       // 172.16-31/12 private
