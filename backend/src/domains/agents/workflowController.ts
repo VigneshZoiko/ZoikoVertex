@@ -241,11 +241,15 @@ export const retireWorkflow = async (req: AuthRequest, res: Response, next: Next
 
 export const getWorkflowGraphGeneral = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { data: versions } = await (await import('../../shared/supabase')).supabaseAdmin
+    const { data: versions, error: verErr } = await (await import('../../shared/supabase')).supabaseAdmin
       .from('workflow_versions')
       .select('id, workflow_id')
       .order('created_at', { ascending: false })
       .limit(1);
+    if (verErr) {
+      if ((verErr as any).code === '42P01') return res.json({ success: true, data: { nodes: [], edges: [] } });
+      throw verErr;
+    }
     if (!versions || versions.length === 0) {
       return res.json({ success: true, data: { nodes: [], edges: [] } });
     }
@@ -373,7 +377,10 @@ export const getEscalationPaths = async (req: AuthRequest, res: Response, next: 
     const { data: incidents, error } = await import('../../shared/supabase').then((m) =>
       m.supabaseAdmin.from('incidents').select('*').eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(10)
     );
-    if (error) throw error;
+    if (error) {
+      if ((error as any).code === '42P01') return res.json({ success: true, data: [] });
+      throw error;
+    }
     res.json({ success: true, data: incidents || [] });
   } catch (err) {
     logger.error({ err }, 'Failed to get escalation paths');

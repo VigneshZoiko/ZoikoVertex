@@ -20,19 +20,12 @@ async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
   }
 }
 
-async function handleResponse(response: Response, endpoint: string, method: string) {
-  if (!response.ok) {
-    if (response.status === 404) {
-      console.warn(`[API] Endpoint not found: ${endpoint}. Check if NEXT_PUBLIC_BACKEND_URL is set correctly.`);
-      return { success: false, error: 'Not Found' };
-    }
-    const errorData = await response.json().catch(() => ({}));
-    const errorMessage = typeof errorData.error === 'object' 
-      ? errorData.error.message 
-      : (errorData.error || response.statusText);
-    throw new Error(errorMessage || `${method} ${endpoint} failed`);
-  }
-  return response.json();
+async function apiError(response: Response, endpoint: string, method: string) {
+  const errorData = await response.json().catch(() => ({}));
+  const errorMessage = typeof errorData.error === 'object'
+    ? errorData.error.message
+    : (errorData.error || response.statusText || `${method} ${endpoint} failed`);
+  return { success: false, error: errorMessage };
 }
 
 export const api = {
@@ -44,14 +37,7 @@ export const api = {
       },
     });
     if (!response.ok) {
-      // Avoid crashing if the backend is just not there (e.g. localhost vs production)
-      if (response.status === 404) {
-        console.warn(`[API] Endpoint not found: ${endpoint}. Check if NEXT_PUBLIC_BACKEND_URL is set correctly.`);
-        return { success: false, error: 'Not Found' };
-      }
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `GET ${endpoint} failed: ${response.statusText}`);
-      throw new Error(errorMessage);
+      return apiError(response, endpoint, 'GET');
     }
     return response.json();
   },
@@ -67,9 +53,7 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `POST ${endpoint} failed: ${response.statusText}`);
-      throw new Error(errorMessage);
+      return apiError(response, endpoint, 'POST');
     }
     return response.json();
   },
@@ -83,7 +67,10 @@ export const api = {
       },
       body: formData,
     });
-    return handleResponse(response, endpoint, 'POST (Multipart)');
+    if (!response.ok) {
+      return apiError(response, endpoint, 'POST (Multipart)');
+    }
+    return response.json();
   },
 
   async put(endpoint: string, body: any) {
@@ -97,9 +84,7 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `PUT ${endpoint} failed: ${response.statusText}`);
-      throw new Error(errorMessage);
+      return apiError(response, endpoint, 'PUT');
     }
     return response.json();
   },
@@ -113,9 +98,7 @@ export const api = {
       },
     });
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `DELETE ${endpoint} failed: ${response.statusText}`);
-      throw new Error(errorMessage);
+      return apiError(response, endpoint, 'DELETE');
     }
     return response.json();
   },
@@ -131,9 +114,7 @@ export const api = {
       body: JSON.stringify(body),
     });
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = typeof errorData.error === 'object' ? errorData.error.message : (errorData.error || `PATCH ${endpoint} failed: ${response.statusText}`);
-      throw new Error(errorMessage);
+      return apiError(response, endpoint, 'PATCH');
     }
     return response.json();
   },

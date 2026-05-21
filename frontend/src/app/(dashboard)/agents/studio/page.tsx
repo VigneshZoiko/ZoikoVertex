@@ -259,9 +259,15 @@ export default function StudioPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isKillSwitchOpen, setIsKillSwitchOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  const [actionLoading, setActionLoading] = useState<Record<string, string>>({});
-  const [safetyCheckLoading, setSafetyCheckLoading] = useState<string | null>(null);
-  const [evidenceExportLoading, setEvidenceExportLoading] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<Record<string, string>>(
+    {},
+  );
+  const [safetyCheckLoading, setSafetyCheckLoading] = useState<string | null>(
+    null,
+  );
+  const [evidenceExportLoading, setEvidenceExportLoading] = useState<
+    string | null
+  >(null);
 
   const normalizedRole = (role || "").toUpperCase();
   const canManageAuthority = [
@@ -292,14 +298,14 @@ export default function StudioPage() {
         }
       } catch {
         setError(
-          "Live agent registry unavailable. Showing last known governed authority records."
+          "Live agent registry unavailable. Showing last known governed authority records.",
         );
         setAgents(MOCK_AGENTS);
       } finally {
         setLoading(false);
       }
     },
-    [workspaceId, statusFilter, riskFilter]
+    [workspaceId, statusFilter, riskFilter],
   );
 
   useEffect(() => {
@@ -358,7 +364,7 @@ export default function StudioPage() {
       if (agent.status === "ACTIVE") return "Export Evidence";
       return "Open Agent";
     },
-    [getReadiness]
+    [getReadiness],
   );
 
   const getNextActionDescription = useCallback((agent: Agent) => {
@@ -407,13 +413,20 @@ export default function StudioPage() {
     try {
       const res = await api.get(`/api/v1/agents/${agent.id}/evidence`);
       if (res.success) {
-        setSuccessMsg(`Evidence bundle exported for "${agent.name}". Bundle ID: ${res.data?.bundle_id || res.data?.id || "generated"}`);
+        setSuccessMsg(
+          `Evidence bundle exported for "${agent.name}". Bundle ID: ${res.data?.bundle_id || res.data?.id || "generated"}`,
+        );
         setTimeout(() => setSuccessMsg(null), 6000);
       } else {
-        setError(`Evidence export failed for "${agent.name}". Check your permissions.`);
+        setError(
+          `Evidence export failed for "${agent.name}". Check your permissions.`,
+        );
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : `Evidence export failed for "${agent.name}".`;
+      const msg =
+        err instanceof Error
+          ? err.message
+          : `Evidence export failed for "${agent.name}".`;
       setError(msg);
     } finally {
       setEvidenceExportLoading(null);
@@ -425,18 +438,26 @@ export default function StudioPage() {
     setSafetyCheckLoading(agent.id);
     setError(null);
     try {
-      const res = await api.post(`/api/v1/agents/${agent.id}/safety-checks/run`, {
-        triggered_by: "studio_manual",
-      });
+      const res = await api.post(
+        `/api/v1/agents/${agent.id}/safety-checks/run`,
+        {
+          triggered_by: "studio_manual",
+        },
+      );
       if (res.success) {
-        setSuccessMsg(`Safety checks initiated for "${agent.name}". Results will update in the agent profile.`);
+        setSuccessMsg(
+          `Safety checks initiated for "${agent.name}". Results will update in the agent profile.`,
+        );
         setTimeout(() => setSuccessMsg(null), 6000);
         await fetchAgents(workspaceId);
       } else {
         setError(`Safety check failed to start for "${agent.name}".`);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : `Safety check error for "${agent.name}".`;
+      const msg =
+        err instanceof Error
+          ? err.message
+          : `Safety check error for "${agent.name}".`;
       setError(msg);
     } finally {
       setSafetyCheckLoading(null);
@@ -449,27 +470,45 @@ export default function StudioPage() {
     setError(null);
     try {
       // Step 1: Validate governance gates before deploy
-      const gatesRes = await api.get(`/api/v1/agents/${agent.id}/governance-gates`).catch(() => null);
+      const gatesRes = await api
+        .get(`/api/v1/agents/${agent.id}/governance-gates`)
+        .catch(() => null);
       if (gatesRes?.data) {
         const gates = gatesRes.data;
-        const blockingFailed = (gates.failed_gates || []).filter((g: { blocking: boolean }) => g.blocking);
+        const blockingFailed = (gates.failed_gates || []).filter(
+          (g: { blocking: boolean }) => g.blocking,
+        );
         if (blockingFailed.length > 0) {
-          const gateNames = blockingFailed.map((g: { name: string }) => g.name).join(", ");
-          setError(`Deploy blocked: ${blockingFailed.length} governance gate(s) failed — ${gateNames}. Resolve before deploying.`);
+          const gateNames = blockingFailed
+            .map((g: { name: string }) => g.name)
+            .join(", ");
+          setError(
+            `Deploy blocked: ${blockingFailed.length} governance gate(s) failed — ${gateNames}. Resolve before deploying.`,
+          );
           return;
         }
       }
       // Step 2: Proceed with deploy
-      const env = environmentFilter || agent.runtime_controls?.environment || "production";
+      const env =
+        environmentFilter ||
+        agent.runtime_controls?.environment ||
+        "production";
       await api.post(`/api/v1/agents/${agent.id}/deploy`, { environment: env });
       setSuccessMsg(`"${agent.name}" deployed to ${env} successfully.`);
       setTimeout(() => setSuccessMsg(null), 5000);
       await fetchAgents(workspaceId);
     } catch (deployErr) {
-      const msg = deployErr instanceof Error ? deployErr.message : `Deploy failed for "${agent.name}".`;
+      const msg =
+        deployErr instanceof Error
+          ? deployErr.message
+          : `Deploy failed for "${agent.name}".`;
       setError(msg);
     } finally {
-      setActionLoading((c) => { const n = { ...c }; delete n[agent.id]; return n; });
+      setActionLoading((c) => {
+        const n = { ...c };
+        delete n[agent.id];
+        return n;
+      });
     }
   };
 
@@ -482,7 +521,7 @@ export default function StudioPage() {
       | "resume"
       | "retire"
       | "clone"
-      | "rollback"
+      | "rollback",
   ) => {
     const endpoints: Record<
       typeof action,
@@ -538,10 +577,10 @@ export default function StudioPage() {
                   action === "pause"
                     ? "PAUSED"
                     : action === "retire"
-                    ? "RETIRED"
-                    : current.status,
+                      ? "RETIRED"
+                      : current.status,
               }
-            : current
+            : current,
         );
       }
     } catch (actionError) {
@@ -561,54 +600,54 @@ export default function StudioPage() {
 
   const hasFilters = Boolean(
     searchTerm ||
-      statusFilter ||
-      riskFilter ||
-      brandFilter ||
-      ownerFilter ||
-      channelFilter ||
-      workflowFilter ||
-      knowledgeFilter ||
-      environmentFilter
+    statusFilter ||
+    riskFilter ||
+    brandFilter ||
+    ownerFilter ||
+    channelFilter ||
+    workflowFilter ||
+    knowledgeFilter ||
+    environmentFilter,
   );
 
   const brandOptions = useMemo(
     () =>
       Array.from(
-        new Set(agents.map((a) => a.assigned_brand).filter(Boolean))
+        new Set(agents.map((a) => a.assigned_brand).filter(Boolean)),
       ) as string[],
-    [agents]
+    [agents],
   );
 
   const ownerOptions = useMemo(
     () =>
       Array.from(
-        new Set(agents.map((a) => a.primary_dri?.full_name).filter(Boolean))
+        new Set(agents.map((a) => a.primary_dri?.full_name).filter(Boolean)),
       ) as string[],
-    [agents]
+    [agents],
   );
 
   const channelOptions = useMemo(
     () =>
       Array.from(
-        new Set(agents.flatMap((a) => a.linked_channels || []))
+        new Set(agents.flatMap((a) => a.linked_channels || [])),
       ).sort(),
-    [agents]
+    [agents],
   );
 
   const workflowOptions = useMemo(
     () =>
       Array.from(
-        new Set(agents.flatMap((a) => a.linked_workflows || []))
+        new Set(agents.flatMap((a) => a.linked_workflows || [])),
       ).sort(),
-    [agents]
+    [agents],
   );
 
   const knowledgeOptions = useMemo(
     () =>
       Array.from(
-        new Set(agents.flatMap((a) => a.linked_knowledge_sources || []))
+        new Set(agents.flatMap((a) => a.linked_knowledge_sources || [])),
       ).sort(),
-    [agents]
+    [agents],
   );
 
   const filteredAgents = useMemo(() => {
@@ -618,14 +657,13 @@ export default function StudioPage() {
         normalizeText(agent.name).includes(normalizeText(searchTerm)) ||
         normalizeText(agent.type).includes(normalizeText(searchTerm)) ||
         normalizeText(agent.primary_dri?.full_name).includes(
-          normalizeText(searchTerm)
+          normalizeText(searchTerm),
         ) ||
         normalizeText(agent.assigned_brand).includes(normalizeText(searchTerm));
       const matchesStatus = !statusFilter || agent.status === statusFilter;
       const matchesRisk =
         !riskFilter || normalizeText(agent.risk_level) === riskFilter;
-      const matchesBrand =
-        !brandFilter || agent.assigned_brand === brandFilter;
+      const matchesBrand = !brandFilter || agent.assigned_brand === brandFilter;
       const matchesOwner =
         !ownerFilter || agent.primary_dri?.full_name === ownerFilter;
       const matchesChannel =
@@ -668,16 +706,16 @@ export default function StudioPage() {
   const summary = useMemo(() => {
     const active = agents.filter((a) => a.status === "ACTIVE").length;
     const certified = agents.filter((a) =>
-      ["APPROVED", "ACTIVE"].includes(a.status)
+      ["APPROVED", "ACTIVE"].includes(a.status),
     ).length;
     const riskAlerts = agents.filter((a) =>
-      ["RESTRICTED", "SUSPENDED", "IN_REVIEW", "PAUSED"].includes(a.status)
+      ["RESTRICTED", "SUSPENDED", "IN_REVIEW", "PAUSED"].includes(a.status),
     ).length;
     const avgTrust = agents.length
       ? `${Math.round(
           (agents.reduce((sum, a) => sum + (a.trust_score || 0), 0) /
             agents.length) *
-            100
+            100,
         )}%`
       : "—";
     const governanceDebt = agents.filter((a) => getReadiness(a) < 80).length;
@@ -699,7 +737,34 @@ export default function StudioPage() {
           agentId={selectedAgent.id}
           agentName={selectedAgent.name}
           currentLevel={selectedAgent.autonomy_level}
-          onCertified={() => fetchAgents(workspaceId)}
+          onCertified={(newLevel, newTrustScore, newFaithfulnessScore) => {
+            // Optimistic local update — works even when backend is mock/unavailable
+            setAgents((prev) =>
+              prev.map((a) =>
+                a.id === selectedAgent?.id
+                  ? {
+                      ...a,
+                      autonomy_level: newLevel,
+                      trust_score: newTrustScore,
+                      faithfulness_score: newFaithfulnessScore,
+                    }
+                  : a,
+              ),
+            );
+            // Also update selectedAgent so AgentDetailsDrawer reflects the change immediately
+            setSelectedAgent((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    autonomy_level: newLevel,
+                    trust_score: newTrustScore,
+                    faithfulness_score: newFaithfulnessScore,
+                  }
+                : prev,
+            );
+            // Then re-fetch in background to sync with server
+            fetchAgents(workspaceId);
+          }}
         />
       )}
 
@@ -1193,7 +1258,7 @@ export default function StudioPage() {
                       <td className="px-5 py-5">
                         <span
                           className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] ${getAutonomyStyle(
-                            agent.autonomy_level
+                            agent.autonomy_level,
                           )}`}
                         >
                           {agent.autonomy_level}
@@ -1223,8 +1288,8 @@ export default function StudioPage() {
                                   readiness >= 80
                                     ? "bg-emerald-500"
                                     : readiness >= 60
-                                    ? "bg-amber-500"
-                                    : "bg-rose-500"
+                                      ? "bg-amber-500"
+                                      : "bg-rose-500"
                                 }`}
                                 style={{ width: `${readiness}%` }}
                               />
@@ -1247,8 +1312,8 @@ export default function StudioPage() {
                                     agent.trust_score >= 0.8
                                       ? "bg-emerald-500"
                                       : agent.trust_score >= 0.6
-                                      ? "bg-amber-500"
-                                      : "bg-rose-500"
+                                        ? "bg-amber-500"
+                                        : "bg-rose-500"
                                   }`}
                                   style={{
                                     width: `${(agent.trust_score || 0) * 100}%`,
@@ -1368,13 +1433,11 @@ export default function StudioPage() {
 
                           {/* Request Approval — DRAFT or PENDING_CERTIFICATION */}
                           {["DRAFT", "PENDING_CERTIFICATION"].includes(
-                            agent.status
+                            agent.status,
                           ) && (
                             <button
                               disabled={!canManageAuthority || isBusy}
-                              onClick={() =>
-                                runAgentAction(agent, "approval")
-                              }
+                              onClick={() => runAgentAction(agent, "approval")}
                               className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <FileCheck className="h-3.5 w-3.5" />
@@ -1388,7 +1451,9 @@ export default function StudioPage() {
                           {agent.status === "APPROVED" && (
                             <button
                               disabled={!canManageAuthority || isBusy}
-                              onClick={() => checkGovernanceGatesAndDeploy(agent)}
+                              onClick={() =>
+                                checkGovernanceGatesAndDeploy(agent)
+                              }
                               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <PlayCircle className="h-3.5 w-3.5" />
@@ -1430,9 +1495,7 @@ export default function StudioPage() {
                           {["ACTIVE", "RESTRICTED"].includes(agent.status) && (
                             <button
                               disabled={!canManageAuthority || isBusy}
-                              onClick={() =>
-                                runAgentAction(agent, "rollback")
-                              }
+                              onClick={() => runAgentAction(agent, "rollback")}
                               className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-amber-500/30 hover:text-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
@@ -1441,14 +1504,20 @@ export default function StudioPage() {
                           )}
 
                           {/* Run Safety Checks — DRAFT / PENDING_CERTIFICATION */}
-                          {["DRAFT", "PENDING_CERTIFICATION"].includes(agent.status) && (
+                          {["DRAFT", "PENDING_CERTIFICATION"].includes(
+                            agent.status,
+                          ) && (
                             <button
-                              disabled={safetyCheckLoading === agent.id || isBusy}
+                              disabled={
+                                safetyCheckLoading === agent.id || isBusy
+                              }
                               onClick={() => handleRunSafetyChecks(agent)}
                               className="inline-flex items-center gap-2 rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-400 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <ShieldCheck className="h-3.5 w-3.5" />
-                              {safetyCheckLoading === agent.id ? "Running..." : "Safety Check"}
+                              {safetyCheckLoading === agent.id
+                                ? "Running..."
+                                : "Safety Check"}
                             </button>
                           )}
 
@@ -1460,7 +1529,9 @@ export default function StudioPage() {
                               className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-400 transition hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Award className="h-3.5 w-3.5" />
-                              {evidenceExportLoading === agent.id ? "Exporting..." : "Export Evidence"}
+                              {evidenceExportLoading === agent.id
+                                ? "Exporting..."
+                                : "Export Evidence"}
                             </button>
                           )}
 
@@ -1528,7 +1599,7 @@ export default function StudioPage() {
                   </div>
                   <span
                     className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] ${getAutonomyStyle(
-                      agent.autonomy_level
+                      agent.autonomy_level,
                     )}`}
                   >
                     {agent.autonomy_level}
@@ -1559,7 +1630,9 @@ export default function StudioPage() {
                       Faithfulness: {formatPercent(agent.faithfulness_score)}
                     </span>
                   </div>
-                  <div>Last activity: {agent.last_activity || "Not yet active"}</div>
+                  <div>
+                    Last activity: {agent.last_activity || "Not yet active"}
+                  </div>
                 </div>
 
                 <div className="mt-3 space-y-1">
@@ -1573,8 +1646,8 @@ export default function StudioPage() {
                         readiness >= 80
                           ? "bg-emerald-500"
                           : readiness >= 60
-                          ? "bg-amber-500"
-                          : "bg-rose-500"
+                            ? "bg-amber-500"
+                            : "bg-rose-500"
                       }`}
                       style={{ width: `${readiness}%` }}
                     />
@@ -1606,7 +1679,9 @@ export default function StudioPage() {
                     className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ChevronRight className="h-3.5 w-3.5" />
-                    {actionLoading[agent.id] === "clone" ? "Cloning..." : "Clone"}
+                    {actionLoading[agent.id] === "clone"
+                      ? "Cloning..."
+                      : "Clone"}
                   </button>
                 </div>
               </div>

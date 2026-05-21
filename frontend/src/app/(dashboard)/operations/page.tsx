@@ -16,23 +16,18 @@ export default function OperationsPage() {
   const [loading, setLoading] = useState(true);
 
   const fetchTelemetry = async () => {
-    try {
-      const [telRes, logRes] = await Promise.all([
-        api.get('/api/v1/operations/telemetry'),
-        api.get('/api/v1/operations/logs')
-      ]);
-      if (telRes.success) setTelemetry(telRes.data);
-      if (logRes.success) setLogs(logRes.data);
-    } catch (error) {
-      console.error("Telemetry fetch failed", error);
-    } finally {
-      setLoading(false);
-    }
+    const [telRes, logRes] = await Promise.allSettled([
+      api.get('/api/v1/operations/telemetry'),
+      api.get('/api/v1/operations/logs')
+    ]);
+    if (telRes.status === 'fulfilled' && telRes.value.success) setTelemetry(telRes.value.data);
+    if (logRes.status === 'fulfilled' && logRes.value.success) setLogs(logRes.value.data);
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchTelemetry();
-    const interval = setInterval(fetchTelemetry, 10000); // Refresh every 10s
+    const interval = setInterval(fetchTelemetry, 30000);
     return () => clearInterval(interval);
   }, []);
 

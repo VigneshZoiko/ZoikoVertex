@@ -594,26 +594,22 @@ export default function WorkflowsPage() {
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
-    try {
-      const [statsRes, graphRes, activeRes, escalationsRes, workflowsRes, approvalsRes] = await Promise.all([
-        api.get("/api/v1/agents/workflows/stats"),
-        api.get("/api/v1/agents/workflows/graph"),
-        api.get("/api/v1/agents/workflows/active"),
-        api.get("/api/v1/agents/workflows/escalations"),
-        api.get("/api/v1/agents/workflows"),
-        api.get("/api/v1/approvals/stats"),
-      ]);
-      if (statsRes.success)      setStats(statsRes.data);
-      if (graphRes.success)      setGraph(graphRes.data);
-      if (activeRes.success)     setActive((activeRes.data || []).map(mapActiveInstance));
-      if (escalationsRes.success) setEscalations((escalationsRes.data || []).map(mapEscalation));
-      if (workflowsRes.success)  setWorkflows((workflowsRes.data || []).map(mapWorkflowRecord));
-      if (approvalsRes.success)  setApprovalStats(approvalsRes.data || null);
-    } catch (err) {
-      console.error("Failed to load workflows data", err);
-    } finally {
-      setLoading(false);
-    }
+    const responses = await Promise.allSettled([
+      api.get("/api/v1/agents/workflows/stats"),
+      api.get("/api/v1/agents/workflows/graph"),
+      api.get("/api/v1/agents/workflows/active"),
+      api.get("/api/v1/agents/workflows/escalations"),
+      api.get("/api/v1/agents/workflows"),
+      api.get("/api/v1/approvals/stats"),
+    ]);
+    const [statsRes, graphRes, activeRes, escalationsRes, workflowsRes, approvalsRes] = responses.map(r => r.status === 'fulfilled' ? r.value : { success: false, data: null });
+    if (statsRes.success)      setStats(statsRes.data);
+    if (graphRes.success)      setGraph(graphRes.data);
+    if (activeRes.success)     setActive((activeRes.data || []).map(mapActiveInstance));
+    if (escalationsRes.success) setEscalations((escalationsRes.data || []).map(mapEscalation));
+    if (workflowsRes.success)  setWorkflows((workflowsRes.data || []).map(mapWorkflowRecord));
+    if (approvalsRes.success)  setApprovalStats(approvalsRes.data || null);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
