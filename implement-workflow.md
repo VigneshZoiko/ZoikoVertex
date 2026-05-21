@@ -31,7 +31,7 @@ ZoikoVertex is an **enterprise AI marketing operating system** where autonomous 
 - **Auth** — Supabase JWT tokens on every request
 - **Deploy** — Vercel (frontend) + GitHub Actions (CI/CD)
 
-**Social Platforms:** Facebook, Instagram, LinkedIn, TikTok, YouTube, Twitter/X, Pinterest, Threads
+**Social Platforms:** Facebook, Instagram, LinkedIn, YouTube, Twitter/X, Pinterest, Threads
 
 ---
 
@@ -497,7 +497,7 @@ Admin action (all statuses):
 Configure approval paths by:
   - Risk level threshold (0–20 / 20–40 / 40–60 / 60–80 / 80+)
   - Brand / market / division
-  - Platform type (LinkedIn vs TikTok has different risk multipliers)
+  - Platform type (LinkedIn vs YouTube has different risk multipliers)
   - Content type (legal / financial / healthcare / political)
 
 Set automatic approval thresholds:
@@ -694,7 +694,7 @@ Method C — AI + Manual (most common):
   ☐ Facebook Page — Zoiko Brand
   ☐ Instagram Business — @zoikogroup
   ☐ LinkedIn Company — Zoiko Group
-  ☐ TikTok — @zoikomarketing
+
   ☐ YouTube — Zoiko Channel
   ☐ Twitter/X — @zoikogroup
   ☐ Pinterest — Zoiko Board
@@ -703,7 +703,7 @@ Method C — AI + Manual (most common):
 Per-platform post type selector:
   Instagram → Post / Reel / Story / Carousel
   YouTube   → Video / Short (auto-detected from media)
-  TikTok    → Video / Photo Slide
+
   LinkedIn  → Post / Article / Document
 
 Smart media metadata badge:
@@ -724,7 +724,7 @@ BLOCKED (cannot submit):
 
 WARNING (can submit, platform may downgrade):
   "YouTube Shorts require vertical orientation"
-  "TikTok: carousel limited to 35 images"
+
 ```
 
 ---
@@ -790,7 +790,7 @@ Controversial: abortion, gun, religion, discrimination → +score
 
 Platform multipliers:
   Twitter/X  × 1.2   (most public — higher risk)
-  TikTok     × 1.15
+
   Threads    × 1.1
   YouTube    × 1.05
   Instagram  × 0.9
@@ -883,7 +883,7 @@ On APPROVED status:
       Instagram  → Graph API
       Facebook   → Graph API
       LinkedIn   → LinkedIn API
-      TikTok     → TikTok API
+
       YouTube    → YouTube Data API (with token auto-refresh)
       Twitter/X  → Twitter API v2
       Pinterest  → Pinterest API

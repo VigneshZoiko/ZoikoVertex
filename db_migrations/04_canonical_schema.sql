@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS channels (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   org_id        UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   workspace_id  UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  -- platform_name: 'meta' | 'google' | 'tiktok' | 'linkedin' | 'pinterest' | 'threads' | 'instagram'
+  -- platform_name: 'meta' | 'google' | 'linkedin' | 'pinterest' | 'threads' | 'instagram'
   platform_name TEXT NOT NULL,
   -- channel_type: 'SOCIAL' | 'PAID' | 'EMAIL' | 'SMS'
   channel_type  TEXT NOT NULL DEFAULT 'SOCIAL',

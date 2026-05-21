@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Users, 
@@ -23,6 +24,7 @@ interface Stats {
 }
 
 export default function PlatformAnalytics() {
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export default function PlatformAnalytics() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          window.location.href = '/login';
+          router.push('/login');
           return;
         }
 

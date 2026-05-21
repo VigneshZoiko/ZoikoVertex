@@ -53,7 +53,7 @@ autonomy mode change
 spend cap updates
 emergency pause
 3.4 Integration APIs
-Used to connect, sync, normalize, and operate external systems such as Meta, Google, LinkedIn, TikTok, Shopify, Stripe, Salesforce, and HubSpot.
+Used to connect, sync, normalize, and operate external systems such as Meta, Google, LinkedIn, Shopify, Stripe, Salesforce, and HubSpot.
 3.5 Webhook / Ingestion APIs
 Used to receive external callbacks and platform notifications.
 3.6 Audit / Compliance / Explainability APIs
@@ -361,7 +361,7 @@ Purpose: convert an objective into a multi-step governed plan without immediate 
       },
       {
         "sequence": 3,
-        "action": "test_tiktok_variant",
+
         "expected_roi": 1.2,
         "requires_approval": true
       }
@@ -531,7 +531,7 @@ This is not just adapter plumbing. It is part of the product.
 Meta
 Google
 LinkedIn
-TikTok
+
 Shopify
 Stripe
 Salesforce

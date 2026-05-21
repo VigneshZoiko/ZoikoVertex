@@ -15,21 +15,43 @@ export const listMembers = async (req: AuthRequest, res: Response, next: NextFun
       return res.status(403).json({ error: 'Workspace context missing' });
     }
 
-    let query = supabaseAdmin
+    // Step 1: get workspace_members rows
+    let memberQuery = supabaseAdmin
       .from('workspace_members')
-      .select(`
-        id,
-        user:users(id, full_name, email)
-      `);
+      .select('id, role, user_id');
 
     if (!isSuperAdmin) {
-      query = query.eq('workspace_id', workspaceId);
+      memberQuery = memberQuery.eq('workspace_id', workspaceId);
     }
 
-    const { data: members, error } = await query;
-    if (error) throw error;
+    const { data: memberRows, error: memberErr } = await memberQuery;
+    if (memberErr) throw memberErr;
 
-    const formattedMembers = (members || []).map(m => m.user);
+    if (!memberRows || memberRows.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Step 2: look up user profiles from the public users table
+    const userIds = memberRows.map((m: any) => m.user_id).filter(Boolean);
+
+    const { data: userRows } = await supabaseAdmin
+      .from('users')
+      .select('id, full_name, email')
+      .in('id', userIds);
+
+    const userMap = new Map((userRows || []).map((u: any) => [u.id, u]));
+
+    // Step 3: merge — fall back to auth metadata for users not yet in public.users
+    const formattedMembers = memberRows.map((m: any) => {
+      const u = userMap.get(m.user_id);
+      return {
+        id: m.user_id,
+        full_name: u?.full_name ?? null,
+        email: u?.email ?? null,
+        role: m.role,
+      };
+    });
+
     res.json({ success: true, data: formattedMembers });
   } catch (error) {
     next(error);
@@ -138,6 +160,79 @@ export const updateRequest = async (req: AuthRequest, res: Response, next: NextF
     });
 
     res.json({ success: true, message: `Request ${status.toLowerCase()}.` });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteMember = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const actorId = req.user?.id;
+    if (!actorId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const isSuperAdmin = req.user?.is_superadmin;
+    const workspaceId = req.user?.workspace_id;
+    const userId = String(req.params.id);
+
+    if (!isSuperAdmin && !workspaceId) {
+      return res.status(403).json({ error: 'Workspace context missing' });
+    }
+
+    // Verify membership exists
+    const memberQuery = supabaseAdmin
+      .from('workspace_members')
+      .select('role')
+      .eq('user_id', userId);
+
+    if (workspaceId) memberQuery.eq('workspace_id', workspaceId);
+
+    const { data: memberData, error: memberError } = await memberQuery.single();
+
+    if (memberError || !memberData) {
+      return res.status(404).json({ error: 'Member not found in workspace' });
+    }
+
+    const role = memberData.role || 'Member';
+
+    // Fetch user details from public.users for historical name
+    const { data: userData } = await supabaseAdmin
+      .from('users')
+      .select('full_name, email')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const displayName = userData?.full_name || userData?.email?.split('@')[0] || userId;
+    const historicalName = `${displayName} (ex-${role})`;
+
+    // Mark deleted in public.users (may not exist for all users)
+    await supabaseAdmin
+      .from('users')
+      .update({ full_name: historicalName, deleted_at: new Date().toISOString() })
+      .eq('id', userId);
+
+    const { error: removeError } = await supabaseAdmin
+      .from('workspace_members')
+      .delete()
+      .eq('user_id', userId)
+      .eq('workspace_id', workspaceId!);
+
+    if (removeError) throw removeError;
+
+    try {
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+    } catch {
+      // Ignore if user doesn't exist in auth
+    }
+
+    await logAuditEvent({
+      workspaceId: workspaceId || '00000000-0000-0000-0000-000000000000',
+      actorId,
+      module: 'Team',
+      action: `Deleted workspace member ${userData?.email || userId}`,
+      metadata: { deleted_user_id: userId, historical_name: historicalName }
+    });
+
+    res.json({ success: true, message: 'Member account permanently deleted.' });
   } catch (error) {
     next(error);
   }
