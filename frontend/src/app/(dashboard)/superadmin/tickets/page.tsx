@@ -39,7 +39,7 @@ export default function SupportInbox() {
     const fetchTickets = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch('http://localhost:5005/api/v1/superadmin/tickets', {
+        const res = await fetch('http://localhost:5006/api/v1/superadmin/tickets', {
           headers: {
             'Authorization': `Bearer ${session?.access_token}`
           }
@@ -63,7 +63,7 @@ export default function SupportInbox() {
   const updateStatus = async (id: string, newStatus: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`http://localhost:5005/api/v1/superadmin/tickets/${id}`, {
+      const res = await fetch(`http://localhost:5006/api/v1/superadmin/tickets/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
