@@ -38,7 +38,7 @@ export default function PlatformAnalytics() {
           return;
         }
 
-        const res = await fetch('http://localhost:5005/api/v1/superadmin/stats', {
+        const res = await fetch('http://localhost:5006/api/v1/superadmin/stats', {
           headers: {
             'Authorization': `Bearer ${session.access_token}`
           }

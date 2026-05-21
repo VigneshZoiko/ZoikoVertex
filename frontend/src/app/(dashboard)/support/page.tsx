@@ -30,7 +30,7 @@ export default function SupportPage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('http://localhost:5005/api/v1/support/tickets', {
+      const res = await fetch('http://localhost:5006/api/v1/support/tickets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
