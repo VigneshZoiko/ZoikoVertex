@@ -128,7 +128,7 @@ const NAV_GROUPS: NavGroup[] = [
       { name: "Agent Operations",  href: "/agents/operations",  icon: MonitorPlay,       roles: ["ADMIN","WORKSPACE_OWNER","AGENT_OPERATOR","AGENT_ARCHITECT"] },
       { name: "Workflows",         href: "/agents/workflows",   icon: GitBranch,         roles: ["ADMIN","WORKSPACE_OWNER","AGENT_ARCHITECT","AGENT_OPERATOR"] },
       { name: "Prompt Governance", href: "/agents/prompts",     icon: MessageSquareCode, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"] },
-      { name: "Knowledge Bases",   href: "/agents/knowledge",   icon: BookOpen,          roles: ["ADMIN","WORKSPACE_OWNER","KNOWLEDGE_MANAGER","AGENT_ARCHITECT"] },
+      { name: "Knowledge Base",    href: "/agents/knowledge",   icon: BookOpen,          roles: ["ADMIN","WORKSPACE_OWNER","KNOWLEDGE_MANAGER","AGENT_ARCHITECT"] },
     ],
   },
   {

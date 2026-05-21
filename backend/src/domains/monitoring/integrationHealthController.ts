@@ -56,7 +56,6 @@ export const getIntegrationHealth = async (req: AuthRequest, res: Response, next
     const deliveries = webhookDeliveriesRes.data || [];
 
     // Filter deliveries to only those belonging to this workspace's webhooks
-    const webhookIds = new Set(webhooks.map((w: any) => w.id));
     // (delivery_log has webhook_endpoint_id so we can cross-reference if needed — kept simple here)
 
     // Webhook delivery stats

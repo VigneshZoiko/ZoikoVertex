@@ -220,7 +220,7 @@ export const deleteMember = async (req: AuthRequest, res: Response, next: NextFu
 
     try {
       await supabaseAdmin.auth.admin.deleteUser(userId);
-    } catch (e) {
+    } catch {
       // Ignore if user doesn't exist in auth
     }
 

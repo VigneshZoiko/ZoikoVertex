@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "target": "ES2020",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
+    "module": "commonjs",
+    "moduleResolution": "node",
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
@@ -10,9 +11,15 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "ignoreDeprecations": "5.0",
     "typeRoots": ["./node_modules/@types"],
-    "types": ["node", "express"]
+    "types": ["node", "express"],
+    "baseUrl": "./src",
+    "paths": {
+      "shared/*": ["shared/*"],
+      "services/*": ["services/*"],
+      "config/*": ["config/*"],
+      "domains/*": ["domains/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
