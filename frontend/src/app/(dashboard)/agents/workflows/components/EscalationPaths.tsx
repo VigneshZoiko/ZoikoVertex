@@ -1,7 +1,13 @@
 "use client";
 
 import React from 'react';
-import { ArrowUpFromLine, User, GitFork, Clock } from 'lucide-react';
+import { ArrowUpFromLine, User, GitFork, Clock, ShieldAlert, FileText, RotateCcw } from 'lucide-react';
+
+// Per doc section 8 — escalations visible data:
+// escalation reason, target role, SLA, severity, evidence bundle
+// and doc section 7.1 — Escalate node: reason, target role, SLA, severity, evidence bundle
+
+type EscalationSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
 
 interface EscalationEvent {
   id: string;
@@ -11,14 +17,26 @@ interface EscalationEvent {
   reason: string;
   escalatedAt: string;
   resolved: boolean;
+  severity?: EscalationSeverity;
+  sla?: string;
+  evidenceBundleId?: string;
+  overrideReason?: string;
 }
+
+const SEVERITY_STYLES: Record<EscalationSeverity, string> = {
+  Low:      'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
+  Medium:   'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  High:     'bg-orange-500/10 text-orange-400 border-orange-500/20',
+  Critical: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+};
 
 export default function EscalationPaths({ escalations }: { escalations?: EscalationEvent[] }) {
   if (!escalations) {
     return <div className="h-64 animate-pulse bg-[var(--surface)] rounded-2xl" />;
   }
 
-  const unresolvedCount = escalations.filter(e => !e.resolved).length;
+  const unresolvedCount = escalations.filter((e) => !e.resolved).length;
+  const criticalCount   = escalations.filter((e) => e.severity === 'Critical' && !e.resolved).length;
 
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
@@ -30,13 +48,28 @@ export default function EscalationPaths({ escalations }: { escalations?: Escalat
           </div>
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">Escalation Paths</h2>
-            <p className="text-xs text-[var(--text-secondary)]">Human override and review handoff branches</p>
+            <p className="text-xs text-[var(--text-secondary)]">Human override, review handoff, and authority escalation branches</p>
           </div>
         </div>
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-          {unresolvedCount} Unresolved
-        </span>
+        <div className="flex items-center gap-2">
+          {criticalCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-600/10 text-rose-500 border border-rose-600/20">
+              {criticalCount} Critical
+            </span>
+          )}
+          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            {unresolvedCount} Unresolved
+          </span>
+        </div>
       </div>
+
+      {/* Empty state */}
+      {escalations.length === 0 && (
+        <div className="p-8 text-center">
+          <ShieldAlert className="w-8 h-8 text-[var(--text-muted)] mx-auto mb-3" />
+          <p className="text-sm text-[var(--text-muted)]">No escalations active. Workflow escalation events will appear here.</p>
+        </div>
+      )}
 
       {/* Events */}
       <div className="p-4 space-y-3">
@@ -46,31 +79,47 @@ export default function EscalationPaths({ escalations }: { escalations?: Escalat
             className={`p-4 rounded-xl border transition-colors ${
               event.resolved
                 ? 'border-[var(--border)] bg-transparent opacity-60'
+                : event.severity === 'Critical'
+                ? 'border-rose-600/30 bg-rose-600/5'
                 : 'border-rose-500/20 bg-rose-500/5'
             }`}
           >
-            <div className="flex justify-between items-start mb-2">
-              <div className="flex items-center gap-2">
+            {/* Title row */}
+            <div className="flex justify-between items-start mb-2 gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <GitFork className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
-                <p className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-[260px]">
-                  {event.workflowName}
-                </p>
+                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{event.workflowName}</p>
               </div>
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                  event.resolved
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                    : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                }`}
-              >
-                {event.resolved ? 'Resolved' : 'Active'}
-              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {event.severity && !event.resolved && (
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${SEVERITY_STYLES[event.severity]}`}>
+                    {event.severity}
+                  </span>
+                )}
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    event.resolved
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                  }`}
+                >
+                  {event.resolved ? 'Resolved' : 'Active'}
+                </span>
+              </div>
             </div>
 
-            <p className="text-xs text-[var(--text-secondary)] mb-3 leading-relaxed pl-6">
-              {event.reason}
-            </p>
+            {/* Reason */}
+            <p className="text-xs text-[var(--text-secondary)] mb-3 leading-relaxed pl-6">{event.reason}</p>
 
+            {/* Override reason (if any) */}
+            {event.overrideReason && (
+              <div className="pl-6 mb-2 flex items-start gap-1.5">
+                <RotateCcw className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
+                <p className="text-[10px] text-amber-400 leading-relaxed">Override: {event.overrideReason}</p>
+              </div>
+            )}
+
+            {/* Meta row */}
             <div className="pl-6 flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)]">
               <span className="flex items-center gap-1.5">
                 <GitFork className="w-3 h-3" /> Trigger:{' '}
@@ -80,13 +129,21 @@ export default function EscalationPaths({ escalations }: { escalations?: Escalat
                 <User className="w-3 h-3" /> Handed to:{' '}
                 <strong className="text-indigo-400">{event.handoffTo}</strong>
               </span>
+              {event.sla && (
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3 h-3" /> SLA: <strong className="text-[var(--text-secondary)]">{event.sla}</strong>
+                </span>
+              )}
               <span className="flex items-center gap-1.5">
                 <Clock className="w-3 h-3" />{' '}
-                {new Date(event.escalatedAt).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+                {new Date(event.escalatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
+              {event.evidenceBundleId && (
+                <span className="flex items-center gap-1.5">
+                  <FileText className="w-3 h-3" />{' '}
+                  <span className="text-cyan-400 font-medium">Evidence: {event.evidenceBundleId}</span>
+                </span>
+              )}
             </div>
           </div>
         ))}

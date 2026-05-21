@@ -8,6 +8,7 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     email?: string;
+    role?: string | null;
     workspace_id?: string | null;
     workspace_plan?: string | null;
     is_superadmin?: boolean;
@@ -99,7 +100,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     const [{ data: userData }, { data: member }] = await Promise.all([
-      supabaseAdmin.from('users').select('is_superadmin').eq('id', user.id).single(),
+      supabaseAdmin.from('users').select('is_superadmin, role').eq('id', user.id).single(),
       supabaseAdmin.from('workspace_members').select('workspace_id').eq('user_id', user.id).limit(1).maybeSingle(),
     ]);
 
@@ -121,6 +122,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     req.user = {
       id: user.id,
       email: user.email,
+      role: userData?.role || null,
       workspace_id: workspaceId,
       workspace_plan: workspacePlan,
       is_superadmin: isSuperAdmin,

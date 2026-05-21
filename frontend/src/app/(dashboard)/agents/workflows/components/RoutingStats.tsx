@@ -1,11 +1,18 @@
 import React from 'react';
-import { Activity, Clock, ShieldAlert, GitMerge } from 'lucide-react';
+import { Activity, Clock, ShieldAlert, GitMerge, BarChart2, PackageCheck, Zap, Users } from 'lucide-react';
 
 interface Stats {
   completionRate: number;
   avgHandoffDelay: string;
   escalationRate: number;
   activeOrchestrations: number;
+  // Extended fields per doc section 14
+  avgApprovalTime?: string;
+  blockedRunRate?: number;
+  slaBreachRate?: number;
+  policyFailureRate?: number;
+  overrideRate?: number;
+  evidenceComplete?: number;
 }
 
 export default function RoutingStats({ data }: { data?: Stats }) {
@@ -17,42 +24,80 @@ export default function RoutingStats({ data }: { data?: Stats }) {
       value: `${data.completionRate}%`,
       icon: Activity,
       color: 'text-emerald-500',
-      bg: 'bg-emerald-500/10'
+      bg: 'bg-emerald-500/10',
+      desc: 'Instances completed successfully'
     },
     {
       title: 'Active Orchestrations',
       value: data.activeOrchestrations,
       icon: GitMerge,
       color: 'text-indigo-500',
-      bg: 'bg-indigo-500/10'
+      bg: 'bg-indigo-500/10',
+      desc: 'Live workflow instances running'
     },
     {
       title: 'Avg. Handoff Delay',
       value: data.avgHandoffDelay,
       icon: Clock,
       color: 'text-amber-500',
-      bg: 'bg-amber-500/10'
+      bg: 'bg-amber-500/10',
+      desc: 'Step-to-step transition time'
     },
     {
       title: 'Escalation Rate',
       value: `${data.escalationRate}%`,
       icon: ShieldAlert,
       color: 'text-rose-500',
-      bg: 'bg-rose-500/10'
-    }
+      bg: 'bg-rose-500/10',
+      desc: 'Runs routed to higher authority'
+    },
+    {
+      title: 'Avg. Approval Time',
+      value: data.avgApprovalTime ?? '—',
+      icon: Users,
+      color: 'text-sky-500',
+      bg: 'bg-sky-500/10',
+      desc: 'From request to decision'
+    },
+    {
+      title: 'Blocked-Run Rate',
+      value: data.blockedRunRate != null ? `${data.blockedRunRate}%` : '—',
+      icon: Zap,
+      color: 'text-orange-500',
+      bg: 'bg-orange-500/10',
+      desc: 'Policy or dependency blocks'
+    },
+    {
+      title: 'SLA Breach Rate',
+      value: data.slaBreachRate != null ? `${data.slaBreachRate}%` : '—',
+      icon: BarChart2,
+      color: 'text-purple-500',
+      bg: 'bg-purple-500/10',
+      desc: 'Steps completed after deadline'
+    },
+    {
+      title: 'Evidence Completeness',
+      value: data.evidenceComplete != null ? `${data.evidenceComplete}%` : '—',
+      icon: PackageCheck,
+      color: 'text-teal-500',
+      bg: 'bg-teal-500/10',
+      desc: 'Runs with full evidence bundles'
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
       {cards.map((card, i) => (
-        <div key={i} className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 hover:border-[var(--border-hover)] transition-all">
-          <div className="flex justify-between items-start mb-4">
-            <div className={`p-3 rounded-xl ${card.bg} ${card.color}`}>
-              <card.icon className="w-5 h-5" />
-            </div>
+        <div
+          key={i}
+          className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 hover:border-[var(--border-hover)] transition-all"
+        >
+          <div className={`p-2.5 rounded-xl ${card.bg} ${card.color} w-fit mb-3`}>
+            <card.icon className="w-4 h-4" />
           </div>
-          <h3 className="text-[var(--text-secondary)] text-sm font-medium mb-1">{card.title}</h3>
-          <p className="text-3xl font-bold text-[var(--text-primary)]">{card.value}</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]">{card.value}</p>
+          <h3 className="text-[var(--text-secondary)] text-[10px] font-semibold mt-1 leading-snug">{card.title}</h3>
+          <p className="text-[var(--text-muted)] text-[10px] mt-0.5 leading-snug">{card.desc}</p>
         </div>
       ))}
     </div>
