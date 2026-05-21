@@ -15,7 +15,7 @@ If you do not agree to these Terms, you may not access or use the Platform. Thes
   },
   {
     title: "2. Description of Service",
-    content: `ZoikoVertex is a governed autonomous agentic-intelligence social media management platform designed for enterprise and regulated industries. The Platform enables organisations to plan, create, review, approve, publish, and govern social media content across connected platforms including Facebook, Instagram, LinkedIn, X (Twitter), Pinterest, Threads, YouTube, and TikTok.
+    content: `ZoikoVertex is a governed autonomous agentic-intelligence social media management platform designed for enterprise and regulated industries. The Platform enables organisations to plan, create, review, approve, publish, and govern social media content across connected platforms including Facebook, Instagram, LinkedIn, X (Twitter), Pinterest, Threads, and YouTube.
 
 ZoikoVertex operates across three functional layers:
 
@@ -65,7 +65,7 @@ If payment is not received when due, ZoikoVertex may suspend or terminate access
 - Confirm that you have the legal right and authority to connect the account and publish content on it
 - Accept that ZoikoVertex's ability to publish or retrieve data depends on the access level granted and the policies of the connected platform
 
-**Supported platforms** include Facebook, Instagram (Business & Creator), LinkedIn (Profiles & Pages), X (Twitter), Pinterest, Threads, YouTube, and TikTok.
+**Supported platforms** include Facebook, Instagram (Business & Creator), LinkedIn (Profiles & Pages), X (Twitter), Pinterest, Threads, and YouTube.
 
 ZoikoVertex is not responsible for changes to third-party platform APIs, access restrictions imposed by those platforms, or content that fails to publish due to platform-side errors or policy violations. You may revoke platform access at any time from within ZoikoVertex or from the connected platform's security settings.`,
   },

@@ -46,7 +46,14 @@ export const provisionUser = async (req: AuthRequest, res: Response, next: NextF
 
     const userId = authData.user.id;
 
-    // 2. Set role in workspace_members
+    // 2. Ensure user exists in public.users (needed for team member lookups)
+    const { error: userError } = await supabaseAdmin
+      .from('users')
+      .upsert({ id: userId, email, full_name: full_name ?? email.split('@')[0] });
+
+    if (userError) throw userError;
+
+    // 3. Set role in workspace_members
     const { error: memberError } = await supabaseAdmin
       .from('workspace_members')
       .upsert({

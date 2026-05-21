@@ -43,7 +43,6 @@ const routeMap: Record<string, string> = {
   'team': 'Users & Access',
   'roles': 'Roles & Permissions',
   'units': 'Business Units',
-  'partners': 'External Partners',
   'admin': 'Admin',
   'settings': 'Workspace Settings',
   'billing': 'Subscription & Usage',

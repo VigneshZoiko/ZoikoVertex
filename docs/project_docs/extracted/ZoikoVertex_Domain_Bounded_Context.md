@@ -33,7 +33,7 @@ Must support: execution queueing, job lifecycle transitions, retries, failure ca
 Must not own: decision scoring, policy interpretation, autonomous risk assessment.
 Hard constraint: execution is permitted only where decision_status = APPROVED and governance_status = PASSED.
 4.4 Channel & Platform Domain
-This domain abstracts external systems such as Meta, LinkedIn, TikTok, Google, email providers, analytics tools, and similar channel endpoints. It isolates platform-specific constraints and exposes a normalized capability surface to the rest of the system.
+This domain abstracts external systems such as Meta, LinkedIn, Google, email providers, analytics tools, and similar channel endpoints. It isolates platform-specific constraints and exposes a normalized capability surface to the rest of the system.
 Owns: platform definitions, account bindings, connector capability metadata, rate-limit state, channel-specific mapping rules.
 Must expose normalized capabilities such as publish_content(), launch_ad(), fetch_metrics(), pause_campaign(), update_budget().
 Must not own: business campaign logic, decision criteria, financial calculations.
