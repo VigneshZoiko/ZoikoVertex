@@ -11,11 +11,27 @@ export interface DecisionResult {
   governance_cleared: boolean;
 }
 
+export interface IntentPayload {
+  content?: string;
+  platform?: string;
+  risk_score?: number;
+  risk_level?: string;
+  creator_id?: string;
+  [key: string]: unknown;
+}
+
+export interface RiskContext {
+  level?: string;
+  score?: number;
+  factors?: string[];
+  [key: string]: unknown;
+}
+
 export interface PolicyRule {
   id: string;
   name: string;
   description: string;
-  triggerCondition: (intent: any, riskAssessment: any) => boolean;
+  triggerCondition: (intent: IntentPayload, riskAssessment: RiskContext) => boolean;
   action: 'APPROVE' | 'REJECT' | 'ESCALATE';
   failureReason: string;
 }

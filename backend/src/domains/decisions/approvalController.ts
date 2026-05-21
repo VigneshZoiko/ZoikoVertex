@@ -162,11 +162,11 @@ export const getApprovalQueue = async (req: AuthRequest, res: Response, next: Ne
 
     const { data, error } = await query;
     if (error) {
-      if ((error as any).code === '42P01') return res.json({ success: true, data: [], role });
+      if ((error as { code?: string }).code === '42P01') return res.json({ success: true, data: [], role });
       throw error;
     }
 
-    const filtered = (data || []).filter((item: any) => statusFilter.includes(item.status));
+    const filtered = (data || []).filter((item: { status: string }) => statusFilter.includes(item.status));
     res.json({ success: true, data: filtered, role });
   } catch (error) {
     next(error);

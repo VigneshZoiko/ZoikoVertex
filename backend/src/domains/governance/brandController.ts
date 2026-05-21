@@ -108,7 +108,7 @@ export const updateBrandRule = async (req: AuthRequest, res: Response) => {
       .limit(1)
       .maybeSingle();
 
-    const payload: any = {};
+    const payload: Record<string, unknown> = {};
     if (['warmth', 'authority', 'restraint'].includes(target)) {
       payload[target] = Number(value);
     } else if (['allowed_lexicon', 'prohibited_lexicon'].includes(target)) {

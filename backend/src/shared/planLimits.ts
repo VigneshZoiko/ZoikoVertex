@@ -17,7 +17,6 @@ export const PLAN_LIMITS: Record<string, PlanLimit> = {
   ENTERPRISE: { maxKeys: -1, maxWebhooks: -1, reqPerMin: 400, aiPerMin: 80,  allowWildcard: true  },
 };
 
-const INTEGRATION_ROLES = ['DEVELOPER', 'WORKSPACE_OWNER', 'ADMIN'];
 const ALLOWED_PLANS    = ['GROWTH', 'ENTERPRISE'];
 
 // Block API key users from integration management — dashboard only
