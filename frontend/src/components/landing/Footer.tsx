@@ -80,7 +80,7 @@ export default function Footer() {
           <div className="lg:col-span-1">
             <div className="flex items-center gap-1.5 mb-4">
               <Image
-                src="/images/logo-dark.jpeg"
+                src="/images/logo-wordmark.svg"
                 alt="ZoikoVertex"
                 width={28}
                 height={28}
