@@ -503,6 +503,25 @@ export const assignQueueItem = async (
   }
 };
 
+export const resolveQueueItem = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const id = getParam(req, "id");
+    const result = await queueService.resolveQueueItem(id);
+    res.json({
+      success: true,
+      ...result,
+      message: "Queue item resolved successfully",
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to resolve queue item");
+    next(err);
+  }
+};
+
 export const createIncident = async (
   req: AuthRequest,
   res: Response,

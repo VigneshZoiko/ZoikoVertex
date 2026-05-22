@@ -421,9 +421,27 @@ interface RunDetailDrawerProps {
   onCreateIncident: () => void;
   onExportEvidence: (bundleId: string) => void;
   exportEvidenceLoading: boolean;
+  onApproveOutput: (run: AgentRun) => void;
+  onRejectOutput: (run: AgentRun) => void;
+  onRequestOutputChanges: (run: AgentRun) => void;
+  onExportSnapshot: (run: AgentRun, detail: RunDetail) => void;
 }
 
-function RunDetailDrawer({ run, detail, timeline, loadingDetail, loadingTimeline, onClose, onCreateIncident, onExportEvidence, exportEvidenceLoading }: RunDetailDrawerProps) {
+function RunDetailDrawer({
+  run,
+  detail,
+  timeline,
+  loadingDetail,
+  loadingTimeline,
+  onClose,
+  onCreateIncident,
+  onExportEvidence,
+  exportEvidenceLoading,
+  onApproveOutput,
+  onRejectOutput,
+  onRequestOutputChanges,
+  onExportSnapshot,
+}: RunDetailDrawerProps) {
   const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
   const tabs: { id: DrawerTab; label: string; icon: React.ReactNode }[] = [
     { id: "overview",  label: "Overview",  icon: <Info className="w-3.5 h-3.5" />       },
@@ -706,10 +724,34 @@ function RunDetailDrawer({ run, detail, timeline, loadingDetail, loadingTimeline
                     {detail.output_snapshot}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <button className="px-3 py-1.5 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5"><Check className="w-3.5 h-3.5" />Approve</button>
-                    <button className="px-3 py-1.5 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"><XCircle className="w-3.5 h-3.5" />Reject</button>
-                    <button className="px-3 py-1.5 text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/20 transition-colors flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Request Changes</button>
-                    <button className="px-3 py-1.5 text-xs bg-[#1f1f1f] border border-[#2a2a2a] text-[#888] rounded-lg hover:text-white transition-colors flex items-center gap-1.5"><Download className="w-3.5 h-3.5" />Export Snapshot</button>
+                    <button
+                      onClick={() => onApproveOutput(run)}
+                      className="px-3 py-1.5 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => onRejectOutput(run)}
+                      className="px-3 py-1.5 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => onRequestOutputChanges(run)}
+                      className="px-3 py-1.5 text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/20 transition-colors flex items-center gap-1.5"
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Request Changes
+                    </button>
+                    <button
+                      onClick={() => onExportSnapshot(run, detail)}
+                      className="px-3 py-1.5 text-xs bg-[#1f1f1f] border border-[#2a2a2a] text-[#888] rounded-lg hover:text-white transition-colors flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Export Snapshot
+                    </button>
                   </div>
                 </>
               ) : (
@@ -986,6 +1028,116 @@ export default function AgentOperationsPage() {
   };
 
   // ── Create incident ──
+  const downloadSnapshot = useCallback((filename: string, payload: string) => {
+    const blob = new Blob([payload], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleQueueAssign = async (item: QueueItem) => {
+    try {
+      const res = await api.assignQueueItem(item.id);
+      if (!res?.success) throw new Error(res?.error || "Assign failed");
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to assign queue item.");
+    }
+  };
+
+  const handleQueueHold = async (item: QueueItem) => {
+    if (!item.run_id) {
+      setError("This queue item is not linked to a runnable task.");
+      return;
+    }
+    try {
+      const res = await api.pauseRun(item.run_id, "Held from task queue");
+      if (!res?.success) throw new Error(res?.error || "Hold failed");
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to hold queue item.");
+    }
+  };
+
+  const handleQueueEscalate = async (item: QueueItem) => {
+    if (!item.run_id) {
+      setError("This queue item is not linked to a runnable task.");
+      return;
+    }
+    const reason = window.prompt("Enter escalation reason:", "Escalated from task queue");
+    if (reason === null) return;
+    try {
+      const res = await api.escalateRun(item.run_id, reason || "Escalated from task queue");
+      if (!res?.success) throw new Error(res?.error || "Escalation failed");
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to escalate queue item.");
+    }
+  };
+
+  const handleQueueCancel = async (item: QueueItem) => {
+    if (!item.run_id) {
+      setError("This queue item is not linked to a runnable task.");
+      return;
+    }
+    try {
+      const res = await api.stopRun(item.run_id, "Cancelled from task queue");
+      if (!res?.success) throw new Error(res?.error || "Cancel failed");
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to cancel queue item.");
+    }
+  };
+
+  const handleApproveOutput = async (run: AgentRun) => {
+    try {
+      const queueItem = queues.find((item) => item.run_id === run.id && item.status !== "RESOLVED");
+      if (queueItem) {
+        const res = await api.resolveQueueItem(queueItem.id);
+        if (!res?.success) throw new Error(res?.error || "Approval failed");
+      }
+      await fetchData();
+      await handleViewRun(run);
+    } catch (err: any) {
+      setError(err?.message || "Failed to approve output.");
+    }
+  };
+
+  const handleRejectOutput = async (run: AgentRun) => {
+    try {
+      const res = await api.quarantineRun(run.id, "Rejected from output review");
+      if (!res?.success) throw new Error(res?.error || "Reject failed");
+      await fetchData();
+      await handleViewRun(run);
+    } catch (err: any) {
+      setError(err?.message || "Failed to reject output.");
+    }
+  };
+
+  const handleRequestOutputChanges = async (run: AgentRun) => {
+    try {
+      const res = await api.escalateRun(run.id, "Output review requested changes");
+      if (!res?.success) throw new Error(res?.error || "Request changes failed");
+      await fetchData();
+      await handleViewRun(run);
+    } catch (err: any) {
+      setError(err?.message || "Failed to request changes.");
+    }
+  };
+
+  const handleExportSnapshot = useCallback(
+    (run: AgentRun, detail: RunDetail) => {
+      downloadSnapshot(
+        `run-output-${run.id}.txt`,
+        detail.output_snapshot || "No output snapshot available.",
+      );
+    },
+    [downloadSnapshot],
+  );
+
   const handleCreateIncident = async () => {
     setIncidentLoading(true);
     try {
@@ -1390,10 +1542,10 @@ export default function AgentOperationsPage() {
                         ) : <span className="text-[#333]">—</span>}
                       </div>
                       <div className="flex items-center gap-1">
-                        <button className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors" title="Assign"><UserCheck className="w-3.5 h-3.5" /></button>
-                        <button className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400/70 hover:text-amber-400 transition-colors" title="Hold"><Pause className="w-3.5 h-3.5" /></button>
-                        <button className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400/70 hover:text-orange-400 transition-colors" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
-                        <button className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400/70 hover:text-rose-400 transition-colors" title="Cancel"><XCircle className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueAssign(item)} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors" title="Assign"><UserCheck className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueHold(item)} className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400/70 hover:text-amber-400 transition-colors" title="Hold"><Pause className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueEscalate(item)} className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400/70 hover:text-orange-400 transition-colors" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueCancel(item)} className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400/70 hover:text-rose-400 transition-colors" title="Cancel"><XCircle className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   );
@@ -1516,6 +1668,10 @@ export default function AgentOperationsPage() {
           onCreateIncident={() => setShowIncidentModal(true)}
           onExportEvidence={(bundleId) => setEvidenceExportBundleId(bundleId)}
           exportEvidenceLoading={evidenceExportLoading}
+          onApproveOutput={handleApproveOutput}
+          onRejectOutput={handleRejectOutput}
+          onRequestOutputChanges={handleRequestOutputChanges}
+          onExportSnapshot={handleExportSnapshot}
         />
       )}
 

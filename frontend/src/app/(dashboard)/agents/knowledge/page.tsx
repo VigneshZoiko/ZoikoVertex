@@ -327,6 +327,10 @@ function CollectionsPanel({
   onDeleteSource,
   onApproveSource,
   onRetireSource,
+  onActivateSource,
+  onPublishSource,
+  onRestrictSource,
+  onQuarantineSource,
   onUpdateCollection,
   onDeleteCollection,
 }: {
@@ -343,6 +347,10 @@ function CollectionsPanel({
   onDeleteSource: (id: string) => void;
   onApproveSource: (id: string) => void;
   onRetireSource: (id: string) => void;
+  onActivateSource: (id: string) => void;
+  onPublishSource: (id: string) => void;
+  onRestrictSource: (id: string) => void;
+  onQuarantineSource: (id: string) => void;
   onUpdateCollection?: (id: string, data: Partial<KnowledgeCollection>) => void;
   onDeleteCollection?: (id: string) => void;
 }) {
@@ -455,6 +463,10 @@ function CollectionsPanel({
                       onDelete={onDeleteSource}
                       onApprove={onApproveSource}
                       onRetire={onRetireSource}
+                      onActivate={onActivateSource}
+                      onPublish={onPublishSource}
+                      onRestrict={onRestrictSource}
+                      onQuarantine={onQuarantineSource}
                     />
                   ))}
                 </div>
@@ -1749,6 +1761,10 @@ export default function KnowledgePage() {
             onDeleteSource={handleDeleteSource}
             onApproveSource={handleApproveSource}
             onRetireSource={handleRetireSource}
+            onActivateSource={handleActivateSource}
+            onPublishSource={handlePublishSource}
+            onRestrictSource={handleRestrictSource}
+            onQuarantineSource={handleQuarantineSource}
             onUpdateCollection={handleUpdateCollection}
             onDeleteCollection={handleDeleteCollection}
           />

@@ -22,6 +22,9 @@ interface TestCase {
   category: string;
   name: string;
   description: string;
+  expected_behavior?: string;
+  details?: string;
+  actual_output?: string;
   result: 'pass' | 'warning' | 'fail';
   score: number;
 }
@@ -36,6 +39,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
   const [isCertified, setIsCertified] = useState(false);
   const [overallResult, setOverallResult] = useState<'pass' | 'warning' | 'block' | null>(null);
   const [finalizeError, setFinalizeError] = useState<string | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
 
   const currentLevelNum = parseInt(currentLevel.replace("L", ""), 10) || 0;
   const targetLevel = `L${Math.min(currentLevelNum + 1, 6)}`;
@@ -92,39 +96,72 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
     setIsCertified(false);
     setOverallResult(null);
     setFinalizeError(null);
+    setRunError(null);
     setCompletedTests([]);
     setScore(0);
     setTestCases([]);
     setLogs(["[SYSTEM] Initiating Adversarial Sandbox...", `[INFO] Testing ${agentName} for ${targetLevel} Autonomy.`]);
+    try {
+      const res = await api.runAgentSandbox(agentId, targetLevel);
+      if (!res?.success) {
+        throw new Error(
+          typeof res?.message === "string"
+            ? res.message
+            : typeof res?.error === "string"
+              ? res.error
+              : "Sandbox execution failed.",
+        );
+      }
 
-    const cases: TestCase[] = CATEGORIES.map((cat, i) => ({
-      id: `t${i + 1}`,
-      category: cat,
-      name: TEST_LABELS[cat],
-      description: TEST_DESCRIPTIONS[cat],
-      result: 'pass',
-      score: 100,
-    }));
-    setTestCases(cases);
+      const cases: TestCase[] = Array.isArray(res.test_cases)
+        ? res.test_cases.map((test: any) => ({
+            id: test.id,
+            category: test.category,
+            name: test.name || TEST_LABELS[test.category] || test.category,
+            description:
+              test.description || TEST_DESCRIPTIONS[test.category] || "Sandbox test",
+            expected_behavior: test.expected_behavior,
+            details: test.details,
+            actual_output: test.actual_output,
+            result: test.result,
+            score: test.score,
+          }))
+        : [];
 
-    for (let i = 0; i < CATEGORIES.length; i++) {
-      const cat = CATEGORIES[i];
-      const label = TEST_LABELS[cat];
-      setLogs(prev => [...prev, `[RUNNING] ${label}...`]);
-      await new Promise(r => setTimeout(r, 1200));
-      setCompletedTests(prev => [...prev, cat]);
-      setLogs(prev => [...prev, `[PASSED] ${label} - No violations found.`]);
+      setTestCases(cases);
+      setCompletedTests(cases.map((test) => test.category));
+
+      const avgScore = cases.length
+        ? Math.round(
+            cases.reduce((sum, test) => sum + (Number(test.score) || 0), 0) /
+              cases.length,
+          )
+        : 0;
+
+      setScore(avgScore);
+      setOverallResult(res.overall_result || "warning");
+      setLogs((prev) => [
+        ...prev,
+        ...cases.map((test) => {
+          const prefix =
+            test.result === "pass"
+              ? "[PASSED]"
+              : test.result === "warning"
+                ? "[WARNING]"
+                : "[FAILED]";
+          return `${prefix} ${test.name} - ${test.expected_behavior || test.description}`;
+        }),
+        `[COMPLETE] Sandbox suite finished with result: ${(res.overall_result || "warning").toUpperCase()}.`,
+        `[SYSTEM] Certification Evidence logged to ${res.evidence_ref || "Evidence Vault"}.`,
+      ]);
+      setIsCertified(true);
+    } catch (err: any) {
+      const message = err?.message || "Sandbox execution failed.";
+      setRunError(message);
+      setLogs((prev) => [...prev, `[ERROR] ${message}`]);
+    } finally {
+      setTesting(false);
     }
-
-    setScore(96);
-    setOverallResult('pass');
-    setLogs(prev => [
-      ...prev,
-      "[COMPLETE] All adversarial tests passed.",
-      "[SYSTEM] Certification Evidence logged to Evidence Vault.",
-    ]);
-    setTesting(false);
-    setIsCertified(true);
   };
 
   const handleFinalize = async () => {
@@ -203,6 +240,12 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
             <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)] mb-2">
               Adversarial Test Matrix ({CATEGORIES.length} tests)
             </h3>
+
+            {runError && (
+              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-semibold text-rose-500">
+                {runError}
+              </div>
+            )}
 
             {CATEGORIES.map((cat, i) => {
               const done = completedTests.includes(cat);

@@ -407,7 +407,13 @@ function LifecycleTab({ prompts }: { prompts: PromptRecord[] }) {
 
 // ─── Tab: Testing ──────────────────────────────────────────────────────────────
 
-function TestingTab({ prompts }: { prompts: PromptRecord[] }) {
+function TestingTab({
+  prompts,
+  onRunTests,
+}: {
+  prompts: PromptRecord[];
+  onRunTests: (versionId: string) => void;
+}) {
   const TEST_CATEGORIES = [
     { icon: ShieldCheck, label: "Instruction Adherence", desc: "Output format, role boundaries, variable rules, escalation, refusal." },
     { icon: ShieldAlert, label: "Safety & Policy", desc: "Blocks prohibited claims, offensive content, restricted topics." },
@@ -477,7 +483,11 @@ function TestingTab({ prompts }: { prompts: PromptRecord[] }) {
                   {new Date(p.last_test.run_at).toLocaleDateString()} · {p.last_test.environment}
                 </div>
               )}
-              <button className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-white hover:border-slate-600 transition-all">
+              <button
+                onClick={() => p.active_version_id && onRunTests(p.active_version_id)}
+                disabled={!p.active_version_id}
+                className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-white hover:border-slate-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
                 <Play className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -569,7 +579,15 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction }: { prompts: P
 
 // ─── Tab: Evidence ─────────────────────────────────────────────────────────────
 
-function EvidenceTab({ prompts, auditStats }: { prompts: PromptRecord[]; auditStats: AuditStats | null }) {
+function EvidenceTab({
+  prompts,
+  auditStats,
+  onExportPromptEvidence,
+}: {
+  prompts: PromptRecord[];
+  auditStats: AuditStats | null;
+  onExportPromptEvidence: (prompt: PromptRecord, context: string) => void;
+}) {
   const EVIDENCE_TYPES = [
     { icon: GitBranch, label: "Prompt Version Records", desc: "ID, version, author, date, body hash, variables, rules, knowledge, tools." },
     { icon: History, label: "Diff Records", desc: "Text changes, variable changes, risk changes, routing changes, tool-use changes." },
@@ -631,7 +649,10 @@ function EvidenceTab({ prompts, auditStats }: { prompts: PromptRecord[]; auditSt
               <div className="text-[10px] text-slate-500">{p.active_version} · deployed {new Date(p.last_deployed).toLocaleDateString()}</div>
             </div>
             <RiskBadge tier={p.risk_tier} />
-            <button className="flex items-center gap-2 px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all">
+            <button
+              onClick={() => onExportPromptEvidence(p, "evidence_tab")}
+              className="flex items-center gap-2 px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all"
+            >
               <Download className="w-3 h-3" />
               Export Pack
             </button>
@@ -648,7 +669,15 @@ function EvidenceTab({ prompts, auditStats }: { prompts: PromptRecord[]; auditSt
 
 // ─── Tab: Runtime ──────────────────────────────────────────────────────────────
 
-function RuntimeTab({ prompts, hitlRules }: { prompts: PromptRecord[]; hitlRules: HitlRule[] }) {
+function RuntimeTab({
+  prompts,
+  hitlRules,
+  onLifecycleAction,
+}: {
+  prompts: PromptRecord[];
+  hitlRules: HitlRule[];
+  onLifecycleAction: (id: string, action: string) => void;
+}) {
   const RUNTIME_RULES = [
     "Runtime agents may only load production-active prompt versions for their assigned scope.",
     "Draft and staging prompts are not callable by production agents.",
@@ -697,9 +726,18 @@ function RuntimeTab({ prompts, hitlRules }: { prompts: PromptRecord[]; hitlRules
               </div>
               <RiskBadge tier={p.risk_tier} />
               <div className="flex gap-2">
-                <button className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all">Resume</button>
-                <button className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all">
-                  <RotateCcw className="w-3 h-3" /> Rollback
+                <button
+                  onClick={() => onLifecycleAction(p.id, "resume")}
+                  className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all"
+                >
+                  Resume
+                </button>
+                <button
+                  onClick={() => onLifecycleAction(p.id, "rollback")}
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Rollback
                 </button>
               </div>
             </div>
@@ -799,11 +837,18 @@ function CreatePromptModal({ onClose, onCreate, creating }: {
 
 // ─── Prompt Detail Drawer ──────────────────────────────────────────────────────
 
-function PromptDetailDrawer({ prompt, onClose, onLifecycleAction, onVersionAction }: {
+function PromptDetailDrawer({
+  prompt,
+  onClose,
+  onLifecycleAction,
+  onVersionAction,
+  onExportEvidence,
+}: {
   prompt: PromptRecord;
   onClose: () => void;
   onLifecycleAction: (id: string, action: string) => void;
   onVersionAction: (versionId: string, action: string, extra?: any) => void;
+  onExportEvidence: (prompt: PromptRecord, context: string) => void;
 }) {
   const [drawerTab, setDrawerTab] = useState<"overview" | "body" | "bindings" | "history">("overview");
 
@@ -969,7 +1014,10 @@ function PromptDetailDrawer({ prompt, onClose, onLifecycleAction, onVersionActio
                 </button>
               </>
             )}
-            <button className="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all flex items-center gap-1.5">
+            <button
+              onClick={() => onExportEvidence(prompt, "drawer")}
+              className="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all flex items-center gap-1.5"
+            >
               <Download className="w-3 h-3" /> Export Evidence
             </button>
             <button onClick={() => onLifecycleAction(prompt.id, 'clone')} className="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all flex items-center gap-1.5">
@@ -1115,6 +1163,41 @@ export default function PromptsPage() {
     }
   };
 
+  const downloadJson = useCallback((filename: string, payload: unknown) => {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleExportPromptEvidence = useCallback(
+    (prompt: PromptRecord, context: string) => {
+      downloadJson(`prompt-evidence-${prompt.id}.json`, {
+        exported_at: new Date().toISOString(),
+        export_context: context,
+        prompt,
+        audit_stats: auditStats,
+      });
+    },
+    [auditStats, downloadJson],
+  );
+
+  const handleAuditExport = useCallback(() => {
+    downloadJson("prompt-governance-audit-export.json", {
+      exported_at: new Date().toISOString(),
+      prompt_stats: promptStats,
+      audit_stats: auditStats,
+      approval_stats: approvalStats,
+      hitl_rules: hitlRules,
+      prompts,
+    });
+  }, [approvalStats, auditStats, downloadJson, hitlRules, promptStats, prompts]);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -1173,7 +1256,10 @@ export default function PromptsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="px-6 py-3 bg-slate-900 border border-slate-800 hover:border-slate-600 text-slate-300 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2">
+            <button
+              onClick={handleAuditExport}
+              className="px-6 py-3 bg-slate-900 border border-slate-800 hover:border-slate-600 text-slate-300 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2"
+            >
               <Download className="w-4 h-4" />
               Audit Export
             </button>
@@ -1255,14 +1341,39 @@ export default function PromptsPage() {
           />
         )}
         {activeTab === "lifecycle" && <LifecycleTab prompts={prompts} />}
-        {activeTab === "testing" && <TestingTab prompts={prompts} />}
+        {activeTab === "testing" && (
+          <TestingTab
+            prompts={prompts}
+            onRunTests={(versionId) => handleVersionAction(versionId, "run_tests")}
+          />
+        )}
         {activeTab === "approvals" && <ApprovalsTab prompts={prompts} approvalStats={approvalStats} onApprovalAction={handleApprovalAction} />}
-        {activeTab === "evidence" && <EvidenceTab prompts={prompts} auditStats={auditStats} />}
-        {activeTab === "runtime" && <RuntimeTab prompts={prompts} hitlRules={hitlRules} />}
+        {activeTab === "evidence" && (
+          <EvidenceTab
+            prompts={prompts}
+            auditStats={auditStats}
+            onExportPromptEvidence={handleExportPromptEvidence}
+          />
+        )}
+        {activeTab === "runtime" && (
+          <RuntimeTab
+            prompts={prompts}
+            hitlRules={hitlRules}
+            onLifecycleAction={handleLifecycleAction}
+          />
+        )}
       </div>
 
       {/* Prompt detail drawer */}
-      {selectedPrompt && <PromptDetailDrawer prompt={selectedPrompt} onClose={() => setSelectedPrompt(null)} onLifecycleAction={handleLifecycleAction} onVersionAction={handleVersionAction} />}
+      {selectedPrompt && (
+        <PromptDetailDrawer
+          prompt={selectedPrompt}
+          onClose={() => setSelectedPrompt(null)}
+          onLifecycleAction={handleLifecycleAction}
+          onVersionAction={handleVersionAction}
+          onExportEvidence={handleExportPromptEvidence}
+        />
+      )}
 
       {/* Create prompt modal */}
       {showCreateModal && <CreatePromptModal onClose={() => setShowCreateModal(false)} onCreate={handleCreatePrompt} creating={creatingPrompt} />}
