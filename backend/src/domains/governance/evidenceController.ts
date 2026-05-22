@@ -179,20 +179,24 @@ export const logAuditEvent = async (params: {
 export const getAuditTrail = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { service, level, search, limit = '50', offset = '0' } = req.query;
-
-    let query = supabaseAdmin
-      .from('system_logs')
-      .select('*', { count: 'exact' });
-
-    if (service && typeof service === 'string') query = query.eq('service', service);
-    if (level && typeof level === 'string')     query = query.eq('level', level);
-    if (search && typeof search === 'string')   query = query.ilike('message', `%${search}%`);
-
+    const { search, limit = '50', offset = '0', event_category, risk_level, status } = req.query;
     const lim = Math.min(parseInt(String(limit), 10), 200);
     const off = parseInt(String(offset), 10);
+
+    let query = supabaseAdmin
+      .from('audit_events')
+      .select('*', { count: 'exact' });
+
+    if (workspaceId) query = query.eq('workspace_id', workspaceId);
+    if (event_category && typeof event_category === 'string') query = query.eq('event_category', event_category);
+    if (risk_level && typeof risk_level === 'string') query = query.eq('risk_level', risk_level);
+    if (status && typeof status === 'string') query = query.eq('status', status);
+    if (search && typeof search === 'string') {
+      query = query.or(`event_id.ilike.%${search}%,event_title.ilike.%${search}%,event_summary.ilike.%${search}%`);
+    }
 
     const { data, error, count } = await query
       .order('created_at', { ascending: false })
@@ -209,22 +213,24 @@ export const getAuditTrail = async (req: AuthRequest, res: Response, next: NextF
 export const getAuditStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { data: all } = await supabaseAdmin
-      .from('system_logs')
-      .select('level, service, created_at');
+      .from('audit_events')
+      .select('risk_level, status, event_category, created_at');
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString();
 
     const stats = {
-      total:      (all || []).length,
-      today:      (all || []).filter(e => e.created_at >= todayStr).length,
-      errors:     (all || []).filter(e => e.level === 'error').length,
-      warnings:   (all || []).filter(e => e.level === 'warn').length,
-      services:   [...new Set((all || []).map(e => e.service))].filter(Boolean),
+      total:          (all || []).length,
+      today:          (all || []).filter(e => e.created_at >= todayStr).length,
+      errors:         (all || []).filter(e => e.status === 'failed').length,
+      warnings:       (all || []).filter(e => e.risk_level === 'medium').length,
+      critical:       (all || []).filter(e => e.risk_level === 'critical').length,
+      event_categories: [...new Set((all || []).map(e => e.event_category))].filter(Boolean),
     };
 
     res.json({ success: true, data: stats });

@@ -11,14 +11,144 @@ import { errorHandler } from './shared/errorHandler';
 import { provisionUser } from './domains/identity/identityController';
 import { generateContent, analyzeImage } from './domains/intelligence/intelligenceController';
 import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } from './domains/governance/governanceController';
-import { 
+import {
   getAuditTrail, getAuditStats, 
   getEvidenceArtifacts, getEvidenceArtifactDetail, getEvidenceStats,
   applyLegalHold, listLegalHolds, releaseLegalHold,
   buildEvidencePack, listEvidencePacks, downloadEvidencePack
 } from './domains/governance/evidenceController';
+import {
+  getEvents as getAuditEvents,
+  getEventsStats as getAuditEventsStats,
+  getEventDetail,
+  getEventRelated,
+  verifyChain,
+  createExport,
+  listExports,
+  preserve,
+  sealExpired,
+  createInvestigation,
+  createEvent,
+} from './domains/evidence/auditTrailController';
+import {
+  subscribeSSE,
+  createWebhookSubscription,
+  listSubscriptionsRoute,
+  deleteSubscriptionRoute,
+  testSubscription,
+  getSubscriptionById,
+  updateSubscriptionRoute,
+} from './domains/evidence/auditTrailStreamingController';
 import { getRiskPulse, getActiveRiskFeed, getGovernanceGaps, triggerEmergencyPause } from './domains/governance/riskController';
 import { getForensicSummary, getAgentPerformance } from './domains/governance/forensicController';
+import {
+  listCases as listForensicCases,
+  createCase as createForensicCase,
+  getStats as getForensicStats,
+  getCase as getForensicCase,
+  updateCase as updateForensicCase,
+  assignCase,
+  addEvidence,
+  listEvidence,
+  pinEvidence,
+  addNote,
+  listNotes,
+  addTask,
+  updateTask,
+  listTasks,
+  listActions,
+  getTimeline,
+  closeCase,
+  reopenCase,
+  preserveToVault,
+  applyLegalHold as applyForensicLegalHold,
+  releaseLegalHold as releaseForensicLegalHold,
+  getSlaReport,
+  getEntityGraph,
+  createExport as createForensicExport,
+  listExports as listForensicExports,
+  approveExport,
+  rejectExport,
+  generateExport,
+  markEvidencePrivileged,
+  unpinEvidence,
+} from './domains/evidence/forensicHubController';
+import {
+  generateAiSummary,
+  approveAiSummary as approveSummary,
+  rejectAiSummary as rejectSummary,
+  listAiSummaries,
+  generateTimelineExplanation,
+  detectAnomalies,
+  listAnomalies,
+  generateRecommendations,
+  routeToSiem,
+  getSiemHistory,
+  createAuditorSession,
+  getExportNarrative,
+} from './domains/evidence/forensicPhase4Controller';
+import {
+  listEvidenceItems as listVaultEvidenceItems,
+  getEvidenceItem,
+  preserveEvidence,
+  verifyEvidenceItem as verifyVaultEvidenceItem,
+  createCollection,
+  listCollections,
+  getCollection,
+  addItemsToCollection,
+  getCollectionItems as getVaultCollectionItems,
+  getVaultHealth,
+  // Phase 2
+  createPackage,
+  listPackages as listVaultPackages,
+  getPackage as getVaultPackage,
+  sealPackage as sealVaultPackage,
+  getPackageManifest as getVaultPackageManifest,
+  verifyPackage as verifyVaultPackage,
+  createExport as createVaultExport,
+  listExports as listVaultExports,
+  getExportReceipt,
+  applyHold,
+  listHolds as listVaultHolds,
+  releaseHold,
+  createRedactionPolicy,
+  listRedactionPolicies,
+  // Phase 3
+  createShare,
+  listShares as listVaultShares,
+  getShare as getVaultShare,
+  revokeShare,
+  getShareAccessLogs,
+  runDlpScan,
+  getDlpScan,
+  listDlpScans,
+  // Phase 4
+  createAsyncJob,
+  listAsyncJobs as listVaultAsyncJobs,
+  getAsyncJob,
+  createChainAnchor,
+  listChainAnchors,
+  createTemplateVersion,
+  listTemplateVersions,
+} from './domains/evidence/evidenceVaultController';
+import {
+  listActors as listIdentityActors,
+  getActor as getIdentityActor,
+  getActorTimeline as getIdentityActorTimeline,
+  getAuthoritySnapshot as getIdentityAuthoritySnapshot,
+  getAuthorityAtEvent as getIdentityAuthorityAtEvent,
+  verifyLedgerChain as verifyIdentityLedgerChain,
+  listDelegations,
+  createDelegation,
+  revokeDelegation,
+  listBreakGlass,
+  requestBreakGlass,
+  activateBreakGlass,
+  endBreakGlass,
+  reviewBreakGlass,
+  exportLedger,
+  preserveToVault as identityLedgerPreserveToVault
+} from './domains/evidence/identityLedgerController';
 import { getCollusionMetrics } from './domains/governance/collusionController';
 import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
@@ -207,6 +337,164 @@ app.delete('/api/v1/governance/evidence/holds/:id', authenticate, govGuard, scop
 app.get('/api/v1/governance/evidence/packs', authenticate, govGuard, scopeGuard('read:governance', '*'), listEvidencePacks);
 app.post('/api/v1/governance/evidence/packs', authenticate, govGuard, scopeGuard('read:governance', '*'), buildEvidencePack);
 app.get('/api/v1/governance/evidence/packs/:id/download', authenticate, govGuard, scopeGuard('read:governance', '*'), downloadEvidencePack);
+
+// ─── Audit Trail Routes (Evidence Layer Module 1) ───────────────────────────
+// NOTE: Static routes MUST be defined BEFORE parameterized :id routes.
+app.post('/api/audit-events', authenticate, govGuard, scopeGuard('read:governance', '*'), createEvent);
+app.get('/api/audit-events', authenticate, scopeGuard('read:governance', '*'), getAuditEvents);
+app.get('/api/audit-events/stats', authenticate, scopeGuard('read:governance', '*'), getAuditEventsStats);
+app.get('/api/audit-events/chain/verify', authenticate, govGuard, scopeGuard('read:governance', '*'), verifyChain);
+app.get('/api/audit-events/exports', authenticate, scopeGuard('read:governance', '*'), listExports);
+app.post('/api/audit-events/export', authenticate, govGuard, scopeGuard('read:governance', '*'), createExport);
+app.post('/api/audit-events/preserve', authenticate, govGuard, scopeGuard('read:governance', '*'), preserve);
+app.post('/api/audit-events/create-investigation', authenticate, govGuard, scopeGuard('read:governance', '*'), createInvestigation);
+app.post('/api/audit-events/seal-expired', authenticate, govGuard, scopeGuard('read:governance', '*'), sealExpired);
+app.get('/api/audit-events/subscribe', authenticate, scopeGuard('read:governance', '*'), subscribeSSE);
+app.post('/api/audit-events/subscriptions', authenticate, govGuard, scopeGuard('read:governance', '*'), createWebhookSubscription);
+app.get('/api/audit-events/subscriptions', authenticate, scopeGuard('read:governance', '*'), listSubscriptionsRoute);
+app.get('/api/audit-events/subscriptions/:id', authenticate, scopeGuard('read:governance', '*'), getSubscriptionById);
+app.patch('/api/audit-events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), updateSubscriptionRoute);
+app.delete('/api/audit-events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), deleteSubscriptionRoute);
+app.post('/api/audit-events/subscriptions/:id/test', authenticate, govGuard, scopeGuard('read:governance', '*'), testSubscription);
+app.get('/api/audit-events/:id', authenticate, scopeGuard('read:governance', '*'), getEventDetail);
+app.get('/api/audit-events/:id/related', authenticate, scopeGuard('read:governance', '*'), getEventRelated);
+
+// ─── Audit Trail Routes (Spec-Aligned /api/v1/evidence/audit-trail) ─────────
+app.post('/api/v1/evidence/audit-trail/events', authenticate, govGuard, scopeGuard('read:governance', '*'), createEvent);
+app.get('/api/v1/evidence/audit-trail/events', authenticate, scopeGuard('read:governance', '*'), getAuditEvents);
+app.get('/api/v1/evidence/audit-trail/events/stats', authenticate, scopeGuard('read:governance', '*'), getAuditEventsStats);
+app.get('/api/v1/evidence/audit-trail/events/chain/verify', authenticate, govGuard, scopeGuard('read:governance', '*'), verifyChain);
+app.get('/api/v1/evidence/audit-trail/events/exports', authenticate, scopeGuard('read:governance', '*'), listExports);
+app.post('/api/v1/evidence/audit-trail/events/export', authenticate, govGuard, scopeGuard('read:governance', '*'), createExport);
+app.post('/api/v1/evidence/audit-trail/events/preserve', authenticate, govGuard, scopeGuard('read:governance', '*'), preserve);
+app.post('/api/v1/evidence/audit-trail/events/create-investigation', authenticate, govGuard, scopeGuard('read:governance', '*'), createInvestigation);
+app.post('/api/v1/evidence/audit-trail/events/seal-expired', authenticate, govGuard, scopeGuard('read:governance', '*'), sealExpired);
+app.get('/api/v1/evidence/audit-trail/events/subscribe', authenticate, scopeGuard('read:governance', '*'), subscribeSSE);
+app.post('/api/v1/evidence/audit-trail/events/subscriptions', authenticate, govGuard, scopeGuard('read:governance', '*'), createWebhookSubscription);
+app.get('/api/v1/evidence/audit-trail/events/subscriptions', authenticate, scopeGuard('read:governance', '*'), listSubscriptionsRoute);
+app.get('/api/v1/evidence/audit-trail/events/subscriptions/:id', authenticate, scopeGuard('read:governance', '*'), getSubscriptionById);
+app.patch('/api/v1/evidence/audit-trail/events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), updateSubscriptionRoute);
+app.delete('/api/v1/evidence/audit-trail/events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), deleteSubscriptionRoute);
+app.post('/api/v1/evidence/audit-trail/events/subscriptions/:id/test', authenticate, govGuard, scopeGuard('read:governance', '*'), testSubscription);
+app.get('/api/v1/evidence/audit-trail/events/:id', authenticate, scopeGuard('read:governance', '*'), getEventDetail);
+app.get('/api/v1/evidence/audit-trail/events/:id/related', authenticate, scopeGuard('read:governance', '*'), getEventRelated);
+
+// ─── Forensic Hub Routes ──────────────────────────────────────────────────────
+app.get('/api/forensic/cases/stats', authenticate, scopeGuard('read:governance', '*'), getForensicStats);
+app.get('/api/forensic/cases/sla-report', authenticate, scopeGuard('read:governance', '*'), getSlaReport);
+app.get('/api/forensic/cases', authenticate, scopeGuard('read:governance', '*'), listForensicCases);
+app.post('/api/forensic/cases', authenticate, scopeGuard('read:governance', '*'), createForensicCase);
+app.get('/api/forensic/cases/:caseId', authenticate, scopeGuard('read:governance', '*'), getForensicCase);
+app.patch('/api/forensic/cases/:caseId', authenticate, scopeGuard('read:governance', '*'), updateForensicCase);
+app.post('/api/forensic/cases/:caseId/assign', authenticate, scopeGuard('read:governance', '*'), assignCase);
+app.post('/api/forensic/cases/:caseId/evidence', authenticate, scopeGuard('read:governance', '*'), addEvidence);
+app.get('/api/forensic/cases/:caseId/evidence', authenticate, scopeGuard('read:governance', '*'), listEvidence);
+app.post('/api/forensic/cases/:caseId/evidence/:evidenceId/pin', authenticate, scopeGuard('read:governance', '*'), pinEvidence);
+app.post('/api/forensic/cases/:caseId/notes', authenticate, scopeGuard('read:governance', '*'), addNote);
+app.get('/api/forensic/cases/:caseId/notes', authenticate, scopeGuard('read:governance', '*'), listNotes);
+app.post('/api/forensic/cases/:caseId/tasks', authenticate, scopeGuard('read:governance', '*'), addTask);
+app.get('/api/forensic/cases/:caseId/tasks', authenticate, scopeGuard('read:governance', '*'), listTasks);
+app.patch('/api/forensic/cases/:caseId/tasks/:taskId', authenticate, scopeGuard('read:governance', '*'), updateTask);
+app.get('/api/forensic/cases/:caseId/actions', authenticate, scopeGuard('read:governance', '*'), listActions);
+app.get('/api/forensic/cases/:caseId/timeline', authenticate, scopeGuard('read:governance', '*'), getTimeline);
+app.post('/api/forensic/cases/:caseId/close', authenticate, scopeGuard('read:governance', '*'), closeCase);
+app.post('/api/forensic/cases/:caseId/reopen', authenticate, scopeGuard('read:governance', '*'), reopenCase);
+// Phase 2 extensions
+app.post('/api/forensic/cases/:caseId/preserve', authenticate, scopeGuard('read:governance', '*'), preserveToVault);
+app.post('/api/forensic/cases/:caseId/legal-hold', authenticate, scopeGuard('read:governance', '*'), applyForensicLegalHold);
+app.post('/api/forensic/cases/:caseId/legal-hold/release', authenticate, scopeGuard('read:governance', '*'), releaseForensicLegalHold);
+// Phase 3: Export builder
+app.post('/api/forensic/cases/:caseId/exports', authenticate, scopeGuard('read:governance', '*'), createForensicExport);
+app.get('/api/forensic/cases/:caseId/exports', authenticate, scopeGuard('read:governance', '*'), listForensicExports);
+app.post('/api/forensic/cases/:caseId/exports/:exportId/approve', authenticate, scopeGuard('read:governance', '*'), approveExport);
+app.post('/api/forensic/cases/:caseId/exports/:exportId/reject', authenticate, scopeGuard('read:governance', '*'), rejectExport);
+app.post('/api/forensic/cases/:caseId/exports/:exportId/generate', authenticate, scopeGuard('read:governance', '*'), generateExport);
+// Phase 3: Entity graph
+app.get('/api/forensic/cases/:caseId/graph', authenticate, scopeGuard('read:governance', '*'), getEntityGraph);
+// Phase 3: Evidence privilege/unpin
+app.post('/api/forensic/cases/:caseId/evidence/:evidenceId/privilege', authenticate, scopeGuard('read:governance', '*'), markEvidencePrivileged);
+app.post('/api/forensic/cases/:caseId/evidence/:evidenceId/unpin', authenticate, scopeGuard('read:governance', '*'), unpinEvidence);
+// Phase 4: AI Assist
+app.post('/api/forensic/cases/:caseId/ai/summary', authenticate, scopeGuard('read:governance', '*'), generateAiSummary);
+app.get('/api/forensic/cases/:caseId/ai/summaries', authenticate, scopeGuard('read:governance', '*'), listAiSummaries);
+app.post('/api/forensic/cases/:caseId/ai/summaries/:summaryId/approve', authenticate, scopeGuard('read:governance', '*'), approveSummary);
+app.post('/api/forensic/cases/:caseId/ai/summaries/:summaryId/reject', authenticate, scopeGuard('read:governance', '*'), rejectSummary);
+app.post('/api/forensic/cases/:caseId/ai/timeline-explanation', authenticate, scopeGuard('read:governance', '*'), generateTimelineExplanation);
+app.post('/api/forensic/cases/:caseId/ai/anomalies', authenticate, scopeGuard('read:governance', '*'), detectAnomalies);
+app.get('/api/forensic/cases/:caseId/ai/anomalies', authenticate, scopeGuard('read:governance', '*'), listAnomalies);
+app.post('/api/forensic/cases/:caseId/ai/recommendations', authenticate, scopeGuard('read:governance', '*'), generateRecommendations);
+// Phase 4: SIEM Routing
+app.post('/api/forensic/cases/:caseId/siem/route', authenticate, scopeGuard('read:governance', '*'), routeToSiem);
+app.get('/api/forensic/cases/:caseId/siem/history', authenticate, scopeGuard('read:governance', '*'), getSiemHistory);
+// Phase 4: External Auditor
+app.post('/api/forensic/auditor/session', authenticate, scopeGuard('read:governance', '*'), createAuditorSession);
+// Phase 4: Export Narrative
+app.get('/api/forensic/exports/:exportId/narrative', authenticate, scopeGuard('read:governance', '*'), getExportNarrative);
+
+// ─── Evidence Vault Routes (Evidence Layer Module 3) ────────────────────────────
+app.get('/api/evidence-vault/health', authenticate, scopeGuard('read:governance', '*'), getVaultHealth);
+app.get('/api/evidence-vault/items', authenticate, scopeGuard('read:governance', '*'), listVaultEvidenceItems);
+app.get('/api/evidence-vault/items/:id', authenticate, scopeGuard('read:governance', '*'), getEvidenceItem);
+app.post('/api/evidence-vault/items/preserve', authenticate, scopeGuard('read:governance', '*'), preserveEvidence);
+app.post('/api/evidence-vault/items/:id/verify', authenticate, scopeGuard('read:governance', '*'), verifyVaultEvidenceItem);
+app.get('/api/evidence-vault/collections', authenticate, scopeGuard('read:governance', '*'), listCollections);
+app.post('/api/evidence-vault/collections', authenticate, scopeGuard('read:governance', '*'), createCollection);
+app.get('/api/evidence-vault/collections/:id', authenticate, scopeGuard('read:governance', '*'), getCollection);
+app.post('/api/evidence-vault/collections/:id/items', authenticate, scopeGuard('read:governance', '*'), addItemsToCollection);
+app.get('/api/evidence-vault/collections/:id/items', authenticate, scopeGuard('read:governance', '*'), getVaultCollectionItems);
+
+// ─── Evidence Vault Phase 2 Routes ───────────────────────────────────────────────
+app.post('/api/evidence-vault/packages', authenticate, scopeGuard('read:governance', '*'), createPackage);
+app.get('/api/evidence-vault/packages', authenticate, scopeGuard('read:governance', '*'), listVaultPackages);
+app.get('/api/evidence-vault/packages/:id', authenticate, scopeGuard('read:governance', '*'), getVaultPackage);
+app.post('/api/evidence-vault/packages/:id/seal', authenticate, scopeGuard('read:governance', '*'), sealVaultPackage);
+app.get('/api/evidence-vault/packages/:id/manifest', authenticate, scopeGuard('read:governance', '*'), getVaultPackageManifest);
+app.post('/api/evidence-vault/packages/:id/verify', authenticate, scopeGuard('read:governance', '*'), verifyVaultPackage);
+app.post('/api/evidence-vault/exports', authenticate, scopeGuard('read:governance', '*'), createVaultExport);
+app.get('/api/evidence-vault/exports', authenticate, scopeGuard('read:governance', '*'), listVaultExports);
+app.get('/api/evidence-vault/exports/:id/receipt', authenticate, scopeGuard('read:governance', '*'), getExportReceipt);
+app.post('/api/evidence-vault/holds', authenticate, scopeGuard('read:governance', '*'), applyHold);
+app.get('/api/evidence-vault/holds', authenticate, scopeGuard('read:governance', '*'), listVaultHolds);
+app.post('/api/evidence-vault/holds/:id/release', authenticate, scopeGuard('read:governance', '*'), releaseHold);
+app.post('/api/evidence-vault/redaction-policies', authenticate, scopeGuard('read:governance', '*'), createRedactionPolicy);
+app.get('/api/evidence-vault/redaction-policies', authenticate, scopeGuard('read:governance', '*'), listRedactionPolicies);
+
+// ─── Evidence Vault Phase 3 Routes ───────────────────────────────────────────────
+app.post('/api/evidence-vault/shares', authenticate, scopeGuard('read:governance', '*'), createShare);
+app.get('/api/evidence-vault/shares', authenticate, scopeGuard('read:governance', '*'), listVaultShares);
+app.get('/api/evidence-vault/shares/:id', authenticate, scopeGuard('read:governance', '*'), getVaultShare);
+app.post('/api/evidence-vault/shares/:id/revoke', authenticate, scopeGuard('read:governance', '*'), revokeShare);
+app.get('/api/evidence-vault/shares/:id/access-logs', authenticate, scopeGuard('read:governance', '*'), getShareAccessLogs);
+app.post('/api/evidence-vault/dlp-scans', authenticate, scopeGuard('read:governance', '*'), runDlpScan);
+app.get('/api/evidence-vault/dlp-scans', authenticate, scopeGuard('read:governance', '*'), listDlpScans);
+app.get('/api/evidence-vault/dlp-scans/:id', authenticate, scopeGuard('read:governance', '*'), getDlpScan);
+
+// ─── Evidence Vault Phase 4 Routes ───────────────────────────────────────────────
+app.post('/api/evidence-vault/jobs', authenticate, scopeGuard('read:governance', '*'), createAsyncJob);
+app.get('/api/evidence-vault/jobs', authenticate, scopeGuard('read:governance', '*'), listVaultAsyncJobs);
+app.get('/api/evidence-vault/jobs/:id', authenticate, scopeGuard('read:governance', '*'), getAsyncJob);
+app.post('/api/evidence-vault/chain-anchors', authenticate, scopeGuard('read:governance', '*'), createChainAnchor);
+app.get('/api/evidence-vault/chain-anchors', authenticate, scopeGuard('read:governance', '*'), listChainAnchors);
+app.post('/api/evidence-vault/templates', authenticate, scopeGuard('read:governance', '*'), createTemplateVersion);
+app.get('/api/evidence-vault/templates', authenticate, scopeGuard('read:governance', '*'), listTemplateVersions);
+
+// Identity Ledger
+app.get('/api/identity-ledger/actors', authenticate, scopeGuard('read:governance', '*'), listIdentityActors);
+app.get('/api/identity-ledger/actors/:actorId', authenticate, scopeGuard('read:governance', '*'), getIdentityActor);
+app.get('/api/identity-ledger/actors/:actorId/timeline', authenticate, scopeGuard('read:governance', '*'), getIdentityActorTimeline);
+app.get('/api/identity-ledger/authority-snapshots/:snapshotId', authenticate, scopeGuard('read:governance', '*'), getIdentityAuthoritySnapshot);
+app.get('/api/identity-ledger/authority-at-event/:auditEventId', authenticate, scopeGuard('read:governance', '*'), getIdentityAuthorityAtEvent);
+app.get('/api/identity-ledger/chain/verify', authenticate, scopeGuard('read:governance', '*'), verifyIdentityLedgerChain);
+app.get('/api/identity-ledger/delegations', authenticate, scopeGuard('read:governance', '*'), listDelegations);
+app.post('/api/identity-ledger/delegations', authenticate, scopeGuard('write:governance', '*'), createDelegation);
+app.post('/api/identity-ledger/delegations/:id/revoke', authenticate, scopeGuard('write:governance', '*'), revokeDelegation);
+app.get('/api/identity-ledger/break-glass', authenticate, scopeGuard('read:governance', '*'), listBreakGlass);
+app.post('/api/identity-ledger/break-glass/request', authenticate, scopeGuard('write:governance', '*'), requestBreakGlass);
+app.post('/api/identity-ledger/break-glass/:id/activate', authenticate, scopeGuard('write:governance', '*'), activateBreakGlass);
+app.post('/api/identity-ledger/break-glass/:id/end', authenticate, scopeGuard('write:governance', '*'), endBreakGlass);
+app.post('/api/identity-ledger/break-glass/:id/review', authenticate, scopeGuard('write:governance', '*'), reviewBreakGlass);
+app.post('/api/identity-ledger/export', authenticate, scopeGuard('read:governance', '*'), exportLedger);
+app.post('/api/identity-ledger/preserve', authenticate, scopeGuard('write:governance', '*'), identityLedgerPreserveToVault);
 
 // Protected Risk & Compliance Command Center
 app.get('/api/v1/governance/risk/pulse', authenticate, govGuard, scopeGuard('read:governance', '*'), getRiskPulse);
@@ -570,6 +858,9 @@ app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket
 app.use(errorHandler);
 
 import { initWorker } from './workers/schedulerWorker';
+import { initAuditExportWorker } from './workers/auditExportWorker';
+import { initAuditIntegrityWorker } from './workers/auditIntegrityWorker';
+import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
@@ -578,6 +869,10 @@ try {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers
     initWorker();
+    initAuditExportWorker();
+    initAuditIntegrityWorker();
+    initVaultWorker();
+    initDlpScanWorker();
   });
 
   server.on('error', (err: Error & { code?: string }) => {
