@@ -27,7 +27,7 @@ async function run() {
     }
   } else {
     console.log('User not found. Creating...');
-    // @ts-expect-error
+
     const { data: { user: newUser }, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,

@@ -181,8 +181,21 @@ import { getUserContext } from './domains/identity/userController';
 import { listAccounts } from './domains/channels/accountsController';
 import { listMembers, listRequests, createRequest, updateRequest, deleteMember } from './domains/identity/teamController';
 import { listUnits, createUnit, deleteUnit } from './domains/identity/unitsController';
-import { performQualityCheck } from './domains/governance/qaController';
-import { listExceptions, resolveException } from './domains/governance/exceptionController';
+import { performQualityCheck, listAuditItems, getAuditItem, getQaAuditStats, getAuditEligibility, getQaAuditTrail, startAudit, passAudit, failAudit, needsCorrection, escalateAudit, closeAudit, assignAuditorToItem, saveScorecard, overrideScorecard, addDefect, resolveDefect, addCorrectiveAction, updateCorrectiveAction, addQaNote, addQaEvidence, generateSample } from './domains/governance/qaController';
+import { listExceptions as listExceptionsLegacy, resolveException as resolveExceptionLegacy } from './domains/governance/exceptionController';
+import {
+  createException, listExceptions, getException, updateException,
+  getExceptionStats, assignOwner, updateSeverity, updateStatus,
+  addBlocker, getBlockers, addRemediation, completeRemediation, getRemediations,
+  escalateException, requestOverride, decideOverride,
+  addEvidence as addExceptionEvidence, getEvidence as getExceptionEvidence,
+  resolveException as resolveExceptionV2,
+  sendToValidation, sendToApprovals as sendExceptionToApprovals, sendToQualityAudit,
+  getAuditTrail as getExceptionAuditTrail,
+  exportExceptionRecord, closeExceptionCase, archiveExceptionCase,
+} from './domains/governance/exceptionV2Controller';
+import { listItems as listReviewItems, getItem as getReviewItem, takeAction as takeReviewAction, getStats as getReviewStats, getEligibility as getReviewEligibility, getAuditLog as getReviewAuditLog } from './domains/governance/reviewQueueController';
+import { listValidationItems, getValidationItem, assignValidator, runValidation, revalidateItem, getValidationRunResults, requestRevision, sendToReviewQueue, sendToApprovals, escalateValidation, applyOverride, blockItem, completeManualCheck, addValidatorNote, getValidationAuditTrail, getValidationStats, getValidationEligibility, retryValidationCallback, exportValidationRecord } from './domains/governance/validationController';
 import {
   KnowledgeController,
 } from './modules/knowledge/knowledgeController';
@@ -195,7 +208,7 @@ import { enterpriseSignup } from './domains/identity/enterpriseSignupController'
 
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
-import { listRules, createRule } from './domains/governance/ruleController';
+import { listRules, createRule, getRule, updateRule, submitRuleForReview, publishRule, deactivateRule, reactivateRule, archiveRule, cloneRule, getRuleScope, upsertRuleScope, getRulePath, upsertRulePath, getRuleVersions, getRuleAuditLog, getRuleConflicts, detectRuleConflicts, resolveRuleConflict, runRuleSimulation, getRuleStats } from './domains/governance/ruleController';
 import {
   listWorkflows,
   getWorkflow,
@@ -242,6 +255,14 @@ import {
 } from './domains/monitoring/modelPerformanceController';
 
 import { submitForReview, getApprovalQueue, getApprovalStats as getApprovalStatsLegacy, takeApprovalAction } from './domains/decisions/approvalController';
+import {
+  createApprovalItem, listApprovalItems, getApprovalItem as getV2ApprovalItem,
+  takeApprovalAction as takeV2ApprovalAction, assignApprover, reassignApprover,
+  getApprovalStats as getV2ApprovalStats, getApprovalEligibility,
+  getApprovalPath, getApprovalDecisions, getApprovalComments, addApprovalComment,
+  getApprovalEvidence, addApprovalEvidence, getApprovalAuditTrail,
+  exportApprovalRecord, retryCallback,
+} from './domains/decisions/approvalV2Controller';
 import { authenticate, provisionGuard, scopeGuard } from './shared/authMiddleware';
 import { integrationPlanGate, blockApiKeyUsers, planRateLimit } from './shared/planLimits';
 import { requireRole } from './shared/permissionMiddleware';
@@ -312,12 +333,34 @@ app.post('/api/v1/users/provision', provisionGuard, provisionUser);
 app.post('/api/v1/ai/generate', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), generateContent);
 app.post('/api/v1/ai/analyze-image', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), analyzeImage);
 app.post('/api/v1/qa/check', authenticate, planRateLimit('ai'), scopeGuard('write:content', '*'), performQualityCheck);
-app.get('/api/v1/governance/exceptions', authenticate, scopeGuard('read:governance', '*'), listExceptions);
-app.post('/api/v1/governance/exceptions/resolve', authenticate, scopeGuard('read:governance', '*'), resolveException);
+// ─── Exception Routes (v2 — Full wireframe) ────────────────────────────
+app.get('/api/v1/exceptions/cases', authenticate, scopeGuard('read:governance', '*'), listExceptions);
+app.post('/api/v1/exceptions/cases', authenticate, scopeGuard('write:governance', '*'), createException);
+app.get('/api/v1/exceptions/cases/:id', authenticate, scopeGuard('read:governance', '*'), getException);
+app.patch('/api/v1/exceptions/cases/:id', authenticate, scopeGuard('write:governance', '*'), updateException);
+app.get('/api/v1/exceptions/stats', authenticate, scopeGuard('read:governance', '*'), getExceptionStats);
+app.patch('/api/v1/exceptions/cases/:id/assign', authenticate, scopeGuard('write:governance', '*'), assignOwner);
+app.patch('/api/v1/exceptions/cases/:id/severity', authenticate, scopeGuard('write:governance', '*'), updateSeverity);
+app.patch('/api/v1/exceptions/cases/:id/status', authenticate, scopeGuard('write:governance', '*'), updateStatus);
+app.get('/api/v1/exceptions/cases/:id/blockers', authenticate, scopeGuard('read:governance', '*'), getBlockers);
+app.post('/api/v1/exceptions/cases/:id/blockers', authenticate, scopeGuard('write:governance', '*'), addBlocker);
+app.get('/api/v1/exceptions/cases/:id/remediations', authenticate, scopeGuard('read:governance', '*'), getRemediations);
+app.post('/api/v1/exceptions/cases/:id/remediations', authenticate, scopeGuard('write:governance', '*'), addRemediation);
+app.post('/api/v1/exceptions/remediations/:remediationId/complete', authenticate, scopeGuard('write:governance', '*'), completeRemediation);
+app.post('/api/v1/exceptions/cases/:id/escalate', authenticate, scopeGuard('write:governance', '*'), escalateException);
+app.post('/api/v1/exceptions/cases/:id/override-request', authenticate, scopeGuard('write:governance', '*'), requestOverride);
+app.post('/api/v1/exceptions/overrides/:overrideId/decide', authenticate, scopeGuard('write:governance', '*'), decideOverride);
+app.post('/api/v1/exceptions/cases/:id/evidence', authenticate, scopeGuard('write:governance', '*'), addExceptionEvidence);
+app.get('/api/v1/exceptions/cases/:id/evidence', authenticate, scopeGuard('read:governance', '*'), getExceptionEvidence);
+app.post('/api/v1/exceptions/cases/:id/resolve', authenticate, scopeGuard('write:governance', '*'), resolveExceptionV2);
+app.post('/api/v1/exceptions/cases/:id/close', authenticate, scopeGuard('write:governance', '*'), closeExceptionCase);
+app.post('/api/v1/exceptions/cases/:id/archive', authenticate, scopeGuard('write:governance', '*'), archiveExceptionCase);
+app.post('/api/v1/exceptions/cases/:id/send-to-validation', authenticate, scopeGuard('write:governance', '*'), sendToValidation);
+app.post('/api/v1/exceptions/cases/:id/send-to-approvals', authenticate, scopeGuard('write:governance', '*'), sendExceptionToApprovals);
+app.post('/api/v1/exceptions/cases/:id/send-to-quality-audit', authenticate, scopeGuard('write:governance', '*'), sendToQualityAudit);
+app.get('/api/v1/exceptions/cases/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getExceptionAuditTrail);
+app.post('/api/v1/exceptions/cases/:id/export', authenticate, scopeGuard('read:governance', '*'), exportExceptionRecord);
 const govGuard = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER');
-app.get('/api/v1/governance/rules', authenticate, govGuard, scopeGuard('read:governance', '*'), listRules);
-app.post('/api/v1/governance/rules', authenticate, govGuard, scopeGuard('read:governance', '*'), createRule);
-
 // Protected Governance
 app.post('/api/v1/governance/transition', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), transitionStatus);
 app.post('/api/v1/governance/submit', authenticate, planRateLimit('general'), scopeGuard('write:content', 'write:publish', '*'), submitIntent);
@@ -785,6 +828,26 @@ app.post('/api/v1/approvals/submit', authenticate, scopeGuard('write:publish', '
 app.get('/api/v1/approvals/queue', authenticate, scopeGuard('read:governance', '*'), getApprovalQueue);
 app.get('/api/v1/approvals/stats', authenticate, scopeGuard('read:governance', '*'), getApprovalStatsLegacy);
 app.post('/api/v1/approvals/items/:id/action', authenticate, scopeGuard('write:publish', '*'), takeApprovalAction);
+
+// ─── Approval Workbench Routes (v2 — Full 3-Panel Wireframe) ────────────
+app.post('/api/v1/approvals-v2/items', authenticate, scopeGuard('write:governance', '*'), createApprovalItem);
+app.get('/api/v1/approvals-v2/items', authenticate, scopeGuard('read:governance', '*'), listApprovalItems);
+app.get('/api/v1/approvals-v2/items/:id', authenticate, scopeGuard('read:governance', '*'), getV2ApprovalItem);
+app.get('/api/v1/approvals-v2/stats', authenticate, scopeGuard('read:governance', '*'), getV2ApprovalStats);
+app.get('/api/v1/approvals-v2/items/:id/eligibility', authenticate, scopeGuard('read:governance', '*'), getApprovalEligibility);
+app.post('/api/v1/approvals-v2/items/:id/action', authenticate, scopeGuard('write:publish', '*'), takeV2ApprovalAction);
+app.patch('/api/v1/approvals-v2/items/:id/assign', authenticate, scopeGuard('write:governance', '*'), assignApprover);
+app.patch('/api/v1/approvals-v2/items/:id/reassign', authenticate, scopeGuard('write:governance', '*'), reassignApprover);
+app.get('/api/v1/approvals-v2/items/:id/path', authenticate, scopeGuard('read:governance', '*'), getApprovalPath);
+app.get('/api/v1/approvals-v2/items/:id/decisions', authenticate, scopeGuard('read:governance', '*'), getApprovalDecisions);
+app.get('/api/v1/approvals-v2/items/:id/comments', authenticate, scopeGuard('read:governance', '*'), getApprovalComments);
+app.post('/api/v1/approvals-v2/items/:id/comments', authenticate, scopeGuard('write:governance', '*'), addApprovalComment);
+app.get('/api/v1/approvals-v2/items/:id/evidence', authenticate, scopeGuard('read:governance', '*'), getApprovalEvidence);
+app.post('/api/v1/approvals-v2/items/:id/evidence', authenticate, scopeGuard('write:governance', '*'), addApprovalEvidence);
+app.get('/api/v1/approvals-v2/items/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getApprovalAuditTrail);
+app.post('/api/v1/approvals-v2/items/:id/export', authenticate, scopeGuard('read:governance', '*'), exportApprovalRecord);
+app.post('/api/v1/approvals-v2/callbacks/:callbackId/retry', authenticate, scopeGuard('write:governance', '*'), retryCallback);
+
 app.get('/api/v1/knowledge/conflicts/:id', authenticate, KnowledgeController.getConflict);
 app.post('/api/v1/knowledge/conflicts', authenticate, KnowledgeController.createConflict);
 app.post('/api/v1/knowledge/conflicts/:id/resolve', authenticate, KnowledgeController.resolveConflict);
@@ -850,6 +913,81 @@ app.get('/api/v1/prompts/:id/versions/:versionId', authenticate, PromptControlle
 app.get('/api/v1/prompts/:id/tests/suites', authenticate, PromptController.listTestSuites);
 app.post('/api/v1/prompts/:id/tests/suites', authenticate, PromptController.createTestSuite);
 
+
+// ─── Approval Rules Routes ───────────────────────────────────────────
+app.get('/api/v1/governance/rules', authenticate, scopeGuard('read:governance', '*'), listRules);
+app.post('/api/v1/governance/rules', authenticate, scopeGuard('write:governance', '*'), createRule);
+app.get('/api/v1/governance/rules/stats', authenticate, scopeGuard('read:governance', '*'), getRuleStats);
+app.get('/api/v1/governance/rules/:id', authenticate, scopeGuard('read:governance', '*'), getRule);
+app.patch('/api/v1/governance/rules/:id', authenticate, scopeGuard('write:governance', '*'), updateRule);
+app.post('/api/v1/governance/rules/:id/submit-review', authenticate, scopeGuard('write:governance', '*'), submitRuleForReview);
+app.post('/api/v1/governance/rules/:id/publish', authenticate, scopeGuard('write:governance', '*'), publishRule);
+app.post('/api/v1/governance/rules/:id/deactivate', authenticate, scopeGuard('write:governance', '*'), deactivateRule);
+app.post('/api/v1/governance/rules/:id/reactivate', authenticate, scopeGuard('write:governance', '*'), reactivateRule);
+app.post('/api/v1/governance/rules/:id/archive', authenticate, scopeGuard('write:governance', '*'), archiveRule);
+app.post('/api/v1/governance/rules/:id/clone', authenticate, scopeGuard('write:governance', '*'), cloneRule);
+app.get('/api/v1/governance/rules/:id/scope', authenticate, scopeGuard('read:governance', '*'), getRuleScope);
+app.put('/api/v1/governance/rules/:id/scope', authenticate, scopeGuard('write:governance', '*'), upsertRuleScope);
+app.get('/api/v1/governance/rules/:id/path', authenticate, scopeGuard('read:governance', '*'), getRulePath);
+app.put('/api/v1/governance/rules/:id/path', authenticate, scopeGuard('write:governance', '*'), upsertRulePath);
+app.get('/api/v1/governance/rules/:id/versions', authenticate, scopeGuard('read:governance', '*'), getRuleVersions);
+app.get('/api/v1/governance/rules/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getRuleAuditLog);
+app.get('/api/v1/governance/rules/:id/conflicts', authenticate, scopeGuard('read:governance', '*'), getRuleConflicts);
+app.post('/api/v1/governance/rules/:id/conflicts/detect', authenticate, scopeGuard('write:governance', '*'), detectRuleConflicts);
+app.post('/api/v1/governance/rules/conflicts/:conflictId/resolve', authenticate, scopeGuard('write:governance', '*'), resolveRuleConflict);
+app.post('/api/v1/governance/rules/:id/simulate', authenticate, scopeGuard('write:governance', '*'), runRuleSimulation);
+
+// ─── Review Queue Routes (Accountability Layer) ──────────────────────
+app.get('/api/v1/review-queue', authenticate, scopeGuard('read:governance', '*'), listReviewItems);
+app.get('/api/v1/review-queue/stats', authenticate, scopeGuard('read:governance', '*'), getReviewStats);
+app.get('/api/v1/review-queue/items/:id', authenticate, scopeGuard('read:governance', '*'), getReviewItem);
+app.post('/api/v1/review-queue/items/:id/action', authenticate, scopeGuard('write:publish', '*'), takeReviewAction);
+app.get('/api/v1/review-queue/items/:id/eligibility', authenticate, scopeGuard('read:governance', '*'), getReviewEligibility);
+app.get('/api/v1/review-queue/items/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getReviewAuditLog);
+
+// ─── Quality Audit Routes (Accountability Layer) ─────────────────────
+app.get('/api/v1/quality-audit/items', authenticate, scopeGuard('read:governance', '*'), listAuditItems);
+app.get('/api/v1/quality-audit/stats', authenticate, scopeGuard('read:governance', '*'), getQaAuditStats);
+app.get('/api/v1/quality-audit/items/:id', authenticate, scopeGuard('read:governance', '*'), getAuditItem);
+app.post('/api/v1/quality-audit/generate-sample', authenticate, scopeGuard('write:governance', '*'), generateSample);
+app.post('/api/v1/quality-audit/items/:id/start', authenticate, scopeGuard('write:governance', '*'), startAudit);
+app.post('/api/v1/quality-audit/items/:id/pass', authenticate, scopeGuard('write:governance', '*'), passAudit);
+app.post('/api/v1/quality-audit/items/:id/fail', authenticate, scopeGuard('write:governance', '*'), failAudit);
+app.post('/api/v1/quality-audit/items/:id/needs-correction', authenticate, scopeGuard('write:governance', '*'), needsCorrection);
+app.post('/api/v1/quality-audit/items/:id/escalate', authenticate, scopeGuard('write:governance', '*'), escalateAudit);
+app.post('/api/v1/quality-audit/items/:id/close', authenticate, scopeGuard('write:governance', '*'), closeAudit);
+app.post('/api/v1/quality-audit/items/:id/assign', authenticate, scopeGuard('write:governance', '*'), assignAuditorToItem);
+app.post('/api/v1/quality-audit/items/:id/scorecard', authenticate, scopeGuard('write:governance', '*'), saveScorecard);
+app.post('/api/v1/quality-audit/items/:id/scorecard/override', authenticate, scopeGuard('write:governance', '*'), overrideScorecard);
+app.post('/api/v1/quality-audit/items/:id/defects', authenticate, scopeGuard('write:governance', '*'), addDefect);
+app.post('/api/v1/quality-audit/defects/:defectId/resolve', authenticate, scopeGuard('write:governance', '*'), resolveDefect);
+app.post('/api/v1/quality-audit/items/:id/corrective-actions', authenticate, scopeGuard('write:governance', '*'), addCorrectiveAction);
+app.patch('/api/v1/quality-audit/corrective-actions/:actionId', authenticate, scopeGuard('write:governance', '*'), updateCorrectiveAction);
+app.post('/api/v1/quality-audit/items/:id/notes', authenticate, scopeGuard('write:governance', '*'), addQaNote);
+app.post('/api/v1/quality-audit/items/:id/evidence', authenticate, scopeGuard('write:governance', '*'), addQaEvidence);
+app.get('/api/v1/quality-audit/items/:id/eligibility', authenticate, scopeGuard('read:governance', '*'), getAuditEligibility);
+app.get('/api/v1/quality-audit/items/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getQaAuditTrail);
+
+// ─── Validation Desk Routes (Accountability Layer) ───────────────────
+app.get('/api/v1/validation/items', authenticate, scopeGuard('read:governance', '*'), listValidationItems);
+app.get('/api/v1/validation/stats', authenticate, scopeGuard('read:governance', '*'), getValidationStats);
+app.get('/api/v1/validation/items/:id', authenticate, scopeGuard('read:governance', '*'), getValidationItem);
+app.get('/api/v1/validation/items/:id/eligibility', authenticate, scopeGuard('read:governance', '*'), getValidationEligibility);
+app.get('/api/v1/validation/items/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getValidationAuditTrail);
+app.post('/api/v1/validation/items/:id/assign', authenticate, scopeGuard('write:governance', '*'), assignValidator);
+app.post('/api/v1/validation/items/:id/run', authenticate, scopeGuard('write:governance', '*'), runValidation);
+app.get('/api/v1/validation/runs/:runId/results', authenticate, scopeGuard('read:governance', '*'), getValidationRunResults);
+app.post('/api/v1/validation/items/:id/revalidate', authenticate, scopeGuard('write:governance', '*'), revalidateItem);
+app.post('/api/v1/validation/items/:id/request-revision', authenticate, scopeGuard('write:governance', '*'), requestRevision);
+app.post('/api/v1/validation/items/:id/send-to-review-queue', authenticate, scopeGuard('write:governance', '*'), sendToReviewQueue);
+app.post('/api/v1/validation/items/:id/send-to-approvals', authenticate, scopeGuard('write:governance', '*'), sendToApprovals);
+app.post('/api/v1/validation/items/:id/escalate', authenticate, scopeGuard('write:governance', '*'), escalateValidation);
+app.post('/api/v1/validation/items/:id/override', authenticate, scopeGuard('write:governance', '*'), applyOverride);
+app.post('/api/v1/validation/items/:id/block', authenticate, scopeGuard('write:governance', '*'), blockItem);
+app.post('/api/v1/validation/items/:id/complete-manual-check', authenticate, scopeGuard('write:governance', '*'), completeManualCheck);
+app.post('/api/v1/validation/items/:id/notes', authenticate, scopeGuard('write:governance', '*'), addValidatorNote);
+app.get('/api/v1/validation/items/:id/export', authenticate, scopeGuard('read:governance', '*'), exportValidationRecord);
+app.post('/api/v1/validation/callbacks/:callbackId/retry', authenticate, scopeGuard('write:governance', '*'), retryValidationCallback);
 
 // Support Routes
 app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket);
