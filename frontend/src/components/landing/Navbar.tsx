@@ -51,7 +51,7 @@ export default function Navbar() {
 
         <div className="flex items-center gap-2">
           <Link
-            href="/login"
+            href="/signin"
             className="text-sm font-medium border border-white/15 text-white/80 hover:text-white px-5 py-2 rounded-lg transition-colors hover:bg-white/5"
           >
             Sign in
