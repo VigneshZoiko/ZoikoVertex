@@ -105,7 +105,11 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
           account_handle: pageDetails.username || page.id,
           avatar_url: pageDetails.picture?.data?.url,
           access_token: page.access_token,
-          status: 'active'
+          status: 'active',
+          token_expires_at: longLivedData.expires_in
+            ? new Date(Date.now() + longLivedData.expires_in * 1000).toISOString()
+            : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+          token_status: 'active',
         };
 
         await supabaseAdmin
@@ -121,10 +125,14 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
             workspace_id: workspaceId,
             platform: 'instagram',
             account_name: ig.username,
-            account_handle: ig.id, 
+            account_handle: ig.id,
             avatar_url: ig.profile_picture_url,
-            access_token: page.access_token, 
-            status: 'active'
+            access_token: page.access_token,
+            status: 'active',
+            token_expires_at: longLivedData.expires_in
+              ? new Date(Date.now() + longLivedData.expires_in * 1000).toISOString()
+              : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+            token_status: 'active',
           };
 
           const { error: igSaveError } = await supabaseAdmin
@@ -246,15 +254,20 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
     });
     const profileData = await profileResponse.json();
 
-    const accountData = {
+    const accountData: Record<string, any> = {
       workspace_id: workspaceId,
       platform: 'linkedin',
       account_name: profileData.name || profileData.given_name || profileData.email || 'LinkedIn User',
       account_handle: profileData.sub,
       avatar_url: profileData.picture,
       access_token: accessToken,
-      status: 'active'
+      status: 'active',
+      token_expires_at: tokenData.expires_in
+        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+        : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+      token_status: 'active',
     };
+    if (tokenData.refresh_token) accountData.refresh_token = tokenData.refresh_token;
 
     const { error: dbError } = await supabaseAdmin
       .from('connected_accounts')
@@ -310,6 +323,8 @@ export const saveLinkedInPages = async (req: Request, res: Response, next: NextF
           account_handle: page.urn,
           access_token: accessToken,
           status: 'active',
+          token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+          token_status: 'active',
         }, { onConflict: 'workspace_id,platform,account_handle' });
 
       if (dbError) throw dbError;
@@ -373,15 +388,20 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
     });
     const profileData = await profileResponse.json();
 
-    const accountData = {
+    const accountData: Record<string, any> = {
       workspace_id: workspaceId,
       platform: 'pinterest',
       account_name: profileData.username || 'Pinterest User',
       account_handle: profileData.username,
       avatar_url: profileData.profile_image,
       access_token: accessToken,
-      status: 'active'
+      status: 'active',
+      token_expires_at: tokenData.expires_in
+        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      token_status: 'active',
     };
+    if (tokenData.refresh_token) accountData.refresh_token = tokenData.refresh_token;
 
     const { error: dbError } = await supabaseAdmin
       .from('connected_accounts')
@@ -461,7 +481,11 @@ export const handleThreadsCallback = async (req: Request, res: Response, next: N
       account_handle: profileData.id,
       avatar_url: profileData.threads_profile_picture_url,
       access_token: accessToken,
-      status: 'active'
+      status: 'active',
+      token_expires_at: longLivedData.expires_in
+        ? new Date(Date.now() + longLivedData.expires_in * 1000).toISOString()
+        : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+      token_status: 'active',
     };
 
     const { error: dbError } = await supabaseAdmin
@@ -541,15 +565,20 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
 
     const user = profileData.data;
 
-    const accountData = {
+    const accountData: Record<string, any> = {
       workspace_id: workspaceId,
       platform: 'twitter',
       account_name: user.name || user.username,
       account_handle: user.username,
       avatar_url: user.profile_image_url,
       access_token: accessToken,
-      status: 'active'
+      status: 'active',
+      token_expires_at: tokenData.expires_in
+        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+        : new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      token_status: 'active',
     };
+    if (tokenData.refresh_token) accountData.refresh_token = tokenData.refresh_token;
 
     const { error: dbError } = await supabaseAdmin
       .from('connected_accounts')
@@ -694,9 +723,12 @@ export const handleYoutubeCallback = async (req: Request, res: Response, next: N
       account_handle: channel.snippet.customUrl || channel.id,
       avatar_url: channel.snippet.thumbnails?.default?.url,
       access_token: accessToken,
-      status: 'active'
+      status: 'active',
+      token_expires_at: tokenData.expires_in
+        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+        : new Date(Date.now() + 3600 * 1000).toISOString(),
+      token_status: 'active',
     };
-    // Only set refresh_token when Google returns one (not returned on every re-auth)
     if (refreshToken) accountData.refresh_token = refreshToken;
 
     const { error: dbError } = await supabaseAdmin

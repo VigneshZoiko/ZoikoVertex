@@ -58,7 +58,7 @@ export default function PlatformAnalytics() {
     };
 
     fetchStats();
-  }, []);
+  }, [router]);
 
   if (loading) {
     return (

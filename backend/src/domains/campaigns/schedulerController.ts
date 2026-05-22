@@ -59,13 +59,22 @@ const RecommendSchema = z.object({
   audienceRegion: z.string(),
   audienceAgeGroup: z.string(),
   userTimezone: z.string().optional().default('UTC'),
+  targetDate: z.string().optional().default(''), // YYYY-MM-DD
 });
+
+function getDayName(dateStr: string): string {
+  if (!dateStr) return 'general';
+  try {
+    return new Date(dateStr + 'T12:00:00').toLocaleDateString('en', { weekday: 'long' });
+  } catch { return 'general'; }
+}
 
 
 
 export const getRecommendations = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { platform, niche, audienceRegion, audienceAgeGroup, userTimezone } = RecommendSchema.parse(req.body);
+    const { platform, niche, audienceRegion, audienceAgeGroup, userTimezone, targetDate } = RecommendSchema.parse(req.body);
+    const resolvedDate = targetDate || new Date().toISOString().split('T')[0];
 
     logger.info({ platform, niche, audienceRegion, audienceAgeGroup, userTimezone }, '[Scheduler] Fetching recommendations');
 
@@ -83,16 +92,15 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
 
     if (!cacheError && cachedWindows && cachedWindows.length > 0) {
       await logToDatabase('info', 'Scheduler', `Cache hit for recommendations: ${platform} / ${niche}`, { cachedCount: cachedWindows.length });
-      
+
       const formattedCache = cachedWindows.map(w => ({
-        best_start_time: w.best_start_time,
-        best_end_time: w.best_end_time,
+        best_time: w.best_start_time.slice(0, 5),
         audience_timezone: audienceTimezone,
-        user_local_time_start: convertTimeToUserTimezone(w.best_start_time, audienceTimezone, userTimezone),
-        user_local_time_end: convertTimeToUserTimezone(w.best_end_time, audienceTimezone, userTimezone),
+        user_local_time: convertTimeToUserTimezone(w.best_start_time, audienceTimezone, userTimezone).slice(0, 5),
         confidence_score: w.confidence_score,
-        reasoning: "Based on historical high-engagement data for this demographic.",
-        source: "cache"
+        reasoning_points: [`Peak engagement window for ${audienceAgeGroup} on ${platform} based on historical data.`],
+        source: "cache",
+        target_date: resolvedDate,
       }));
 
       return res.status(200).json({ 
@@ -109,19 +117,16 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
     // 2. AI Fallback (Dynamic Generation)
     if (!env.GEMINI_API_KEY) {
       logger.warn('[Scheduler] GEMINI_API_KEY missing, using generic fallback');
-      const fallbackStart = "12:00:00";
-      const fallbackEnd = "14:00:00";
       return res.status(200).json({
         success: true,
         recommendations: [{
-          best_start_time: fallbackStart,
-          best_end_time: fallbackEnd,
+          best_time: "12:00",
           audience_timezone: audienceTimezone,
-          user_local_time_start: convertTimeToUserTimezone(fallbackStart, audienceTimezone, userTimezone),
-          user_local_time_end: convertTimeToUserTimezone(fallbackEnd, audienceTimezone, userTimezone),
+          user_local_time: convertTimeToUserTimezone("12:00:00", audienceTimezone, userTimezone).slice(0, 5),
           confidence_score: 0.70,
-          reasoning: "Generic peak hour recommendation.",
-          source: "fallback"
+          reasoning_points: ["Generic midday posting window.", "Broad audience activity peak."],
+          source: "fallback",
+          target_date: resolvedDate,
         }],
         timezone_info: {
           audience_region: audienceRegion,
@@ -136,35 +141,37 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
     const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const prompt = `
-    Act as a Master Social Media Data Analyst.
-    I need you to calculate the absolute best time slots to post content to maximize engagement.
-    
-    INPUT DATA:
-    - Platform: "${platform}"
-    - Niche / Topic: "${niche}"
-    - Target Audience Location: "${audienceRegion}"
-    - Target Audience Age: "${audienceAgeGroup}"
-    - Target Audience Timezone: "${audienceTimezone}"
- 
-    Task:
-    Analyze the behavioral patterns of this specific demographic on this specific platform.
-    Consider when they wake up, commute, take lunch breaks, and wind down in their local timezone (${audienceTimezone}).
-    
-    Provide the top 2 best posting windows.
-    Format times in strict 24-hour HH:mm:ss format.
+    const dayName = getDayName(resolvedDate);
 
-    RESPONSE FORMAT (STRICT JSON ONLY):
+    const prompt = `You are a social media data analyst. Find the 3 best specific posting times for maximum engagement.
+
+INPUT:
+- Platform: ${platform}
+- Niche: ${niche}
+- Audience Location: ${audienceRegion} (timezone: ${audienceTimezone})
+- Audience Age: ${audienceAgeGroup}
+- Target Date: ${resolvedDate} (${dayName})
+
+TASK:
+Analyze this demographic's daily routine on ${platform} in ${audienceTimezone}. Factor in ${dayName} behavioral patterns (weekday vs weekend habits differ significantly).
+
+Return 3 precise posting times — NOT ranges, give exact minutes like 13:05 or 09:30.
+For each time, give 2-4 concise bullet points (max 130 chars each) explaining WHY it works for this specific niche and demographic. Be specific — mention the audience, platform, day, and content niche.
+
+RESPONSE (strict JSON, no markdown, no backticks):
+{
+  "recommendations": [
     {
-      "recommendations": [
-        {
-          "best_start_time": "HH:mm:ss",
-          "best_end_time": "HH:mm:ss",
-          "confidence_score": 0.00 to 1.00,
-          "reasoning": "1 sentence explanation of why this slot works for this specific niche/age."
-        }
+      "best_time": "HH:mm",
+      "confidence_score": 0.00,
+      "reasoning_points": [
+        "Specific insight about why this exact time works for this audience and niche",
+        "Another behavioral insight",
+        "Optional third insight"
       ]
-    }`;
+    }
+  ]
+}`;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -200,14 +207,13 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
     }
 
     const recommendationsWithTimezone = parsed.recommendations.map((r: any) => ({
-      best_start_time: r.best_start_time,
-      best_end_time: r.best_end_time,
+      best_time: r.best_time,
       audience_timezone: audienceTimezone,
-      user_local_time_start: convertTimeToUserTimezone(r.best_start_time, audienceTimezone, userTimezone),
-      user_local_time_end: convertTimeToUserTimezone(r.best_end_time, audienceTimezone, userTimezone),
+      user_local_time: convertTimeToUserTimezone((r.best_time + ':00'), audienceTimezone, userTimezone).slice(0, 5),
       confidence_score: r.confidence_score,
-      reasoning: r.reasoning,
-      source: "ai"
+      reasoning_points: Array.isArray(r.reasoning_points) ? r.reasoning_points : [r.reasoning || ''],
+      source: "ai",
+      target_date: resolvedDate,
     }));
 
     res.status(200).json({

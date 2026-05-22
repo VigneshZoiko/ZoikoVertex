@@ -2,10 +2,16 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Calendar, Clock, Sparkles, X, Edit3, Trash2 } from "lucide-react";
+import {
+  ChevronLeft, ChevronRight, Calendar, Clock, X,
+  Edit3, Trash2, Send, ExternalLink,
+} from "lucide-react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime } from "@/lib/utils";
 import { api } from "@/lib/api";
+
+// ── Raw shapes returned by each API ──────────────────────────────────────────
 
 interface ScheduledPost {
   id: string;
@@ -17,67 +23,107 @@ interface ScheduledPost {
   created_at: string;
 }
 
-interface Recommendation {
-  best_start_time: string;
-  best_end_time: string;
-  audience_timezone: string;
-  user_local_time_start: string;
-  user_local_time_end: string;
-  confidence_score: number;
-  reasoning: string;
-  source: string;
+// ── Unified calendar post ─────────────────────────────────────────────────────
+
+interface CalendarPost {
+  id: string;
+  content: string;
+  platform: string;
+  calendarDate: string; // ISO string used for grid placement
+  status: string;
+  media_url?: string;
+  created_at: string;
+  source: "scheduled" | "intent";
+  scheduled_time?: string; // only for source=scheduled
+  campaign_id?: string | null;
+  project_id?: string | null;
 }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function pillClass(post: CalendarPost): string {
+  if (post.source === "scheduled") {
+    if (post.status === "SCHEDULED") return "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20";
+    if (post.status === "PUBLISHED")  return "bg-blue-500/10 text-blue-400";
+    return "bg-rose-500/10 text-rose-400";
+  }
+  // publish_intent
+  if (post.status === "APPROVED" || post.status === "PUBLISHED") return "bg-blue-500/10 text-blue-300 hover:bg-blue-500/20";
+  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20";
+  if (post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "bg-rose-500/10 text-rose-400";
+  return "bg-violet-500/10 text-violet-400 hover:bg-violet-500/20";
+}
+
+function statusBadgeClass(status: string): string {
+  if (status === "SCHEDULED")  return "bg-emerald-500/20 text-emerald-400";
+  if (status === "PUBLISHED")  return "bg-blue-500/20 text-blue-400";
+  if (status === "APPROVED")   return "bg-sky-500/20 text-sky-400";
+  if (status.startsWith("PENDING_")) return "bg-amber-500/20 text-amber-400";
+  if (status === "GOVERNANCE_BLOCKED" || status === "REJECTED") return "bg-rose-500/20 text-rose-400";
+  return "bg-zinc-500/20 text-zinc-400";
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
   const router = useRouter();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [posts, setPosts] = useState<ScheduledPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedPost, setSelectedPost] = useState<ScheduledPost | null>(null);
+  const [currentDate, setCurrentDate]     = useState(new Date());
+  const [posts, setPosts]                 = useState<CalendarPost[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [selectedPost, setSelectedPost]   = useState<CalendarPost | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingPost, setEditingPost] = useState<ScheduledPost | null>(null);
-  const [user, setUser] = useState<any>(null);
-  
-  const [topic, setTopic] = useState("");
-  const [audienceRegion, setAudienceRegion] = useState("Global");
-  const [audienceAgeGroup, setAudienceAgeGroup] = useState("All Ages");
-  const [suggestedTimes, setSuggestedTimes] = useState<Recommendation[]>([]);
-  const [isFetchingRecommendations, setIsFetchingRecommendations] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState("Instagram");
-  const [userTimezone, setUserTimezone] = useState("UTC");
+  const [editingPost, setEditingPost]     = useState<ScheduledPost | null>(null);
 
-  const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<Recommendation | null>(null);
-  const [scheduleContent, setScheduleContent] = useState("");
-  const [creatingPost, setCreatingPost] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    setUserTimezone(tz);
-  }, []);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) router.push("/login");
+    });
+  }, [router]);
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-      setUser(user);
-    };
-    checkAuth();
-  }, []);
+  // ── Fetch both tables in parallel ──────────────────────────────────────────
 
-  const fetchScheduledPosts = useCallback(async () => {
+  const fetchAllPosts = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await api.get('/api/v1/scheduler/posts?limit=100');
-      if (result.success && result.posts) {
-        setPosts(result.posts);
-      } else {
-        setPosts([]);
-      }
+      const [scheduledResult, intentsResult] = await Promise.all([
+        api.get("/api/v1/scheduler/posts?limit=200"),
+        api.get("/api/v1/governance/intents"),
+      ]);
+
+      const scheduledPosts: CalendarPost[] =
+        scheduledResult.success && scheduledResult.posts
+          ? scheduledResult.posts.map((p: ScheduledPost) => ({
+              id: p.id,
+              content: p.content,
+              platform: p.platform,
+              calendarDate: p.scheduled_time,
+              status: p.status,
+              media_url: p.media_url,
+              created_at: p.created_at,
+              source: "scheduled" as const,
+              scheduled_time: p.scheduled_time,
+            }))
+          : [];
+
+      const intentPosts: CalendarPost[] =
+        intentsResult.success && intentsResult.data
+          ? intentsResult.data.map((p: any) => ({
+              id: p.id,
+              content: p.content,
+              platform: p.platform,
+              calendarDate: p.created_at,
+              status: p.status,
+              media_url: p.media_url,
+              created_at: p.created_at,
+              source: "intent" as const,
+              campaign_id: p.campaign_id,
+              project_id: p.project_id,
+            }))
+          : [];
+
+      setPosts([...scheduledPosts, ...intentPosts]);
     } catch (err) {
       console.error("Failed to fetch posts:", err);
       setPosts([]);
@@ -85,100 +131,25 @@ export default function CalendarPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    fetchScheduledPosts();
-  }, [fetchScheduledPosts]);
+  useEffect(() => { fetchAllPosts(); }, [fetchAllPosts]);
 
-  const handleMagicSchedule = async () => {
-    if (!topic) {
-      setMessage({ type: 'error', text: 'Please enter a topic for AI to analyze' });
-      return;
-    }
-
-    setIsFetchingRecommendations(true);
-    try {
-      const data = await api.post('/api/v1/scheduler/recommend', {
-        platform: selectedPlatform,
-        niche: topic,
-        audienceRegion,
-        audienceAgeGroup,
-        userTimezone
-      });
-      if (data.recommendations) {
-        setSuggestedTimes(data.recommendations);
-        setMessage({ type: 'success', text: 'AI generated optimal posting times for your audience' });
-      } else {
-        const errorMsg = typeof data.error === 'string' ? data.error : data.error?.message || 'Failed to get recommendations';
-        setMessage({ type: 'error', text: errorMsg });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Could not connect to scheduling service' });
-    }
-    setIsFetchingRecommendations(false);
-  };
-
-  const handleScheduleFromRecommendation = (rec: Recommendation) => {
-    setSelectedTimeSlot(rec);
-    setScheduleContent("");
-    setShowScheduleModal(true);
-  };
-
-  const handleCreateScheduledPost = async () => {
-    if (!selectedTimeSlot || !scheduleContent.trim()) {
-      setMessage({ type: 'error', text: 'Content is required' });
-      return;
-    }
-
-    setCreatingPost(true);
-    try {
-      if (!user) throw new Error("Not authenticated");
-
-      const now = new Date();
-      const [hours, minutes] = selectedTimeSlot.user_local_time_start.split(':');
-      const scheduledDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(hours), parseInt(minutes));
-      
-      if (scheduledDate <= now) {
-        scheduledDate.setDate(scheduledDate.getDate() + 1);
-      }
-
-      const result = await api.post('/api/v1/scheduler/posts', {
-        content: scheduleContent,
-        platform: selectedPlatform,
-        scheduledTime: scheduledDate.toISOString()
-      });
-      if (result.success) {
-        setShowScheduleModal(false);
-        setSelectedTimeSlot(null);
-        setScheduleContent("");
-        fetchScheduledPosts();
-        setMessage({ type: 'success', text: 'Post scheduled successfully!' });
-      } else {
-        const errorMsg = typeof result.error === 'string' ? result.error : result.error?.message || 'Failed to schedule post';
-        setMessage({ type: 'error', text: errorMsg });
-      }
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err?.message || 'Failed to schedule post' });
-    }
-    setCreatingPost(false);
-  };
 
   const handleUpdatePost = async () => {
     if (!editingPost) return;
-
     try {
       const result = await api.put(`/api/v1/scheduler/posts/${editingPost.id}`, {
         content: editingPost.content,
-        scheduledTime: editingPost.scheduled_time
+        scheduledTime: editingPost.scheduled_time,
       });
       if (result.success) {
-        setPosts(prev => prev.map(p => p.id === editingPost.id ? { ...p, content: editingPost.content, scheduled_time: editingPost.scheduled_time } : p));
+        fetchAllPosts();
         setShowEditModal(false);
-        setMessage({ type: 'success', text: 'Post updated successfully' });
+        setMessage({ type: "success", text: "Post updated successfully" });
       } else {
-        setMessage({ type: 'error', text: result.error || 'Failed to update post' });
+        setMessage({ type: "error", text: result.error || "Failed to update post" });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Failed to update post' });
+      setMessage({ type: "error", text: "Failed to update post" });
     }
   };
 
@@ -186,106 +157,144 @@ export default function CalendarPage() {
     try {
       const result = await api.delete(`/api/v1/scheduler/posts/${postId}`);
       if (result.success) {
-        setPosts(prev => prev.filter(p => p.id !== postId));
+        setPosts((prev) => prev.filter((p) => p.id !== postId));
         setSelectedPost(null);
-        setMessage({ type: 'success', text: 'Post cancelled successfully' });
+        setMessage({ type: "success", text: "Post cancelled successfully" });
       }
     } catch {
-      setMessage({ type: 'error', text: 'Failed to cancel post' });
+      setMessage({ type: "error", text: "Failed to cancel post" });
     }
   };
 
+  // ── Calendar helpers ────────────────────────────────────────────────────────
+
   const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
+    const year  = date.getFullYear();
     const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDay = firstDay.getDay();
+    const firstDay   = new Date(year, month, 1);
+    const lastDay    = new Date(year, month + 1, 0);
+    const daysInMonth  = lastDay.getDate();
+    const startingDay  = firstDay.getDay();
     return { daysInMonth, startingDay };
   };
 
   const { daysInMonth, startingDay } = getDaysInMonth(currentDate);
 
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const dayNames   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
   const getPostsForDay = (day: number) => {
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return posts.filter(p => p.scheduled_time.startsWith(dateStr));
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return posts.filter((p) => p.calendarDate.startsWith(dateStr));
   };
 
   const navigateMonth = (direction: number) => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1));
   };
 
+  const scheduledCount = posts.filter((p) => p.source === "scheduled" && p.status === "SCHEDULED").length;
+  const intentCount    = posts.filter((p) => p.source === "intent").length;
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <div className="max-w-7xl mx-auto pb-12 px-4">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] mb-2">Content Calendar</h1>
-        <p className="text-[var(--foreground-muted)] text-sm font-medium">Visualize and manage your scheduled posts across all platforms.</p>
+        <p className="text-[var(--foreground-muted)] text-sm font-medium">
+          Unified view of scheduled posts and Publishing Hub submissions across all platforms.
+        </p>
       </div>
 
       {message && (
-        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in slide-in-from-top-4 ${message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'}`}>
+        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in slide-in-from-top-4 ${message.type === "success" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border border-rose-500/20 text-rose-400"}`}>
           {message.text}
+          <button onClick={() => setMessage(null)} className="ml-auto"><X className="w-4 h-4" /></button>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* ── Calendar ── */}
         <div className="lg:col-span-3">
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden">
-            <div className="p-6 border-b border-[var(--border)] flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button onClick={() => navigateMonth(-1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
-                  <ChevronLeft className="w-5 h-5 text-[var(--foreground-muted)]" />
-                </button>
-                <h2 className="text-xl font-bold text-[var(--foreground)]">
-                  {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-                </h2>
-                <button onClick={() => navigateMonth(1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
-                  <ChevronRight className="w-5 h-5 text-[var(--foreground-muted)]" />
+            {/* Header */}
+            <div className="p-6 border-b border-[var(--border)]">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <button onClick={() => navigateMonth(-1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
+                    <ChevronLeft className="w-5 h-5 text-[var(--foreground-muted)]" />
+                  </button>
+                  <h2 className="text-xl font-bold text-[var(--foreground)]">
+                    {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                  </h2>
+                  <button onClick={() => navigateMonth(1)} className="p-2 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
+                    <ChevronRight className="w-5 h-5 text-[var(--foreground-muted)]" />
+                  </button>
+                </div>
+                <button onClick={() => setCurrentDate(new Date())} className="text-sm text-indigo-400 hover:text-indigo-300 font-medium">
+                  Today
                 </button>
               </div>
-              <button onClick={() => setCurrentDate(new Date())} className="text-sm text-indigo-400 hover:text-indigo-300 font-medium">
-                Today
-              </button>
+
+              {/* Legend */}
+              <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--foreground-muted)]">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/30 border border-emerald-500/50 inline-block" />
+                  <Calendar className="w-3 h-3" />
+                  <span>Scheduled ({scheduledCount})</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-amber-500/30 border border-amber-500/50 inline-block" />
+                  <Send className="w-3 h-3" />
+                  <span>Publishing Hub ({intentCount})</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-blue-500/30 border border-blue-500/50 inline-block" />
+                  <span>Published</span>
+                </div>
+                {loading && <span className="text-indigo-400 animate-pulse">Loading…</span>}
+              </div>
             </div>
 
+            {/* Day headers */}
             <div className="grid grid-cols-7 border-b border-[var(--border)]">
-              {dayNames.map(day => (
+              {dayNames.map((day) => (
                 <div key={day} className="p-3 text-center text-xs font-bold text-[var(--foreground-muted)] uppercase tracking-wider">
                   {day}
                 </div>
               ))}
             </div>
 
+            {/* Grid */}
             <div className="grid grid-cols-7">
               {Array.from({ length: startingDay }).map((_, i) => (
                 <div key={`empty-${i}`} className="min-h-[120px] bg-[var(--surface)]/30 border-b border-r border-[var(--border)]/50" />
               ))}
-              
+
               {Array.from({ length: daysInMonth }).map((_, i) => {
-                const day = i + 1;
+                const day      = i + 1;
                 const dayPosts = getPostsForDay(day);
-                const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
-                
+                const isToday  = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
+
                 return (
-                  <div key={day} className={`min-h-[120px] border-b border-r border-[var(--border)]/50 p-2 ${isToday ? 'bg-indigo-500/5' : 'bg-[var(--card)]/30'}`}>
-                    <div className={`text-sm font-medium mb-2 ${isToday ? 'text-indigo-400' : 'text-[var(--foreground-muted)]'}`}>
+                  <div
+                    key={day}
+                    className={`min-h-[120px] border-b border-r border-[var(--border)]/50 p-2 ${isToday ? "bg-indigo-500/5" : "bg-[var(--card)]/30"}`}
+                  >
+                    <div className={`text-sm font-medium mb-2 ${isToday ? "text-indigo-400" : "text-[var(--foreground-muted)]"}`}>
                       {day}
                     </div>
                     <div className="space-y-1">
-                      {dayPosts.slice(0, 2).map(post => (
+                      {dayPosts.slice(0, 2).map((post) => (
                         <button
                           key={post.id}
                           onClick={() => setSelectedPost(post)}
-                          className={`w-full text-left text-xs p-1.5 rounded truncate transition-colors ${
-                            post.status === 'SCHEDULED' ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' :
-                            post.status === 'PUBLISHED' ? 'bg-blue-500/10 text-blue-400' :
-                            'bg-rose-500/10 text-rose-400'
-                          }`}
+                          className={`w-full text-left text-xs p-1.5 rounded truncate transition-colors flex items-center gap-1 ${pillClass(post)}`}
                         >
+                          {post.source === "intent"
+                            ? <Send className="w-2.5 h-2.5 shrink-0" />
+                            : <Calendar className="w-2.5 h-2.5 shrink-0" />
+                          }
                           {post.platform}
                         </button>
                       ))}
@@ -299,6 +308,7 @@ export default function CalendarPage() {
             </div>
           </div>
 
+          {/* Selected Post Detail */}
           {selectedPost && (
             <div className="mt-6 bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
@@ -307,28 +317,50 @@ export default function CalendarPage() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
+
               <div className="grid gap-4">
-                <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-3 flex-wrap text-sm">
+                  {/* Source badge */}
+                  <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${selectedPost.source === "scheduled" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>
+                    {selectedPost.source === "scheduled" ? <Calendar className="w-3 h-3" /> : <Send className="w-3 h-3" />}
+                    {selectedPost.source === "scheduled" ? "AI Scheduled" : "Publishing Hub"}
+                  </span>
+                  {/* Platform */}
                   <span className="px-3 py-1 bg-indigo-500/20 text-indigo-400 rounded-full text-xs font-bold">
                     {selectedPost.platform}
                   </span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    selectedPost.status === 'SCHEDULED' ? 'bg-emerald-500/20 text-emerald-400' :
-                    selectedPost.status === 'PUBLISHED' ? 'bg-blue-500/20 text-blue-400' :
-                    'bg-rose-500/20 text-rose-400'
-                  }`}>
-                    {selectedPost.status}
+                  {/* Status */}
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadgeClass(selectedPost.status)}`}>
+                    {selectedPost.status.replace("PENDING_", "Pending: ")}
                   </span>
                 </div>
+
                 <p className="text-[var(--foreground)] text-sm">{selectedPost.content}</p>
+
                 <div className="flex items-center gap-2 text-[var(--foreground-muted)] text-sm">
                   <Clock className="w-4 h-4" />
-                  {formatDateTime(selectedPost.scheduled_time)}
+                  {selectedPost.source === "scheduled" && selectedPost.scheduled_time
+                    ? formatDateTime(selectedPost.scheduled_time)
+                    : `Submitted ${formatDateTime(selectedPost.created_at)}`
+                  }
                 </div>
-                {selectedPost.status === 'SCHEDULED' && (
-                  <div className="flex gap-3 mt-4">
+
+                {/* Actions: only scheduled posts can be edited/cancelled */}
+                {selectedPost.source === "scheduled" && selectedPost.status === "SCHEDULED" && (
+                  <div className="flex gap-3 mt-2">
                     <button
-                      onClick={() => { setEditingPost(selectedPost); setShowEditModal(true); }}
+                      onClick={() => {
+                        setEditingPost({
+                          id: selectedPost.id,
+                          content: selectedPost.content,
+                          platform: selectedPost.platform,
+                          scheduled_time: selectedPost.scheduled_time!,
+                          status: selectedPost.status,
+                          media_url: selectedPost.media_url,
+                          created_at: selectedPost.created_at,
+                        });
+                        setShowEditModal(true);
+                      }}
                       className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition-colors"
                     >
                       <Edit3 className="w-4 h-4" />
@@ -343,154 +375,81 @@ export default function CalendarPage() {
                     </button>
                   </div>
                 )}
+
+                {/* Publishing Hub: link to governance queue */}
+                {selectedPost.source === "intent" && (
+                  <Link
+                    href="/publish"
+                    className="inline-flex items-center gap-2 px-4 py-2 w-fit bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 text-sm font-bold rounded-xl transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    View in Publishing Hub
+                  </Link>
+                )}
               </div>
             </div>
           )}
         </div>
 
+        {/* ── Right Sidebar ── */}
         <div className="space-y-6">
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-[var(--foreground)] mb-4 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-400" />
-              AI Scheduler
-            </h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Platform</label>
-                <select
-                  value={selectedPlatform}
-                  onChange={(e) => setSelectedPlatform(e.target.value)}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500"
-                >
-                  <option value="Instagram">Instagram</option>
-                  <option value="Twitter">Twitter</option>
-                  <option value="LinkedIn">LinkedIn</option>
-                  <option value="Facebook">Facebook</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Topic / Niche</label>
-                <input
-                  type="text"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="e.g. tech, fashion, fitness"
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Target Audience Region</label>
-                <select
-                  value={audienceRegion}
-                  onChange={(e) => setAudienceRegion(e.target.value)}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500"
-                >
-                  <option value="Global">Global</option>
-                  <option value="US (EST)">US (EST)</option>
-                  <option value="US (PST)">US (PST)</option>
-                  <option value="UK / Europe">UK / Europe</option>
-                  <option value="Asia Pacific">Asia Pacific</option>
-                  <option value="Australia">Australia</option>
-                  <option value="India">India</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Target Age Group</label>
-                <select
-                  value={audienceAgeGroup}
-                  onChange={(e) => setAudienceAgeGroup(e.target.value)}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500"
-                >
-                  <option value="All Ages">All Ages</option>
-                  <option value="18-24">18-24 (Gen Z)</option>
-                  <option value="25-34">25-34 (Millennials)</option>
-                  <option value="35-44">35-44</option>
-                  <option value="Professionals">Professionals</option>
-                </select>
-              </div>
-
-              <div className="text-xs text-[var(--foreground-muted)]">
-                Your timezone: <span className="text-[var(--foreground-muted)] font-medium">{userTimezone}</span>
-              </div>
-
-              <button
-                onClick={handleMagicSchedule}
-                disabled={isFetchingRecommendations}
-                className="w-full bg-amber-500 hover:bg-amber-400 text-zinc-900 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-              >
-                {isFetchingRecommendations ? (
-                  <div className="w-4 h-4 border-2 border-zinc-900/30 border-t-zinc-900 rounded-full animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                Get Optimal Times
-              </button>
-            </div>
-
-            {suggestedTimes.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-[var(--border)]">
-                <h4 className="text-sm font-bold text-[var(--foreground)] mb-3">Recommended Times</h4>
-                <div className="space-y-3">
-                  {suggestedTimes.map((rec, i) => (
-                    <div key={i} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-bold text-indigo-400">
-                          {rec.user_local_time_start} - {rec.user_local_time_end}
-                        </span>
-                        <span className="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full">
-                          {Math.round(rec.confidence_score * 100)}%
-                        </span>
-                      </div>
-                      <p className="text-xs text-[var(--foreground-muted)] mb-1">
-                        Audience time ({rec.audience_timezone}): {rec.best_start_time} - {rec.best_end_time}
-                      </p>
-                      <p className="text-xs text-[var(--foreground-muted)] italic mb-2">{rec.reasoning}</p>
-                      <button
-                        onClick={() => handleScheduleFromRecommendation(rec)}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors"
-                      >
-                        Schedule Post
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
+          {/* Upcoming — merged list */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
             <h3 className="text-lg font-bold text-[var(--foreground)] mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-indigo-400" />
-              Upcoming ({posts.filter(p => p.status === 'SCHEDULED').length})
+              Upcoming
+              <span className="ml-auto text-xs font-normal text-[var(--foreground-muted)]">
+                {posts.filter((p) => p.status === "SCHEDULED" || (p.source === "intent" && p.status.startsWith("PENDING_"))).length} pending
+              </span>
             </h3>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {posts.filter(p => p.status === 'SCHEDULED').slice(0, 5).map(post => (
-                <button
-                  key={post.id}
-                  onClick={() => setSelectedPost(post)}
-                  className="w-full text-left p-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--card-border)] transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-indigo-400">{post.platform}</span>
-                    <span className="text-xs text-[var(--foreground-muted)]">
-                      {formatDateTime(post.scheduled_time)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[var(--foreground-muted)] truncate">{post.content}</p>
-                </button>
-              ))}
-              {posts.filter(p => p.status === 'SCHEDULED').length === 0 && (
-                <p className="text-sm text-[var(--foreground-muted)] text-center py-4">No scheduled posts</p>
+
+            <div className="space-y-2 max-h-[360px] overflow-y-auto">
+              {posts
+                .filter((p) =>
+                  p.status === "SCHEDULED" ||
+                  (p.source === "intent" && (p.status.startsWith("PENDING_") || p.status === "APPROVED"))
+                )
+                .sort((a, b) => a.calendarDate.localeCompare(b.calendarDate))
+                .slice(0, 10)
+                .map((post) => (
+                  <button
+                    key={`${post.source}-${post.id}`}
+                    onClick={() => setSelectedPost(post)}
+                    className="w-full text-left p-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--card-border)] transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        {post.source === "intent"
+                          ? <Send className="w-3 h-3 text-amber-400" />
+                          : <Calendar className="w-3 h-3 text-emerald-400" />
+                        }
+                        <span className={`text-xs font-bold ${post.source === "intent" ? "text-amber-400" : "text-indigo-400"}`}>
+                          {post.platform}
+                        </span>
+                      </div>
+                      <span className="text-xs text-[var(--foreground-muted)]">
+                        {post.source === "scheduled" && post.scheduled_time
+                          ? formatDateTime(post.scheduled_time)
+                          : formatDateTime(post.created_at)
+                        }
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--foreground-muted)] truncate">{post.content}</p>
+                  </button>
+                ))
+              }
+              {posts.filter((p) =>
+                p.status === "SCHEDULED" ||
+                (p.source === "intent" && (p.status.startsWith("PENDING_") || p.status === "APPROVED"))
+              ).length === 0 && (
+                <p className="text-sm text-[var(--foreground-muted)] text-center py-4">No pending posts</p>
               )}
             </div>
           </div>
         </div>
       </div>
 
+      {/* ── Edit Scheduled Post Modal ── */}
       {showEditModal && editingPost && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-lg">
@@ -500,7 +459,6 @@ export default function CalendarPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Content</label>
@@ -510,7 +468,6 @@ export default function CalendarPage() {
                   className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500 min-h-[120px]"
                 />
               </div>
-              
               <div>
                 <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Scheduled Time</label>
                 <input
@@ -520,7 +477,6 @@ export default function CalendarPage() {
                   className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500"
                 />
               </div>
-
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleUpdatePost}
@@ -540,69 +496,6 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {showScheduleModal && selectedTimeSlot && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-lg">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-[var(--foreground)]">Schedule Post</h3>
-              <button onClick={() => setShowScheduleModal(false)} className="text-[var(--foreground-muted)] hover:text-[var(--foreground)]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
-                <div className="flex items-center gap-2 text-sm mb-2">
-                  <Clock className="w-4 h-4 text-emerald-400" />
-                  <span className="text-emerald-400 font-bold">Scheduled Time</span>
-                </div>
-                <p className="text-[var(--foreground)] font-medium">
-                  {selectedTimeSlot.user_local_time_start} - {selectedTimeSlot.user_local_time_end} (Your time)
-                </p>
-                <p className="text-[var(--foreground-muted)] text-xs mt-1">
-                  {selectedTimeSlot.best_start_time} - {selectedTimeSlot.best_end_time} ({selectedTimeSlot.audience_timezone})
-                </p>
-              </div>
-
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
-                <div className="text-sm text-[var(--foreground-muted)] mb-2">Platform</div>
-                <p className="text-[var(--foreground)] font-medium">{selectedPlatform}</p>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-bold text-[var(--foreground-muted)] mb-1">Post Content</label>
-                <textarea
-                  value={scheduleContent}
-                  onChange={(e) => setScheduleContent(e.target.value)}
-                  placeholder="Write your post content here..."
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500 min-h-[120px]"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={handleCreateScheduledPost}
-                  disabled={creatingPost || !scheduleContent.trim()}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {creatingPost ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <Calendar className="w-4 h-4" />
-                  )}
-                  Schedule Post
-                </button>
-                <button
-                  onClick={() => setShowScheduleModal(false)}
-                  className="px-6 py-3 bg-[var(--surface)] hover:bg-[var(--surface-hover)] text-[var(--foreground)] font-bold rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

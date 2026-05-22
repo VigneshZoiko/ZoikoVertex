@@ -44,13 +44,13 @@ import {
   HeartPulse,
   Building2,
   CreditCard,
-  Lock,
   TrendingUp,
   FolderKanban,
   Inbox,
   MonitorPlay,
   Fingerprint,
-  Pencil,
+  Bell,
+  Eye,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -111,7 +111,6 @@ const NAV_GROUPS: NavGroup[] = [
     icon: ImageIcon,
     items: [
       { name: "Media Vault",         href: "/library",    icon: Database,       roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","REVIEWER","ANALYST","VIEWER"] },
-      { name: "Content Studio",      href: "/studio",     icon: Pencil,         roles: ["ADMIN","WORKSPACE_OWNER","CREATOR","CAMPAIGN_MANAGER"] },
       { name: "Projects",            href: "/projects",   icon: Briefcase,      roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","ANALYST","VIEWER"] },
       { name: "Campaigns",           href: "/campaigns",  icon: FolderKanban,   roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","ANALYST","VIEWER"] },
       { name: "Calendar",            href: "/calendar",   icon: Calendar,       roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","VIEWER"] },
@@ -193,7 +192,9 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { name: "Workspace Settings",  href: "/admin/settings",      icon: Sliders,     roles: ["ADMIN","WORKSPACE_OWNER"] },
       { name: "Billing & Usage",     href: "/admin/billing",       icon: CreditCard,  roles: ["ADMIN","WORKSPACE_OWNER"] },
-      { name: "Security Center",     href: "/admin/security",      icon: Lock,        roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"] },
+      { name: "Privacy & Data",      href: "/admin/privacy",       icon: Eye,         roles: ["ADMIN","WORKSPACE_OWNER","PRIVACY_ADMIN"] },
+      { name: "Notifications",       href: "/admin/notifications", icon: Bell,        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","ANALYST","SECURITY_ADMIN","PRIVACY_ADMIN","BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER"], badge: false },
+      { name: "System Status",       href: "/admin/status",        icon: Activity,    roles: ["ADMIN","WORKSPACE_OWNER"] },
       { name: "Support & Docs",      href: "/support",             icon: HelpCircle,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","ANALYST","SECURITY_ADMIN","PRIVACY_ADMIN","BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER"] },
     ],
   },

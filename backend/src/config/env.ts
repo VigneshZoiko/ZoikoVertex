@@ -14,6 +14,7 @@ const envSchema = z.object({
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
   META_REDIRECT_URI: z.string().optional(),
+  META_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
   LINKEDIN_CLIENT_ID: z.string().optional(),
   LINKEDIN_CLIENT_SECRET: z.string().optional(),
@@ -32,6 +33,8 @@ const envSchema = z.object({
   YOUTUBE_CLIENT_SECRET: z.string().optional(),
   YOUTUBE_REDIRECT_URI: z.string().optional(),
   REDIS_URL: z.string().optional(),
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   // Required for internal service-to-service calls to /api/v1/users/provision
   INTERNAL_SERVICE_SECRET: z.string().min(32).optional(),
 });

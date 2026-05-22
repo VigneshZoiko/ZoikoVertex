@@ -3,10 +3,10 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { 
-  Sparkles, Send, Globe, CheckCircle2, AlertCircle, RefreshCcw, 
-  XCircle, ListTodo, AlertTriangle, Calendar, Clock, 
-  Edit3, Trash2, ChevronLeft, ChevronRight 
+import {
+  Sparkles, Send, Globe, CheckCircle2, AlertCircle, RefreshCcw,
+  XCircle, ListTodo, AlertTriangle, Calendar, Clock,
+  Edit3, Trash2, ChevronLeft, ChevronRight, FolderKanban, Briefcase,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -54,7 +54,7 @@ function PublishPageInner() {
   const [connectedAccounts, setConnectedAccounts] = useState<any[]>([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   // Post type per platform (e.g. instagram→reel, youtube→short)
-  const [platformPostTypes, setPlatformPostTypes] = useState<Record<string, string>>({});
+  const [platformPostTypes, setPlatformPostTypes] = useState<Record<string, string[]>>({});
   // Detected media dimensions/duration for smart platform constraint warnings
   const [mediaMeta, setMediaMeta] = useState<MediaMeta | null>(null);
 
@@ -64,7 +64,8 @@ function PublishPageInner() {
     "X": 280,
     "LinkedIn": 3000,
     "Threads": 500,
-    "Pinterest": 500
+    "Pinterest": 500,
+    "YouTube": 5000,
   };
 
   // Governance State
@@ -86,16 +87,30 @@ function PublishPageInner() {
   const [selectedScheduledPost, setSelectedScheduledPost] = useState<any>(null);
   const [showEditScheduledModal, setShowEditScheduledModal] = useState(false);
   const [userTimezone, setUserTimezone] = useState("UTC");
+
+  // Campaign & Project linking
+  const [publishCampaigns, setPublishCampaigns] = useState<{id: string; name: string}[]>([]);
+  const [publishProjects,  setPublishProjects]  = useState<{id: string; name: string}[]>([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [selectedProjectId,  setSelectedProjectId]  = useState("");
   
   // AI Recommendations State
   const [suggestedTimes, setSuggestedTimes] = useState<any[]>([]);
+  const [schedulerDate, setSchedulerDate] = useState<string>(
+    () => new Date().toISOString().split('T')[0]
+  );
+
+  // Manual Scheduler State
+  const [manualScheduleDate, setManualScheduleDate] = useState<string>('');
+  const [manualScheduleTime, setManualScheduleTime] = useState<string>('');
   const assetUrls = searchParams.get('assetUrls');
   const assetUrl  = searchParams.get('assetUrl');   // legacy single-url fallback
   const assetType = searchParams.get('assetType');
   const assetTitle = searchParams.get('assetTitle');
 
   useEffect(() => {
-    return () => { pollTimers.current.forEach(clearTimeout); };
+    const timers = pollTimers.current;
+    return () => { timers.forEach(clearTimeout); };
   }, []);
 
   useEffect(() => {
@@ -116,6 +131,20 @@ function PublishPageInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assetUrls, assetUrl, assetTitle]);
 
+  // Load campaigns for linking
+  useEffect(() => {
+    api.get("/api/v1/campaigns").then(r => setPublishCampaigns(r.data || [])).catch(() => {});
+  }, []);
+
+  // Load projects when campaign is selected
+  useEffect(() => {
+    if (!selectedCampaignId) { setPublishProjects([]); setSelectedProjectId(""); return; }
+    api.get(`/api/v1/projects?campaign_id=${selectedCampaignId}`)
+      .then(r => setPublishProjects(r.data || []))
+      .catch(() => setPublishProjects([]));
+    setSelectedProjectId("");
+  }, [selectedCampaignId]);
+
   // Mark draft as dirty whenever meaningful content exists
   useEffect(() => {
     const hasDraft = topic.trim().length > 0 || description.trim().length > 0 || media !== null || mediaUrls.length > 0;
@@ -128,6 +157,7 @@ function PublishPageInner() {
     setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
     setSuggestedTimes([]); setActiveRevisionId(null);
     setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
+    setSelectedCampaignId(""); setSelectedProjectId("");
     setIsDirty(false);
     setMessage({ type: 'success', text: 'Draft discarded. Start fresh anytime.' });
   }, [setIsDirty]);
@@ -296,7 +326,8 @@ function PublishPageInner() {
     "X": true,
     "LinkedIn": true,
     "Threads": true,
-    "Pinterest": true
+    "Pinterest": true,
+    "YouTube": true,
   });
 
   const getSelectedPlatforms = useCallback(() => {
@@ -452,13 +483,14 @@ function PublishPageInner() {
     if (!mediaMeta?.width || mediaMeta.duration === undefined) return;
     const willBeShort = mediaMeta.isVertical && mediaMeta.duration <= 180;
     setPlatformPostTypes(prev => {
-      const current = prev['youtube'] ?? DEFAULT_POST_TYPES['youtube'] ?? 'video';
-      if (willBeShort && current !== 'short') {
+      const currentArr = prev['youtube'] ?? [DEFAULT_POST_TYPES['youtube'] ?? 'video'];
+      const isShort = currentArr.includes('short');
+      if (willBeShort && !isShort) {
         setTimeout(() => setMessage({ type: 'success', text: 'YouTube post type auto-switched to "Short" — vertical video ≤ 3 min detected.' }), 50);
-        return { ...prev, youtube: 'short' };
+        return { ...prev, youtube: ['short'] };
       }
-      if (!willBeShort && current === 'short') {
-        return { ...prev, youtube: 'video' };
+      if (!willBeShort && isShort) {
+        return { ...prev, youtube: ['video'] };
       }
       return prev;
     });
@@ -476,7 +508,7 @@ function PublishPageInner() {
 
       const data = await api.post('/api/v1/ai/generate', {
         topic, contentType,
-        platforms: ["Instagram", "Facebook", "X", "LinkedIn", "Threads", "Pinterest"],
+        platforms: ["Instagram", "Facebook", "X", "LinkedIn", "Threads", "Pinterest", "YouTube"],
         length: aiLength,
         tone: aiTone,
         useEmojis,
@@ -528,7 +560,7 @@ function PublishPageInner() {
     if (!count || !type) return [];
 
     const seen = new Set<string>();
-    const violations: { platform: string; postType: string; message: string }[] = [];
+    const violations: { platform: string; postType: string | string[]; message: string }[] = [];
 
     for (const id of selectedAccountIds) {
       const acc = connectedAccounts.find(a => a.id === id);
@@ -595,17 +627,30 @@ function PublishPageInner() {
       }
 
       // 2. Submit to Governance Engine
+      // Normalize caption keys to lowercase to match connected_accounts.platform values in DB.
+      // Only include platform-specific captions when per-platform mode is active — otherwise
+      // send empty so the backend uses the universal caption for every selected account.
+      const normalizedCaptions = isPlatformSpecific
+        ? Object.fromEntries(
+            Object.entries(platformCaptions)
+              .filter(([, v]) => v.trim().length > 0)
+              .map(([k, v]) => [k.toLowerCase(), v])
+          )
+        : {};
+
       const payload = {
         topic,
         content: {
           universal: description,
-          platforms: platformCaptions
+          platforms: normalizedCaptions,
         },
         mediaUrls: finalUrls,
         mediaUrl: finalUrls[0] || null,
         targetAccountIds: selectedAccountIds,
         platformPostTypes,
-        userId: user.id
+        userId: user.id,
+        campaign_id: selectedCampaignId || null,
+        project_id:  selectedProjectId  || null,
       };
 
       const result = await api.post('/api/v1/governance/submit', payload);
@@ -621,6 +666,7 @@ function PublishPageInner() {
       setSuggestedTimes([]); setActiveRevisionId(null);
       setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
       setCustomTime(""); setSelectedTime("immediate");
+      setSelectedCampaignId(""); setSelectedProjectId("");
       setIsDirty(false);
       fetchUserData();
       // Poll for publish result — backend needs a moment to process
@@ -651,39 +697,126 @@ function PublishPageInner() {
     }
   };
 
-  const handleMagicSchedule = async () => {
-    if (!topic) {
-      setMessage({ type: 'error', text: 'Please enter a Topic so the AI knows your niche!' });
+  const handleManualSchedule = async () => {
+    if (selectedAccountIds.length === 0) {
+      setMessage({ type: 'error', text: 'Select at least one target account first.' });
       return;
     }
-    const platforms = getSelectedPlatforms();
-    if (platforms.length === 0) {
+    if (!manualScheduleDate || !manualScheduleTime) {
+      setMessage({ type: 'error', text: 'Pick a date and time to schedule.' });
+      return;
+    }
+    const hasCaption = isPlatformSpecific
+      ? Object.values(platformCaptions).some(v => v.trim().length > 0)
+      : description.trim().length > 0;
+    if (!hasCaption) {
+      setMessage({ type: 'error', text: 'Write a caption before scheduling.' });
+      return;
+    }
+
+    const scheduledTime = new Date(`${manualScheduleDate}T${manualScheduleTime}:00`).toISOString();
+    if (new Date(scheduledTime) <= new Date()) {
+      setMessage({ type: 'error', text: 'Scheduled time must be in the future.' });
+      return;
+    }
+
+    const platformsToSchedule = [
+      ...new Set(
+        selectedAccountIds
+          .map(id => connectedAccounts.find(a => a.id === id)?.platform)
+          .filter(Boolean) as string[]
+      ),
+    ];
+
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      let mediaUrl: string | null = selectedUrls[0] || null;
+      if (media) {
+        const fileExt = media.name.split('.').pop();
+        const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage.from('media').upload(filePath, media);
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath);
+        mediaUrl = publicUrl;
+      }
+
+      const results = await Promise.allSettled(
+        platformsToSchedule.map(platform =>
+          api.post('/api/v1/scheduler/posts', {
+            content: isPlatformSpecific
+              ? (platformCaptions[platform] || platformCaptions[platform.charAt(0).toUpperCase() + platform.slice(1)] || description)
+              : description,
+            mediaUrl: mediaUrl || undefined,
+            platform,
+            scheduledTime,
+            campaignId: selectedCampaignId || null,
+          })
+        )
+      );
+
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      if (succeeded > 0) {
+        setMessage({
+          type: 'success',
+          text: `Scheduled ${succeeded} post${succeeded > 1 ? 's' : ''} for ${new Date(scheduledTime).toLocaleString('en', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}${failed > 0 ? ` (${failed} failed)` : ''}!`,
+        });
+        setManualScheduleDate('');
+        setManualScheduleTime('');
+        fetchScheduledPosts();
+      } else {
+        setMessage({ type: 'error', text: 'Failed to schedule posts. Please try again.' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to schedule post. Please try again.' });
+    }
+    setSubmitting(false);
+  };
+
+  const handleMagicSchedule = async () => {
+    const selectedPlatforms = getSelectedPlatforms();
+    if (selectedPlatforms.length === 0) {
       setMessage({ type: 'error', text: 'Please select at least one platform.' });
       return;
     }
 
+    // Auto-derive niche: extract keywords from description, fall back to topic
+    const descWords = description.trim().split(/\s+/).slice(0, 25).join(' ');
+    const derivedNiche = topic.trim() || descWords || 'general content';
+
+    // Append image analysis context if available
+    const imageAnalysis = hasImageAnalysis ? sessionStorage.getItem('lastImageAnalysis') : null;
+    const nicheWithContext = imageAnalysis
+      ? `${derivedNiche}. Visual context: ${imageAnalysis.slice(0, 300)}`
+      : derivedNiche;
+
     setIsFetchingRecommendations(true);
     try {
       const data = await api.post('/api/v1/scheduler/recommend', {
-        platform: platforms[0],
-        niche: topic,
-        audienceRegion: audienceRegion,
-        audienceAgeGroup: audienceAgeGroup,
-        userTimezone
+        platform: selectedPlatforms[0],
+        niche: nicheWithContext,
+        audienceRegion,
+        audienceAgeGroup,
+        userTimezone,
+        targetDate: schedulerDate,
       });
       if (data.recommendations) {
-        const today = new Date().toISOString().split('T')[0];
         const formattedSlots = data.recommendations.map((rec: any) => ({
-          time: `${today}T${rec.best_start_time}`,
-          label: `${rec.best_start_time} - ${rec.best_end_time} (Confidence: ${Math.round(rec.confidence_score * 100)}%)`,
-          reasoning: rec.reasoning,
+          time: `${rec.target_date || schedulerDate}T${rec.user_local_time || rec.best_time}:00`,
+          label: rec.user_local_time || rec.best_time,
+          audience_time: rec.best_time,
+          reasoning_points: rec.reasoning_points || (rec.reasoning ? [rec.reasoning] : []),
           confidence_score: rec.confidence_score,
-          user_local_time_start: rec.user_local_time_start,
-          user_local_time_end: rec.user_local_time_end,
-          audience_timezone: rec.audience_timezone
+          audience_timezone: rec.audience_timezone,
+          target_date: rec.target_date || schedulerDate,
         }));
         setSuggestedTimes(formattedSlots);
-        setMessage({ type: 'success', text: 'AI analyzed demographics and generated peak time slots!' });
+        setMessage({ type: 'success', text: `AI analyzed ${imageAnalysis ? 'your image and content' : 'your content'} and generated peak time slots!` });
       } else {
         setMessage({ type: 'error', text: data.error || 'AI Scheduling failed' });
       }
@@ -1140,6 +1273,47 @@ function PublishPageInner() {
             />
           </div>
 
+          {/* Campaign & Project linking */}
+          {publishCampaigns.length > 0 && (
+            <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
+              <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
+                <FolderKanban className="w-3.5 h-3.5 text-indigo-400" />
+                Link to Campaign
+              </h3>
+              <select
+                value={selectedCampaignId}
+                onChange={e => setSelectedCampaignId(e.target.value)}
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-indigo-500 transition-colors"
+              >
+                <option value="">No campaign</option>
+                {publishCampaigns.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              {selectedCampaignId && (
+                <div>
+                  <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2 mb-2">
+                    <Briefcase className="w-3.5 h-3.5 text-indigo-400" />
+                    Link to Project
+                  </h3>
+                  <select
+                    value={selectedProjectId}
+                    onChange={e => setSelectedProjectId(e.target.value)}
+                    disabled={publishProjects.length === 0}
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
+                  >
+                    <option value="">
+                      {publishProjects.length === 0 ? "No projects in this campaign" : "No project"}
+                    </option>
+                    {publishProjects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Platform constraint warnings */}
           {(() => {
             const violations = getPlatformViolations();
@@ -1297,22 +1471,84 @@ function PublishPageInner() {
               <Sparkles className="w-4 h-4 text-amber-400" />
               AI Scheduler
             </h3>
+
             <div className="space-y-3">
+              {/* Auto-detected niche display */}
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2">
+                <p className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider mb-1">Detected Niche</p>
+                <p className="text-xs text-[var(--foreground)] truncate">
+                  {topic.trim() || description.trim().split(/\s+/).slice(0, 8).join(' ') || (
+                    <span className="italic text-[var(--foreground-muted)]">Write a description first</span>
+                  )}
+                </p>
+              </div>
+
+              {/* Image analysis signal */}
+              {hasImageAnalysis && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-violet-500/10 border border-violet-500/20 rounded-lg">
+                  <Sparkles className="w-3 h-3 text-violet-400 shrink-0" />
+                  <p className="text-[10px] text-violet-300 font-medium">Image context will be included in timing analysis</p>
+                </div>
+              )}
+
+              {/* Date strip — 7 upcoming days + custom picker */}
+              <div>
+                <p className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider mb-1.5">Schedule For</p>
+                <div className="grid grid-cols-4 gap-1 mb-2">
+                  {Array.from({ length: 7 }, (_, i) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + i);
+                    const dateStr = d.toISOString().split('T')[0];
+                    const dayLabel = i === 0 ? 'Today' : i === 1 ? 'Tmrw' : d.toLocaleDateString('en', { weekday: 'short' });
+                    return (
+                      <button
+                        key={dateStr}
+                        onClick={() => { setSchedulerDate(dateStr); setSuggestedTimes([]); }}
+                        className={`flex flex-col items-center py-1.5 rounded-lg border text-center transition-all ${
+                          schedulerDate === dateStr
+                            ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
+                            : 'bg-[var(--surface)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-amber-500/30 hover:text-[var(--foreground)]'
+                        }`}
+                      >
+                        <span className="text-[8px] font-bold uppercase leading-none">{dayLabel}</span>
+                        <span className="text-sm font-black leading-tight mt-0.5">{d.getDate()}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Custom date picker for dates beyond the 7-day strip */}
+                <input
+                  type="date"
+                  value={schedulerDate}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={e => {
+                    if (e.target.value) {
+                      setSchedulerDate(e.target.value);
+                      setSuggestedTimes([]);
+                    }
+                  }}
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none focus:border-amber-500/50 transition-colors"
+                />
+              </div>
+
               <select
                 value={audienceRegion}
                 onChange={(e) => setAudienceRegion(e.target.value)}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none focus:border-amber-500/50"
               >
                 <option value="Global">Global Audience</option>
                 <option value="US (EST)">US (EST)</option>
                 <option value="US (PST)">US (PST)</option>
                 <option value="UK / Europe">UK / Europe</option>
                 <option value="Asia Pacific">Asia Pacific</option>
+                <option value="India">India</option>
+                <option value="Australia">Australia</option>
               </select>
+
               <select
                 value={audienceAgeGroup}
                 onChange={(e) => setAudienceAgeGroup(e.target.value)}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none focus:border-amber-500/50"
               >
                 <option value="All Ages">All Ages</option>
                 <option value="18-24">18-24 Gen Z</option>
@@ -1320,6 +1556,7 @@ function PublishPageInner() {
                 <option value="35-44">35-44</option>
                 <option value="Professionals">Professionals</option>
               </select>
+
               <button
                 onClick={handleMagicSchedule}
                 disabled={isFetchingRecommendations}
@@ -1333,20 +1570,130 @@ function PublishPageInner() {
                 Get Best Times
               </button>
             </div>
+
             {suggestedTimes.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-2">
-                {suggestedTimes.slice(0, 2).map((rec, i) => (
-                  <div key={i} className="p-3 bg-[var(--surface)] rounded-xl">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-emerald-400">{rec.user_local_time_start} - {rec.user_local_time_end}</span>
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">{Math.round(rec.confidence_score * 100)}%</span>
+              <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider">
+                    Best Times · {new Date(schedulerDate + 'T12:00:00').toLocaleDateString('en', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+                {suggestedTimes.map((rec, i) => (
+                  <div key={i} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-lg font-black text-emerald-400 tabular-nums">
+                        {rec.label}
+                      </span>
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded-full font-bold">
+                          {Math.round(rec.confidence_score * 100)}%
+                        </span>
+                        {rec.audience_time && rec.audience_timezone && (
+                          <span className="text-[9px] text-[var(--foreground-muted)]">
+                            {rec.audience_time} {rec.audience_timezone.split('/').pop()?.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-[10px] text-[var(--foreground-muted)]">{rec.audience_timezone}: {rec.best_start_time} - {rec.best_end_time}</p>
+                    <ul className="space-y-1 mb-2.5">
+                      {(rec.reasoning_points || []).slice(0, 4).map((pt: string, j: number) => (
+                        <li key={j} className="text-[10px] text-[var(--foreground-muted)] flex items-start gap-1.5 leading-relaxed">
+                          <span className="text-emerald-500 font-bold mt-0.5 shrink-0">·</span>
+                          <span>{pt}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      onClick={() => {
+                        setSelectedTime(rec.time);
+                        const [datePart, timePart] = rec.time.split('T');
+                        setManualScheduleDate(datePart || '');
+                        setManualScheduleTime((timePart || '').slice(0, 5));
+                      }}
+                      className={`w-full py-1.5 text-[10px] font-bold rounded-lg transition-colors ${
+                        selectedTime === rec.time
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400'
+                      }`}
+                    >
+                      {selectedTime === rec.time ? '✓ Noted — see scheduler below' : 'Note this slot'}
+                    </button>
                   </div>
                 ))}
+                <p className="text-[10px] text-[var(--foreground-muted)] text-center pt-1">
+                  Publishing Hub posts immediately through governance. To schedule at a specific time, use the{' '}
+                  <a href="/calendar" className="text-indigo-400 hover:text-indigo-300 underline">Calendar</a>.
+                </p>
               </div>
             )}
           </div>
+          {/* Manual Scheduler */}
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5">
+            <h3 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2 mb-4">
+              <Clock className="w-4 h-4 text-indigo-400" />
+              Schedule for Later
+            </h3>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider block mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={manualScheduleDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={e => setManualScheduleDate(e.target.value)}
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-2 text-[var(--foreground)] text-xs outline-none focus:border-indigo-500/60 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider block mb-1">Time</label>
+                  <input
+                    type="time"
+                    value={manualScheduleTime}
+                    onChange={e => setManualScheduleTime(e.target.value)}
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-2 text-[var(--foreground)] text-xs outline-none focus:border-indigo-500/60 transition-colors"
+                  />
+                </div>
+              </div>
+
+              {manualScheduleDate && manualScheduleTime && (
+                <div className="bg-indigo-500/8 border border-indigo-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <Calendar className="w-3 h-3 text-indigo-400 shrink-0" />
+                  <p className="text-[10px] text-indigo-300 font-medium">
+                    {new Date(`${manualScheduleDate}T${manualScheduleTime}:00`).toLocaleString('en', {
+                      weekday: 'short', month: 'short', day: 'numeric',
+                      hour: '2-digit', minute: '2-digit',
+                    })}
+                  </p>
+                </div>
+              )}
+
+              {selectedAccountIds.length === 0 && (
+                <p className="text-[10px] text-amber-400/80 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 shrink-0" />
+                  Select accounts in &quot;Post To&quot; first
+                </p>
+              )}
+
+              <button
+                onClick={handleManualSchedule}
+                disabled={submitting || !manualScheduleDate || !manualScheduleTime || selectedAccountIds.length === 0}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
+              >
+                {submitting ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Calendar className="w-4 h-4" />
+                )}
+                Schedule Post
+              </button>
+
+              <p className="text-[9px] text-[var(--foreground-muted)] text-center leading-relaxed">
+                Bypasses governance — posts directly at the selected time.
+              </p>
+            </div>
+          </div>
+
         </div>
       </div>
 
