@@ -1,4 +1,4 @@
-export { default as Navbar } from "./Navbar";
+export { default as Navbar } from "../navbar/Navbar";
 export { default as Hero } from "./Hero";
 export { default as TrustedBy } from "./TrustedBy";
 export { default as Stats } from "./Stats";
@@ -14,5 +14,5 @@ export { default as Industries } from "./Industries";
 export { default as StackComparison } from "./StackComparison";
 export { default as TrustModel } from "./TrustModel";
 export { default as Testimonials } from "./Testimonials";
-export { default as FooterCTA } from "./FooterCTA";
-export { default as Footer } from "./Footer";
+export { default as FooterCTA } from "../footer/FooterCTA";
+export { default as Footer } from "../footer/Footer";
