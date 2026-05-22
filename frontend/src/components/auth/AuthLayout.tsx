@@ -1,47 +1,105 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
 }
 
+const benefits = [
+  {
+    title: "Role-based access",
+    description: "Access aligned to your role and responsibilities.",
+  },
+  {
+    title: "Audit-grade security",
+    description: "Encryption, monitoring, and immutable audit trails.",
+  },
+  {
+    title: "SSO ready",
+    description: "Seamless SSO integration for your organization.",
+  },
+  {
+    title: "Multi-factor protection",
+    description: "MFA support to keep your account secure.",
+  },
+  {
+    title: "Enterprise governance",
+    description: "Policies, controls, and compliance built in.",
+  },
+];
+
 export default function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen w-full flex flex-col bg-[var(--background)] font-sans text-[var(--foreground)] antialiased overflow-y-auto">
-
-      {/* Background glow */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-indigo-500/6 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-purple-500/4 rounded-full blur-[120px]" />
+    <div className="min-h-screen overflow-hidden bg-slate-50 text-slate-950 antialiased">
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-sky-400/20 blur-3xl" />
+        <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
+        <div className="absolute inset-x-0 bottom-0 h-72 bg-[radial-gradient(circle_at_bottom,_rgba(56,189,248,0.15),_transparent_60%)]" />
       </div>
 
-      {/* Header */}
-      <header className="w-full flex flex-col items-center pt-8 pb-4 relative z-10 shrink-0">
-        <div className="flex items-center gap-2.5 mb-1">
-          <div className="w-7 h-7 bg-[var(--card)] rounded-lg flex items-center justify-center border border-[var(--border)] shadow-sm">
-            <span className="text-[var(--foreground)] font-bold text-sm">Z</span>
+      <div className="relative z-10">
+        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-600 to-violet-600 text-white shadow-lg shadow-sky-500/20">
+                <span className="text-xl font-black">Z</span>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-950 tracking-tight">ZoikoVertex</p>
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center gap-6 text-sm font-medium text-slate-600">
+              <a href="#" className="hover:text-slate-900 transition-colors">Security</a>
+              <span className="text-slate-300">|</span>
+              <a href="#" className="hover:text-slate-900 transition-colors">Help</a>
+              <span className="text-slate-300">|</span>
+              <a href="#" className="hover:text-slate-900 transition-colors">Contact Sales</a>
+            </div>
           </div>
-          <span className="text-lg font-bold tracking-tight text-[var(--foreground)]">ZoikoVertex</span>
         </div>
-        <p className="text-[10px] text-[var(--foreground-muted)] font-semibold uppercase tracking-[0.15em]">
-          Where Execution Becomes Accountable.
-        </p>
-      </header>
 
-      {/* Main */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 relative z-10">
-        <div className="w-full max-w-fit animate-in fade-in slide-in-from-bottom-3 duration-500">
-          {children}
-        </div>
-      </main>
+        <main className="grid min-h-[calc(100vh-96px)] place-items-center px-4 pb-12 sm:px-6 lg:px-8">
+          <div className="grid w-full gap-8 lg:grid-cols-[0.95fr_0.95fr] xl:grid-cols-[1.05fr_0.95fr]">
+            <aside className="hidden overflow-hidden rounded-[36px] border border-slate-200/70 bg-white/90 p-10 shadow-[0_40px_120px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:block">
+              <div className="max-w-lg">
+                <span className="text-xs font-semibold tracking-[0.35em] text-sky-600 uppercase">
+                  Governed Autonomous
+                </span>
+                <h1 className="mt-5 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
+                  Digital Marketing Operating System
+                </h1>
+                <p className="mt-5 text-base leading-8 text-slate-600">
+                  Where Digital Execution Becomes Accountable. Secure access to your governed workspace. Built for trust. Designed for enterprise.
+                </p>
 
-      {/* Footer */}
-      <footer className="w-full py-6 px-10 text-center relative z-10 opacity-30 hover:opacity-70 transition-opacity duration-300">
-        <p className="text-[9px] text-[var(--foreground-muted)] font-bold uppercase tracking-[0.25em]">
-          ZOIKO INDUSTRIES © 2026
-        </p>
-      </footer>
+                <div className="mt-10 space-y-4">
+                  {benefits.map((benefit) => (
+                    <div key={benefit.title} className="flex gap-4 rounded-3xl border border-slate-200/70 bg-slate-100/80 p-4">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-200/70 text-slate-700">
+                        <span className="text-base font-bold">•</span>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-950">{benefit.title}</h3>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">{benefit.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="mt-10 text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+                  © 2024 ZoikoGroup. All rights reserved.
+                </p>
+              </div>
+            </aside>
+
+            <div className="flex items-center justify-center">
+              {children}
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
