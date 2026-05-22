@@ -8,6 +8,7 @@ import { logger } from "../../shared/logger";
 import { supabaseAdmin } from "../../shared/supabase";
 import { AuthRequest } from "../../shared/authMiddleware";
 import { logToDatabase } from "../../shared/databaseLogger";
+import { getParam } from "../../shared/request";
 
 import { getQueue } from "../../workers/schedulerWorker";
 
@@ -516,6 +517,304 @@ export const schedulePost = async (
   } catch (error) {
     logger.error({ error }, "[Scheduler] schedulePost error");
 
+    next(error);
+  }
+};
+
+export const listScheduledPosts = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const creatorId = req.user?.id;
+
+    if (!creatorId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const query = ListPostsQuerySchema.parse(req.query);
+
+    const { data: member } = await supabaseAdmin
+      .from("workspace_members")
+      .select("workspace_id")
+      .eq("user_id", creatorId)
+      .single();
+
+    if (!member?.workspace_id) {
+      return res.status(403).json({ error: "Workspace context missing" });
+    }
+
+    let postsQuery = supabaseAdmin
+      .from("scheduled_posts")
+      .select("*", { count: "exact" })
+      .eq("workspace_id", member.workspace_id)
+      .order("scheduled_time", { ascending: true })
+      .range(query.offset, query.offset + query.limit - 1);
+
+    if (query.status) {
+      postsQuery = postsQuery.eq("status", query.status);
+    }
+
+    if (query.startDate) {
+      postsQuery = postsQuery.gte("scheduled_time", query.startDate);
+    }
+
+    if (query.endDate) {
+      postsQuery = postsQuery.lte("scheduled_time", query.endDate);
+    }
+
+    const { data: posts, error, count } = await postsQuery;
+
+    if (error) {
+      throw error;
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: posts || [],
+      pagination: {
+        limit: query.limit,
+        offset: query.offset,
+        total: count || 0,
+      },
+    });
+  } catch (error) {
+    logger.error({ error }, "[Scheduler] listScheduledPosts error");
+    next(error);
+  }
+};
+
+export const getScheduledPost = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const creatorId = req.user?.id;
+
+    if (!creatorId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const postId = getParam(req, "id");
+
+    const { data: member } = await supabaseAdmin
+      .from("workspace_members")
+      .select("workspace_id")
+      .eq("user_id", creatorId)
+      .single();
+
+    if (!member?.workspace_id) {
+      return res.status(403).json({ error: "Workspace context missing" });
+    }
+
+    const { data: post, error } = await supabaseAdmin
+      .from("scheduled_posts")
+      .select("*")
+      .eq("id", postId)
+      .eq("workspace_id", member.workspace_id)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: post,
+    });
+  } catch (error) {
+    logger.error({ error }, "[Scheduler] getScheduledPost error");
+    next(error);
+  }
+};
+
+export const updateScheduledPost = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const creatorId = req.user?.id;
+
+    if (!creatorId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const postId = getParam(req, "id");
+    const updates = UpdateScheduleSchema.parse(req.body);
+
+    const { data: member } = await supabaseAdmin
+      .from("workspace_members")
+      .select("workspace_id")
+      .eq("user_id", creatorId)
+      .single();
+
+    if (!member?.workspace_id) {
+      return res.status(403).json({ error: "Workspace context missing" });
+    }
+
+    const { data: existingPost, error: existingError } = await supabaseAdmin
+      .from("scheduled_posts")
+      .select("*")
+      .eq("id", postId)
+      .eq("workspace_id", member.workspace_id)
+      .single();
+
+    if (existingError) {
+      throw existingError;
+    }
+
+    if (existingPost.status !== "SCHEDULED") {
+      return res.status(400).json({
+        error: "Only scheduled posts can be updated",
+      });
+    }
+
+    const updatePayload: Record<string, unknown> = {};
+
+    if (updates.content !== undefined) {
+      updatePayload.content = updates.content;
+    }
+
+    if (updates.mediaUrl !== undefined) {
+      updatePayload.media_url = updates.mediaUrl || null;
+    }
+
+    if (updates.scheduledTime !== undefined) {
+      updatePayload.scheduled_time = updates.scheduledTime;
+    }
+
+    if (updates.status !== undefined) {
+      updatePayload.status = updates.status;
+    }
+
+    const { data: post, error: updateError } = await supabaseAdmin
+      .from("scheduled_posts")
+      .update(updatePayload)
+      .eq("id", postId)
+      .eq("workspace_id", member.workspace_id)
+      .select()
+      .single();
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    if (updates.scheduledTime !== undefined || updates.status !== undefined) {
+      await supabaseAdmin
+        .from("scheduler_jobs")
+        .update({
+          next_attempt:
+            updates.status === "CANCELLED"
+              ? null
+              : updates.scheduledTime || existingPost.scheduled_time,
+          execution_status:
+            updates.status === "CANCELLED" ? "CANCELLED" : "PENDING",
+        })
+        .eq("post_id", postId);
+
+      const queue = getQueue();
+
+      if (queue) {
+        const existingJob = await queue.getJob(String(postId));
+
+        if (existingJob) {
+          await existingJob.remove().catch(() => undefined);
+        }
+
+        if (post.status === "SCHEDULED") {
+          const delay =
+            new Date(post.scheduled_time).getTime() - new Date().getTime();
+
+          if (delay > 0) {
+            await queue.add(
+              "publish-post",
+              { postId: post.id },
+              {
+                delay,
+                jobId: post.id,
+                removeOnComplete: true,
+                removeOnFail: false,
+              },
+            );
+          }
+        }
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: post,
+    });
+  } catch (error) {
+    logger.error({ error }, "[Scheduler] updateScheduledPost error");
+    next(error);
+  }
+};
+
+export const cancelScheduledPost = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const creatorId = req.user?.id;
+
+    if (!creatorId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const postId = getParam(req, "id");
+
+    const { data: member } = await supabaseAdmin
+      .from("workspace_members")
+      .select("workspace_id")
+      .eq("user_id", creatorId)
+      .single();
+
+    if (!member?.workspace_id) {
+      return res.status(403).json({ error: "Workspace context missing" });
+    }
+
+    const { data: post, error } = await supabaseAdmin
+      .from("scheduled_posts")
+      .update({
+        status: "CANCELLED",
+      })
+      .eq("id", postId)
+      .eq("workspace_id", member.workspace_id)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    await supabaseAdmin
+      .from("scheduler_jobs")
+      .update({
+        execution_status: "CANCELLED",
+        next_attempt: null,
+      })
+      .eq("post_id", postId);
+
+    const queue = getQueue();
+
+    if (queue) {
+      const existingJob = await queue.getJob(String(postId));
+      if (existingJob) {
+        await existingJob.remove().catch(() => undefined);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: post,
+    });
+  } catch (error) {
+    logger.error({ error }, "[Scheduler] cancelScheduledPost error");
     next(error);
   }
 };

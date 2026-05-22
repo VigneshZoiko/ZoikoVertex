@@ -207,8 +207,8 @@ const CreateAgentSchema = z.object({
   type: z.string(),
   mode: z.string().optional().default('draft_only'),
   risk_level: z.string().optional().default('medium'),
-  workspace_id: z.string(),
-  org_id: z.string(),
+  workspace_id: z.string().optional(),
+  org_id: z.string().optional(),
   primary_dri_id: z.string(),
   backup_dri_id: z.string().optional(),
   assigned_brand: z.string().optional(),
@@ -707,10 +707,50 @@ export const registerAgent = async (req: Request, res: Response, next: NextFunct
   try {
     const payload = CreateAgentSchema.parse(req.body);
     const userId = (req as AuthRequest).user?.id;
+    const authWorkspaceId = (req as AuthRequest).user?.workspace_id || undefined;
     const mode = payload.mode || 'draft_only';
     const autonomyLevel = MODE_TO_AUTONOMY[mode] || 'L0';
 
-    await logToDatabase('info', AGENT_SERVICE, `Registering agent: ${payload.name} in mode: ${mode} -> autonomy: ${autonomyLevel}`, { payload });
+    const workspaceId =
+      payload.workspace_id && payload.workspace_id.trim().length > 0
+        ? payload.workspace_id
+        : authWorkspaceId;
+
+    let orgId =
+      payload.org_id && payload.org_id.trim().length > 0
+        ? payload.org_id
+        : undefined;
+
+    if (!workspaceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Workspace context is missing. Refresh your session and try again.',
+      });
+    }
+
+    if (!orgId) {
+      const { data: workspace, error: workspaceError } = await supabaseAdmin
+        .from('workspaces')
+        .select('org_id')
+        .eq('id', workspaceId)
+        .single();
+
+      if (workspaceError) throw workspaceError;
+      orgId = workspace?.org_id || undefined;
+    }
+
+    if (!orgId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Organization context is missing for this workspace.',
+      });
+    }
+
+    await logToDatabase('info', AGENT_SERVICE, `Registering agent: ${payload.name} in mode: ${mode} -> autonomy: ${autonomyLevel}`, {
+      payload,
+      resolvedWorkspaceId: workspaceId,
+      resolvedOrgId: orgId,
+    });
 
     const { data: agent, error } = await supabaseAdmin
       .from('agents')
@@ -719,8 +759,8 @@ export const registerAgent = async (req: Request, res: Response, next: NextFunct
         purpose: payload.purpose || null,
         type: payload.type,
         mode,
-        workspace_id: payload.workspace_id,
-        org_id: payload.org_id,
+        workspace_id: workspaceId,
+        org_id: orgId,
         primary_dri_id: payload.primary_dri_id,
         backup_dri_id: payload.backup_dri_id,
         assigned_brand: payload.assigned_brand,

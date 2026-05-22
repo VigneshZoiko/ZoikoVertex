@@ -20,6 +20,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import {
   AGENT_TYPES,
   AGENT_MODES,
@@ -247,32 +248,89 @@ export default function CreateAgentWizard({
           }));
         }
 
-        await Promise.allSettled([
-          api
-            .get("/api/v1/prompts")
-            .then((r) => {
-              if (r.success) setPrompts(r.data || []);
-            })
-            .catch(() => {}),
-          api
-            .get("/api/v1/workflows")
-            .then((r) => {
-              if (r.success) setWorkflows(r.data || []);
-            })
-            .catch(() => {}),
-          api
-            .get("/api/v1/policies")
-            .then((r) => {
-              if (r.success) setPolicies(r.data || []);
-            })
-            .catch(() => {}),
-          api
-            .get("/api/v1/knowledge/sources")
-            .then((r) => {
-              if (r.success) setKnowledgeSources(r.data || []);
-            })
-            .catch(() => {}),
-        ]);
+        let workspaceId =
+          contextRes.status === "fulfilled" && contextRes.value.success
+            ? contextRes.value.data.workspace_id || ""
+            : "";
+
+        if (!workspaceId) {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          if (user) {
+            const { data: member } = await supabase
+              .from("workspace_members")
+              .select("workspace_id")
+              .eq("user_id", user.id)
+              .maybeSingle();
+
+            workspaceId = member?.workspace_id || "";
+          }
+        }
+
+        if (!workspaceId) {
+          setPrompts([]);
+          setWorkflows([]);
+          setPolicies([]);
+          setKnowledgeSources([]);
+          return;
+        }
+
+        const [promptRes, workflowRes, knowledgeRes] = await Promise.allSettled(
+          [
+            supabase
+              .from("prompts")
+              .select("id, name, status, risk_tier")
+              .eq("workspace_id", workspaceId)
+              .limit(50),
+            supabase
+              .from("workflow_templates")
+              .select("id, name, status, risk_level")
+              .eq("workspace_id", workspaceId)
+              .limit(50),
+            supabase
+              .from("knowledge_sources")
+              .select("id, title, status, risk_tier")
+              .eq("workspace_id", workspaceId)
+              .limit(50),
+          ],
+        );
+
+        if (promptRes.status === "fulfilled") {
+          setPrompts(
+            (promptRes.value.data || []).map((row) => ({
+              id: row.id,
+              name: row.name,
+              status: row.status,
+              risk_level: (row as { risk_tier?: string }).risk_tier,
+            })),
+          );
+        } else {
+          setPrompts([]);
+        }
+
+        if (workflowRes.status === "fulfilled") {
+          setWorkflows(workflowRes.value.data || []);
+        } else {
+          setWorkflows([]);
+        }
+
+        // Policies endpoint is not available on the deployed backend yet.
+        setPolicies([]);
+
+        if (knowledgeRes.status === "fulfilled") {
+          setKnowledgeSources(
+            (knowledgeRes.value.data || []).map((row) => ({
+              id: row.id,
+              name: (row as { title?: string }).title || "Untitled",
+              status: row.status,
+              risk_level: (row as { risk_tier?: string }).risk_tier,
+            })),
+          );
+        } else {
+          setKnowledgeSources([]);
+        }
       } catch (err) {
         console.warn("Wizard data fetch partially failed", err);
       }
@@ -444,6 +502,57 @@ export default function CreateAgentWizard({
   const approvers =
     APPROVER_MAPPING[formData.risk_level] || APPROVER_MAPPING.medium;
 
+  const resolveWorkspaceContext = useCallback(async () => {
+    let workspaceId = formData.workspace_id;
+    let orgId = formData.org_id;
+
+    try {
+      const ctx = await api.get("/api/v1/user/context");
+      if (ctx?.success && ctx?.data) {
+        workspaceId = ctx.data.workspace_id || workspaceId;
+        orgId = ctx.data.org_id || orgId;
+      }
+    } catch {
+      // Fall through to direct Supabase fallback
+    }
+
+    if (!workspaceId || !orgId) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data: member } = await supabase
+          .from("workspace_members")
+          .select("workspace_id, workspaces(org_id)")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        workspaceId = member?.workspace_id || workspaceId;
+        const workspace =
+          member?.workspaces && Array.isArray(member.workspaces)
+            ? member.workspaces[0]
+            : member?.workspaces;
+        const workspaceOrgId =
+          workspace &&
+          typeof workspace === "object" &&
+          "org_id" in workspace &&
+          typeof workspace.org_id === "string"
+            ? workspace.org_id
+            : "";
+        orgId = workspaceOrgId || orgId;
+      }
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      workspace_id: workspaceId || "",
+      org_id: orgId || "",
+    }));
+
+    return { workspaceId, orgId };
+  }, [formData.org_id, formData.workspace_id]);
+
   const handleSubmit = async (
     action: "draft" | "approval" | "deploy" = "draft",
   ) => {
@@ -452,18 +561,13 @@ export default function CreateAgentWizard({
     setLoading(true);
     setSubmitAction(action);
 
-    const statusMap: Record<string, string> = {
-      draft: "DRAFT",
-      approval: "IN_REVIEW",
-      deploy: "ACTIVE",
-    };
-
     try {
       // ── STEP 1: Ensure workspace_id / org_id are populated ──────────────────
       // If the context fetch on mount failed (race condition, slow network, etc.)
       // these will still be "". Re-fetch now, right before submitting.
-      let workspaceId = formData.workspace_id;
-      let orgId = formData.org_id;
+      const resolvedContext = await resolveWorkspaceContext();
+      let workspaceId = resolvedContext.workspaceId;
+      let orgId = resolvedContext.orgId;
 
       if (!workspaceId || !orgId) {
         try {
@@ -491,16 +595,15 @@ export default function CreateAgentWizard({
         type: formData.type,
         mode: formData.mode,
         risk_level: formData.risk_level,
-        status: statusMap[action],
-        workspace_id: workspaceId, // always included — backend requires string
-        org_id: orgId, // always included — backend requires string
+        workspace_id: workspaceId || undefined,
+        org_id: orgId || undefined,
 
         // Optional strings — send null when empty, never undefined
         purpose: formData.purpose.trim() || null,
 
         // Optional FK strings — send only when present
-        primary_dri_id: formData.primary_dri_id || null,
-        backup_dri_id: formData.backup_dri_id || null,
+        primary_dri_id: formData.primary_dri_id,
+        backup_dri_id: formData.backup_dri_id || undefined,
 
         // Booleans
         evidence_required: formData.evidence_required,
@@ -527,10 +630,32 @@ export default function CreateAgentWizard({
       // ── STEP 3: Submit ───────────────────────────────────────────────────────
       const result = await api.post("/api/v1/agents", payload);
       if (result?.success) {
+        const agentId = result?.data?.id;
+
+        if ((action === "approval" || action === "deploy") && agentId) {
+          const approvalRes = await api.post(
+            `/api/v1/agents/${agentId}/approval/request`,
+            {
+              notes:
+                action === "deploy"
+                  ? `Created from Agent Studio and queued for approval before deployment for ${formData.name}.`
+                  : `Created from Agent Studio and submitted for approval for ${formData.name}.`,
+            },
+          );
+
+          if (!approvalRes?.success) {
+            throw new Error(
+              typeof approvalRes?.error === "string"
+                ? approvalRes.error
+                : "Agent was created, but the approval workflow could not be started.",
+            );
+          }
+        }
+
         const msgs: Record<string, string> = {
           draft: `Agent "${formData.name}" saved as draft.`,
-          approval: `Approval request sent for "${formData.name}".`,
-          deploy: `Agent "${formData.name}" submitted for deployment.`,
+          approval: `Agent "${formData.name}" was created and submitted for approval.`,
+          deploy: `Agent "${formData.name}" was created and queued for approval. Deployment unlocks after approval.`,
         };
         setSubmitSuccess(msgs[action]);
         setTimeout(() => {
@@ -545,18 +670,25 @@ export default function CreateAgentWizard({
             raw === "" ||
             raw === "Internal Server Error");
 
+        // Pull the nested PostgREST error detail if present
+        const pgrst = result?.data?.error;
+        const pgrstDetail =
+          pgrst && typeof pgrst === "object"
+            ? `PostgREST: ${pgrst.message || ""} (code: ${pgrst.code || "?"})`
+            : null;
+
         if (isServerCrash) {
           setSubmitError(
-            "The server crashed while processing your request (500). " +
-              "This is not a frontend problem — check your backend logs for the stack trace. " +
-              "Common causes: missing DB migration, null FK constraint, or unhandled exception in the agents route handler.",
+            pgrstDetail
+              ? `Backend error — ${pgrstDetail}. Most likely cause: a column in the agents table is missing (linked_prompts, linked_workflows, linked_policies, or linked_knowledge_sources). Run the migration below.`
+              : "The server crashed (500). Check backend logs — likely a missing DB column or null FK constraint.",
           );
         } else {
           const clean =
             typeof raw === "string"
               ? raw.replace(/Invalid input:\s*/gi, "")
               : "The server rejected the request. Check all required fields.";
-          setSubmitError(clean);
+          setSubmitError(pgrstDetail ? `${clean} — ${pgrstDetail}` : clean);
         }
         console.error("[CreateAgentWizard] API rejected payload:", result);
       }
@@ -1484,7 +1616,7 @@ export default function CreateAgentWizard({
                       {checklist.length})
                     </p>
                     <p className="text-[10px] text-amber-400 mt-0.5">
-                      "Deploy After Approval" requires a complete checklist. You
+                      &quot;Queue for Approval&quot; requires a complete checklist. You
                       can still save as draft or request approval now.
                     </p>
                   </div>
@@ -1563,12 +1695,12 @@ export default function CreateAgentWizard({
                   {loading && submitAction === "deploy" ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Deploying...
+                      Queuing...
                     </>
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      Deploy After Approval
+                      Queue for Approval
                     </>
                   )}
                 </button>
@@ -1576,7 +1708,8 @@ export default function CreateAgentWizard({
                 {!allChecklistDone && (
                   <div className="absolute bottom-full right-0 mb-2 w-52 p-2 bg-[var(--card)] border border-[var(--card-border)] rounded-xl text-[10px] text-[var(--foreground-muted)] shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                     Complete all {checklist.length} checklist items to enable
-                    deployment. ({checklistComplete}/{checklist.length} done)
+                    approval queueing. ({checklistComplete}/{checklist.length}{" "}
+                    done)
                   </div>
                 )}
               </div>

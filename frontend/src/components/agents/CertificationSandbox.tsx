@@ -133,14 +133,32 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
     setFinalizeError(null);
 
     try {
-      await Promise.allSettled([
-        api.patch(`/api/v1/agents/${agentId}/autonomy`, { autonomy_level: targetLevel }),
+      const [autonomyRes, certifyRes] = await Promise.all([
+        api.patch(`/api/v1/agents/${agentId}/autonomy`, {
+          autonomy_level: targetLevel,
+        }),
         api.post(`/api/v1/agents/${agentId}/certify`, {
           level: targetLevel,
           autonomy_level: targetLevel,
           evidence_score: score,
         }),
       ]);
+
+      if (!autonomyRes?.success) {
+        throw new Error(
+          typeof autonomyRes?.error === "string"
+            ? autonomyRes.error
+            : `Autonomy update to ${targetLevel} failed.`,
+        );
+      }
+
+      if (!certifyRes?.success) {
+        throw new Error(
+          typeof certifyRes?.error === "string"
+            ? certifyRes.error
+            : `Certification to ${targetLevel} failed.`,
+        );
+      }
 
       const newTrustScore = Math.min(0.7 + targetLevelNum * 0.05, 0.99);
       const newFaithfulnessScore = Math.min(0.75 + targetLevelNum * 0.04, 0.99);

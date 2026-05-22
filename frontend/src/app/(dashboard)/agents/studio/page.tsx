@@ -68,94 +68,6 @@ interface Agent {
   } | null;
 }
 
-const MOCK_AGENTS: Agent[] = [
-  {
-    id: "00000000-0000-0000-0000-000000000001",
-    name: "Nexus Content Lead",
-    type: "content",
-    primary_dri: { full_name: "Harsha R.", email: "harsha@zoiko.com" },
-    backup_dri: { full_name: "Minit S.", email: "minit@zoiko.com" },
-    autonomy_level: "L4",
-    status: "ACTIVE",
-    risk_level: "medium",
-    trust_score: 0.94,
-    faithfulness_score: 0.98,
-    last_activity: "2 mins ago",
-    created_at: new Date().toISOString(),
-    assigned_brand: "Zoiko Core",
-    linked_channels: ["linkedin", "x", "instagram"],
-    linked_prompts: ["p-01"],
-    linked_workflows: ["wf-launch"],
-    linked_policies: ["policy-brand-safe"],
-    linked_knowledge_sources: ["kb-brand", "kb-market"],
-    purpose: "Drafts multi-platform launch content inside approved workflows.",
-    runtime_controls: { environment: "production" },
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000002",
-    name: "Sentinel Optimizer",
-    type: "optimization",
-    primary_dri: { full_name: "Minit S.", email: "minit@zoiko.com" },
-    autonomy_level: "L3",
-    status: "PAUSED",
-    risk_level: "low",
-    trust_score: 0.88,
-    faithfulness_score: 0.92,
-    last_activity: "1 hour ago",
-    created_at: new Date().toISOString(),
-    assigned_brand: "Zoiko Enterprise",
-    linked_channels: ["internal"],
-    linked_prompts: ["p-ops"],
-    linked_workflows: ["wf-scheduler"],
-    linked_policies: [],
-    linked_knowledge_sources: ["kb-analytics"],
-    purpose: "Recommends scheduling windows and sequencing plans.",
-    runtime_controls: { environment: "staging" },
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000003",
-    name: "Vision Research Bot",
-    type: "research",
-    primary_dri: { full_name: "Naresh K.", email: "naresh@zoiko.com" },
-    autonomy_level: "L5",
-    status: "APPROVED",
-    risk_level: "high",
-    trust_score: 0.96,
-    faithfulness_score: 0.99,
-    last_activity: "Just now",
-    created_at: new Date().toISOString(),
-    assigned_brand: "Zoiko Core",
-    linked_channels: ["internal", "linkedin"],
-    linked_prompts: ["p-research"],
-    linked_workflows: ["wf-research"],
-    linked_policies: ["policy-evidence"],
-    linked_knowledge_sources: ["kb-market", "kb-competitor", "kb-audience"],
-    purpose: "Builds evidence-backed briefs and opportunity reports.",
-    runtime_controls: { environment: "sandbox" },
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000004",
-    name: "Brand Guardian",
-    type: "governance",
-    primary_dri: { full_name: "Harsha R.", email: "harsha@zoiko.com" },
-    autonomy_level: "L2",
-    status: "PENDING_CERTIFICATION",
-    risk_level: "critical",
-    trust_score: 0,
-    faithfulness_score: 0,
-    last_activity: "Created today",
-    created_at: new Date().toISOString(),
-    assigned_brand: "Zoiko Core",
-    linked_channels: ["internal"],
-    linked_prompts: [],
-    linked_workflows: [],
-    linked_policies: ["policy-brand-safe"],
-    linked_knowledge_sources: [],
-    purpose: "Checks brand alignment, prohibited claims, and escalation paths.",
-    runtime_controls: { environment: "sandbox" },
-  },
-];
-
 // All lifecycle states from spec
 const STATUS_OPTIONS = [
   "",
@@ -284,7 +196,8 @@ export default function StudioPage() {
         setLoading(true);
         setError(null);
         if (!activeWorkspace) {
-          setAgents(MOCK_AGENTS);
+          setAgents([]);
+          setError("Workspace context is not available yet for Agent Studio.");
           return;
         }
         const params = new URLSearchParams({ workspaceId: activeWorkspace });
@@ -292,15 +205,20 @@ export default function StudioPage() {
         if (riskFilter) params.set("risk_level", riskFilter);
         const result = await api.get(`/api/v1/agents?${params.toString()}`);
         if (result.success && Array.isArray(result.data)) {
-          setAgents(result.data.length ? result.data : []);
+          setAgents(result.data);
         } else {
-          setAgents(MOCK_AGENTS);
+          setError(
+            typeof result.error === "string"
+              ? result.error
+              : "Unable to load the governed agent catalog.",
+          );
+          setAgents([]);
         }
       } catch {
         setError(
-          "Live agent registry unavailable. Showing last known governed authority records.",
+          "Live agent registry unavailable. Check your authentication and backend connection.",
         );
-        setAgents(MOCK_AGENTS);
+        setAgents([]);
       } finally {
         setLoading(false);
       }
@@ -316,7 +234,8 @@ export default function StudioPage() {
         setWorkspaceId(nextWorkspaceId);
         await fetchAgents(nextWorkspaceId);
       } catch {
-        setAgents(MOCK_AGENTS);
+        setError("Unable to load workspace context for Agent Studio.");
+        setAgents([]);
         setLoading(false);
       }
     };
@@ -441,7 +360,9 @@ export default function StudioPage() {
       const res = await api.post(
         `/api/v1/agents/${agent.id}/safety-checks/run`,
         {
-          triggered_by: "studio_manual",
+          content:
+            agent.purpose ||
+            `${agent.name} safety verification run from Agent Studio.`,
         },
       );
       if (res.success) {
@@ -523,50 +444,74 @@ export default function StudioPage() {
       | "clone"
       | "rollback",
   ) => {
-    const endpoints: Record<
-      typeof action,
-      { url: string; body: Record<string, unknown> }
-    > = {
-      approval: {
-        url: `/api/v1/agents/${agent.id}/approval/request`,
-        body: {
+    try {
+      setActionLoading((current) => ({ ...current, [agent.id]: action }));
+      let result;
+
+      if (action === "rollback") {
+        const versionsRes = await api.get(`/api/v1/agents/${agent.id}/versions`);
+        const versions = Array.isArray(versionsRes?.versions)
+          ? versionsRes.versions
+          : [];
+        const targetVersion = versions[0]?.id;
+
+        if (!targetVersion) {
+          setError(
+            `Rollback unavailable for "${agent.name}" because no prior version history exists yet.`,
+          );
+          return;
+        }
+
+        result = await api.post(`/api/v1/agents/${agent.id}/rollback`, {
+          version_id: targetVersion,
+        });
+      } else if (action === "approval") {
+        result = await api.post(`/api/v1/agents/${agent.id}/approval/request`, {
           notes: `Approval requested from Agent Studio for ${agent.name}.`,
-        },
-      },
-      deploy: {
-        url: `/api/v1/agents/${agent.id}/deploy`,
-        body: {
+        });
+      } else if (action === "deploy") {
+        result = await api.post(`/api/v1/agents/${agent.id}/deploy`, {
           environment:
             environmentFilter ||
             agent.runtime_controls?.environment ||
             "production",
-        },
-      },
-      pause: {
-        url: `/api/v1/agents/${agent.id}/pause`,
-        body: { reason: `Paused from Agent Studio for ${agent.name}.` },
-      },
-      resume: {
-        url: `/api/v1/agents/${agent.id}/resume`,
-        body: { reason: `Resumed from Agent Studio for ${agent.name}.` },
-      },
-      retire: {
-        url: `/api/v1/agents/${agent.id}/retire`,
-        body: { reason: `Retired from Agent Studio for ${agent.name}.` },
-      },
-      clone: {
-        url: `/api/v1/agents/${agent.id}/clone`,
-        body: {},
-      },
-      rollback: {
-        url: `/api/v1/agents/${agent.id}/rollback`,
-        body: {},
-      },
-    };
+        });
+      } else if (action === "pause") {
+        result = await api.post(`/api/v1/agents/${agent.id}/pause`, {
+          reason: `Paused from Agent Studio for ${agent.name}.`,
+        });
+      } else if (action === "resume") {
+        result = await api.post(`/api/v1/agents/${agent.id}/resume`, {
+          reason: `Resumed from Agent Studio for ${agent.name}.`,
+        });
+      } else if (action === "retire") {
+        result = await api.post(`/api/v1/agents/${agent.id}/retire`, {
+          reason: `Retired from Agent Studio for ${agent.name}.`,
+        });
+      } else {
+        result = await api.post(`/api/v1/agents/${agent.id}/clone`, {});
+      }
 
-    try {
-      setActionLoading((current) => ({ ...current, [agent.id]: action }));
-      await api.post(endpoints[action].url, endpoints[action].body);
+      if (!result?.success) {
+        setError(
+          typeof result?.error === "string"
+            ? result.error
+            : `Unable to ${action} ${agent.name}.`,
+        );
+        return;
+      }
+
+      const actionMessages: Record<string, string> = {
+        approval: `"${agent.name}" was submitted into the approval workflow.`,
+        deploy: `"${agent.name}" deployed successfully.`,
+        pause: `"${agent.name}" is now paused.`,
+        resume: `"${agent.name}" resumed successfully.`,
+        retire: `"${agent.name}" was retired and preserved for audit.`,
+        clone: `"${agent.name}" was cloned into a new draft.`,
+        rollback: `"${agent.name}" rolled back to the latest approved version snapshot.`,
+      };
+      setSuccessMsg(actionMessages[action]);
+      setTimeout(() => setSuccessMsg(null), 5000);
       await fetchAgents(workspaceId);
       if (selectedAgent?.id === agent.id) {
         setSelectedAgent((current) =>
@@ -576,6 +521,8 @@ export default function StudioPage() {
                 status:
                   action === "pause"
                     ? "PAUSED"
+                    : action === "resume"
+                      ? "ACTIVE"
                     : action === "retire"
                       ? "RETIRED"
                       : current.status,
@@ -1432,9 +1379,7 @@ export default function StudioPage() {
                           )}
 
                           {/* Request Approval — DRAFT or PENDING_CERTIFICATION */}
-                          {["DRAFT", "PENDING_CERTIFICATION"].includes(
-                            agent.status,
-                          ) && (
+                          {agent.status === "DRAFT" && (
                             <button
                               disabled={!canManageAuthority || isBusy}
                               onClick={() => runAgentAction(agent, "approval")}
