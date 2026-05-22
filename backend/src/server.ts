@@ -164,12 +164,23 @@ const port = env.PORT;
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+const ALLOWED_ORIGINS = [
+  env.FRONTEND_URL,
+  'https://getzoikovertex.com',
+  'https://www.getzoikovertex.com',
+  'http://localhost:3000',
+  'http://localhost:3001',
+].filter(Boolean) as string[];
+
 app.use(cors({
-  origin: [
-    env.FRONTEND_URL,
-    'http://localhost:3000',
-    'http://localhost:3001',
-  ],
+  origin: (origin, callback) => {
+    // Allow server-to-server requests (no origin header)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-workspace-id'],
   credentials: true,
