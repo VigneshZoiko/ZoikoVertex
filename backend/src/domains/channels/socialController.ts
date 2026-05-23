@@ -98,6 +98,8 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
         logger.info(`[Social] Page found: ${page.name}. IG Business Account Data: ${JSON.stringify(pageDetails.instagram_business_account || 'NONE')}`);
 
         // 4b. Save Facebook Page
+        // access_token = Page Access Token (for publishing/replying)
+        // refresh_token = long-lived User Access Token (needed to read comment authors — Page tokens strip `from` in v18+)
         const facebookAccount = {
           workspace_id: workspaceId,
           platform: 'facebook',
@@ -105,6 +107,7 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
           account_handle: pageDetails.username || page.id,
           avatar_url: pageDetails.picture?.data?.url,
           access_token: page.access_token,
+          refresh_token: accessToken,
           status: 'active',
           token_expires_at: longLivedData.expires_in
             ? new Date(Date.now() + longLivedData.expires_in * 1000).toISOString()

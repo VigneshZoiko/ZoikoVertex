@@ -19,7 +19,6 @@ import {
   Link2,
   ClipboardList,
   CheckSquare,
-  Briefcase,
   Settings,
   LogOut,
   Users,
@@ -51,6 +50,7 @@ import {
   Fingerprint,
   Bell,
   Eye,
+  Lock,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -89,9 +89,24 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Platform Owner",
     icon: Shield,
     items: [
-      { name: "Governance Node",  href: "/superadmin",            icon: Shield,        roles: ["SUPERADMIN"] },
-      { name: "Global Analytics", href: "/superadmin/analytics",  icon: LineChart,     roles: ["SUPERADMIN"] },
-      { name: "Support Queue",    href: "/superadmin/tickets",    icon: MessageSquare, roles: ["SUPERADMIN"] },
+      {
+        name: "Governance Node",
+        href: "/superadmin",
+        icon: Shield,
+        roles: ["SUPERADMIN"],
+      },
+      {
+        name: "Global Analytics",
+        href: "/superadmin/analytics",
+        icon: LineChart,
+        roles: ["SUPERADMIN"],
+      },
+      {
+        name: "Support Queue",
+        href: "/superadmin/tickets",
+        icon: MessageSquare,
+        roles: ["SUPERADMIN"],
+      },
     ],
   },
   {
@@ -99,10 +114,67 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Command",
     icon: LayoutDashboard,
     items: [
-      { name: "Dashboard",           href: "/dashboard",   icon: LayoutDashboard, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","ANALYST","SECURITY_ADMIN","PRIVACY_ADMIN","BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER"] },
-      { name: "Operations Feed",     href: "/operations",  icon: Activity,        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_OPERATOR","CAMPAIGN_MANAGER","PUBLISHER"] },
-      { name: "Insights & ROI",      href: "/analytics",   icon: TrendingUp,      roles: ["ADMIN","WORKSPACE_OWNER","ANALYST","CAMPAIGN_MANAGER","AUDITOR","COMPLIANCE_REVIEWER","PUBLISHER"] },
-      { name: "Resource Monitoring", href: "/resources",   icon: Cpu,             roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"] },
+      {
+        name: "Dashboard",
+        href: "/dashboard",
+        icon: LayoutDashboard,
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "GOVERNANCE_ADMIN",
+          "AGENT_ARCHITECT",
+          "AGENT_OPERATOR",
+          "KNOWLEDGE_MANAGER",
+          "CAMPAIGN_MANAGER",
+          "CREATOR",
+          "REVIEWER",
+          "VALIDATOR",
+          "APPROVER",
+          "PUBLISHER",
+          "COMPLIANCE_REVIEWER",
+          "AUDITOR",
+          "ANALYST",
+          "SECURITY_ADMIN",
+          "PRIVACY_ADMIN",
+          "BRAND_REVIEWER",
+          "DEVELOPER",
+          "EXTERNAL_COLLABORATOR",
+          "VIEWER",
+        ],
+      },
+      {
+        name: "Operations Feed",
+        href: "/operations",
+        icon: Activity,
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "GOVERNANCE_ADMIN",
+          "AGENT_OPERATOR",
+          "CAMPAIGN_MANAGER",
+          "PUBLISHER",
+        ],
+      },
+      {
+        name: "Insights & ROI",
+        href: "/analytics",
+        icon: TrendingUp,
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "ANALYST",
+          "CAMPAIGN_MANAGER",
+          "AUDITOR",
+          "COMPLIANCE_REVIEWER",
+          "PUBLISHER",
+        ],
+      },
+      {
+        name: "Resource Monitoring",
+        href: "/resources",
+        icon: Cpu,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "DEVELOPER"],
+      },
     ],
   },
   {
@@ -111,7 +183,6 @@ const NAV_GROUPS: NavGroup[] = [
     icon: ImageIcon,
     items: [
       { name: "Media Vault",         href: "/library",    icon: Database,       roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","REVIEWER","ANALYST","VIEWER"] },
-      { name: "Projects",            href: "/projects",   icon: Briefcase,      roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","ANALYST","VIEWER"] },
       { name: "Campaigns",           href: "/campaigns",  icon: FolderKanban,   roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","ANALYST","VIEWER"] },
       { name: "Calendar",            href: "/calendar",   icon: Calendar,       roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","VIEWER"] },
       { name: "Inbox & Engagement",  href: "/inbox",      icon: Inbox,          roles: ["ADMIN","WORKSPACE_OWNER","AGENT_OPERATOR","CAMPAIGN_MANAGER","PUBLISHER"] },
@@ -135,10 +206,40 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Safety Layer",
     icon: Scale,
     items: [
-      { name: "Autonomy Controls", href: "/agents/autonomy",    icon: ToggleRight,       roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
-      { name: "Policy Center",     href: "/governance/policy",   icon: Scale,      roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
-      { name: "Risk Management",   href: "/governance/risk",     icon: ShieldAlert,roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"] },
-      { name: "Brand Standards",   href: "/governance/legal",    icon: BookMarked, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","BRAND_REVIEWER"] },
+      {
+        name: "Autonomy Controls",
+        href: "/agents/autonomy",
+        icon: ToggleRight,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN"],
+      },
+      {
+        name: "Policy Center",
+        href: "/governance/policy",
+        icon: Scale,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN"],
+      },
+      {
+        name: "Risk Management",
+        href: "/governance/risk",
+        icon: ShieldAlert,
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "GOVERNANCE_ADMIN",
+          "COMPLIANCE_REVIEWER",
+        ],
+      },
+      {
+        name: "Brand Standards",
+        href: "/governance/legal",
+        icon: BookMarked,
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "GOVERNANCE_ADMIN",
+          "BRAND_REVIEWER",
+        ],
+      },
     ],
   },
   {
@@ -146,12 +247,64 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Accountability Layer",
     icon: ClipboardCheck,
     items: [
-      { name: "Review Queue",     href: "/queue",                   icon: ClipboardList,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","REVIEWER","VALIDATOR","APPROVER","BRAND_REVIEWER","CAMPAIGN_MANAGER"], badge: true },
-      { name: "Quality Audit",    href: "/governance/qa",           icon: ShieldCheck,    roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR","AUDITOR"] },
-      { name: "Validation Desk",  href: "/validation",              icon: ClipboardCheck, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR"] },
-      { name: "Approvals",        href: "/governance/approvals",    icon: CheckSquare,    roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","APPROVER","VALIDATOR"] },
-      { name: "Approval Rules",   href: "/governance/rules",        icon: ListChecks,     roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
-      { name: "Exceptions",       href: "/exceptions",              icon: AlertOctagon,   roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
+      {
+        name: "Review Queue",
+        href: "/queue",
+        icon: ClipboardList,
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "GOVERNANCE_ADMIN",
+          "REVIEWER",
+          "VALIDATOR",
+          "APPROVER",
+          "BRAND_REVIEWER",
+          "CAMPAIGN_MANAGER",
+        ],
+        badge: true,
+      },
+      {
+        name: "Quality Audit",
+        href: "/governance/qa",
+        icon: ShieldCheck,
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "GOVERNANCE_ADMIN",
+          "VALIDATOR",
+          "AUDITOR",
+        ],
+      },
+      {
+        name: "Validation Desk",
+        href: "/validation",
+        icon: ClipboardCheck,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "VALIDATOR"],
+      },
+      {
+        name: "Approvals",
+        href: "/governance/approvals",
+        icon: CheckSquare,
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "GOVERNANCE_ADMIN",
+          "APPROVER",
+          "VALIDATOR",
+        ],
+      },
+      {
+        name: "Approval Rules",
+        href: "/governance/rules",
+        icon: ListChecks,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN"],
+      },
+      {
+        name: "Exceptions",
+        href: "/exceptions",
+        icon: AlertOctagon,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN"],
+      },
     ],
   },
   {
@@ -159,10 +312,42 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Evidence Layer",
     icon: FileSearch,
     items: [
-      { name: "Audit Trail",       href: "/governance/audit",    icon: FileSearch, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER"] },
-      { name: "Forensic Hub",      href: "/governance/forensic", icon: Fingerprint,roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR"] },
-      { name: "Evidence Vault",    href: "/governance/evidence", icon: Archive,    roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AUDITOR","COMPLIANCE_REVIEWER"] },
-      { name: "Identity Ledger",   href: "/integrations/identity-ledger",icon: Fingerprint,roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER","AUDITOR"] },
+      {
+        name: "Audit Trail",
+        href: "/governance/audit",
+        icon: FileSearch,
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "GOVERNANCE_ADMIN",
+          "AUDITOR",
+          "COMPLIANCE_REVIEWER",
+        ],
+      },
+      {
+        name: "Forensic Hub",
+        href: "/governance/forensic",
+        icon: Fingerprint,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "AUDITOR"],
+      },
+      {
+        name: "Evidence Vault",
+        href: "/governance/evidence",
+        icon: Archive,
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "GOVERNANCE_ADMIN",
+          "AUDITOR",
+          "COMPLIANCE_REVIEWER",
+        ],
+      },
+      {
+        name: "Identity Ledger",
+        href: "/integrations/identity-ledger",
+        icon: Fingerprint,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "DEVELOPER", "AUDITOR"],
+      },
     ],
   },
   {
@@ -170,10 +355,30 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Infrastructure",
     icon: Zap,
     items: [
-      { name: "Platform Accounts",    href: "/accounts",                    icon: Link2,       roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER","PUBLISHER"] },
-      { name: "Data Connectors",      href: "/integrations/data",           icon: Database,    roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"] },
-      { name: "API & Webhooks",       href: "/integrations/api",            icon: Webhook,     roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"] },
-      { name: "Integration Health",   href: "/integrations/health",         icon: HeartPulse,  roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"] },
+      {
+        name: "Platform Accounts",
+        href: "/accounts",
+        icon: Link2,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "DEVELOPER", "PUBLISHER"],
+      },
+      {
+        name: "Data Connectors",
+        href: "/integrations/data",
+        icon: Database,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "DEVELOPER"],
+      },
+      {
+        name: "API & Webhooks",
+        href: "/integrations/api",
+        icon: Webhook,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "DEVELOPER"],
+      },
+      {
+        name: "Integration Health",
+        href: "/integrations/health",
+        icon: HeartPulse,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "DEVELOPER"],
+      },
     ],
   },
   {
@@ -181,8 +386,18 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Access Control",
     icon: Shield,
     items: [
-      { name: "Users & Access",      href: "/team",             icon: Users,        roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"] },
-      { name: "Roles & Units",       href: "/access/roles",     icon: Building2,    roles: ["ADMIN","WORKSPACE_OWNER"] },
+      {
+        name: "Users & Access",
+        href: "/team",
+        icon: Users,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "SECURITY_ADMIN"],
+      },
+      {
+        name: "Roles & Units",
+        href: "/access/roles",
+        icon: Building2,
+        roles: ["ADMIN", "WORKSPACE_OWNER"],
+      },
     ],
   },
   {
@@ -195,6 +410,7 @@ const NAV_GROUPS: NavGroup[] = [
       { name: "Privacy & Data",      href: "/admin/privacy",       icon: Eye,         roles: ["ADMIN","WORKSPACE_OWNER","PRIVACY_ADMIN"] },
       { name: "Notifications",       href: "/admin/notifications", icon: Bell,        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","ANALYST","SECURITY_ADMIN","PRIVACY_ADMIN","BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER"], badge: false },
       { name: "System Status",       href: "/admin/status",        icon: Activity,    roles: ["ADMIN","WORKSPACE_OWNER"] },
+      { name: "Security Center",     href: "/admin/security",      icon: Lock,        roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"] },
       { name: "Support & Docs",      href: "/support",             icon: HelpCircle,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","ANALYST","SECURITY_ADMIN","PRIVACY_ADMIN","BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER"] },
     ],
   },
@@ -206,7 +422,7 @@ const OWNER_REQUIRED_PAGES = [
   "/superadmin/analytics",
   "/superadmin/tickets",
   "/admin/status",
-  "/support"
+  "/support",
 ];
 
 /* ─────────────────────────────────────────────
@@ -225,26 +441,25 @@ export default function Sidebar() {
   const [pendingCount, setPendingCount] = useState(0);
 
   const { state } = useNotifications();
-  const unreadCount = state?.notifications?.filter(n => !n.read).length || 0;
+  const unreadCount = state?.notifications?.filter((n) => !n.read).length || 0;
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(NAV_GROUPS.map(g => [g.id, true]))
+    Object.fromEntries(NAV_GROUPS.map((g) => [g.id, true])),
   );
 
   const toggleGroup = (id: string) =>
-    setOpenGroups(prev => ({ ...prev, [id]: !prev[id] }));
+    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
 
   useRealtimeNotifications();
 
   const fetchPendingCount = useCallback(async (_userRole: string) => {
     try {
-      const result = await api.get('/api/v1/governance/queue');
+      const result = await api.get("/api/v1/governance/queue");
       if (result.success) setPendingCount(result.data?.length || 0);
     } catch {
       setPendingCount(0);
     }
   }, []);
-
 
   useEffect(() => {
     if (!roleLoading) {
@@ -257,28 +472,40 @@ export default function Sidebar() {
     if (!role) return;
     const channel = supabase
       .channel("pending-count-sync")
-      .on("postgres_changes", { event: "*", schema: "public", table: "publish_intents" }, () => {
-        fetchPendingCount(role);
-      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "publish_intents" },
+        () => {
+          fetchPendingCount(role);
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [role, fetchPendingCount]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) { e.preventDefault(); e.returnValue = ""; }
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
 
-  const handleNavClick = useCallback((e: React.MouseEvent, href: string) => {
-    if (isDirty && pathname !== href) {
-      e.preventDefault();
-      setPendingHref(href);
-      setShowDiscardModal(true);
-    }
-  }, [isDirty, pathname]);
+  const handleNavClick = useCallback(
+    (e: React.MouseEvent, href: string) => {
+      if (isDirty && pathname !== href) {
+        e.preventDefault();
+        setPendingHref(href);
+        setShowDiscardModal(true);
+      }
+    },
+    [isDirty, pathname],
+  );
 
   const handleDiscardConfirm = useCallback(async () => {
     setIsDirty(false);
@@ -286,9 +513,9 @@ export default function Sidebar() {
     const dest = pendingHref;
     setPendingHref(null);
     if (!dest) return;
-    if (dest === '/login') {
+    if (dest === "/login") {
       await supabase.auth.signOut();
-      router.replace('/login');
+      router.replace("/login");
     } else {
       router.push(dest);
     }
@@ -300,15 +527,19 @@ export default function Sidebar() {
   }, []);
 
   const handleLogout = async () => {
-    if (isDirty) { setPendingHref("/login"); setShowDiscardModal(true); return; }
+    if (isDirty) {
+      setPendingHref("/login");
+      setShowDiscardModal(true);
+      return;
+    }
     await supabase.auth.signOut();
     router.replace("/login");
   };
 
   const visibleGroups = useMemo(() => {
-    return NAV_GROUPS.map(group => ({
+    return NAV_GROUPS.map((group) => ({
       ...group,
-      items: group.items.filter(item => {
+      items: group.items.filter((item) => {
         // DEV GOD MODE: Superadmin sees EVERYTHING
         if (isSuperAdmin) return true;
 
@@ -319,15 +550,19 @@ export default function Sidebar() {
         const normalizedRole = role.toUpperCase();
 
         // ADMIN / WORKSPACE_OWNER see almost everything (except Platform Owner items)
-        if (normalizedRole === "ADMIN" || normalizedRole === "WORKSPACE_OWNER") {
+        if (
+          normalizedRole === "ADMIN" ||
+          normalizedRole === "WORKSPACE_OWNER"
+        ) {
           return group.id !== "platform";
         }
 
         const hasExplicitAccess = item.roles.includes(normalizedRole);
-        const hasGroupAccess = ROLE_GROUP_MAPPING[group.id]?.includes(normalizedRole);
+        const hasGroupAccess =
+          ROLE_GROUP_MAPPING[group.id]?.includes(normalizedRole);
         return hasExplicitAccess || hasGroupAccess;
       }),
-    })).filter(group => group.items.length > 0);
+    })).filter((group) => group.items.length > 0);
   }, [isSuperAdmin, role, roleLoaded]);
 
   return (
@@ -344,16 +579,27 @@ export default function Sidebar() {
         <div className="flex flex-col px-4 pt-5 pb-4 border-b border-[var(--sidebar-border)]">
           <div className="flex items-center">
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mr-3 shrink-0 relative">
-              <Image src="/images/logo-dark.jpeg" alt="ZoikoVertex Logo" fill sizes="32px" className="object-cover dark:block hidden" />
-              <Image src="/images/logo.jpeg" alt="ZoikoVertex Logo" fill sizes="32px" className="object-cover block dark:hidden" />
+              <Image
+                src="/images/logo-wordmark.svg"
+                alt="ZoikoVertex Logo"
+                fill
+                sizes="32px"
+                className="object-cover"
+              />
             </div>
-            <span className="text-[var(--sidebar-text)] font-bold text-xl tracking-wide">ZoikoVertex</span>
+            <span className="text-[var(--sidebar-text)] font-bold text-xl tracking-wide">
+              ZoikoVertex
+            </span>
           </div>
-          <p className="text-[var(--sidebar-text-muted)] text-xs mt-1 ml-11">Where Execution Becomes Accountable.</p>
+          <p className="text-[var(--sidebar-text-muted)] text-xs mt-1 ml-11">
+            Where Execution Becomes Accountable.
+          </p>
           {isSuperAdmin && (
             <div className="mt-3 px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full flex items-center gap-2">
               <Shield className="w-3 h-3 text-indigo-400" />
-              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">God Mode Active</span>
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                God Mode Active
+              </span>
             </div>
           )}
         </div>
@@ -362,24 +608,29 @@ export default function Sidebar() {
         <div className="flex-1 overflow-y-auto py-3 px-2">
           {!roleLoaded ? (
             <div className="space-y-1 px-2">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-10 rounded-lg bg-[var(--sidebar-hover)]/50 animate-pulse" />
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="h-10 rounded-lg bg-[var(--sidebar-hover)]/50 animate-pulse"
+                />
               ))}
             </div>
           ) : (
-            visibleGroups.map(group => (
+            visibleGroups.map((group) => (
               <div key={group.id} className="mb-2">
                 <button
                   onClick={() => toggleGroup(group.id)}
                   className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-[var(--sidebar-text-muted)] uppercase tracking-wider hover:text-[var(--sidebar-text)] transition-colors"
                 >
                   <span>{group.label}</span>
-                  <ChevronDown className={`w-3 h-3 transition-transform ${openGroups[group.id] ? "" : "-rotate-90"}`} />
+                  <ChevronDown
+                    className={`w-3 h-3 transition-transform ${openGroups[group.id] ? "" : "-rotate-90"}`}
+                  />
                 </button>
 
                 {openGroups[group.id] && (
                   <nav className="space-y-0.5 mt-1">
-                    {group.items.map(item => {
+                    {group.items.map((item) => {
                       const Icon = item.icon;
                       const isActive = pathname === item.href;
                       return (
@@ -393,7 +644,9 @@ export default function Sidebar() {
                               : "text-[var(--sidebar-text-muted)] hover:text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)]"
                           }`}
                         >
-                          <Icon className={`w-4 h-4 mr-3 shrink-0 ${isActive ? "text-indigo-400" : "text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)]"}`} />
+                          <Icon
+                            className={`w-4 h-4 mr-3 shrink-0 ${isActive ? "text-indigo-400" : "text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)]"}`}
+                          />
                           <span className="flex-1 text-sm">{item.name}</span>
 
                           {item.badge && pendingCount > 0 && (
@@ -404,12 +657,15 @@ export default function Sidebar() {
 
                           {item.name === "Notifications" && unreadCount > 0 && (
                             <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-lg shadow-rose-500/20 animate-pulse animate-in zoom-in duration-300">
-                              {unreadCount > 9 ? '9+' : unreadCount}
+                              {unreadCount > 9 ? "9+" : unreadCount}
                             </span>
                           )}
 
                           {item.dirty && isDirty && (
-                            <span className="ml-auto w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-lg shadow-amber-400/20" title="Unsaved draft" />
+                            <span
+                              className="ml-auto w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-lg shadow-amber-400/20"
+                              title="Unsaved draft"
+                            />
                           )}
                         </Link>
                       );

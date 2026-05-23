@@ -7,6 +7,7 @@ import {
   AlertTriangle, Archive, StickyNote, CheckCircle2, XCircle,
   Loader2, Shield, ArrowUpRight, ShieldAlert, X, History,
   ExternalLink, ChevronLeft, ChevronRight, Image as ImageIcon,
+  Trash2, CheckSquare, Square,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -165,46 +166,67 @@ function isComment(msg: InboxMessage) {
 
 // ─── MessageListItem ──────────────────────────────────────────────────────────
 
-function MessageListItem({ msg, selected, onClick }: { msg: InboxMessage; selected: boolean; onClick: () => void }) {
+function MessageListItem({
+  msg, selected, checked, selectMode, onClick, onCheck,
+}: {
+  msg: InboxMessage; selected: boolean; checked: boolean;
+  selectMode: boolean; onClick: () => void; onCheck: (e: React.MouseEvent) => void;
+}) {
   return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left px-3 py-2.5 border-b border-[#0f0f0f] transition-all duration-100 ${
+    <div
+      className={`w-full text-left px-3 py-2.5 border-b border-[#0f0f0f] transition-all duration-100 relative group ${
         selected
           ? "bg-white/[0.05] border-l-2 border-l-sky-500/80"
+          : checked
+          ? "bg-red-500/[0.04] border-l-2 border-l-red-500/40"
           : "border-l-2 border-l-transparent hover:bg-white/[0.02]"
       }`}
     >
-      <div className="flex items-start gap-2.5">
-        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5 ${
-          selected ? "bg-sky-500/15 text-sky-300" : "bg-[#181818] text-[#555]"
-        }`}>
-          {initials(msg.sender_name)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-1 mb-0.5">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${platformColor(msg.platform)}`}>
-                {platformBadge(msg.platform)}
-              </span>
-              <span className="text-[11px] text-white/90 font-medium truncate">{msg.sender_name}</span>
-              {msg.status === "UNREAD" && <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0" />}
+      <div className="flex items-start gap-2">
+        {/* Checkbox — always visible in selectMode, hover-visible otherwise */}
+        <button
+          onClick={onCheck}
+          className={`flex-shrink-0 mt-1 transition-opacity ${selectMode ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+        >
+          {checked
+            ? <CheckSquare className="w-3.5 h-3.5 text-red-400" />
+            : <Square className="w-3.5 h-3.5 text-[#333]" />}
+        </button>
+
+        {/* Message content — clickable to open detail */}
+        <button onClick={onClick} className="flex-1 min-w-0 text-left">
+          <div className="flex items-start gap-2">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5 ${
+              selected ? "bg-sky-500/15 text-sky-300" : "bg-[#181818] text-[#555]"
+            }`}>
+              {initials(msg.sender_name)}
             </div>
-            <span className="text-[9px] text-[#383838] flex-shrink-0">{timeAgo(msg.received_at)}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-1 mb-0.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${platformColor(msg.platform)}`}>
+                    {platformBadge(msg.platform)}
+                  </span>
+                  <span className="text-[11px] text-white/90 font-medium truncate">{msg.sender_name}</span>
+                  {msg.status === "UNREAD" && <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0" />}
+                </div>
+                <span className="text-[9px] text-[#383838] flex-shrink-0">{timeAgo(msg.received_at)}</span>
+              </div>
+              <p className="text-[11px] text-[#555] line-clamp-1 leading-relaxed mb-1">{msg.message_body}</p>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${statusColor(msg.status)}`}>
+                  {msg.status.replace(/_/g, " ")}
+                </span>
+                <span className={`text-[9px] font-medium ${riskColor(msg.risk_level)}`}>{msg.risk_level}</span>
+                <span className="text-[#383838] ml-auto">
+                  {isComment(msg) ? <MessageCircle className="w-2.5 h-2.5" /> : <MessageSquare className="w-2.5 h-2.5" />}
+                </span>
+              </div>
+            </div>
           </div>
-          <p className="text-[11px] text-[#555] line-clamp-1 leading-relaxed mb-1">{msg.message_body}</p>
-          <div className="flex items-center gap-1.5">
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${statusColor(msg.status)}`}>
-              {msg.status.replace(/_/g, " ")}
-            </span>
-            <span className={`text-[9px] font-medium ${riskColor(msg.risk_level)}`}>{msg.risk_level}</span>
-            <span className="text-[#383838] ml-auto">
-              {isComment(msg) ? <MessageCircle className="w-2.5 h-2.5" /> : <MessageSquare className="w-2.5 h-2.5" />}
-            </span>
-          </div>
-        </div>
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -579,6 +601,10 @@ export default function InboxPage() {
   const [syncResult, setSyncResult] = useState<{ synced: number; message: string } | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  const [selectMode, setSelectMode] = useState(false);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<InboxMessage | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -621,10 +647,12 @@ export default function InboxPage() {
     try {
       const res = await api.getInboxMessages({ tab, platform, search: debouncedSearch });
       setMessages(res.data || []);
-      setTotal(res.total || 0);
+      setTotal(res.total ?? 0);
       setIsDemo(res.is_demo || false);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load");
+      setMessages([]);
+      setTotal(0);
+      setError(e instanceof Error ? e.message : "Failed to load inbox");
     } finally {
       setLoading(false);
     }
@@ -853,6 +881,37 @@ export default function InboxPage() {
     }
   };
 
+  const toggleCheck = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+    if (!selectMode) setSelectMode(true);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (checkedIds.size === 0) return;
+    if (!confirm(`Delete ${checkedIds.size} message${checkedIds.size > 1 ? "s" : ""} from inbox? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await api.deleteInboxMessages(Array.from(checkedIds));
+      setMessages(prev => prev.filter(m => !checkedIds.has(m.id)));
+      setTotal(prev => Math.max(0, prev - checkedIds.size));
+      if (checkedIds.has(selectedId ?? "")) {
+        setSelectedId(null);
+        setDetail(null);
+      }
+      setCheckedIds(new Set());
+      setSelectMode(false);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const commentMode = detail ? isComment(detail) : false;
 
   // ─── Render ─────────────────────────────────────────────────────────────────
@@ -969,9 +1028,41 @@ export default function InboxPage() {
             >
               {filtersOpen ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
             </button>
-            <span className="text-[9px] text-[#2e2e2e] font-medium uppercase tracking-[0.14em]">Messages</span>
-            {!loading && total > 0 && (
-              <span className="ml-auto text-[9px] text-[#2e2e2e] tabular-nums">{total}</span>
+
+            {checkedIds.size > 0 ? (
+              <>
+                <span className="text-[9px] text-red-400/80 font-medium">{checkedIds.size} selected</span>
+                <button
+                  onClick={handleDeleteSelected}
+                  disabled={deleting}
+                  className="ml-auto flex items-center gap-1 text-[9px] text-red-400/70 hover:text-red-400 bg-red-400/[0.06] hover:bg-red-400/10 border border-red-400/10 px-2 py-1 rounded-md transition-colors disabled:opacity-40"
+                >
+                  {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                  {deleting ? "Deleting…" : "Delete"}
+                </button>
+                <button
+                  onClick={() => { setCheckedIds(new Set()); setSelectMode(false); }}
+                  className="p-1 text-[#333] hover:text-[#888] transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-[9px] text-[#2e2e2e] font-medium uppercase tracking-[0.14em]">Messages</span>
+                {!loading && total > 0 && (
+                  <span className="text-[9px] text-[#2e2e2e] tabular-nums">{total}</span>
+                )}
+                {!loading && messages.length > 0 && (
+                  <button
+                    onClick={() => setSelectMode(v => !v)}
+                    title="Select messages"
+                    className={`ml-auto p-1 rounded transition-colors ${selectMode ? "text-sky-400" : "text-[#2a2a2a] hover:text-[#888]"}`}
+                  >
+                    <CheckSquare className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -997,7 +1088,10 @@ export default function InboxPage() {
                   key={msg.id}
                   msg={msg}
                   selected={selectedId === msg.id}
+                  checked={checkedIds.has(msg.id)}
+                  selectMode={selectMode}
                   onClick={() => selectMessage(msg.id)}
+                  onCheck={(e) => toggleCheck(msg.id, e)}
                 />
               ))
             )}

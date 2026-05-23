@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Send, ArrowLeft, Loader2, Info } from "lucide-react";
+import { Send, ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -31,58 +31,78 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthLayout>
-      <div className="w-full max-w-[400px]">
-        <div className="bg-[#1a1a1a] p-8 rounded-[20px] border border-[#2d2d2d] shadow-2xl relative">
-          
-          <div className="mb-6 text-center">
-            <h2 className="text-[20px] font-bold text-white mb-1.5 tracking-tight">Identity Recovery</h2>
-            <p className="text-[#888888] text-[12px] font-medium leading-relaxed opacity-90">
-              Request a secure recovery link.
-            </p>
+      <div className="w-full max-w-[480px] rounded-[32px] border border-slate-200/70 bg-white/95 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.08)]">
+        <div className="mb-8 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-700 shadow-sm">
+            <ShieldCheck className="h-7 w-7" />
           </div>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold rounded-lg">{error}</div>
-          )}
-
-          {!success ? (
-            <form onSubmit={handleReset} className="space-y-6">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-white ml-0.5 opacity-90">Work Email</label>
-                <input
-                  type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                  className="w-full h-[42px] bg-[#111111] border border-[#2d2d2d] rounded-lg px-4 text-[13px] text-white placeholder-[#333333] focus:outline-none focus:border-[#4d47ff]/50 transition-all"
-                  placeholder="name@zoikogroup.com"
-                />
-              </div>
-
-              <button type="submit" disabled={loading} className="w-full h-[46px] bg-[#4d47ff] text-white font-bold text-[14px] rounded-lg hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 mt-2">
-                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Send className="w-3.5 h-3.5" /> Request Link</>}
-              </button>
-            </form>
-          ) : (
-            <div className="p-6 bg-[#4d47ff]/5 rounded-[16px] border border-[#4d47ff]/10 animate-in zoom-in text-center">
-               <h4 className="text-[16px] font-bold text-white mb-1">Check Inbox</h4>
-               <p className="text-[12px] text-[#888888] font-medium">Link sent to your email.</p>
-            </div>
-          )}
-
-          <div className="mt-6 pt-6 border-t border-[#2d2d2d]/50 flex justify-center">
-            <Link href="/login" className="group flex items-center gap-2 text-[12px] font-semibold text-[#666666] hover:text-white transition-all">
-              <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" /> Back to Login
-            </Link>
-          </div>
+          <h1 className="mt-6 text-2xl font-bold text-slate-950">Reset Password</h1>
+          <p className="mt-3 text-sm text-slate-500">We’ll send password reset instructions to your work email.</p>
         </div>
 
-        {/* Compact Security Alert */}
-        <div className="mt-6 p-4 bg-[#1a1a1a]/40 backdrop-blur-md rounded-[16px] border border-[#2d2d2d] flex items-start gap-3">
-           <Info className="w-3.5 h-3.5 text-[#4d47ff] mt-0.5 shrink-0" />
-           <div>
-              <h4 className="text-[9px] font-bold text-white mb-0.5 uppercase tracking-widest opacity-80">Security notice</h4>
-              <p className="text-[10px] text-[#666666] leading-relaxed font-medium">
-                 Links expire after 60 mins. Contact IT for SSO issues.
+        {error && (
+          <div className="mb-6 rounded-3xl border border-rose-200/80 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {error}
+          </div>
+        )}
+
+        {!success ? (
+          <form onSubmit={handleReset} className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Work Email</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@yourcompany.com"
+                className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-3xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-950/10 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Send Reset Instructions
+            </button>
+          </form>
+        ) : (
+          <div className="space-y-4 rounded-3xl border border-slate-200/70 bg-slate-50 p-6 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-sky-100 text-sky-700">
+              <Send className="h-6 w-6" />
+            </div>
+            <h2 className="text-xl font-semibold text-slate-950">Check your inbox</h2>
+            <p className="text-sm leading-7 text-slate-600">
+              If an account exists for this email, you’ll receive a secure reset link within a few minutes.
+            </p>
+          </div>
+        )}
+
+        <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-[0.35em] text-slate-400">
+          <span className="h-px flex-1 bg-slate-200" />
+          or
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <Link href="/login" className="inline-flex w-full items-center justify-center gap-2 rounded-3xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100">
+          <ArrowLeft className="h-4 w-4" /> Back to Sign In
+        </Link>
+
+        <div className="mt-8 rounded-3xl border border-slate-200/70 bg-slate-50 p-5 text-sm text-slate-600">
+          <div className="flex items-start gap-3">
+            <div className="mt-1 rounded-2xl bg-sky-100 p-2 text-sky-700">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900">Security notice</p>
+              <p className="mt-2 leading-6">
+                Reset links expire after 60 minutes and can only be used once. If you use SSO to sign in, please contact your administrator to reset your password.
               </p>
-           </div>
+            </div>
+          </div>
         </div>
       </div>
     </AuthLayout>
