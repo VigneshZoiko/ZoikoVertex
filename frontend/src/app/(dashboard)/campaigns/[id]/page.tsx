@@ -594,7 +594,7 @@ export default function CampaignDetailPage() {
         {activeTab === "evidence" && (
           <div className="space-y-4">
             <InfoCard title="Campaign Event Log">
-              <p className="text-xs text-zinc-500 mb-4">{events.length} events recorded in this campaign's lifecycle.</p>
+              <p className="text-xs text-zinc-500 mb-4">{events.length} events recorded in this campaign&apos;s lifecycle.</p>
               {events.length === 0 ? (
                 <p className="text-zinc-600 text-sm">No events yet. Events are recorded as the campaign progresses through lifecycle stages.</p>
               ) : (
