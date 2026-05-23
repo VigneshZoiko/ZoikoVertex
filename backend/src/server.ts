@@ -24,7 +24,7 @@ import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRul
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
-import { listProjects, getProject, createProject, updateProject, deleteProject } from './domains/campaigns/projectsController';
+import { getCampaignStats, submitCampaignForReview, checkLaunchGate, launchCampaign, pauseCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import {
   listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy,
@@ -274,18 +274,26 @@ app.post('/api/v1/accounts/linkedin/pages', authenticate, saveLinkedInPages);
 // Campaigns & Projects Routes
 const campaignGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'CREATOR', 'ANALYST', 'VIEWER', 'PUBLISHER', 'SUPERADMIN');
 const campaignWriteGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'SUPERADMIN');
-app.get('/api/v1/campaigns', authenticate, campaignGuard, listCampaigns);
-app.get('/api/v1/campaigns/:id', authenticate, campaignGuard, getCampaign);
-app.get('/api/v1/campaigns/:id/posts', authenticate, campaignGuard, getCampaignPosts);
-app.post('/api/v1/campaigns', authenticate, campaignWriteGuard, createCampaign);
-app.patch('/api/v1/campaigns/:id', authenticate, campaignWriteGuard, updateCampaign);
-app.delete('/api/v1/campaigns/:id', authenticate, campaignWriteGuard, deleteCampaign);
+const campaignLaunchGuard = requireRole('APPROVER', 'FINAL_APPROVER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN');
+const campaignEmergencyGuard = requireRole('CRISIS_COMMANDER', 'FINAL_APPROVER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN');
 
-app.get('/api/v1/projects', authenticate, campaignGuard, listProjects);
-app.get('/api/v1/projects/:id', authenticate, campaignGuard, getProject);
-app.post('/api/v1/projects', authenticate, campaignWriteGuard, createProject);
-app.patch('/api/v1/projects/:id', authenticate, campaignWriteGuard, updateProject);
-app.delete('/api/v1/projects/:id', authenticate, campaignWriteGuard, deleteProject);
+// Phase 1 — existing CRUD
+app.get('/api/v1/campaigns',           authenticate, campaignGuard,       listCampaigns);
+app.get('/api/v1/campaigns/stats',     authenticate, campaignGuard,       getCampaignStats);
+app.get('/api/v1/campaigns/:id',       authenticate, campaignGuard,       getCampaign);
+app.get('/api/v1/campaigns/:id/posts', authenticate, campaignGuard,       getCampaignPosts);
+app.post('/api/v1/campaigns',          authenticate, campaignWriteGuard,  createCampaign);
+app.patch('/api/v1/campaigns/:id',     authenticate, campaignWriteGuard,  updateCampaign);
+app.delete('/api/v1/campaigns/:id',    authenticate, campaignWriteGuard,  deleteCampaign);
+
+// Phase 2 — governed lifecycle
+app.post('/api/v1/campaigns/:id/submit-review',   authenticate, campaignWriteGuard,   submitCampaignForReview);
+app.get('/api/v1/campaigns/:id/launch-gate',      authenticate, campaignGuard,        checkLaunchGate);
+app.post('/api/v1/campaigns/:id/launch',          authenticate, campaignLaunchGuard,  launchCampaign);
+app.post('/api/v1/campaigns/:id/pause',           authenticate, campaignWriteGuard,   pauseCampaign);
+app.post('/api/v1/campaigns/:id/emergency-pause', authenticate, campaignEmergencyGuard, emergencyPauseCampaign);
+app.get('/api/v1/campaigns/:id/events',           authenticate, campaignGuard,        getCampaignEvents);
+app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGuard,   updateSpend);
 
 // Protected Scheduler Routes
 app.post('/api/v1/scheduler/recommend', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), getRecommendations);
@@ -617,7 +625,7 @@ app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket
 import {
   listInboxMessages, getInboxMessage, createReply, generateAiDraft, sendReply,
   assignMessage, updateMessageStatus, escalateMessage, getEscalationQueue,
-  resolveEscalation, addNote, archiveMessage, getMessageAudit, syncPlatformMessages,
+  resolveEscalation, addNote, archiveMessage, getMessageAudit, syncPlatformMessages, deleteInboxMessages,
   getPostPreview,
 } from './domains/inbox/inboxController';
 import { verifyMetaWebhook, handleMetaWebhook } from './domains/inbox/inboxWebhook';
@@ -635,6 +643,7 @@ app.post('/api/v1/inbox/messages/:id/assign', authenticate, planRateLimit('gener
 app.patch('/api/v1/inbox/messages/:id/status', authenticate, planRateLimit('general'), updateMessageStatus);
 app.post('/api/v1/inbox/messages/:id/escalate', authenticate, planRateLimit('general'), escalateMessage);
 app.post('/api/v1/inbox/messages/:id/archive', authenticate, planRateLimit('general'), archiveMessage);
+app.post('/api/v1/inbox/messages/delete', authenticate, planRateLimit('general'), deleteInboxMessages);
 app.post('/api/v1/inbox/messages/:id/notes', authenticate, planRateLimit('general'), addNote);
 app.get('/api/v1/inbox/messages/:id/audit', authenticate, planRateLimit('general'), getMessageAudit);
 app.get('/api/v1/inbox/escalations', authenticate, planRateLimit('general'), getEscalationQueue);
@@ -665,6 +674,37 @@ app.get('/api/v1/inbox/debug/threads', authenticate, async (req, res) => {
     repliesPerPost.push({ postId: post.id, postText: (post.text||'').slice(0,60), replies: rData });
   }
   return res.json({ account: { uid, name: acc.account_name }, profile, posts, repliesPerPost });
+});
+
+// ── Inbox diagnostic — shows raw DB state for the user's workspace ──────────────
+app.get('/api/v1/inbox/debug/state', authenticate, async (req, res) => {
+  try {
+    const authReq = req as AuthRequest;
+    const workspaceId = authReq.user?.workspace_id;
+    const userId      = authReq.user?.id;
+    const plan        = authReq.user?.workspace_plan;
+    const isSuperAdmin = authReq.user?.is_superadmin;
+
+    const { data: msgs, error: msgErr, count } = await supabaseAdmin
+      .from('inbox_messages')
+      .select('id, platform, status, message_type, workspace_id, received_at', { count: 'exact' })
+      .eq('workspace_id', workspaceId!)
+      .order('received_at', { ascending: false })
+      .limit(10);
+
+    const { data: accounts } = await supabaseAdmin
+      .from('connected_accounts')
+      .select('id, platform, account_name, status')
+      .eq('workspace_id', workspaceId!);
+
+    return res.json({
+      user: { userId, workspaceId, plan, isSuperAdmin },
+      inbox_messages: { count, sample: msgs, error: msgErr?.message },
+      connected_accounts: accounts,
+    });
+  } catch (e: unknown) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
 });
 
 // Global Error Handler

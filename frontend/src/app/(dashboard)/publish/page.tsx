@@ -20,7 +20,6 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderKanban,
-  Briefcase,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -132,11 +131,9 @@ function PublishPageInner() {
   const [showEditScheduledModal, setShowEditScheduledModal] = useState(false);
   const [userTimezone, setUserTimezone] = useState("UTC");
 
-  // Campaign & Project linking
+  // Campaign linking (active campaigns only)
   const [publishCampaigns, setPublishCampaigns] = useState<{id: string; name: string}[]>([]);
-  const [publishProjects,  setPublishProjects]  = useState<{id: string; name: string}[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState("");
-  const [selectedProjectId,  setSelectedProjectId]  = useState("");
 
   // AI Recommendations State
   const [suggestedTimes, setSuggestedTimes] = useState<any[]>([]);
@@ -177,17 +174,8 @@ function PublishPageInner() {
 
   // Load campaigns for linking
   useEffect(() => {
-    api.get("/api/v1/campaigns").then(r => setPublishCampaigns(r.data || [])).catch(() => {});
+    api.get("/api/v1/campaigns?status=ACTIVE").then(r => setPublishCampaigns(r.data || [])).catch(() => {});
   }, []);
-
-  // Load projects when campaign is selected
-  useEffect(() => {
-    if (!selectedCampaignId) { setPublishProjects([]); setSelectedProjectId(""); return; }
-    api.get(`/api/v1/projects?campaign_id=${selectedCampaignId}`)
-      .then(r => setPublishProjects(r.data || []))
-      .catch(() => setPublishProjects([]));
-    setSelectedProjectId("");
-  }, [selectedCampaignId]);
 
   // Mark draft as dirty whenever meaningful content exists
   useEffect(() => {
@@ -205,7 +193,7 @@ function PublishPageInner() {
     setMediaUrls([]); setSelectedUrls([]); setCarouselIndex(0);
     setSuggestedTimes([]); setActiveRevisionId(null);
     setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
-    setSelectedCampaignId(""); setSelectedProjectId("");
+    setSelectedCampaignId("");
     setIsDirty(false);
     setMessage({
       type: "success",
@@ -791,7 +779,6 @@ function PublishPageInner() {
         platformPostTypes,
         userId: user.id,
         campaign_id: selectedCampaignId || null,
-        project_id:  selectedProjectId  || null,
       };
 
       const result = await api.post("/api/v1/governance/submit", payload);
@@ -807,7 +794,7 @@ function PublishPageInner() {
       setSuggestedTimes([]); setActiveRevisionId(null);
       setSelectedAccountIds([]); setPlatformCaptions({}); setPlatformPostTypes({}); setMediaMeta(null);
       setCustomTime(""); setSelectedTime("immediate");
-      setSelectedCampaignId(""); setSelectedProjectId("");
+      setSelectedCampaignId("");
       setIsDirty(false);
       fetchUserData();
       // Poll for publish result — backend needs a moment to process
@@ -1635,46 +1622,27 @@ function PublishPageInner() {
             />
           </div>
 
-          {/* Campaign & Project linking */}
-          {publishCampaigns.length > 0 && (
-            <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
-              <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
-                <FolderKanban className="w-3.5 h-3.5 text-indigo-400" />
-                Link to Campaign
-              </h3>
+          {/* Active Campaign linking */}
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
+            <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
+              <FolderKanban className="w-3.5 h-3.5 text-indigo-400" />
+              Link to Active Campaign
+            </h3>
+            {publishCampaigns.length === 0 ? (
+              <p className="text-xs text-[var(--foreground-muted)]">No active campaigns — launch one from Campaigns first.</p>
+            ) : (
               <select
                 value={selectedCampaignId}
                 onChange={e => setSelectedCampaignId(e.target.value)}
                 className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-indigo-500 transition-colors"
               >
-                <option value="">No campaign</option>
+                <option value="">None</option>
                 {publishCampaigns.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
-              {selectedCampaignId && (
-                <div>
-                  <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2 mb-2">
-                    <Briefcase className="w-3.5 h-3.5 text-indigo-400" />
-                    Link to Project
-                  </h3>
-                  <select
-                    value={selectedProjectId}
-                    onChange={e => setSelectedProjectId(e.target.value)}
-                    disabled={publishProjects.length === 0}
-                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
-                  >
-                    <option value="">
-                      {publishProjects.length === 0 ? "No projects in this campaign" : "No project"}
-                    </option>
-                    {publishProjects.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Platform constraint warnings */}
           {(() => {

@@ -22,7 +22,6 @@ const SubmitIntentSchema = z.object({
   mediaUrl: z.string().optional(),
   targetAccountIds: z.array(z.string().uuid()).min(1, 'At least one target account required'),
   campaign_id: z.string().uuid().nullable().optional(),
-  project_id:  z.string().uuid().nullable().optional(),
 });
 
 export const submitIntent = async (
@@ -31,7 +30,7 @@ export const submitIntent = async (
   next: NextFunction,
 ) => {
   try {
-    const { content, mediaUrls, mediaUrl, targetAccountIds, campaign_id, project_id } = SubmitIntentSchema.parse(req.body);
+    const { content, mediaUrls, mediaUrl, targetAccountIds, campaign_id } = SubmitIntentSchema.parse(req.body);
     const platformPostTypes: Record<string, string | string[]> = req.body.platformPostTypes || {};
     const userId = req.user?.id;
 
@@ -83,15 +82,9 @@ export const submitIntent = async (
         content: (postType && NO_CAPTION_FORMATS.has(postType.toLowerCase())) ? '' : finalCaption,
         media_urls: urlsToSave,
         media_url: urlsToSave[0] || null,
-        status: 'APPROVED',
+        status: 'PUBLISHED',
         platform: acc.platform,
-        risk_level: 'LOW',
-        risk_score: 0,
-        risk_factors: postType ? [{ type: 'post_type', value: postType }] : [],
-        requires_approval: false,
-        approval_level: 'AUTO_APPROVE',
-        campaign_id: campaign_id || null,
-        project_id:  project_id  || null,
+        ...(campaign_id ? { campaign_id } : {}),
       }));
     });
 
@@ -100,22 +93,31 @@ export const submitIntent = async (
       .insert(intentsToCreate)
       .select();
 
-    if (error) throw error;
+    if (error) {
+      logger.error({ error, sample: intentsToCreate[0] }, '[Governance] publish_intents insert failed');
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Insert failed',
+        detail: (error as any).details || (error as any).hint || null,
+      });
+    }
 
     // Fire execution immediately for all intents
     for (const intent of data) {
       internalEventBus.emit('execution.requested', { intentId: intent.id });
     }
 
-    await logAuditEvent({
-      workspaceId: targetWorkspaceId,
-      actorId: userId,
-      actorType: 'USER',
-      action: `Directly publishing ${data.length} intents (testing mode)`,
-      objectType: 'PUBLISH_INTENT',
-      module: 'Governance',
-      metadata: { count: data.length },
-    });
+    try {
+      await logAuditEvent({
+        workspaceId: targetWorkspaceId,
+        actorId: userId,
+        actorType: 'USER',
+        action: `Directly publishing ${data.length} intents (testing mode)`,
+        objectType: 'PUBLISH_INTENT',
+        module: 'Governance',
+        metadata: { count: data.length },
+      });
+    } catch { /* audit log failure must never block publish */ }
 
     res.status(200).json({
       success: true,

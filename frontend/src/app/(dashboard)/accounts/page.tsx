@@ -301,7 +301,7 @@ export default function AccountsPage() {
       if (platformId === "facebook" || platformId === "instagram") {
         const appId = process.env.NEXT_PUBLIC_META_APP_ID || "989391590153112";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/facebook/callback`);
-        const scope = ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","pages_read_user_content","pages_messaging","instagram_basic","instagram_content_publish","instagram_manage_messages","instagram_manage_comments","business_management"].join(",");
+        const scope = ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","pages_read_user_content","pages_messaging","pages_manage_engagement","instagram_basic","instagram_content_publish","instagram_manage_messages","instagram_manage_comments","business_management"].join(",");
         const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: platformId }));
         window.location.assign(`https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`);
       } else if (platformId === "linkedin") {

@@ -208,8 +208,25 @@ export const listInboxMessages = async (req: AuthRequest, res: Response, next: N
     if (!workspaceId) return res.status(403).json({ error: 'No workspace' });
 
     const offset = (page - 1) * limit;
-    const role = await getMemberRole(userId);
     const isSuperAdmin = req.user?.is_superadmin === true;
+
+    // Fetch all and filter in JS — avoids "invalid input value for enum" errors
+    // when the DB status column has constraints that differ from what we expect
+    const { data: allData, error: allError } = await supabaseAdmin
+      .from('inbox_messages')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .order('received_at', { ascending: false });
+
+    if (allError) {
+      const code = (allError as { code?: string }).code;
+      // 42P01 = table not found, 42703 = column not found — both mean migration not run
+      if (code === '42P01' || code === '42703') {
+        return res.json({ success: true, data: [], total: 0, is_demo: false, needs_migration: true });
+      }
+      console.error('[Inbox] listInboxMessages DB error:', { code, message: allError.message, details: (allError as any).details });
+      throw allError;
+    }
 
     const TAB_STATUS: Record<string, string[]> = {
       all:        ['UNREAD','OPEN','ASSIGNED','IN_PROGRESS','PENDING_REVIEW','ESCALATED','APPROVED','REJECTED'],
@@ -221,33 +238,24 @@ export const listInboxMessages = async (req: AuthRequest, res: Response, next: N
       archived:   ['ARCHIVED'],
     };
 
-    let query = supabaseAdmin
-      .from('inbox_messages')
-      .select('*', { count: 'exact' })
-      .eq('workspace_id', workspaceId)
-      .in('status', TAB_STATUS[tab] || TAB_STATUS.all)
-      .order('received_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    const allowedStatuses = new Set(TAB_STATUS[tab] || TAB_STATUS.all);
+
+    let filtered = (allData || []).filter((m: any) => allowedStatuses.has(m.status));
 
     // Limited roles only see messages assigned to them
-    if (!isSuperAdmin && LIMITED_ROLES.includes(role)) {
-      query = query.eq('assigned_to', userId);
+    if (!isSuperAdmin && LIMITED_ROLES.includes(await getMemberRole(userId))) {
+      filtered = filtered.filter((m: any) => m.assigned_to === userId);
     }
 
-    if (platform) query = query.eq('platform', platform.toUpperCase());
-    if (type)     query = query.eq('message_type', type.toUpperCase());
-    if (risk)     query = query.eq('risk_level', risk.toUpperCase());
-    if (search)   query = query.ilike('message_body', `%${search}%`);
+    if (platform) filtered = filtered.filter((m: any) => m.platform === platform.toUpperCase());
+    if (type)     filtered = filtered.filter((m: any) => m.message_type === type.toUpperCase());
+    if (risk)     filtered = filtered.filter((m: any) => m.risk_level === risk.toUpperCase());
+    if (search)   filtered = filtered.filter((m: any) => m.message_body?.toLowerCase().includes(search.toLowerCase()));
 
-    const { data, error, count } = await query;
-    if (error) {
-      if ((error as { code?: string }).code === '42P01') {
-        return res.json({ success: true, data: [], total: 0, is_demo: false, needs_migration: true });
-      }
-      throw error;
-    }
+    const total = filtered.length;
+    const paged = filtered.slice(offset, offset + limit);
 
-    res.json({ success: true, data: data || [], total: count || 0, is_demo: false });
+    res.json({ success: true, data: paged, total, is_demo: false });
   } catch (error) {
     next(error);
   }
@@ -388,13 +396,31 @@ async function sendToMetaApi(
 ): Promise<{ sent: boolean; error?: string }> {
   try {
     if (messageType === 'COMMENT') {
-      const endpoint = platform === 'INSTAGRAM'
-        ? `/${platformMessageId}/replies`
-        : `/${platformMessageId}/comments`;
-      const body = new URLSearchParams({ message: replyBody, access_token: accessToken });
-      const r = await fetch(`${GRAPH_BASE}${endpoint}`, { method: 'POST', body });
+      if (platform === 'INSTAGRAM') {
+        const r = await fetch(`${GRAPH_BASE}/${platformMessageId}/replies`, {
+          method: 'POST',
+          body: new URLSearchParams({ message: replyBody, access_token: accessToken }),
+        });
+        const data = await r.json();
+        if (data.error) return { sent: false, error: `(#${data.error.code}) ${data.error.message}` };
+        return { sent: true };
+      }
+
+      // Facebook Page comment reply — requires pages_manage_engagement permission
+      const r = await fetch(`${GRAPH_BASE}/${platformMessageId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: replyBody, access_token: accessToken }),
+      });
       const data = await r.json();
-      if (data.error) return { sent: false, error: data.error.message };
+      if (data.error) {
+        const code = data.error.code;
+        const msg = data.error.message || data.error.error_user_msg || '';
+        if (code === 200 || msg.toLowerCase().includes('permission')) {
+          return { sent: false, error: `pages_manage_engagement permission required. Add your account as a Developer on the Meta App, then re-connect your Facebook Page. (#${code})` };
+        }
+        return { sent: false, error: `(#${code}) ${msg}` };
+      }
       return { sent: true };
     }
 
@@ -766,7 +792,8 @@ export const getEscalationQueue = async (req: AuthRequest, res: Response, next: 
 
     const { data, error } = await query;
     if (error) {
-      if ((error as { code?: string }).code === '42P01') return res.json({ success: true, data: [], needs_migration: true });
+      const code = (error as { code?: string }).code;
+      if (code === '42P01' || code === '42703') return res.json({ success: true, data: [], needs_migration: true });
       throw error;
     }
 
@@ -837,6 +864,52 @@ export const addNote = async (req: AuthRequest, res: Response, next: NextFunctio
   }
 };
 
+export const deleteInboxMessages = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    if (isPreviewOnly(req)) return res.status(403).json({ error: 'Upgrade required' });
+
+    const workspaceId = (req.user!.workspace_id as string);
+    const ids: string[] = req.body.ids || [];
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'No message IDs provided' });
+    }
+    if (ids.length > 100) {
+      return res.status(400).json({ error: 'Cannot delete more than 100 messages at once' });
+    }
+
+    // Fetch only messages that belong to this workspace
+    const { data: msgs } = await supabaseAdmin
+      .from('inbox_messages')
+      .select('id, status, sender_name, platform')
+      .in('id', ids)
+      .eq('workspace_id', workspaceId);
+
+    if (!msgs || msgs.length === 0) {
+      return res.status(404).json({ error: 'No matching messages found in this workspace' });
+    }
+
+    const validIds = msgs.map((m: any) => m.id);
+
+    // Soft-delete: mark as DELETED so they vanish from all inbox views
+    await supabaseAdmin
+      .from('inbox_messages')
+      .update({ status: 'DELETED', updated_at: new Date().toISOString() })
+      .in('id', validIds);
+
+    // Audit each deletion
+    for (const msg of msgs) {
+      await logInboxAudit(msg.id, workspaceId, userId, 'Message deleted from inbox', msg.status, 'DELETED');
+    }
+
+    res.json({ success: true, deleted: validIds.length });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const archiveMessage = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
@@ -871,7 +944,8 @@ export const getMessageAudit = async (req: AuthRequest, res: Response, next: Nex
       .order('performed_at', { ascending: true });
 
     if (error) {
-      if ((error as { code?: string }).code === '42P01') return res.json({ success: true, data: [] });
+      const code = (error as { code?: string }).code;
+      if (code === '42P01' || code === '42703') return res.json({ success: true, data: [] });
       throw error;
     }
 
@@ -889,16 +963,34 @@ async function graphGet(path: string, token: string, params: Record<string, stri
   return r.json();
 }
 
+const PLACEHOLDER_NAMES = new Set(['Facebook User', 'Instagram User', 'Threads User', 'YouTube User', 'LinkedIn User']);
+
 async function insertMessageIfNew(workspaceId: string, payload: Record<string, unknown>): Promise<boolean> {
   const { data: existing } = await supabaseAdmin
     .from('inbox_messages')
-    .select('id')
+    .select('id, sender_name')
     .eq('workspace_id', workspaceId)
     .eq('platform_message_id', payload.platform_message_id as string)
     .maybeSingle();
-  if (existing) return false;
+
+  if (existing) {
+    // Back-fill real name if placeholder was saved before
+    const newName = payload.sender_name as string | undefined;
+    if (newName && !PLACEHOLDER_NAMES.has(newName) && PLACEHOLDER_NAMES.has(existing.sender_name)) {
+      await supabaseAdmin.from('inbox_messages').update({
+        sender_name: newName,
+        sender_handle: payload.sender_handle || existing.sender_name,
+      }).eq('id', existing.id);
+    }
+    return false;
+  }
+
   const { error } = await supabaseAdmin.from('inbox_messages').insert({ workspace_id: workspaceId, ...payload });
-  return !error;
+  if (error) {
+    console.error('[Inbox] insert error:', error.message, '| keys:', Object.keys(payload).join(','));
+    return false;
+  }
+  return true;
 }
 
 async function refreshYouTubeToken(accountId: string, refreshToken: string): Promise<string | null> {
@@ -974,6 +1066,13 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
       const platform = account.platform as string;
 
       try {
+        // Validate token is alive before syncing
+        const tokenCheck = await graphGet('/me', token, { fields: 'id' });
+        if (tokenCheck.error) {
+          syncErrors.push(`[${platform}] ${account.account_name}: token invalid — ${tokenCheck.error.message}. Reconnect this account.`);
+          continue;
+        }
+
         if (platform === 'instagram') {
           // ── Instagram DMs ──────────────────────────────────────────────
           const igConvData = await graphGet(
@@ -983,11 +1082,13 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
           );
 
           if (igConvData.error) {
-            // Code 3 = app lacks instagram_manage_messages (requires Meta app review)
-            if (igConvData.error.code === 3 || igConvData.error.code === 10) {
-              console.info(`[Inbox] Instagram DM sync skipped for "${account.account_name}" — instagram_manage_messages permission not approved by Meta yet`);
+            const code = igConvData.error.code;
+            const msg = igConvData.error.message || '';
+            if (code === 3 || code === 10 || msg.includes('instagram_manage_messages')) {
+              // Surface this as a visible warning — user needs to know
+              syncErrors.push(`Instagram DMs (${account.account_name}): instagram_manage_messages permission required. In Meta App Dashboard → App Review → add instagram_manage_messages. Your account must be a Developer/Admin on the app to test in Live mode.`);
             } else {
-              syncErrors.push(`Instagram DMs (${account.account_name}): ${igConvData.error.message}`);
+              syncErrors.push(`Instagram DMs (${account.account_name}): ${msg} (code ${code})`);
             }
           } else {
             for (const conv of (igConvData.data || [])) {
@@ -1018,7 +1119,9 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
             { fields: 'id,shortcode,timestamp,comments_count', limit: '10' },
           );
 
-          if (!mediaData.error) {
+          if (mediaData.error) {
+            syncErrors.push(`Instagram Comments (${account.account_name}): ${mediaData.error.message}`);
+          } else {
             for (const post of (mediaData.data || [])) {
               if (!post.comments_count || post.comments_count === 0) continue;
               const commentsData = await graphGet(
@@ -1026,6 +1129,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                 token,
                 { fields: 'id,text,from,timestamp,username' },
               );
+              if (commentsData.error) continue;
               for (const comment of (commentsData.data || [])) {
                 if (!comment.text || comment.from?.id === String(account.account_handle)) continue;
                 const igUsername = comment.from?.username || comment.username || '';
@@ -1056,10 +1160,11 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
           );
 
           if (fbConvData.error) {
-            if (fbConvData.error.code === 3 || fbConvData.error.code === 10) {
-              console.info(`[Inbox] Facebook Messenger sync skipped for "${account.account_name}" — pages_messaging permission not approved by Meta yet`);
+            const code = fbConvData.error.code;
+            if (code === 3 || code === 10) {
+              syncErrors.push(`Facebook DMs (${account.account_name}): pages_messaging permission required. Add it in Meta App Dashboard.`);
             } else {
-              syncErrors.push(`Facebook Messenger (${account.account_name}): ${fbConvData.error.message}`);
+              syncErrors.push(`Facebook DMs (${account.account_name}): ${fbConvData.error.message} (code ${code})`);
             }
           } else {
             for (const conv of (fbConvData.data || [])) {
@@ -1083,21 +1188,31 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
           }
 
           // ── Facebook Page Comments ──────────────────────────────────────
+          // Must use Page token (not User token) for /me/posts — User token returns
+          // personal timeline which has no page posts.
           const postsData = await graphGet(
             '/me/posts',
             token,
             { fields: 'id,created_time,comments{id,message,from,created_time}', limit: '10' },
           );
 
-          if (!postsData.error) {
+          if (postsData.error) {
+            syncErrors.push(`Facebook Comments (${account.account_name}): ${postsData.error.message} (code ${postsData.error.code})`);
+          } else {
+            const postCount = postsData.data?.length || 0;
+            let commentCount = 0;
             for (const post of (postsData.data || [])) {
-              for (const comment of (post.comments?.data || [])) {
-                if (!comment.message || comment.from?.id === String(account.account_handle)) continue;
+              const comments = post.comments?.data || [];
+              commentCount += comments.length;
+              for (const comment of comments) {
+                if (!comment.message) continue;
+                const fromId = comment.from?.id;
+                if (fromId && fromId === String(account.account_handle)) continue;
                 const inserted = await insertMessageIfNew(workspaceId, {
                   platform: 'FACEBOOK',
                   platform_message_id: comment.id,
                   sender_name: comment.from?.name || 'Facebook User',
-                  sender_handle: comment.from?.id || '',
+                  sender_handle: fromId || '',
                   message_type: 'COMMENT',
                   message_body: comment.message,
                   original_post_id: post.id,
@@ -1109,6 +1224,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                 if (inserted) totalSynced++;
               }
             }
+            syncErrors.push(`[fb-debug] ${account.account_name}: ${postCount} posts, ${commentCount} total comments found`);
           }
         } else if (platform === 'threads') {
           // ── Threads Replies ────────────────────────────────────────
@@ -1298,7 +1414,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
 
     await logInboxAudit('system', workspaceId, userId, `Platform sync: ${totalSynced} new messages from ${accounts.length} account(s)`);
 
-    const isDebugLine = (e: string) => e.startsWith('[Threads debug]') || e.startsWith('[YouTube debug]');
+    const isDebugLine = (e: string) => e.startsWith('[Threads debug]') || e.startsWith('[YouTube debug]') || e.startsWith('[fb-debug]');
     res.json({
       success: true,
       synced: totalSynced,
@@ -1501,3 +1617,4 @@ export const getPostPreview = async (req: AuthRequest, res: Response, next: Next
     next(error);
   }
 };
+

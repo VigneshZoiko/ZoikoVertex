@@ -282,6 +282,10 @@ export const api = {
     return this.post(`/api/v1/inbox/messages/${messageId}/archive`, {});
   },
 
+  async deleteInboxMessages(ids: string[]) {
+    return this.post('/api/v1/inbox/messages/delete', { ids });
+  },
+
   async addInboxNote(messageId: string, note_body: string) {
     return this.post(`/api/v1/inbox/messages/${messageId}/notes`, { note_body });
   },

@@ -19,7 +19,6 @@ import {
   Link2,
   ClipboardList,
   CheckSquare,
-  Briefcase,
   Settings,
   LogOut,
   Users,
@@ -51,7 +50,6 @@ import {
   Fingerprint,
   Bell,
   Eye,
-  Pencil,
   Lock,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -185,8 +183,6 @@ const NAV_GROUPS: NavGroup[] = [
     icon: ImageIcon,
     items: [
       { name: "Media Vault",         href: "/library",    icon: Database,       roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","REVIEWER","ANALYST","VIEWER"] },
-      { name: "Content Studio",      href: "/studio",     icon: Pencil,         roles: ["ADMIN","WORKSPACE_OWNER","CREATOR","CAMPAIGN_MANAGER"] },
-      { name: "Projects",            href: "/projects",   icon: Briefcase,      roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","ANALYST","VIEWER"] },
       { name: "Campaigns",           href: "/campaigns",  icon: FolderKanban,   roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","ANALYST","VIEWER"] },
       { name: "Calendar",            href: "/calendar",   icon: Calendar,       roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","VIEWER"] },
       { name: "Inbox & Engagement",  href: "/inbox",      icon: Inbox,          roles: ["ADMIN","WORKSPACE_OWNER","AGENT_OPERATOR","CAMPAIGN_MANAGER","PUBLISHER"] },
