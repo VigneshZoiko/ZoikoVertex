@@ -11,7 +11,7 @@ import {
   Globe,
   MoreVertical
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 
 interface Ticket {
   id: string;
@@ -38,17 +38,11 @@ export default function SupportInbox() {
   useEffect(() => {
     const fetchTickets = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch('http://localhost:5006/api/v1/superadmin/tickets', {
-          headers: {
-            'Authorization': `Bearer ${session?.access_token}`
-          }
-        });
-        const data = await res.json();
-        if (data.success) {
-          setTickets(data.tickets);
+        const result = await api.get('/api/v1/superadmin/tickets');
+        if (result.success) {
+          setTickets(result.tickets);
         } else {
-          setError(data.error);
+          setError(result.error);
         }
       } catch (err) {
         setError('Failed to load tickets');
@@ -62,16 +56,8 @@ export default function SupportInbox() {
 
   const updateStatus = async (id: string, newStatus: string) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`http://localhost:5006/api/v1/superadmin/tickets/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-      if (res.ok) {
+      const result = await api.patch(`/api/v1/superadmin/tickets/${id}`, { status: newStatus });
+      if (result.success) {
         setTickets(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
       }
     } catch (err) {
