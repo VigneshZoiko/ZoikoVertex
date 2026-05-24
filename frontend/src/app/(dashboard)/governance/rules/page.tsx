@@ -171,6 +171,49 @@ function mapRiskLevel(r: string): RiskLevel {
   return m[r] || r as RiskLevel;
 }
 
+function mapBackendRule(r: any): ApprovalRule {
+  return {
+    ...r,
+    id: r.id,
+    name: r.rule_name || r.name || "",
+    description: r.rule_description || r.description || "",
+    owner: r.rule_owner_id || r.owner || "",
+    priority: r.rule_priority ?? r.priority ?? 5,
+    status: mapStatus(r.rule_status || r.status),
+    riskLevel: mapRiskLevel(r.risk_classification || r.riskLevel),
+    activeVersion: r.active_version || r.activeVersion,
+    draftVersion: r.draft_version || r.draftVersion,
+    effectiveDate: r.effective_at || r.effectiveDate,
+    expiryDate: r.expires_at || r.expiryDate,
+    tags: r.tags || [],
+    internalNotes: r.internal_notes || r.internalNotes,
+    scope: r.scope || r.scopes || {},
+    conditionGroups: r.conditionGroups || [],
+    validationPrerequisite: r.validation_prerequisite || r.validationPrerequisite || "Not Required",
+    pathType: r.path_type || r.pathType || "Single",
+    stages: r.stages || [],
+    authorityLevel: r.authority_level ?? r.authorityLevel ?? 1,
+    slaDueMinutes: r.sla_due_minutes ?? r.slaDueMinutes,
+    slaStartTrigger: r.sla_start_trigger || r.slaStartTrigger,
+    escalationTarget: r.escalation_target || r.escalationTarget,
+    maxEscalationCount: r.max_escalation_count ?? r.maxEscalationCount,
+    fallbackApprover: r.fallback_approver || r.fallbackApprover,
+    fallbackRole: r.fallback_role || r.fallbackRole,
+    delegationAllowed: r.delegation_allowed ?? r.delegationAllowed ?? false,
+    conflictOfInterestControls: r.conflictOfInterestControls || [],
+    conditionalApprovalAllowed: r.conditional_approval_allowed ?? r.conditionalApprovalAllowed ?? false,
+    restrictedModeBehavior: r.restrictedModeBehavior || [],
+    postDecisionBehavior: r.postDecisionBehavior || [],
+    conflictCount: r.conflictCount || 0,
+    blockingConflict: r.blockingConflict || false,
+    restrictedMode: r.restrictedMode || false,
+    lastUpdated: r.updated_at || r.lastUpdated || new Date().toISOString(),
+    updatedBy: r.updated_by || r.updatedBy || "",
+    createdAt: r.created_at || r.createdAt || new Date().toISOString(),
+    createdBy: r.created_by || r.createdBy || "",
+  };
+}
+
 const SOURCE_MODULES = ["Media Engine", "Inbox & Engagement", "AI Workflow Orchestration", "Agent Studio", "Agent Operations", "Validation Desk", "Review Queue", "Exceptions", "Content Scheduler", "Campaigns", "Integrations"];
 const ITEM_TYPES = ["Social Post", "Inbox Reply", "Campaign Asset", "Agent Action", "Workflow Output", "Validation Override", "Exception Outcome", "Restricted Operation", "Compliance-Sensitive Item", "Publishing Action"];
 const PLATFORMS = ["LinkedIn", "Instagram", "Facebook", "TikTok", "YouTube", "X", "Threads"];
@@ -186,6 +229,8 @@ const TRIGGER_FIELDS = [
   "restricted_operations_mode", "exception_status", "publish_time", "self_approval_risk",
 ];
 const OPERATORS = ["equals", "not_equals", "contains", "does_not_contain", "greater_than", "less_than", "is_empty", "is_not_empty", "exists", "does_not_exist", "before", "after", "within_time_window"];
+
+const RECENT_THRESHOLD = Date.now() - 7 * 86400000;
 
 const VALIDATION_OPTIONS = [
   "Not Required", "Required", "Passed Required", "Warning Allowed",
@@ -358,6 +403,11 @@ export default function ApprovalRulesPage() {
   const [alertDismissed, setAlertDismissed] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [ruleVersions, setRuleVersions] = useState<VersionInfo[]>([]);
+  const [ruleAuditLog, setRuleAuditLog] = useState<AuditEntry[]>([]);
+  const [ruleConflicts, setRuleConflicts] = useState<any[]>([]);
+  const [simulationResult, setSimulationResult] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
 
   const selectedRule = rules.find(r => r.id === selectedRuleId) || null;
 
@@ -367,18 +417,7 @@ export default function ApprovalRulesPage() {
     try {
       const result = await api.get("/api/v1/governance/rules");
       if (result.success && Array.isArray(result.data)) {
-        setRules(result.data.map((r: any) => ({
-          ...r,
-          id: r.id,
-          name: r.rule_name || r.name,
-          description: r.rule_description || r.description,
-          owner: r.rule_owner_id || r.owner,
-          priority: r.rule_priority || r.priority,
-          status: mapStatus(r.rule_status || r.status),
-          riskLevel: mapRiskLevel(r.risk_classification || r.riskLevel),
-          activeVersion: r.active_version || r.activeVersion,
-          draftVersion: r.draft_version || r.draftVersion,
-        })));
+        setRules(result.data.map(mapBackendRule));
       } else {
         setRules(MOCK_RULES);
       }
@@ -435,7 +474,7 @@ export default function ApprovalRulesPage() {
     { id: "m4", label: "Conflicts Detected", count: rules.filter(r => r.blockingConflict || r.status === "Conflict Detected").length, icon: AlertTriangle, color: "text-red-400", filterTab: "conflicts" },
     { id: "m5", label: "High-Risk Rules", count: rules.filter(r => r.riskLevel === "High" || r.riskLevel === "Critical").length, icon: ShieldAlert, color: "text-orange-400", filterTab: "high-risk" },
     { id: "m6", label: "Restricted Mode Rules", count: rules.filter(r => r.restrictedMode).length, icon: Lock, color: "text-purple-400", filterTab: "restricted-mode" },
-    { id: "m7", label: "Rules Updated Recently", count: rules.filter(r => new Date(r.lastUpdated) > new Date(Date.now() - 7 * 86400000)).length, icon: Activity, color: "text-blue-400" },
+    { id: "m7", label: "Rules Updated Recently", count: rules.filter(r => new Date(r.lastUpdated) > new Date(RECENT_THRESHOLD)).length, icon: Activity, color: "text-blue-400" },
     { id: "m8", label: "Disabled Rules", count: rules.filter(r => r.status === "Disabled" || r.status === "Archived").length, icon: XCircle, color: "text-slate-600", filterTab: "disabled" },
   ];
 
@@ -456,18 +495,210 @@ export default function ApprovalRulesPage() {
     setActiveTab("drafts");
   };
 
-  const handleHeaderAction = (action: string) => {
-    if (action === "create") buildNewRule();
-    if (action === "clone" && selectedRuleId) {
-      const source = rules.find(r => r.id === selectedRuleId);
-      if (source) {
-        const cloned: ApprovalRule = { ...source, id: generateId(), name: `${source.name} (Clone)`, status: "Draft", draftVersion: 1, activeVersion: undefined, conflictCount: 0, blockingConflict: false, lastUpdated: new Date().toISOString(), createdAt: new Date().toISOString() };
-        setRules(prev => [cloned, ...prev]);
-        setSelectedRuleId(cloned.id);
-        setActiveTab("drafts");
-      }
+  const saveRuleFields = async (ruleId: string): Promise<boolean> => {
+    const rule = rules.find(r => r.id === ruleId);
+    if (!rule) return false;
+    try {
+      const res = await api.patch(`/api/v1/governance/rules/${ruleId}`, {
+        rule_name: rule.name,
+        rule_description: rule.description || "",
+        rule_owner_id: rule.owner || "",
+        rule_priority: rule.priority,
+        risk_classification: rule.riskLevel.toUpperCase(),
+        tags: rule.tags || [],
+        effective_at: rule.effectiveDate || null,
+        expires_at: rule.expiryDate || null,
+      });
+      return !!(res.success && res.data);
+    } catch {
+      return false;
     }
   };
+
+  const handleCreate = async () => {
+    try {
+      setSaving(true);
+      const res = await api.post("/api/v1/governance/rules", {
+        rule_name: "New Approval Rule",
+        rule_description: "",
+        rule_priority: 5,
+        risk_classification: "MEDIUM",
+        tags: [],
+      });
+      if (res.success && res.data) {
+        const mapped = mapBackendRule(res.data);
+        mapped.conditionGroups = [];
+        mapped.stages = [];
+        mapped.authorityLevel = 1;
+        mapped.conflictOfInterestControls = [];
+        mapped.restrictedModeBehavior = [];
+        mapped.postDecisionBehavior = [];
+        setRules(prev => [mapped, ...prev]);
+        setSelectedRuleId(mapped.id);
+        setActiveTab("drafts");
+        return;
+      }
+    } catch {
+      // fallback to local creation
+    } finally {
+      setSaving(false);
+    }
+    buildNewRule();
+  };
+
+  const handleClone = async (sourceId: string) => {
+    try {
+      const res = await api.post(`/api/v1/governance/rules/${sourceId}/clone`, {});
+      if (res.success && res.data) {
+        const mapped = mapBackendRule(res.data);
+        setRules(prev => [mapped, ...prev]);
+        setSelectedRuleId(mapped.id);
+        setActiveTab("drafts");
+        return;
+      }
+    } catch {
+      // fallback to local clone
+    }
+    const source = rules.find(r => r.id === sourceId);
+    if (source) {
+      const cloned: ApprovalRule = { ...source, id: generateId(), name: `${source.name} (Clone)`, status: "Draft", draftVersion: 1, activeVersion: undefined, conflictCount: 0, blockingConflict: false, lastUpdated: new Date().toISOString(), createdAt: new Date().toISOString() };
+      setRules(prev => [cloned, ...prev]);
+      setSelectedRuleId(cloned.id);
+      setActiveTab("drafts");
+    }
+  };
+
+  const handleSubmitForReview = async (ruleId: string) => {
+    await saveRuleFields(ruleId);
+    try {
+      const res = await api.post(`/api/v1/governance/rules/${ruleId}/submit-review`, {});
+      if (res.success && res.data) {
+        setRules(prev => prev.map(r => r.id === ruleId ? { ...r, status: "Needs Review" as RuleStatus } : r));
+      }
+    } catch {
+      // keep local state
+    }
+  };
+
+  const handlePublish = async (ruleId: string) => {
+    await saveRuleFields(ruleId);
+    try {
+      const res = await api.post(`/api/v1/governance/rules/${ruleId}/publish`, { publish_note: "" });
+      if (res.success && res.data) {
+        setRules(prev => prev.map(r => r.id === ruleId ? mapBackendRule(res.data) : r));
+      }
+    } catch {
+      // keep local state
+    }
+  };
+
+  const handleDeactivate = async (ruleId: string) => {
+    await saveRuleFields(ruleId);
+    try {
+      const res = await api.post(`/api/v1/governance/rules/${ruleId}/deactivate`, {});
+      if (res.success && res.data) {
+        setRules(prev => prev.map(r => r.id === ruleId ? { ...r, status: "Disabled" as RuleStatus } : r));
+      }
+    } catch {
+      // keep local state
+    }
+  };
+
+  const handleReactivate = async (ruleId: string) => {
+    try {
+      const res = await api.post(`/api/v1/governance/rules/${ruleId}/reactivate`, {});
+      if (res.success && res.data) {
+        setRules(prev => prev.map(r => r.id === ruleId ? { ...r, status: "Active" as RuleStatus } : r));
+      }
+    } catch {
+      // keep local state
+    }
+  };
+
+  const handleArchive = async (ruleId: string) => {
+    try {
+      const res = await api.post(`/api/v1/governance/rules/${ruleId}/archive`, {});
+      if (res.success && res.data) {
+        setRules(prev => prev.map(r => r.id === ruleId ? { ...r, status: "Archived" as RuleStatus } : r));
+      }
+    } catch {
+      // keep local state
+    }
+  };
+
+  const fetchRuleVersions = useCallback(async (ruleId: string) => {
+    try {
+      const res = await api.get(`/api/v1/governance/rules/${ruleId}/versions`);
+      if (res.success && Array.isArray(res.data)) {
+        setRuleVersions(res.data.map((v: any) => ({
+          id: v.id,
+          versionNumber: v.version_number || v.versionNumber,
+          changeSummary: v.change_summary || v.changeSummary || "",
+          publishNote: v.publish_note || v.publishNote,
+          author: v.author_id || v.author || "",
+          publisher: v.publisher_id || v.publisher,
+          createdAt: v.created_at || v.createdAt || v.performed_at || "",
+          publishedAt: v.published_at || v.publishedAt || "",
+        })));
+      }
+    } catch {
+      // keep existing state
+    }
+  }, []);
+
+  const fetchAuditLog = useCallback(async (ruleId: string) => {
+    try {
+      const res = await api.get(`/api/v1/governance/rules/${ruleId}/audit-log`);
+      if (res.success && Array.isArray(res.data)) {
+        setRuleAuditLog(res.data.map((a: any) => ({
+          id: a.id || Math.random().toString(36),
+          action: a.action || "",
+          actor: a.performed_by || a.actor || "",
+          timestamp: a.performed_at || a.timestamp || "",
+          previousValue: a.previous_value ? (typeof a.previous_value === "object" ? JSON.stringify(a.previous_value) : String(a.previous_value)) : undefined,
+          newValue: a.new_value ? (typeof a.new_value === "object" ? JSON.stringify(a.new_value) : String(a.new_value)) : undefined,
+          note: a.reason_note || a.note,
+        })));
+      }
+    } catch {
+      // keep existing state
+    }
+  }, []);
+
+  const handleRunSimulation = async (ruleId: string) => {
+    try {
+      setSimulationResult(null);
+      const res = await api.post(`/api/v1/governance/rules/${ruleId}/simulate`, {
+        source_module: "",
+        item_type: "",
+        platform: "",
+        risk_level: "",
+        validation_status: "",
+      });
+      if (res.success && res.data) {
+        setSimulationResult(res.data);
+      }
+    } catch {
+      // keep existing state
+    }
+  };
+
+  const handleHeaderAction = (action: string) => {
+    if (action === "create") handleCreate();
+    if (action === "clone" && selectedRuleId) handleClone(selectedRuleId);
+  };
+
+  useEffect(() => {
+    if (!selectedRuleId) {
+      setRuleVersions([]);
+      setRuleAuditLog([]);
+      setRuleConflicts([]);
+      setSimulationResult(null);
+      return;
+    }
+    fetchRuleVersions(selectedRuleId);
+    fetchAuditLog(selectedRuleId);
+  }, [selectedRuleId, fetchRuleVersions, fetchAuditLog]);
 
   if (loading && rules.length === 0) {
     return (
@@ -498,44 +729,48 @@ export default function ApprovalRulesPage() {
             <p className="text-sm text-slate-500 mt-1 max-w-2xl">Define, test, activate, version, and audit the approval-routing rules that control who must approve content, replies, campaigns, AI agent actions, workflow outputs, and restricted operations.</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {saving && <span className="text-[10px] text-indigo-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving...</span>}
             <button onClick={() => handleHeaderAction("create")} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors">
               <Plus className="w-4 h-4" /> Create Rule
             </button>
-            <TooltipBtn disabled={true} tooltip="Save a draft first to test">
-              <button disabled className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-500 cursor-not-allowed">
+            <TooltipBtn disabled={!selectedRuleId} tooltip="Test this rule against sample content">
+              <button onClick={() => selectedRuleId && handleRunSimulation(selectedRuleId)} disabled={!selectedRuleId}
+                className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 <TestTube className="w-4 h-4" /> Test
               </button>
             </TooltipBtn>
-            <TooltipBtn disabled={true} tooltip="Complete missing rule scope and approval path">
-              <button disabled className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-500 cursor-not-allowed">
+            <TooltipBtn disabled={!selectedRuleId || !(selectedRule?.status === "Draft" || selectedRule?.status === "Conflict Detected")} tooltip="Submit this rule for governance review">
+              <button onClick={() => selectedRuleId && handleSubmitForReview(selectedRuleId)} disabled={!selectedRuleId || !(selectedRule?.status === "Draft" || selectedRule?.status === "Conflict Detected")}
+                className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 <Send className="w-4 h-4" /> Submit
               </button>
             </TooltipBtn>
-            <TooltipBtn disabled={true} tooltip="Resolve blocking conflicts before publishing">
-              <button disabled className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-500 cursor-not-allowed">
+            <TooltipBtn disabled={!selectedRuleId || selectedRule?.status === "Active"} tooltip="Publish the current version of this rule">
+              <button onClick={() => selectedRuleId && handlePublish(selectedRuleId)} disabled={!selectedRuleId || selectedRule?.status === "Active"}
+                className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 <Upload className="w-4 h-4" /> Publish
               </button>
             </TooltipBtn>
-            <TooltipBtn disabled={!selectedRuleId} tooltip="Select a rule to clone">
+            <TooltipBtn disabled={!selectedRuleId} tooltip="Clone this rule">
               <button onClick={() => selectedRuleId && handleHeaderAction("clone")} disabled={!selectedRuleId}
                 className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-300 disabled:hover:border-[#2d2d2d]">
                 <Copy className="w-4 h-4" /> Clone
               </button>
             </TooltipBtn>
-            <TooltipBtn disabled={!selectedRuleId} tooltip="Select a rule to deactivate">
-              <button disabled={!selectedRuleId}
-                className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-500 cursor-not-allowed">
+            <TooltipBtn disabled={!selectedRuleId || selectedRule?.status !== "Active"} tooltip="Deactivate this active rule">
+              <button onClick={() => selectedRuleId && handleDeactivate(selectedRuleId)} disabled={!selectedRuleId || selectedRule?.status !== "Active"}
+                className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 <Ban className="w-4 h-4" /> Deactivate
               </button>
             </TooltipBtn>
-            <TooltipBtn disabled={!selectedRuleId} tooltip="Select a rule to export">
-              <button disabled={!selectedRuleId}
-                className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            <TooltipBtn disabled={true} tooltip="Export rule configuration">
+              <button disabled
+                className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-500 cursor-not-allowed">
                 <Download className="w-4 h-4" /> Export
               </button>
             </TooltipBtn>
-            <TooltipBtn disabled={!selectedRuleId} tooltip="Select a rule to view its audit log">
-              <button disabled={!selectedRuleId}
+            <TooltipBtn disabled={!selectedRuleId} tooltip="View full audit log for this rule">
+              <button onClick={() => { if (selectedRuleId) { fetchAuditLog(selectedRuleId); } }} disabled={!selectedRuleId}
                 className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 <History className="w-4 h-4" /> Audit Log
               </button>
@@ -684,9 +919,9 @@ export default function ApprovalRulesPage() {
             {filteredRules.length === 0 ? (
               <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-6">
                 {activeTab === "active" ? (
-                  <EmptyState title="No active approval rules" body="Published rules will appear here once activated." action="Create Rule" onAction={buildNewRule} />
+                  <EmptyState title="No active approval rules" body="Published rules will appear here once activated." action="Create Rule" onAction={handleCreate} />
                 ) : activeTab === "drafts" ? (
-                  <EmptyState title="No draft rules" body="Draft rules that are being edited will appear here. Create a new rule to get started." action="Create Rule" onAction={buildNewRule} />
+                  <EmptyState title="No draft rules" body="Draft rules that are being edited will appear here. Create a new rule to get started." action="Create Rule" onAction={handleCreate} />
                 ) : activeTab === "needs-review" ? (
                   <EmptyState title="No rules awaiting review" body="Rules submitted for review will appear here until approved or sent back for changes." />
                 ) : activeTab === "high-risk" ? (
@@ -702,7 +937,7 @@ export default function ApprovalRulesPage() {
                 ) : activeTab === "conflicts" ? (
                   <EmptyState title="No rule conflicts detected" body="Rules with overlapping scope, missing approvers, authority gaps, or contradictory behavior will appear here." />
                 ) : (
-                  <EmptyState title="No approval rules created" body="Create approval rules to control who must approve content, replies, campaigns, AI agent actions, workflow outputs, and restricted operations before they proceed." action="Create Rule" onAction={buildNewRule} />
+                  <EmptyState title="No approval rules created" body="Create approval rules to control who must approve content, replies, campaigns, AI agent actions, workflow outputs, and restricted operations before they proceed." action="Create Rule" onAction={handleCreate} />
                 )}
               </div>
             ) : (
@@ -759,22 +994,19 @@ export default function ApprovalRulesPage() {
                       <button onClick={(e) => { e.stopPropagation(); setSelectedRuleId(rule.id); }} className="p-1 rounded text-slate-600 hover:text-white hover:bg-slate-800 transition-colors" title="Open Rule">
                         <Eye className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); }} className="p-1 rounded text-slate-600 hover:text-white hover:bg-slate-800 transition-colors" title="Clone">
+                      <button onClick={(e) => { e.stopPropagation(); handleClone(rule.id); }} className="p-1 rounded text-slate-600 hover:text-white hover:bg-slate-800 transition-colors" title="Clone">
                         <Copy className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); }} className="p-1 rounded text-slate-600 hover:text-white hover:bg-slate-800 transition-colors" title="Test">
+                      <button onClick={(e) => { e.stopPropagation(); handleRunSimulation(rule.id); }} className="p-1 rounded text-slate-600 hover:text-white hover:bg-slate-800 transition-colors" title="Test">
                         <TestTube className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); }} className="p-1 rounded text-slate-600 hover:text-amber-400 hover:bg-slate-800 transition-colors" title="Submit for Review">
+                      <button onClick={(e) => { e.stopPropagation(); handleSubmitForReview(rule.id); }} className="p-1 rounded text-slate-600 hover:text-amber-400 hover:bg-slate-800 transition-colors" title="Submit for Review">
                         <Send className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); }} className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-slate-800 transition-colors" title="View Conflicts">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); }} className="p-1 rounded text-slate-600 hover:text-blue-400 hover:bg-slate-800 transition-colors" title="View History">
+                      <button onClick={(e) => { e.stopPropagation(); fetchAuditLog(rule.id); }} className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-slate-800 transition-colors" title="View Audit Log">
                         <History className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); }} className="p-1 rounded text-slate-600 hover:text-rose-400 hover:bg-slate-800 transition-colors" title="Deactivate">
+                      <button onClick={(e) => { e.stopPropagation(); handleDeactivate(rule.id); }} className="p-1 rounded text-slate-600 hover:text-rose-400 hover:bg-slate-800 transition-colors" title="Deactivate">
                         <Ban className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -790,7 +1022,7 @@ export default function ApprovalRulesPage() {
         <div className="flex-1 min-w-0 space-y-4 max-h-[calc(100vh-180px)] overflow-y-auto">
           {!selectedRule ? (
             <div className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-8">
-              <EmptyState title="Select an approval rule" body="Choose a rule from the left panel to view and edit its configuration." action="Create Rule" onAction={buildNewRule} />
+              <EmptyState title="Select an approval rule" body="Choose a rule from the left panel to view and edit its configuration." action="Create Rule" onAction={handleCreate} />
             </div>
           ) : (
             <>
@@ -1063,7 +1295,7 @@ export default function ApprovalRulesPage() {
                     <Field label="Validation Status"><Select value="" onChange={() => {}} options={["Passed", "Warning", "Failed", "Blocked", "Stale"]} /></Field>
                     <Field label="Restricted Mode"><Select value="" onChange={() => {}} options={["Inactive", "Active"]} /></Field>
                   </div>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium transition-colors">
+                  <button onClick={() => handleRunSimulation(selectedRule.id)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium transition-colors">
                     <TestTube className="w-3.5 h-3.5" /> Run Simulation
                   </button>
                   <div className="mt-3 p-3 bg-black/40 rounded-lg border border-[#2d2d2d]">
@@ -1075,19 +1307,19 @@ export default function ApprovalRulesPage() {
                 <CollapsibleSection title="Version and Publishing" icon={Upload} badge={selectedRule.activeVersion ? `v${selectedRule.activeVersion}` : undefined}>
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <button disabled={selectedRule.status === "Active"} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-2">
+                      <button onClick={() => handlePublish(selectedRule.id)} disabled={selectedRule.status === "Active"} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-2">
                         <Upload className="w-3.5 h-3.5" /> Publish
                       </button>
-                      <button className="px-4 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-xs text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+                      <button onClick={() => handleClone(selectedRule.id)} className="px-4 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-xs text-slate-300 hover:text-white transition-colors flex items-center gap-2">
                         <Copy className="w-3.5 h-3.5" /> Clone
                       </button>
-                      <button className="px-4 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-xs text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+                      <button onClick={() => handleDeactivate(selectedRule.id)} className="px-4 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-xs text-slate-300 hover:text-white transition-colors flex items-center gap-2">
                         <Ban className="w-3.5 h-3.5" /> Deactivate
                       </button>
-                      <button className="px-4 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-xs text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+                      <button onClick={() => handleReactivate(selectedRule.id)} className="px-4 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-xs text-slate-300 hover:text-white transition-colors flex items-center gap-2">
                         <RefreshCcw className="w-3.5 h-3.5" /> Reactivate
                       </button>
-                      <button className="px-4 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-xs text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+                      <button onClick={() => handleArchive(selectedRule.id)} className="px-4 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-xs text-slate-300 hover:text-white transition-colors flex items-center gap-2">
                         <Archive className="w-3.5 h-3.5" /> Archive
                       </button>
                     </div>
@@ -1095,9 +1327,9 @@ export default function ApprovalRulesPage() {
                   </div>
                 </CollapsibleSection>
 
-                <CollapsibleSection title="Audit Trail" icon={History} badge={MOCK_AUDIT.length}>
+                <CollapsibleSection title="Audit Trail" icon={History} badge={ruleAuditLog.length || MOCK_AUDIT.length}>
                   <div className="space-y-2">
-                    {MOCK_AUDIT.map(a => (
+                    {(ruleAuditLog.length > 0 ? ruleAuditLog : MOCK_AUDIT).map(a => (
                       <div key={a.id} className="flex items-start gap-3 p-2.5 bg-black/40 rounded-lg border border-[#2d2d2d]">
                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -1206,9 +1438,34 @@ export default function ApprovalRulesPage() {
                   <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                     <TestTube className="w-3.5 h-3.5 text-indigo-400" /> Simulation Results
                   </h3>
-                  <div className="text-xs text-slate-500 p-3 bg-black/40 rounded-lg border border-[#2d2d2d] text-center">
-                    Run a simulation from the rule builder to preview matching behavior.
-                  </div>
+                  {simulationResult ? (
+                    <div className="space-y-2 text-xs">
+                      <div className={`px-3 py-2 rounded-lg border flex items-center gap-2 ${simulationResult.matched ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-amber-500/10 border-amber-500/20 text-amber-400"}`}>
+                        {simulationResult.matched ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                        <span className="font-medium">{simulationResult.matched ? "Rule Matched" : "No Match"}</span>
+                      </div>
+                      {simulationResult.matched_conditions?.length > 0 && (
+                        <div className="p-2 bg-black/40 rounded-lg border border-[#2d2d2d] space-y-1">
+                          <span className="text-[10px] text-slate-500 font-semibold">Matched Conditions</span>
+                          {simulationResult.matched_conditions.map((c: string, i: number) => (
+                            <div key={i} className="text-[10px] text-slate-300">{c}</div>
+                          ))}
+                        </div>
+                      )}
+                      {simulationResult.blocked_reasons?.length > 0 && (
+                        <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/20 space-y-1">
+                          <span className="text-[10px] text-red-400 font-semibold">Blocked</span>
+                          {simulationResult.blocked_reasons.map((r: string, i: number) => (
+                            <div key={i} className="text-[10px] text-red-300">{r}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500 p-3 bg-black/40 rounded-lg border border-[#2d2d2d] text-center">
+                      Run a simulation from the rule builder to preview matching behavior.
+                    </div>
+                  )}
                 </div>
 
                 {/* Matched Item Preview */}
@@ -1258,7 +1515,7 @@ export default function ApprovalRulesPage() {
                     <History className="w-3.5 h-3.5 text-indigo-400" /> Version History
                   </h3>
                   <div className="space-y-2">
-                    {MOCK_VERSIONS.map(v => (
+                    {(ruleVersions.length > 0 ? ruleVersions : MOCK_VERSIONS).map(v => (
                       <div key={v.id} className="flex items-start gap-2 p-2 bg-black/40 rounded-lg border border-[#2d2d2d]">
                         <div className="w-5 h-5 rounded bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-[10px] font-bold text-indigo-400 shrink-0">v{v.versionNumber}</div>
                         <div className="min-w-0">
@@ -1276,7 +1533,7 @@ export default function ApprovalRulesPage() {
                     <History className="w-3.5 h-3.5 text-indigo-400" /> Audit Trail
                   </h3>
                   <div className="space-y-2">
-                    {MOCK_AUDIT.slice(0, 3).map(a => (
+                    {(ruleAuditLog.length > 0 ? ruleAuditLog : MOCK_AUDIT).slice(0, 5).map(a => (
                       <div key={a.id} className="flex items-start gap-2 text-xs">
                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1 shrink-0" />
                         <div>
@@ -1285,7 +1542,6 @@ export default function ApprovalRulesPage() {
                         </div>
                       </div>
                     ))}
-                    <button className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors">View full audit trail →</button>
                   </div>
                 </div>
               </>
