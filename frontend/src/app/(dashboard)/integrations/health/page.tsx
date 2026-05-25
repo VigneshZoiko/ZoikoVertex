@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { api } from "@/lib/api";
 import {
   RefreshCw, CheckCircle2, AlertCircle, XCircle,
@@ -261,9 +262,9 @@ export default function HealthPage() {
                   <div key={acc.id} className="flex items-center gap-3 px-5 py-3.5">
                     {/* Avatar or platform initial */}
                     {acc.avatar_url ? (
-                      <img src={acc.avatar_url} alt={acc.account_name}
-                        className="w-9 h-9 rounded-full object-cover shrink-0 border border-[var(--border)]"
-                      />
+                      <div className="relative w-9 h-9 rounded-full overflow-hidden shrink-0 border border-[var(--border)]">
+                        <Image src={acc.avatar_url} alt={acc.account_name} fill className="object-cover" />
+                      </div>
                     ) : (
                       <div
                         className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"

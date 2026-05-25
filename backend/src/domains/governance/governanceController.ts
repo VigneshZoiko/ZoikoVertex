@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
@@ -20,6 +21,7 @@ const SubmitIntentSchema = z.object({
   mediaUrls: z.array(z.string()).optional(),
   mediaUrl: z.string().optional(),
   targetAccountIds: z.array(z.string().uuid()).min(1, 'At least one target account required'),
+  campaign_id: z.string().uuid().nullable().optional(),
 });
 
 export const submitIntent = async (
@@ -28,8 +30,8 @@ export const submitIntent = async (
   next: NextFunction,
 ) => {
   try {
-    const { content, mediaUrls, mediaUrl, targetAccountIds } = SubmitIntentSchema.parse(req.body);
-    const platformPostTypes: Record<string, string> = req.body.platformPostTypes || {};
+    const { content, mediaUrls, mediaUrl, targetAccountIds, campaign_id } = SubmitIntentSchema.parse(req.body);
+    const platformPostTypes: Record<string, string | string[]> = req.body.platformPostTypes || {};
     const userId = req.user?.id;
 
     if (!userId) {
@@ -54,29 +56,36 @@ export const submitIntent = async (
 
     if (accError) throw accError;
 
-    const intentsToCreate = accounts.map((acc) => {
-      let finalCaption = content.universal;
-      if (content.platforms && content.platforms[acc.platform]) {
-        finalCaption = content.platforms[acc.platform];
-      }
-      const postType = platformPostTypes[acc.platform] || null;
+    // story/idea formats suppress captions — platform doesn't display them
+    const NO_CAPTION_FORMATS = new Set(['story', 'idea', 'idea-pin', 'idea_pin']);
 
-      return {
+    const intentsToCreate = accounts.flatMap((acc) => {
+      // Case-insensitive lookup: DB stores platform as lowercase, frontend keys may vary
+      const platformKey = Object.keys(content.platforms || {}).find(
+        k => k.toLowerCase() === acc.platform.toLowerCase()
+      );
+      const finalCaption = (platformKey && content.platforms![platformKey]?.trim())
+        ? content.platforms![platformKey]
+        : content.universal;
+
+      const rawFormats = platformPostTypes[acc.platform];
+      const formats: (string | null)[] = Array.isArray(rawFormats)
+        ? (rawFormats.length > 0 ? rawFormats : [null])
+        : rawFormats
+          ? [rawFormats]
+          : [null];
+
+      return formats.map(postType => ({
         workspace_id: targetWorkspaceId,
         creator_id: userId,
         target_account_ids: [acc.id],
-        content: finalCaption,
+        content: (postType && NO_CAPTION_FORMATS.has(postType.toLowerCase())) ? '' : finalCaption,
         media_urls: urlsToSave,
         media_url: urlsToSave[0] || null,
-        status: 'APPROVED',
+        status: 'PUBLISHED',
         platform: acc.platform,
-        // post_type stored in risk_factors metadata until a dedicated column is migrated
-        risk_level: 'LOW',
-        risk_score: 0,
-        risk_factors: postType ? [{ type: 'post_type', value: postType }] : [],
-        requires_approval: false,
-        approval_level: 'AUTO_APPROVE',
-      };
+        ...(campaign_id ? { campaign_id } : {}),
+      }));
     });
 
     const { data, error } = await supabaseAdmin
@@ -84,22 +93,31 @@ export const submitIntent = async (
       .insert(intentsToCreate)
       .select();
 
-    if (error) throw error;
+    if (error) {
+      logger.error({ error, sample: intentsToCreate[0] }, '[Governance] publish_intents insert failed');
+      return res.status(500).json({
+        success: false,
+        error: error.message || 'Insert failed',
+        detail: (error as any).details || (error as any).hint || null,
+      });
+    }
 
     // Fire execution immediately for all intents
     for (const intent of data) {
       internalEventBus.emit('execution.requested', { intentId: intent.id });
     }
 
-    await logAuditEvent({
-      workspaceId: targetWorkspaceId,
-      actorId: userId,
-      actorType: 'USER',
-      action: `Directly publishing ${data.length} intents (testing mode)`,
-      objectType: 'PUBLISH_INTENT',
-      module: 'Governance',
-      metadata: { count: data.length },
-    });
+    try {
+      await logAuditEvent({
+        workspaceId: targetWorkspaceId,
+        actorId: userId,
+        actorType: 'USER',
+        action: `Directly publishing ${data.length} intents (testing mode)`,
+        objectType: 'PUBLISH_INTENT',
+        module: 'Governance',
+        metadata: { count: data.length },
+      });
+    } catch { /* audit log failure must never block publish */ }
 
     res.status(200).json({
       success: true,
@@ -398,7 +416,21 @@ export const getQueue = async (
     } else if (role === 'CREATOR') {
       query = query.eq('creator_id', userId).eq('status', 'RETURNED');
     } else {
-      query = query.eq('status', `PENDING_${role}`);
+      // Fetch all pending and filter in JS to avoid invalid enum errors
+      const { data: allData, error: allErr } = await supabaseAdmin
+        .from('publish_intents')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (allErr) {
+        if ((allErr as any).code === '42P01') return res.status(200).json({ success: true, data: [] });
+        throw allErr;
+      }
+
+      const pending = (allData || []).filter((r: any) =>
+        typeof r.status === 'string' && r.status.startsWith('PENDING_')
+      );
+      return res.status(200).json({ success: true, data: pending });
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
