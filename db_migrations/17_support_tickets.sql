@@ -25,20 +25,24 @@ CREATE INDEX IF NOT EXISTS idx_support_tickets_created ON support_tickets (creat
 ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 
 -- Users can see their own tickets
+DROP POLICY IF EXISTS "Users can view own tickets" ON support_tickets;
 CREATE POLICY "Users can view own tickets" ON support_tickets
     FOR SELECT USING (auth.uid() = user_id);
 
 -- Users can create tickets
+DROP POLICY IF EXISTS "Users can create tickets" ON support_tickets;
 CREATE POLICY "Users can create tickets" ON support_tickets
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- SuperAdmin can read all tickets
+DROP POLICY IF EXISTS "SuperAdmin can read all tickets" ON support_tickets;
 CREATE POLICY "SuperAdmin can read all tickets" ON support_tickets
     FOR SELECT USING (
         EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND is_superadmin = true)
     );
 
 -- SuperAdmin can update any ticket
+DROP POLICY IF EXISTS "SuperAdmin can update any ticket" ON support_tickets;
 CREATE POLICY "SuperAdmin can update any ticket" ON support_tickets
     FOR UPDATE USING (
         EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND is_superadmin = true)
@@ -53,6 +57,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_support_tickets_updated_at ON support_tickets;
 CREATE TRIGGER trg_support_tickets_updated_at
     BEFORE UPDATE ON support_tickets
     FOR EACH ROW
