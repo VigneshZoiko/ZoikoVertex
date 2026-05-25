@@ -117,6 +117,8 @@ export default function RiskIntakePage() {
   const [creatingManual, setCreatingManual] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  const [now, setNow] = useState(Date.now);
+
   // Fetch Signals & Actions History
   const fetchTriageData = async (silent = false) => {
     if (!silent) setIsRefreshing(true);
@@ -141,8 +143,12 @@ export default function RiskIntakePage() {
   };
 
   useEffect(() => {
+    setNow(Date.now());
     fetchTriageData();
-    const interval = setInterval(() => fetchTriageData(true), 45000); // 45s pool
+    const interval = setInterval(() => {
+      setNow(Date.now());
+      fetchTriageData(true);
+    }, 45000); // 45s pool
     return () => clearInterval(interval);
   }, []);
 
@@ -362,7 +368,7 @@ export default function RiskIntakePage() {
   const breachedCount = signals.filter(s => {
     const statusStr = s.status || '';
     if (statusStr.startsWith("Needs") || statusStr === "Classified") {
-      return new Date(s.sla_due_at).getTime() < Date.now();
+      return new Date(s.sla_due_at).getTime() < now;
     }
     return false;
   }).length;
@@ -610,7 +616,7 @@ export default function RiskIntakePage() {
                 <tbody className="divide-y divide-[#1e1e1e]">
                   {filteredSignals.length > 0 ? (
                     filteredSignals.map((sig) => {
-                      const isBreached = new Date(sig.sla_due_at).getTime() < Date.now();
+                      const isBreached = new Date(sig.sla_due_at).getTime() < now;
                       return (
                         <tr 
                           key={sig.id} 
@@ -963,7 +969,7 @@ export default function RiskIntakePage() {
                   }`} />
                   <span className="font-bold text-white uppercase">{act.action_type}</span>
                   <span className="text-[#888] font-medium">{act.agent_safety_signals?.signal_id || "Case"}</span>
-                  <span className="text-[#666] truncate max-w-[150px]" title={act.reason}>"{act.reason}"</span>
+                   <span className="text-[#666] truncate max-w-[150px]" title={act.reason}>{"\u201C"}{act.reason}{"\u201D"}</span>
                   <span className="text-[9px] font-mono text-[#555] ml-1">{act.audit_event_id}</span>
                 </div>
               ))

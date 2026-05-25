@@ -295,7 +295,7 @@ export default function SafetyOverviewPage() {
       {isDegraded && (
         <div className="bg-rose-500/10 border-b border-rose-500/30 text-rose-400 py-3 px-4 text-center text-sm font-semibold flex items-center justify-center gap-2 animate-pulse">
           <AlertOctagon className="w-5 h-5 flex-shrink-0" />
-          <span>SAFETY LAYER DEGRADED: All material operations are locked. System defaulting to fail-closed "hold-for-review" mode.</span>
+           <span>SAFETY LAYER DEGRADED: All material operations are locked. System defaulting to fail-closed &ldquo;hold-for-review&rdquo; mode.</span>
         </div>
       )}
 

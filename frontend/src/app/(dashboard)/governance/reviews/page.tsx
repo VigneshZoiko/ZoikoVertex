@@ -65,6 +65,8 @@ export default function HumanReviewConsolePage() {
   // Downstream Preview logic
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
 
+  const [now, setNow] = useState(Date.now);
+
   const fetchQueue = async () => {
     try {
       const res = await api.get("/api/safety/reviews");
@@ -92,8 +94,12 @@ export default function HumanReviewConsolePage() {
   };
 
   useEffect(() => {
+    setNow(Date.now());
     fetchQueue();
-    const interval = setInterval(fetchQueue, 30000); // 30s auto-refresh
+    const interval = setInterval(() => {
+      setNow(Date.now());
+      fetchQueue();
+    }, 30000); // 30s auto-refresh
     return () => clearInterval(interval);
   }, []);
 
@@ -135,7 +141,6 @@ export default function HumanReviewConsolePage() {
 
   const getSlaStatus = (dueAt: string) => {
     const due = new Date(dueAt).getTime();
-    const now = Date.now();
     const diff = due - now;
     
     if (diff < 0) return { text: "BREACHED", color: "text-rose-500 bg-rose-500/10 border-rose-500/20 animate-pulse" };
@@ -145,7 +150,6 @@ export default function HumanReviewConsolePage() {
 
   const formatTimeDiff = (dueAt: string) => {
     const due = new Date(dueAt).getTime();
-    const now = Date.now();
     const diff = Math.abs(due - now);
     
     const mins = Math.floor(diff / 60000);
@@ -239,7 +243,7 @@ export default function HumanReviewConsolePage() {
                   </div>
                   <div className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[9px] font-bold ${sla.color}`}>
                     <Clock className="w-3 h-3" />
-                    {new Date(item.sla_due_at).getTime() < Date.now() ? '-' : ''}{formatTimeDiff(item.sla_due_at)}
+                    {new Date(item.sla_due_at).getTime() < now ? '-' : ''}{formatTimeDiff(item.sla_due_at)}
                   </div>
                 </div>
 
@@ -301,7 +305,7 @@ export default function HumanReviewConsolePage() {
                   <span className="text-[10px] text-[#666] font-mono">Autonomy Band: {selectedItem.autonomy_band}</span>
                 </div>
                 <div className="p-6 text-sm text-white font-serif leading-relaxed italic border-l-4 border-amber-500/50 bg-[#151515]">
-                  "{selectedItem.content_preview}"
+                  {"\u201C"}{selectedItem.content_preview}{"\u201D"}
                 </div>
               </div>
 
