@@ -185,6 +185,7 @@ import { SuperAdminController } from './domains/admin/superAdminController';
 import { SupportController } from './domains/admin/supportController';
 import { getUserContext } from './domains/identity/userController';
 import { listAccounts } from './domains/channels/accountsController';
+import { getPlatformReach } from './domains/channels/platformInsightsController';
 import { listMembers, listRequests, createRequest, updateRequest, deleteMember } from './domains/identity/teamController';
 import { listUnits, createUnit, deleteUnit } from './domains/identity/unitsController';
 import { performQualityCheck, listAuditItems, getAuditItem, getQaAuditStats, getAuditEligibility, getQaAuditTrail, startAudit, passAudit, failAudit, needsCorrection, escalateAudit, closeAudit, assignAuditorToItem, saveScorecard, overrideScorecard, addDefect, resolveDefect, addCorrectiveAction, updateCorrectiveAction, addQaNote, addQaEvidence, generateSample } from './domains/governance/qaController';
@@ -684,6 +685,7 @@ app.get('/api/v1/workspace/data-export', authenticate, requireRole('ADMIN', 'WOR
 // Workspace Settings Routes
 // Protected Account Routes
 app.get('/api/v1/accounts', authenticate, listAccounts);
+app.get('/api/v1/analytics/platform-reach', authenticate, getPlatformReach);
 
 // Protected Team Routes
 app.get('/api/v1/team/members', authenticate, listMembers);

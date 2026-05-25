@@ -301,7 +301,7 @@ export default function AccountsPage() {
       if (platformId === "facebook" || platformId === "instagram") {
         const appId = process.env.NEXT_PUBLIC_META_APP_ID || "989391590153112";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/facebook/callback`);
-        const scope = ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","pages_read_user_content","pages_messaging","pages_manage_engagement","instagram_basic","instagram_content_publish","instagram_manage_messages","instagram_manage_comments","business_management"].join(",");
+        const scope = ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","pages_read_user_content","pages_manage_engagement","read_insights","instagram_basic","instagram_content_publish","instagram_manage_comments","instagram_manage_insights","business_management"].join(",");
         const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: platformId }));
         window.location.assign(`https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`);
       } else if (platformId === "linkedin") {
@@ -335,13 +335,13 @@ export default function AccountsPage() {
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/threads/callback`);
         const state = encodeURIComponent(JSON.stringify({ workspaceId }));
-        window.location.assign(`https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=threads_basic,threads_content_publish,threads_manage_replies,threads_read_replies&state=${state}&response_type=code`);
+        window.location.assign(`https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=threads_basic,threads_content_publish,threads_manage_replies,threads_read_replies,threads_manage_insights&state=${state}&response_type=code`);
       } else if (platformId === "twitter") {
         const clientId = process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "ZGtmZHMxdUJWU3BMUS15VXpjVXk6MTpjaQ";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/twitter/callback`);
         const codeChallenge = "zoikovertex_twitter_oauth2_pkce_plain_challenge_string";
         const state = encodeURIComponent(workspaceId);
-        const scope = encodeURIComponent("tweet.read tweet.write users.read offline.access");
+        const scope = encodeURIComponent("tweet.read tweet.write dm.read dm.write users.read media.write offline.access");
         window.location.assign(`https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=plain`);
       } else if (platformId === "youtube") {
         const clientId = process.env.NEXT_PUBLIC_YOUTUBE_CLIENT_ID || "";
@@ -352,7 +352,7 @@ export default function AccountsPage() {
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/youtube/callback`);
         const state = encodeURIComponent(workspaceId);
-        const scope = encodeURIComponent("https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.force-ssl");
+        const scope = encodeURIComponent("https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/yt-analytics.readonly");
         window.location.assign(`https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`);
       } else {
         setError(`${platformId.charAt(0).toUpperCase() + platformId.slice(1)} integration is coming soon.`);

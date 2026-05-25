@@ -554,6 +554,44 @@ export const createReply = async (req: AuthRequest, res: Response, next: NextFun
       }
     }
 
+    if (msg.platform_message_id && msg.platform === 'TWITTER') {
+      const { data: account } = await supabaseAdmin
+        .from('connected_accounts')
+        .select('access_token')
+        .eq('workspace_id', workspaceId)
+        .eq('platform', 'twitter')
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (account?.access_token) {
+        try {
+          const twUrl = msg.message_type === 'DM'
+            ? `https://api.x.com/2/dm_conversations/${msg.platform_message_id}/messages`
+            : 'https://api.x.com/2/tweets';
+          const twBody = msg.message_type === 'DM'
+            ? { text: reply_body }
+            : { text: reply_body, reply: { in_reply_to_tweet_id: msg.platform_message_id } };
+          const twFetch = await fetch(twUrl, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${account.access_token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(twBody),
+          });
+          const twitterData: any = await twFetch.json();
+          if (twFetch.ok && !twitterData.errors) {
+            replyStatus = 'sent';
+          } else {
+            metaError = twitterData.errors?.[0]?.message || twitterData.detail || 'Twitter API error';
+            console.error(`[Inbox] Twitter reply failed: ${metaError}`);
+          }
+        } catch (err: any) {
+          metaError = err.message;
+          console.error(`[Inbox] Twitter reply error: ${err.message}`);
+        }
+      } else {
+        console.warn(`[Inbox] No active Twitter account found for workspace=${workspaceId}`);
+      }
+    }
+
     const { data: reply, error } = await supabaseAdmin
       .from('inbox_replies')
       .insert({
@@ -965,7 +1003,7 @@ async function graphGet(path: string, token: string, params: Record<string, stri
 
 const PLACEHOLDER_NAMES = new Set(['Facebook User', 'Instagram User', 'Threads User', 'YouTube User', 'LinkedIn User']);
 
-async function insertMessageIfNew(workspaceId: string, payload: Record<string, unknown>): Promise<boolean> {
+async function insertMessageIfNew(workspaceId: string, payload: Record<string, unknown>): Promise<string> {
   const { data: existing } = await supabaseAdmin
     .from('inbox_messages')
     .select('id, sender_name')
@@ -982,15 +1020,15 @@ async function insertMessageIfNew(workspaceId: string, payload: Record<string, u
         sender_handle: payload.sender_handle || existing.sender_name,
       }).eq('id', existing.id);
     }
-    return false;
+    return 'exists';
   }
 
   const { error } = await supabaseAdmin.from('inbox_messages').insert({ workspace_id: workspaceId, ...payload });
   if (error) {
     console.error('[Inbox] insert error:', error.message, '| keys:', Object.keys(payload).join(','));
-    return false;
+    return `error:${error.message}`;
   }
-  return true;
+  return 'new';
 }
 
 async function refreshYouTubeToken(accountId: string, refreshToken: string): Promise<string | null> {
@@ -1025,13 +1063,13 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
 
     const { data: accounts } = await supabaseAdmin
       .from('connected_accounts')
-      .select('id, platform, account_handle, access_token, refresh_token, account_name')
+      .select('id, platform, account_handle, page_id, access_token, refresh_token, account_name')
       .eq('workspace_id', workspaceId)
-      .in('platform', ['instagram', 'facebook', 'threads', 'youtube'])
+      .in('platform', ['instagram', 'facebook', 'threads', 'youtube', 'twitter'])
       .eq('status', 'active');
 
     if (!accounts || accounts.length === 0) {
-      return res.json({ success: true, message: 'No Instagram, Facebook, Threads, or YouTube accounts connected. Go to Accounts and connect them first.', synced: 0 });
+      return res.json({ success: true, message: 'No social accounts connected. Go to Accounts and connect them first.', synced: 0 });
     }
 
     let totalSynced = 0;
@@ -1066,11 +1104,33 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
       const platform = account.platform as string;
 
       try {
-        // Validate token is alive before syncing
-        const tokenCheck = await graphGet('/me', token, { fields: 'id' });
-        if (tokenCheck.error) {
-          syncErrors.push(`[${platform}] ${account.account_name}: token invalid — ${tokenCheck.error.message}. Reconnect this account.`);
-          continue;
+        // Validate token — only Meta platforms use the Graph API /me check
+        if (['instagram', 'facebook', 'threads'].includes(platform)) {
+          const tokenCheck = await graphGet('/me', token, { fields: 'id' });
+          if (tokenCheck.error) {
+            syncErrors.push(`[${platform}] ${account.account_name}: token invalid — ${tokenCheck.error.message}. Reconnect this account.`);
+            continue;
+          }
+        }
+        if (platform === 'youtube') {
+          const ytCheck = await fetch('https://www.googleapis.com/youtube/v3/channels?part=id&mine=true', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const ytData: any = await ytCheck.json();
+          if (ytData.error) {
+            syncErrors.push(`[youtube] ${account.account_name}: token invalid — ${ytData.error.message}. Reconnect this account.`);
+            continue;
+          }
+        }
+        if (platform === 'twitter') {
+          const twCheck = await fetch('https://api.x.com/2/users/me', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const twData: any = await twCheck.json();
+          if (!twCheck.ok || twData.errors) {
+            syncErrors.push(`[twitter] ${account.account_name}: token invalid — ${twData.errors?.[0]?.message || twData.title || 'auth failed'}. Reconnect this account.`);
+            continue;
+          }
         }
 
         if (platform === 'instagram') {
@@ -1107,7 +1167,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   sentiment: 'NEUTRAL',
                   received_at: msg.created_time || new Date().toISOString(),
                 });
-                if (inserted) totalSynced++;
+                if (inserted === 'new') totalSynced++;
               }
             }
           }
@@ -1146,7 +1206,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   sentiment: 'NEUTRAL',
                   received_at: comment.timestamp || new Date().toISOString(),
                 });
-                if (inserted) totalSynced++;
+                if (inserted === 'new') totalSynced++;
               }
             }
           }
@@ -1182,7 +1242,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   sentiment: 'NEUTRAL',
                   received_at: msg.created_time || new Date().toISOString(),
                 });
-                if (inserted) totalSynced++;
+                if (inserted === 'new') totalSynced++;
               }
             }
           }
@@ -1221,7 +1281,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   sentiment: 'NEUTRAL',
                   received_at: comment.created_time || new Date().toISOString(),
                 });
-                if (inserted) totalSynced++;
+                if (inserted === 'new') totalSynced++;
               }
             }
             syncErrors.push(`[fb-debug] ${account.account_name}: ${postCount} posts, ${commentCount} total comments found`);
@@ -1291,7 +1351,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   received_at: timestamp,
                 });
                 threadsDiag.push(`  reply ${replyId} from @${username}: inserted=${inserted}`);
-                if (inserted) totalSynced++;
+                if (inserted === 'new') totalSynced++;
               }
             }
           }
@@ -1399,12 +1459,89 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                     received_at: publishedAt,
                   });
                   ytDiag.push(`  comment ${commentId} from "${authorName}": inserted=${inserted}`);
-                  if (inserted) totalSynced++;
+                  if (inserted === 'new') totalSynced++;
                 }
               }
             }
           }
           syncErrors.push(...ytDiag.map(d => `[YouTube debug] ${d}`));
+        }
+
+        // ── Twitter / X ────────────────────────────────────────────────────────
+        if (platform === 'twitter') {
+          const twDiag: string[] = [];
+          const twitterUserId = account.page_id as string | null;
+          twDiag.push(`Twitter user ID: ${twitterUserId || 'MISSING'}`);
+          if (!twitterUserId) {
+            syncErrors.push(`Twitter (${account.account_name}): numeric user ID missing — reconnect this account to fix`);
+          } else {
+            // Mentions (last 10)
+            const mentionsRes = await fetch(
+              `https://api.x.com/2/users/${twitterUserId}/mentions?max_results=10&tweet.fields=author_id,created_at,conversation_id,in_reply_to_user_id&expansions=author_id&user.fields=name,username,profile_image_url`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            const mentionsData: any = await mentionsRes.json();
+            twDiag.push(`mentions HTTP ${mentionsRes.status}: ${JSON.stringify(mentionsData).slice(0, 200)}`);
+            if (mentionsData.errors || !mentionsRes.ok) {
+              syncErrors.push(`Twitter mentions (${account.account_name}): ${mentionsData.errors?.[0]?.detail || mentionsData.title || mentionsRes.status}`);
+            } else {
+              twDiag.push(`mentions found: ${mentionsData.data?.length ?? 0}`);
+              const usersMap: Record<string, any> = {};
+              for (const u of (mentionsData.includes?.users || [])) usersMap[u.id] = u;
+              for (const tweet of (mentionsData.data || [])) {
+                const author = usersMap[tweet.author_id] || {};
+                const inserted = await insertMessageIfNew(workspaceId, {
+                  platform: 'TWITTER',
+                  platform_message_id: tweet.id,
+                  sender_name: author.name || author.username || 'Twitter User',
+                  sender_handle: author.username ? `@${author.username}` : tweet.author_id,
+                  sender_avatar_url: author.profile_image_url?.replace('_normal', '') ?? null,
+                  message_type: 'MENTION',
+                  message_body: tweet.text,
+                  original_post_id: tweet.conversation_id || tweet.id,
+                  status: 'UNREAD',
+                  risk_level: 'LOW',
+                  sentiment: 'NEUTRAL',
+                  received_at: tweet.created_at || new Date().toISOString(),
+                });
+                twDiag.push(`tweet ${tweet.id} "${tweet.text?.slice(0, 30)}": ${inserted}`);
+                if (inserted === 'new') totalSynced++;
+              }
+            }
+
+            // DMs (last 50 events across all conversations)
+            const dmRes = await fetch(
+              `https://api.x.com/2/dm_events?dm_event.fields=id,text,created_at,sender_id,dm_conversation_id&expansions=sender_id&user.fields=name,username,profile_image_url&max_results=50&event_types=MessageCreate`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            const dmData: any = await dmRes.json();
+            if (dmData.errors || !dmRes.ok) {
+              syncErrors.push(`Twitter DMs (${account.account_name}): ${dmData.errors?.[0]?.detail || dmData.title || dmRes.status}`);
+            } else {
+              const dmUsersMap: Record<string, any> = {};
+              for (const u of (dmData.includes?.users || [])) dmUsersMap[u.id] = u;
+              for (const event of (dmData.data || [])) {
+                // Skip messages sent by this account
+                if (event.sender_id === twitterUserId) continue;
+                const sender = dmUsersMap[event.sender_id] || {};
+                const inserted = await insertMessageIfNew(workspaceId, {
+                  platform: 'TWITTER',
+                  platform_message_id: event.dm_conversation_id,
+                  sender_name: sender.name || sender.username || 'Twitter User',
+                  sender_handle: sender.username ? `@${sender.username}` : event.sender_id,
+                  sender_avatar_url: sender.profile_image_url?.replace('_normal', '') ?? null,
+                  message_type: 'DM',
+                  message_body: event.text || '',
+                  status: 'UNREAD',
+                  risk_level: 'LOW',
+                  sentiment: 'NEUTRAL',
+                  received_at: event.created_at || new Date().toISOString(),
+                });
+                if (inserted === 'new') totalSynced++;
+              }
+            }
+          }
+          syncErrors.push(...twDiag.map(d => `[twitter debug] ${d}`));
         }
 
       } catch (err) {
@@ -1414,7 +1551,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
 
     await logInboxAudit('system', workspaceId, userId, `Platform sync: ${totalSynced} new messages from ${accounts.length} account(s)`);
 
-    const isDebugLine = (e: string) => e.startsWith('[Threads debug]') || e.startsWith('[YouTube debug]') || e.startsWith('[fb-debug]');
+    const isDebugLine = (e: string) => e.startsWith('[Threads debug]') || e.startsWith('[YouTube debug]') || e.startsWith('[fb-debug]') || e.startsWith('[twitter debug]');
     res.json({
       success: true,
       synced: totalSynced,

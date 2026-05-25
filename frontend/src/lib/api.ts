@@ -327,4 +327,8 @@ export const api = {
   async getInboxPostPreview(messageId: string) {
     return this.get(`/api/v1/inbox/messages/${messageId}/post-preview`);
   },
+
+  async getPlatformReach() {
+    return this.get('/api/v1/analytics/platform-reach');
+  },
 };

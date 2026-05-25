@@ -561,9 +561,9 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
     });
     const profileData = await profileResponse.json();
 
-    if (profileData.errors) {
-      logger.error({ details: profileData.errors }, '[Social] Twitter profile fetch failed');
-      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Failed to fetch Twitter profile')}`);
+    if (profileData.errors || !profileData.data) {
+      logger.error({ details: profileData.errors ?? profileData }, '[Social] Twitter profile fetch failed');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Failed to fetch Twitter profile — ensure users.read scope is granted')}`);
     }
 
     const user = profileData.data;
@@ -573,7 +573,8 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
       platform: 'twitter',
       account_name: user.name || user.username,
       account_handle: user.username,
-      avatar_url: user.profile_image_url,
+      page_id: user.id,
+      avatar_url: user.profile_image_url?.replace('_normal', '') ?? null,
       access_token: accessToken,
       status: 'active',
       token_expires_at: tokenData.expires_in
