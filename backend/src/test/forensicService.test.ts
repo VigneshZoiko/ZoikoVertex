@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { mockSupabaseNext, mockSupabaseClear, createMockCase, createMockEvidence, createMockAction, createMockNote, createMockTask, createMockExport, createMockSubscription } from './setup';
 
 import * as forensicService from '../services/forensicHub.service';

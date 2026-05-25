@@ -149,7 +149,6 @@ export async function listEvidence(req: AuthRequest, res: Response, next: NextFu
 
 export async function pinEvidence(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const caseId = req.params.caseId as string;
     const evidenceId = req.params.evidenceId as string;
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'reason is required' });

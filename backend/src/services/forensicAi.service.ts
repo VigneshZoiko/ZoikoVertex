@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '../shared/supabase';
-import { getCase, getEnhancedTimeline, listEvidence, listActions, listNotes, listTasks, CaseNote } from './forensicHub.service';
+import { getCase, getEnhancedTimeline, listEvidence, listActions, listTasks } from './forensicHub.service';
 import { emitForensicAuditEvent } from './forensicHub.service';
-import { createSubscription, deliverToSubscription } from './auditTrailStreaming.service';
+import { deliverToSubscription } from './auditTrailStreaming.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,13 +25,12 @@ export async function generateCaseSummary(caseId: string, actorId: string): Prom
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
 
-  const [evidence, actions, timeline, tasks, notes] = await Promise.all([
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [evidence, _actions, timeline, tasks, _notes] = await Promise.all([
     listEvidence(caseId), listActions(caseId),
     getEnhancedTimeline(caseId), listTasks(caseId),
     supabaseAdmin.from('case_notes').select('*').eq('case_id', caseId).order('created_at', { ascending: false }),
   ]);
-
-  const allNotes: CaseNote[] = notes.data || [];
 
   // Build structured content with citations
   const sections: string[] = [];
@@ -153,7 +152,7 @@ export async function listAiSummaries(caseId: string): Promise<AiSummary[]> {
 
 // ─── Timeline Explanation ─────────────────────────────────────────────────────
 
-export async function generateTimelineExplanation(caseId: string, actorId: string): Promise<string> {
+export async function generateTimelineExplanation(caseId: string, _actorId: string): Promise<string> {
   const timeline = await getEnhancedTimeline(caseId);
   if (timeline.length === 0) return 'No timeline events to explain.';
 
@@ -197,7 +196,8 @@ export async function generateTimelineExplanation(caseId: string, actorId: strin
 // ─── Anomaly Detection ────────────────────────────────────────────────────────
 
 export async function detectAnomalies(caseId: string, actorId: string): Promise<AnomalyResult[]> {
-  const [evidence, actions, timeline] = await Promise.all([
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [evidence, actions, _timeline] = await Promise.all([
     listEvidence(caseId), listActions(caseId), getEnhancedTimeline(caseId),
   ]);
 
@@ -291,7 +291,8 @@ export async function generateRecommendations(caseId: string, actorId: string): 
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
 
-  const [evidence, tasks, actions, timeline] = await Promise.all([
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [evidence, tasks, _actions, timeline] = await Promise.all([
     listEvidence(caseId), listTasks(caseId), listActions(caseId), getEnhancedTimeline(caseId),
   ]);
 

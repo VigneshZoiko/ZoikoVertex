@@ -184,7 +184,6 @@ import { listAccounts } from './domains/channels/accountsController';
 import { listMembers, listRequests, createRequest, updateRequest, deleteMember } from './domains/identity/teamController';
 import { listUnits, createUnit, deleteUnit } from './domains/identity/unitsController';
 import { performQualityCheck, listAuditItems, getAuditItem, getQaAuditStats, getAuditEligibility, getQaAuditTrail, startAudit, passAudit, failAudit, needsCorrection, escalateAudit, closeAudit, assignAuditorToItem, saveScorecard, overrideScorecard, addDefect, resolveDefect, addCorrectiveAction, updateCorrectiveAction, addQaNote, addQaEvidence, generateSample } from './domains/governance/qaController';
-import { listExceptions as listExceptionsLegacy, resolveException as resolveExceptionLegacy } from './domains/governance/exceptionController';
 import {
   createException, listExceptions, getException, updateException,
   getExceptionStats, assignOwner, updateSeverity, updateStatus,
@@ -265,8 +264,7 @@ import {
   getApprovalEvidence, addApprovalEvidence, getApprovalAuditTrail,
   exportApprovalRecord, retryCallback,
 } from './domains/decisions/approvalV2Controller';
-import { authenticate, provisionGuard, scopeGuard, AuthRequest } from './shared/authMiddleware';
-import { supabaseAdmin } from './shared/supabase';
+import { authenticate, provisionGuard, scopeGuard } from './shared/authMiddleware';
 import { integrationPlanGate, blockApiKeyUsers, planRateLimit } from './shared/planLimits';
 import { requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';

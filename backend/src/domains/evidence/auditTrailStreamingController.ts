@@ -9,7 +9,6 @@ import {
   getSubscription,
   deleteSubscription,
   deliverToSubscription,
-  SubscriptionType,
 } from '../../services/auditTrailStreaming.service';
 
 export async function subscribeSSE(req: AuthRequest, res: Response, next: NextFunction) {

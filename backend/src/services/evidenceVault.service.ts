@@ -616,8 +616,6 @@ interface CreatePackageParams {
 
 export async function createPackage(params: CreatePackageParams): Promise<VaultPackage> {
   const packageId = generatePackageId();
-  const now = new Date().toISOString();
-
   const { data, error } = await supabaseAdmin.from('vault_packages').insert({
     package_id: packageId,
     workspace_id: params.workspace_id,
@@ -829,7 +827,6 @@ export async function createExport(params: CreateExportParams): Promise<VaultExp
   if (pkg.status !== 'sealed') throw new Error('Package must be sealed before export');
 
   const exportId = generateExportId();
-  const now = new Date().toISOString();
 
   const { data, error } = await supabaseAdmin.from('vault_exports').insert({
     export_id: exportId,

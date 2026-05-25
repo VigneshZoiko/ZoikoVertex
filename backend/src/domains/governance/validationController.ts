@@ -135,7 +135,7 @@ export const requestRevision = async (req: AuthRequest, res: Response, next: Nex
   try {
     const tenant_id = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
     const performed_by = req.user?.id || tenant_id;
-    const { revision_instruction, owner } = req.body;
+    const { revision_instruction } = req.body;
     if (!revision_instruction) return res.status(400).json({ success: false, message: 'Revision instruction required' });
 
     await validationService.updateValidationStatus(getParamId(req), 'NEEDS_REVISION', performed_by, tenant_id);

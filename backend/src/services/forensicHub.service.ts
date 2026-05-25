@@ -366,7 +366,6 @@ export async function preserveToVault(params: {
   if (toPreserve.length === 0) throw new Error('No unpreserved evidence matching the given IDs');
 
   // Create manifest
-  const hashes = toPreserve.map(e => e.hash || e.source_id).join(',');
   const manifestId = `MAN-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`.toUpperCase();
 
   // Mark evidence as preserved
@@ -1147,7 +1146,7 @@ export async function approveExport(exportId: string, actorId: string): Promise<
   return updated;
 }
 
-export async function rejectExport(exportId: string, reason: string, actorId: string): Promise<CaseExport> {
+export async function rejectExport(exportId: string, reason: string, _actorId: string): Promise<CaseExport> {
   const { data: exp } = await supabaseAdmin.from('case_exports').select('*').eq('id', exportId).single();
   if (!exp) throw new Error('Export not found');
   if (exp.status !== 'pending_approval') throw new Error(`Cannot reject export in status: ${exp.status}`);

@@ -69,7 +69,7 @@ export default function IdentityLedgerDashboard() {
     fetchData();
   }, [activeTab]);
 
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true);
     try {
       if (activeTab === "actors") {
@@ -84,7 +84,7 @@ export default function IdentityLedgerDashboard() {
       }
     } catch { /* ignore */ }
     setLoading(false);
-  };
+  }
 
   const verifyChain = async () => {
     setVerifying(true);

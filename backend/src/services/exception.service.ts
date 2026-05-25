@@ -36,10 +36,6 @@ export interface ExceptionCaseInput {
   required_authority?: number; metadata?: Record<string, unknown>;
 }
 
-function getTenantId(item: { tenant_id?: string; workspace_id?: string }): string {
-  return item.tenant_id || item.workspace_id || '00000000-0000-0000-0000-000000000000';
-}
-
 // ─── Exception Cases ──────────────────────────────────────────────────────
 
 export async function createExceptionCase(input: ExceptionCaseInput): Promise<ExceptionCase> {
@@ -244,7 +240,7 @@ export async function addBlocker(exceptionId: string, input: {
   required_owner_id?: string; automatic_remediation_available?: boolean;
 }): Promise<{ id: string }> {
   const id = uuidv4();
-  const { data, error } = await supabaseAdmin.from('exception_blockers').insert({
+  const { error } = await supabaseAdmin.from('exception_blockers').insert({
     id, exception_id: exceptionId,
     ...input,
     blocker_severity: input.blocker_severity || 'MEDIUM',
@@ -273,7 +269,7 @@ export async function addRemediation(exceptionId: string, input: {
   required_evidence?: string; notes?: string;
 }): Promise<{ id: string }> {
   const id = uuidv4();
-  const { data, error } = await supabaseAdmin.from('exception_remediation').insert({
+  const { error } = await supabaseAdmin.from('exception_remediation').insert({
     id, exception_id: exceptionId,
     ...input,
     required_validation: input.required_validation || false,
@@ -333,7 +329,7 @@ export async function requestOverride(exceptionId: string, input: {
   evidence_attached?: string[]; expires_at?: string;
 }): Promise<{ id: string }> {
   const id = uuidv4();
-  const { data, error } = await supabaseAdmin.from('exception_overrides').insert({
+  const { error } = await supabaseAdmin.from('exception_overrides').insert({
     id, exception_id: exceptionId,
     ...input, override_status: 'REQUESTED',
     evidence_attached: input.evidence_attached || [],
@@ -366,7 +362,7 @@ export async function addEvidence(exceptionId: string, input: {
   source_module: string; created_by: string;
 }): Promise<{ id: string }> {
   const id = uuidv4();
-  const { data, error } = await supabaseAdmin.from('exception_evidence').insert({
+  const { error } = await supabaseAdmin.from('exception_evidence').insert({
     id, exception_id: exceptionId,
     ...input,
   }).select().single();
@@ -447,7 +443,7 @@ export async function sendToApprovals(exceptionId: string, tenant_id: string, us
   internalEventBus.emit('exception.sent_to_approvals', { exception_id: exceptionId, source_module: ec.source_module });
 }
 
-export async function sendToQualityAudit(exceptionId: string, tenant_id: string, userId: string): Promise<void> {
+export async function sendToQualityAudit(exceptionId: string, tenant_id: string, _userId: string): Promise<void> {
   const ec = await getExceptionCase(exceptionId, tenant_id);
   if (!ec) throw new Error('Exception case not found');
   internalEventBus.emit('exception.sent_to_quality_audit', { exception_id: exceptionId, source_module: ec.source_module });

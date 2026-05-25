@@ -214,7 +214,6 @@ export const getAuditTrail = async (req: AuthRequest, res: Response, next: NextF
 export const getAuditStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
-    const workspaceId = req.user?.workspace_id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { data: all } = await supabaseAdmin

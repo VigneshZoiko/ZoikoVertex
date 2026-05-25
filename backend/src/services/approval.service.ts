@@ -88,12 +88,6 @@ export interface ApprovalCallback {
   created_at: string; updated_at: string;
 }
 
-type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-
-function getTenantId(item: { tenant_id?: string; workspace_id?: string }): string {
-  return item.tenant_id || item.workspace_id || '00000000-0000-0000-0000-000000000000';
-}
-
 // ─── Approval Items ──────────────────────────────────────────────────────
 
 export async function createApprovalItem(input: ApprovalItemInput): Promise<ApprovalItem> {
@@ -341,7 +335,6 @@ export async function approveItem(itemId: string, tenant_id: string, userId: str
         .order('stage_order', { ascending: true });
 
       if (!error && stages) {
-        const pendingStages = stages.filter(s => s.stage_status === 'PENDING');
         const incompleteStages = stages.filter(s => s.stage_status === 'PENDING' || s.stage_status === 'IN_PROGRESS');
 
         if (path.path_type === 'SEQUENTIAL' && incompleteStages.length > 0) {
@@ -443,7 +436,7 @@ export async function approveWithConditions(itemId: string, tenant_id: string, u
   const item = await getApprovalItem(itemId, tenant_id);
   if (!item) throw new Error('Approval item not found');
 
-  const decision = await recordDecision({
+  await recordDecision({
     approval_item_id: itemId, approver_id: userId,
     decision: 'CONDITIONAL_APPROVAL',
     note, condition_text: conditionText, condition_owner: ownerId, condition_due_at: dueAt,

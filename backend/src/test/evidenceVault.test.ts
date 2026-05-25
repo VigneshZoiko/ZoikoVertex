@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import crypto from 'crypto';
-import { mockSupabaseNext, mockSupabaseClear, mockQueryBuilder, createMockCase } from './setup';
+import { mockSupabaseNext, mockSupabaseClear, mockQueryBuilder } from './setup';
 
 import * as vaultService from '../services/evidenceVault.service';
 

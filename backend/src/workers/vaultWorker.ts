@@ -3,9 +3,7 @@ import { createAuditEvent } from '../services/auditTrail.service';
 
 export function initVaultWorker() {
   const SHARE_EXPIRY_INTERVAL = 120_000; // 2 minutes
-  const DLP_SCAN_INTERVAL = 300_000; // 5 minutes
   let shareRunning = false;
-  let dlpRunning = false;
 
   // ─── Share Expiry Checker ──────────────────────────────────────────────────
 

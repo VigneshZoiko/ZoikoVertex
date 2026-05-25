@@ -286,8 +286,8 @@ export async function listReviewAuditLog(review_item_id: string) {
   return data;
 }
 
-export async function getReviewStats(tenant_id: string, userId: string) {
-  let query = supabaseAdmin
+export async function getReviewStats(_tenant_id: string, _userId: string) {
+  const query = supabaseAdmin
     .from('review_items')
     .select('status, risk_level');
 

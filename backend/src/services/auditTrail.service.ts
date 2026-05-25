@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../shared/supabase';
-import { createHash, randomUUID } from 'crypto';
+import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { resolveAuthorityBindingForAuditEvent } from './identityLedger.service';
 
@@ -189,19 +189,7 @@ const fieldAccessMatrix: Record<string, Partial<Record<UserRole, FieldAccessStat
   },
 };
 
-function getUserRole(workspaceRoles: string[]): UserRole {
-  if (workspaceRoles.some(r => r === 'SUPERADMIN' || r === 'WORKSPACE_OWNER')) return 'ADMIN';
-  if (workspaceRoles.some(r => r === 'SECURITY_ADMIN' || r === 'SECURITY')) return 'SECURITY';
-  if (workspaceRoles.some(r => r === 'COMPLIANCE_REVIEWER' || r === 'COMPLIANCE')) return 'COMPLIANCE';
-  if (workspaceRoles.some(r => r === 'LEGAL')) return 'LEGAL';
-  if (workspaceRoles.some(r => r === 'EXECUTIVE_VIEWER')) return 'EXEC_VIEWER';
-  if (workspaceRoles.some(r => r === 'EXTERNAL_AUDITOR' || r === 'AUDITOR')) return 'EXTERNAL_AUDITOR';
-  if (workspaceRoles.some(r => r === 'PUBLISHER')) return 'PUBLISHER';
-  if (workspaceRoles.some(r => r === 'CAMPAIGN_MANAGER')) return 'CAMPAIGN_MANAGER';
-  return 'ADMIN';
-}
-
-function applyFieldAccessToValue(value: unknown, access: FieldAccessState, userId?: string): unknown {
+function applyFieldAccessToValue(value: unknown, access: FieldAccessState, _userId?: string): unknown {
   switch (access) {
     case 'full':
       return value;
@@ -407,35 +395,6 @@ function sortedJson(obj: unknown): string {
   return JSON.stringify(sorted);
 }
 
-// ─── Chain Position Allocation ────────────────────────────────────────────────
-
-async function allocateChainPosition(
-  tenantId: string,
-  chainId: string,
-): Promise<{ block_number: number; prev_hash: string | null }> {
-  const { data: lastEvent, error } = await supabaseAdmin
-    .from('audit_events')
-    .select('hash, block_number')
-    .eq('tenant_id', tenantId)
-    .eq('chain_id', chainId)
-    .order('block_number', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error && error.code !== 'PGRST116') {
-    throw error;
-  }
-
-  if (!lastEvent) {
-    return { block_number: 1, prev_hash: null };
-  }
-
-  return {
-    block_number: lastEvent.block_number + 1,
-    prev_hash: lastEvent.hash,
-  };
-}
-
 // ─── Core Operations ──────────────────────────────────────────────────────────
 
 export async function createAuditEvent(input: AuditEventInput): Promise<AuditEvent> {
@@ -601,7 +560,7 @@ export async function getAuditEvent(eventId: string, workspace_id: string): Prom
 
 export async function getAuditStats(workspace_id: string) {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data } = await supabaseAdmin
       .from('audit_event_stats')
       .select('*')
       .eq('workspace_id', workspace_id)
@@ -814,7 +773,7 @@ export async function verifyChainIntegrity(
     // Recompute hash
     const actor = (event as unknown as Record<string, unknown>).actor as Record<string, unknown>;
     const object = (event as unknown as Record<string, unknown>).object as Record<string, unknown>;
-    const relatedObjects = (event as unknown as Record<string, unknown>).related_objects as Array<Record<string, unknown>>;
+    const relatedObjects = (event as unknown as Record<string, unknown>).related_objects as Array<Record<string, unknown>>; void relatedObjects;
     const correlation = (event as unknown as Record<string, unknown>).correlation as Record<string, unknown>;
     const authority = (event as unknown as Record<string, unknown>).authority as Record<string, unknown>;
     const change = (event as unknown as Record<string, unknown>).change as Record<string, unknown>;

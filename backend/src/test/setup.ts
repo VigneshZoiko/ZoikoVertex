@@ -27,7 +27,7 @@ const hoisted = vi.hoisted(() => {
     lt: vi.fn().mockReturnThis(),
     not: vi.fn().mockReturnThis(),
     filter: vi.fn().mockReturnThis(),
-    then: vi.fn(function (this: any, resolve: Function) {
+    then: vi.fn(function (this: any, resolve: (value: { data: any; error: any; count?: number }) => void) {
       const next = dataQueue.shift() || { data: null, error: null, count: 0 };
       resolve(next);
     }),

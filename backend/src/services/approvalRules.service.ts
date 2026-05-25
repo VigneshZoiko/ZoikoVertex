@@ -516,7 +516,7 @@ export async function getRuleDetails(approval_rule_id: string) {
   };
 }
 
-export async function getRuleStats(tenant_id: string) {
+export async function getRuleStats(_tenant_id: string) {
   const { data: all, error } = await supabaseAdmin
     .from('approval_rules')
     .select('rule_status, risk_classification');
