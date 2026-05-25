@@ -154,8 +154,8 @@ export default function PlatformPainPoints() {
             style={{ transitionDelay: "400ms" }}
           >
             <blockquote className="text-white text-2xl font-black leading-snug mb-10">
-              "Posts move faster than approvals. Teams lose evidence, ownership,
-              and accountability."
+              &quot;Posts move faster than approvals. Teams lose evidence, ownership,
+              and accountability.&quot;
             </blockquote>
 
             <div className="flex flex-col gap-5">
