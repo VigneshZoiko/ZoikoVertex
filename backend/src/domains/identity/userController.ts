@@ -148,7 +148,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
     if (!userData?.is_superadmin) {
       const { data: member } = await supabaseAdmin
         .from('workspace_members')
-        .select('workspace_id, role, workspaces(name, org_id, organizations(name, status, plan_type))')
+        .select('workspace_id, role, workspaces(name, org_id, status, organizations(name, status, plan_type))')
         .eq('user_id', userId)
         .limit(1)
         .maybeSingle();
@@ -167,6 +167,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
         const orgId = ws?.org_id;
         const orgName = org?.name;
         const wsName = ws?.name;
+        const wsStatus = ws?.status;
 
         return res.json({
           success: true,
@@ -177,6 +178,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
             is_superadmin: false,
             workspace_id: workspaceId,
             workspace_name: wsName || null,
+            workspace_status: wsStatus || 'ACTIVE',
             org_id: orgId || null,
             org_name: orgName || 'ZoikoGroup',
             plan_type: planType || 'FREE',
@@ -189,6 +191,9 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
       console.log('No member found for user:', userId);
     }
 
+    // Non-superadmin with no workspace membership — infer deletion or unassigned
+    const effectiveOrgStatus = (!userData?.is_superadmin && !workspaceId) ? 'NO_WORKSPACE' : 'ACTIVE';
+
     res.json({
       success: true,
       data: {
@@ -197,10 +202,11 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
         full_name: userData?.full_name || null,
         is_superadmin: userData?.is_superadmin || false,
         workspace_id: workspaceId,
+        workspace_status: null,
         org_id: null,
         org_name: 'ZoikoGroup',
         role,
-        org_status: 'ACTIVE',
+        org_status: effectiveOrgStatus,
         permissions: userData?.is_superadmin ? ['*'] : (ROLE_PERMISSIONS_MAP[String(role || '').toUpperCase()] || []),
       },
     });
