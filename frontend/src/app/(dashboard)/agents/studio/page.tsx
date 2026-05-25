@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bot,
@@ -170,6 +170,8 @@ export default function StudioPage() {
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isKillSwitchOpen, setIsKillSwitchOpen] = useState(false);
+  const [importTemplateData, setImportTemplateData] = useState<Record<string, unknown> | undefined>(undefined);
+  const importFileRef = useRef<HTMLInputElement>(null);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, string>>(
     {},
@@ -390,10 +392,16 @@ export default function StudioPage() {
     setActionLoading((c) => ({ ...c, [agent.id]: "deploy" }));
     setError(null);
     try {
-      // Step 1: Validate governance gates before deploy
-      const gatesRes = await api
-        .get(`/api/v1/agents/${agent.id}/governance-gates`)
-        .catch(() => null);
+      // Step 1: Validate governance gates before deploy — gate API failure MUST block deploy
+      let gatesRes: Awaited<ReturnType<typeof api.get>> | null = null;
+      try {
+        gatesRes = await api.get(`/api/v1/agents/${agent.id}/governance-gates`);
+      } catch {
+        setError(
+          "Governance-gate check failed. Cannot proceed with deploy until gates are verifiable.",
+        );
+        return;
+      }
       if (gatesRes?.data) {
         const gates = gatesRes.data;
         const blockingFailed = (gates.failed_gates || []).filter(
@@ -671,10 +679,39 @@ export default function StudioPage() {
 
   return (
     <div className="p-8 mx-auto max-w-[1500px] space-y-6">
+      {/* Hidden file input for Import Template */}
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".json"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            try {
+              const parsed = JSON.parse(ev.target?.result as string);
+              if (typeof parsed !== "object" || Array.isArray(parsed)) {
+                throw new Error("Template must be a JSON object.");
+              }
+              setImportTemplateData(parsed);
+              setIsWizardOpen(true);
+            } catch (err: any) {
+              setError(`Invalid template file: ${err?.message || "Not valid JSON."}`);
+            }
+          };
+          reader.readAsText(file);
+          // Reset so the same file can be re-imported
+          e.target.value = "";
+        }}
+      />
+
       <CreateAgentWizard
         isOpen={isWizardOpen}
-        onClose={() => setIsWizardOpen(false)}
+        onClose={() => { setIsWizardOpen(false); setImportTemplateData(undefined); }}
         onSuccess={() => fetchAgents(workspaceId)}
+        initialData={importTemplateData}
       />
 
       {selectedAgent && (
@@ -776,8 +813,9 @@ export default function StudioPage() {
                 Hire New Agent
               </button>
               <button
-                onClick={() => setIsWizardOpen(true)}
+                onClick={() => importFileRef.current?.click()}
                 className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
+                title="Import an agent template JSON file"
               >
                 <Upload className="h-4 w-4" />
                 Import Template

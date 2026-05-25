@@ -2,19 +2,22 @@ import { supabase } from "./supabase";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "";
 
-async function getAuthHeader(): Promise<Record<string, string>> {
+type AuthResolution =
+  | { ok: true; headers: Record<string, string> }
+  | { ok: false; reason: "NO_SESSION" | "REFRESH_FAILED"; detail?: string };
+
+async function resolveAuth(): Promise<AuthResolution> {
   try {
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    const headers: Record<string, string> = {};
-    if (session?.access_token) {
-      headers["Authorization"] = `Bearer ${session.access_token}`;
+    if (!session?.access_token) {
+      return { ok: false, reason: "NO_SESSION" };
     }
-    return headers;
+    return { ok: true, headers: { Authorization: `Bearer ${session.access_token}` } };
   } catch (err) {
     console.warn(
-      "[API Auth] Unable to read Supabase session. Clearing stale local auth state.",
+      "[API Auth] Supabase session refresh failed — clearing stale local auth state.",
       err,
     );
     if (typeof document !== "undefined") {
@@ -25,8 +28,26 @@ async function getAuthHeader(): Promise<Record<string, string>> {
         localStorage.removeItem("zv_role_cache");
       } catch {}
     }
-    return {};
+    return {
+      ok: false,
+      reason: "REFRESH_FAILED",
+      detail: err instanceof Error ? err.message : String(err),
+    };
   }
+}
+
+function authExpiredResponse(reason: "NO_SESSION" | "REFRESH_FAILED") {
+  const message =
+    reason === "REFRESH_FAILED"
+      ? "Your session has expired. Please log in again."
+      : "You are signed out. Please log in to continue.";
+  return {
+    success: false,
+    error: message,
+    status: 401,
+    code: "AUTH_EXPIRED",
+    data: { error: { code: "AUTH_EXPIRED", message } },
+  };
 }
 
 async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
@@ -63,11 +84,10 @@ async function apiError(response: Response, endpoint: string, method: string) {
 
 export const api = {
   async get(endpoint: string) {
-    const authHeader = await getAuthHeader();
+    const auth = await resolveAuth();
+    if (!auth.ok) return authExpiredResponse(auth.reason);
     const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
-      headers: {
-        ...authHeader,
-      },
+      headers: { ...auth.headers },
     });
     if (!response.ok) {
       return apiError(response, endpoint, "GET");
@@ -76,12 +96,13 @@ export const api = {
   },
 
   async post(endpoint: string, body: any) {
-    const authHeader = await getAuthHeader();
+    const auth = await resolveAuth();
+    if (!auth.ok) return authExpiredResponse(auth.reason);
     const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...authHeader,
+        ...auth.headers,
       },
       body: JSON.stringify(body),
     });
@@ -92,12 +113,11 @@ export const api = {
   },
 
   async postMultipart(endpoint: string, formData: FormData) {
-    const authHeader = await getAuthHeader();
+    const auth = await resolveAuth();
+    if (!auth.ok) return authExpiredResponse(auth.reason);
     const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: "POST",
-      headers: {
-        ...authHeader,
-      },
+      headers: { ...auth.headers },
       body: formData,
     });
     if (!response.ok) {
@@ -107,12 +127,13 @@ export const api = {
   },
 
   async put(endpoint: string, body: any) {
-    const authHeader = await getAuthHeader();
+    const auth = await resolveAuth();
+    if (!auth.ok) return authExpiredResponse(auth.reason);
     const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        ...authHeader,
+        ...auth.headers,
       },
       body: JSON.stringify(body),
     });
@@ -123,12 +144,11 @@ export const api = {
   },
 
   async delete(endpoint: string) {
-    const authHeader = await getAuthHeader();
+    const auth = await resolveAuth();
+    if (!auth.ok) return authExpiredResponse(auth.reason);
     const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: "DELETE",
-      headers: {
-        ...authHeader,
-      },
+      headers: { ...auth.headers },
     });
     if (!response.ok) {
       return apiError(response, endpoint, "DELETE");
@@ -137,12 +157,13 @@ export const api = {
   },
 
   async patch(endpoint: string, body: any) {
-    const authHeader = await getAuthHeader();
+    const auth = await resolveAuth();
+    if (!auth.ok) return authExpiredResponse(auth.reason);
     const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        ...authHeader,
+        ...auth.headers,
       },
       body: JSON.stringify(body),
     });

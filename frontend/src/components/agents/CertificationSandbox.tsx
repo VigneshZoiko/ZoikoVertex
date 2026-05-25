@@ -197,8 +197,9 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
         );
       }
 
-      const newTrustScore = Math.min(0.7 + targetLevelNum * 0.05, 0.99);
-      const newFaithfulnessScore = Math.min(0.75 + targetLevelNum * 0.04, 0.99);
+      // Derive trust and faithfulness from actual sandbox test average (score is 0–100)
+      const newTrustScore = Math.min(score / 100, 0.99);
+      const newFaithfulnessScore = Math.min((score * 0.95) / 100, 0.99);
 
       // Update parent state first, then close
       onCertified(targetLevel, newTrustScore, newFaithfulnessScore);

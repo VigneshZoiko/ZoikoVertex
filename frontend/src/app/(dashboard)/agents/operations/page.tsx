@@ -425,6 +425,7 @@ interface RunDetailDrawerProps {
   onRejectOutput: (run: AgentRun) => void;
   onRequestOutputChanges: (run: AgentRun) => void;
   onExportSnapshot: (run: AgentRun, detail: RunDetail) => void;
+  onEscalateForReview: (runId: string, reason: string) => Promise<void>;
 }
 
 function RunDetailDrawer({
@@ -441,8 +442,10 @@ function RunDetailDrawer({
   onRejectOutput,
   onRequestOutputChanges,
   onExportSnapshot,
+  onEscalateForReview,
 }: RunDetailDrawerProps) {
   const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
+  const [flagStaleLoading, setFlagStaleLoading] = useState<string | null>(null);
   const tabs: { id: DrawerTab; label: string; icon: React.ReactNode }[] = [
     { id: "overview",  label: "Overview",  icon: <Info className="w-3.5 h-3.5" />       },
     { id: "timeline",  label: "Timeline",  icon: <Clock className="w-3.5 h-3.5" />      },
@@ -617,9 +620,12 @@ function RunDetailDrawer({
                   <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-4 font-mono text-xs text-[#aaa] whitespace-pre-wrap max-h-64 overflow-y-auto">
                     {detail.prompt_template}
                   </div>
-                  <button className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                  <a
+                    href="/agents/prompts"
+                    className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
                     <ArrowRight className="w-3.5 h-3.5" /> Open Prompt Governance record
-                  </button>
+                  </a>
                 </>
               ) : (
                 <p className="text-sm text-[#555] text-center py-12">No prompt data available.</p>
@@ -648,8 +654,23 @@ function RunDetailDrawer({
                       <span>Freshness: {ks.freshness}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-2">
-                      <button className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1"><ArrowRight className="w-3 h-3" />Open source</button>
-                      <button className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Flag stale</button>
+                      <a href="/agents/knowledge" className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                        <ArrowRight className="w-3 h-3" />Open source
+                      </a>
+                      <button
+                        disabled={flagStaleLoading === ks.name}
+                        onClick={async () => {
+                          setFlagStaleLoading(ks.name);
+                          try { await onEscalateForReview(run.id, `Stale knowledge source flagged: ${ks.name}`); }
+                          finally { setFlagStaleLoading(null); }
+                        }}
+                        className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {flagStaleLoading === ks.name
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <AlertTriangle className="w-3 h-3" />}
+                        Flag stale
+                      </button>
                     </div>
                   </div>
                 ))
@@ -689,7 +710,12 @@ function RunDetailDrawer({
                       )}
                       {pr.remediation_required && (
                         <div className="mt-2 flex items-center gap-2">
-                          <button className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1"><ArrowRight className="w-3 h-3" />Send to reviewer</button>
+                          <button
+                            onClick={() => onEscalateForReview(run.id, `Policy violation sent to reviewer: ${pr.failed_category || pr.failed_rule || 'policy check'}`)}
+                            className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1"
+                          >
+                            <ArrowRight className="w-3 h-3" />Send to reviewer
+                          </button>
                           <button onClick={onCreateIncident} className="text-[10px] text-orange-400 hover:text-orange-300 flex items-center gap-1"><Ticket className="w-3 h-3" />Create incident</button>
                         </div>
                       )}
@@ -918,7 +944,7 @@ export default function AgentOperationsPage() {
         api.listAgentRuns(params).catch(() => null),
         api.listQueues().catch(() => null),
         api.listIncidents().catch(() => null),
-        api.getOperationsAnalytics?.().catch(() => null),
+        api.getOperationsAnalytics().catch(() => null),
       ]);
 
       if (statsRes.status === "fulfilled" && statsRes.value) setStats(statsRes.value);
@@ -963,7 +989,7 @@ export default function AgentOperationsPage() {
     setLoadingTimeline(true);
     try {
       const [detailRes, timelineRes] = await Promise.allSettled([
-        api.getRunDetail?.(run.id).catch(() => null),
+        api.getRunDetail(run.id).catch(() => null),
         api.getRunTimeline(run.id).catch(() => null),
       ]);
       if (detailRes.status === "fulfilled" && detailRes.value) setRunDetail(detailRes.value);
@@ -979,7 +1005,7 @@ export default function AgentOperationsPage() {
   // ── Stale check before critical action ──
   const checkStaleAndAct = async (runId: string, action: typeof confirmAction) => {
     try {
-      const fresh = await api.getRunDetail?.(runId).catch(() => null);
+      const fresh = await api.getRunDetail(runId).catch(() => null);
       if (fresh?.run?.status && staleCheckRef.current[runId] && fresh.run.status !== staleCheckRef.current[runId]) {
         setError(`Run state changed to "${fresh.run.status}" before action was applied. Please review the current state.`);
         await fetchData();
@@ -1000,8 +1026,8 @@ export default function AgentOperationsPage() {
         case "stop":          await api.stopRun(confirmAction.runId, reason); break;
         case "retry":         await api.retryRun(confirmAction.runId); break;
         case "quarantine":    await api.quarantineRun(confirmAction.runId, reason); break;
-        case "escalate":      await api.escalateRun?.(confirmAction.runId, reason); break;
-        case "emergency_pause": await api.emergencyPause?.(confirmAction.runId, reason); break;
+        case "escalate":      await api.escalateRun(confirmAction.runId, reason); break;
+        case "emergency_pause": await api.emergencyPause(confirmAction.runId, reason); break;
       }
       setConfirmAction(null);
       await fetchData();
@@ -1017,7 +1043,7 @@ export default function AgentOperationsPage() {
     if (!evidenceExportBundleId) return;
     setEvidenceExportLoading(true);
     try {
-      await api.exportEvidence?.(evidenceExportBundleId, reason);
+      await api.exportEvidence(evidenceExportBundleId, reason);
       setEvidenceExportBundleId(null);
       setError(null);
     } catch {
@@ -1089,6 +1115,16 @@ export default function AgentOperationsPage() {
       await fetchData();
     } catch (err: any) {
       setError(err?.message || "Failed to cancel queue item.");
+    }
+  };
+
+  const handleEscalateForReview = async (runId: string, reason: string): Promise<void> => {
+    try {
+      const res = await api.escalateRun(runId, reason);
+      if (!res?.success) throw new Error(res?.error || "Escalation failed");
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to escalate for review.");
     }
   };
 
@@ -1199,6 +1235,9 @@ export default function AgentOperationsPage() {
             <Building2 className="w-3.5 h-3.5 text-[#555] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-7 pr-3 py-1.5 text-xs text-[#aaa] appearance-none focus:outline-none focus:border-[#444]">
               <option value="">All Brands</option>
+              {[...new Set(runs.map((r) => r.brand_name).filter(Boolean))].sort().map((b) => (
+                <option key={b} value={b!}>{b}</option>
+              ))}
             </select>
           </div>
           <div className="relative">
@@ -1639,7 +1678,20 @@ export default function AgentOperationsPage() {
                 ))}
               </div>
               <div className="flex justify-end">
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#888] rounded-xl text-xs hover:text-white hover:border-[#444] transition-colors">
+                <button
+                  onClick={() => {
+                    if (!analytics) return;
+                    const payload = { exported_at: new Date().toISOString(), metrics: analytics };
+                    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = `ops-analytics-${new Date().toISOString().split("T")[0]}.json`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#888] rounded-xl text-xs hover:text-white hover:border-[#444] transition-colors"
+                >
                   <Download className="w-3.5 h-3.5" /> Export Report
                 </button>
               </div>
@@ -1672,6 +1724,7 @@ export default function AgentOperationsPage() {
           onRejectOutput={handleRejectOutput}
           onRequestOutputChanges={handleRequestOutputChanges}
           onExportSnapshot={handleExportSnapshot}
+          onEscalateForReview={handleEscalateForReview}
         />
       )}
 

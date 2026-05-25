@@ -64,10 +64,29 @@ interface KnowledgeSource {
   risk_level?: string;
 }
 
+interface AgentTemplateData {
+  name?: string;
+  purpose?: string;
+  type?: string;
+  mode?: string;
+  risk_level?: string;
+  permitted_actions?: string[];
+  prohibited_actions?: string[];
+  linked_prompts?: string[];
+  linked_workflows?: string[];
+  linked_policies?: string[];
+  linked_knowledge_sources?: string[];
+  linked_channels?: string[];
+  evidence_required?: boolean;
+  approval_required?: boolean;
+}
+
 interface CreateAgentWizardProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /** Pre-populate wizard fields from an imported JSON template */
+  initialData?: AgentTemplateData;
 }
 
 const STEPS = [
@@ -166,6 +185,7 @@ export default function CreateAgentWizard({
   isOpen,
   onClose,
   onSuccess,
+  initialData,
 }: CreateAgentWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -219,14 +239,34 @@ export default function CreateAgentWizard({
     prohibited: "",
   });
 
-  // ── FIX: reset state when wizard opens ──
+  // ── FIX: reset state (and apply template pre-population) when wizard opens ──
   useEffect(() => {
     if (isOpen) {
       setSubmitError(null);
       setSubmitSuccess(null);
       setCurrentStep(1);
+      if (initialData) {
+        setFormData((prev) => ({
+          ...prev,
+          name: initialData.name ?? prev.name,
+          purpose: initialData.purpose ?? prev.purpose,
+          type: initialData.type ?? prev.type,
+          mode: initialData.mode ?? prev.mode,
+          risk_level: initialData.risk_level ?? prev.risk_level,
+          permitted_actions: initialData.permitted_actions ?? prev.permitted_actions,
+          prohibited_actions: initialData.prohibited_actions ?? prev.prohibited_actions,
+          linked_prompts: initialData.linked_prompts ?? prev.linked_prompts,
+          linked_workflows: initialData.linked_workflows ?? prev.linked_workflows,
+          linked_policies: initialData.linked_policies ?? prev.linked_policies,
+          linked_knowledge_sources: initialData.linked_knowledge_sources ?? prev.linked_knowledge_sources,
+          linked_channels: initialData.linked_channels ?? prev.linked_channels,
+          evidence_required: initialData.evidence_required ?? prev.evidence_required,
+          approval_required: initialData.approval_required ?? prev.approval_required,
+        }));
+        setShowTemplates(false); // skip the template picker — go straight to step 1
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -316,8 +356,24 @@ export default function CreateAgentWizard({
           setWorkflows([]);
         }
 
-        // Policies endpoint is not available on the deployed backend yet.
-        setPolicies([]);
+        // Fetch governance rules as the policy list for step 6
+        try {
+          const policiesRes = await api.get("/api/v1/governance/rules");
+          if (policiesRes?.success && Array.isArray(policiesRes.data)) {
+            setPolicies(
+              policiesRes.data.map((r: any) => ({
+                id: r.id,
+                name: r.name || r.rule_name || r.title || "Governance Rule",
+                status: r.status || "ACTIVE",
+                risk_level: r.risk_level || r.risk_tier,
+              })),
+            );
+          } else {
+            setPolicies([]);
+          }
+        } catch {
+          setPolicies([]);
+        }
 
         if (knowledgeRes.status === "fulfilled") {
           setKnowledgeSources(
@@ -629,6 +685,22 @@ export default function CreateAgentWizard({
 
       // ── STEP 3: Submit ───────────────────────────────────────────────────────
       const result = await api.post("/api/v1/agents", payload);
+
+      // ── STEP 3a: Detect expired/missing session before any other branching
+      if (result?.code === "AUTH_EXPIRED" || result?.status === 401) {
+        setSubmitError(
+          result?.error ||
+            "Your session has expired. Please log in again to create the agent.",
+        );
+        setTimeout(() => {
+          if (typeof window !== "undefined") {
+            const redirect = encodeURIComponent(window.location.pathname);
+            window.location.href = `/login?redirect=${redirect}`;
+          }
+        }, 1500);
+        return;
+      }
+
       if (result?.success) {
         const agentId = result?.data?.id;
 

@@ -653,13 +653,11 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
       return res.status(400).json({ success: false, message: 'workspaceId is required' });
     }
 
+    // Plain select — no embedded JOIN, so this works regardless of PostgREST
+    // FK-metadata cache state. DRI user details are fetched separately below.
     let query = supabaseAdmin
       .from('agents')
-      .select(`
-        *,
-        primary_dri:users!primary_dri_id(full_name, email),
-        backup_dri:users!backup_dri_id(full_name, email)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (!isSuper) {
@@ -671,10 +669,32 @@ export const listAgents = async (req: AuthRequest, res: Response, next: NextFunc
     if (statusFilter) query = query.eq('status', statusFilter);
     if (riskFilter) query = query.eq('risk_level', riskFilter);
 
-    const { data, error } = await query;
+    const { data: agents, error } = await query;
     if (error) throw error;
 
-    res.status(200).json({ success: true, data });
+    // Hydrate DRI display info from public.users in a single follow-up query.
+    const driIds = Array.from(new Set(
+      (agents || [])
+        .flatMap(a => [a.primary_dri_id, a.backup_dri_id])
+        .filter((id): id is string => !!id),
+    ));
+
+    let userMap = new Map<string, { full_name: string | null; email: string | null }>();
+    if (driIds.length > 0) {
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', driIds);
+      userMap = new Map((users || []).map(u => [u.id, { full_name: u.full_name, email: u.email }]));
+    }
+
+    const hydrated = (agents || []).map(a => ({
+      ...a,
+      primary_dri: a.primary_dri_id ? userMap.get(a.primary_dri_id) || null : null,
+      backup_dri:  a.backup_dri_id  ? userMap.get(a.backup_dri_id)  || null : null,
+    }));
+
+    res.status(200).json({ success: true, data: hydrated });
   } catch (error) {
     next(error);
   }
@@ -752,37 +772,71 @@ export const registerAgent = async (req: Request, res: Response, next: NextFunct
       resolvedOrgId: orgId,
     });
 
-    const { data: agent, error } = await supabaseAdmin
+    // Full insert — includes linked_* array columns (requires agents_linked_resources migration)
+    const baseInsert = {
+      name: payload.name,
+      purpose: payload.purpose || null,
+      type: payload.type,
+      mode,
+      workspace_id: workspaceId,
+      org_id: orgId,
+      primary_dri_id: payload.primary_dri_id,
+      backup_dri_id: payload.backup_dri_id,
+      assigned_brand: payload.assigned_brand,
+      permitted_actions: payload.permitted_actions,
+      prohibited_actions: payload.prohibited_actions,
+      evidence_required: payload.evidence_required,
+      approval_required: payload.approval_required,
+      status: 'DRAFT',
+      autonomy_level: autonomyLevel,
+      trust_score: 0.0,
+      faithfulness_score: 0.0,
+      risk_level: payload.risk_level || 'medium',
+    };
+
+    const fullInsert = {
+      ...baseInsert,
+      linked_prompts: payload.linked_prompts,
+      linked_workflows: payload.linked_workflows,
+      linked_policies: payload.linked_policies,
+      linked_knowledge_sources: payload.linked_knowledge_sources,
+      linked_channels: payload.linked_channels,
+    };
+
+    let { data: agent, error } = await supabaseAdmin
       .from('agents')
-      .insert([{
-        name: payload.name,
-        purpose: payload.purpose || null,
-        type: payload.type,
-        mode,
-        workspace_id: workspaceId,
-        org_id: orgId,
-        primary_dri_id: payload.primary_dri_id,
-        backup_dri_id: payload.backup_dri_id,
-        assigned_brand: payload.assigned_brand,
-        permitted_actions: payload.permitted_actions,
-        prohibited_actions: payload.prohibited_actions,
-        linked_prompts: payload.linked_prompts,
-        linked_workflows: payload.linked_workflows,
-        linked_policies: payload.linked_policies,
-        linked_knowledge_sources: payload.linked_knowledge_sources,
-        linked_channels: payload.linked_channels,
-        evidence_required: payload.evidence_required,
-        approval_required: payload.approval_required,
-        status: 'DRAFT',
-        autonomy_level: autonomyLevel,
-        trust_score: 0.0,
-        faithfulness_score: 0.0,
-        risk_level: payload.risk_level || 'medium',
-      }])
+      .insert([fullInsert])
       .select()
       .single();
 
-    if (error) throw error;
+    // Defensive fallback: if the insert failed because the linked_* columns
+    // don't exist yet (PGRST204 / 23502 / 42703), retry without them so the
+    // agent is still created. Run the agents_linked_resources.sql migration to
+    // permanently fix the schema.
+    if (error) {
+      const code = (error as { code?: string }).code;
+      const isColumnMissing = code === 'PGRST204' || code === '42703' ||
+        (error.message || '').toLowerCase().includes('column') ||
+        (error.message || '').toLowerCase().includes('schema cache');
+
+      if (isColumnMissing) {
+        await logToDatabase('warn', AGENT_SERVICE,
+          'linked_* columns missing in agents table — falling back to base insert. Run agents_linked_resources.sql migration.',
+          { errorCode: code, errorMessage: error.message });
+
+        const fallback = await supabaseAdmin
+          .from('agents')
+          .insert([baseInsert])
+          .select()
+          .single();
+
+        if (fallback.error) throw fallback.error;
+        agent = fallback.data;
+        error = null;
+      } else {
+        throw error;
+      }
+    }
 
     if (userId) {
       const { createAgentVersion } = await import('../../services/agentVersion.service');

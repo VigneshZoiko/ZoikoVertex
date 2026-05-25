@@ -38,6 +38,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useRoleContext } from "@/lib/context/RoleContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -543,9 +544,54 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction }: { prompts: P
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => p.active_version_id && onApprovalAction(p.active_version_id, 'APPROVED')} disabled={!p.active_version_id} className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all disabled:opacity-50">Approve</button>
-                  <button onClick={() => p.active_version_id && onApprovalAction(p.active_version_id, 'REJECTED', 'Changes requested')} disabled={!p.active_version_id} className="px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all disabled:opacity-50">Request Changes</button>
-                  <button onClick={() => p.active_version_id && onApprovalAction(p.active_version_id, 'REJECTED')} disabled={!p.active_version_id} className="px-4 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-rose-500/20 transition-all disabled:opacity-50">Reject</button>
+                  <button
+                    onClick={() => {
+                      if (!p.active_version_id) return;
+                      const ok = window.confirm(
+                        `Approve "${p.name}"?\n\nThis will move the prompt to APPROVED status and make it eligible for production deployment. This action is recorded in the Evidence Vault.`
+                      );
+                      if (!ok) return;
+                      onApprovalAction(p.active_version_id, 'APPROVED');
+                    }}
+                    disabled={!p.active_version_id}
+                    className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all disabled:opacity-50"
+                  >Approve</button>
+                  <button
+                    disabled={!p.active_version_id}
+                    onClick={() => {
+                      if (!p.active_version_id) return;
+                      const comment = window.prompt(
+                        `Request changes for "${p.name}"\n\nEnter your reviewer comments (required):`,
+                        ""
+                      );
+                      if (comment === null) return; // user cancelled
+                      onApprovalAction(
+                        p.active_version_id,
+                        'REJECTED',
+                        comment.trim() || 'Reviewer requested changes before approval.'
+                      );
+                    }}
+                    className="px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all disabled:opacity-50"
+                  >
+                    Request Changes
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!p.active_version_id) return;
+                      const reason = window.prompt(
+                        `Reject "${p.name}"?\n\nProvide a rejection reason (required):`,
+                        ""
+                      );
+                      if (reason === null) return; // user cancelled
+                      onApprovalAction(
+                        p.active_version_id,
+                        'REJECTED',
+                        reason.trim() || 'Rejected by reviewer.'
+                      );
+                    }}
+                    disabled={!p.active_version_id}
+                    className="px-4 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-rose-500/20 transition-all disabled:opacity-50"
+                  >Reject</button>
                 </div>
               </div>
             ))}
@@ -851,6 +897,39 @@ function PromptDetailDrawer({
   onExportEvidence: (prompt: PromptRecord, context: string) => void;
 }) {
   const [drawerTab, setDrawerTab] = useState<"overview" | "body" | "bindings" | "history">("overview");
+  const [promptBody, setPromptBody] = useState<string | null>(null);
+  const [loadingBody, setLoadingBody] = useState(false);
+  const [versions, setVersions] = useState<any[]>([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+
+  useEffect(() => {
+    if (drawerTab === "body" && promptBody === null && !loadingBody) {
+      setLoadingBody(true);
+      api.get(`/api/v1/prompts/${prompt.id}`)
+        .then((res) => {
+          if (res?.success && res.data) {
+            const body = res.data.body || res.data.content || res.data.prompt_body || null;
+            setPromptBody(body);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingBody(false));
+    }
+  }, [drawerTab, prompt.id, promptBody, loadingBody]);
+
+  useEffect(() => {
+    if (drawerTab === "history" && versions.length === 0 && !loadingVersions) {
+      setLoadingVersions(true);
+      api.get(`/api/v1/prompts/${prompt.id}/versions`)
+        .then((res) => {
+          if (res?.success && Array.isArray(res.data)) {
+            setVersions(res.data);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingVersions(false));
+    }
+  }, [drawerTab, prompt.id, versions.length, loadingVersions]);
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -955,30 +1034,70 @@ function PromptDetailDrawer({
           )}
 
           {drawerTab === "body" && (
-            <div className="p-4 bg-black border border-slate-900 rounded-2xl text-[11px] text-slate-400 font-mono leading-relaxed">
-              <span className="text-slate-600 italic">[Prompt body rendered from version {prompt.active_version} — body_hash stored in Evidence Vault for this version]</span>
-              <br /><br />
-              <span className="text-indigo-400">&#47;&#47; Role: </span>{prompt.prompt_type}<br />
-              <span className="text-indigo-400">&#47;&#47; Agent: </span>{prompt.linked_agent}<br />
-              <span className="text-indigo-400">&#47;&#47; Workflow: </span>{prompt.linked_workflow}<br />
-              <span className="text-indigo-400">&#47;&#47; Risk Tier: </span>{RISK_META[prompt.risk_tier].label}<br />
-              <span className="text-indigo-400">&#47;&#47; Knowledge: </span>{prompt.knowledge_sources.join(", ") || "None"}<br />
-              <span className="text-indigo-400">&#47;&#47; Tools: </span>{prompt.tools_permitted.join(", ") || "None"}<br /><br />
-              <span className="text-slate-600">[Instruction body is stored encrypted. Use the Evidence Vault export to retrieve the full body with hash verification.]</span>
+            <div>
+              {loadingBody ? (
+                <div className="flex items-center justify-center py-10 gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+                  <span className="text-xs text-slate-500">Loading prompt body…</span>
+                </div>
+              ) : promptBody ? (
+                <div className="p-4 bg-black border border-slate-900 rounded-2xl text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
+                  {promptBody}
+                </div>
+              ) : (
+                <div className="p-4 bg-black border border-slate-900 rounded-2xl text-[11px] text-slate-400 font-mono leading-relaxed">
+                  <span className="text-slate-600 italic">[Version {prompt.active_version} — metadata]</span>
+                  <br /><br />
+                  <span className="text-indigo-400">// Role: </span>{prompt.prompt_type}<br />
+                  <span className="text-indigo-400">// Agent: </span>{prompt.linked_agent}<br />
+                  <span className="text-indigo-400">// Workflow: </span>{prompt.linked_workflow}<br />
+                  <span className="text-indigo-400">// Risk Tier: </span>{RISK_META[prompt.risk_tier].label}<br />
+                  <span className="text-indigo-400">// Knowledge: </span>{prompt.knowledge_sources.join(", ") || "None"}<br />
+                  <span className="text-indigo-400">// Tools: </span>{prompt.tools_permitted.join(", ") || "None"}<br /><br />
+                  <span className="text-slate-500">Prompt body was not returned by the registry API. Export via Evidence Vault to retrieve the full body with hash verification.</span>
+                </div>
+              )}
             </div>
           )}
 
           {drawerTab === "history" && (
             <div className="space-y-2">
-              {[prompt.active_version, "v" + (parseFloat(prompt.active_version.replace("v", "")) - 1).toFixed(1)].filter((v) => parseFloat(v.replace("v", "")) > 0).map((v, i) => (
-                <div key={v} className="p-4 bg-black border border-slate-900 rounded-xl space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black text-white">{v}</span>
-                    {i === 0 && <span className="text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded font-black uppercase tracking-widest">Current</span>}
-                  </div>
-                  <div className="text-[10px] text-slate-500">Immutable after {i === 0 ? "deployment" : "archival"}. Body hash stored in Evidence Vault.</div>
+              {loadingVersions ? (
+                <div className="flex items-center justify-center py-10 gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+                  <span className="text-xs text-slate-500">Loading version history…</span>
                 </div>
-              ))}
+              ) : versions.length > 0 ? (
+                versions.map((v: any, i: number) => (
+                  <div key={v.id || i} className="p-4 bg-black border border-slate-900 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-white">
+                        {v.version || v.version_number || `Version ${versions.length - i}`}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {i === 0 && (
+                          <span className="text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded font-black uppercase tracking-widest">Current</span>
+                        )}
+                        {v.state && (
+                          <span className="text-[9px] text-slate-400 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest">{v.state}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      {v.created_at ? new Date(v.created_at).toLocaleString() : '—'}
+                      {v.created_by_name ? ` · ${v.created_by_name}` : ''}
+                    </div>
+                    {v.changelog && (
+                      <div className="text-[10px] text-slate-400 italic mt-1">&quot;{v.changelog}&quot;</div>
+                    )}
+                    <div className="text-[10px] text-slate-600">Immutable after deployment. Body hash stored in Evidence Vault.</div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 bg-black border border-slate-900 rounded-xl text-[10px] text-slate-500">
+                  No version history available. Versions are recorded each time the prompt is saved or promoted.
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1054,6 +1173,7 @@ function mapBackendPrompt(b: any): PromptRecord {
 }
 
 export default function PromptsPage() {
+  const { role } = useRoleContext();
   const [prompts, setPrompts] = useState<PromptRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -1153,7 +1273,10 @@ export default function PromptsPage() {
       const endpoint = decision === 'APPROVED'
         ? `/api/v1/prompts/versions/${versionId}/approve`
         : `/api/v1/prompts/versions/${versionId}/reject`;
-      const res = await api.post(endpoint, { comments, reviewer_role: 'PROMPT_OWNER' });
+      const reviewer_role = role
+        ? role.toUpperCase().replace(/\s+/g, '_')
+        : 'PROMPT_OWNER';
+      const res = await api.post(endpoint, { comments, reviewer_role });
       if (res.success) {
         fetchPrompts();
         setSelectedPrompt(null);

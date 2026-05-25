@@ -204,10 +204,15 @@ export class PromptController {
       const version = await PromptVersionService.getById(versionId);
       if (!version) return res.status(404).json({ error: 'Version not found' });
 
+      // Derive reviewer_role from authenticated user first, then body fallback, then default
+      const reviewerRole = req.user?.role
+        ? req.user.role.toUpperCase().replace(/\s+/g, '_')
+        : req.body.reviewer_role || 'PROMPT_OWNER';
+
       await PromptApprovalService.create({
         prompt_version_id: versionId,
         reviewer_id: req.user?.id,
-        reviewer_role: req.body.reviewer_role || 'PROMPT_OWNER',
+        reviewer_role: reviewerRole,
         decision: 'APPROVED',
         decision_reason: req.body.comments || '',
       });
@@ -226,10 +231,15 @@ export class PromptController {
       const version = await PromptVersionService.getById(versionId);
       if (!version) return res.status(404).json({ error: 'Version not found' });
 
+      // Derive reviewer_role from authenticated user first, then body fallback, then default
+      const reviewerRole = req.user?.role
+        ? req.user.role.toUpperCase().replace(/\s+/g, '_')
+        : req.body.reviewer_role || 'PROMPT_OWNER';
+
       await PromptApprovalService.create({
         prompt_version_id: versionId,
         reviewer_id: req.user?.id,
-        reviewer_role: req.body.reviewer_role || 'PROMPT_OWNER',
+        reviewer_role: reviewerRole,
         decision: 'REJECTED',
         decision_reason: req.body.comments || '',
       });
