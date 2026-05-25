@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Fingerprint, ShieldCheck, UserCheck, ArrowRightLeft, ShieldAlert,
   Search, X, ChevronRight, Loader2, RefreshCw, Activity,
@@ -65,11 +65,7 @@ export default function IdentityLedgerDashboard() {
   const [selectedActor, setSelectedActor] = useState<string | null>(null);
   const [actorDetails, setActorDetails] = useState<any>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [activeTab]);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       if (activeTab === "actors") {
@@ -84,7 +80,11 @@ export default function IdentityLedgerDashboard() {
       }
     } catch { /* ignore */ }
     setLoading(false);
-  }
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchData();
+  }, [activeTab, fetchData]);
 
   const verifyChain = async () => {
     setVerifying(true);

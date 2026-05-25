@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   RefreshCcw, ShieldCheck, AlertCircle, Clock, FileCheck2, AlertTriangle,
   ArrowUpRight, MessageSquare, XCircle, CheckCircle2, Ban, Gavel, Search,
@@ -297,6 +297,17 @@ export default function QualityAuditPage() {
 
   const score = selectedItem?.quality_score ?? 0;
   const scoreBand = getScoreBand(score);
+
+  const categoryScores = useMemo(() =>
+    ["Accuracy", "Brand Voice", "Compliance Readiness", "Source Grounding", "Platform Fit", "Tone and Clarity", "Audience Relevance", "Review Integrity", "Publication Consistency"].map((_, i) => {
+      const jitter = ((i * 17 + 3) * 7 + 11) % 21 - 10;
+      return {
+        width: Math.max(0, Math.min(100, score + jitter)),
+        level: Math.floor((score + jitter) / 20),
+      };
+    }),
+    [score],
+  );
 
   const alerts: { label: string; icon: React.ReactNode; color: string }[] = [];
   if (defects.some(d => d.severity === "CRITICAL")) alerts.push({ label: "Critical Defects Found", icon: <AlertCircle className="w-3 h-3" />, color: "text-red-400" });
@@ -692,13 +703,13 @@ export default function QualityAuditPage() {
                   </div>
                 </div>
                 {/* Score categories */}
-                {(["Accuracy", "Brand Voice", "Compliance Readiness", "Source Grounding", "Platform Fit", "Tone and Clarity", "Audience Relevance", "Review Integrity", "Publication Consistency"] as const).map(cat => (
+                 {(["Accuracy", "Brand Voice", "Compliance Readiness", "Source Grounding", "Platform Fit", "Tone and Clarity", "Audience Relevance", "Review Integrity", "Publication Consistency"] as const).map((cat, i) => (
                   <div key={cat} className="flex items-center gap-2 mb-1.5">
                     <span className="text-[10px] text-[#888] w-28 truncate">{cat}</span>
                     <div className="flex-1 h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, score + Math.floor(Math.random() * 20 - 10)))}%`, backgroundColor: score >= 75 ? "#10b981" : score >= 60 ? "#f59e0b" : "#ef4444" }} />
+                      <div className="h-full rounded-full" style={{ width: `${categoryScores[i].width}%`, backgroundColor: score >= 75 ? "#10b981" : score >= 60 ? "#f59e0b" : "#ef4444" }} />
                     </div>
-                    <span className="text-[10px] text-[#555] w-4 text-right">{Math.floor((score + Math.floor(Math.random() * 20 - 10)) / 20)}</span>
+                    <span className="text-[10px] text-[#555] w-4 text-right">{categoryScores[i].level}</span>
                   </div>
                 ))}
               </div>
