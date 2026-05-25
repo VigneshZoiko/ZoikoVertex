@@ -10,7 +10,7 @@ import {
   Send,
   Loader2
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 
 export default function SupportPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -29,19 +29,8 @@ export default function SupportPage() {
     };
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('http://localhost:5006/api/v1/support/tickets', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        setSubmitted(true);
-      }
+      await api.post('/api/v1/support/tickets', payload);
+      setSubmitted(true);
     } catch (err) {
       console.error('Support submission error:', err);
     } finally {

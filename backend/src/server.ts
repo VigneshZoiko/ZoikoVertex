@@ -23,6 +23,8 @@ import { getCollusionMetrics } from './domains/governance/collusionController';
 import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
+import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
+import { getCampaignStats, submitCampaignForReview, checkLaunchGate, launchCampaign, pauseCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import {
   listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy,
@@ -62,6 +64,7 @@ import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemet
 import { performGlobalSearch } from './domains/admin/globalSearchController';
 import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
 import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
+import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
 
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
@@ -112,7 +115,8 @@ import {
 } from './domains/monitoring/modelPerformanceController';
 
 import { submitForReview, getApprovalQueue, getApprovalStats as getApprovalStatsLegacy, takeApprovalAction } from './domains/decisions/approvalController';
-import { authenticate, provisionGuard, scopeGuard } from './shared/authMiddleware';
+import { authenticate, provisionGuard, scopeGuard, AuthRequest } from './shared/authMiddleware';
+import { supabaseAdmin } from './shared/supabase';
 import { integrationPlanGate, blockApiKeyUsers, planRateLimit } from './shared/planLimits';
 import { requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';
@@ -160,7 +164,28 @@ const port = env.PORT;
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-app.use(cors());
+const ALLOWED_ORIGINS = [
+  env.FRONTEND_URL,
+  'https://getzoikovertex.com',
+  'https://www.getzoikovertex.com',
+  'http://localhost:3000',
+  'http://localhost:3001',
+].filter(Boolean) as string[];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow server-to-server requests (no origin header)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-workspace-id'],
+  credentials: true,
+  optionsSuccessStatus: 204,
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -246,6 +271,30 @@ app.delete('/api/v1/accounts/:id', authenticate, disconnectAccount);
 app.get('/api/v1/accounts/linkedin/pages', authenticate, getLinkedInPagesSession);
 app.post('/api/v1/accounts/linkedin/pages', authenticate, saveLinkedInPages);
 
+// Campaigns & Projects Routes
+const campaignGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'CREATOR', 'ANALYST', 'VIEWER', 'PUBLISHER', 'SUPERADMIN');
+const campaignWriteGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'SUPERADMIN');
+const campaignLaunchGuard = requireRole('APPROVER', 'FINAL_APPROVER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN');
+const campaignEmergencyGuard = requireRole('CRISIS_COMMANDER', 'FINAL_APPROVER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN');
+
+// Phase 1 — existing CRUD
+app.get('/api/v1/campaigns',           authenticate, campaignGuard,       listCampaigns);
+app.get('/api/v1/campaigns/stats',     authenticate, campaignGuard,       getCampaignStats);
+app.get('/api/v1/campaigns/:id',       authenticate, campaignGuard,       getCampaign);
+app.get('/api/v1/campaigns/:id/posts', authenticate, campaignGuard,       getCampaignPosts);
+app.post('/api/v1/campaigns',          authenticate, campaignWriteGuard,  createCampaign);
+app.patch('/api/v1/campaigns/:id',     authenticate, campaignWriteGuard,  updateCampaign);
+app.delete('/api/v1/campaigns/:id',    authenticate, campaignWriteGuard,  deleteCampaign);
+
+// Phase 2 — governed lifecycle
+app.post('/api/v1/campaigns/:id/submit-review',   authenticate, campaignWriteGuard,   submitCampaignForReview);
+app.get('/api/v1/campaigns/:id/launch-gate',      authenticate, campaignGuard,        checkLaunchGate);
+app.post('/api/v1/campaigns/:id/launch',          authenticate, campaignLaunchGuard,  launchCampaign);
+app.post('/api/v1/campaigns/:id/pause',           authenticate, campaignWriteGuard,   pauseCampaign);
+app.post('/api/v1/campaigns/:id/emergency-pause', authenticate, campaignEmergencyGuard, emergencyPauseCampaign);
+app.get('/api/v1/campaigns/:id/events',           authenticate, campaignGuard,        getCampaignEvents);
+app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGuard,   updateSpend);
+
 // Protected Scheduler Routes
 app.post('/api/v1/scheduler/recommend', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), getRecommendations);
 app.get('/api/v1/scheduler/posts', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), listScheduledPosts);
@@ -261,6 +310,12 @@ app.delete('/api/v1/library/:id', authenticate, planRateLimit('general'), scopeG
 
 // Protected User Routes
 app.get('/api/v1/user/context', authenticate, getUserContext);
+
+// Workspace Settings Routes
+const workspaceGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN', 'SUPERADMIN');
+app.get('/api/v1/workspace/settings', authenticate, workspaceGuard, getWorkspaceSettings);
+app.patch('/api/v1/workspace/settings', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), updateWorkspaceSettings);
+app.get('/api/v1/workspace/data-export', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), exportWorkspaceData);
 
 // Protected Account Routes
 app.get('/api/v1/accounts', authenticate, listAccounts);
@@ -566,10 +621,97 @@ app.post('/api/v1/prompts/:id/tests/suites', authenticate, PromptController.crea
 // Support Routes
 app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket);
 
+// ─── Inbox & Engagement Routes ────────────────────────────────────────────────
+import {
+  listInboxMessages, getInboxMessage, createReply, generateAiDraft, sendReply,
+  assignMessage, updateMessageStatus, escalateMessage, getEscalationQueue,
+  resolveEscalation, addNote, archiveMessage, getMessageAudit, syncPlatformMessages, deleteInboxMessages,
+  getPostPreview,
+} from './domains/inbox/inboxController';
+import { verifyMetaWebhook, handleMetaWebhook } from './domains/inbox/inboxWebhook';
+
+// Meta Webhooks — no auth, public endpoints
+app.get('/api/v1/webhooks/meta', verifyMetaWebhook);
+app.post('/api/v1/webhooks/meta', handleMetaWebhook);
+
+app.get('/api/v1/inbox/messages', authenticate, planRateLimit('general'), listInboxMessages);
+app.get('/api/v1/inbox/messages/:id', authenticate, planRateLimit('general'), getInboxMessage);
+app.post('/api/v1/inbox/messages/:id/reply', authenticate, planRateLimit('general'), createReply);
+app.post('/api/v1/inbox/messages/:id/reply/generate', authenticate, planRateLimit('ai'), generateAiDraft);
+app.post('/api/v1/inbox/messages/:id/reply/send', authenticate, planRateLimit('general'), sendReply);
+app.post('/api/v1/inbox/messages/:id/assign', authenticate, planRateLimit('general'), assignMessage);
+app.patch('/api/v1/inbox/messages/:id/status', authenticate, planRateLimit('general'), updateMessageStatus);
+app.post('/api/v1/inbox/messages/:id/escalate', authenticate, planRateLimit('general'), escalateMessage);
+app.post('/api/v1/inbox/messages/:id/archive', authenticate, planRateLimit('general'), archiveMessage);
+app.post('/api/v1/inbox/messages/delete', authenticate, planRateLimit('general'), deleteInboxMessages);
+app.post('/api/v1/inbox/messages/:id/notes', authenticate, planRateLimit('general'), addNote);
+app.get('/api/v1/inbox/messages/:id/audit', authenticate, planRateLimit('general'), getMessageAudit);
+app.get('/api/v1/inbox/escalations', authenticate, planRateLimit('general'), getEscalationQueue);
+app.post('/api/v1/inbox/escalations/:id/resolve', authenticate, planRateLimit('general'), resolveEscalation);
+app.post('/api/v1/inbox/sync', authenticate, planRateLimit('general'), syncPlatformMessages);
+app.get('/api/v1/inbox/messages/:id/post-preview', authenticate, planRateLimit('general'), getPostPreview);
+app.get('/api/v1/inbox/debug/threads', authenticate, async (req, res) => {
+  const workspaceId = (req as AuthRequest).user?.workspace_id as string;
+  const { data: accounts } = await supabaseAdmin
+    .from('connected_accounts')
+    .select('platform, account_handle, access_token, account_name')
+    .eq('workspace_id', workspaceId)
+    .eq('platform', 'threads')
+    .eq('status', 'active');
+  if (!accounts?.length) return res.json({ error: 'No Threads account connected' });
+  const acc = accounts[0];
+  const BASE = 'https://graph.threads.net/v1.0';
+  const uid = String(acc.account_handle);
+  const token = acc.access_token as string;
+  const profileRes = await fetch(`${BASE}/me?fields=id,username,threads_profile_picture_url&access_token=${token}`);
+  const profile = await profileRes.json();
+  const postsRes = await fetch(`${BASE}/${uid}/threads?fields=id,text,timestamp&limit=5&access_token=${token}`);
+  const posts = await postsRes.json();
+  const repliesPerPost: Record<string, unknown>[] = [];
+  for (const post of (posts.data || [])) {
+    const rRes = await fetch(`${BASE}/${post.id}/replies?fields=id,text,username,timestamp&access_token=${token}`);
+    const rData = await rRes.json();
+    repliesPerPost.push({ postId: post.id, postText: (post.text||'').slice(0,60), replies: rData });
+  }
+  return res.json({ account: { uid, name: acc.account_name }, profile, posts, repliesPerPost });
+});
+
+// ── Inbox diagnostic — shows raw DB state for the user's workspace ──────────────
+app.get('/api/v1/inbox/debug/state', authenticate, async (req, res) => {
+  try {
+    const authReq = req as AuthRequest;
+    const workspaceId = authReq.user?.workspace_id;
+    const userId      = authReq.user?.id;
+    const plan        = authReq.user?.workspace_plan;
+    const isSuperAdmin = authReq.user?.is_superadmin;
+
+    const { data: msgs, error: msgErr, count } = await supabaseAdmin
+      .from('inbox_messages')
+      .select('id, platform, status, message_type, workspace_id, received_at', { count: 'exact' })
+      .eq('workspace_id', workspaceId!)
+      .order('received_at', { ascending: false })
+      .limit(10);
+
+    const { data: accounts } = await supabaseAdmin
+      .from('connected_accounts')
+      .select('id, platform, account_name, status')
+      .eq('workspace_id', workspaceId!);
+
+    return res.json({
+      user: { userId, workspaceId, plan, isSuperAdmin },
+      inbox_messages: { count, sample: msgs, error: msgErr?.message },
+      connected_accounts: accounts,
+    });
+  } catch (e: unknown) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 // Global Error Handler
 app.use(errorHandler);
 
 import { initWorker } from './workers/schedulerWorker';
+import { startTokenRefreshWorker } from './workers/tokenRefreshWorker';
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
@@ -578,6 +720,7 @@ try {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers
     initWorker();
+    startTokenRefreshWorker();
   });
 
   server.on('error', (err: Error & { code?: string }) => {

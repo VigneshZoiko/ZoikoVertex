@@ -1,5 +1,10 @@
-import ComingSoon from "@/components/ui/ComingSoon";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function ProjectsPage() {
-  return <ComingSoon title="Projects" />;
+  const router = useRouter();
+  useEffect(() => { router.replace("/campaigns"); }, [router]);
+  return null;
 }

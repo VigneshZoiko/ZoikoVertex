@@ -83,7 +83,33 @@ export class ExecutionService {
         })
         .eq('id', intentId);
 
-      // 4. Broadcast webhook event
+      // 4. Auto-retire media vault record on full success.
+      // Only the DB row is removed — the file stays in Supabase Storage so that
+      // publish_intents.media_url (and inbox/comment previews) keep working.
+      // If even one platform failed we leave the record untouched.
+      if (allSuccessful) {
+        const urlsToClean: string[] = [
+          ...(intent.media_url ? [intent.media_url] : []),
+          ...(Array.isArray(intent.media_urls) ? intent.media_urls : []),
+        ].filter(Boolean);
+
+        if (urlsToClean.length > 0) {
+          // Match on the primary `url` column; the asset is keyed by its first URL.
+          const { error: cleanErr } = await supabaseAdmin
+            .from('media_library')
+            .delete()
+            .in('url', urlsToClean);
+
+          if (cleanErr) {
+            // Non-fatal — log and continue. Storage file is unaffected.
+            logger.warn({ cleanErr, intentId }, '[Execution] Media vault cleanup failed (non-fatal)');
+          } else {
+            logger.info(`[Execution] Media vault record(s) retired after successful publish of ${intentId}`);
+          }
+        }
+      }
+
+      // 5. Broadcast webhook event
       broadcastWebhookEvent(intent.workspace_id, allSuccessful ? 'post.published' : 'post.failed', {
         intent_id: intentId,
         platform: intent.platform,

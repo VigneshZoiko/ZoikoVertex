@@ -13,9 +13,19 @@ let publishQueue: Queue | null = null;
 function getConnection(): IORedis | null {
   if (!env.REDIS_URL) return null;
   if (!connection) {
-    connection = new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null });
+    connection = new IORedis(env.REDIS_URL, {
+      maxRetriesPerRequest: null,
+      retryStrategy: (times: number) => {
+        if (times > 3) return null; // stop retrying after 3 attempts
+        return Math.min(times * 2000, 10000);
+      },
+    });
+    let _redisErrLogged = false;
     connection.on('error', (err: any) => {
-      logger.error(`[Redis] Connection error: ${err.message}`);
+      if (!_redisErrLogged) {
+        logger.error(`[Redis] Connection error: ${err.message}`);
+        _redisErrLogged = true;
+      }
     });
   }
   return connection;

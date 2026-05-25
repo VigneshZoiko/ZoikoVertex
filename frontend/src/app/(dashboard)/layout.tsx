@@ -21,7 +21,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { orgStatus, orgName, isSuperAdmin, isLoading, role } = useRoleContext();
-  const [isUnauthorized, setIsUnauthorized] = useState(false);
+  const [isUnauthorized, setIsUnauthorized] = useState<boolean | null>(null);
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
   // Runs on every route change. getSession() reads from localStorage so it's
@@ -37,13 +37,16 @@ export default function DashboardLayout({
 
   // ── Role guard ──────────────────────────────────────────────────────────────
   // Waits for the role to load, then checks if this pathname is allowed.
+  // If role is still null after loading (cache miss / background refresh pending),
+  // defer the check — the auth guard handles unauthenticated users via redirect.
   useEffect(() => {
     if (isLoading) return;
+    if (role === null && !isSuperAdmin) return;
     setIsUnauthorized(!canAccess(pathname, role, isSuperAdmin));
   }, [pathname, isLoading, role, isSuperAdmin]);
 
-  // ── Loading skeleton (initial role fetch) ───────────────────────────────────
-  if (isLoading) {
+  // ── Loading skeleton (initial role fetch + auth check) ──────────────────────
+  if (isLoading || isUnauthorized === null) {
     return (
       <div className="h-screen bg-[var(--background,#111111)] flex overflow-hidden">
         {/* Sidebar skeleton */}
@@ -97,11 +100,18 @@ export default function DashboardLayout({
           <Sidebar />
           <div className="flex-1 flex flex-col min-w-0 h-screen">
             <Header />
-            <main className="flex-1 overflow-y-auto p-8 bg-[var(--background)] transition-colors">
+            <main className="flex-1 overflow-hidden flex flex-col bg-[var(--background)] transition-colors">
               {isUnauthorized ? (
                 <UnauthorizedView pathname={pathname} onBack={() => router.replace('/dashboard')} />
               ) : (
-                <div key={pathname} className="page-enter">
+                <div
+                  key={pathname}
+                  className={`page-enter flex-1 ${
+                    pathname === '/inbox'
+                      ? 'overflow-hidden'
+                      : 'overflow-y-auto p-8'
+                  }`}
+                >
                   {children}
                 </div>
               )}
