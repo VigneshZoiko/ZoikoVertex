@@ -311,7 +311,7 @@ app.get('/api/v1/agents/workflows/escalations', authenticate, scopeGuard('read:a
 app.get('/api/v1/agents/workflows/approvals', authenticate, scopeGuard('read:agents', '*'), getApprovals);
 app.get('/api/v1/agents/workflows/approvals/stats', authenticate, scopeGuard('read:agents', '*'), getApprovalStats);
 app.post('/api/v1/agents/workflows', authenticate, scopeGuard('write:agents', '*'), createWorkflow);
-app.get('/api/v1/agents/workflows/versions/:versionId/submit', authenticate, scopeGuard('write:agents', '*'), submitForApproval);
+app.post('/api/v1/agents/workflows/versions/:versionId/submit', authenticate, scopeGuard('write:agents', '*'), submitForApproval);
 app.post('/api/v1/agents/workflows/versions/:versionId/approve', authenticate, scopeGuard('write:agents', '*'), approveVersion);
 app.post('/api/v1/agents/workflows/versions/:versionId/reject', authenticate, scopeGuard('write:agents', '*'), rejectVersion);
 app.post('/api/v1/agents/workflows/versions/:versionId/activate', authenticate, scopeGuard('write:agents', '*'), activateVersion);
