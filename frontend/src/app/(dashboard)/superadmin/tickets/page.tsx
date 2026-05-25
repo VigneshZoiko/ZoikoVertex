@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   MessageSquare, 
   Clock, 
@@ -9,9 +9,10 @@ import {
   Filter,
   User,
   Globe,
-  MoreVertical
+  MoreVertical,
+  Archive
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 
 interface Ticket {
   id: string;
@@ -34,21 +35,34 @@ export default function SupportInbox() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showLog, setShowLog] = useState(false);
+
+  const sixMonthsAgo = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    return d;
+  }, []);
+
+  const activeTickets = useMemo(
+    () => tickets.filter(t => t.status === 'OPEN' || t.status === 'IN_PROGRESS'),
+    [tickets]
+  );
+
+  const resolvedTickets = useMemo(
+    () => tickets.filter(t => t.status === 'RESOLVED' && new Date(t.created_at) >= sixMonthsAgo),
+    [tickets, sixMonthsAgo]
+  );
+
+  const displayedTickets = showLog ? resolvedTickets : activeTickets;
 
   useEffect(() => {
     const fetchTickets = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch('http://localhost:5006/api/v1/superadmin/tickets', {
-          headers: {
-            'Authorization': `Bearer ${session?.access_token}`
-          }
-        });
-        const data = await res.json();
-        if (data.success) {
-          setTickets(data.tickets);
+        const result = await api.get('/api/v1/superadmin/tickets');
+        if (result.success) {
+          setTickets(result.tickets);
         } else {
-          setError(data.error);
+          setError(result.error);
         }
       } catch (err) {
         setError('Failed to load tickets');
@@ -62,16 +76,8 @@ export default function SupportInbox() {
 
   const updateStatus = async (id: string, newStatus: string) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`http://localhost:5006/api/v1/superadmin/tickets/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-      if (res.ok) {
+      const result = await api.patch(`/api/v1/superadmin/tickets/${id}`, { status: newStatus });
+      if (result.success) {
         setTickets(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
       }
     } catch (err) {
@@ -100,15 +106,34 @@ export default function SupportInbox() {
         <div>
           <h1 className="text-4xl font-black text-white tracking-tight flex items-center">
             <MessageSquare className="w-10 h-10 mr-4 text-indigo-500" />
-            Support Inbox
+            {showLog ? 'Resolved Log' : 'Support Inbox'}
           </h1>
           <p className="text-zinc-400 mt-2 text-lg">
-            Manage and resolve queries from Organization Admins.
+            {showLog
+              ? `Resolved tickets from the last 6 months.`
+              : `Manage and resolve queries from Organization Admins.`
+            }
+            {!showLog && activeTickets.length > 0 && (
+              <span className="ml-3 text-sm px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 font-bold">
+                {activeTickets.length} active
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center space-x-3">
           <button className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 text-sm flex items-center hover:bg-zinc-800 transition-colors">
             <Filter className="w-4 h-4 mr-2" /> Filter
+          </button>
+          <button
+            onClick={() => setShowLog(!showLog)}
+            className={`px-4 py-2 rounded-xl text-sm flex items-center transition-colors ${
+              showLog
+                ? 'bg-indigo-600 text-white border border-indigo-500'
+                : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:bg-zinc-800'
+            }`}
+          >
+            <Archive className="w-4 h-4 mr-2" />
+            {showLog ? 'Active Queue' : `Log (${resolvedTickets.length})`}
           </button>
         </div>
       </div>
@@ -118,15 +143,22 @@ export default function SupportInbox() {
           <div className="animate-spin h-10 w-10 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-zinc-500">Scanning support queue...</p>
         </div>
-      ) : tickets.length === 0 ? (
+      ) : displayedTickets.length === 0 ? (
         <div className="py-20 text-center bg-zinc-900/30 rounded-3xl border border-zinc-800 border-dashed">
           <CheckCircle2 className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-zinc-500">Inbox is empty</h3>
-          <p className="text-zinc-600">All queries have been addressed.</p>
+          <h3 className="text-xl font-bold text-zinc-500">
+            {showLog ? 'No resolved tickets' : 'Inbox is empty'}
+          </h3>
+          <p className="text-zinc-600">
+            {showLog
+              ? 'No tickets have been resolved in the last 6 months.'
+              : 'All queries have been addressed.'
+            }
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {tickets.map((ticket) => (
+          {displayedTickets.map((ticket) => (
             <div key={ticket.id} className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden group hover:border-zinc-700 transition-all">
               <div className="p-6 flex items-start">
                 <div className="flex-1">
@@ -159,20 +191,24 @@ export default function SupportInbox() {
                 </div>
 
                 <div className="ml-6 flex flex-col space-y-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    onClick={() => updateStatus(ticket.id, 'IN_PROGRESS')}
-                    className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-amber-400 transition-colors"
-                    title="Mark in progress"
-                  >
-                    <Clock className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={() => updateStatus(ticket.id, 'RESOLVED')}
-                    className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-emerald-400 transition-colors"
-                    title="Mark resolved"
-                  >
-                    <CheckCircle2 className="w-5 h-5" />
-                  </button>
+                  {!showLog && (
+                    <>
+                      <button 
+                        onClick={() => updateStatus(ticket.id, 'IN_PROGRESS')}
+                        className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-amber-400 transition-colors"
+                        title="Mark in progress"
+                      >
+                        <Clock className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => updateStatus(ticket.id, 'RESOLVED')}
+                        className="p-2 hover:bg-zinc-800 rounded-xl text-zinc-400 hover:text-emerald-400 transition-colors"
+                        title="Mark resolved"
+                      >
+                        <CheckCircle2 className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

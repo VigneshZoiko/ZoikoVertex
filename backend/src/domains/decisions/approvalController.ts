@@ -151,7 +151,7 @@ export const getApprovalQueue = async (req: AuthRequest, res: Response, next: Ne
     // for status values not yet present in the DB's intent_status enum.
     let query = supabaseAdmin
       .from('publish_intents')
-      .select('*, creator:users!publish_intents_creator_id_fkey(full_name, email)')
+      .select('*')
       .order('created_at', { ascending: true });
 
     if (!isSuperAdmin && workspaceId) {
@@ -161,11 +161,42 @@ export const getApprovalQueue = async (req: AuthRequest, res: Response, next: Ne
       query = query.eq('creator_id', userId);
     }
 
-    const { data, error } = await query;
+    const { data: rawData, error } = await query;
     if (error) {
-      if ((error as any).code === '42P01') return res.json({ success: true, data: [], role });
+      if ((error as { code?: string }).code === '42P01') return res.json({ success: true, data: [], role });
       throw error;
     }
+
+    // Join creator users in-memory
+    const items = rawData || [];
+    const creatorIds = [...new Set(items.map((i: any) => i.creator_id).filter(Boolean))];
+    const userMap = new Map<string, { full_name: string; email: string }>();
+
+    if (creatorIds.length > 0) {
+      try {
+        const { data: usersData } = await supabaseAdmin
+          .from('users')
+          .select('id, full_name, email')
+          .in('id', creatorIds);
+        
+        if (usersData) {
+          usersData.forEach((u: any) => {
+            userMap.set(u.id, { full_name: u.full_name, email: u.email });
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const data = items.map((item: any) => {
+      const creatorInfo = item.creator_id ? userMap.get(item.creator_id) : null;
+      return {
+        ...item,
+        creator: creatorInfo || null,
+      };
+    });
+
 
     const filtered = (data || []).filter((item: any) => statusFilter.includes(item.status));
     res.json({ success: true, data: filtered, role });
@@ -225,7 +256,7 @@ export const getApprovalStats = async (req: AuthRequest, res: Response, next: Ne
     // Recent decisions (last 10 approved/rejected)
     let recentQuery = supabaseAdmin
       .from('publish_intents')
-      .select('id, content, platform, status, risk_level, created_at, creator:users!publish_intents_creator_id_fkey(full_name)')
+      .select('id, content, platform, status, risk_level, created_at, creator_id')
       .in('status', ['APPROVED', 'REJECTED', 'BLOCKED', 'GOVERNANCE_BLOCKED'])
       .order('created_at', { ascending: false })
       .limit(10);
@@ -233,7 +264,38 @@ export const getApprovalStats = async (req: AuthRequest, res: Response, next: Ne
     if (!userCtx?.is_superadmin && member?.workspace_id) {
       recentQuery = recentQuery.eq('workspace_id', member.workspace_id);
     }
-    const { data: recent } = await recentQuery;
+    const { data: recentRaw } = await recentQuery;
+
+    // Join creator users in-memory
+    const recentItems = recentRaw || [];
+    const recentCreatorIds = [...new Set(recentItems.map((i: any) => i.creator_id).filter(Boolean))];
+    const recentUserMap = new Map<string, { full_name: string }>();
+
+    if (recentCreatorIds.length > 0) {
+      try {
+        const { data: usersData } = await supabaseAdmin
+          .from('users')
+          .select('id, full_name')
+          .in('id', recentCreatorIds);
+        
+        if (usersData) {
+          usersData.forEach((u: any) => {
+            recentUserMap.set(u.id, { full_name: u.full_name });
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const recent = recentItems.map((item: any) => {
+      const creatorInfo = item.creator_id ? recentUserMap.get(item.creator_id) : null;
+      return {
+        ...item,
+        creator: creatorInfo || null,
+      };
+    });
+
 
     const total = counts.approved_this_week + counts.rejected_this_week;
     const approval_rate = total > 0 ? Math.round((counts.approved_this_week / total) * 100) : null;

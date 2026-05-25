@@ -3,6 +3,14 @@ import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 
+interface CollusionIncident {
+  id: string;
+  type: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  details: string;
+  timestamp: string | null;
+}
+
 /**
  * Collusion Heuristics Engine: Audits approval behaviors and insider risk metrics
  */
@@ -33,7 +41,7 @@ export const getCollusionMetrics = async (req: AuthRequest, res: Response, next:
     let warningOverrides = 0;
     const monopolizedApprovals = 0;
 
-    const incidentList: any[] = [];
+    const incidentList: CollusionIncident[] = [];
 
     if (intents && intents.length > 0) {
       intents.forEach((intent) => {

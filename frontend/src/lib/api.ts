@@ -3,12 +3,30 @@ import { supabase } from './supabase';
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
 async function getAuthHeader(): Promise<Record<string, string>> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const headers: Record<string, string> = {};
-  if (session?.access_token) {
-    headers['Authorization'] = `Bearer ${session.access_token}`;
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    // AuthApiError with "Refresh Token Not Found" means the stored session is stale.
+    // Sign out silently so the middleware can redirect to /login on the next request.
+    if (error) {
+      console.warn('[api] Session error — signing out:', error.message);
+      await supabase.auth.signOut();
+      if (typeof window !== 'undefined') window.location.replace('/login');
+      return {};
+    }
+    const headers: Record<string, string> = {};
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+    return headers;
+  } catch (err: any) {
+    // Catches AuthApiError thrown when the refresh token is completely gone
+    if (err?.name === 'AuthApiError' || err?.message?.includes('Refresh Token')) {
+      console.warn('[api] Invalid refresh token — clearing session and redirecting to login');
+      try { await supabase.auth.signOut(); } catch { /* best effort */ }
+      if (typeof window !== 'undefined') window.location.replace('/login');
+    }
+    return {};
   }
-  return headers;
 }
 
 async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
@@ -308,5 +326,9 @@ export const api = {
 
   async getInboxPostPreview(messageId: string) {
     return this.get(`/api/v1/inbox/messages/${messageId}/post-preview`);
+  },
+
+  async getPlatformReach() {
+    return this.get('/api/v1/analytics/platform-reach');
   },
 };

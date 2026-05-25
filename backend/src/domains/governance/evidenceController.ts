@@ -7,6 +7,7 @@ import { logToDatabase } from '../../shared/databaseLogger';
 import { randomUUID, createHash } from 'crypto';
 import PDFDocument from 'pdfkit';
 import * as archiverLib from 'archiver';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const { ZipArchive } = archiverLib as any;
 
 // ─── In-Memory Stores ─────────────────────────────────────────────────────────
@@ -151,7 +152,7 @@ export const logAuditEvent = async (params: {
       .maybeSingle();
     
     if (lastLog?.meta && typeof lastLog.meta === 'object' && 'hash' in lastLog.meta) {
-      prevHash = String((lastLog.meta as any).hash);
+      prevHash = String((lastLog.meta as Record<string, unknown>).hash);
     }
   } catch {
     // Graceful fallback to default genesis hash if table is empty or offline
@@ -179,20 +180,24 @@ export const logAuditEvent = async (params: {
 export const getAuditTrail = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { service, level, search, limit = '50', offset = '0' } = req.query;
-
-    let query = supabaseAdmin
-      .from('system_logs')
-      .select('*', { count: 'exact' });
-
-    if (service && typeof service === 'string') query = query.eq('service', service);
-    if (level && typeof level === 'string')     query = query.eq('level', level);
-    if (search && typeof search === 'string')   query = query.ilike('message', `%${search}%`);
-
+    const { search, limit = '50', offset = '0', event_category, risk_level, status } = req.query;
     const lim = Math.min(parseInt(String(limit), 10), 200);
     const off = parseInt(String(offset), 10);
+
+    let query = supabaseAdmin
+      .from('audit_events')
+      .select('*', { count: 'exact' });
+
+    if (workspaceId) query = query.eq('workspace_id', workspaceId);
+    if (event_category && typeof event_category === 'string') query = query.eq('event_category', event_category);
+    if (risk_level && typeof risk_level === 'string') query = query.eq('risk_level', risk_level);
+    if (status && typeof status === 'string') query = query.eq('status', status);
+    if (search && typeof search === 'string') {
+      query = query.or(`event_id.ilike.%${search}%,event_title.ilike.%${search}%,event_summary.ilike.%${search}%`);
+    }
 
     const { data, error, count } = await query
       .order('created_at', { ascending: false })
@@ -212,19 +217,20 @@ export const getAuditStats = async (req: AuthRequest, res: Response, next: NextF
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { data: all } = await supabaseAdmin
-      .from('system_logs')
-      .select('level, service, created_at');
+      .from('audit_events')
+      .select('risk_level, status, event_category, created_at');
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString();
 
     const stats = {
-      total:      (all || []).length,
-      today:      (all || []).filter(e => e.created_at >= todayStr).length,
-      errors:     (all || []).filter(e => e.level === 'error').length,
-      warnings:   (all || []).filter(e => e.level === 'warn').length,
-      services:   [...new Set((all || []).map(e => e.service))].filter(Boolean),
+      total:          (all || []).length,
+      today:          (all || []).filter(e => e.created_at >= todayStr).length,
+      errors:         (all || []).filter(e => e.status === 'failed').length,
+      warnings:       (all || []).filter(e => e.risk_level === 'medium').length,
+      critical:       (all || []).filter(e => e.risk_level === 'critical').length,
+      event_categories: [...new Set((all || []).map(e => e.event_category))].filter(Boolean),
     };
 
     res.json({ success: true, data: stats });
@@ -243,32 +249,40 @@ export const getEvidenceArtifacts = async (req: AuthRequest, res: Response, next
     const isSuperAdmin = req.user?.is_superadmin;
     const workspaceId = req.user?.workspace_id;
 
-    let query = supabaseAdmin
-      .from('publish_intents')
-      .select('*, creator:users!publish_intents_creator_id_fkey(full_name, email)')
-      .order('created_at', { ascending: false })
-      .limit(100);
+    let data: any[] = [];
+    try {
+      // Try without the FK join first (more compatible)
+      let query = supabaseAdmin
+        .from('publish_intents')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-    if (!isSuperAdmin && workspaceId) {
-      query = query.eq('workspace_id', workspaceId);
+      if (!isSuperAdmin && workspaceId) {
+        query = query.eq('workspace_id', workspaceId);
+      }
+
+      const { data: rows, error } = await query;
+      if (error) throw error;
+      data = rows || [];
+    } catch {
+      // Supabase unavailable or table missing — return empty array (graceful degradation)
+      data = [];
     }
-
-    const { data, error } = await query;
-    if (error) throw error;
 
     const holds = await getLegalHolds(workspaceId, isSuperAdmin);
     const holdIds = new Set(holds.map(h => h.object_id));
 
-    const artifacts = (data || []).map(intent => {
+    const artifacts = data.map(intent => {
       const defensibility = calculateDefensibility(intent as Record<string, unknown>);
       return {
         ...intent,
-        artifact_uuid:      `ART-${String(intent.id).slice(0, 8).toUpperCase()}`,
-        artifact_type:      'CONTENT_PUBLISH',
+        artifact_uuid:       `ART-${String(intent.id).slice(0, 8).toUpperCase()}`,
+        artifact_type:       'CONTENT_PUBLISH',
         defensibility_index: defensibility,
         defensibility_label: defensibilityLabel(defensibility),
         defensibility_color: defensibilityColor(defensibility),
-        is_on_legal_hold:   holdIds.has(String(intent.id)),
+        is_on_legal_hold:    holdIds.has(String(intent.id)),
       };
     });
 
@@ -278,19 +292,43 @@ export const getEvidenceArtifacts = async (req: AuthRequest, res: Response, next
   }
 };
 
+
 export const getEvidenceArtifactDetail = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = String(req.params.id);
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: intent, error } = await supabaseAdmin
-      .from('publish_intents')
-      .select('*, creator:users!publish_intents_creator_id_fkey(full_name, email)')
-      .eq('id', id)
-      .single();
+    let intent: any = null;
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('publish_intents')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error) throw error;
+      intent = data;
+    } catch {
+      // Graceful fallback
+    }
 
-    if (error || !intent) return res.status(404).json({ error: 'Artifact not found' });
+    if (!intent) return res.status(404).json({ error: 'Artifact not found' });
+
+    // Fetch creator separately if present
+    if (intent.creator_id) {
+      try {
+        const { data: userRow } = await supabaseAdmin
+          .from('users')
+          .select('full_name, email')
+          .eq('id', intent.creator_id)
+          .single();
+        if (userRow) {
+          intent.creator = userRow;
+        }
+      } catch {
+        // ignore fallback errors
+      }
+    }
 
     const defensibility = calculateDefensibility(intent as Record<string, unknown>);
 
@@ -352,14 +390,22 @@ export const getEvidenceStats = async (req: AuthRequest, res: Response, next: Ne
     const isSuperAdmin = req.user?.is_superadmin;
     const workspaceId = req.user?.workspace_id;
 
-    let query = supabaseAdmin.from('publish_intents').select('id, status, risk_level, risk_score, feedback, target_account_ids, platform, content, workspace_id, creator_id');
-    if (!isSuperAdmin && workspaceId) query = query.eq('workspace_id', workspaceId);
-
-    const { data, error } = await query;
-    if (error) throw error;
+    let data: any[] = [];
+    try {
+      let query = supabaseAdmin
+        .from('publish_intents')
+        .select('id, status, risk_level, risk_score, feedback, target_account_ids, platform, content, workspace_id, creator_id');
+      if (!isSuperAdmin && workspaceId) query = query.eq('workspace_id', workspaceId);
+      const { data: rows, error } = await query;
+      if (error) throw error;
+      data = rows || [];
+    } catch {
+      // Supabase unavailable — proceed with empty data set
+      data = [];
+    }
 
     let defensible = 0, gaps = 0, failures = 0, reviewRecommended = 0;
-    for (const intent of data || []) {
+    for (const intent of data) {
       const score = calculateDefensibility(intent as Record<string, unknown>);
       if (score >= 95) defensible++;
       else if (score >= 85) reviewRecommended++;
@@ -373,15 +419,15 @@ export const getEvidenceStats = async (req: AuthRequest, res: Response, next: Ne
     res.json({
       success: true,
       data: {
-        total_artifacts:     (data || []).length,
+        total_artifacts:        data.length,
         defensible,
-        review_recommended:  reviewRecommended,
-        governance_gaps:     gaps,
+        review_recommended:     reviewRecommended,
+        governance_gaps:        gaps,
         defensibility_failures: failures,
-        active_legal_holds:  wsHolds.length,
-        evidence_packs:      wsPacks.length,
-        avg_defensibility:   data?.length
-          ? Math.round((data.reduce((acc, i) => acc + calculateDefensibility(i as Record<string, unknown>), 0)) / data.length)
+        active_legal_holds:     wsHolds.length,
+        evidence_packs:         wsPacks.length,
+        avg_defensibility:      data.length
+          ? Math.round(data.reduce((acc, i) => acc + calculateDefensibility(i as Record<string, unknown>), 0) / data.length)
           : 0,
       },
     });
@@ -565,7 +611,7 @@ export const isOnLegalHold = (objectId: string): boolean => {
 };
 
 // ─── Direct PDF Exporter helper ────────────────────────────────────────────────
-function generateEvidencePDF(pack: EvidencePack, artifacts: any[]): Promise<Buffer> {
+function generateEvidencePDF(pack: EvidencePack, artifacts: Record<string, unknown>[]): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
     const chunks: Buffer[] = [];
@@ -629,7 +675,7 @@ function generateEvidencePDF(pack: EvidencePack, artifacts: any[]): Promise<Buff
     doc.strokeColor('#cbd5e1').moveTo(50, tableY + 18).lineTo(545, tableY + 18).stroke();
     
     let currentY = tableY + 23;
-    artifacts.slice(0, 15).forEach((art: any) => {
+    artifacts.slice(0, 15).forEach((art: Record<string, unknown>) => {
       if (currentY > 730) {
         doc.addPage();
         currentY = 50;
@@ -654,14 +700,14 @@ function generateEvidencePDF(pack: EvidencePack, artifacts: any[]): Promise<Buff
 }
 
 // ─── Direct ZIP Exporter helper ────────────────────────────────────────────────
-function generateEvidenceZIP(pack: EvidencePack, artifacts: any[], pdfBuffer: Buffer): Promise<Buffer> {
+function generateEvidenceZIP(pack: EvidencePack, artifacts: Record<string, unknown>[], pdfBuffer: Buffer): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const archive = new ZipArchive({ zlib: { level: 9 } });
     const chunks: Buffer[] = [];
 
-    archive.on('data', (chunk: any) => chunks.push(chunk));
+    archive.on('data', (chunk: Buffer) => chunks.push(chunk));
     archive.on('end', () => resolve(Buffer.concat(chunks)));
-    archive.on('error', (err: any) => reject(err));
+    archive.on('error', (err: Error) => reject(err));
 
     // Append manifest
     const manifest = JSON.stringify({ pack, artifacts }, null, 2);
@@ -686,7 +732,7 @@ HOW TO VERIFY THE INTEGRITY OF THIS COMPLIANCE BUNDLE:
     archive.append(readme, { name: 'README.txt' });
 
     // Append individual JSON files under artifacts/
-    artifacts.forEach((art: any) => {
+    artifacts.forEach((art: Record<string, unknown>) => {
       const artStr = JSON.stringify(art, null, 2);
       archive.append(artStr, { name: `artifacts/artifact_ART-${String(art.id).slice(0, 8).toUpperCase()}.json` });
     });
@@ -739,8 +785,8 @@ export const downloadEvidencePack = async (req: AuthRequest, res: Response, next
       return;
     } else if (pack.format === 'CSV') {
       let csv = 'id,content,platform,status,risk_level,risk_score,decision_id,feedback,created_at\n';
-      (artifacts || []).forEach((art: any) => {
-        csv += `"${art.id}","${(art.content || '').replace(/"/g, '""')}","${art.platform || ''}","${art.status || ''}","${art.risk_level || ''}","${art.risk_score || 0}","${art.decision_id || ''}","${(art.feedback || '').replace(/"/g, '""')}","${art.created_at}"\n`;
+      (artifacts || []).forEach((art: Record<string, unknown>) => {
+        csv += `"${art.id}","${(String(art.content || '')).replace(/"/g, '""')}","${art.platform || ''}","${art.status || ''}","${art.risk_level || ''}","${art.risk_score || 0}","${art.decision_id || ''}","${(String(art.feedback || '')).replace(/"/g, '""')}","${art.created_at}"\n`;
       });
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="evidence_pack_${pack.id.slice(0, 8)}.csv"`);

@@ -12,11 +12,27 @@ export interface DecisionResult {
   governance_cleared: boolean;
 }
 
+export interface IntentPayload {
+  content?: string;
+  platform?: string;
+  risk_score?: number;
+  risk_level?: string;
+  creator_id?: string;
+  [key: string]: unknown;
+}
+
+export interface RiskContext {
+  level?: string;
+  score?: number;
+  factors?: string[];
+  [key: string]: unknown;
+}
+
 export interface PolicyRule {
   id: string;
   name: string;
   description: string;
-  triggerCondition: (intent: any, riskAssessment: any) => boolean;
+  triggerCondition: (intent: IntentPayload, riskAssessment: RiskContext) => boolean;
   action: 'APPROVE' | 'REJECT' | 'ESCALATE';
   failureReason: string;
 }
@@ -53,7 +69,7 @@ export const ENTERPRISE_POLICIES: PolicyRule[] = [
     name: 'Linguistic Compliance Policy',
     description: 'Blocks posts with excessive violations of sovereign brand lexicon guidelines.',
     triggerCondition: (intent, risk) => {
-      return risk.level === 'RESTRICTED' || (risk.factors && risk.factors.some((f: string) => f.includes('Brand Lexicon violated')));
+      return risk.level === 'RESTRICTED' || !!(risk.factors && risk.factors.some((f: string) => f.includes('Brand Lexicon violated')));
     },
     action: 'ESCALATE',
     failureReason: 'Critical violation of brand sovereignty vocabulary protocols.'
@@ -113,7 +129,7 @@ export async function evaluateIntent(
 
   // 2. Evaluate Dynamic Enterprise Policies (Policy Center)
   const policyResults = ENTERPRISE_POLICIES.map(p => {
-    const triggered = p.triggerCondition(intent, riskAssessment);
+    const triggered = p.triggerCondition(intent, riskAssessment as unknown as RiskContext);
     return {
       policy_id: p.id,
       name: p.name,

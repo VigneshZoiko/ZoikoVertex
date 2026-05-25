@@ -6,6 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 import WelcomeOverlay from "@/components/WelcomeOverlay";
 import PendingApproval from "@/components/PendingApproval";
+import SuspendedOverlay from "@/components/SuspendedOverlay";
 import { DraftGuardProvider } from "@/lib/context/DraftGuardContext";
 import { NotificationProvider } from "@/lib/context/NotificationContext";
 import { useRoleContext } from "@/lib/context/RoleContext";
@@ -20,7 +21,7 @@ export default function DashboardLayout({
 }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { orgStatus, orgName, isSuperAdmin, isLoading, role } = useRoleContext();
+  const { orgStatus, workspaceStatus, orgName, isSuperAdmin, isLoading, role } = useRoleContext();
   const [isUnauthorized, setIsUnauthorized] = useState<boolean | null>(null);
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
@@ -28,10 +29,27 @@ export default function DashboardLayout({
   // synchronous-fast. Redirects to /login if no valid session exists.
   useEffect(() => {
     let cancelled = false;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (cancelled) return;
-      if (!session) router.replace('/login');
-    });
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (error || !session) {
+          // Error means stale/invalid refresh token — sign out and go to login
+          if (error) {
+            console.warn('[layout] Session error, signing out:', error.message);
+            try { await supabase.auth.signOut(); } catch { /* best effort */ }
+          }
+          router.replace('/login');
+        }
+      } catch (err: any) {
+        if (cancelled) return;
+        // AuthApiError: Refresh Token Not Found — clear and redirect
+        console.warn('[layout] Auth exception, redirecting to login:', err?.message);
+        try { await supabase.auth.signOut(); } catch { /* best effort */ }
+        router.replace('/login');
+      }
+    };
+    checkSession();
     return () => { cancelled = true; };
   }, [pathname, router]);
 
@@ -92,16 +110,27 @@ export default function DashboardLayout({
     return <PendingApproval orgName={orgName ?? undefined} />;
   }
 
+  // ── Suspended/deleted org gate ──────────────────────────────────────────────
+  const isSupportRoute = pathname.startsWith('/support');
+  const isSuspended = !isSuperAdmin && !isSupportRoute && (workspaceStatus === "SUSPENDED" || orgStatus === "SUSPENDED");
+  const isDeleted = !isSuperAdmin && !isSupportRoute && orgStatus === "NO_WORKSPACE" && !isLoading;
+  const showSuspension = isSuspended || isDeleted;
+  const suspensionType = isSuspended ? 'paused' as const : 'deleted' as const;
+
   return (
     <NotificationProvider>
       <DraftGuardProvider>
         <WelcomeOverlay />
         <div className="bg-[var(--background)] text-[var(--foreground)] h-screen overflow-hidden flex transition-colors">
-          <Sidebar />
+          <div className={`w-64 shrink-0 transition-all duration-500 ${showSuspension ? 'opacity-20 pointer-events-none select-none' : ''}`}>
+            <Sidebar />
+          </div>
           <div className="flex-1 flex flex-col min-w-0 h-screen">
             <Header />
             <main className="flex-1 overflow-hidden flex flex-col bg-[var(--background)] transition-colors">
-              {isUnauthorized ? (
+              {showSuspension ? (
+                <SuspendedOverlay orgName={orgName ?? undefined} type={suspensionType} />
+              ) : isUnauthorized ? (
                 <UnauthorizedView pathname={pathname} onBack={() => router.replace('/dashboard')} />
               ) : (
                 <div
