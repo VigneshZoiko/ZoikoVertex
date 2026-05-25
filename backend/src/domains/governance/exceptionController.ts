@@ -16,10 +16,7 @@ export const listExceptions = async (req: AuthRequest, res: Response, next: Next
     //    RESTRICTED that may not exist in the live risk_level enum yet.
     let query = supabaseAdmin
       .from('publish_intents')
-      .select(`
-        *,
-        creator:users!publish_intents_creator_id_fkey(full_name, email)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (!isSuper) {
@@ -33,7 +30,35 @@ export const listExceptions = async (req: AuthRequest, res: Response, next: Next
       throw error;
     }
 
-    const data = (rawData || []).filter((item: { status: string; risk_level: string }) =>
+    // Join creator users in-memory
+    const items = rawData || [];
+    const creatorIds = [...new Set(items.map((i: any) => i.creator_id).filter(Boolean))];
+    const userMap = new Map<string, { full_name: string; email: string }>();
+
+    if (creatorIds.length > 0) {
+      try {
+        const { data: usersData } = await supabaseAdmin
+          .from('users')
+          .select('id, full_name, email')
+          .in('id', creatorIds);
+        
+        if (usersData) {
+          usersData.forEach((u: any) => {
+            userMap.set(u.id, { full_name: u.full_name, email: u.email });
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const data = items.map((item: any) => {
+      const creatorInfo = item.creator_id ? userMap.get(item.creator_id) : null;
+      return {
+        ...item,
+        creator: creatorInfo || null,
+      };
+    }).filter((item: any) =>
       item.status === 'FAILED' || item.status === 'RETURNED' ||
       item.risk_level === 'HIGH' || item.risk_level === 'RESTRICTED'
     );

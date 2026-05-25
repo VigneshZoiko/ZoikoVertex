@@ -40,6 +40,10 @@ import {
   updateSubscriptionRoute,
 } from './domains/evidence/auditTrailStreamingController';
 import { getRiskPulse, getActiveRiskFeed, getGovernanceGaps, triggerEmergencyPause } from './domains/governance/riskController';
+import { getSafetyOverview, getSafetyComponents, getSafetyQueueSummary, getSafetyRecentDecisions, reviewCriticalQueue, requestEmergencyPause, toggleDegradedState } from './domains/governance/safetyController';
+import { getSafetySignals, getSafetySignalDetail, createManualSignal, classifySafetySignal, routeSafetySignal, mergeSafetySignals, splitSafetySignal, closeSafetySignal, getSafetyActionsHistory } from './domains/governance/signalsController';
+import { getPolicySummary, getPolicies, createPolicy, simulatePolicy, getEnforcementEvents } from './domains/governance/policyController';
+import { getReviewQueue, getReviewDetail, submitReviewDecision } from './domains/governance/reviewController';
 import { getForensicSummary, getAgentPerformance } from './domains/governance/forensicController';
 import {
   listCases as listForensicCases,
@@ -566,6 +570,38 @@ app.get('/api/v1/governance/risk/pulse', authenticate, govGuard, scopeGuard('rea
 app.get('/api/v1/governance/risk/feed', authenticate, govGuard, scopeGuard('read:governance', '*'), getActiveRiskFeed);
 app.get('/api/v1/governance/risk/gaps', authenticate, govGuard, scopeGuard('read:governance', '*'), getGovernanceGaps);
 app.post('/api/v1/governance/risk/emergency-pause', authenticate, govGuard, scopeGuard('read:governance', '*'), triggerEmergencyPause);
+
+// Safety Layer Overview (Document 01) endpoints
+app.get('/api/safety/overview', authenticate, getSafetyOverview);
+app.get('/api/safety/components', authenticate, getSafetyComponents);
+app.get('/api/safety/queue/summary', authenticate, getSafetyQueueSummary);
+app.get('/api/safety/recent-decisions', authenticate, getSafetyRecentDecisions);
+app.post('/api/safety/actions/review-critical-queue', authenticate, reviewCriticalQueue);
+app.post('/api/safety/actions/request-emergency-pause', authenticate, requestEmergencyPause);
+app.post('/api/safety/actions/toggle-degraded', authenticate, toggleDegradedState);
+
+// Safety Layer Risk Intake & Triage (Document 02) endpoints
+app.get('/api/safety/signals', authenticate, getSafetySignals);
+app.get('/api/safety/signals/:id', authenticate, getSafetySignalDetail);
+app.post('/api/safety/signals', authenticate, createManualSignal);
+app.post('/api/safety/signals/:id/classify', authenticate, classifySafetySignal);
+app.post('/api/safety/signals/:id/route', authenticate, routeSafetySignal);
+app.post('/api/safety/signals/:id/merge', authenticate, mergeSafetySignals);
+app.post('/api/safety/signals/:id/split', authenticate, splitSafetySignal);
+app.post('/api/safety/signals/:id/close', authenticate, closeSafetySignal);
+app.get('/api/safety/actions/history', authenticate, getSafetyActionsHistory);
+
+// Safety Layer Policy Control Matrix & Guardrail Enforcement endpoints
+app.get('/api/safety/policies/summary', authenticate, getPolicySummary);
+app.get('/api/safety/policies', authenticate, getPolicies);
+app.post('/api/safety/policies', authenticate, createPolicy);
+app.post('/api/safety/policies/simulate', authenticate, simulatePolicy);
+app.get('/api/safety/enforcement/events', authenticate, getEnforcementEvents);
+
+// Safety Layer Human Review, Escalation & Approval Console endpoints
+app.get('/api/safety/reviews', authenticate, getReviewQueue);
+app.get('/api/safety/reviews/:id', authenticate, getReviewDetail);
+app.post('/api/safety/reviews/:id/decision', authenticate, submitReviewDecision);
 
 // Forensic Analysis Engine
 app.get('/api/v1/governance/forensic/summary', authenticate, govGuard, scopeGuard('read:governance', '*'), getForensicSummary);

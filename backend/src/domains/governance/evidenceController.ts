@@ -249,32 +249,40 @@ export const getEvidenceArtifacts = async (req: AuthRequest, res: Response, next
     const isSuperAdmin = req.user?.is_superadmin;
     const workspaceId = req.user?.workspace_id;
 
-    let query = supabaseAdmin
-      .from('publish_intents')
-      .select('*, creator:users!publish_intents_creator_id_fkey(full_name, email)')
-      .order('created_at', { ascending: false })
-      .limit(100);
+    let data: any[] = [];
+    try {
+      // Try without the FK join first (more compatible)
+      let query = supabaseAdmin
+        .from('publish_intents')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-    if (!isSuperAdmin && workspaceId) {
-      query = query.eq('workspace_id', workspaceId);
+      if (!isSuperAdmin && workspaceId) {
+        query = query.eq('workspace_id', workspaceId);
+      }
+
+      const { data: rows, error } = await query;
+      if (error) throw error;
+      data = rows || [];
+    } catch {
+      // Supabase unavailable or table missing — return empty array (graceful degradation)
+      data = [];
     }
-
-    const { data, error } = await query;
-    if (error) throw error;
 
     const holds = await getLegalHolds(workspaceId, isSuperAdmin);
     const holdIds = new Set(holds.map(h => h.object_id));
 
-    const artifacts = (data || []).map(intent => {
+    const artifacts = data.map(intent => {
       const defensibility = calculateDefensibility(intent as Record<string, unknown>);
       return {
         ...intent,
-        artifact_uuid:      `ART-${String(intent.id).slice(0, 8).toUpperCase()}`,
-        artifact_type:      'CONTENT_PUBLISH',
+        artifact_uuid:       `ART-${String(intent.id).slice(0, 8).toUpperCase()}`,
+        artifact_type:       'CONTENT_PUBLISH',
         defensibility_index: defensibility,
         defensibility_label: defensibilityLabel(defensibility),
         defensibility_color: defensibilityColor(defensibility),
-        is_on_legal_hold:   holdIds.has(String(intent.id)),
+        is_on_legal_hold:    holdIds.has(String(intent.id)),
       };
     });
 
@@ -284,19 +292,43 @@ export const getEvidenceArtifacts = async (req: AuthRequest, res: Response, next
   }
 };
 
+
 export const getEvidenceArtifactDetail = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = String(req.params.id);
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: intent, error } = await supabaseAdmin
-      .from('publish_intents')
-      .select('*, creator:users!publish_intents_creator_id_fkey(full_name, email)')
-      .eq('id', id)
-      .single();
+    let intent: any = null;
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('publish_intents')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error) throw error;
+      intent = data;
+    } catch {
+      // Graceful fallback
+    }
 
-    if (error || !intent) return res.status(404).json({ error: 'Artifact not found' });
+    if (!intent) return res.status(404).json({ error: 'Artifact not found' });
+
+    // Fetch creator separately if present
+    if (intent.creator_id) {
+      try {
+        const { data: userRow } = await supabaseAdmin
+          .from('users')
+          .select('full_name, email')
+          .eq('id', intent.creator_id)
+          .single();
+        if (userRow) {
+          intent.creator = userRow;
+        }
+      } catch {
+        // ignore fallback errors
+      }
+    }
 
     const defensibility = calculateDefensibility(intent as Record<string, unknown>);
 
@@ -358,14 +390,22 @@ export const getEvidenceStats = async (req: AuthRequest, res: Response, next: Ne
     const isSuperAdmin = req.user?.is_superadmin;
     const workspaceId = req.user?.workspace_id;
 
-    let query = supabaseAdmin.from('publish_intents').select('id, status, risk_level, risk_score, feedback, target_account_ids, platform, content, workspace_id, creator_id');
-    if (!isSuperAdmin && workspaceId) query = query.eq('workspace_id', workspaceId);
-
-    const { data, error } = await query;
-    if (error) throw error;
+    let data: any[] = [];
+    try {
+      let query = supabaseAdmin
+        .from('publish_intents')
+        .select('id, status, risk_level, risk_score, feedback, target_account_ids, platform, content, workspace_id, creator_id');
+      if (!isSuperAdmin && workspaceId) query = query.eq('workspace_id', workspaceId);
+      const { data: rows, error } = await query;
+      if (error) throw error;
+      data = rows || [];
+    } catch {
+      // Supabase unavailable — proceed with empty data set
+      data = [];
+    }
 
     let defensible = 0, gaps = 0, failures = 0, reviewRecommended = 0;
-    for (const intent of data || []) {
+    for (const intent of data) {
       const score = calculateDefensibility(intent as Record<string, unknown>);
       if (score >= 95) defensible++;
       else if (score >= 85) reviewRecommended++;
@@ -379,15 +419,15 @@ export const getEvidenceStats = async (req: AuthRequest, res: Response, next: Ne
     res.json({
       success: true,
       data: {
-        total_artifacts:     (data || []).length,
+        total_artifacts:        data.length,
         defensible,
-        review_recommended:  reviewRecommended,
-        governance_gaps:     gaps,
+        review_recommended:     reviewRecommended,
+        governance_gaps:        gaps,
         defensibility_failures: failures,
-        active_legal_holds:  wsHolds.length,
-        evidence_packs:      wsPacks.length,
-        avg_defensibility:   data?.length
-          ? Math.round((data.reduce((acc, i) => acc + calculateDefensibility(i as Record<string, unknown>), 0)) / data.length)
+        active_legal_holds:     wsHolds.length,
+        evidence_packs:         wsPacks.length,
+        avg_defensibility:      data.length
+          ? Math.round(data.reduce((acc, i) => acc + calculateDefensibility(i as Record<string, unknown>), 0) / data.length)
           : 0,
       },
     });
