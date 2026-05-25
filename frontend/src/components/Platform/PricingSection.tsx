@@ -74,7 +74,7 @@ export default function PricingSection() {
             </span>
           </div>
           <h2 className="text-white font-black text-[2.6rem] md:text-[3.2rem] leading-[1.1] tracking-tight max-w-2xl">
-            Start where you are. Scale when you're ready.
+            Start where you are. Scale when you&apos;re ready.
           </h2>
         </div>
 
