@@ -2,6 +2,7 @@
 -- Stores issues submitted by organization users via the Support & Docs page
 -- Platform Owner (SUPERADMIN) manages these in the Support Queue
 
+-- 1. Create table (no-op if already exists)
 CREATE TABLE IF NOT EXISTS support_tickets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -15,40 +16,37 @@ CREATE TABLE IF NOT EXISTS support_tickets (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Index for quick lookups by status (Support Queue filters)
+-- 2. Indexes (no-op if already exist)
 CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets (status);
 CREATE INDEX IF NOT EXISTS idx_support_tickets_user ON support_tickets (user_id);
 CREATE INDEX IF NOT EXISTS idx_support_tickets_workspace ON support_tickets (workspace_id);
 CREATE INDEX IF NOT EXISTS idx_support_tickets_created ON support_tickets (created_at DESC);
 
--- Enable RLS
+-- 3. Enable RLS (no-op if already enabled)
 ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 
--- Users can see their own tickets
+-- 4. Drop existing policies then recreate (table is guaranteed to exist at this point)
 DROP POLICY IF EXISTS "Users can view own tickets" ON support_tickets;
 CREATE POLICY "Users can view own tickets" ON support_tickets
     FOR SELECT USING (auth.uid() = user_id);
 
--- Users can create tickets
 DROP POLICY IF EXISTS "Users can create tickets" ON support_tickets;
 CREATE POLICY "Users can create tickets" ON support_tickets
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- SuperAdmin can read all tickets
 DROP POLICY IF EXISTS "SuperAdmin can read all tickets" ON support_tickets;
 CREATE POLICY "SuperAdmin can read all tickets" ON support_tickets
     FOR SELECT USING (
         EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND is_superadmin = true)
     );
 
--- SuperAdmin can update any ticket
 DROP POLICY IF EXISTS "SuperAdmin can update any ticket" ON support_tickets;
 CREATE POLICY "SuperAdmin can update any ticket" ON support_tickets
     FOR UPDATE USING (
         EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND is_superadmin = true)
     );
 
--- Auto-update updated_at on status changes
+-- 5. Updated_at trigger
 CREATE OR REPLACE FUNCTION update_support_tickets_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
