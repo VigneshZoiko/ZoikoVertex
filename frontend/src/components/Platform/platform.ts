@@ -1,0 +1,13 @@
+export { default as PlatformSection } from "./Banner";
+export { default as PlatformPainPoint } from "./PlatformPainPoint";
+export { default as PlatformCategory } from "./PlatformCategory";
+export { default as PlatformCapabilities } from "./PlatformCapabilitie";
+export { default as RoleWorkspaces } from "./RoleWorkspace";
+export { default as AIAgentsSection } from "./AIAgentsSection";
+export { default as InboxEngagementSection } from "./InboxEngagementSection";
+export { default as BrandLibrarySection } from "./BrandLibrarySection";
+export { default as EvidenceCrisisSection } from "./EvidenceCrisisSection";
+export { default as IntegrationsSection } from "./IntegrationsSection";
+export { default as PricingSection } from "./PricingSection";
+export { default as SecurityTrustSection } from "./SecurityTrustSection";
+export { default as FAQSection } from "./FAQSection";
