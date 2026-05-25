@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../shared/supabase';
+import { createAuditEvent } from './auditTrail.service';
 import crypto from 'crypto';
 
 function generateOpaqueId(prefix: string): string {
@@ -62,9 +63,34 @@ export async function reviewCertification(params: { certification_id: string; st
     .single();
 
   if (error) throw error;
-  
+
   if (params.status === 'REVOKED') {
-    // We would revoke the user's role here by interacting with identityLedger.service.ts
+    const actorId = (data as Record<string, unknown>).actor_id as string;
+    const workspaceId = (data as Record<string, unknown>).workspace_id as string;
+
+    const { error: actorError } = await supabaseAdmin
+      .from('identity_actors')
+      .update({ state: 'revoked', updated_at: new Date().toISOString() })
+      .eq('actor_id', actorId)
+      .eq('workspace_id', workspaceId);
+
+    if (actorError) throw actorError;
+
+    await createAuditEvent({
+      workspace_id: workspaceId,
+      tenant_id: (data as Record<string, unknown>).tenant_id as string || 'default',
+      event_category: 'user_identity',
+      event_type: 'identity.revoked',
+      event_title: `Certification revocation for actor ${actorId}`,
+      event_summary: params.justification,
+      actor: { actor_id: 'system', actor_type: 'system' },
+      object: { object_type: 'identity_actor', object_id: actorId },
+      authority: { permission_used: 'identity:revoke' },
+      risk_level: 'high',
+      status: 'success',
+      evidence_state: 'not_preserved',
+      retention_class: 'REGULATED',
+    });
   }
 
   return data;

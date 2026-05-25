@@ -114,7 +114,7 @@ export default function IdentityLedgerDashboard() {
           <div className="max-w-2xl space-y-6">
             <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-teal-500/5 border border-teal-500/20 text-teal-400 text-[10px] font-black uppercase tracking-[0.4em] mb-2 shadow-inner">
               <Fingerprint className="w-4 h-4" />
-              Evidence Layer - Phase 2
+              Identity Ledger
             </div>
             <h1 className="text-6xl font-black text-white tracking-tighter leading-[0.85]">
               Identity <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-500 italic">Ledger.</span>

@@ -369,7 +369,54 @@ export async function reviewBreakGlass(req: AuthRequest, res: Response, next: Ne
 export async function exportLedger(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const workspaceId = req.user?.workspace_id;
-    res.json({ success: true, data: { status: 'exported', workspace_id: workspaceId } });
+    const userId = req.user?.id;
+    if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
+
+    const { actor_id, case_id } = req.body as { actor_id?: string; case_id?: string };
+
+    let chain: unknown[] = [];
+    if (actor_id) {
+      const data = await identityLedgerService.reconstructIdentityChain({
+        workspace_id: workspaceId,
+        actor_id,
+        case_id: case_id || 'export',
+      });
+      chain = Array.isArray(data) ? data : [data];
+    } else {
+      const actors = await identityLedgerService.listActors({
+        workspace_id: workspaceId,
+        viewer: { user_id: userId, workspace_role: req.user?.role, is_superadmin: !!req.user?.is_superadmin },
+        limit: 1000,
+      });
+      for (const actor of (actors.actors || [])) {
+        const snapshots = await identityLedgerService.reconstructIdentityChain({
+          workspace_id: workspaceId,
+          actor_id: (actor as Record<string, unknown>).actor_id as string,
+          case_id: case_id || 'export',
+        });
+        chain.push(...(Array.isArray(snapshots) ? snapshots : [snapshots]));
+      }
+    }
+
+    const exportPayload = {
+      exported_at: new Date().toISOString(),
+      workspace_id: workspaceId,
+      exported_by: userId,
+      actor_filter: actor_id || '*',
+      authority_snapshot_count: chain.length,
+      authority_snapshots: chain,
+    };
+
+    logIdentityLedgerAccess({
+      workspace_id: workspaceId,
+      user_id: userId,
+      event_type: 'authority_proof.generated',
+      object_type: 'identity_ledger_export',
+      object_id: `${workspaceId}:${actor_id || 'all'}`,
+      summary: `Identity Ledger export generated for actor: ${actor_id || 'all'}`,
+    });
+
+    res.json({ success: true, data: exportPayload });
   } catch (error) {
     next(error);
   }
@@ -378,7 +425,30 @@ export async function exportLedger(req: AuthRequest, res: Response, next: NextFu
 export async function preserveToVault(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const workspaceId = req.user?.workspace_id;
-    res.json({ success: true, data: { status: 'preserved_to_vault', workspace_id: workspaceId } });
+    const userId = req.user?.id;
+    if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
+
+    const { ledger_entry_id, reason } = req.body as { ledger_entry_id?: string; reason?: string };
+    if (!ledger_entry_id || !reason) {
+      return res.status(400).json({ error: 'ledger_entry_id and reason are required' });
+    }
+
+    const result = await identityLedgerService.preserveToVault({
+      workspace_id: workspaceId,
+      ledger_entry_id,
+      reason,
+    });
+
+    logIdentityLedgerAccess({
+      workspace_id: workspaceId,
+      user_id: userId,
+      event_type: 'identity_ledger.viewed',
+      object_type: 'identity_ledger_entry',
+      object_id: ledger_entry_id,
+      summary: `Identity ledger entry preserved to vault: ${ledger_entry_id}`,
+    });
+
+    res.json({ success: true, data: result });
   } catch (error) {
     next(error);
   }
