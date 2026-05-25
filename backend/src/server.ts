@@ -208,7 +208,6 @@ import { performGlobalSearch } from './domains/admin/globalSearchController';
 import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
 import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
-
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
 import { listRules, createRule, getRule, updateRule, submitRuleForReview, publishRule, deactivateRule, reactivateRule, archiveRule, cloneRule, getRuleScope, upsertRuleScope, getRulePath, upsertRulePath, getRuleVersions, getRuleAuditLog, getRuleConflicts, detectRuleConflicts, resolveRuleConflict, runRuleSimulation, getRuleStats } from './domains/governance/ruleController';
@@ -266,7 +265,6 @@ import {
   getApprovalEvidence, addApprovalEvidence, getApprovalAuditTrail,
   exportApprovalRecord, retryCallback,
 } from './domains/decisions/approvalV2Controller';
-import { authenticate, provisionGuard, scopeGuard } from './shared/authMiddleware';
 import { authenticate, provisionGuard, scopeGuard, AuthRequest } from './shared/authMiddleware';
 import { supabaseAdmin } from './shared/supabase';
 import { integrationPlanGate, blockApiKeyUsers, planRateLimit } from './shared/planLimits';
@@ -649,6 +647,7 @@ app.get('/api/v1/workspace/settings', authenticate, workspaceGuard, getWorkspace
 app.patch('/api/v1/workspace/settings', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), updateWorkspaceSettings);
 app.get('/api/v1/workspace/data-export', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), exportWorkspaceData);
 
+// Workspace Settings Routes
 // Protected Account Routes
 app.get('/api/v1/accounts', authenticate, listAccounts);
 
@@ -1048,91 +1047,7 @@ app.post('/api/v1/validation/callbacks/:callbackId/retry', authenticate, scopeGu
 // Support Routes
 app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket);
 
-// ─── Inbox & Engagement Routes ────────────────────────────────────────────────
-import {
-  listInboxMessages, getInboxMessage, createReply, generateAiDraft, sendReply,
-  assignMessage, updateMessageStatus, escalateMessage, getEscalationQueue,
-  resolveEscalation, addNote, archiveMessage, getMessageAudit, syncPlatformMessages, deleteInboxMessages,
-  getPostPreview,
-} from './domains/inbox/inboxController';
-import { verifyMetaWebhook, handleMetaWebhook } from './domains/inbox/inboxWebhook';
 
-// Meta Webhooks — no auth, public endpoints
-app.get('/api/v1/webhooks/meta', verifyMetaWebhook);
-app.post('/api/v1/webhooks/meta', handleMetaWebhook);
-
-app.get('/api/v1/inbox/messages', authenticate, planRateLimit('general'), listInboxMessages);
-app.get('/api/v1/inbox/messages/:id', authenticate, planRateLimit('general'), getInboxMessage);
-app.post('/api/v1/inbox/messages/:id/reply', authenticate, planRateLimit('general'), createReply);
-app.post('/api/v1/inbox/messages/:id/reply/generate', authenticate, planRateLimit('ai'), generateAiDraft);
-app.post('/api/v1/inbox/messages/:id/reply/send', authenticate, planRateLimit('general'), sendReply);
-app.post('/api/v1/inbox/messages/:id/assign', authenticate, planRateLimit('general'), assignMessage);
-app.patch('/api/v1/inbox/messages/:id/status', authenticate, planRateLimit('general'), updateMessageStatus);
-app.post('/api/v1/inbox/messages/:id/escalate', authenticate, planRateLimit('general'), escalateMessage);
-app.post('/api/v1/inbox/messages/:id/archive', authenticate, planRateLimit('general'), archiveMessage);
-app.post('/api/v1/inbox/messages/delete', authenticate, planRateLimit('general'), deleteInboxMessages);
-app.post('/api/v1/inbox/messages/:id/notes', authenticate, planRateLimit('general'), addNote);
-app.get('/api/v1/inbox/messages/:id/audit', authenticate, planRateLimit('general'), getMessageAudit);
-app.get('/api/v1/inbox/escalations', authenticate, planRateLimit('general'), getEscalationQueue);
-app.post('/api/v1/inbox/escalations/:id/resolve', authenticate, planRateLimit('general'), resolveEscalation);
-app.post('/api/v1/inbox/sync', authenticate, planRateLimit('general'), syncPlatformMessages);
-app.get('/api/v1/inbox/messages/:id/post-preview', authenticate, planRateLimit('general'), getPostPreview);
-app.get('/api/v1/inbox/debug/threads', authenticate, async (req, res) => {
-  const workspaceId = (req as AuthRequest).user?.workspace_id as string;
-  const { data: accounts } = await supabaseAdmin
-    .from('connected_accounts')
-    .select('platform, account_handle, access_token, account_name')
-    .eq('workspace_id', workspaceId)
-    .eq('platform', 'threads')
-    .eq('status', 'active');
-  if (!accounts?.length) return res.json({ error: 'No Threads account connected' });
-  const acc = accounts[0];
-  const BASE = 'https://graph.threads.net/v1.0';
-  const uid = String(acc.account_handle);
-  const token = acc.access_token as string;
-  const profileRes = await fetch(`${BASE}/me?fields=id,username,threads_profile_picture_url&access_token=${token}`);
-  const profile = await profileRes.json();
-  const postsRes = await fetch(`${BASE}/${uid}/threads?fields=id,text,timestamp&limit=5&access_token=${token}`);
-  const posts = await postsRes.json();
-  const repliesPerPost: Record<string, unknown>[] = [];
-  for (const post of (posts.data || [])) {
-    const rRes = await fetch(`${BASE}/${post.id}/replies?fields=id,text,username,timestamp&access_token=${token}`);
-    const rData = await rRes.json();
-    repliesPerPost.push({ postId: post.id, postText: (post.text||'').slice(0,60), replies: rData });
-  }
-  return res.json({ account: { uid, name: acc.account_name }, profile, posts, repliesPerPost });
-});
-
-// ── Inbox diagnostic — shows raw DB state for the user's workspace ──────────────
-app.get('/api/v1/inbox/debug/state', authenticate, async (req, res) => {
-  try {
-    const authReq = req as AuthRequest;
-    const workspaceId = authReq.user?.workspace_id;
-    const userId      = authReq.user?.id;
-    const plan        = authReq.user?.workspace_plan;
-    const isSuperAdmin = authReq.user?.is_superadmin;
-
-    const { data: msgs, error: msgErr, count } = await supabaseAdmin
-      .from('inbox_messages')
-      .select('id, platform, status, message_type, workspace_id, received_at', { count: 'exact' })
-      .eq('workspace_id', workspaceId!)
-      .order('received_at', { ascending: false })
-      .limit(10);
-
-    const { data: accounts } = await supabaseAdmin
-      .from('connected_accounts')
-      .select('id, platform, account_name, status')
-      .eq('workspace_id', workspaceId!);
-
-    return res.json({
-      user: { userId, workspaceId, plan, isSuperAdmin },
-      inbox_messages: { count, sample: msgs, error: msgErr?.message },
-      connected_accounts: accounts,
-    });
-  } catch (e: unknown) {
-    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
-  }
-});
 
 // Global Error Handler
 app.use(errorHandler);
@@ -1141,8 +1056,6 @@ import { initWorker } from './workers/schedulerWorker';
 import { initAuditExportWorker } from './workers/auditExportWorker';
 import { initAuditIntegrityWorker } from './workers/auditIntegrityWorker';
 import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
-import { startTokenRefreshWorker } from './workers/tokenRefreshWorker';
-
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
@@ -1154,7 +1067,6 @@ try {
     initAuditIntegrityWorker();
     initVaultWorker();
     initDlpScanWorker();
-    startTokenRefreshWorker();
   });
 
   server.on('error', (err: Error & { code?: string }) => {
