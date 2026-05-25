@@ -79,7 +79,7 @@ export default function SolutionGovernance() {
             Governance is not one-size-fits-all.
           </h2>
           <p className="text-white/40 text-sm leading-relaxed max-w-lg mx-auto">
-            Identify the right governance depth for your team's complexity, risk level, and
+            Identify the right governance depth for your team&apos;s complexity, risk level, and
             operational scale — without enterprise vs. business ambiguity.
           </p>
         </div>
