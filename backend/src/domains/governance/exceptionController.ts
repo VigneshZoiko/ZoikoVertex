@@ -29,11 +29,11 @@ export const listExceptions = async (req: AuthRequest, res: Response, next: Next
 
     const { data: rawData, error } = await query;
     if (error) {
-      if ((error as any).code === '42P01') return res.status(200).json({ success: true, data: [] });
+      if ((error as { code?: string }).code === '42P01') return res.status(200).json({ success: true, data: [] });
       throw error;
     }
 
-    const data = (rawData || []).filter((item: any) =>
+    const data = (rawData || []).filter((item: { status: string; risk_level: string }) =>
       item.status === 'FAILED' || item.status === 'RETURNED' ||
       item.risk_level === 'HIGH' || item.risk_level === 'RESTRICTED'
     );
