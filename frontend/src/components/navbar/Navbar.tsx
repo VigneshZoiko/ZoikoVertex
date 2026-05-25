@@ -3,10 +3,10 @@ import Link from "next/link";
 
 export default function Navbar() {
   const navItems = [
-    { label: "Platform", hasDropdown: false, href: "/platform" }, // ✅ already set
-    { label: "AI Agents", hasDropdown: true, href: null },
-    { label: "Solutions", hasDropdown: true, href: null },
-    { label: "Resources", hasDropdown: true, href: null },
+    { label: "Platform", hasDropdown: false, href: "/platform" }, 
+    { label: "AI Agent", hasDropdown: true, href: "/ai-agents" },
+    { label: "Solution", hasDropdown: false, href: "/solution" },
+    { label: "Resources", hasDropdown: false, href: "/resources-hub" },
     { label: "About Us", hasDropdown: false, href: "/about" },
     { label: "Pricing", hasDropdown: false, href: "/pricing" },
   ];
