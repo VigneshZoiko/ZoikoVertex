@@ -9,6 +9,7 @@ import { validateAgentCanAct } from './agentRegistry';
 import { logAgentRun } from './agentRunLogger';
 import { KnowledgeController } from '../../modules/knowledge/knowledgeController';
 import { supabaseAdmin } from '../../shared/supabase';
+import { evaluatePayloadAgainstPolicies } from '../governance/policyController';
 
 const STYLE_RULES: Record<string, string> = {
   "MrBeast": "High-energy hooks and curiosity-driven viral pacing.",
@@ -213,6 +214,23 @@ ${blocks.join('\n\n')}
     if (!text) throw new Error('AI response was empty');
 
     const parsed = JSON.parse(text);
+
+    // ─── Tier-0 Safety Layer: Guardrail Interception ────────────────────────
+    const workspaceId = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+    const safetyCheck = evaluatePayloadAgainstPolicies(parsed, workspaceId);
+
+    if (['block', 'quarantine', 'hold_for_review'].includes(safetyCheck.outcome)) {
+      logger.warn({ outcome: safetyCheck.outcome, rule: safetyCheck.rule_id }, '[Safety Layer] Payload intercepted and blocked by active policy.');
+      return res.status(403).json({
+        success: false,
+        error: 'Safety Layer Interception: Content violated active policies.',
+        reason: safetyCheck.reason,
+        outcome: safetyCheck.outcome,
+        rule_id: safetyCheck.rule_id
+      });
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     const universalCaption = parsed.universal?.caption || "";
     const universalHashtags = (parsed.universal?.hashtags || []).join(' ');
 

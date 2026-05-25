@@ -28,10 +28,27 @@ export default function DashboardLayout({
   // synchronous-fast. Redirects to /login if no valid session exists.
   useEffect(() => {
     let cancelled = false;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (cancelled) return;
-      if (!session) router.replace('/login');
-    });
+    const checkSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (error || !session) {
+          // Error means stale/invalid refresh token — sign out and go to login
+          if (error) {
+            console.warn('[layout] Session error, signing out:', error.message);
+            try { await supabase.auth.signOut(); } catch { /* best effort */ }
+          }
+          router.replace('/login');
+        }
+      } catch (err: any) {
+        if (cancelled) return;
+        // AuthApiError: Refresh Token Not Found — clear and redirect
+        console.warn('[layout] Auth exception, redirecting to login:', err?.message);
+        try { await supabase.auth.signOut(); } catch { /* best effort */ }
+        router.replace('/login');
+      }
+    };
+    checkSession();
     return () => { cancelled = true; };
   }, [pathname, router]);
 

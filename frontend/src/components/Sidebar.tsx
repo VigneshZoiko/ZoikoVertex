@@ -137,12 +137,40 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Safety Layer",
     icon: Scale,
     items: [
-      { name: "Autonomy Controls", href: "/agents/autonomy",    icon: ToggleRight,       roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
-      { name: "Policy Center",     href: "/governance/policy",   icon: Scale,      roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
-      { name: "Risk Management",   href: "/governance/risk",     icon: ShieldAlert,roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"] },
-      { name: "Brand Standards",   href: "/governance/legal",    icon: BookMarked, roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","BRAND_REVIEWER"] },
+      // ── CORE ACTIVE COMPONENTS ─────────────────────────────────────────
+      {
+        name: "Safety Overview",
+        href: "/governance/safety",
+        icon: ShieldAlert,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "SAFETY_OPERATOR"],
+      },
+      {
+        name: "Policy Control Matrix",
+        href: "/governance/policies",
+        icon: ShieldCheck,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "SAFETY_OPERATOR"],
+      },
+      {
+        name: "Approval Console",
+        href: "/governance/reviews",
+        icon: ClipboardCheck,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "SAFETY_OPERATOR"],
+      },
+      {
+        name: "Evidence Vault",
+        href: "/governance/evidence",
+        icon: Archive,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "SAFETY_OPERATOR"],
+      },
+      // ── STANDBY COMPONENTS (preserved for future expansion) ───────────
+      // { name: "Risk Intake & Triage",  href: "/governance/signals",  icon: Activity,     roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER","SAFETY_OPERATOR"] },
+      // { name: "Autonomy Controls",     href: "/agents/autonomy",     icon: ToggleRight,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
+      // { name: "Policy Center",         href: "/governance/policy",   icon: Scale,        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
+      // { name: "Risk Management",       href: "/governance/risk",     icon: ShieldAlert,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"] },
+      // { name: "Brand Standards",       href: "/governance/legal",    icon: BookMarked,   roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","BRAND_REVIEWER"] },
     ],
   },
+
   {
     id: "validation",
     label: "Accountability Layer",
