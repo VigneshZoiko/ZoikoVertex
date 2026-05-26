@@ -21,7 +21,7 @@ export default function DashboardLayout({
 }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { orgStatus, workspaceStatus, orgName, isSuperAdmin, isLoading, role } = useRoleContext();
+  const { orgStatus, workspaceStatus, orgName, planType, premiumPaidUntil, isSuperAdmin, isLoading, role } = useRoleContext();
   const [isUnauthorized, setIsUnauthorized] = useState<boolean | null>(null);
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
@@ -29,27 +29,10 @@ export default function DashboardLayout({
   // synchronous-fast. Redirects to /login if no valid session exists.
   useEffect(() => {
     let cancelled = false;
-    const checkSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (cancelled) return;
-        if (error || !session) {
-          // Error means stale/invalid refresh token — sign out and go to login
-          if (error) {
-            console.warn('[layout] Session error, signing out:', error.message);
-            try { await supabase.auth.signOut(); } catch { /* best effort */ }
-          }
-          router.replace('/login');
-        }
-      } catch (err: any) {
-        if (cancelled) return;
-        // AuthApiError: Refresh Token Not Found — clear and redirect
-        console.warn('[layout] Auth exception, redirecting to login:', err?.message);
-        try { await supabase.auth.signOut(); } catch { /* best effort */ }
-        router.replace('/login');
-      }
-    };
-    checkSession();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      if (!session) router.replace('/login');
+    });
     return () => { cancelled = true; };
   }, [pathname, router]);
 
@@ -129,7 +112,7 @@ export default function DashboardLayout({
             <Header />
             <main className="flex-1 overflow-hidden flex flex-col bg-[var(--background)] transition-colors">
               {showSuspension ? (
-                <SuspendedOverlay orgName={orgName ?? undefined} type={suspensionType} />
+                <SuspendedOverlay orgName={orgName ?? undefined} type={suspensionType} planType={planType} premiumPaidUntil={premiumPaidUntil} />
               ) : isUnauthorized ? (
                 <UnauthorizedView pathname={pathname} onBack={() => router.replace('/dashboard')} />
               ) : (

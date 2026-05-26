@@ -6,6 +6,15 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logAuditEvent } from '../governance/evidenceController';
 import { env } from '../../config/env';
+import { classifyMessage } from './inboxClassifier';
+
+export interface AutoReplyRule {
+  id: string;
+  keywords: string[];
+  reply_body: string;
+  is_active: boolean;
+  is_case_sensitive: boolean;
+}
 
 // ─── Plan helpers ─────────────────────────────────────────────────────────────
 
@@ -242,8 +251,9 @@ export const listInboxMessages = async (req: AuthRequest, res: Response, next: N
 
     let filtered = (allData || []).filter((m: any) => allowedStatuses.has(m.status));
 
-    // Limited roles only see messages assigned to them
-    if (!isSuperAdmin && LIMITED_ROLES.includes(await getMemberRole(userId))) {
+    // Limited roles only see messages assigned to them — fetch role once, not per message
+    const role = isSuperAdmin ? '' : await getMemberRole(userId);
+    if (!isSuperAdmin && LIMITED_ROLES.includes(role)) {
       filtered = filtered.filter((m: any) => m.assigned_to === userId);
     }
 
@@ -286,7 +296,8 @@ export const getInboxMessage = async (req: AuthRequest, res: Response, next: Nex
       supabaseAdmin.from('inbox_replies').select('*').eq('message_id', msg.id).order('created_at'),
       supabaseAdmin.from('inbox_notes').select('*').eq('message_id', msg.id).order('created_at'),
       supabaseAdmin.from('inbox_audit_log').select('*').eq('message_id', msg.id).order('performed_at'),
-      supabaseAdmin.from('inbox_escalations').select('*').eq('message_id', msg.id).neq('review_status', 'RESOLVED').maybeSingle(),
+      // Fetch most recent escalation (including resolved) so we can show "Resolved by X"
+      supabaseAdmin.from('inbox_escalations').select('*').eq('message_id', msg.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     // Mark UNREAD as OPEN on first view
@@ -296,6 +307,23 @@ export const getInboxMessage = async (req: AuthRequest, res: Response, next: Nex
       msg.status = 'OPEN';
     }
 
+    // Enrich escalation with user names
+    let escalation = escalationResult.data || null;
+    if (escalation) {
+      const ids = [escalation.resolved_by, escalation.assigned_reviewer, escalation.escalated_by].filter(Boolean) as string[];
+      if (ids.length > 0) {
+        const { data: users } = await supabaseAdmin.from('users').select('id, full_name, email').in('id', ids);
+        const nm: Record<string, string> = {};
+        (users || []).forEach((u: any) => { nm[u.id] = u.full_name || u.email || u.id; });
+        escalation = {
+          ...escalation,
+          resolved_by_name:       escalation.resolved_by       ? (nm[escalation.resolved_by]       ?? null) : null,
+          assigned_reviewer_name: escalation.assigned_reviewer ? (nm[escalation.assigned_reviewer] ?? null) : null,
+          escalated_by_name:      escalation.escalated_by      ? (nm[escalation.escalated_by]      ?? null) : null,
+        };
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -303,7 +331,7 @@ export const getInboxMessage = async (req: AuthRequest, res: Response, next: Nex
         replies:    repliesResult.data    || [],
         notes:      notesResult.data      || [],
         audit:      auditResult.data      || [],
-        escalation: escalationResult.data || null,
+        escalation,
       },
     });
   } catch (error) {
@@ -781,7 +809,7 @@ export const escalateMessage = async (req: AuthRequest, res: Response, next: Nex
     const { escalation_reason, risk_category, assigned_reviewer } = EscalateSchema.parse(req.body);
     const workspaceId = (req.user!.workspace_id as string);
 
-    const { data: msg } = await supabaseAdmin.from('inbox_messages').select('status, risk_level').eq('id', (req.params.id as string)).eq('workspace_id', workspaceId).single();
+    const { data: msg } = await supabaseAdmin.from('inbox_messages').select('status, risk_level, sender_name').eq('id', (req.params.id as string)).eq('workspace_id', workspaceId).single();
     if (!msg) return res.status(404).json({ error: 'Message not found' });
 
     const riskLevel = msg.risk_level || 'HIGH';
@@ -799,6 +827,10 @@ export const escalateMessage = async (req: AuthRequest, res: Response, next: Nex
     await supabaseAdmin.from('inbox_messages').update({ status: 'ESCALATED', risk_level: riskLevel, updated_at: new Date().toISOString() }).eq('id', (req.params.id as string));
     await logInboxAudit((req.params.id as string), workspaceId, userId, `Escalated: ${escalation_reason}`, msg.status, 'ESCALATED');
     await logAuditEvent({ workspaceId, actorId: userId, action: `Message escalated: ${escalation_reason}`, objectType: 'INBOX_MESSAGE', objectId: (req.params.id as string), module: 'Inbox', riskLevel, metadata: { risk_category } });
+
+    if (assigned_reviewer) {
+      await notifyEscalationAssigned(assigned_reviewer, req.params.id as string, msg.sender_name || 'Unknown', riskLevel, false);
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -835,7 +867,31 @@ export const getEscalationQueue = async (req: AuthRequest, res: Response, next: 
       throw error;
     }
 
-    res.json({ success: true, data: data || [] });
+    // Enrich with user names (resolved_by, assigned_reviewer, escalated_by)
+    const rows = data || [];
+    const userIds = [...new Set(
+      rows.flatMap((r: any) => [r.resolved_by, r.assigned_reviewer, r.escalated_by].filter(Boolean))
+    )] as string[];
+
+    const nameMap: Record<string, string> = {};
+    if (userIds.length > 0) {
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', userIds);
+      (users || []).forEach((u: any) => {
+        nameMap[u.id] = u.full_name || u.email || u.id;
+      });
+    }
+
+    const enriched = rows.map((r: any) => ({
+      ...r,
+      resolved_by_name:        r.resolved_by        ? (nameMap[r.resolved_by]        ?? null) : null,
+      assigned_reviewer_name:  r.assigned_reviewer  ? (nameMap[r.assigned_reviewer]  ?? null) : null,
+      escalated_by_name:       r.escalated_by        ? (nameMap[r.escalated_by]       ?? null) : null,
+    }));
+
+    res.json({ success: true, data: enriched });
   } catch (error) {
     next(error);
   }
@@ -863,6 +919,7 @@ export const resolveEscalation = async (req: AuthRequest, res: Response, next: N
       decision_note: decision_note || null,
       review_status: 'RESOLVED',
       resolved_at: new Date().toISOString(),
+      resolved_by: userId,
     }).eq('id', (req.params.escalationId as string));
 
     const newMsgStatus = decision === 'APPROVED' ? 'IN_PROGRESS' : 'RESOLVED';
@@ -1003,10 +1060,42 @@ async function graphGet(path: string, token: string, params: Record<string, stri
 
 const PLACEHOLDER_NAMES = new Set(['Facebook User', 'Instagram User', 'Threads User', 'YouTube User', 'LinkedIn User']);
 
-async function insertMessageIfNew(workspaceId: string, payload: Record<string, unknown>): Promise<string> {
+async function notifyEscalationAssigned(
+  assignedReviewer: string,
+  messageId: string,
+  senderName: string,
+  riskLevel: string,
+  isAuto: boolean,
+): Promise<void> {
+  try {
+    await supabaseAdmin.from('notifications').insert({
+      user_id: assignedReviewer,
+      title: isAuto ? '⚠️ Auto-Escalation Assigned' : '⚠️ Escalation Assigned to You',
+      body: `A ${riskLevel} risk message from ${senderName} has been escalated and assigned to you for review.`,
+      type: 'GOVERNANCE',
+      link: '/inbox?tab=escalation',
+      read: false,
+    });
+  } catch (err) {
+    console.warn('[Inbox] Failed to send escalation notification:', err);
+  }
+}
+
+export async function insertMessageIfNew(
+  workspaceId: string,
+  payload: Record<string, unknown>,
+  options?: {
+    userId?: string;
+    rules?: AutoReplyRule[];
+    accessToken?: string;
+    accountHandle?: string;
+    recipientAccountHandle?: string;
+    recipientAccountName?: string;
+  },
+): Promise<string> {
   const { data: existing } = await supabaseAdmin
     .from('inbox_messages')
-    .select('id, sender_name')
+    .select('id, sender_name, sender_handle')
     .eq('workspace_id', workspaceId)
     .eq('platform_message_id', payload.platform_message_id as string)
     .maybeSingle();
@@ -1017,17 +1106,174 @@ async function insertMessageIfNew(workspaceId: string, payload: Record<string, u
     if (newName && !PLACEHOLDER_NAMES.has(newName) && PLACEHOLDER_NAMES.has(existing.sender_name)) {
       await supabaseAdmin.from('inbox_messages').update({
         sender_name: newName,
-        sender_handle: payload.sender_handle || existing.sender_name,
+        sender_handle: payload.sender_handle || existing.sender_handle,
       }).eq('id', existing.id);
     }
     return 'exists';
   }
 
-  const { error } = await supabaseAdmin.from('inbox_messages').insert({ workspace_id: workspaceId, ...payload });
+  // Merge recipient account info from options if not already in payload
+  const recipientFields: Record<string, unknown> = {};
+  if (options?.recipientAccountHandle && !payload.recipient_account_handle) {
+    recipientFields.recipient_account_handle = options.recipientAccountHandle;
+  }
+  if (options?.recipientAccountName && !payload.recipient_account_name) {
+    recipientFields.recipient_account_name = options.recipientAccountName;
+  }
+
+  const { data: inserted, error } = await supabaseAdmin
+    .from('inbox_messages')
+    .insert({ workspace_id: workspaceId, ...payload, ...recipientFields })
+    .select('id')
+    .single();
+
   if (error) {
     console.error('[Inbox] insert error:', error.message, '| keys:', Object.keys(payload).join(','));
     return `error:${error.message}`;
   }
+
+  // Classify + auto-reply asynchronously (non-blocking)
+  const msgBody = (payload.message_body as string) || '';
+  if (msgBody && inserted?.id) {
+    classifyMessage(msgBody)
+      .then(async ({ risk_level, sentiment }) => {
+        await supabaseAdmin
+          .from('inbox_messages')
+          .update({ risk_level, sentiment })
+          .eq('id', inserted.id);
+
+        const userId = options?.userId;
+        const rules = options?.rules || [];
+        let autoReplied = false;
+        if (userId && rules.length > 0) {
+          const matched = rules.find(r => {
+            if (!r.is_active) return false;
+            return r.keywords.some(kw =>
+              r.is_case_sensitive
+                ? msgBody.includes(kw)
+                : msgBody.toLowerCase().includes(kw.toLowerCase()),
+            );
+          });
+          if (matched) {
+            const now = new Date().toISOString();
+            const accessToken = options?.accessToken;
+            const accountHandle = options?.accountHandle;
+            const platform = (payload.platform as string) || '';
+            const messageType = (payload.message_type as string) || '';
+            const senderHandle = (payload.sender_handle as string) || '';
+            const platformMessageId = (payload.platform_message_id as string) || '';
+
+            let replyStatus = 'draft';
+            if (accessToken) {
+              let result: { sent: boolean; error?: string } = { sent: false, error: 'Unsupported platform' };
+
+              if (platform === 'INSTAGRAM' || platform === 'FACEBOOK') {
+                result = await sendToMetaApi(
+                  platform, messageType, platformMessageId, senderHandle,
+                  matched.reply_body, accessToken, accountHandle,
+                );
+              } else if (platform === 'THREADS' && accountHandle) {
+                result = await sendToThreadsApi(
+                  platformMessageId, matched.reply_body, accessToken, accountHandle,
+                );
+              } else if (platform === 'YOUTUBE') {
+                result = await sendToYouTubeApi(
+                  platformMessageId, matched.reply_body, accessToken,
+                );
+              } else if (platform === 'TWITTER') {
+                try {
+                  const twUrl = messageType === 'DM'
+                    ? `https://api.x.com/2/dm_conversations/${platformMessageId}/messages`
+                    : 'https://api.x.com/2/tweets';
+                  const twBody = messageType === 'DM'
+                    ? { text: matched.reply_body }
+                    : { text: matched.reply_body, reply: { in_reply_to_tweet_id: platformMessageId } };
+                  const twFetch = await fetch(twUrl, {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(twBody),
+                  });
+                  const twData: any = await twFetch.json();
+                  result = twFetch.ok && !twData.errors
+                    ? { sent: true }
+                    : { sent: false, error: twData.errors?.[0]?.message || twData.detail || 'Twitter API error' };
+                } catch (err) {
+                  result = { sent: false, error: err instanceof Error ? err.message : 'Network error' };
+                }
+              }
+
+              replyStatus = result.sent ? 'sent' : 'draft';
+              if (!result.sent) console.warn(`[Inbox] Auto-reply API failed (${platform}) for ${inserted.id}: ${result.error}`);
+            }
+
+            await supabaseAdmin.from('inbox_replies').insert({
+              message_id: inserted.id,
+              workspace_id: workspaceId,
+              reply_body: matched.reply_body,
+              reply_type: 'auto_reply',
+              status: replyStatus,
+              sent_by: userId,
+              sent_at: now,
+              created_by: userId,
+            });
+            await supabaseAdmin
+              .from('inbox_messages')
+              .update({ status: 'RESOLVED', resolved_at: now, updated_at: now })
+              .eq('id', inserted.id);
+            autoReplied = true;
+            console.info(`[Inbox] Auto-reply ${replyStatus} for message ${inserted.id} — rule: "${matched.reply_body.slice(0, 40)}…"`);
+          }
+        }
+
+        // Auto-escalate HIGH/CRITICAL — skipped if auto-reply already resolved the message
+        if (!autoReplied && (risk_level === 'HIGH' || risk_level === 'CRITICAL')) {
+          // Prefer GOVERNANCE_ADMIN, fall back to WORKSPACE_OWNER
+          let assignedReviewer: string | null = null;
+          const { data: govAdmins } = await supabaseAdmin
+            .from('workspace_members')
+            .select('user_id')
+            .eq('workspace_id', workspaceId)
+            .eq('role', 'GOVERNANCE_ADMIN')
+            .limit(1);
+          if (govAdmins && govAdmins.length > 0) {
+            assignedReviewer = govAdmins[0].user_id;
+          } else {
+            const { data: owners } = await supabaseAdmin
+              .from('workspace_members')
+              .select('user_id')
+              .eq('workspace_id', workspaceId)
+              .eq('role', 'WORKSPACE_OWNER')
+              .limit(1);
+            if (owners && owners.length > 0) assignedReviewer = owners[0].user_id;
+          }
+
+          await supabaseAdmin.from('inbox_escalations').insert({
+            message_id: inserted.id,
+            workspace_id: workspaceId,
+            escalation_reason: `Auto-escalated: ${risk_level} risk detected by AI classifier`,
+            risk_category: 'AUTO_DETECTED',
+            risk_level,
+            escalated_by: null,
+            assigned_reviewer: assignedReviewer,
+            is_auto_escalated: true,
+          });
+
+          await supabaseAdmin
+            .from('inbox_messages')
+            .update({ status: 'ESCALATED' })
+            .eq('id', inserted.id);
+
+          if (assignedReviewer) {
+            const senderName = (payload.sender_name as string) || 'Unknown';
+            await notifyEscalationAssigned(assignedReviewer, inserted.id, senderName, risk_level, true);
+          }
+
+          console.info(`[Inbox] Auto-escalated message ${inserted.id} (${risk_level}) → reviewer: ${assignedReviewer ?? 'unassigned'}`);
+        }
+      })
+      .catch(err => console.error('[Inbox] classify error:', (err as Error).message));
+  }
+
   return 'new';
 }
 
@@ -1071,6 +1317,23 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
     if (!accounts || accounts.length === 0) {
       return res.json({ success: true, message: 'No social accounts connected. Go to Accounts and connect them first.', synced: 0 });
     }
+
+    // Fetch auto-reply rules once for the whole sync pass
+    const { data: rulesData } = await supabaseAdmin
+      .from('inbox_auto_reply_rules')
+      .select('id, keywords, reply_body, is_active, is_case_sensitive')
+      .eq('workspace_id', workspaceId)
+      .eq('is_active', true);
+    const baseRules = (rulesData || []) as AutoReplyRule[];
+    // syncOptions is built per-account inside the loop to include recipient account info
+    const buildSyncOptions = (account: { access_token: string; account_handle: string | number; account_name: string }) => ({
+      userId,
+      rules: baseRules,
+      accessToken: account.access_token,
+      accountHandle: String(account.account_handle),
+      recipientAccountHandle: String(account.account_handle),
+      recipientAccountName: String(account.account_name || account.account_handle),
+    });
 
     let totalSynced = 0;
     const syncErrors: string[] = [];
@@ -1166,7 +1429,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   risk_level: 'LOW',
                   sentiment: 'NEUTRAL',
                   received_at: msg.created_time || new Date().toISOString(),
-                });
+                }, buildSyncOptions(account));
                 if (inserted === 'new') totalSynced++;
               }
             }
@@ -1205,7 +1468,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   risk_level: 'LOW',
                   sentiment: 'NEUTRAL',
                   received_at: comment.timestamp || new Date().toISOString(),
-                });
+                }, buildSyncOptions(account));
                 if (inserted === 'new') totalSynced++;
               }
             }
@@ -1241,7 +1504,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   risk_level: 'LOW',
                   sentiment: 'NEUTRAL',
                   received_at: msg.created_time || new Date().toISOString(),
-                });
+                }, buildSyncOptions(account));
                 if (inserted === 'new') totalSynced++;
               }
             }
@@ -1280,11 +1543,11 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   risk_level: 'LOW',
                   sentiment: 'NEUTRAL',
                   received_at: comment.created_time || new Date().toISOString(),
-                });
+                }, buildSyncOptions(account));
                 if (inserted === 'new') totalSynced++;
               }
             }
-            syncErrors.push(`[fb-debug] ${account.account_name}: ${postCount} posts, ${commentCount} total comments found`);
+            console.debug(`[Inbox] Facebook sync: ${account.account_name} — ${postCount} posts, ${commentCount} comments scanned`);
           }
         } else if (platform === 'threads') {
           // ── Threads Replies ────────────────────────────────────────
@@ -1349,7 +1612,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   risk_level: 'LOW',
                   sentiment: 'NEUTRAL',
                   received_at: timestamp,
-                });
+                }, buildSyncOptions(account));
                 threadsDiag.push(`  reply ${replyId} from @${username}: inserted=${inserted}`);
                 if (inserted === 'new') totalSynced++;
               }
@@ -1457,7 +1720,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                     risk_level: 'LOW',
                     sentiment: 'NEUTRAL',
                     received_at: publishedAt,
-                  });
+                  }, buildSyncOptions(account));
                   ytDiag.push(`  comment ${commentId} from "${authorName}": inserted=${inserted}`);
                   if (inserted === 'new') totalSynced++;
                 }
@@ -1503,7 +1766,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   risk_level: 'LOW',
                   sentiment: 'NEUTRAL',
                   received_at: tweet.created_at || new Date().toISOString(),
-                });
+                }, buildSyncOptions(account));
                 twDiag.push(`tweet ${tweet.id} "${tweet.text?.slice(0, 30)}": ${inserted}`);
                 if (inserted === 'new') totalSynced++;
               }
@@ -1526,7 +1789,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                 const sender = dmUsersMap[event.sender_id] || {};
                 const inserted = await insertMessageIfNew(workspaceId, {
                   platform: 'TWITTER',
-                  platform_message_id: event.dm_conversation_id,
+                  platform_message_id: event.id,
                   sender_name: sender.name || sender.username || 'Twitter User',
                   sender_handle: sender.username ? `@${sender.username}` : event.sender_id,
                   sender_avatar_url: sender.profile_image_url?.replace('_normal', '') ?? null,
@@ -1536,7 +1799,7 @@ export const syncPlatformMessages = async (req: AuthRequest, res: Response, next
                   risk_level: 'LOW',
                   sentiment: 'NEUTRAL',
                   received_at: event.created_at || new Date().toISOString(),
-                });
+                }, buildSyncOptions(account));
                 if (inserted === 'new') totalSynced++;
               }
             }

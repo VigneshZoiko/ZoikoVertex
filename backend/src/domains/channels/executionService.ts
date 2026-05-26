@@ -74,12 +74,14 @@ export class ExecutionService {
       const allSuccessful = results.every(r => r.success);
       const firstError = results.find(r => !r.success)?.error;
 
-      // 3. Update final status
+      // 3. Update final status — also save platform post ID if Meta publish succeeded
+      const metaResult = results.find(r => r.success && r.id && ['facebook', 'instagram'].includes(r.platform));
       await supabaseAdmin
         .from('publish_intents')
         .update({
           status: allSuccessful ? 'PUBLISHED' : 'FAILED',
-          feedback: allSuccessful ? null : (firstError || 'One or more platforms failed to publish.')
+          feedback: allSuccessful ? null : (firstError || 'One or more platforms failed to publish.'),
+          ...(metaResult?.id ? { platform_post_id: metaResult.id } : {}),
         })
         .eq('id', intentId);
 

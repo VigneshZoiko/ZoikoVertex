@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Inbox, MessageSquare, MessageCircle, AtSign, Reply,
   Search, RefreshCcw, ChevronDown, Send, Sparkles,
   AlertTriangle, Archive, StickyNote, CheckCircle2, XCircle,
   Loader2, Shield, ArrowUpRight, ShieldAlert, X, History,
   ExternalLink, ChevronLeft, ChevronRight, Image as ImageIcon,
-  Trash2, CheckSquare, Square,
+  Trash2, CheckSquare, Square, Settings, Plus, Pencil, ToggleLeft, ToggleRight,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -26,6 +27,8 @@ interface InboxMessage {
   platform: string;
   sender_name: string;
   sender_handle: string;
+  recipient_account_handle?: string | null;
+  recipient_account_name?: string | null;
   message_type: "DM" | "COMMENT" | "MENTION" | "REPLY";
   message_body: string;
   status: string;
@@ -56,6 +59,16 @@ interface InboxNote {
   created_at: string;
 }
 
+interface AutoReplyRule {
+  id: string;
+  rule_name: string;
+  keywords: string[];
+  reply_body: string;
+  is_active: boolean;
+  is_case_sensitive: boolean;
+  created_at: string;
+}
+
 interface InboxAuditEntry {
   id: string;
   action: string;
@@ -71,6 +84,14 @@ interface InboxEscalation {
   risk_level: string;
   review_status: string;
   decision?: string;
+  decision_note?: string | null;
+  is_auto_escalated?: boolean;
+  resolved_by?: string | null;
+  resolved_by_name?: string | null;
+  assigned_reviewer?: string | null;
+  assigned_reviewer_name?: string | null;
+  escalated_by_name?: string | null;
+  resolved_at?: string | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -218,6 +239,11 @@ function MessageListItem({
                   {msg.status.replace(/_/g, " ")}
                 </span>
                 <span className={`text-[9px] font-medium ${riskColor(msg.risk_level)}`}>{msg.risk_level}</span>
+                {msg.recipient_account_handle && (
+                  <span className="text-[9px] text-[#2a2a2a] truncate ml-1 max-w-[80px]" title={`Your account: ${msg.recipient_account_name || msg.recipient_account_handle}`}>
+                    → @{msg.recipient_account_handle}
+                  </span>
+                )}
                 <span className="text-[#383838] ml-auto">
                   {isComment(msg) ? <MessageCircle className="w-2.5 h-2.5" /> : <MessageSquare className="w-2.5 h-2.5" />}
                 </span>
@@ -241,17 +267,23 @@ function DmBubble({ body, time, isMine, status, replyType, sending, retryCount, 
 }) {
   const failed = status === "failed";
   const maxed = (retryCount ?? 0) >= MAX_RETRIES;
+  const isAutoSent = replyType === "auto_reply" && status === "sent";
 
   return (
     <div className={`flex ${isMine ? "justify-end" : "justify-start"} mb-3`}>
       <div className={`max-w-[72%] flex flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
+        {isAutoSent && (
+          <span className="text-[9px] text-emerald-400/50 px-1 mb-0.5">⚡ Auto-replied</span>
+        )}
         <div className={`px-3.5 py-2.5 rounded-2xl text-[13px] leading-[1.55] ${
           isMine
-            ? failed
-              ? "bg-red-900/30 text-red-200/70 rounded-br-sm border border-red-500/20"
-              : sending
-                ? "bg-sky-700/50 text-sky-200/80 rounded-br-sm"
-                : "bg-sky-600 text-white rounded-br-sm"
+            ? isAutoSent
+              ? "bg-emerald-500/5 text-emerald-200/60 rounded-br-sm border border-emerald-500/15"
+              : failed
+                ? "bg-red-900/30 text-red-200/70 rounded-br-sm border border-red-500/20"
+                : sending
+                  ? "bg-sky-700/50 text-sky-200/80 rounded-br-sm"
+                  : "bg-sky-600 text-white rounded-br-sm"
             : "bg-[#161616] text-[#d4d4d4] rounded-bl-sm border border-[#202020]"
         }`}>
           {body}
@@ -274,7 +306,7 @@ function DmBubble({ body, time, isMine, status, replyType, sending, retryCount, 
               )}
             </>
           )}
-          {isMine && !sending && !failed && status && (status === "SENT" || status === "draft") && (
+          {isMine && !isAutoSent && !sending && !failed && status === "sent" && (
             <span className="text-[10px] text-[#333]">✓</span>
           )}
           {isMine && sending && <span className="text-[10px] text-[#383838]">…</span>}
@@ -294,20 +326,21 @@ function CommentItem({ body, author, time, isMine, sending, replyType, status, r
 }) {
   const failed = status === "failed";
   const maxed = (retryCount ?? 0) >= MAX_RETRIES;
+  const isAutoSent = replyType === "auto_reply" && status === "sent";
 
   return (
     <div className={`flex items-start gap-2.5 ${isMine ? "ml-7" : ""}`}>
       <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-bold mt-0.5 ${
         isMine
-          ? failed ? "bg-red-500/10 text-red-300" : "bg-sky-500/15 text-sky-300"
+          ? failed ? "bg-red-500/10 text-red-300" : isAutoSent ? "bg-emerald-500/10 text-emerald-400/70" : "bg-sky-500/15 text-sky-300"
           : "bg-[#181818] text-[#555]"
       }`}>
         {isMine ? "ME" : initials(author)}
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-          <span className={`text-[11px] font-semibold ${isMine ? (failed ? "text-red-400/70" : "text-sky-400") : "text-[#c0c0c0]"}`}>
-            {isMine ? "You" : author}
+          <span className={`text-[11px] font-semibold ${isMine ? (failed ? "text-red-400/70" : isAutoSent ? "text-emerald-400/60" : "text-sky-400") : "text-[#c0c0c0]"}`}>
+            {isMine ? (isAutoSent ? "⚡ Auto-reply" : "You") : author}
           </span>
           <span className="text-[10px] text-[#333]">{time}</span>
           {isMine && replyType === "ai_draft" && <Sparkles className="w-2.5 h-2.5 text-sky-500/70" />}
@@ -329,7 +362,7 @@ function CommentItem({ body, author, time, isMine, sending, replyType, status, r
           )}
         </div>
         <p className={`text-[13px] leading-[1.55] ${
-          failed ? "text-red-200/50 line-through decoration-red-500/30" : sending ? "text-[#555]" : "text-[#bbb]"
+          failed ? "text-red-200/50 line-through decoration-red-500/30" : isAutoSent ? "text-emerald-200/40 italic" : sending ? "text-[#555]" : "text-[#bbb]"
         }`}>{body}</p>
       </div>
     </div>
@@ -596,6 +629,9 @@ export default function InboxPage() {
   const [total, setTotal] = useState(0);
   const [isDemo, setIsDemo] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 30;
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ synced: number; message: string } | null>(null);
@@ -630,35 +666,119 @@ export default function InboxPage() {
 
   const [replyTab, setReplyTab] = useState<"compose" | "notes" | "audit">("compose");
 
+  // Settings modal — auto-reply rules
+  const [showSettings, setShowSettings] = useState(false);
+  const [autoReplyRules, setAutoReplyRules] = useState<AutoReplyRule[]>([]);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [editingRule, setEditingRule] = useState<AutoReplyRule | null>(null);
+  const [newRuleName, setNewRuleName] = useState("");
+  const [newRuleKeywords, setNewRuleKeywords] = useState("");
+  const [newRuleReply, setNewRuleReply] = useState("");
+  const [newRuleCaseSensitive, setNewRuleCaseSensitive] = useState(false);
+  const [savingRule, setSavingRule] = useState(false);
+
   const threadBottomRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback((smooth = true) => {
     threadBottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" });
   }, []);
 
+  const fetchRules = useCallback(async () => {
+    setRulesLoading(true);
+    try {
+      const res = await api.listInboxAutoReplyRules();
+      setAutoReplyRules(res.data || []);
+    } catch { /* silent */ }
+    finally { setRulesLoading(false); }
+  }, []);
+
+  const openSettings = useCallback(() => {
+    setShowSettings(true);
+    setEditingRule(null);
+    setNewRuleName(""); setNewRuleKeywords(""); setNewRuleReply(""); setNewRuleCaseSensitive(false);
+    fetchRules();
+  }, [fetchRules]);
+
+  const handleSaveRule = async () => {
+    const keywords = newRuleKeywords.split(",").map(k => k.trim()).filter(Boolean);
+    if (!keywords.length || !newRuleReply.trim()) return;
+    setSavingRule(true);
+    try {
+      if (editingRule) {
+        const res = await api.updateInboxAutoReplyRule(editingRule.id, {
+          rule_name: newRuleName || editingRule.rule_name,
+          keywords, reply_body: newRuleReply, is_case_sensitive: newRuleCaseSensitive,
+        });
+        setAutoReplyRules(prev => prev.map(r => r.id === editingRule.id ? res.data : r));
+      } else {
+        const res = await api.createInboxAutoReplyRule({
+          rule_name: newRuleName || "Untitled Rule", keywords, reply_body: newRuleReply,
+          is_case_sensitive: newRuleCaseSensitive,
+        });
+        setAutoReplyRules(prev => [res.data, ...prev]);
+      }
+      setEditingRule(null);
+      setNewRuleName(""); setNewRuleKeywords(""); setNewRuleReply(""); setNewRuleCaseSensitive(false);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Failed to save rule");
+    } finally {
+      setSavingRule(false);
+    }
+  };
+
+  const handleToggleRule = async (rule: AutoReplyRule) => {
+    try {
+      const res = await api.updateInboxAutoReplyRule(rule.id, { is_active: !rule.is_active });
+      setAutoReplyRules(prev => prev.map(r => r.id === rule.id ? res.data : r));
+    } catch { /* silent */ }
+  };
+
+  const handleDeleteRule = async (id: string) => {
+    if (!confirm("Delete this auto-reply rule?")) return;
+    try {
+      await api.deleteInboxAutoReplyRule(id);
+      setAutoReplyRules(prev => prev.filter(r => r.id !== id));
+    } catch { /* silent */ }
+  };
+
+  const startEditRule = (rule: AutoReplyRule) => {
+    setEditingRule(rule);
+    setNewRuleName(rule.rule_name);
+    setNewRuleKeywords(rule.keywords.join(", "));
+    setNewRuleReply(rule.reply_body);
+    setNewRuleCaseSensitive(rule.is_case_sensitive);
+  };
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
 
-  const fetchMessages = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const fetchMessages = useCallback(async (pageNum = 1) => {
+    if (pageNum === 1) { setLoading(true); setError(null); }
+    else setLoadingMore(true);
     try {
-      const res = await api.getInboxMessages({ tab, platform, search: debouncedSearch });
-      setMessages(res.data || []);
+      const res = await api.getInboxMessages({ tab, platform, search: debouncedSearch, page: pageNum, limit: PAGE_SIZE });
+      if (pageNum === 1) setMessages(res.data || []);
+      else setMessages(prev => [...prev, ...(res.data || [])]);
       setTotal(res.total ?? 0);
       setIsDemo(res.is_demo || false);
     } catch (e: unknown) {
-      setMessages([]);
-      setTotal(0);
-      setError(e instanceof Error ? e.message : "Failed to load inbox");
+      if (pageNum === 1) { setMessages([]); setTotal(0); setError(e instanceof Error ? e.message : "Failed to load inbox"); }
     } finally {
-      setLoading(false);
+      if (pageNum === 1) setLoading(false);
+      else setLoadingMore(false);
     }
   }, [tab, platform, debouncedSearch]);
 
-  useEffect(() => { fetchMessages(); }, [fetchMessages]);
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setPage(1); fetchMessages(1); }, [fetchMessages]);
+
+  const handleLoadMore = () => {
+    const next = page + 1;
+    setPage(next);
+    fetchMessages(next);
+  };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (detail) scrollToBottom(false); }, [detail?.id]);
@@ -706,7 +826,8 @@ export default function InboxPage() {
     setGeneratingDraft(true);
     try {
       const res = await api.generateAiDraft(selectedId, aiTone);
-      const draft = res.data?.draft || "";
+      const draft = (typeof res.data?.draft === "string" && res.data.draft.trim()) ? res.data.draft : null;
+      if (!draft) throw new Error("AI returned an empty draft. Try a different tone.");
       setAiDraft(draft);
       setReplyBody(draft);
     } catch (e: unknown) {
@@ -745,7 +866,7 @@ export default function InboxPage() {
         id: res.data?.id || optimistic.id,
         reply_body: body,
         reply_type: isAi ? "ai_draft" : "manual",
-        status: res.data?.status || "SENT",
+        status: res.data?.status || "sent",
         created_at: new Date().toISOString(),
       };
       setDetail(prev => prev ? {
@@ -773,6 +894,10 @@ export default function InboxPage() {
     const reply = detail.replies?.find(r => r.id === replyId);
     if (!reply || (reply.retryCount ?? 0) >= MAX_RETRIES) return;
 
+    // tmp- prefix means the original send never reached the DB — safe to create new record.
+    // A real ID means it was persisted but the platform API failed — don't duplicate, just resend.
+    const isUnsaved = replyId.startsWith("tmp-");
+
     setDetail(prev => prev ? {
       ...prev,
       replies: (prev.replies || []).map(r =>
@@ -786,10 +911,10 @@ export default function InboxPage() {
         reply_type: reply.reply_type,
       });
       const confirmed: InboxReply = {
-        id: res.data?.id || replyId,
+        id: isUnsaved ? (res.data?.id || replyId) : replyId,
         reply_body: reply.reply_body,
         reply_type: reply.reply_type,
-        status: res.data?.status || "SENT",
+        status: res.data?.status || "sent",
         created_at: reply.created_at,
       };
       setDetail(prev => prev ? {
@@ -945,7 +1070,7 @@ export default function InboxPage() {
           )}
           {isDemo ? (
             <button
-              onClick={fetchMessages}
+              onClick={() => fetchMessages(1)}
               className="flex items-center gap-1.5 text-[11px] text-[#444] hover:text-[#888] bg-white/[0.03] hover:bg-white/[0.05] border border-white/[0.06] px-2.5 py-1.5 rounded-lg transition-colors"
             >
               <RefreshCcw className="w-3 h-3" />
@@ -960,6 +1085,13 @@ export default function InboxPage() {
               {syncing ? "Syncing…" : "Sync"}
             </button>
           )}
+          <button
+            onClick={openSettings}
+            className="flex items-center justify-center w-7 h-7 text-[#444] hover:text-white/70 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] rounded-lg transition-colors"
+            title="Inbox Settings"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
@@ -1075,7 +1207,7 @@ export default function InboxPage() {
               <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
                 <XCircle className="w-4 h-4 text-red-400/40" />
                 <span className="text-[11px] text-[#444]">{error}</span>
-                <button onClick={fetchMessages} className="text-[11px] text-sky-400/60 hover:text-sky-400">Retry</button>
+                <button onClick={() => fetchMessages(1)} className="text-[11px] text-sky-400/60 hover:text-sky-400">Retry</button>
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
@@ -1083,17 +1215,29 @@ export default function InboxPage() {
                 <span className="text-[11px] text-[#383838]">No messages</span>
               </div>
             ) : (
-              messages.map(msg => (
-                <MessageListItem
-                  key={msg.id}
-                  msg={msg}
-                  selected={selectedId === msg.id}
-                  checked={checkedIds.has(msg.id)}
-                  selectMode={selectMode}
-                  onClick={() => selectMessage(msg.id)}
-                  onCheck={(e) => toggleCheck(msg.id, e)}
-                />
-              ))
+              <>
+                {messages.map(msg => (
+                  <MessageListItem
+                    key={msg.id}
+                    msg={msg}
+                    selected={selectedId === msg.id}
+                    checked={checkedIds.has(msg.id)}
+                    selectMode={selectMode}
+                    onClick={() => selectMessage(msg.id)}
+                    onCheck={(e) => toggleCheck(msg.id, e)}
+                  />
+                ))}
+                {messages.length < total && (
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="w-full py-2.5 text-[10px] text-[#383838] hover:text-[#555] border-t border-[#0f0f0f] flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    {loadingMore ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                    {loadingMore ? "Loading…" : `${total - messages.length} more`}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -1141,9 +1285,15 @@ export default function InboxPage() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5">
+                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                       <span className={`text-[10px] font-medium ${riskColor(detail.risk_level)}`}>{detail.risk_level}</span>
                       <span className="text-[10px] text-[#2e2e2e]">{timeAgo(detail.received_at)}</span>
+                      {detail.recipient_account_handle && (
+                        <span className="text-[10px] text-[#2e2e2e]" title="Your connected account">
+                          → <span className="text-[#444]">{detail.recipient_account_name || detail.recipient_account_handle}</span>
+                          <span className="text-[#2a2a2a] ml-0.5">(@{detail.recipient_account_handle})</span>
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1220,13 +1370,49 @@ export default function InboxPage() {
                     />
                   )}
 
-                  {detail.escalation && detail.status === "ESCALATED" && (
-                    <div className="mx-4 mt-2 bg-red-400/[0.04] border border-red-400/10 rounded-lg px-3 py-2 flex-shrink-0">
+                  {detail.escalation && (
+                    <div className={`mx-4 mt-2 border rounded-lg px-3 py-2 flex-shrink-0 ${
+                      detail.escalation.review_status === "RESOLVED"
+                        ? "bg-emerald-400/[0.04] border-emerald-400/10"
+                        : "bg-red-400/[0.04] border-red-400/10"
+                    }`}>
                       <div className="flex items-start gap-2">
-                        <AlertTriangle className="w-3 h-3 text-red-400/60 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-[11px] font-medium text-red-400/70">{detail.escalation.escalation_reason}</p>
-                          <p className="text-[10px] text-[#383838] mt-0.5">{detail.escalation.risk_category} · {detail.escalation.review_status}</p>
+                        {detail.escalation.review_status === "RESOLVED"
+                          ? <CheckCircle2 className="w-3 h-3 text-emerald-400/60 mt-0.5 flex-shrink-0" />
+                          : <AlertTriangle className="w-3 h-3 text-red-400/60 mt-0.5 flex-shrink-0" />
+                        }
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {detail.escalation.is_auto_escalated && (
+                              <span className="text-[9px] font-semibold uppercase tracking-wider bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 py-0.5 rounded-full">
+                                Auto-escalated
+                              </span>
+                            )}
+                            <p className={`text-[11px] font-medium ${detail.escalation.review_status === "RESOLVED" ? "text-emerald-400/70" : "text-red-400/70"}`}>
+                              {detail.escalation.review_status === "RESOLVED"
+                                ? `Resolved${detail.escalation.decision ? ` · ${detail.escalation.decision}` : ""}`
+                                : detail.escalation.escalation_reason
+                              }
+                            </p>
+                          </div>
+                          {detail.escalation.review_status === "RESOLVED" ? (
+                            <p className="text-[10px] text-[#484848] mt-0.5">
+                              {detail.escalation.resolved_by_name
+                                ? `Resolved by ${detail.escalation.resolved_by_name}`
+                                : "Resolved"
+                              }
+                              {detail.escalation.decision_note && (
+                                <span className="text-[#383838]"> — {detail.escalation.decision_note}</span>
+                              )}
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-[#383838] mt-0.5">
+                              {detail.escalation.risk_category !== "AUTO_DETECTED" ? detail.escalation.risk_category : detail.escalation.risk_level} · Awaiting review
+                              {detail.escalation.assigned_reviewer_name && (
+                                <span className="text-[#484848]"> · Assigned to {detail.escalation.assigned_reviewer_name}</span>
+                              )}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1300,9 +1486,27 @@ export default function InboxPage() {
                   </div>
 
                   {detail.status === "ESCALATED" ? (
-                    <div className="border-t border-[#111] px-4 py-3 flex items-center gap-2 text-[11px] text-[#333] flex-shrink-0">
-                      <Shield className="w-3 h-3 text-red-400/40" />
-                      Reply locked — awaiting escalation review
+                    <div className="border-t border-[#111] px-4 py-3 flex items-center gap-2 text-[11px] flex-shrink-0">
+                      <Shield className="w-3 h-3 text-red-400/40 flex-shrink-0" />
+                      <span className="text-[#333]">Reply locked — awaiting escalation review</span>
+                      {detail.escalation?.assigned_reviewer_name && (
+                        <span className="ml-auto text-[10px] text-[#2e2e2e]">
+                          → {detail.escalation.assigned_reviewer_name}
+                        </span>
+                      )}
+                    </div>
+                  ) : detail.status === "RESOLVED" && detail.escalation?.review_status === "RESOLVED" ? (
+                    <div className="border-t border-[#111] px-4 py-3 flex items-center gap-2 text-[11px] flex-shrink-0">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400/50 flex-shrink-0" />
+                      <span className="text-[#444]">
+                        {detail.escalation.resolved_by_name
+                          ? `Resolved by ${detail.escalation.resolved_by_name}`
+                          : "Escalation resolved"
+                        }
+                        {detail.escalation.decision && (
+                          <span className="text-[#333]"> · {detail.escalation.decision}</span>
+                        )}
+                      </span>
                     </div>
                   ) : isDemo ? (
                     <div className="border-t border-[#111] px-4 py-3 flex items-center gap-2 text-[11px] text-[#333] flex-shrink-0">
@@ -1445,6 +1649,203 @@ export default function InboxPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Settings Modal (portal → renders into document.body, escapes layout transforms) */}
+      {showSettings && createPortal(
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] overflow-y-auto"
+          onClick={e => { if (e.target === e.currentTarget) setShowSettings(false); }}
+        >
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="bg-[#0c0c0c] border border-[#1a1a1a] rounded-xl w-full max-w-[560px] shadow-2xl">
+
+              {/* ── Modal header ─────────────────────────────────────────── */}
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#141414]">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-sky-500/10 flex items-center justify-center">
+                    <Settings className="w-3.5 h-3.5 text-sky-400/70" />
+                  </div>
+                  <h3 className="text-[13px] font-semibold text-white/90 tracking-tight">Inbox Settings</h3>
+                </div>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="w-6 h-6 flex items-center justify-center rounded-md text-[#333] hover:text-white/60 hover:bg-white/[0.04] transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-5">
+
+                {/* ── Risk Classification ─────────────────────────────────── */}
+                <section>
+                  <p className="text-[9px] text-[#3a3a3a] uppercase tracking-[0.14em] font-medium mb-2.5">Risk Classification</p>
+                  <div className="bg-[#0f0f0f] border border-[#161616] rounded-lg overflow-hidden">
+                    <div className="divide-y divide-[#111]">
+                      {[
+                        { level: "CRITICAL", color: "text-red-500",     bg: "bg-red-500/5",     desc: "Threats, extreme abuse, slurs — 10 languages" },
+                        { level: "HIGH",     color: "text-orange-400",  bg: "bg-orange-400/5",  desc: "Legal threats, chargeback, fraud claims" },
+                        { level: "MEDIUM",   color: "text-yellow-400",  bg: "bg-yellow-400/5",  desc: "Strong complaints and frustration" },
+                        { level: "LOW",      color: "text-emerald-500", bg: "bg-emerald-500/5", desc: "General inquiries and positive messages" },
+                      ].map(({ level, color, bg, desc }) => (
+                        <div key={level} className="flex items-center gap-3 px-3.5 py-2.5">
+                          <span className={`text-[10px] font-bold ${color} ${bg} px-2 py-0.5 rounded w-[68px] text-center flex-shrink-0`}>{level}</span>
+                          <span className="text-[11px] text-[#555]">{desc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+
+                {/* ── Auto-Reply Rules ────────────────────────────────────── */}
+                <section>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[9px] text-[#3a3a3a] uppercase tracking-[0.14em] font-medium">Smart Auto-Reply</p>
+                    <span className="text-[9px] text-[#2e2e2e]">{autoReplyRules.length} rule{autoReplyRules.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  <p className="text-[10px] text-[#333] mb-3">When a new message matches a keyword, a draft reply is auto-created for one-click sending.</p>
+
+                  {/* Form */}
+                  <div className="bg-[#0f0f0f] border border-[#191919] rounded-lg p-3.5 mb-3 space-y-2.5">
+                    <p className="text-[10px] text-[#444] font-medium">{editingRule ? "Edit rule" : "Add new rule"}</p>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="text-[9px] text-[#333] uppercase tracking-[0.1em] mb-1 block">Rule name</label>
+                        <input
+                          value={newRuleName}
+                          onChange={e => setNewRuleName(e.target.value)}
+                          placeholder="e.g. Greeting reply"
+                          className="w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-lg text-[11px] text-white/80 placeholder-[#252525] px-2.5 py-1.5 outline-none focus:border-[#2a2a2a] transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[9px] text-[#333] uppercase tracking-[0.1em]">Keywords <span className="normal-case">(comma-sep.)</span></label>
+                          <button
+                            type="button"
+                            onClick={() => setNewRuleCaseSensitive(v => !v)}
+                            className="flex items-center gap-1.5 group"
+                            title="Toggle case-sensitive matching"
+                          >
+                            <span className={`text-[9px] font-mono font-bold transition-colors ${newRuleCaseSensitive ? "text-sky-400" : "text-[#333] group-hover:text-[#555]"}`}>Aa</span>
+                            <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${newRuleCaseSensitive ? "bg-sky-500" : "bg-[#222]"}`}>
+                              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all duration-200 ${newRuleCaseSensitive ? "left-[14px]" : "left-0.5"}`} />
+                            </div>
+                          </button>
+                        </div>
+                        <input
+                          value={newRuleKeywords}
+                          onChange={e => setNewRuleKeywords(e.target.value)}
+                          placeholder="hello, hi, hey"
+                          className="w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-lg text-[11px] text-white/80 placeholder-[#252525] px-2.5 py-1.5 outline-none focus:border-[#2a2a2a] transition-colors"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[9px] text-[#333] uppercase tracking-[0.1em] mb-1 block">Auto-reply message</label>
+                      <textarea
+                        value={newRuleReply}
+                        onChange={e => setNewRuleReply(e.target.value)}
+                        placeholder="Thank you for contacting us! We'll get back to you shortly."
+                        rows={2}
+                        className="w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-lg text-[11px] text-white/80 placeholder-[#252525] px-2.5 py-2 outline-none resize-none focus:border-[#2a2a2a] transition-colors"
+                      />
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                      {editingRule && (
+                        <button
+                          onClick={() => { setEditingRule(null); setNewRuleName(""); setNewRuleKeywords(""); setNewRuleReply(""); setNewRuleCaseSensitive(false); }}
+                          className="text-[11px] text-[#444] hover:text-white/60 px-3 py-1.5 rounded-lg border border-[#1a1a1a] hover:bg-white/[0.03] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      <button
+                        onClick={handleSaveRule}
+                        disabled={savingRule || !newRuleKeywords.trim() || !newRuleReply.trim()}
+                        className="flex items-center gap-1.5 text-[11px] text-white/90 bg-sky-600/70 hover:bg-sky-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+                      >
+                        {savingRule ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                        {editingRule ? "Save Changes" : "Add Rule"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Rules list */}
+                  {rulesLoading ? (
+                    <div className="flex items-center gap-2 py-5 justify-center">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#333]" />
+                      <span className="text-[11px] text-[#383838]">Loading rules…</span>
+                    </div>
+                  ) : autoReplyRules.length === 0 ? (
+                    <div className="border border-dashed border-[#161616] rounded-lg py-6 text-center">
+                      <p className="text-[11px] text-[#2a2a2a]">No auto-reply rules yet.</p>
+                      <p className="text-[10px] text-[#222] mt-0.5">Add a rule above to get started.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {autoReplyRules.map(rule => (
+                        <div
+                          key={rule.id}
+                          className={`border rounded-lg px-3.5 py-2.5 transition-all ${
+                            rule.is_active
+                              ? "bg-[#0f0f0f] border-[#1a1a1a]"
+                              : "bg-[#0a0a0a] border-[#111] opacity-40"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                <p className="text-[11px] text-white/80 font-medium truncate">{rule.rule_name}</p>
+                                {rule.is_active && (
+                                  <span className="text-[8px] text-emerald-500/60 bg-emerald-500/5 border border-emerald-500/10 px-1.5 py-0.5 rounded-full flex-shrink-0">active</span>
+                                )}
+                                {rule.is_case_sensitive && (
+                                  <span className="text-[8px] text-sky-400/60 bg-sky-500/5 border border-sky-500/10 px-1.5 py-0.5 rounded-full flex-shrink-0 font-mono">Aa</span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-1 mb-1">
+                                {rule.keywords.map(kw => (
+                                  <span key={kw} className="text-[9px] bg-[#141414] text-[#444] border border-[#1c1c1c] px-1.5 py-0.5 rounded font-mono">{kw}</span>
+                                ))}
+                              </div>
+                              <p className="text-[10px] text-[#383838] line-clamp-1 italic">&ldquo;{rule.reply_body}&rdquo;</p>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                              <button
+                                onClick={() => handleToggleRule(rule)}
+                                className="p-1 rounded-md hover:bg-white/[0.04] transition-colors"
+                                title={rule.is_active ? "Disable" : "Enable"}
+                              >
+                                {rule.is_active
+                                  ? <ToggleRight className="w-4 h-4 text-sky-500" />
+                                  : <ToggleLeft className="w-4 h-4 text-[#333]" />}
+                              </button>
+                              <button
+                                onClick={() => startEditRule(rule)}
+                                className="p-1 rounded-md text-[#2e2e2e] hover:text-white/60 hover:bg-white/[0.04] transition-colors"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRule(rule.id)}
+                                className="p-1 rounded-md text-[#2e2e2e] hover:text-red-400 hover:bg-red-500/[0.06] transition-colors"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

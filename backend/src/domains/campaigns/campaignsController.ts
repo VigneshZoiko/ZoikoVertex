@@ -27,14 +27,14 @@ export const CAMPAIGN_STATUSES = [
 // Valid status transitions — enforced server-side
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   DRAFT:              ['READY_FOR_REVIEW', 'CANCELLED'],
-  READY_FOR_REVIEW:   ['IN_REVIEW', 'DRAFT'],
+  READY_FOR_REVIEW:   ['IN_REVIEW', 'APPROVED', 'DRAFT'],
   IN_REVIEW:          ['CHANGES_REQUESTED', 'APPROVED', 'REJECTED'],
   CHANGES_REQUESTED:  ['DRAFT', 'IN_REVIEW'],
   APPROVED:           ['SCHEDULED', 'ACTIVE', 'DRAFT'],
   SCHEDULED:          ['ACTIVE', 'PAUSED', 'CANCELLED'],
   ACTIVE:             ['PAUSING', 'PAUSED', 'COMPLETED'],
   PAUSING:            ['PAUSED', 'ACTIVE'],
-  PAUSED:             ['IN_REVIEW', 'COMPLETED', 'CANCELLED'],
+  PAUSED:             ['IN_REVIEW', 'APPROVED', 'COMPLETED', 'CANCELLED'],
   COMPLETED:          ['CLOSED'],
   CLOSED:             ['ARCHIVED'],
   REJECTED:           ['DRAFT'],

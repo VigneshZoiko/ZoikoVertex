@@ -1,30 +1,54 @@
 import { Request, Response } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { env } from '../../config/env';
+import { insertMessageIfNew, AutoReplyRule } from './inboxController';
 
 const GRAPH_BASE = 'https://graph.facebook.com/v18.0';
 
-async function insertIfNew(workspaceId: string, payload: Record<string, unknown>): Promise<boolean> {
-  const { data: existing } = await supabaseAdmin
-    .from('inbox_messages')
-    .select('id')
-    .eq('workspace_id', workspaceId)
-    .eq('platform_message_id', payload.platform_message_id as string)
-    .maybeSingle();
-  if (existing) return false;
-  const { error } = await supabaseAdmin.from('inbox_messages').insert({ workspace_id: workspaceId, ...payload });
-  return !error;
+interface WorkspaceCtx {
+  workspaceId: string;
+  accessToken: string;
+  accountHandle: string;
+  accountName: string;
+  platform: string;
+  userId: string | null;
+  rules: AutoReplyRule[];
 }
 
-async function resolveWorkspaceAndToken(platformAccountId: string): Promise<{ workspaceId: string; accessToken: string; platform: string } | null> {
+async function resolveWorkspaceCtx(platformAccountId: string): Promise<WorkspaceCtx | null> {
   const { data } = await supabaseAdmin
     .from('connected_accounts')
-    .select('workspace_id, access_token, platform')
+    .select('workspace_id, access_token, platform, account_handle, account_name')
     .eq('account_handle', platformAccountId)
     .eq('status', 'active')
     .limit(1);
+
   if (!data || data.length === 0) return null;
-  return { workspaceId: data[0].workspace_id, accessToken: data[0].access_token, platform: data[0].platform };
+  const { workspace_id: workspaceId, access_token: accessToken, platform, account_handle, account_name } = data[0];
+
+  const { data: rulesData } = await supabaseAdmin
+    .from('inbox_auto_reply_rules')
+    .select('id, keywords, reply_body, is_active, is_case_sensitive')
+    .eq('workspace_id', workspaceId)
+    .eq('is_active', true);
+
+  const { data: adminMember } = await supabaseAdmin
+    .from('workspace_members')
+    .select('user_id')
+    .eq('workspace_id', workspaceId)
+    .in('role', ['WORKSPACE_OWNER', 'ADMIN'])
+    .limit(1)
+    .maybeSingle();
+
+  return {
+    workspaceId,
+    accessToken,
+    accountHandle: String(account_handle || platformAccountId),
+    accountName: String(account_name || platformAccountId),
+    platform,
+    userId: adminMember?.user_id ?? null,
+    rules: (rulesData || []) as AutoReplyRule[],
+  };
 }
 
 async function fetchSenderName(senderId: string, accessToken: string): Promise<string> {
@@ -44,7 +68,13 @@ export const verifyMetaWebhook = (req: Request, res: Response): void => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  if (mode === 'subscribe' && token === (env.META_WEBHOOK_VERIFY_TOKEN || 'zoiko_webhook_2025')) {
+  const verifyToken = env.META_WEBHOOK_VERIFY_TOKEN;
+  if (!verifyToken) {
+    console.error('[Webhook] META_WEBHOOK_VERIFY_TOKEN is not set — rejecting verification');
+    res.status(403).json({ error: 'Webhook not configured' });
+    return;
+  }
+  if (mode === 'subscribe' && token === verifyToken) {
     console.log('[Webhook] Meta webhook verified');
     res.status(200).send(challenge);
   } else {
@@ -76,27 +106,36 @@ export const handleMetaWebhook = async (req: Request, res: Response): Promise<vo
     const recipientId = String(entry.id);
     console.log(`[Webhook] Processing entry id=${recipientId} platform=${body.object}`);
 
-    const ctx = await resolveWorkspaceAndToken(recipientId);
+    const ctx = await resolveWorkspaceCtx(recipientId);
     if (!ctx) {
-      console.warn(`[Webhook] No connected account found for id=${recipientId} — check connected_accounts table`);
+      console.warn(`[Webhook] No connected account found for id=${recipientId}`);
       continue;
     }
 
     const platform = isInstagram ? 'INSTAGRAM' : 'FACEBOOK';
+    const recipientFields = {
+      recipient_account_handle: ctx.accountHandle,
+      recipient_account_name: ctx.accountName,
+    };
+    if (!ctx.userId) {
+      console.warn(`[Webhook] No admin/owner member in workspace ${ctx.workspaceId} — auto-reply rules will not fire`);
+    }
+    const insertOpts = ctx.userId
+      ? { userId: ctx.userId, rules: ctx.rules, accessToken: ctx.accessToken, accountHandle: ctx.accountHandle }
+      : undefined;
 
     // ── DMs / Messenger messages ───────────────────────────────────────────
     for (const event of (entry.messaging || [])) {
       if (!event.message) continue;
-      if (event.message.is_echo) continue; // skip messages sent by the page itself
+      if (event.message.is_echo) continue;
 
       const senderId = String(event.sender.id);
       const messageId = event.message.mid as string;
       const messageText = (event.message.text as string) || '[Media message]';
       const timestamp = new Date(event.timestamp as number).toISOString();
-
       const senderName = await fetchSenderName(senderId, ctx.accessToken);
 
-      await insertIfNew(ctx.workspaceId, {
+      const result = await insertMessageIfNew(ctx.workspaceId, {
         platform,
         platform_message_id: messageId,
         sender_name: senderName,
@@ -107,9 +146,12 @@ export const handleMetaWebhook = async (req: Request, res: Response): Promise<vo
         risk_level: 'LOW',
         sentiment: 'NEUTRAL',
         received_at: timestamp,
-      });
+        ...recipientFields,
+      }, insertOpts);
 
-      console.log(`[Webhook] New ${platform} DM from ${senderName} → workspace ${ctx.workspaceId}`);
+      if (result === 'new') {
+        console.log(`[Webhook] New ${platform} DM from ${senderName} → ${ctx.accountName} (${ctx.workspaceId})`);
+      }
     }
 
     // ── Instagram comment events ───────────────────────────────────────────
@@ -120,7 +162,7 @@ export const handleMetaWebhook = async (req: Request, res: Response): Promise<vo
 
       const senderName = val.from?.username || val.from?.name || 'Instagram User';
 
-      await insertIfNew(ctx.workspaceId, {
+      const result = await insertMessageIfNew(ctx.workspaceId, {
         platform: 'INSTAGRAM',
         platform_message_id: val.id as string,
         sender_name: senderName,
@@ -132,9 +174,12 @@ export const handleMetaWebhook = async (req: Request, res: Response): Promise<vo
         risk_level: 'LOW',
         sentiment: 'NEUTRAL',
         received_at: new Date().toISOString(),
-      });
+        ...recipientFields,
+      }, insertOpts);
 
-      console.log(`[Webhook] New INSTAGRAM comment from ${senderName} → workspace ${ctx.workspaceId}`);
+      if (result === 'new') {
+        console.log(`[Webhook] New INSTAGRAM comment from ${senderName} → ${ctx.accountName} (${ctx.workspaceId})`);
+      }
     }
 
     // ── Facebook Page comment events ───────────────────────────────────────
@@ -145,7 +190,7 @@ export const handleMetaWebhook = async (req: Request, res: Response): Promise<vo
 
       const senderName = val.from?.name || 'Facebook User';
 
-      await insertIfNew(ctx.workspaceId, {
+      const result = await insertMessageIfNew(ctx.workspaceId, {
         platform: 'FACEBOOK',
         platform_message_id: val.comment_id as string,
         sender_name: senderName,
@@ -157,9 +202,12 @@ export const handleMetaWebhook = async (req: Request, res: Response): Promise<vo
         risk_level: 'LOW',
         sentiment: 'NEUTRAL',
         received_at: new Date().toISOString(),
-      });
+        ...recipientFields,
+      }, insertOpts);
 
-      console.log(`[Webhook] New FACEBOOK comment from ${senderName} → workspace ${ctx.workspaceId}`);
+      if (result === 'new') {
+        console.log(`[Webhook] New FACEBOOK comment from ${senderName} → ${ctx.accountName} (${ctx.workspaceId})`);
+      }
     }
   }
 };

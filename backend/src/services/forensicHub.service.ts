@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { createAuditEvent } from './auditTrail.service';
+import { logger } from '../shared/logger';
 
 const BUSINESS_HOURS_PER_DAY = 8;
 
@@ -340,7 +341,7 @@ export async function getEnhancedTimeline(caseId: string): Promise<any[]> {
             }
           }
         }
-      } catch { /* correlation non-blocking */ }
+      } catch (err) { logger.warn({ error: String(err) }, 'Correlation enrichment failed (non-blocking)'); }
     }
 
     timeline.push(entry);

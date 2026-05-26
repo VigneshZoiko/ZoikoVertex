@@ -35,17 +35,29 @@ function normalizeWorkflowGraph(steps: any[], edges: any[]) {
   };
 }
 
+// ─── helper: extract a human-readable message from any thrown value ───────────
+function extractErrorMessage(err: unknown): string {
+  if (!err) return 'Unknown error';
+  if (typeof err === 'string') return err;
+  const e = err as any;
+  // Supabase / Postgres error shapes
+  if (e?.message) return e.message;
+  if (e?.details) return e.details;
+  if (e?.hint)    return e.hint;
+  return String(err);
+}
+
 export const listWorkflows = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
-    const status = getQueryValue(req, 'status');
+    const status     = getQueryValue(req, 'status');
     const risk_level = getQueryValue(req, 'risk_level');
-    const type = getQueryValue(req, 'type');
-    const owner_id = getQueryValue(req, 'owner_id');
-    const search = getQueryValue(req, 'search');
-    const limit = getQueryNumber(req, 'limit', 50);
-    const offset = getQueryNumber(req, 'offset', 0);
+    const type       = getQueryValue(req, 'type');
+    const owner_id   = getQueryValue(req, 'owner_id');
+    const search     = getQueryValue(req, 'search');
+    const limit      = getQueryNumber(req, 'limit', 50);
+    const offset     = getQueryNumber(req, 'offset', 0);
     const result = await templateService.listTemplates({
       workspace_id: workspaceId,
       status,
@@ -74,32 +86,49 @@ export const getWorkflow = async (req: AuthRequest, res: Response, next: NextFun
   }
 };
 
-export const createWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createWorkflow = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const workspaceId = req.user?.workspace_id;
-    const userId = req.user?.id;
-    const userName = req.user?.email || 'Unknown';
-    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const userId      = req.user?.id;
+    const userName    = req.user?.email || 'Unknown';
+
+    if (!workspaceId) {
+      return res.status(403).json({ success: false, error: 'Workspace not found' });
+    }
+
     const { name, description, risk_level, brand_ids, platforms, type } = req.body;
+
+    // ── FIX: validate required fields and return 400 instead of letting
+    //    Supabase throw a not-null / check-constraint error that surfaces as 500.
+    if (!name || typeof name !== 'string' || name.trim().length < 3) {
+      return res.status(400).json({
+        success: false,
+        error: 'Workflow name is required and must be at least 3 characters.',
+      });
+    }
+
     const result = await templateService.createTemplate({
       workspace_id: workspaceId,
-      name,
-      description,
-      risk_level,
-      owner_id: userId || 'system',
-      owner_name: userName,
-      brand_ids,
-      platforms,
-      type,
+      name:         name.trim(),
+      description:  description?.trim() || undefined,
+      risk_level:   risk_level || 'medium',
+      owner_id:     userId || 'system',
+      owner_name:   userName,
+      brand_ids:    Array.isArray(brand_ids) ? brand_ids : [],
+      platforms:    Array.isArray(platforms) ? platforms : [],
+      type:         type || 'governed',
     });
+
     res.json({ success: true, data: result });
   } catch (err) {
     logger.error({ err }, 'Failed to create workflow');
-    next(err);
+    // ── FIX: return a structured 500 with the real message instead of
+    //    letting the generic error handler emit an opaque 500 body.
+    res.status(500).json({ success: false, error: extractErrorMessage(err) });
   }
 };
 
-export const updateWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateWorkflow = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const id = getParam(req, 'id');
     const { name, description, risk_level, owner_id, owner_name, brand_ids, platforms } = req.body;
@@ -107,7 +136,8 @@ export const updateWorkflow = async (req: AuthRequest, res: Response, next: Next
     res.json({ success: true, data: result });
   } catch (err) {
     logger.error({ err }, 'Failed to update workflow');
-    next(err);
+    const statusCode = (err as any)?.statusCode || 500;
+    res.status(statusCode).json({ success: false, error: extractErrorMessage(err) });
   }
 };
 
@@ -123,14 +153,15 @@ export const duplicateWorkflow = async (req: AuthRequest, res: Response, next: N
   }
 };
 
-export const deleteWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteWorkflow = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const id = getParam(req, 'id');
     await templateService.deleteDraftTemplate(id);
     res.json({ success: true, message: 'Workflow deleted' });
   } catch (err) {
     logger.error({ err }, 'Failed to delete workflow');
-    next(err);
+    const statusCode = (err as any)?.statusCode || 500;
+    res.status(statusCode).json({ success: false, error: extractErrorMessage(err) });
   }
 };
 
@@ -158,14 +189,15 @@ export const createDraftVersion = async (req: AuthRequest, res: Response, next: 
   }
 };
 
-export const submitForApproval = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const submitForApproval = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const versionId = getParam(req, 'versionId');
     const result = await versionService.submitForApproval(versionId);
     res.json({ success: true, data: result });
   } catch (err) {
     logger.error({ err }, 'Failed to submit for approval');
-    next(err);
+    const statusCode = (err as any)?.statusCode || 500;
+    res.status(statusCode).json({ success: false, error: extractErrorMessage(err) });
   }
 };
 
@@ -242,11 +274,15 @@ export const retireWorkflow = async (req: AuthRequest, res: Response, next: Next
 
 export const getWorkflowGraphGeneral = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { data: versions } = await (await import('../../shared/supabase')).supabaseAdmin
+    const { data: versions, error: verErr } = await (await import('../../shared/supabase')).supabaseAdmin
       .from('workflow_versions')
       .select('id, workflow_id')
       .order('created_at', { ascending: false })
       .limit(1);
+    if (verErr) {
+      if ((verErr as any).code === '42P01') return res.json({ success: true, data: { nodes: [], edges: [] } });
+      throw verErr;
+    }
     if (!versions || versions.length === 0) {
       return res.json({ success: true, data: { nodes: [], edges: [] } });
     }
@@ -259,8 +295,8 @@ export const getWorkflowGraphGeneral = async (req: AuthRequest, res: Response, n
     if (edgesResult.error) throw edgesResult.error;
     res.json({ success: true, data: normalizeWorkflowGraph(stepsResult.data || [], edgesResult.data || []) });
   } catch (err) {
-    const logger = (await import('../../shared/logger')).logger;
-    logger.error({ err }, 'Failed to get general workflow graph');
+    const _logger = (await import('../../shared/logger')).logger;
+    _logger.error({ err }, 'Failed to get general workflow graph');
     next(err);
   }
 };
@@ -313,28 +349,28 @@ export const getWorkflowStats = async (req: AuthRequest, res: Response, next: Ne
   try {
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
-    const m = await analyticsService.getWorkflowAnalytics(workspaceId);
+    const m  = await analyticsService.getWorkflowAnalytics(workspaceId);
     const cs = await analyticsService.getControlStripData(workspaceId);
     res.json({
       success: true,
       data: {
-        completionRate: m.completion_rate,
-        avgHandoffDelay: '—',
-        escalationRate: 0,
+        completionRate:       m.completion_rate,
+        avgHandoffDelay:      '—',
+        escalationRate:       0,
         activeOrchestrations: m.active_runs,
-        blockedRunRate: m.blocked_run_rate,
-        slaBreachRate: m.sla_breach_rate,
-        policyFailureRate: m.failure_rate,
-        evidenceComplete: m.evidence_completeness,
-        avgApprovalTime: '—',
-        overrideRate: 0,
-        activeWorkflows: cs.activeWorkflows,
-        pendingApprovals: cs.pendingApprovals + m.pending_approvals,
-        blockedRuns: cs.blockedRuns,
-        failedRuns: cs.failedRuns,
-        slaBreach: cs.slaBreach,
-        staleDependencies: cs.staleDependencies,
-        criticalRiskItems: cs.criticalRiskItems,
+        blockedRunRate:       m.blocked_run_rate,
+        slaBreachRate:        m.sla_breach_rate,
+        policyFailureRate:    m.failure_rate,
+        evidenceComplete:     m.evidence_completeness,
+        avgApprovalTime:      '—',
+        overrideRate:         0,
+        activeWorkflows:      cs.activeWorkflows,
+        pendingApprovals:     cs.pendingApprovals + m.pending_approvals,
+        blockedRuns:          cs.blockedRuns,
+        failedRuns:           cs.failedRuns,
+        slaBreach:            cs.slaBreach,
+        staleDependencies:    cs.staleDependencies,
+        criticalRiskItems:    cs.criticalRiskItems,
       },
     });
   } catch (err) {
@@ -374,7 +410,10 @@ export const getEscalationPaths = async (req: AuthRequest, res: Response, next: 
     const { data: incidents, error } = await import('../../shared/supabase').then((m) =>
       m.supabaseAdmin.from('incidents').select('*').eq('workspace_id', workspaceId).order('created_at', { ascending: false }).limit(10)
     );
-    if (error) throw error;
+    if (error) {
+      if ((error as any).code === '42P01') return res.json({ success: true, data: [] });
+      throw error;
+    }
     res.json({ success: true, data: incidents || [] });
   } catch (err) {
     logger.error({ err }, 'Failed to get escalation paths');
@@ -382,15 +421,21 @@ export const getEscalationPaths = async (req: AuthRequest, res: Response, next: 
   }
 };
 
-export const startWorkflowInstance = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const startWorkflowInstance = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const { workflow_id, version_id, trigger_type, trigger_source, priority } = req.body;
+
+    // ── FIX: guard required fields so missing IDs don't crash the service layer.
+    if (!workflow_id) {
+      return res.status(400).json({ success: false, error: 'workflow_id is required' });
+    }
+
     const userId = req.user?.id || 'system';
     const result = await runtimeService.startInstance(workflow_id, version_id, userId, trigger_type, trigger_source, priority);
     res.json({ success: true, data: result });
   } catch (err) {
     logger.error({ err }, 'Failed to start workflow instance');
-    next(err);
+    res.status(500).json({ success: false, error: extractErrorMessage(err) });
   }
 };
 
@@ -399,9 +444,9 @@ export const listInstances = async (req: AuthRequest, res: Response, next: NextF
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
     const workflow_id = getQueryValue(req, 'workflow_id');
-    const status = getQueryValue(req, 'status');
-    const limit = getQueryNumber(req, 'limit', 50);
-    const offset = getQueryNumber(req, 'offset', 0);
+    const status      = getQueryValue(req, 'status');
+    const limit       = getQueryNumber(req, 'limit', 50);
+    const offset      = getQueryNumber(req, 'offset', 0);
     const result = await runtimeService.listInstances({
       workspace_id: workspaceId,
       workflow_id,
@@ -427,15 +472,20 @@ export const getInstance = async (req: AuthRequest, res: Response, next: NextFun
   }
 };
 
-export const transitionInstance = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const transitionInstance = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const instanceId = getParam(req, 'instanceId');
     const { status, reason } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ success: false, error: 'status is required for transition' });
+    }
+
     const result = await runtimeService.transitionInstance(instanceId, status, reason);
     res.json({ success: true, data: result });
   } catch (err) {
     logger.error({ err }, 'Failed to transition instance');
-    next(err);
+    res.status(500).json({ success: false, error: extractErrorMessage(err) });
   }
 };
 
@@ -455,8 +505,8 @@ export const getApprovals = async (req: AuthRequest, res: Response, next: NextFu
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
     const required_role = getQueryValue(req, 'required_role');
-    const limit = getQueryNumber(req, 'limit', 50);
-    const offset = getQueryNumber(req, 'offset', 0);
+    const limit         = getQueryNumber(req, 'limit', 50);
+    const offset        = getQueryNumber(req, 'offset', 0);
     const result = await approvalService.listPendingApprovals({
       workspace_id: workspaceId,
       required_role: required_role || '',
@@ -470,25 +520,30 @@ export const getApprovals = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
-export const recordApproval = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const recordApproval = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const approvalId = getParam(req, 'approvalId');
     const { decision, decision_reason, edited_output_ref, requested_changes } = req.body;
-    const userId = req.user?.id || 'system';
+
+    if (!decision) {
+      return res.status(400).json({ success: false, error: 'decision is required (approve | reject | request_changes)' });
+    }
+
+    const userId   = req.user?.id || 'system';
     const userName = req.user?.email || 'Unknown';
     const result = await approvalService.recordDecision({
       approvalId,
-      approverId: userId,
-      approverName: userName,
+      approverId:       userId,
+      approverName:     userName,
       decision,
-      decisionReason: decision_reason,
-      editedOutputRef: edited_output_ref,
+      decisionReason:   decision_reason,
+      editedOutputRef:  edited_output_ref,
       requestedChanges: requested_changes,
     });
     res.json({ success: true, data: result });
   } catch (err) {
     logger.error({ err }, 'Failed to record approval');
-    next(err);
+    res.status(500).json({ success: false, error: extractErrorMessage(err) });
   }
 };
 
@@ -504,7 +559,7 @@ export const getApprovalStats = async (req: AuthRequest, res: Response, next: Ne
   }
 };
 
-export const runSimulation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const runSimulation = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const versionId = getParam(req, 'versionId');
     const { scenario_name, sample_input_ref } = req.body;
@@ -518,7 +573,7 @@ export const runSimulation = async (req: AuthRequest, res: Response, next: NextF
     res.json({ success: true, data: result });
   } catch (err) {
     logger.error({ err }, 'Failed to run simulation');
-    next(err);
+    res.status(500).json({ success: false, error: extractErrorMessage(err) });
   }
 };
 
@@ -555,15 +610,20 @@ export const getWorkflowEvidence = async (req: AuthRequest, res: Response, next:
   }
 };
 
-export const createEvidence = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createEvidence = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
     const { instance_id } = req.body;
+
+    if (!instance_id) {
+      return res.status(400).json({ success: false, error: 'instance_id is required' });
+    }
+
     const result = await evidenceService.createEvidenceBundle({ workspace_id: workspaceId, instance_id });
     res.json({ success: true, data: result });
   } catch (err) {
     logger.error({ err }, 'Failed to create evidence');
-    next(err);
+    res.status(500).json({ success: false, error: extractErrorMessage(err) });
   }
 };

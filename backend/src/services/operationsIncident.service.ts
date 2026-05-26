@@ -83,7 +83,7 @@ export async function createIncident(params: {
     category: params.category,
     owner_id: params.owner_id || null,
     owner_name: params.owner_name || null,
-    status: 'OPEN',
+    status: 'open',
     created_by: params.created_by,
     created_by_name: params.created_by_name || null,
     due_at: params.due_at || null,
@@ -101,10 +101,10 @@ export async function resolveIncident(incidentId: string, closedBy: string, reme
     .eq('id', incidentId)
     .single();
   if (fetchError || !existing) throw Object.assign(new Error('Incident not found'), { statusCode: 404 });
-  if (existing.status === 'RESOLVED') throw Object.assign(new Error('Incident already resolved'), { statusCode: 409 });
+  if (existing.status === 'resolved') throw Object.assign(new Error('Incident already resolved'), { statusCode: 409 });
 
   const updateData: Record<string, any> = {
-    status: 'RESOLVED',
+    status: 'resolved',
     closed_by: closedBy,
     closed_at: new Date().toISOString(),
   };
@@ -112,13 +112,13 @@ export async function resolveIncident(incidentId: string, closedBy: string, reme
 
   const { error } = await supabaseAdmin.from('incidents').update(updateData).eq('id', incidentId);
   if (error) throw error;
-  return { id: incidentId, status: 'RESOLVED' };
+  return { id: incidentId, status: 'resolved' };
 }
 
 export async function getIncidentStats(workspaceId: string) {
   const [openIncidents, criticalIncidents, totalIncidents] = await Promise.all([
-    supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).neq('status', 'RESOLVED'),
-    supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('severity', 'critical').neq('status', 'RESOLVED'),
+    supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).neq('status', 'resolved'),
+    supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('severity', 'critical').neq('status', 'resolved'),
     supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
   ]);
 
