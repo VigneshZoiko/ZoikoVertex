@@ -186,7 +186,7 @@ const NAV_GROUPS: NavGroup[] = [
       { name: "Media Vault",         href: "/library",    icon: Database,       roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","REVIEWER","ANALYST","VIEWER"] },
       { name: "Campaigns",           href: "/campaigns",  icon: FolderKanban,   roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","ANALYST","VIEWER"] },
       { name: "Calendar",            href: "/calendar",   icon: Calendar,       roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","VIEWER"] },
-      { name: "Inbox & Engagement",  href: "/inbox",      icon: Inbox,          roles: ["ADMIN","WORKSPACE_OWNER","AGENT_OPERATOR","CAMPAIGN_MANAGER","PUBLISHER"] },
+      { name: "Inbox & Engagement",  href: "/inbox",      icon: Inbox,          roles: ["ADMIN","WORKSPACE_OWNER","AGENT_OPERATOR","CAMPAIGN_MANAGER","PUBLISHER","GOVERNANCE_ADMIN"] },
       { name: "Publishing Hub",      href: "/publish",    icon: Globe,          roles: ["ADMIN","WORKSPACE_OWNER","PUBLISHER","CAMPAIGN_MANAGER"], dirty: true },
     ],
   },
