@@ -148,7 +148,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
     if (!userData?.is_superadmin) {
       const { data: member } = await supabaseAdmin
         .from('workspace_members')
-        .select('workspace_id, role, workspaces(name, org_id, status, organizations(name, status, plan_type))')
+        .select('workspace_id, role, workspaces(name, org_id, status, organizations(name, status, plan_type, premium_paid_until))')
         .eq('user_id', userId)
         .limit(1)
         .maybeSingle();
@@ -164,6 +164,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
 
         const orgStatus = org?.status;
         const planType = org?.plan_type;
+        const premiumPaidUntil = org?.premium_paid_until;
         const orgId = ws?.org_id;
         const orgName = org?.name;
         const wsName = ws?.name;
@@ -182,6 +183,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
             org_id: orgId || null,
             org_name: orgName || 'ZoikoGroup',
             plan_type: planType || 'FREE',
+            premium_paid_until: premiumPaidUntil || null,
             role,
             org_status: orgStatus || 'ACTIVE',
             permissions: ROLE_PERMISSIONS_MAP[role?.toUpperCase() || ''] || [],

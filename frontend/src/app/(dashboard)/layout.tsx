@@ -21,7 +21,7 @@ export default function DashboardLayout({
 }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { orgStatus, workspaceStatus, orgName, isSuperAdmin, isLoading, role } = useRoleContext();
+  const { orgStatus, workspaceStatus, orgName, planType, premiumPaidUntil, isSuperAdmin, isLoading, role } = useRoleContext();
   const [isUnauthorized, setIsUnauthorized] = useState<boolean | null>(null);
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ export default function DashboardLayout({
             <Header />
             <main className="flex-1 overflow-hidden flex flex-col bg-[var(--background)] transition-colors">
               {showSuspension ? (
-                <SuspendedOverlay orgName={orgName ?? undefined} type={suspensionType} />
+                <SuspendedOverlay orgName={orgName ?? undefined} type={suspensionType} planType={planType} premiumPaidUntil={premiumPaidUntil} />
               ) : isUnauthorized ? (
                 <UnauthorizedView pathname={pathname} onBack={() => router.replace('/dashboard')} />
               ) : (

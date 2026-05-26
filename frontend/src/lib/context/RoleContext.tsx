@@ -10,6 +10,8 @@ interface RoleContextType {
   workspaceStatus: string | null;
   orgName: string | null;
   fullName: string | null;
+  planType: string | null;
+  premiumPaidUntil: string | null;
   isSuperAdmin: boolean;
   isLoading: boolean;
   hasRole: (allowedRoles: string[]) => boolean;
@@ -20,6 +22,7 @@ const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 const CACHE_KEY = 'zv_role_cache';
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_VERSION = 2;
 
 interface RoleCache {
   role: string | null;
@@ -27,8 +30,11 @@ interface RoleCache {
   workspaceStatus: string | null;
   orgName: string | null;
   fullName: string | null;
+  planType: string | null;
+  premiumPaidUntil: string | null;
   isSuperAdmin: boolean;
   ts: number;
+  v: number;
 }
 
 function readCache(): RoleCache | null {
@@ -37,6 +43,7 @@ function readCache(): RoleCache | null {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const parsed: RoleCache = JSON.parse(raw);
+    if (parsed.v !== CACHE_VERSION) return null;
     if (Date.now() - parsed.ts > CACHE_TTL_MS) return null;
     return parsed;
   } catch {
@@ -44,10 +51,10 @@ function readCache(): RoleCache | null {
   }
 }
 
-function writeCache(data: Omit<RoleCache, 'ts'>) {
+function writeCache(data: Omit<RoleCache, 'ts' | 'v'>) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, ts: Date.now() }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, v: CACHE_VERSION, ts: Date.now() }));
   } catch {}
 }
 
@@ -66,6 +73,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [workspaceStatus, setWorkspaceStatus] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
+  const [planType, setPlanType] = useState<string | null>(null);
+  const [premiumPaidUntil, setPremiumPaidUntil] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -78,6 +87,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       setWorkspaceStatus(cached.workspaceStatus);
       setOrgName(cached.orgName);
       setFullName(cached.fullName);
+      setPlanType(cached.planType ?? null);
+      setPremiumPaidUntil(cached.premiumPaidUntil ?? null);
       setIsSuperAdmin(cached.isSuperAdmin ?? false);
       setIsLoading(false);
     }
@@ -115,6 +126,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         if (result.data.workspace_status) setWorkspaceStatus(result.data.workspace_status);
         if (result.data.org_name) setOrgName(result.data.org_name);
         if (result.data.full_name) setFullName(result.data.full_name);
+        if (result.data.plan_type) setPlanType(result.data.plan_type);
+        if (result.data.premium_paid_until !== undefined) setPremiumPaidUntil(result.data.premium_paid_until);
         if (result.data.is_superadmin) { nextIsSuperAdmin = true; setIsSuperAdmin(true); }
 
         writeCache({
@@ -123,6 +136,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
           workspaceStatus: result.data.workspace_status ?? null,
           orgName: result.data.org_name ?? null,
           fullName: result.data.full_name ?? null,
+          planType: result.data.plan_type ?? null,
+          premiumPaidUntil: result.data.premium_paid_until ?? null,
           isSuperAdmin: nextIsSuperAdmin,
         });
       }
@@ -147,6 +162,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         setOrgStatus(null);
         setOrgName(null);
         setFullName(null);
+        setPlanType(null);
+        setPremiumPaidUntil(null);
         setIsSuperAdmin(false);
         setIsLoading(false);
         clearCache();
@@ -170,6 +187,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     workspaceStatus,
     orgName,
     fullName,
+    planType,
+    premiumPaidUntil,
     isSuperAdmin,
     isLoading,
     hasRole,
