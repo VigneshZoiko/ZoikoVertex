@@ -1,79 +1,200 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
+import * as rulesService from '../../services/approvalRules.service';
 
-/**
- * Mock data for Approval Rules. In a production system, these would be stored in the database.
- */
-const DEFAULT_RULES = [
-  {
-    id: 'r1',
-    name: 'EU High-Risk Financial Protocol',
-    dimensions: { region: 'EU', risk: 'HIGH', type: 'Financial' },
-    path: ['MANAGER', 'COMPLIANCE', 'LEGAL', 'ADMIN'],
-    status: 'active',
-    hits: 1242,
-    latency: '1.4h'
-  },
-  {
-    id: 'r2',
-    name: 'Global Instagram Creative Flow',
-    dimensions: { platform: 'Instagram', brand: 'Main' },
-    path: ['CREATIVE_DIR', 'MANAGER'],
-    status: 'active',
-    hits: 8560,
-    latency: '0.8h'
-  },
-  {
-    id: 'r3',
-    name: 'Standard Twitter Operations',
-    dimensions: { platform: 'X (Twitter)', risk: 'LOW' },
-    path: ['MANAGER'],
-    status: 'active',
-    hits: 15201,
-    latency: '0.2h'
-  },
-  {
-    id: 'r4',
-    name: 'APAC Market Entry Campaign',
-    dimensions: { region: 'APAC', market: 'Emerging' },
-    path: ['REGION_HEAD', 'MANAGER', 'ADMIN'],
-    status: 'active',
-    hits: 412,
-    latency: '2.5h'
-  }
-];
+function getTenantId(req: AuthRequest): string {
+  return req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+}
+
+function getUserId(req: AuthRequest): string {
+  return req.user?.id || getTenantId(req);
+}
 
 export const listRules = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
-    // In the future, we can filter by workspace_id if we move rules to the database
-    res.status(200).json({ success: true, data: DEFAULT_RULES });
-  } catch (error) {
-    next(error);
-  }
+    const statusStr = req.query.rule_status as string;
+    const result = await rulesService.listRules({
+      tenant_id: getTenantId(req),
+      status: statusStr ? statusStr.split(',') : undefined,
+      risk_classification: req.query.risk_classification as string,
+      search: req.query.search as string,
+      limit: parseInt(req.query.limit as string) || undefined,
+      offset: parseInt(req.query.offset as string) || undefined,
+    });
+    res.json({ success: true, data: result.rules, total: result.total });
+  } catch (error) { next(error); }
 };
 
 export const createRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { name, dimensions, path } = req.body;
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const tenant_id = getTenantId(req);
+    const rule = await rulesService.createRule({
+      tenant_id,
+      workspace_id: tenant_id,
+      rule_name: req.body.rule_name,
+      rule_description: req.body.rule_description || '',
+      rule_owner_id: req.body.rule_owner_id || getUserId(req),
+      rule_priority: req.body.rule_priority || 1000,
+      risk_classification: req.body.risk_classification || 'LOW',
+      tags: req.body.tags || [],
+      created_by: getUserId(req),
+    });
+    res.json({ success: true, data: rule });
+  } catch (error) { next(error); }
+};
 
-    // Mock response for now
-    const newRule = {
-      id: `r${Math.floor(Math.random() * 1000)}`,
-      name,
-      dimensions,
-      path,
-      status: 'active',
-      hits: 0,
-      latency: '0h'
-    };
+export const getRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = req.params.id as string;
+    const rule = await rulesService.getRule(id, getTenantId(req));
+    if (!rule) return res.status(404).json({ error: 'Rule not found' });
+    const [scopes, path, versions] = await Promise.all([
+      rulesService.getRuleScope(id).catch(() => null),
+      rulesService.getRulePath(id).catch(() => null),
+      rulesService.getRuleVersions(id).catch(() => null),
+    ]);
+    const details = await rulesService.getRuleDetails(id).catch(() => null);
+    res.json({ success: true, data: { ...rule, scopes, path, versions, ...(details || {}) } });
+  } catch (error) { next(error); }
+};
 
-    res.status(201).json({ success: true, data: newRule });
-  } catch (error) {
-    next(error);
-  }
+export const updateRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const rule = await rulesService.updateRule({
+      id: req.params.id as string,
+      tenant_id: getTenantId(req),
+      updated_by: getUserId(req),
+      ...req.body,
+    });
+    res.json({ success: true, data: rule });
+  } catch (error) { next(error); }
+};
+
+export const submitRuleForReview = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const rule = await rulesService.submitRuleForReview(req.params.id as string, getTenantId(req), getUserId(req));
+    res.json({ success: true, data: rule });
+  } catch (error) { next(error); }
+};
+
+export const publishRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { publish_note } = req.body;
+    const rule = await rulesService.publishRule(req.params.id as string, getTenantId(req), getUserId(req), publish_note);
+    res.json({ success: true, data: rule });
+  } catch (error) { next(error); }
+};
+
+export const deactivateRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const rule = await rulesService.deactivateRule(req.params.id as string, getTenantId(req), getUserId(req));
+    res.json({ success: true, data: rule });
+  } catch (error) { next(error); }
+};
+
+export const reactivateRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const rule = await rulesService.reactivateRule(req.params.id as string, getTenantId(req), getUserId(req));
+    res.json({ success: true, data: rule });
+  } catch (error) { next(error); }
+};
+
+export const archiveRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const rule = await rulesService.archiveRule(req.params.id as string, getTenantId(req), getUserId(req));
+    res.json({ success: true, data: rule });
+  } catch (error) { next(error); }
+};
+
+export const cloneRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const rule = await rulesService.cloneRule(req.params.id as string, getTenantId(req), getTenantId(req), getUserId(req));
+    res.json({ success: true, data: rule });
+  } catch (error) { next(error); }
+};
+
+export const getRuleScope = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const scope = await rulesService.getRuleScope(req.params.id as string);
+    res.json({ success: true, data: scope });
+  } catch (error) { next(error); }
+};
+
+export const upsertRuleScope = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const scope = await rulesService.upsertRuleScope({
+      approval_rule_id: req.params.id as string,
+      tenant_id: getTenantId(req),
+      workspace_id: getTenantId(req),
+      ...req.body,
+    });
+    res.json({ success: true, data: scope });
+  } catch (error) { next(error); }
+};
+
+export const getRulePath = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const path = await rulesService.getRulePath(req.params.id as string);
+    res.json({ success: true, data: path });
+  } catch (error) { next(error); }
+};
+
+export const upsertRulePath = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const path = await rulesService.upsertRulePath({ ...req.body, approval_rule_id: req.params.id as string });
+    res.json({ success: true, data: path });
+  } catch (error) { next(error); }
+};
+
+export const getRuleVersions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const versions = await rulesService.getRuleVersions(req.params.id as string);
+    res.json({ success: true, data: versions });
+  } catch (error) { next(error); }
+};
+
+export const getRuleAuditLog = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const logs = await rulesService.getRuleAuditLog(req.params.id as string);
+    res.json({ success: true, data: logs });
+  } catch (error) { next(error); }
+};
+
+export const getRuleConflicts = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const conflicts = await rulesService.getRuleConflicts(req.params.id as string);
+    res.json({ success: true, data: conflicts });
+  } catch (error) { next(error); }
+};
+
+export const detectRuleConflicts = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const result = await rulesService.detectRuleConflicts(req.params.id as string, getTenantId(req));
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+};
+
+export const resolveRuleConflict = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const result = await rulesService.resolveConflict(req.params.conflictId as string, getUserId(req));
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+};
+
+export const runRuleSimulation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const result = await rulesService.runSimulation({
+      approval_rule_id: req.params.id as string,
+      simulated_by: getUserId(req),
+      simulation_input: req.body,
+    });
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+};
+
+export const getRuleStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const stats = await rulesService.getRuleStats(getTenantId(req));
+    res.json({ success: true, data: stats });
+  } catch (error) { next(error); }
 };

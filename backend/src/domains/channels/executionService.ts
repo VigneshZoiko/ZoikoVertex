@@ -83,7 +83,33 @@ export class ExecutionService {
         })
         .eq('id', intentId);
 
-      // 4. Broadcast webhook event
+      // 4. Auto-retire media vault record on full success.
+      // Only the DB row is removed — the file stays in Supabase Storage so that
+      // publish_intents.media_url (and inbox/comment previews) keep working.
+      // If even one platform failed we leave the record untouched.
+      if (allSuccessful) {
+        const urlsToClean: string[] = [
+          ...(intent.media_url ? [intent.media_url] : []),
+          ...(Array.isArray(intent.media_urls) ? intent.media_urls : []),
+        ].filter(Boolean);
+
+        if (urlsToClean.length > 0) {
+          // Match on the primary `url` column; the asset is keyed by its first URL.
+          const { error: cleanErr } = await supabaseAdmin
+            .from('media_library')
+            .delete()
+            .in('url', urlsToClean);
+
+          if (cleanErr) {
+            // Non-fatal — log and continue. Storage file is unaffected.
+            logger.warn({ cleanErr, intentId }, '[Execution] Media vault cleanup failed (non-fatal)');
+          } else {
+            logger.info(`[Execution] Media vault record(s) retired after successful publish of ${intentId}`);
+          }
+        }
+      }
+
+      // 5. Broadcast webhook event
       broadcastWebhookEvent(intent.workspace_id, allSuccessful ? 'post.published' : 'post.failed', {
         intent_id: intentId,
         platform: intent.platform,
@@ -123,27 +149,61 @@ export class ExecutionService {
     }
   }
 
+  private static async uploadTwitterMedia(mediaUrl: string, accessToken: string): Promise<string | null> {
+    try {
+      const imgRes = await fetch(mediaUrl);
+      if (!imgRes.ok) throw new Error(`Failed to download media: ${imgRes.status}`);
+      const buffer = await imgRes.arrayBuffer();
+      const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
+
+      // v2 media upload endpoint with multipart/form-data
+      const form = new FormData();
+      form.append('media', new Blob([buffer], { type: mimeType }), 'media');
+      form.append('media_category', 'tweet_image');
+      form.append('media_type', mimeType);
+
+      const uploadRes = await fetch('https://api.x.com/2/media/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: form,
+      });
+
+      const uploadData: any = await uploadRes.json();
+      if (!uploadRes.ok || uploadData.errors) {
+        logger.warn({ status: uploadRes.status, uploadData }, '[Execution] Twitter media upload failed — posting without image');
+        return null;
+      }
+
+      const mediaId = uploadData.data?.id ?? uploadData.media_id_string ?? null;
+      logger.info(`[Execution] Twitter media uploaded: ${mediaId}`);
+      return mediaId as string;
+    } catch (err: any) {
+      logger.warn({ err }, '[Execution] Twitter media upload error — posting without image');
+      return null;
+    }
+  }
+
   private static async postToTwitter(intent: any, account: any): Promise<PublishResult> {
     logger.info(`[Execution] Sending tweet for ${account.account_handle}...`);
     try {
-      const url = 'https://api.twitter.com/2/tweets';
-      
-      const body: any = {
-        text: intent.content
-      };
+      const body: any = { text: intent.content };
 
+      // Upload media if present
       if (intent.media_url) {
-        logger.warn(`[Execution] Twitter media upload requires v1.1 API integration. Sending tweet as text/link. URL: ${intent.media_url}`);
-        // Can optionally append media_url to the text if desired, but we'll leave it out or handle it natively later.
+        const mediaId = await ExecutionService.uploadTwitterMedia(intent.media_url, account.access_token);
+        if (mediaId) {
+          body.media = { media_ids: [mediaId] };
+          logger.info(`[Execution] Attaching media ${mediaId} to tweet`);
+        }
       }
 
-      const response = await fetch(url, {
+      const response = await fetch('https://api.twitter.com/2/tweets', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${account.access_token}`
+          'Authorization': `Bearer ${account.access_token}`,
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();

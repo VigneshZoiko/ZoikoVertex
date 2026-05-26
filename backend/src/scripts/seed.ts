@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
 

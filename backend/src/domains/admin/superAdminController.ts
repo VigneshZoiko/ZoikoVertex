@@ -69,10 +69,10 @@ export class SuperAdminController {
         adminUserId = authUser.user.id;
       }
 
-      // 4. Create the Workspace (Organization)
+      // 4. Create the Workspace (Organization) — immediately active, no approval needed
       const { data: workspace, error: wsError } = await supabaseAdmin
         .from('workspaces')
-        .insert({ name })
+        .insert({ name, status: 'ACTIVE' })
         .select()
         .single();
 
@@ -178,16 +178,196 @@ export class SuperAdminController {
         return res.status(403).json({ error: 'Access denied' });
       }
 
-      const { data, error } = await supabaseAdmin
+      const { data: workspaces, error } = await supabaseAdmin
         .from('workspaces')
         .select('*, workspace_members(count)');
 
       if (error) throw error;
-      res.json({ success: true, data });
+
+      // Batch-fetch admin info for all workspaces in one query
+      const wsIds = (workspaces || []).map(w => w.id);
+      const adminMap: Record<string, { full_name: string | null; email: string | null }> = {};
+
+      if (wsIds.length > 0) {
+        const { data: admins } = await supabaseAdmin
+          .from('workspace_members')
+          .select('workspace_id, users(full_name, email)')
+          .in('workspace_id', wsIds)
+          .in('role', ['ADMIN', 'WORKSPACE_OWNER']);
+
+        if (admins) {
+          for (const entry of admins) {
+            const userData = Array.isArray(entry.users) ? entry.users[0] : entry.users;
+            adminMap[entry.workspace_id] = {
+              full_name: (userData as any)?.full_name || null,
+              email: (userData as any)?.email || null,
+            };
+          }
+        }
+      }
+
+      const result = (workspaces || []).map(ws => ({
+        id: ws.id,
+        name: ws.name,
+        status: ws.status,
+        type: ws.type,
+        plan_type: ws.type,
+        memberCount: Array.isArray(ws.workspace_members)
+          ? (ws.workspace_members[0] as any)?.count ?? 0
+          : 0,
+        adminName: adminMap[ws.id]?.full_name || null,
+        adminEmail: adminMap[ws.id]?.email || null,
+      }));
+
+      res.json({ success: true, data: result });
     } catch (error) {
       next(error);
     }
   }
+  /**
+   * Pause an organization — sets workspace + parent org status to SUSPENDED
+   */
+  static async pauseOrganization(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { orgId } = req.params;
+
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('org_id')
+        .eq('id', orgId)
+        .single();
+
+      await supabaseAdmin
+        .from('workspaces')
+        .update({ status: 'SUSPENDED' })
+        .eq('id', orgId);
+
+      if (ws?.org_id) {
+        await supabaseAdmin
+          .from('organizations')
+          .update({ status: 'SUSPENDED' })
+          .eq('id', ws.org_id);
+      }
+
+      res.json({ success: true, message: 'Organization paused.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Resume an organization — sets workspace + parent org status back to ACTIVE
+   */
+  static async resumeOrganization(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { orgId } = req.params;
+
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('org_id')
+        .eq('id', orgId)
+        .single();
+
+      await supabaseAdmin
+        .from('workspaces')
+        .update({ status: 'ACTIVE' })
+        .eq('id', orgId);
+
+      if (ws?.org_id) {
+        await supabaseAdmin
+          .from('organizations')
+          .update({ status: 'ACTIVE' })
+          .eq('id', ws.org_id);
+      }
+
+      res.json({ success: true, message: 'Organization resumed.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Consolidated analytics — returns orgs + stats in one call
+   */
+  static async getAnalytics(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const [orgResult, statsResult] = await Promise.all([
+        supabaseAdmin.from('workspaces').select('*, workspace_members(count)'),
+        (async () => {
+          const [
+            { count: orgCount },
+            { count: userCount },
+            { count: postCount },
+            { count: assetCount },
+            { count: accountCount }
+          ] = await Promise.all([
+            supabaseAdmin.from('workspaces').select('*', { count: 'exact', head: true }),
+            supabaseAdmin.from('users').select('*', { count: 'exact', head: true }),
+            supabaseAdmin.from('scheduled_posts').select('*', { count: 'exact', head: true }),
+            supabaseAdmin.from('media_library').select('*', { count: 'exact', head: true }),
+            supabaseAdmin.from('connected_accounts').select('*', { count: 'exact', head: true })
+          ]);
+          return { organizations: orgCount || 0, totalUsers: userCount || 0, totalPosts: postCount || 0, totalAssets: assetCount || 0, socialConnections: accountCount || 0, platformStatus: 'Operational' };
+        })()
+      ]);
+
+      if (orgResult.error) throw orgResult.error;
+
+      const wsIds = (orgResult.data || []).map(w => w.id);
+      const adminMap: Record<string, { full_name: string | null; email: string | null }> = {};
+
+      if (wsIds.length > 0) {
+        const { data: admins } = await supabaseAdmin
+          .from('workspace_members')
+          .select('workspace_id, users(full_name, email)')
+          .in('workspace_id', wsIds)
+          .in('role', ['ADMIN', 'WORKSPACE_OWNER']);
+
+        if (admins) {
+          for (const entry of admins) {
+            const userData = Array.isArray(entry.users) ? entry.users[0] : entry.users;
+            adminMap[entry.workspace_id] = {
+              full_name: (userData as any)?.full_name || null,
+              email: (userData as any)?.email || null,
+            };
+          }
+        }
+      }
+
+      const data = (orgResult.data || []).map(ws => ({
+        id: ws.id,
+        name: ws.name,
+        status: ws.status,
+        type: ws.type,
+        plan_type: ws.type,
+        memberCount: Array.isArray(ws.workspace_members) ? (ws.workspace_members[0] as any)?.count ?? 0 : 0,
+        adminName: adminMap[ws.id]?.full_name || null,
+        adminEmail: adminMap[ws.id]?.email || null,
+      }));
+
+      res.json({ success: true, data, stats: statsResult });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Delete an organization and its associated data
+   */
+  static async deleteOrganization(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { orgId } = req.params;
+      const { error } = await supabaseAdmin
+        .from('workspaces')
+        .delete()
+        .eq('id', orgId);
+      if (error) throw error;
+      res.json({ success: true, message: 'Organization and all metadata purged.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   /**
    * Get high-level platform statistics
    */

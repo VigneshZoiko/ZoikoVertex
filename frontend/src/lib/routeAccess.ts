@@ -10,6 +10,7 @@ interface RouteRule {
 
 export const ROUTE_RULES: RouteRule[] = [
   { prefix: '/superadmin',     roles: ['SUPERADMIN'] },
+  { prefix: '/admin/notifications', roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'AGENT_ARCHITECT', 'AGENT_OPERATOR', 'KNOWLEDGE_MANAGER', 'CAMPAIGN_MANAGER', 'CREATOR', 'REVIEWER', 'VALIDATOR', 'APPROVER', 'PUBLISHER', 'COMPLIANCE_REVIEWER', 'AUDITOR', 'ANALYST', 'SECURITY_ADMIN', 'PRIVACY_ADMIN', 'BRAND_REVIEWER', 'DEVELOPER', 'EXTERNAL_COLLABORATOR', 'VIEWER', 'SUPERADMIN'] },
   { prefix: '/admin',          roles: ['ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN', 'SUPERADMIN'] },
   { prefix: '/access',         roles: ['ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'SUPERADMIN'] },
   { prefix: '/team',           roles: ['ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'SUPERADMIN'] },

@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 interface RoleContextType {
   role: string | null;
   orgStatus: string | null;
+  workspaceStatus: string | null;
   orgName: string | null;
   fullName: string | null;
   isSuperAdmin: boolean;
@@ -23,6 +24,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 interface RoleCache {
   role: string | null;
   orgStatus: string | null;
+  workspaceStatus: string | null;
   orgName: string | null;
   fullName: string | null;
   isSuperAdmin: boolean;
@@ -61,6 +63,7 @@ const useClientLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<string | null>(null);
   const [orgStatus, setOrgStatus] = useState<string | null>(null);
+  const [workspaceStatus, setWorkspaceStatus] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -72,6 +75,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     if (cached) {
       setRole(cached.role);
       setOrgStatus(cached.orgStatus);
+      setWorkspaceStatus(cached.workspaceStatus);
       setOrgName(cached.orgName);
       setFullName(cached.fullName);
       setIsSuperAdmin(cached.isSuperAdmin ?? false);
@@ -108,6 +112,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       if (result.success) {
         if (result.data.role) { nextRole = result.data.role.toUpperCase(); setRole(nextRole); }
         if (result.data.org_status) setOrgStatus(result.data.org_status);
+        if (result.data.workspace_status) setWorkspaceStatus(result.data.workspace_status);
         if (result.data.org_name) setOrgName(result.data.org_name);
         if (result.data.full_name) setFullName(result.data.full_name);
         if (result.data.is_superadmin) { nextIsSuperAdmin = true; setIsSuperAdmin(true); }
@@ -115,6 +120,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         writeCache({
           role: nextRole,
           orgStatus: result.data.org_status ?? null,
+          workspaceStatus: result.data.workspace_status ?? null,
           orgName: result.data.org_name ?? null,
           fullName: result.data.full_name ?? null,
           isSuperAdmin: nextIsSuperAdmin,
@@ -161,6 +167,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const value = {
     role,
     orgStatus,
+    workspaceStatus,
     orgName,
     fullName,
     isSuperAdmin,

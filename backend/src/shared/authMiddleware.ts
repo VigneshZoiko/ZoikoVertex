@@ -11,6 +11,7 @@ export interface AuthRequest extends Request {
     role?: string | null;
     workspace_id?: string | null;
     workspace_plan?: string | null;
+    workspace_status?: string | null;
     is_superadmin?: boolean;
     api_key_id?: string;
     api_key_scopes?: string[];
@@ -108,13 +109,16 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     const workspaceId  = member?.workspace_id || (isSuperAdmin ? '00000000-0000-0000-0000-000000000000' : null);
 
     let workspacePlan: string | null = null;
+    let workspaceStatus: string | null = null;
     if (member?.workspace_id) {
       const { data: ws } = await supabaseAdmin
         .from('workspaces')
-        .select('plan_type')
+        .select('plan_type, status')
         .eq('id', member.workspace_id)
         .single();
-      workspacePlan = ws?.plan_type ?? null;
+
+      workspacePlan  = ws?.plan_type ?? null;
+      workspaceStatus = ws?.status ?? null;
     } else if (isSuperAdmin) {
       workspacePlan = 'ENTERPRISE';
     }
@@ -125,6 +129,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       role: userData?.role || null,
       workspace_id: workspaceId,
       workspace_plan: workspacePlan,
+      workspace_status: workspaceStatus,
       is_superadmin: isSuperAdmin,
     };
 

@@ -13,13 +13,13 @@ import {
   ClipboardCheck,
   ShieldCheck,
   ListChecks,
+  Gavel,
   AlertOctagon,
   Bot,
   Shield,
   Link2,
   ClipboardList,
   CheckSquare,
-  Briefcase,
   Settings,
   LogOut,
   Users,
@@ -44,13 +44,16 @@ import {
   HeartPulse,
   Building2,
   CreditCard,
-  Lock,
   TrendingUp,
   FolderKanban,
   Inbox,
   MonitorPlay,
   Fingerprint,
+  Bell,
+  Eye,
+  Lock,
   Pencil,
+  Briefcase,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -326,42 +329,40 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Safety Layer",
     icon: Scale,
     items: [
+      // ── CORE ACTIVE COMPONENTS ─────────────────────────────────────────
       {
-        name: "Autonomy Controls",
-        href: "/agents/autonomy",
-        icon: ToggleRight,
-        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN"],
-      },
-      {
-        name: "Policy Center",
-        href: "/governance/policy",
-        icon: Scale,
-        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN"],
-      },
-      {
-        name: "Risk Management",
-        href: "/governance/risk",
+        name: "Safety Overview",
+        href: "/governance/safety",
         icon: ShieldAlert,
-        roles: [
-          "ADMIN",
-          "WORKSPACE_OWNER",
-          "GOVERNANCE_ADMIN",
-          "COMPLIANCE_REVIEWER",
-        ],
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "SAFETY_OPERATOR"],
       },
       {
-        name: "Brand Standards",
-        href: "/governance/legal",
-        icon: BookMarked,
-        roles: [
-          "ADMIN",
-          "WORKSPACE_OWNER",
-          "GOVERNANCE_ADMIN",
-          "BRAND_REVIEWER",
-        ],
+        name: "Policy Control Matrix",
+        href: "/governance/policies",
+        icon: ShieldCheck,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "SAFETY_OPERATOR"],
       },
+      {
+        name: "Approval Console",
+        href: "/governance/reviews",
+        icon: ClipboardCheck,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "SAFETY_OPERATOR"],
+      },
+      {
+        name: "Evidence Vault",
+        href: "/governance/evidence",
+        icon: Archive,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "SAFETY_OPERATOR"],
+      },
+      // ── STANDBY COMPONENTS (preserved for future expansion) ───────────
+      // { name: "Risk Intake & Triage",  href: "/governance/signals",  icon: Activity,     roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER","SAFETY_OPERATOR"] },
+      // { name: "Autonomy Controls",     href: "/agents/autonomy",     icon: ToggleRight,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
+      // { name: "Policy Center",         href: "/governance/policy",   icon: Scale,        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"] },
+      // { name: "Risk Management",       href: "/governance/risk",     icon: ShieldAlert,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"] },
+      // { name: "Brand Standards",       href: "/governance/legal",    icon: BookMarked,   roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","BRAND_REVIEWER"] },
     ],
   },
+
   {
     id: "validation",
     label: "Accountability Layer",
@@ -434,7 +435,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         name: "Audit Trail",
-        href: "/governance/audit",
+        href: "/evidence/audit-trail",
         icon: FileSearch,
         roles: [
           "ADMIN",
@@ -446,14 +447,33 @@ const NAV_GROUPS: NavGroup[] = [
       },
       {
         name: "Forensic Hub",
-        href: "/governance/forensic",
+        href: "/evidence/forensic-hub",
         icon: Fingerprint,
-        roles: ["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "AUDITOR"],
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "GOVERNANCE_ADMIN",
+          "AUDITOR",
+          "COMPLIANCE_REVIEWER",
+          "SECURITY_ADMIN",
+        ],
       },
       {
         name: "Evidence Vault",
-        href: "/governance/evidence",
+        href: "/evidence/evidence-vault",
         icon: Archive,
+        roles: [
+          "ADMIN",
+          "WORKSPACE_OWNER",
+          "GOVERNANCE_ADMIN",
+          "AUDITOR",
+          "COMPLIANCE_REVIEWER",
+        ],
+      },
+      {
+        name: "Legal Holds",
+        href: "/evidence/evidence-vault/holds",
+        icon: Gavel,
         roles: [
           "ADMIN",
           "WORKSPACE_OWNER",
@@ -525,52 +545,13 @@ const NAV_GROUPS: NavGroup[] = [
     label: "System",
     icon: Settings,
     items: [
-      {
-        name: "Workspace Settings",
-        href: "/admin/settings",
-        icon: Sliders,
-        roles: ["ADMIN", "WORKSPACE_OWNER"],
-      },
-      {
-        name: "Billing & Usage",
-        href: "/admin/billing",
-        icon: CreditCard,
-        roles: ["ADMIN", "WORKSPACE_OWNER"],
-      },
-      {
-        name: "Security Center",
-        href: "/admin/security",
-        icon: Lock,
-        roles: ["ADMIN", "WORKSPACE_OWNER", "SECURITY_ADMIN"],
-      },
-      {
-        name: "Support & Docs",
-        href: "/support",
-        icon: HelpCircle,
-        roles: [
-          "ADMIN",
-          "WORKSPACE_OWNER",
-          "GOVERNANCE_ADMIN",
-          "AGENT_ARCHITECT",
-          "AGENT_OPERATOR",
-          "KNOWLEDGE_MANAGER",
-          "CAMPAIGN_MANAGER",
-          "CREATOR",
-          "REVIEWER",
-          "VALIDATOR",
-          "APPROVER",
-          "PUBLISHER",
-          "COMPLIANCE_REVIEWER",
-          "AUDITOR",
-          "ANALYST",
-          "SECURITY_ADMIN",
-          "PRIVACY_ADMIN",
-          "BRAND_REVIEWER",
-          "DEVELOPER",
-          "EXTERNAL_COLLABORATOR",
-          "VIEWER",
-        ],
-      },
+      { name: "Workspace Settings",  href: "/admin/settings",      icon: Sliders,     roles: ["ADMIN","WORKSPACE_OWNER"] },
+      { name: "Billing & Usage",     href: "/admin/billing",       icon: CreditCard,  roles: ["ADMIN","WORKSPACE_OWNER"] },
+      { name: "Privacy & Data",      href: "/admin/privacy",       icon: Eye,         roles: ["ADMIN","WORKSPACE_OWNER","PRIVACY_ADMIN"] },
+      { name: "Notifications",       href: "/admin/notifications", icon: Bell,        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","ANALYST","SECURITY_ADMIN","PRIVACY_ADMIN","BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER"], badge: false },
+      { name: "System Status",       href: "/admin/status",        icon: Activity,    roles: ["ADMIN","WORKSPACE_OWNER"] },
+      { name: "Security Center",     href: "/admin/security",      icon: Lock,        roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"] },
+      { name: "Support & Docs",      href: "/support",             icon: HelpCircle,  roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","COMPLIANCE_REVIEWER","AUDITOR","ANALYST","SECURITY_ADMIN","PRIVACY_ADMIN","BRAND_REVIEWER","DEVELOPER","EXTERNAL_COLLABORATOR","VIEWER"] },
     ],
   },
 ];
@@ -613,52 +594,8 @@ export default function Sidebar() {
 
   const fetchPendingCount = useCallback(async (_userRole: string) => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setPendingCount(0);
-        return;
-      }
-
-      const { data: member } = await supabase
-        .from("workspace_members")
-        .select("workspace_id, role")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      const workspaceId = member?.workspace_id;
-      const role = (member?.role || _userRole || "").toUpperCase();
-
-      if (!workspaceId) {
-        setPendingCount(0);
-        return;
-      }
-
-      if (role === "CREATOR") {
-        const { count } = await supabase
-          .from("publish_intents")
-          .select("id", { count: "exact", head: true })
-          .eq("workspace_id", workspaceId)
-          .eq("creator_id", user.id)
-          .eq("status", "RETURNED");
-        setPendingCount(count || 0);
-        return;
-      }
-
-      const roleForStatus = role === "WORKSPACE_OWNER" ? "ADMIN" : role;
-      const targetStatus = roleForStatus ? `PENDING_${roleForStatus}` : "";
-      if (!targetStatus) {
-        setPendingCount(0);
-        return;
-      }
-
-      const { count } = await supabase
-        .from("publish_intents")
-        .select("id", { count: "exact", head: true })
-        .eq("workspace_id", workspaceId)
-        .eq("status", targetStatus);
-      setPendingCount(count || 0);
+      const result = await api.get("/api/v1/governance/queue");
+      if (result.success) setPendingCount(result.data?.length || 0);
     } catch {
       setPendingCount(0);
     }
@@ -783,18 +720,11 @@ export default function Sidebar() {
           <div className="flex items-center">
             <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mr-3 shrink-0 relative">
               <Image
-                src="/images/logo-dark.jpeg"
+                src="/images/logo-wordmark.svg"
                 alt="ZoikoVertex Logo"
                 fill
                 sizes="32px"
-                className="object-cover dark:block hidden"
-              />
-              <Image
-                src="/images/logo.jpeg"
-                alt="ZoikoVertex Logo"
-                fill
-                sizes="32px"
-                className="object-cover block dark:hidden"
+                className="object-cover"
               />
             </div>
             <span className="text-[var(--sidebar-text)] font-bold text-xl tracking-wide">
