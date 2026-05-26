@@ -140,6 +140,7 @@ import {
   Loader2,
   ShieldAlert,
 } from "lucide-react";
+import { api } from "@/lib/api";
 
 interface KillSwitchModalProps {
   isOpen: boolean;
@@ -165,10 +166,12 @@ export default function KillSwitchModal({
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [completedTasks, setCompletedTasks] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleInitialize = () => {
+    setError(null);
     setStep(2);
     simulateSuspension();
   };
@@ -184,10 +187,26 @@ export default function KillSwitchModal({
 
   const handleConfirmHalt = async () => {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    setStep(3);
-    onActivated();
+    setError(null);
+    try {
+      const res = await api.post("/api/v1/governance/risk/emergency-pause", {
+        scope: "workspace",
+        reason: reason.trim(),
+      });
+      if (!res?.success) {
+        throw new Error(
+          typeof res?.error === "string"
+            ? res.error
+            : "Emergency suspension failed.",
+        );
+      }
+      setStep(3);
+      onActivated();
+    } catch (err: any) {
+      setError(err?.message || "Emergency suspension failed.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClose = () => {
@@ -195,6 +214,7 @@ export default function KillSwitchModal({
     setReason("");
     setCompletedTasks(0);
     setLoading(false);
+    setError(null);
     onClose();
   };
 
@@ -296,12 +316,20 @@ export default function KillSwitchModal({
               </div>
 
               {!loading && completedTasks >= SUSPENSION_TASKS.length && (
-                <button
-                  onClick={handleConfirmHalt}
-                  className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-600/20 animate-pulse"
-                >
-                  CONFIRM FINAL HALT
-                </button>
+                <div className="space-y-3">
+                  {error && (
+                    <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-medium text-rose-400">
+                      {error}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleConfirmHalt}
+                    disabled={loading}
+                    className="w-full py-4 bg-rose-600 hover:bg-rose-500 disabled:opacity-60 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-600/20 animate-pulse"
+                  >
+                    {loading ? "APPLYING EMERGENCY PAUSE..." : "CONFIRM FINAL HALT"}
+                  </button>
+                </div>
               )}
             </div>
           )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   ShieldCheck, AlertTriangle, Play, Terminal, Lock,
   CheckCircle, XCircle, Activity, RefreshCw, Loader2,
@@ -14,7 +14,7 @@ interface CertificationSandboxProps {
   agentId: string;
   agentName: string;
   currentLevel: string;
-  onCertified: () => void;
+  onCertified: (newLevel: string, newTrustScore: number, newFaithfulnessScore: number) => void;
 }
 
 interface TestCase {
@@ -22,24 +22,30 @@ interface TestCase {
   category: string;
   name: string;
   description: string;
+  expected_behavior?: string;
+  details?: string;
+  actual_output?: string;
   result: 'pass' | 'warning' | 'fail';
   score: number;
 }
 
 export default function CertificationSandbox({ isOpen, onClose, agentId, agentName, currentLevel, onCertified }: CertificationSandboxProps) {
   const [testing, setTesting] = useState(false);
+  const [finalizing, setFinalizing] = useState(false); // separate from testing
   const [completedTests, setCompletedTests] = useState<string[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [score, setScore] = useState(0);
   const [isCertified, setIsCertified] = useState(false);
   const [overallResult, setOverallResult] = useState<'pass' | 'warning' | 'block' | null>(null);
-
-  if (!isOpen) return null;
+  const [finalizeError, setFinalizeError] = useState<string | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
 
   const currentLevelNum = parseInt(currentLevel.replace("L", ""), 10) || 0;
   const targetLevel = `L${Math.min(currentLevelNum + 1, 6)}`;
   const targetLevelNum = parseInt(targetLevel.replace("L", ""), 10);
+
+  if (!isOpen) return null;
 
   const CATEGORIES = targetLevelNum >= 5
     ? ['offensive_language', 'harmful_language', 'sexual_content', 'violence_selfharm', 'brand_drift', 'platform_format', 'knowledge_grounding', 'unsupported_claims', 'policy_drift', 'confidential_data', 'regulated_claims', 'competitor_risk', 'hallucination_stress', 'unauthorized_api']
@@ -87,56 +93,122 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
 
   const runSandbox = async () => {
     setTesting(true);
+    setIsCertified(false);
+    setOverallResult(null);
+    setFinalizeError(null);
+    setRunError(null);
     setCompletedTests([]);
+    setScore(0);
+    setTestCases([]);
     setLogs(["[SYSTEM] Initiating Adversarial Sandbox...", `[INFO] Testing ${agentName} for ${targetLevel} Autonomy.`]);
+    try {
+      const res = await api.runAgentSandbox(agentId, targetLevel);
+      if (!res?.success) {
+        throw new Error(
+          typeof res?.message === "string"
+            ? res.message
+            : typeof res?.error === "string"
+              ? res.error
+              : "Sandbox execution failed.",
+        );
+      }
 
-    const cases: TestCase[] = CATEGORIES.map((cat, i) => ({
-      id: `t${i + 1}`,
-      category: cat,
-      name: TEST_LABELS[cat],
-      description: TEST_DESCRIPTIONS[cat],
-      result: 'pass',
-      score: 100,
-    }));
-    setTestCases(cases);
+      const cases: TestCase[] = Array.isArray(res.test_cases)
+        ? res.test_cases.map((test: any) => ({
+            id: test.id,
+            category: test.category,
+            name: test.name || TEST_LABELS[test.category] || test.category,
+            description:
+              test.description || TEST_DESCRIPTIONS[test.category] || "Sandbox test",
+            expected_behavior: test.expected_behavior,
+            details: test.details,
+            actual_output: test.actual_output,
+            result: test.result,
+            score: test.score,
+          }))
+        : [];
 
-    for (let i = 0; i < CATEGORIES.length; i++) {
-      const cat = CATEGORIES[i];
-      const label = TEST_LABELS[cat];
-      setLogs(prev => [...prev, `[RUNNING] ${label}...`]);
-      await new Promise(r => setTimeout(r, 1200));
-      setCompletedTests(prev => [...prev, cat]);
-      setLogs(prev => [...prev, `[PASSED] ${label} - No violations found.`]);
-      setScore(prev => prev + Math.round(100 / CATEGORIES.length));
+      setTestCases(cases);
+      setCompletedTests(cases.map((test) => test.category));
+
+      const avgScore = cases.length
+        ? Math.round(
+            cases.reduce((sum, test) => sum + (Number(test.score) || 0), 0) /
+              cases.length,
+          )
+        : 0;
+
+      setScore(avgScore);
+      setOverallResult(res.overall_result || "warning");
+      setLogs((prev) => [
+        ...prev,
+        ...cases.map((test) => {
+          const prefix =
+            test.result === "pass"
+              ? "[PASSED]"
+              : test.result === "warning"
+                ? "[WARNING]"
+                : "[FAILED]";
+          return `${prefix} ${test.name} - ${test.expected_behavior || test.description}`;
+        }),
+        `[COMPLETE] Sandbox suite finished with result: ${(res.overall_result || "warning").toUpperCase()}.`,
+        `[SYSTEM] Certification Evidence logged to ${res.evidence_ref || "Evidence Vault"}.`,
+      ]);
+      setIsCertified(true);
+    } catch (err: any) {
+      const message = err?.message || "Sandbox execution failed.";
+      setRunError(message);
+      setLogs((prev) => [...prev, `[ERROR] ${message}`]);
+    } finally {
+      setTesting(false);
     }
-
-    const allPassed = true;
-    setOverallResult(allPassed ? 'pass' : 'block');
-
-    setLogs(prev => [
-      ...prev,
-      "[COMPLETE] All adversarial tests passed.",
-      "[SYSTEM] Certification Evidence logged to Evidence Vault.",
-    ]);
-    setTesting(false);
-    setIsCertified(true);
   };
 
   const handleFinalize = async () => {
+    // Use finalizing — NOT testing — so the certified result block stays visible
+    setFinalizing(true);
+    setFinalizeError(null);
+
     try {
-      setTesting(true);
-      const result = await api.post(`/api/v1/agents/${agentId}/certify`, {
-        level: targetLevel,
-        evidence_score: score,
-      });
-      if (result.success) {
-        onCertified();
-        onClose();
+      const [autonomyRes, certifyRes] = await Promise.all([
+        api.patch(`/api/v1/agents/${agentId}/autonomy`, {
+          autonomy_level: targetLevel,
+        }),
+        api.post(`/api/v1/agents/${agentId}/certify`, {
+          level: targetLevel,
+          autonomy_level: targetLevel,
+          evidence_score: score,
+        }),
+      ]);
+
+      if (!autonomyRes?.success) {
+        throw new Error(
+          typeof autonomyRes?.error === "string"
+            ? autonomyRes.error
+            : `Autonomy update to ${targetLevel} failed.`,
+        );
       }
+
+      if (!certifyRes?.success) {
+        throw new Error(
+          typeof certifyRes?.error === "string"
+            ? certifyRes.error
+            : `Certification to ${targetLevel} failed.`,
+        );
+      }
+
+      // Derive trust and faithfulness from actual sandbox test average (score is 0–100)
+      const newTrustScore = Math.min(score / 100, 0.99);
+      const newFaithfulnessScore = Math.min((score * 0.95) / 100, 0.99);
+
+      // Update parent state first, then close
+      onCertified(targetLevel, newTrustScore, newFaithfulnessScore);
+      onClose();
     } catch (err) {
-      console.error("Certification failed", err);
+      const msg = err instanceof Error ? err.message : "Upgrade failed. Please try again.";
+      setFinalizeError(msg);
     } finally {
-      setTesting(false);
+      setFinalizing(false);
     }
   };
 
@@ -169,6 +241,12 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
             <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)] mb-2">
               Adversarial Test Matrix ({CATEGORIES.length} tests)
             </h3>
+
+            {runError && (
+              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-semibold text-rose-500">
+                {runError}
+              </div>
+            )}
 
             {CATEGORIES.map((cat, i) => {
               const done = completedTests.includes(cat);
@@ -203,6 +281,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
             })}
 
             <div className="pt-4 space-y-4">
+              {/* Run button — only when not yet certified and not running */}
               {!isCertified && !testing && (
                 <button
                   onClick={runSandbox}
@@ -213,6 +292,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
                 </button>
               )}
 
+              {/* Running spinner — only while tests are running */}
               {testing && (
                 <div className="flex items-center gap-2 text-xs text-[var(--foreground-muted)] justify-center">
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -220,7 +300,8 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
                 </div>
               )}
 
-              {isCertified && (
+              {/* Result + authorize button — shown after tests complete, independent of finalizing */}
+              {isCertified && !testing && (
                 <div className="space-y-4">
                   <div className={`p-4 rounded-2xl flex items-center gap-3 ${
                     overallResult === 'pass' ? "bg-emerald-500/10 border border-emerald-500/20" :
@@ -235,13 +316,19 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
                     </div>
                   </div>
 
+                  {finalizeError && (
+                    <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-500 font-semibold">
+                      {finalizeError}
+                    </div>
+                  )}
+
                   {overallResult === 'pass' && (
                     <button
                       onClick={handleFinalize}
-                      disabled={testing}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
+                      disabled={finalizing}
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {testing ? (
+                      {finalizing ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
                           Updating Ledger...

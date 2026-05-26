@@ -222,7 +222,11 @@ export const getApprovalStats = async (req: AuthRequest, res: Response, next: Ne
     if (!userCtx?.is_superadmin && member?.workspace_id) {
       query = query.eq('workspace_id', member.workspace_id);
     }
-    const { data: all } = await query;
+    const { data: all, error: pubErr } = await query;
+    if (pubErr) {
+      if ((pubErr as any).code === '42P01') return res.json({ success: true, data: { counts: {}, recent_decisions: [] }, recent_decisions: [] });
+      throw pubErr;
+    }
 
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const counts = {

@@ -291,6 +291,7 @@ import {
   quarantineRun,
   listQueues,
   assignQueueItem,
+  resolveQueueItem,
   createIncident,
   listIncidents,
   resolveIncident,
@@ -732,7 +733,7 @@ app.get('/api/v1/agents/workflows/escalations', authenticate, scopeGuard('read:a
 app.get('/api/v1/agents/workflows/approvals', authenticate, scopeGuard('read:agents', '*'), getApprovals);
 app.get('/api/v1/agents/workflows/approvals/stats', authenticate, scopeGuard('read:agents', '*'), getApprovalStats);
 app.post('/api/v1/agents/workflows', authenticate, scopeGuard('write:agents', '*'), createWorkflow);
-app.get('/api/v1/agents/workflows/versions/:versionId/submit', authenticate, scopeGuard('write:agents', '*'), submitForApproval);
+app.post('/api/v1/agents/workflows/versions/:versionId/submit', authenticate, scopeGuard('write:agents', '*'), submitForApproval);
 app.post('/api/v1/agents/workflows/versions/:versionId/approve', authenticate, scopeGuard('write:agents', '*'), approveVersion);
 app.post('/api/v1/agents/workflows/versions/:versionId/reject', authenticate, scopeGuard('write:agents', '*'), rejectVersion);
 app.post('/api/v1/agents/workflows/versions/:versionId/activate', authenticate, scopeGuard('write:agents', '*'), activateVersion);
@@ -761,6 +762,8 @@ app.get('/api/v1/agents/workflows/:id/dependencies', authenticate, scopeGuard('r
 app.get('/api/v1/agents/:id', authenticate, scopeGuard('read:agents', '*'), getAgent);
 app.post('/api/v1/agents', authenticate, scopeGuard('write:agents', '*'), registerAgent);
 app.post('/api/v1/agents/:id/certify', authenticate, scopeGuard('write:agents', '*'), certifyAgent);
+app.post('/api/v1/agents/:id/sandbox', authenticate, scopeGuard('write:agents', '*'), runAgentSandbox);
+app.get('/api/v1/agents/:id/sandbox/history', authenticate, scopeGuard('read:agents', '*'), getAgentTestHistory);
 app.patch('/api/v1/agents/:id/autonomy', authenticate, scopeGuard('write:agents', '*'), updateAutonomy);
 app.get('/api/v1/agents/:id/capabilities', authenticate, scopeGuard('read:agents', '*'), getAgentCapabilities);
 app.get('/api/v1/agents/:id/versions', authenticate, scopeGuard('read:agents', '*'), getAgentVersions);
@@ -812,6 +815,7 @@ app.post('/api/v1/operations/runs/:id/retry', authenticate, retryRun);
 app.post('/api/v1/operations/runs/:id/quarantine', authenticate, quarantineRun);
 app.get('/api/v1/operations/queues', authenticate, listQueues);
 app.post('/api/v1/operations/queues/:id/assign', authenticate, assignQueueItem);
+app.post('/api/v1/operations/queues/:id/resolve', authenticate, resolveQueueItem);
 app.post('/api/v1/operations/incidents', authenticate, createIncident);
 app.get('/api/v1/operations/incidents', authenticate, listIncidents);
 app.patch('/api/v1/operations/incidents/:id/resolve', authenticate, resolveIncident);
