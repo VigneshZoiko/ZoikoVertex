@@ -12,6 +12,7 @@ import * as evidenceService from '../../services/workflowEvidence.service';
 import * as dependencyService from '../../services/workflowDependency.service';
 import * as builderService from '../../services/workflowBuilder.service';
 import { getParam, getQueryNumber, getQueryValue } from '../../shared/request';
+import { executeInstance } from '../../modules/workflow-engine/executor';
 
 function normalizeWorkflowGraph(steps: any[], edges: any[]) {
   const columnWidth = 170;
@@ -432,9 +433,46 @@ export const startWorkflowInstance = async (req: AuthRequest, res: Response, _ne
 
     const userId = req.user?.id || 'system';
     const result = await runtimeService.startInstance(workflow_id, version_id, userId, trigger_type, trigger_source, priority);
+
+    // ── NEW: kick off the executor synchronously. The executor will
+    //    pause on approval gates / blocks and return; subsequent calls
+    //    via /execute resume from the next pending step. We swallow
+    //    executor errors here so startInstance always returns the row
+    //    that was created — operations page will surface the failure
+    //    via the step_runs and instance.status.
+    const triggerInput = req.body?.trigger_input;
+    const newInstanceId = (result as { id?: string }).id;
+    if (newInstanceId) {
+      try {
+        const execResult = await executeInstance(newInstanceId, triggerInput);
+        res.json({ success: true, data: result, execution: execResult });
+        return;
+      } catch (execErr) {
+        logger.error({ execErr, instanceId: newInstanceId }, 'Executor invocation failed after startInstance');
+        res.json({ success: true, data: result, executionError: extractErrorMessage(execErr) });
+        return;
+      }
+    }
     res.json({ success: true, data: result });
   } catch (err) {
     logger.error({ err }, 'Failed to start workflow instance');
+    res.status(500).json({ success: false, error: extractErrorMessage(err) });
+  }
+};
+
+// ── NEW: resume / re-run an instance (e.g. after an approval was given).
+//    Idempotent — handlers know how to skip steps that already completed.
+export const executeWorkflowInstance = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  try {
+    const instanceId = getParam(req, 'instanceId');
+    if (!instanceId) {
+      return res.status(400).json({ success: false, error: 'instanceId is required' });
+    }
+    const triggerInput = req.body?.trigger_input;
+    const result = await executeInstance(instanceId, triggerInput);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ err }, 'Failed to execute workflow instance');
     res.status(500).json({ success: false, error: extractErrorMessage(err) });
   }
 };

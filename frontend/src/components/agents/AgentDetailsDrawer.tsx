@@ -106,24 +106,27 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // ── FIX: depend on agent.id (primitive) instead of the agent object reference.
+  //    Parent state updates that re-render the page can produce a fresh agent
+  //    object with identical contents, which would re-fire all 4 fetches.
   useEffect(() => {
-    if (isOpen && agent) {
-      Promise.allSettled([
-        api.get(`/api/v1/agents/${agent.id}/incidents`).then(r => {
-          if (r.success) setIncidents(r.incidents || r.data || []);
-        }).catch(() => {}),
-        api.get(`/api/v1/agents/${agent.id}/versions`).then(r => {
-          if (r.success) setVersions(r.versions || []);
-        }).catch(() => {}),
-        api.get(`/api/v1/agents/${agent.id}/checklist`).then(r => {
-          if (r.success) setChecklist(r.checklist);
-        }).catch(() => {}),
-        api.get(`/api/v1/agents/${agent.id}/resources`).then(r => {
-          if (r.success) setLinkedResources(r.resources);
-        }).catch(() => {}),
-      ]);
-    }
-  }, [isOpen, agent]);
+    if (!isOpen || !agent?.id) return;
+    const agentId = agent.id;
+    Promise.allSettled([
+      api.get(`/api/v1/agents/${agentId}/incidents`).then(r => {
+        if (r.success) setIncidents(r.incidents || r.data || []);
+      }).catch(() => {}),
+      api.get(`/api/v1/agents/${agentId}/versions`).then(r => {
+        if (r.success) setVersions(r.versions || []);
+      }).catch(() => {}),
+      api.get(`/api/v1/agents/${agentId}/checklist`).then(r => {
+        if (r.success) setChecklist(r.checklist);
+      }).catch(() => {}),
+      api.get(`/api/v1/agents/${agentId}/resources`).then(r => {
+        if (r.success) setLinkedResources(r.resources);
+      }).catch(() => {}),
+    ]);
+  }, [isOpen, agent?.id]);
 
   if (!isOpen || !agent) return null;
 

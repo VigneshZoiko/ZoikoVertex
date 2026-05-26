@@ -102,12 +102,28 @@ export class KnowledgeController {
       const { title, source_url, metadata } = req.body;
       let { content } = req.body;
       const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
-      const { data: base } = await supabaseAdmin
-        .from('knowledge_bases')
-        .select('id')
+
+      // ── FIX: the frontend creates collections via POST /knowledge/collections
+      //    which writes to `knowledge_collections`. Legacy entries endpoint
+      //    looked only at `knowledge_bases`, returning 404 for every new
+      //    collection. Look in both tables (collections is the canonical home
+      //    going forward; knowledge_bases is the legacy fallback).
+      const { data: collection } = await supabaseAdmin
+        .from('knowledge_collections')
+        .select('id, tenant_id, workspace_id')
         .eq('id', baseId)
-        .eq('org_id', orgId)
-        .single();
+        .maybeSingle();
+
+      let base: { id: string } | null = collection ? { id: collection.id } : null;
+      if (!base) {
+        const { data: legacyBase } = await supabaseAdmin
+          .from('knowledge_bases')
+          .select('id')
+          .eq('id', baseId)
+          .eq('org_id', orgId)
+          .maybeSingle();
+        base = legacyBase || null;
+      }
       if (!base) return res.status(404).json({ error: 'Knowledge base not found' });
       if (req.file) {
         content = await KnowledgeFileService.extractText(req.file.path, req.file.mimetype);

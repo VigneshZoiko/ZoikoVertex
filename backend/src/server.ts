@@ -240,6 +240,7 @@ import {
   getControlStrip,
   getEscalationPaths,
   startWorkflowInstance,
+  executeWorkflowInstance,
   listInstances,
   getInstance,
   transitionInstance,
@@ -747,6 +748,7 @@ app.post('/api/v1/agents/workflows/instances', authenticate, scopeGuard('write:a
 app.get('/api/v1/agents/workflows/instances', authenticate, scopeGuard('read:agents', '*'), listInstances);
 app.get('/api/v1/agents/workflows/instances/:instanceId', authenticate, scopeGuard('read:agents', '*'), getInstance);
 app.patch('/api/v1/agents/workflows/instances/:instanceId/transition', authenticate, scopeGuard('write:agents', '*'), transitionInstance);
+app.post('/api/v1/agents/workflows/instances/:instanceId/execute', authenticate, scopeGuard('write:agents', '*'), executeWorkflowInstance);
 app.get('/api/v1/agents/workflows/instances/:instanceId/step-runs', authenticate, scopeGuard('read:agents', '*'), getInstanceStepRuns);
 app.get('/api/v1/agents/workflows/instances/:instanceId/evidence', authenticate, scopeGuard('read:agents', '*'), getWorkflowEvidence);
 app.post('/api/v1/agents/workflows/instances/:instanceId/evidence', authenticate, scopeGuard('write:agents', '*'), createEvidence);

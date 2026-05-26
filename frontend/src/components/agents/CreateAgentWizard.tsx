@@ -240,11 +240,14 @@ export default function CreateAgentWizard({
   });
 
   // ── FIX: reset state (and apply template pre-population) when wizard opens ──
+  //    Includes a full formData reset when no initialData is provided, so that
+  //    a previously-cancelled session does not leak into a fresh wizard run.
   useEffect(() => {
     if (isOpen) {
       setSubmitError(null);
       setSubmitSuccess(null);
       setCurrentStep(1);
+      setActionInput({ permitted: "", prohibited: "" });
       if (initialData) {
         setFormData((prev) => ({
           ...prev,
@@ -264,6 +267,29 @@ export default function CreateAgentWizard({
           approval_required: initialData.approval_required ?? prev.approval_required,
         }));
         setShowTemplates(false); // skip the template picker — go straight to step 1
+      } else {
+        // Fresh open with no template — reset to wizard defaults.
+        setFormData({
+          name: "",
+          purpose: "",
+          type: "content",
+          mode: "draft_only",
+          risk_level: "medium",
+          primary_dri_id: "",
+          backup_dri_id: "",
+          workspace_id: "",
+          org_id: "",
+          permitted_actions: [],
+          prohibited_actions: [],
+          linked_prompts: [],
+          linked_workflows: [],
+          linked_policies: [],
+          linked_knowledge_sources: [],
+          linked_channels: [],
+          evidence_required: true,
+          approval_required: true,
+        });
+        setShowTemplates(true);
       }
     }
   }, [isOpen, initialData]);

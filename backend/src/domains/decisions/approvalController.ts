@@ -218,7 +218,7 @@ export const getApprovalStats = async (req: AuthRequest, res: Response, next: Ne
 
     const { data: userCtx } = await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single();
 
-    let query = supabaseAdmin.from('publish_intents').select('status, created_at, risk_level');
+    let query = supabaseAdmin.from('publish_intents').select('status, created_at');
     if (!userCtx?.is_superadmin && member?.workspace_id) {
       query = query.eq('workspace_id', member.workspace_id);
     }
@@ -260,7 +260,7 @@ export const getApprovalStats = async (req: AuthRequest, res: Response, next: Ne
     // Recent decisions (last 10 approved/rejected)
     let recentQuery = supabaseAdmin
       .from('publish_intents')
-      .select('id, content, platform, status, risk_level, created_at, creator_id')
+      .select('id, content, platform, status, created_at, creator_id')
       .in('status', ['APPROVED', 'REJECTED', 'BLOCKED', 'GOVERNANCE_BLOCKED'])
       .order('created_at', { ascending: false })
       .limit(10);

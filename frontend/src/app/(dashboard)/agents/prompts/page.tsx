@@ -171,8 +171,41 @@ const LIFECYCLE_STAGES: LifecycleStatus[] = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: LifecycleStatus }) {
-  const meta = STATUS_META[status];
+// Backend enums return lowercase values (e.g. `tier_2_medium`, `approved_for_staging`).
+// The UI maps above are keyed by the wizard's uppercase shortforms. Normalize defensively
+// so badges don't crash when the API returns canonical DB enum values.
+const RISK_TIER_FROM_DB: Record<string, RiskTier> = {
+  tier_1_low: "TIER_1_LOW",
+  tier_2_medium: "TIER_2_MEDIUM",
+  tier_3_high: "TIER_3_HIGH",
+  tier_4_critical: "TIER_4_CRITICAL",
+};
+const STATUS_FROM_DB: Record<string, LifecycleStatus> = {
+  draft: "DRAFT",
+  internal_test: "INTERNAL_TEST",
+  review_requested: "REVIEW_REQUESTED",
+  approved_for_staging: "APPROVED_STAGING",
+  production_pending: "PRODUCTION_PENDING",
+  production_active: "PRODUCTION_ACTIVE",
+  paused: "PAUSED",
+  retired: "RETIRED",
+  archived: "ARCHIVED",
+};
+function normalizeRiskTier(v: string | undefined): RiskTier {
+  if (!v) return "TIER_1_LOW";
+  const upper = v.toUpperCase() as RiskTier;
+  if (upper in RISK_META) return upper;
+  return RISK_TIER_FROM_DB[v.toLowerCase()] || "TIER_1_LOW";
+}
+function normalizeStatus(v: string | undefined): LifecycleStatus {
+  if (!v) return "DRAFT";
+  const upper = v.toUpperCase() as LifecycleStatus;
+  if (upper in STATUS_META) return upper;
+  return STATUS_FROM_DB[v.toLowerCase()] || "DRAFT";
+}
+
+function StatusBadge({ status }: { status: LifecycleStatus | string }) {
+  const meta = STATUS_META[normalizeStatus(status)];
   const Icon = meta.icon;
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${meta.color} ${meta.bg} border border-white/5`}>
@@ -182,8 +215,8 @@ function StatusBadge({ status }: { status: LifecycleStatus }) {
   );
 }
 
-function RiskBadge({ tier }: { tier: RiskTier }) {
-  const meta = RISK_META[tier];
+function RiskBadge({ tier }: { tier: RiskTier | string }) {
+  const meta = RISK_META[normalizeRiskTier(tier)];
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${meta.color} ${meta.bg} border ${meta.border}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
@@ -899,26 +932,45 @@ function PromptDetailDrawer({
   const [drawerTab, setDrawerTab] = useState<"overview" | "body" | "bindings" | "history">("overview");
   const [promptBody, setPromptBody] = useState<string | null>(null);
   const [loadingBody, setLoadingBody] = useState(false);
+  const [bodyFetched, setBodyFetched] = useState(false);
   const [versions, setVersions] = useState<any[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
+  const [versionsFetched, setVersionsFetched] = useState(false);
 
+  // ── FIX: reset cached drawer state when the user opens a different prompt.
+  //    Without this, switching between prompts shows the previous prompt's
+  //    body until the new tab is re-clicked.
   useEffect(() => {
-    if (drawerTab === "body" && promptBody === null && !loadingBody) {
+    setPromptBody(null);
+    setBodyFetched(false);
+    setVersions([]);
+    setVersionsFetched(false);
+  }, [prompt.id]);
+
+  // ── FIX: use a `*Fetched` boolean flag as the guard instead of comparing
+  //    against null/empty array. Previously the guards `promptBody === null`
+  //    and `versions.length === 0` stayed true forever when the API returned
+  //    no body / an empty version list, causing infinite re-fetch loops.
+  useEffect(() => {
+    if (drawerTab === "body" && !bodyFetched && !loadingBody) {
       setLoadingBody(true);
       api.get(`/api/v1/prompts/${prompt.id}`)
         .then((res) => {
           if (res?.success && res.data) {
-            const body = res.data.body || res.data.content || res.data.prompt_body || null;
+            const body = res.data.body || res.data.content || res.data.prompt_body || "";
             setPromptBody(body);
           }
         })
         .catch(() => {})
-        .finally(() => setLoadingBody(false));
+        .finally(() => {
+          setBodyFetched(true);
+          setLoadingBody(false);
+        });
     }
-  }, [drawerTab, prompt.id, promptBody, loadingBody]);
+  }, [drawerTab, prompt.id, bodyFetched, loadingBody]);
 
   useEffect(() => {
-    if (drawerTab === "history" && versions.length === 0 && !loadingVersions) {
+    if (drawerTab === "history" && !versionsFetched && !loadingVersions) {
       setLoadingVersions(true);
       api.get(`/api/v1/prompts/${prompt.id}/versions`)
         .then((res) => {
@@ -927,9 +979,12 @@ function PromptDetailDrawer({
           }
         })
         .catch(() => {})
-        .finally(() => setLoadingVersions(false));
+        .finally(() => {
+          setVersionsFetched(true);
+          setLoadingVersions(false);
+        });
     }
-  }, [drawerTab, prompt.id, versions.length, loadingVersions]);
+  }, [drawerTab, prompt.id, versionsFetched, loadingVersions]);
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -1051,7 +1106,7 @@ function PromptDetailDrawer({
                   <span className="text-indigo-400">{"// Role: "}</span>{prompt.prompt_type}<br />
                   <span className="text-indigo-400">{"// Agent: "}</span>{prompt.linked_agent}<br />
                   <span className="text-indigo-400">{"// Workflow: "}</span>{prompt.linked_workflow}<br />
-                  <span className="text-indigo-400">{"// Risk Tier: "}</span>{RISK_META[prompt.risk_tier].label}<br />
+                  <span className="text-indigo-400">{"// Risk Tier: "}</span>{RISK_META[normalizeRiskTier(prompt.risk_tier)].label}<br />
                   <span className="text-indigo-400">{"// Knowledge: "}</span>{prompt.knowledge_sources.join(", ") || "None"}<br />
                   <span className="text-indigo-400">{"// Tools: "}</span>{prompt.tools_permitted.join(", ") || "None"}<br /><br />
                   <span className="text-slate-500">Prompt body was not returned by the registry API. Export via Evidence Vault to retrieve the full body with hash verification.</span>
