@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
@@ -72,17 +73,46 @@ export const listRequests = async (req: AuthRequest, res: Response, next: NextFu
 
     let query = supabaseAdmin
       .from('account_requests')
-      .select('id, full_name, email, role, requested_by_user:users!account_requests_requested_by_fkey ( full_name )')
+      .select('id, full_name, email, role, requested_by')
       .eq('status', 'PENDING');
 
     if (!isSuperAdmin) {
       query = query.eq('workspace_id', workspaceId);
     }
 
-    const { data: requests, error } = await query;
+    const { data: rawRequests, error } = await query;
     if (error) throw error;
 
-    res.json({ success: true, data: requests || [] });
+    const requests = rawRequests || [];
+    const requestedByUserIds = [...new Set(requests.map((r: any) => r.requested_by).filter(Boolean))];
+    const userMap = new Map<string, string>();
+
+    if (requestedByUserIds.length > 0) {
+      try {
+        const { data: usersData } = await supabaseAdmin
+          .from('users')
+          .select('id, full_name')
+          .in('id', requestedByUserIds);
+        if (usersData) {
+          usersData.forEach((u: any) => {
+            userMap.set(u.id, u.full_name);
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const formattedRequests = requests.map((r: any) => ({
+      id: r.id,
+      full_name: r.full_name,
+      email: r.email,
+      role: r.role,
+      requested_by_user: r.requested_by ? { full_name: userMap.get(r.requested_by) || null } : null,
+    }));
+
+    res.json({ success: true, data: formattedRequests });
+
   } catch (error) {
     next(error);
   }

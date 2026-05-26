@@ -1,6 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Globe, CheckCircle2, ChevronDown, AlertTriangle, Plus, Video, Image as ImageIcon, Film } from 'lucide-react';
+import {
+  Globe, CheckCircle2, ChevronDown, AlertTriangle, Plus,
+  Video, Image as ImageIcon, Film, Zap, BookOpen, Pin,
+} from 'lucide-react';
 import Image from 'next/image';
+
+// ── Exported types ─────────────────────────────────────────────────────────────
 
 export interface ConnectedAccount {
   id: string;
@@ -13,10 +18,10 @@ export interface ConnectedAccount {
 export interface MediaMeta {
   width: number;
   height: number;
-  duration?: number;   // seconds
-  aspectRatio: number; // width / height
-  isVertical: boolean; // width < height
-  fileSize: number;    // bytes (0 if unknown)
+  duration?: number;
+  aspectRatio: number;
+  isVertical: boolean;
+  fileSize: number;
 }
 
 export interface PlatformSelectorProps {
@@ -27,9 +32,252 @@ export interface PlatformSelectorProps {
   mediaCount?: number;
   mediaType?: string;
   mediaMeta?: MediaMeta | null;
-  platformPostTypes?: Record<string, string>;
-  onPostTypeChange?: (platform: string, postType: string) => void;
+  platformPostTypes?: Record<string, string[]>;      // multi-format: e.g. { instagram: ['reel','story'] }
+  onPostTypeChange?: (platform: string, formats: string[]) => void;
 }
+
+// ── Format definition ──────────────────────────────────────────────────────────
+
+export type FormatStatus = 'supported' | 'warning' | 'blocked';
+
+export interface FormatDef {
+  value: string;
+  label: string;
+  icon: 'video' | 'image' | 'both' | 'story' | 'pin';
+  hint: string;
+  noCaption?: boolean; // stories, idea pins — platform ignores captions
+  analyze: (
+    meta: MediaMeta | null,
+    mediaType: string,
+    count: number,
+  ) => { status: FormatStatus; reason?: string };
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const fmtDur = (s: number) =>
+  s < 60 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+
+// ── Intelligence Engine — per-platform format definitions ──────────────────────
+
+export const ALL_FORMATS: Record<string, FormatDef[]> = {
+  instagram: [
+    {
+      value: 'post',
+      label: 'Post',
+      icon: 'both',
+      hint: 'Up to 10 images or 1 video in feed',
+      analyze: (meta, type) => {
+        if (!type) return { status: 'supported' };
+        if (type === 'video' && meta?.duration !== undefined && meta.duration > 60)
+          return { status: 'warning', reason: `${fmtDur(meta.duration)} — feed video max is 60s` };
+        return { status: 'supported' };
+      },
+    },
+    {
+      value: 'reel',
+      label: 'Reel',
+      icon: 'video',
+      hint: 'Single vertical video 3–90s, full-screen',
+      analyze: (meta, type) => {
+        if (type === 'image') return { status: 'blocked', reason: 'Reels require video — images not supported' };
+        if (!type) return { status: 'supported' };
+        if (meta) {
+          if (!meta.isVertical) return { status: 'warning', reason: 'Reels prefer vertical 9:16 — will be cropped' };
+          if (meta.duration !== undefined && meta.duration < 3)
+            return { status: 'blocked', reason: 'Minimum 3 seconds required' };
+          if (meta.duration !== undefined && meta.duration > 90)
+            return { status: 'blocked', reason: `${fmtDur(meta.duration)} — Reels max is 90s` };
+        }
+        return { status: 'supported' };
+      },
+    },
+    {
+      value: 'story',
+      label: 'Story',
+      icon: 'story',
+      hint: '1 image or video, expires 24h — no caption',
+      noCaption: true,
+      analyze: (meta, type) => {
+        if (!type) return { status: 'supported' };
+        if (type === 'video' && meta) {
+          if (!meta.isVertical) return { status: 'warning', reason: 'Stories display best in vertical 9:16' };
+          if (meta.duration !== undefined && meta.duration > 60)
+            return { status: 'warning', reason: `${fmtDur(meta.duration)} — Story clips to 60s` };
+        }
+        return { status: 'supported' };
+      },
+    },
+  ],
+
+  facebook: [
+    {
+      value: 'post',
+      label: 'Post',
+      icon: 'both',
+      hint: 'Standard Facebook post with image or video',
+      analyze: (meta, type) => {
+        if (type === 'video' && meta?.duration !== undefined && meta.duration > 14400)
+          return { status: 'warning', reason: `${fmtDur(meta.duration)} — Facebook video max is 4h` };
+        return { status: 'supported' };
+      },
+    },
+    {
+      value: 'reel',
+      label: 'Reel',
+      icon: 'video',
+      hint: 'Vertical video up to 90s in Reels tab',
+      analyze: (meta, type) => {
+        if (type === 'image') return { status: 'blocked', reason: 'Facebook Reels require video' };
+        if (!type) return { status: 'supported' };
+        if (meta) {
+          if (!meta.isVertical) return { status: 'warning', reason: 'Reels prefer vertical 9:16' };
+          if (meta.duration !== undefined && meta.duration > 90)
+            return { status: 'blocked', reason: `${fmtDur(meta.duration)} — Facebook Reels max is 90s` };
+        }
+        return { status: 'supported' };
+      },
+    },
+    {
+      value: 'story',
+      label: 'Story',
+      icon: 'story',
+      hint: '1 image or video up to 20s, expires 24h — no caption',
+      noCaption: true,
+      analyze: (meta, type) => {
+        if (!type) return { status: 'supported' };
+        if (type === 'video' && meta) {
+          if (meta.duration !== undefined && meta.duration > 20)
+            return { status: 'warning', reason: `${fmtDur(meta.duration)} — Facebook Story clips to 20s` };
+          if (!meta.isVertical) return { status: 'warning', reason: 'Stories display best in vertical 9:16' };
+        }
+        return { status: 'supported' };
+      },
+    },
+  ],
+
+  youtube: [
+    {
+      value: 'video',
+      label: 'Video',
+      icon: 'video',
+      hint: 'Standard YouTube upload',
+      analyze: (_, type) => {
+        if (type === 'image') return { status: 'blocked', reason: 'YouTube only accepts video' };
+        return { status: 'supported' };
+      },
+    },
+    {
+      value: 'short',
+      label: 'Short',
+      icon: 'video',
+      hint: 'Vertical video ≤ 3 minutes',
+      analyze: (meta, type) => {
+        if (type === 'image') return { status: 'blocked', reason: 'Shorts require vertical video' };
+        if (!type) return { status: 'supported' };
+        if (meta) {
+          if (!meta.isVertical) return { status: 'warning', reason: 'Shorts work best with vertical 9:16' };
+          if (meta.duration !== undefined && meta.duration > 180)
+            return { status: 'blocked', reason: `${fmtDur(meta.duration)} — Shorts max is 3 min` };
+        }
+        return { status: 'supported' };
+      },
+    },
+  ],
+
+  twitter: [
+    {
+      value: 'tweet',
+      label: 'Tweet',
+      icon: 'both',
+      hint: '1 video (≤140s) or up to 4 images',
+      analyze: (meta, type, count) => {
+        if (type === 'video' && meta?.duration !== undefined && meta.duration > 140)
+          return { status: 'blocked', reason: `${fmtDur(meta.duration)} — X max is 2m 20s` };
+        if (type === 'image' && count > 4)
+          return { status: 'warning', reason: 'X accepts up to 4 images per tweet' };
+        if (type === 'video' && count > 1)
+          return { status: 'warning', reason: 'X accepts only 1 video per tweet' };
+        return { status: 'supported' };
+      },
+    },
+  ],
+
+  linkedin: [
+    {
+      value: 'post',
+      label: 'Post',
+      icon: 'both',
+      hint: 'Image or video post to your LinkedIn feed',
+      analyze: (meta, type) => {
+        if (type === 'video' && meta) {
+          if (meta.duration !== undefined && meta.duration < 3)
+            return { status: 'blocked', reason: 'LinkedIn video minimum is 3s' };
+          if (meta.duration !== undefined && meta.duration > 600)
+            return { status: 'blocked', reason: `${fmtDur(meta.duration)} — LinkedIn video max is 10 min` };
+        }
+        return { status: 'supported' };
+      },
+    },
+  ],
+
+  threads: [
+    {
+      value: 'post',
+      label: 'Post',
+      icon: 'both',
+      hint: 'Text, image, or video thread',
+      analyze: (meta, type) => {
+        if (type === 'video' && meta?.duration !== undefined && meta.duration > 300)
+          return { status: 'warning', reason: `${fmtDur(meta.duration)} — Threads max is 5 min` };
+        return { status: 'supported' };
+      },
+    },
+  ],
+
+  pinterest: [
+    {
+      value: 'pin',
+      label: 'Pin',
+      icon: 'pin',
+      hint: 'Standard image or video pin',
+      analyze: (meta, type) => {
+        if (type === 'video' && meta) {
+          if (meta.duration !== undefined && meta.duration < 4)
+            return { status: 'blocked', reason: 'Pinterest video minimum is 4s' };
+          if (meta.duration !== undefined && meta.duration > 900)
+            return { status: 'blocked', reason: `${fmtDur(meta.duration)} — Pinterest max is 15 min` };
+        }
+        return { status: 'supported' };
+      },
+    },
+    {
+      value: 'idea',
+      label: 'Idea Pin',
+      icon: 'story',
+      hint: 'Story-format multi-page pin — no caption',
+      noCaption: true,
+      analyze: (meta, type) => {
+        if (type === 'video' && meta?.duration !== undefined && meta.duration > 60)
+          return { status: 'warning', reason: `${fmtDur(meta.duration)} — Idea Pin video max is 60s` };
+        return { status: 'supported' };
+      },
+    },
+  ],
+};
+
+// Legacy default types (used for backward compat in getCompatibility)
+export const DEFAULT_POST_TYPES: Record<string, string> = {
+  instagram: 'post',
+  youtube: 'video',
+  twitter: 'tweet',
+  linkedin: 'post',
+  threads: 'post',
+  facebook: 'post',
+  pinterest: 'pin',
+};
+
+// ── Compatibility check (exported, used by page.tsx for submit guard) ──────────
 
 interface PlatformRule {
   maxFiles: number;
@@ -38,200 +286,71 @@ interface PlatformRule {
   warningFn: (count: number, type: string, meta?: MediaMeta) => string | null;
 }
 
-/* ─── Duration formatter ──────────────────────────────────────────────────── */
-const fmtDur = (s: number) =>
-  s < 60 ? `${Math.round(s)}s` : `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
-
-/* ─── Platform rules (base + post-type variants) ─────────────────────────── */
 const PLATFORM_RULES: Record<string, PlatformRule> = {
-  instagram: {
-    maxFiles: 10,
-    acceptedTypes: ['both'],
-    carouselSupported: true,
-    warningFn: (count, type, meta) => {
-      if (count > 10) return 'Instagram carousel accepts up to 10 files.';
-      if (type === 'video' && meta?.duration !== undefined && meta.duration > 60)
-        return `Video is ${fmtDur(meta.duration)} — Instagram feed videos max is 60 seconds.`;
-      return null;
-    },
-  },
-  'instagram/reel': {
-    maxFiles: 1,
-    acceptedTypes: ['video'],
-    carouselSupported: false,
-    warningFn: (count, type, meta) => {
-      if (type === 'image') return 'Instagram Reels require a single video — images are not supported.';
-      if (count > 1) return 'Instagram Reels accept only 1 video at a time.';
-      if (meta) {
-        if (!meta.isVertical) return 'Instagram Reels require vertical video (9:16). Landscape video will be cropped.';
-        if (meta.duration !== undefined && meta.duration < 3) return 'Instagram Reels must be at least 3 seconds long.';
-        if (meta.duration !== undefined && meta.duration > 90) return `Video is ${fmtDur(meta.duration)} — Instagram Reels max is 90 seconds.`;
-      }
-      return null;
-    },
-  },
-  'instagram/story': {
-    maxFiles: 1,
-    acceptedTypes: ['both'],
-    carouselSupported: false,
-    warningFn: (count, type, meta) => {
-      if (count > 1) return 'Instagram Stories accept 1 image or video at a time.';
-      if (type === 'video' && meta) {
-        if (!meta.isVertical) return 'Instagram Stories display best in vertical format (9:16).';
-        if (meta.duration !== undefined && meta.duration > 60) return `Video is ${fmtDur(meta.duration)} — Stories max is 60 seconds.`;
-      }
-      return null;
-    },
-  },
-  facebook: {
-    maxFiles: 10,
-    acceptedTypes: ['both'],
-    carouselSupported: true,
-    warningFn: (count, type, meta) => {
-      if (count > 10) return 'Facebook accepts up to 10 files per post.';
-      if (type === 'video' && meta) {
-        if (meta.duration !== undefined && meta.duration > 14400) return `Video is ${fmtDur(meta.duration)} — Facebook max is 4 hours.`;
-        if (meta.fileSize > 0 && meta.fileSize > 4 * 1024 ** 3) return 'Facebook video max size is 4 GB.';
-      }
-      return null;
-    },
-  },
-  linkedin: {
-    maxFiles: 9,
-    acceptedTypes: ['both'],
-    carouselSupported: true,
-    warningFn: (count, type, meta) => {
-      if (type === 'video' && count > 1) return 'LinkedIn supports only 1 video per post.';
-      if (count > 9) return 'LinkedIn accepts up to 9 images per carousel.';
-      if (type === 'video' && meta) {
-        if (meta.duration !== undefined && meta.duration < 3) return 'LinkedIn video must be at least 3 seconds.';
-        if (meta.duration !== undefined && meta.duration > 600) return `Video is ${fmtDur(meta.duration)} — LinkedIn max is 10 minutes.`;
-        if (meta.fileSize > 0 && meta.fileSize > 5 * 1024 ** 3) return 'LinkedIn video max size is 5 GB.';
-      }
-      return null;
-    },
-  },
-  twitter: {
-    maxFiles: 4,
-    acceptedTypes: ['both'],
-    carouselSupported: false,
-    warningFn: (count, type, meta) => {
-      if (type === 'video' && count > 1) return 'X (Twitter) only accepts 1 video per post.';
-      if (type === 'image' && count > 4) return 'X (Twitter) accepts up to 4 images per post.';
-      if (type === 'video' && meta) {
-        if (meta.duration !== undefined && meta.duration > 140) return `Video is ${fmtDur(meta.duration)} — X max is 2 min 20 sec (140s).`;
-        if (meta.fileSize > 0 && meta.fileSize > 512 * 1024 ** 2) return 'X (Twitter) video max size is 512 MB.';
-      }
-      if (type === 'image' && meta?.fileSize && meta.fileSize > 5 * 1024 ** 2) return 'X (Twitter) image max is 5 MB per file.';
-      return null;
-    },
-  },
-  threads: {
-    maxFiles: 10,
-    acceptedTypes: ['both'],
-    carouselSupported: true,
-    warningFn: (count, type, meta) => {
-      if (count > 10) return 'Threads accepts up to 10 items per post.';
-      if (type === 'video' && meta) {
-        if (meta.duration !== undefined && meta.duration > 300) return `Video is ${fmtDur(meta.duration)} — Threads max is 5 minutes.`;
-        if (meta.fileSize > 0 && meta.fileSize > 1024 ** 3) return 'Threads video max size is 1 GB.';
-      }
-      return null;
-    },
-  },
-  youtube: {
-    maxFiles: 1,
-    acceptedTypes: ['video'],
-    carouselSupported: false,
-    warningFn: (count, type, meta) => {
-      if (type === 'image') return 'YouTube only accepts video uploads — images are not supported.';
-      if (count > 1) return 'YouTube accepts only 1 video per upload.';
-      if (meta?.isVertical && meta.duration !== undefined && meta.duration <= 180)
-        return `Vertical video ≤ 3 min detected — YouTube will auto-classify this as a Short. Switch post type to "Short" to confirm.`;
-      return null;
-    },
-  },
-  'youtube/short': {
-    maxFiles: 1,
-    acceptedTypes: ['video'],
-    carouselSupported: false,
-    warningFn: (count, type, meta) => {
-      if (type === 'image') return 'YouTube Shorts require a vertical video — images are not supported.';
-      if (count > 1) return 'YouTube Shorts accept only 1 video.';
-      if (meta) {
-        if (!meta.isVertical) return 'YouTube Shorts work best with vertical video (9:16). Landscape video may not appear as a Short.';
-        if (meta.duration !== undefined && meta.duration > 180) return `Video is ${fmtDur(meta.duration)} — YouTube Shorts max is 3 minutes (180s).`;
-      }
-      return null;
-    },
-  },
-  pinterest: {
-    maxFiles: 1,
-    acceptedTypes: ['both'],
-    carouselSupported: false,
-    warningFn: (count, type, meta) => {
-      if (count > 1) return 'Pinterest accepts 1 image or video per Pin.';
-      if (type === 'video' && meta) {
-        if (meta.duration !== undefined && meta.duration < 4) return 'Pinterest video must be at least 4 seconds.';
-        if (meta.duration !== undefined && meta.duration > 900) return `Video is ${fmtDur(meta.duration)} — Pinterest video max is 15 minutes.`;
-        if (meta.fileSize > 0 && meta.fileSize > 2 * 1024 ** 3) return 'Pinterest video max size is 2 GB.';
-      }
-      return null;
-    },
-  },
+  instagram: { maxFiles: 10, acceptedTypes: ['both'], carouselSupported: true,
+    warningFn: (c, t, m) => t === 'video' && m?.duration !== undefined && m.duration > 60 ? `Video ${fmtDur(m.duration)} — feed max 60s` : null },
+  'instagram/reel': { maxFiles: 1, acceptedTypes: ['video'], carouselSupported: false,
+    warningFn: (c, t, m) => t === 'image' ? 'Reels require video' : m && !m.isVertical ? 'Reels prefer vertical 9:16' : null },
+  'instagram/story': { maxFiles: 1, acceptedTypes: ['both'], carouselSupported: false,
+    warningFn: () => null },
+  facebook: { maxFiles: 10, acceptedTypes: ['both'], carouselSupported: true,
+    warningFn: () => null },
+  'facebook/reel': { maxFiles: 1, acceptedTypes: ['video'], carouselSupported: false,
+    warningFn: (c, t) => t === 'image' ? 'Facebook Reels require video' : null },
+  'facebook/story': { maxFiles: 1, acceptedTypes: ['both'], carouselSupported: false,
+    warningFn: () => null },
+  linkedin: { maxFiles: 9, acceptedTypes: ['both'], carouselSupported: true,
+    warningFn: (c, t, m) => t === 'video' && m?.duration !== undefined && m.duration > 600 ? `Video ${fmtDur(m.duration)} — LinkedIn max 10 min` : null },
+  twitter: { maxFiles: 4, acceptedTypes: ['both'], carouselSupported: false,
+    warningFn: (c, t, m) => t === 'video' && m?.duration !== undefined && m.duration > 140 ? `Video ${fmtDur(m.duration)} — X max 2m 20s` : null },
+  threads: { maxFiles: 10, acceptedTypes: ['both'], carouselSupported: true,
+    warningFn: () => null },
+  youtube: { maxFiles: 1, acceptedTypes: ['video'], carouselSupported: false,
+    warningFn: (c, t) => t === 'image' ? 'YouTube only accepts video' : null },
+  'youtube/short': { maxFiles: 1, acceptedTypes: ['video'], carouselSupported: false,
+    warningFn: (c, t, m) => t === 'image' ? 'Shorts require video' : m && m.duration !== undefined && m.duration > 180 ? `Video ${fmtDur(m.duration)} — Shorts max 3 min` : null },
+  pinterest: { maxFiles: 1, acceptedTypes: ['both'], carouselSupported: false,
+    warningFn: () => null },
 };
 
-/* ─── Post type options per platform ─────────────────────────────────────── */
-export const POST_TYPE_OPTIONS: Record<string, { value: string; label: string; hint: string; icon: 'video' | 'image' | 'both' }[]> = {
-  instagram: [
-    { value: 'post', label: 'Post', hint: 'Up to 10 images or 1 video', icon: 'both' },
-    { value: 'reel', label: 'Reel', hint: 'Single video — full-screen', icon: 'video' },
-    { value: 'story', label: 'Story', hint: '1 image or video, 24 h', icon: 'both' },
-  ],
-  youtube: [
-    { value: 'video', label: 'Video', hint: 'Standard YouTube upload', icon: 'video' },
-    { value: 'short', label: 'Short', hint: 'Vertical video, ≤ 60 s', icon: 'video' },
-  ],
-};
-
-export const DEFAULT_POST_TYPES: Record<string, string> = {
-  instagram: 'post',
-  youtube: 'video',
-};
-
-/* ─── Compatibility check ─────────────────────────────────────────────────── */
 export function getCompatibility(
   platformId: string,
-  postType: string | undefined,
+  postType: string | string[] | undefined,
   mediaCount: number,
   mediaType: string,
   mediaMeta?: MediaMeta | null,
 ): { blocked: boolean; warning: string | null } {
   if (mediaCount === 0 || !mediaType) return { blocked: false, warning: null };
-  const ruleKey =
-    postType && PLATFORM_RULES[`${platformId}/${postType}`]
-      ? `${platformId}/${postType}`
-      : platformId;
-  const rule = PLATFORM_RULES[ruleKey];
-  if (!rule) return { blocked: false, warning: null };
+
+  // Multi-format: blocked only if ALL selected formats are blocked
+  const formats = Array.isArray(postType) ? postType : postType ? [postType] : [DEFAULT_POST_TYPES[platformId] ?? platformId];
+  const fmtDefs = ALL_FORMATS[platformId] ?? [];
   const normalizedType = mediaType.startsWith('video') ? 'video' : 'image';
-  if (
-    !rule.acceptedTypes.includes('both') &&
-    !rule.acceptedTypes.includes(normalizedType as 'image' | 'video')
-  ) {
-    return {
-      blocked: true,
-      warning: rule.warningFn(mediaCount, normalizedType, mediaMeta ?? undefined) ?? `${platformId} does not support this media type.`,
-    };
-  }
-  return { blocked: false, warning: rule.warningFn(mediaCount, normalizedType, mediaMeta ?? undefined) };
+
+  const results = formats.map(fmt => {
+    const def = fmtDefs.find(f => f.value === fmt);
+    if (!def) {
+      // Fall back to PLATFORM_RULES
+      const ruleKey = PLATFORM_RULES[`${platformId}/${fmt}`] ? `${platformId}/${fmt}` : platformId;
+      const rule = PLATFORM_RULES[ruleKey];
+      if (!rule) return { blocked: false, warning: null };
+      const blocked = !rule.acceptedTypes.includes('both') && !rule.acceptedTypes.includes(normalizedType as any);
+      return { blocked, warning: rule.warningFn(mediaCount, normalizedType, mediaMeta ?? undefined) };
+    }
+    const { status, reason } = def.analyze(mediaMeta ?? null, normalizedType, mediaCount);
+    return { blocked: status === 'blocked', warning: reason ?? null };
+  });
+
+  const allBlocked = results.every(r => r.blocked);
+  const firstWarning = results.find(r => r.warning && !r.blocked)?.warning ?? null;
+  return { blocked: allBlocked, warning: firstWarning };
 }
 
-/* ─── Platform brand config ──────────────────────────────────────────────── */
+// ── Platform brand config ──────────────────────────────────────────────────────
+
 const PLATFORM_META: Record<string, { label: string; color: string; Icon: React.FC<{ className?: string }> }> = {
   facebook: {
-    label: 'Facebook',
-    color: '#1877F2',
+    label: 'Facebook', color: '#1877F2',
     Icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
@@ -239,8 +358,7 @@ const PLATFORM_META: Record<string, { label: string; color: string; Icon: React.
     ),
   },
   instagram: {
-    label: 'Instagram',
-    color: '#E4405F',
+    label: 'Instagram', color: '#E4405F',
     Icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
@@ -248,8 +366,7 @@ const PLATFORM_META: Record<string, { label: string; color: string; Icon: React.
     ),
   },
   linkedin: {
-    label: 'LinkedIn',
-    color: '#0A66C2',
+    label: 'LinkedIn', color: '#0A66C2',
     Icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
@@ -257,8 +374,7 @@ const PLATFORM_META: Record<string, { label: string; color: string; Icon: React.
     ),
   },
   twitter: {
-    label: 'X / Twitter',
-    color: '#18181b',
+    label: 'X / Twitter', color: '#18181b',
     Icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
@@ -266,8 +382,7 @@ const PLATFORM_META: Record<string, { label: string; color: string; Icon: React.
     ),
   },
   threads: {
-    label: 'Threads',
-    color: '#18181b',
+    label: 'Threads', color: '#18181b',
     Icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.284-.883-2.292-.887h-.1c-.96 0-1.941.292-2.74 1.019l-1.378-1.487c1.171-1.081 2.641-1.616 4.2-1.616h.143c3.179.013 5.024 1.913 5.382 5.375.368.085.724.194 1.062.33 1.409.568 2.485 1.553 3.113 2.844.897 1.843.886 4.453-.984 6.274-1.978 1.935-4.355 2.77-7.534 2.793zm.058-9.013c-.042 0-.083 0-.124.002-1.19.066-2.087.425-2.604.957-.392.4-.565.922-.535 1.553.063 1.193 1.026 1.972 2.45 1.9 1.146-.063 1.984-.538 2.491-1.41.345-.586.544-1.362.596-2.352a11.546 11.546 0 0 0-2.274-.65z"/>
@@ -275,8 +390,7 @@ const PLATFORM_META: Record<string, { label: string; color: string; Icon: React.
     ),
   },
   pinterest: {
-    label: 'Pinterest',
-    color: '#BD081C',
+    label: 'Pinterest', color: '#BD081C',
     Icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738.098.119.112.224.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/>
@@ -284,8 +398,7 @@ const PLATFORM_META: Record<string, { label: string; color: string; Icon: React.
     ),
   },
   youtube: {
-    label: 'YouTube',
-    color: '#FF0000',
+    label: 'YouTube', color: '#FF0000',
     Icon: ({ className }) => (
       <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
@@ -294,14 +407,70 @@ const PLATFORM_META: Record<string, { label: string; color: string; Icon: React.
   },
 };
 
-/* ─── Post type icon helper ───────────────────────────────────────────────── */
-function PostTypeIcon({ icon, className }: { icon: 'video' | 'image' | 'both'; className?: string }) {
-  if (icon === 'video') return <Film className={className} />;
-  if (icon === 'image') return <ImageIcon className={className} />;
+// ── Format icon helper ─────────────────────────────────────────────────────────
+
+function FmtIcon({ icon, className }: { icon: FormatDef['icon']; className?: string }) {
+  if (icon === 'video')  return <Film className={className} />;
+  if (icon === 'image')  return <ImageIcon className={className} />;
+  if (icon === 'story')  return <Zap className={className} />;
+  if (icon === 'pin')    return <Pin className={className} />;
   return <Globe className={className} />;
 }
 
-/* ─── Single platform dropdown ───────────────────────────────────────────── */
+// ── Format status chip ─────────────────────────────────────────────────────────
+
+function FormatChip({
+  def,
+  selected,
+  status,
+  reason,
+  onToggle,
+}: {
+  def: FormatDef;
+  selected: boolean;
+  status: FormatStatus;
+  reason?: string;
+  onToggle: () => void;
+}) {
+  const isBlocked = status === 'blocked';
+  const isWarning = status === 'warning';
+
+  return (
+    <button
+      type="button"
+      disabled={isBlocked}
+      onClick={onToggle}
+      title={reason ?? def.hint}
+      className={[
+        'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all relative',
+        isBlocked
+          ? 'opacity-35 cursor-not-allowed border-zinc-700/50 bg-zinc-800/30 text-zinc-600 line-through'
+          : selected
+          ? isWarning
+            ? 'bg-amber-500/15 border-amber-500/60 text-amber-300'
+            : 'bg-indigo-600 border-indigo-500 text-white'
+          : isWarning
+          ? 'bg-amber-500/5 border-amber-500/30 text-amber-400 hover:bg-amber-500/15'
+          : 'bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-indigo-500/40 hover:text-[var(--foreground)]',
+      ].join(' ')}
+    >
+      <FmtIcon icon={def.icon} className="w-3 h-3" />
+      {def.label}
+      {def.noCaption && !isBlocked && (
+        <span className="ml-0.5 text-[8px] opacity-70 font-medium">no caption</span>
+      )}
+      {isWarning && !isBlocked && (
+        <AlertTriangle className="w-2.5 h-2.5 ml-0.5" />
+      )}
+      {selected && !isBlocked && (
+        <CheckCircle2 className="w-2.5 h-2.5 ml-0.5" />
+      )}
+    </button>
+  );
+}
+
+// ── Single platform dropdown ───────────────────────────────────────────────────
+
 function PlatformDropdown({
   platformId,
   accounts,
@@ -310,8 +479,8 @@ function PlatformDropdown({
   mediaCount,
   mediaType,
   mediaMeta,
-  postType,
-  onPostTypeChange,
+  selectedFormats,
+  onFormatsChange,
 }: {
   platformId: string;
   accounts: ConnectedAccount[];
@@ -320,17 +489,47 @@ function PlatformDropdown({
   mediaCount: number;
   mediaType: string;
   mediaMeta?: MediaMeta | null;
-  postType?: string;
-  onPostTypeChange?: (postType: string) => void;
+  selectedFormats: string[];
+  onFormatsChange?: (formats: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const meta = PLATFORM_META[platformId] ?? { label: platformId, color: '#52525b', Icon: Globe };
+  const meta = PLATFORM_META[platformId] ?? { label: platformId, color: '#52525b', Icon: () => <Globe className="w-3.5 h-3.5" /> };
   const Icon = meta.Icon;
-  const typeOptions = POST_TYPE_OPTIONS[platformId];
-  const effectivePostType = postType ?? DEFAULT_POST_TYPES[platformId];
-  const { blocked, warning } = getCompatibility(platformId, effectivePostType, mediaCount, mediaType, mediaMeta);
+  const fmtDefs = ALL_FORMATS[platformId] ?? [];
+  const normalizedType = mediaType.startsWith('video') ? 'video' : mediaType ? 'image' : '';
   const selectedInPlatform = accounts.filter(a => selectedAccountIds.includes(a.id));
+
+  // Analyze each format against current media
+  const formatAnalysis = fmtDefs.map(def => ({
+    def,
+    ...def.analyze(mediaMeta ?? null, normalizedType, mediaCount),
+  }));
+
+  // Overall platform blocking: all non-blocked formats must be blocked
+  const allBlocked = fmtDefs.length > 0 && formatAnalysis.every(f => f.status === 'blocked');
+
+  // Ensure default selection if nothing selected yet
+  const effectiveFormats = selectedFormats.length > 0
+    ? selectedFormats
+    : fmtDefs.filter(d => formatAnalysis.find(f => f.def.value === d.value)?.status !== 'blocked').slice(0, 1).map(d => d.value);
+
+  const hasAnyWarning = effectiveFormats.some(fmt => {
+    const a = formatAnalysis.find(f => f.def.value === fmt);
+    return a?.status === 'warning';
+  });
+
+  const firstWarningReason = formatAnalysis.find(f => effectiveFormats.includes(f.def.value) && f.status === 'warning')?.reason;
+
+  function toggleFormat(fmt: string) {
+    if (!onFormatsChange) return;
+    const next = effectiveFormats.includes(fmt)
+      ? effectiveFormats.filter(f => f !== fmt)
+      : [...effectiveFormats, fmt];
+    // Always keep at least one format selected
+    if (next.length === 0) return;
+    onFormatsChange(next);
+  }
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -344,45 +543,55 @@ function PlatformDropdown({
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => !blocked && setOpen(o => !o)}
-        disabled={blocked}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${
-          blocked
+        onClick={() => !allBlocked && setOpen(o => !o)}
+        disabled={allBlocked}
+        className={[
+          'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left',
+          allBlocked
             ? 'border-rose-500/20 opacity-40 cursor-not-allowed bg-[var(--surface)]'
             : open
             ? 'border-indigo-500/40 bg-[var(--surface)]'
             : selectedInPlatform.length > 0
             ? 'border-indigo-500/30 bg-indigo-500/5 hover:border-indigo-500/50'
-            : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--card-border)]'
-        }`}
+            : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--card-border)]',
+        ].join(' ')}
       >
         {/* Platform icon */}
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0"
-          style={{ backgroundColor: meta.color }}
-        >
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0" style={{ backgroundColor: meta.color }}>
           <Icon className="w-3.5 h-3.5" />
         </div>
 
-        {/* Label + post type badge + selected chips */}
-        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+        {/* Label + format badges + selected accounts */}
+        <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
           <span className="text-sm font-semibold text-[var(--foreground)]">{meta.label}</span>
 
-          {/* Post type badge */}
-          {typeOptions && effectivePostType && (
-            <span className="text-[10px] bg-[var(--card)] border border-[var(--border)] text-[var(--foreground-muted)] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
-              {typeOptions.find(o => o.value === effectivePostType)?.label ?? effectivePostType}
-            </span>
-          )}
+          {/* Selected format chips (summary on closed state) */}
+          {!allBlocked && effectiveFormats.map(fmt => {
+            const a = formatAnalysis.find(f => f.def.value === fmt);
+            return (
+              <span
+                key={fmt}
+                className={[
+                  'text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide border',
+                  a?.status === 'warning'
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    : 'bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)]',
+                ].join(' ')}
+              >
+                {fmtDefs.find(d => d.value === fmt)?.label ?? fmt}
+              </span>
+            );
+          })}
 
-          {warning && !blocked && (
+          {hasAnyWarning && !allBlocked && (
             <span className="text-[10px] text-amber-400 flex items-center gap-0.5">
               <AlertTriangle className="w-3 h-3" /> Limited
             </span>
           )}
-          {blocked && (
-            <span className="text-[10px] text-rose-400 font-semibold">Unsupported</span>
+          {allBlocked && (
+            <span className="text-[10px] text-rose-400 font-semibold">Unsupported media</span>
           )}
+
           {selectedInPlatform.map(acc => (
             <span
               key={acc.id}
@@ -393,14 +602,16 @@ function PlatformDropdown({
                   <Image src={acc.avatar_url} alt="" fill className="object-cover" />
                 </span>
               )}
-              <span className="truncate">{acc.account_handle ? `@${acc.account_handle.replace(/^@/, '')}` : acc.account_name}</span>
+              <span className="truncate">
+                {acc.account_handle ? `@${acc.account_handle.replace(/^@/, '')}` : acc.account_name}
+              </span>
             </span>
           ))}
         </div>
 
         {/* Count + chevron */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {accounts.length === 0 && !blocked && (
+          {accounts.length === 0 && !allBlocked && (
             <span className="text-[10px] text-[var(--foreground-muted)]">No accounts</span>
           )}
           {accounts.length > 0 && (
@@ -408,7 +619,9 @@ function PlatformDropdown({
               {selectedInPlatform.length}/{accounts.length}
             </span>
           )}
-          {!blocked && <ChevronDown className={`w-3.5 h-3.5 text-[var(--foreground-muted)] transition-transform ${open ? 'rotate-180' : ''}`} />}
+          {!allBlocked && (
+            <ChevronDown className={`w-3.5 h-3.5 text-[var(--foreground-muted)] transition-transform ${open ? 'rotate-180' : ''}`} />
+          )}
         </div>
       </button>
 
@@ -417,43 +630,64 @@ function PlatformDropdown({
         <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
 
           {/* Warning banner */}
-          {warning && (
+          {firstWarningReason && (
             <div className="px-3 py-2 bg-amber-500/8 border-b border-amber-500/20 flex items-start gap-2">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
-              <p className="text-[10px] text-amber-300 leading-relaxed">{warning}</p>
+              <p className="text-[10px] text-amber-300 leading-relaxed">{firstWarningReason}</p>
             </div>
           )}
 
-          {/* Post type selector */}
-          {typeOptions && onPostTypeChange && (
-            <div className="px-3 py-2.5 border-b border-[var(--border)] bg-[var(--surface)]/50">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)] mb-2">Post Type</p>
-              <div className="flex gap-1.5">
-                {typeOptions.map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPostTypeChange(opt.value);
-                    }}
-                    title={opt.hint}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all ${
-                      effectivePostType === opt.value
-                        ? 'bg-indigo-600 border-indigo-500 text-white'
-                        : 'bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-indigo-500/40 hover:text-[var(--foreground)]'
-                    }`}
-                  >
-                    <PostTypeIcon icon={opt.icon} className="w-3 h-3" />
-                    {opt.label}
-                  </button>
+          {/* ── Intelligence Engine: Format selector ── */}
+          {fmtDefs.length > 1 && onFormatsChange && (
+            <div className="px-3 py-3 border-b border-[var(--border)] bg-[var(--surface)]/50">
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <Zap className="w-3 h-3 text-amber-400" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)]">
+                  Format — Select all that apply
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {formatAnalysis.map(({ def, status, reason }) => (
+                  <FormatChip
+                    key={def.value}
+                    def={def}
+                    selected={effectiveFormats.includes(def.value)}
+                    status={status}
+                    reason={reason}
+                    onToggle={() => toggleFormat(def.value)}
+                  />
                 ))}
               </div>
-              {effectivePostType && (
-                <p className="text-[9px] text-[var(--foreground-muted)] mt-1.5 italic">
-                  {typeOptions.find(o => o.value === effectivePostType)?.hint}
+              {/* Caption note for story-only selections */}
+              {effectiveFormats.every(fmt => fmtDefs.find(d => d.value === fmt)?.noCaption) && (
+                <p className="text-[9px] text-amber-400/80 mt-2 italic flex items-center gap-1">
+                  <AlertTriangle className="w-2.5 h-2.5" />
+                  All selected formats ignore captions — your description won&apos;t be shown
                 </p>
               )}
+              {effectiveFormats.some(fmt => fmtDefs.find(d => d.value === fmt)?.noCaption) &&
+               !effectiveFormats.every(fmt => fmtDefs.find(d => d.value === fmt)?.noCaption) && (
+                <p className="text-[9px] text-[var(--foreground-muted)] mt-2 italic">
+                  Caption goes to non-story formats. Story/Idea Pin receives no caption.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Single-format platform: just show the format info */}
+          {fmtDefs.length === 1 && (
+            <div className="px-3 py-2 border-b border-[var(--border)] bg-[var(--surface)]/30">
+              {formatAnalysis.map(({ def, status, reason }) => (
+                <div key={def.value} className="flex items-center gap-2">
+                  <FmtIcon icon={def.icon} className="w-3 h-3 text-[var(--foreground-muted)]" />
+                  <span className="text-[10px] text-[var(--foreground-muted)]">{def.hint}</span>
+                  {status === 'warning' && reason && (
+                    <span className="text-[9px] text-amber-400 flex items-center gap-0.5">
+                      <AlertTriangle className="w-2.5 h-2.5" />{reason}
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
           )}
 
@@ -502,7 +736,8 @@ function PlatformDropdown({
   );
 }
 
-/* ─── Main component ──────────────────────────────────────────────────────── */
+// ── Main component ─────────────────────────────────────────────────────────────
+
 const PlatformSelector: React.FC<PlatformSelectorProps> = ({
   connectedAccounts,
   selectedAccountIds,
@@ -536,27 +771,40 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
       </div>
 
       <div className="space-y-2">
-        {platformsList.map(platformId => (
-          <PlatformDropdown
-            key={platformId}
-            platformId={platformId}
-            accounts={connectedAccounts.filter(a => a.platform === platformId)}
-            selectedAccountIds={selectedAccountIds}
-            onToggleAccount={onToggleAccount}
-            mediaCount={mediaCount}
-            mediaType={mediaType}
-            mediaMeta={mediaMeta}
-            postType={platformPostTypes[platformId]}
-            onPostTypeChange={
-              POST_TYPE_OPTIONS[platformId] && onPostTypeChange
-                ? (pt) => onPostTypeChange(platformId, pt)
-                : undefined
-            }
-          />
-        ))}
+        {platformsList.map(platformId => {
+          const rawFormats = platformPostTypes[platformId];
+          const selectedFormats = Array.isArray(rawFormats)
+            ? rawFormats
+            : rawFormats
+            ? [rawFormats]
+            : [];
+
+          return (
+            <PlatformDropdown
+              key={platformId}
+              platformId={platformId}
+              accounts={connectedAccounts.filter(a => a.platform === platformId)}
+              selectedAccountIds={selectedAccountIds}
+              onToggleAccount={onToggleAccount}
+              mediaCount={mediaCount}
+              mediaType={mediaType}
+              mediaMeta={mediaMeta}
+              selectedFormats={selectedFormats}
+              onFormatsChange={
+                onPostTypeChange
+                  ? (formats) => onPostTypeChange(platformId, formats)
+                  : undefined
+              }
+            />
+          );
+        })}
       </div>
     </div>
   );
 };
 
 export default PlatformSelector;
+// Keep legacy export for any existing imports
+export const POST_TYPE_OPTIONS = Object.fromEntries(
+  Object.entries(ALL_FORMATS).map(([k, v]) => [k, v.map(f => ({ value: f.value, label: f.label, hint: f.hint, icon: f.icon as any }))])
+);

@@ -19,9 +19,12 @@ function LoginForm() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace("/dashboard");
+      if (session) {
+        const next = searchParams.get('next');
+        router.replace(next && next.startsWith('/') ? next : '/dashboard');
+      }
     });
-  }, [router]);
+  }, [router, searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

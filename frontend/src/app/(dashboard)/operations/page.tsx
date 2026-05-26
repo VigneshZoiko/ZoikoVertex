@@ -1,228 +1,429 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  Activity, Cpu, Database, Globe, 
-  ShieldCheck, Terminal,
-  RefreshCcw, Server, Network, Radio,
+import {
+  Activity, Cpu, MemoryStick, RefreshCcw,
+  CheckCircle2, AlertCircle, XCircle, Clock,
+  Users, ShieldOff, ListFilter,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
-const CHART_MOCK_DATA = [45, 52, 38, 65, 48, 55, 60, 42, 35, 70, 58, 62, 40, 50, 45, 68, 72, 55, 48, 60, 55, 50, 42, 58];
+interface Telemetry {
+  agents: { active: number; total: number };
+  system: { cpu_load: string; memory_usage: string; os_platform: string };
+  uptime: string;
+  latency: string;
+  integrity: string;
+}
+
+interface OpsStats {
+  active_runs: number;
+  queue_depth: number;
+  total_runs: number;
+  failed_runs: number;
+  failure_rate: number;
+  policy_blocked_runs: number;
+  policy_block_rate: number;
+  pending_queues: number;
+}
+
+interface LogEntry {
+  id?: string;
+  created_at: string;
+  level: string;
+  service?: string;
+  message: string;
+}
+
+function levelBadge(level: string) {
+  switch (level?.toLowerCase()) {
+    case "error":
+      return "bg-rose-500/10 text-rose-400 border-rose-500/20";
+    case "warn":
+    case "warning":
+      return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+    default:
+      return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+  }
+}
+
+function levelIcon(level: string) {
+  switch (level?.toLowerCase()) {
+    case "error": return <XCircle className="w-3.5 h-3.5" />;
+    case "warn":
+    case "warning": return <AlertCircle className="w-3.5 h-3.5" />;
+    default: return <CheckCircle2 className="w-3.5 h-3.5" />;
+  }
+}
 
 export default function OperationsPage() {
-  const [telemetry, setTelemetry] = useState<any>(null);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [telemetry, setTelemetry] = useState<Telemetry | null>(null);
+  const [ops, setOps] = useState<OpsStats | null>(null);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchTelemetry = async () => {
+  const fetchAll = async () => {
     try {
-      const [telRes, logRes] = await Promise.all([
-        api.get('/api/v1/operations/telemetry'),
-        api.get('/api/v1/operations/logs')
+      const [telRes, logRes, opsRes] = await Promise.allSettled([
+        api.get("/api/v1/operations/telemetry"),
+        api.get("/api/v1/operations/logs"),
+        api.get("/api/v1/operations/stats"),
       ]);
-      if (telRes.success) setTelemetry(telRes.data);
-      if (logRes.success) setLogs(logRes.data);
-    } catch (error) {
-      console.error("Telemetry fetch failed", error);
+      if (telRes.status === "fulfilled" && telRes.value.success) setTelemetry(telRes.value.data);
+      if (logRes.status === "fulfilled" && logRes.value.success) setLogs(logRes.value.data);
+      if (opsRes.status === "fulfilled" && opsRes.value.success) setOps(opsRes.value.data);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error("Operations fetch failed", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTelemetry();
-    const interval = setInterval(fetchTelemetry, 10000); // Refresh every 10s
+    fetchAll();
+    const interval = setInterval(fetchAll, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  if (loading && !telemetry) {
-    return <div className="p-8 text-cyan-400 font-mono">Initializing Telemetry Stream...</div>;
-  }
+  const cpuPct = parseInt(telemetry?.system?.cpu_load ?? "0");
+  const memPct = parseInt(telemetry?.system?.memory_usage ?? "0");
+  const agentActivePct =
+    telemetry?.agents?.total
+      ? Math.round((telemetry.agents.active / telemetry.agents.total) * 100)
+      : 0;
+
+  const statCards = [
+    {
+      label: "Active Runs",
+      value: ops?.active_runs ?? "—",
+      icon: Activity,
+      iconBg: "bg-emerald-500/10",
+      iconColor: "text-emerald-400",
+      sub: ops ? `${ops.queue_depth} queued` : null,
+    },
+    {
+      label: "Total Runs",
+      value: ops?.total_runs ?? "—",
+      icon: ListFilter,
+      iconBg: "bg-indigo-500/10",
+      iconColor: "text-indigo-400",
+      sub: null,
+    },
+    {
+      label: "Failed Runs",
+      value: ops?.failed_runs ?? "—",
+      icon: XCircle,
+      iconBg: "bg-rose-500/10",
+      iconColor: "text-rose-400",
+      sub: ops ? `${ops.failure_rate.toFixed(1)}% rate` : null,
+    },
+    {
+      label: "Policy Blocked",
+      value: ops?.policy_blocked_runs ?? "—",
+      icon: ShieldOff,
+      iconBg: "bg-amber-500/10",
+      iconColor: "text-amber-400",
+      sub: ops ? `${ops.policy_block_rate.toFixed(1)}% rate` : null,
+    },
+    {
+      label: "Active Agents",
+      value: telemetry ? `${telemetry.agents.active} / ${telemetry.agents.total}` : "—",
+      icon: Users,
+      iconBg: "bg-blue-500/10",
+      iconColor: "text-blue-400",
+      sub: telemetry ? `${agentActivePct}% active` : null,
+    },
+  ];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-12 pb-32 bg-black min-h-screen">
-      {/* Hero: Global Operations Control */}
-      <div className="relative overflow-hidden bg-slate-950 border border-cyan-500/30 rounded-[4rem] p-16 shadow-[0_0_100px_rgba(6,182,212,0.15)]">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-cyan-600/10 blur-[200px] rounded-full -mr-80 -mt-80 animate-pulse" />
-        
-        <div className="relative z-10 flex flex-col xl:flex-row items-center justify-between gap-16">
-          <div className="max-w-3xl space-y-8">
-            <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-cyan-500/5 border border-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-[0.4em] mb-2 shadow-inner backdrop-blur-md">
-              <Activity className="w-4 h-4 animate-pulse" />
-              Global Mission Control Active
-            </div>
-            <h1 className="text-7xl font-black text-white tracking-tighter leading-[0.85] drop-shadow-2xl">
-              System <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-600 italic">Operations.</span>
-            </h1>
-            <p className="text-xl text-slate-400 leading-relaxed max-w-2xl font-medium tracking-tight">
-              Monitor, orchestrate, and optimize the entire ZoikoVertex intelligence network. 
-              Real-time resource allocation and autonomous agent management at scale.
-            </p>
-            <div className="flex flex-wrap items-center gap-8 pt-4">
-              <div className="flex flex-col">
-                <span className="text-white font-black text-3xl tracking-tighter">{telemetry?.uptime || '99.9%'}</span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Uptime Pulse</span>
-              </div>
-              <div className="w-px h-12 bg-slate-800" />
-              <div className="flex flex-col">
-                <span className="text-cyan-400 font-black text-3xl tracking-tighter">{telemetry?.latency || '42ms'}</span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Global Latency</span>
-              </div>
-              <div className="w-px h-12 bg-slate-800" />
-              <div className="flex flex-col">
-                <span className="text-indigo-400 font-black text-3xl tracking-tighter">{telemetry?.integrity || 'Healthy'}</span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Core Integrity</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex flex-col items-center gap-6">
-            <div className="relative group">
-              <div className="absolute -inset-2 bg-cyan-500 rounded-full blur opacity-20 group-hover:opacity-40 transition-all duration-1000 animate-pulse" />
-              <div className="relative w-56 h-56 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center shadow-2xl overflow-hidden">
-                <Globe className="w-28 h-28 text-cyan-500 drop-shadow-[0_0_40px_rgba(6,182,212,0.6)] animate-[spin_60s_linear_infinite]" />
-              </div>
-            </div>
-          </div>
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">
+            Operations Feed
+          </h1>
+          <p className="text-sm text-[var(--foreground-muted)] mt-1">
+            Live agent runs, system health, and log stream — auto-refreshes every 10s.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {lastUpdated && (
+            <span className="text-xs text-[var(--foreground-muted)] flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" />
+              {lastUpdated.toLocaleTimeString()}
+            </span>
+          )}
+          <button
+            onClick={fetchAll}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-[var(--card)] border border-[var(--border)] rounded-lg hover:bg-[var(--surface)] transition-colors"
+          >
+            <RefreshCcw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
         </div>
       </div>
 
-      {/* Real-time Telemetry Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { label: 'Intelligence Load', value: telemetry?.stats?.intelligence_load || '0%', icon: Cpu, color: 'text-cyan-400', glow: 'shadow-cyan-500/20' },
-          { label: 'Data Throughput', value: telemetry?.stats?.data_throughput || '0 MB/s', icon: Database, color: 'text-indigo-400', glow: 'shadow-indigo-500/20' },
-          { label: 'Network Mesh', value: telemetry?.stats?.network_mesh || 'Active', icon: Network, color: 'text-emerald-400', glow: 'shadow-emerald-500/20' },
-          { label: 'Cloud Capacity', value: telemetry?.stats?.cloud_capacity || 'High', icon: Server, color: 'text-amber-400', glow: 'shadow-amber-500/20' },
-        ].map((stat, i) => (
-          <div key={i} className={`bg-slate-950 border border-slate-900 rounded-[2.5rem] p-8 hover:border-cyan-500/40 transition-all group shadow-2xl hover:${stat.glow}`}>
-            <div className="flex items-center justify-between mb-8">
-               <div className={`p-4 rounded-2xl bg-black border border-slate-800 ${stat.color} group-hover:scale-110 transition-transform shadow-inner`}>
-                  <stat.icon className="w-6 h-6" />
-               </div>
-               <div className="text-3xl font-black text-white tracking-tighter">{stat.value}</div>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {statCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.label}
+              className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className={`p-2 ${card.iconBg} rounded-lg`}>
+                  <Icon className={`w-4 h-4 ${card.iconColor}`} />
+                </div>
+                {card.sub && (
+                  <span className="text-[10px] text-[var(--foreground-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded-full">
+                    {card.sub}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-[var(--foreground-muted)] mb-1">{card.label}</p>
+              <p className="text-xl font-bold text-[var(--foreground)] tabular-nums">
+                {loading ? <span className="animate-pulse">—</span> : card.value}
+              </p>
             </div>
-            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 group-hover:text-slate-200 transition-colors">
-              {stat.label}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Operational Hub */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left: System Health & Monitoring */}
-        <div className="lg:col-span-8 space-y-8">
-           <div className="bg-slate-950 border border-slate-900 rounded-[3rem] p-10 shadow-2xl relative overflow-hidden">
-              <div className="flex items-center justify-between mb-10">
-                 <div className="flex items-center gap-4">
-                    <Radio className="w-5 h-5 text-cyan-400" />
-                    <h2 className="text-xl font-black text-white uppercase tracking-tighter italic">Operational Health</h2>
-                 </div>
-                 <div className="flex items-center gap-2 px-4 py-2 bg-black border border-slate-800 rounded-xl">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">All Systems Operational</span>
-                 </div>
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: System Health + Logs */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* System Health */}
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-indigo-400" />
+                <h2 className="text-base font-semibold text-[var(--foreground)]">System Health</h2>
               </div>
+              <div className="flex items-center gap-1.5 text-xs text-emerald-500">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                {telemetry?.integrity ?? "Checking..."}
+              </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                 {/* Visual Pulse Chart Simulator */}
-                 <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">System Latency Trace</span>
+            <div className="space-y-4">
+              {[
+                {
+                  label: "CPU Load",
+                  value: telemetry?.system?.cpu_load ?? "—",
+                  pct: cpuPct,
+                  color: cpuPct > 80 ? "bg-rose-500" : cpuPct > 60 ? "bg-amber-500" : "bg-emerald-500",
+                  icon: <Cpu className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />,
+                },
+                {
+                  label: "Memory Usage",
+                  value: telemetry?.system?.memory_usage ?? "—",
+                  pct: memPct,
+                  color: memPct > 80 ? "bg-rose-500" : memPct > 60 ? "bg-amber-500" : "bg-indigo-500",
+                  icon: <MemoryStick className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />,
+                },
+                {
+                  label: "Active Agents",
+                  value: telemetry ? `${telemetry.agents.active} / ${telemetry.agents.total}` : "—",
+                  pct: agentActivePct,
+                  color: "bg-blue-500",
+                  icon: <Users className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />,
+                },
+              ].map((m) => (
+                <div key={m.label}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5 text-sm text-[var(--foreground-muted)]">
+                      {m.icon}
+                      {m.label}
                     </div>
-                    <div className="h-40 bg-black/60 rounded-[2rem] border border-slate-900/60 p-6 flex items-end gap-1.5 shadow-inner overflow-hidden">
-                       {CHART_MOCK_DATA.map((h, i) => (
-                         <div 
-                           key={i} 
-                           className="flex-1 bg-cyan-500/20 rounded-full animate-pulse" 
-                           style={{ height: `${h}%`, animationDelay: `${i * 100}ms` }} 
-                         />
-                       ))}
-                    </div>
-                 </div>
+                    <span className="text-sm font-semibold text-[var(--foreground)] tabular-nums">
+                      {loading ? "—" : m.value}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-[var(--surface)] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${m.color} rounded-full transition-all duration-700`}
+                      style={{ width: loading ? "0%" : `${Math.min(m.pct, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
 
-                 {/* Metric Breakdown */}
-                 <div className="space-y-6">
-                    {[
-                      { label: 'CPU Load', value: telemetry?.system?.cpu_load || '0%', score: parseInt(telemetry?.system?.cpu_load || '0'), color: 'bg-emerald-500' },
-                      { label: 'Memory Usage', value: telemetry?.system?.memory_usage || '0%', score: parseInt(telemetry?.system?.memory_usage || '0'), color: 'bg-cyan-500' },
-                      { label: 'Latency Pulse', value: telemetry?.latency || '0ms', score: 92, color: 'bg-indigo-500' },
-                    ].map((m, i) => (
-                      <div key={i} className="space-y-3">
-                         <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.label}</span>
-                            <span className="text-xs font-black text-white">{m.value}</span>
-                         </div>
-                         <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
-                            <div className={`h-full ${m.color}`} style={{ width: `${m.score}%` }} />
-                         </div>
-                      </div>
+              {telemetry?.system?.os_platform && (
+                <p className="text-xs text-[var(--foreground-muted)] pt-1">
+                  Platform: <span className="font-medium text-[var(--foreground)]">{telemetry.system.os_platform}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Ops Rate Metrics */}
+          {ops && (
+            <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+              <h2 className="text-base font-semibold text-[var(--foreground)] mb-4">Run Rate Breakdown</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="flex justify-between mb-1.5">
+                    <span className="text-sm text-[var(--foreground-muted)]">Failure Rate</span>
+                    <span className="text-sm font-semibold text-rose-400 tabular-nums">{ops.failure_rate.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-2 bg-[var(--surface)] rounded-full overflow-hidden">
+                    <div className="h-full bg-rose-500 rounded-full" style={{ width: `${Math.min(ops.failure_rate, 100)}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between mb-1.5">
+                    <span className="text-sm text-[var(--foreground-muted)]">Policy Block Rate</span>
+                    <span className="text-sm font-semibold text-amber-400 tabular-nums">{ops.policy_block_rate.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-2 bg-[var(--surface)] rounded-full overflow-hidden">
+                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(ops.policy_block_rate, 100)}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Live System Logs */}
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-indigo-400" />
+                <h2 className="text-base font-semibold text-[var(--foreground)]">System Logs</h2>
+              </div>
+              <span className="text-xs text-[var(--foreground-muted)]">
+                {logs.length} {logs.length === 1 ? "entry" : "entries"}
+              </span>
+            </div>
+
+            <div className="overflow-y-auto max-h-80">
+              {loading ? (
+                <div className="p-6 space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="animate-pulse flex gap-3">
+                      <div className="w-16 h-4 bg-[var(--border)] rounded" />
+                      <div className="w-12 h-4 bg-[var(--border)] rounded" />
+                      <div className="flex-1 h-4 bg-[var(--border)] rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : logs.length === 0 ? (
+                <div className="py-12 text-center text-sm text-[var(--foreground-muted)] italic">
+                  No log entries yet.
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <tbody className="divide-y divide-[var(--border)]">
+                    {logs.map((log, i) => (
+                      <tr key={log.id ?? i} className="hover:bg-[var(--surface)] transition-colors">
+                        <td className="px-4 py-3 text-xs text-[var(--foreground-muted)] whitespace-nowrap tabular-nums w-24">
+                          {new Date(log.created_at).toLocaleTimeString()}
+                        </td>
+                        <td className="px-2 py-3 w-20">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${levelBadge(log.level)}`}>
+                            {levelIcon(log.level)}
+                            {log.level?.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-2 py-3 text-xs font-medium text-[var(--foreground-muted)] w-24 truncate">
+                          {log.service ?? "System"}
+                        </td>
+                        <td className="px-2 py-3 text-xs text-[var(--foreground)] pr-4">
+                          {log.message}
+                        </td>
+                      </tr>
                     ))}
-                 </div>
-              </div>
-           </div>
-
-           {/* Live Operational Logs */}
-           <div className="bg-black border border-slate-900 rounded-[3rem] p-10 shadow-2xl space-y-8">
-              <div className="flex items-center justify-between">
-                 <div className="flex items-center gap-4">
-                    <Terminal className="w-5 h-5 text-indigo-400" />
-                    <h2 className="text-xl font-black text-white uppercase tracking-tighter italic">Mission Log Trace</h2>
-                 </div>
-                 <button onClick={fetchTelemetry} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
-                    <RefreshCcw className={`w-4 h-4 text-slate-400 ${loading ? 'animate-spin' : ''}`} />
-                 </button>
-              </div>
-
-              <div className="bg-slate-950/40 border border-slate-900/60 rounded-[2.5rem] p-8 font-mono text-[11px] leading-relaxed space-y-3 h-64 overflow-y-auto no-scrollbar shadow-inner">
-                 {logs.length === 0 ? (
-                   <div className="text-slate-600 italic text-center py-20">Monitoring live trace streams...</div>
-                 ) : logs.map((log, i) => (
-                   <div key={i} className="flex gap-4">
-                     <span className="text-slate-700 shrink-0">[{new Date(log.created_at).toLocaleTimeString()}]</span>
-                     <span className={`font-bold uppercase tracking-widest ${log.level === 'error' ? 'text-rose-400' : log.level === 'warn' ? 'text-amber-400' : 'text-cyan-400'}`}>
-                       {log.service || 'System'}
-                     </span>
-                     <span className="text-slate-400 italic">{log.message}</span>
-                   </div>
-                 ))}
-              </div>
-           </div>
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Right: Operational Controls */}
-        <div className="lg:col-span-4 space-y-8">
-           <div className="bg-slate-950 border border-slate-800 rounded-[3rem] p-10 shadow-2xl relative overflow-hidden">
-              <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] mb-10">Active Intelligence</h3>
-              <div className="space-y-4">
-                 <div className="bg-slate-900/40 border border-slate-800/60 rounded-3xl p-6 flex items-center justify-between">
-                    <div className="space-y-1">
-                       <div className="text-xs font-black text-white uppercase tracking-widest">Global Agents</div>
-                       <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-cyan-400">Connected</div>
-                    </div>
-                    <div className="text-right">
-                       <div className="text-sm font-black text-white">{telemetry?.agents?.active} / {telemetry?.agents?.total}</div>
-                       <div className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Active</div>
-                    </div>
-                 </div>
+        {/* Right: Agent + Queue Status */}
+        <div className="space-y-6">
+          {/* Agent Status */}
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-5">
+              <Users className="w-4 h-4 text-blue-400" />
+              <h2 className="text-base font-semibold text-[var(--foreground)]">Agent Status</h2>
+            </div>
+            {loading ? (
+              <div className="space-y-3 animate-pulse">
+                <div className="h-10 bg-[var(--border)] rounded-lg" />
+                <div className="h-2 bg-[var(--border)] rounded-full" />
               </div>
+            ) : telemetry ? (
+              <>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-3xl font-bold text-[var(--foreground)] tabular-nums">
+                    {telemetry.agents.active}
+                  </span>
+                  <span className="text-sm text-[var(--foreground-muted)]">
+                    / {telemetry.agents.total} total
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--foreground-muted)] mb-3">agents currently active</p>
+                <div className="h-2 bg-[var(--surface)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-700"
+                    style={{ width: `${agentActivePct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-[var(--foreground-muted)] mt-1.5 text-right tabular-nums">
+                  {agentActivePct}% utilisation
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-[var(--foreground-muted)] italic">Unavailable</p>
+            )}
+          </div>
 
-              <button onClick={fetchTelemetry} className="w-full mt-10 bg-white hover:bg-cyan-600 text-black hover:text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.3em] shadow-xl transition-all active:scale-95">
-                 Optimize Network
-              </button>
-           </div>
+          {/* Queue Summary */}
+          {ops && (
+            <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+              <h2 className="text-base font-semibold text-[var(--foreground)] mb-4">Queue Summary</h2>
+              <div className="space-y-3">
+                {[
+                  { label: "Active Runs", value: ops.active_runs, color: "text-emerald-400" },
+                  { label: "Queue Depth", value: ops.queue_depth, color: "text-indigo-400" },
+                  { label: "Pending Queues", value: ops.pending_queues, color: "text-blue-400" },
+                  { label: "Failed", value: ops.failed_runs, color: "text-rose-400" },
+                  { label: "Policy Blocked", value: ops.policy_blocked_runs, color: "text-amber-400" },
+                ].map((item) => (
+                  <div key={item.label} className="flex justify-between items-center py-2 border-b border-[var(--border)]/50 last:border-0">
+                    <span className="text-sm text-[var(--foreground-muted)]">{item.label}</span>
+                    <span className={`text-sm font-bold tabular-nums ${item.color}`}>{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-           <div className="bg-cyan-950/20 border border-cyan-500/20 rounded-[3rem] p-10 shadow-2xl space-y-8 backdrop-blur-sm relative overflow-hidden text-center">
-              <div className="w-20 h-20 bg-black border border-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                 <ShieldCheck className="w-10 h-10 text-cyan-400 drop-shadow-[0_0_20px_rgba(6,182,212,0.4)]" />
+          {/* System Info */}
+          {telemetry && (
+            <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
+              <h2 className="text-base font-semibold text-[var(--foreground)] mb-4">System Info</h2>
+              <div className="space-y-2.5 text-sm">
+                {[
+                  { label: "Platform", value: telemetry.system.os_platform },
+                  { label: "Uptime", value: telemetry.uptime },
+                  { label: "Latency", value: telemetry.latency },
+                  { label: "Integrity", value: telemetry.integrity },
+                ].map((item) => (
+                  <div key={item.label} className="flex justify-between">
+                    <span className="text-[var(--foreground-muted)]">{item.label}</span>
+                    <span className="font-medium text-[var(--foreground)]">{item.value}</span>
+                  </div>
+                ))}
               </div>
-              <div>
-                 <h3 className="text-xl font-black text-white tracking-tighter uppercase italic">Secure Protocol</h3>
-                 <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-2 leading-relaxed">System-wide governance lock is currently active.</p>
-              </div>
-           </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

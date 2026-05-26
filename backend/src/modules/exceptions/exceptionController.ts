@@ -9,16 +9,44 @@ export const listExceptions = async (req: AuthRequest, res: Response, next: Next
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     // 1. Fetch intents that are in exception states: FAILED, RETURNED, or HIGH risk
-    const { data, error } = await supabaseAdmin
+    const { data: rawData, error } = await supabaseAdmin
       .from('publish_intents')
-      .select(`
-        *,
-        creator:users!publish_intents_creator_id_fkey(full_name, email)
-      `)
+      .select('*')
       .or('status.eq.FAILED,status.eq.RETURNED,risk_level.eq.HIGH,risk_level.eq.RESTRICTED')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
+
+    // Join creator users in-memory
+    const items = rawData || [];
+    const creatorIds = [...new Set(items.map((i: any) => i.creator_id).filter(Boolean))];
+    const userMap = new Map<string, { full_name: string; email: string }>();
+
+    if (creatorIds.length > 0) {
+      try {
+        const { data: usersData } = await supabaseAdmin
+          .from('users')
+          .select('id, full_name, email')
+          .in('id', creatorIds);
+        
+        if (usersData) {
+          usersData.forEach((u: any) => {
+            userMap.set(u.id, { full_name: u.full_name, email: u.email });
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const data = items.map((item: any) => {
+      const creatorInfo = item.creator_id ? userMap.get(item.creator_id) : null;
+      return {
+        ...item,
+        creator: creatorInfo || null,
+      };
+    });
+
 
     // 2. Format exceptions into specific categories
     const categorized = data.map(item => {

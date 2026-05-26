@@ -73,7 +73,8 @@ export default function FeatureBlock() {
               alt="Category"
               width={600}
               height={400}
-              className="w-full object-cover"
+              className="object-cover"
+              style={{ width: "100%", height: "auto" }}
             />
           </div>
         </div>

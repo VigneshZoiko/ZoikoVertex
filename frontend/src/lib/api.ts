@@ -3,12 +3,30 @@ import { supabase } from './supabase';
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
 async function getAuthHeader(): Promise<Record<string, string>> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const headers: Record<string, string> = {};
-  if (session?.access_token) {
-    headers['Authorization'] = `Bearer ${session.access_token}`;
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    // AuthApiError with "Refresh Token Not Found" means the stored session is stale.
+    // Sign out silently so the middleware can redirect to /login on the next request.
+    if (error) {
+      console.warn('[api] Session error — signing out:', error.message);
+      await supabase.auth.signOut();
+      if (typeof window !== 'undefined') window.location.replace('/login');
+      return {};
+    }
+    const headers: Record<string, string> = {};
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+    return headers;
+  } catch (err: any) {
+    // Catches AuthApiError thrown when the refresh token is completely gone
+    if (err?.name === 'AuthApiError' || err?.message?.includes('Refresh Token')) {
+      console.warn('[api] Invalid refresh token — clearing session and redirecting to login');
+      try { await supabase.auth.signOut(); } catch { /* best effort */ }
+      if (typeof window !== 'undefined') window.location.replace('/login');
+    }
+    return {};
   }
-  return headers;
 }
 
 async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
@@ -231,5 +249,86 @@ export const api = {
 
   async escalateRun(id: string, reason?: string) {
     return this.post(`/api/v1/operations/runs/${id}/escalate`, { reason });
+  },
+
+  // Inbox & Engagement API
+  async getInboxMessages(params?: { tab?: string; platform?: string; type?: string; risk?: string; search?: string; page?: number; limit?: number }) {
+    return this.listInboxMessages(params);
+  },
+
+  async listInboxMessages(params?: { tab?: string; platform?: string; type?: string; risk?: string; search?: string; page?: number; limit?: number }) {
+    const query = new URLSearchParams();
+    if (params?.tab) query.set('tab', params.tab);
+    if (params?.platform) query.set('platform', params.platform);
+    if (params?.type) query.set('type', params.type);
+    if (params?.risk) query.set('risk', params.risk);
+    if (params?.search) query.set('search', params.search);
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    return this.get(`/api/v1/inbox/messages?${query.toString()}`);
+  },
+
+  async getInboxMessage(id: string) {
+    return this.get(`/api/v1/inbox/messages/${id}`);
+  },
+
+  async createInboxReply(messageId: string, body: { reply_body: string; reply_type?: string; ai_tone?: string }) {
+    return this.post(`/api/v1/inbox/messages/${messageId}/reply`, body);
+  },
+
+  async generateAiDraft(messageId: string, tone?: string) {
+    return this.post(`/api/v1/inbox/messages/${messageId}/reply/generate`, { tone: tone || 'professional' });
+  },
+
+  async sendInboxReply(messageId: string) {
+    return this.post(`/api/v1/inbox/messages/${messageId}/reply/send`, {});
+  },
+
+  async assignInboxMessage(messageId: string, assigned_to: string | null) {
+    return this.post(`/api/v1/inbox/messages/${messageId}/assign`, { assigned_to });
+  },
+
+  async updateInboxMessageStatus(messageId: string, status: string) {
+    return this.patch(`/api/v1/inbox/messages/${messageId}/status`, { status });
+  },
+
+  async escalateInboxMessage(messageId: string, body: { escalation_reason: string; risk_category: string; assigned_reviewer?: string }) {
+    return this.post(`/api/v1/inbox/messages/${messageId}/escalate`, body);
+  },
+
+  async archiveInboxMessage(messageId: string) {
+    return this.post(`/api/v1/inbox/messages/${messageId}/archive`, {});
+  },
+
+  async deleteInboxMessages(ids: string[]) {
+    return this.post('/api/v1/inbox/messages/delete', { ids });
+  },
+
+  async addInboxNote(messageId: string, note_body: string) {
+    return this.post(`/api/v1/inbox/messages/${messageId}/notes`, { note_body });
+  },
+
+  async getInboxMessageAudit(messageId: string) {
+    return this.get(`/api/v1/inbox/messages/${messageId}/audit`);
+  },
+
+  async getInboxEscalationQueue() {
+    return this.get('/api/v1/inbox/escalations');
+  },
+
+  async resolveInboxEscalation(escalationId: string, body: { decision: 'APPROVED' | 'REJECTED'; decision_note?: string }) {
+    return this.post(`/api/v1/inbox/escalations/${escalationId}/resolve`, body);
+  },
+
+  async syncInboxMessages() {
+    return this.post('/api/v1/inbox/sync', {});
+  },
+
+  async getInboxPostPreview(messageId: string) {
+    return this.get(`/api/v1/inbox/messages/${messageId}/post-preview`);
+  },
+
+  async getPlatformReach() {
+    return this.get('/api/v1/analytics/platform-reach');
   },
 };

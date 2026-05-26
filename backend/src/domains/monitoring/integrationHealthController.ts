@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
@@ -59,15 +60,15 @@ export const getIntegrationHealth = async (req: AuthRequest, res: Response, next
     // (delivery_log has webhook_endpoint_id so we can cross-reference if needed — kept simple here)
 
     // Webhook delivery stats
-    const deliverySuccess = deliveries.filter((d: any) => d.status === 'success').length;
+    const deliverySuccess = deliveries.filter((d: { status: string }) => d.status === 'success').length;
     const deliveryTotal   = deliveries.length;
     const webhookHealthPct = deliveryTotal > 0
       ? Math.round((deliverySuccess / deliveryTotal) * 100)
       : 100;
 
     // Failed scheduler jobs
-    const postIds = posts.map((p: any) => p.id);
-    let failedJobs: any[] = [];
+    const postIds = posts.map((p: { id: string }) => p.id);
+    let failedJobs: Record<string, unknown>[] = [];
     if (postIds.length > 0) {
       const { data: jobs } = await supabaseAdmin
         .from('scheduler_jobs')
@@ -77,20 +78,20 @@ export const getIntegrationHealth = async (req: AuthRequest, res: Response, next
         .order('created_at', { ascending: false })
         .limit(10);
 
-      failedJobs = (jobs || []).map((job: any) => ({
+      failedJobs = (jobs || []).map((job: { post_id: string; [key: string]: unknown }) => ({
         ...job,
-        post: posts.find((p: any) => p.id === job.post_id) || null,
+        post: posts.find((p: { id: string }) => p.id === job.post_id) || null,
       }));
     }
 
-    const published = posts.filter((p: any) => p.status === 'PUBLISHED').length;
-    const failed    = posts.filter((p: any) => p.status === 'FAILED').length;
-    const scheduled = posts.filter((p: any) => ['SCHEDULED', 'PUBLISHING'].includes(p.status)).length;
+    const published = posts.filter((p: { status: string }) => p.status === 'PUBLISHED').length;
+    const failed    = posts.filter((p: { status: string }) => p.status === 'FAILED').length;
+    const scheduled = posts.filter((p: { status: string }) => ['SCHEDULED', 'PUBLISHING'].includes(p.status)).length;
     const total     = published + failed;
     const healthScore = total > 0 ? Math.round((published / total) * 100) : 100;
 
     const platformBreakdown: Record<string, { published: number; failed: number; scheduled: number }> = {};
-    posts.forEach((post: any) => {
+    posts.forEach((post: { platform: string; status: string }) => {
       if (!platformBreakdown[post.platform]) {
         platformBreakdown[post.platform] = { published: 0, failed: 0, scheduled: 0 };
       }

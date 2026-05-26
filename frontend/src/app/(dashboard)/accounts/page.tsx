@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Plus, Trash2, AlertCircle, X, Shield,
@@ -11,6 +11,7 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
 import { useRoles } from "@/lib/hooks/useRoles";
+import Toast from "@/components/Toast";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 interface ConnectedAccount {
@@ -139,9 +140,26 @@ const PLATFORMS = [
   },
 ];
 
+/* ─── Accounts cache (sessionStorage) ──────────────────────────────────── */
+const ACCOUNTS_CACHE_KEY = 'zv_accounts_cache';
+
+function readAccountsCache(): ConnectedAccount[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = sessionStorage.getItem(ACCOUNTS_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as ConnectedAccount[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeAccountsCache(data: ConnectedAccount[]) {
+  try { sessionStorage.setItem(ACCOUNTS_CACHE_KEY, JSON.stringify(data)); } catch {}
+}
+
 /* ─── Component ─────────────────────────────────────────────────────────── */
 export default function AccountsPage() {
-  const [accounts, setAccounts]                         = useState<ConnectedAccount[]>([]);
+  const [accounts, setAccounts]                         = useState<ConnectedAccount[]>(readAccountsCache);
   const [loading, setLoading]                           = useState(true);
   const [error, setError]                               = useState<string | null>(null);
   const [success, setSuccess]                           = useState<string | null>(null);
@@ -154,6 +172,7 @@ export default function AccountsPage() {
   const [selectedPageIds, setSelectedPageIds]           = useState<Set<string>>(new Set());
   const [savingPages, setSavingPages]                   = useState(false);
   const [expandedPlatforms, setExpandedPlatforms]       = useState<Record<string, boolean>>({});
+  const hasCachedData = useRef(readAccountsCache().length > 0);
 
   const togglePlatform = (platformId: string) => {
     setExpandedPlatforms((prev) => ({
@@ -166,11 +185,17 @@ export default function AccountsPage() {
   const router = useRouter();
 
   const fetchAccounts = useCallback(async () => {
-    setLoading(true);
+    // Only show the full skeleton on a cold load (no cached data yet)
+    if (!hasCachedData.current) setLoading(true);
     setError(null);
     try {
       const result = await api.get("/api/v1/accounts");
-      if (result.success) setAccounts(result.data || []);
+      if (result.success) {
+        const data: ConnectedAccount[] = result.data || [];
+        setAccounts(data);
+        writeAccountsCache(data);
+        hasCachedData.current = true;
+      }
     } catch {
       setError("Failed to load accounts. Please try again.");
     } finally {
@@ -243,7 +268,11 @@ export default function AccountsPage() {
     setDisconnecting(id);
     try {
       await api.delete(`/api/v1/accounts/${id}`);
-      setAccounts(prev => prev.filter(a => a.id !== id));
+      setAccounts(prev => {
+        const next = prev.filter(a => a.id !== id);
+        writeAccountsCache(next);
+        return next;
+      });
     } catch {
       setError("Failed to disconnect account. Please try again.");
     } finally {
@@ -272,7 +301,7 @@ export default function AccountsPage() {
       if (platformId === "facebook" || platformId === "instagram") {
         const appId = process.env.NEXT_PUBLIC_META_APP_ID || "989391590153112";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/facebook/callback`);
-        const scope = ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","instagram_basic","instagram_content_publish","business_management"].join(",");
+        const scope = ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","pages_read_user_content","pages_manage_engagement","read_insights","instagram_basic","instagram_content_publish","instagram_manage_comments","instagram_manage_insights","business_management"].join(",");
         const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: platformId }));
         window.location.assign(`https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`);
       } else if (platformId === "linkedin") {
@@ -306,13 +335,13 @@ export default function AccountsPage() {
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/threads/callback`);
         const state = encodeURIComponent(JSON.stringify({ workspaceId }));
-        window.location.assign(`https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=threads_basic,threads_content_publish&state=${state}&response_type=code`);
+        window.location.assign(`https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=threads_basic,threads_content_publish,threads_manage_replies,threads_read_replies,threads_manage_insights&state=${state}&response_type=code`);
       } else if (platformId === "twitter") {
         const clientId = process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "ZGtmZHMxdUJWU3BMUS15VXpjVXk6MTpjaQ";
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/twitter/callback`);
         const codeChallenge = "zoikovertex_twitter_oauth2_pkce_plain_challenge_string";
         const state = encodeURIComponent(workspaceId);
-        const scope = encodeURIComponent("tweet.read tweet.write users.read offline.access");
+        const scope = encodeURIComponent("tweet.read tweet.write dm.read dm.write users.read media.write offline.access");
         window.location.assign(`https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=plain`);
       } else if (platformId === "youtube") {
         const clientId = process.env.NEXT_PUBLIC_YOUTUBE_CLIENT_ID || "";
@@ -323,7 +352,7 @@ export default function AccountsPage() {
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/youtube/callback`);
         const state = encodeURIComponent(workspaceId);
-        const scope = encodeURIComponent("https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly");
+        const scope = encodeURIComponent("https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/yt-analytics.readonly");
         window.location.assign(`https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`);
       } else {
         setError(`${platformId.charAt(0).toUpperCase() + platformId.slice(1)} integration is coming soon.`);
@@ -339,8 +368,8 @@ export default function AccountsPage() {
   const connectedPlatforms = oauthPlatforms.filter(p => accounts.some(a => a.platform === p.id)).length;
   const totalAccounts      = accounts.length;
 
-  /* ── Skeleton ── */
-  if (loading) {
+  /* ── Skeleton — only on cold load (no cached data) ── */
+  if (loading && accounts.length === 0) {
     return (
       <div className="max-w-6xl mx-auto px-4 md:px-8 space-y-6">
         <div className="space-y-2">
@@ -388,22 +417,6 @@ export default function AccountsPage() {
           );
         })}
       </div>
-
-      {/* ── Alerts ── */}
-      {success && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 flex items-center gap-3 text-emerald-400 text-sm">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <p className="flex-1">{success}</p>
-          <button onClick={() => setSuccess(null)}><X className="w-4 h-4" /></button>
-        </div>
-      )}
-      {error && (
-        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3.5 flex items-center gap-3 text-rose-400 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <p className="flex-1">{error}</p>
-          <button onClick={() => setError(null)}><X className="w-4 h-4" /></button>
-        </div>
-      )}
 
       {/* ── Platform List ── */}
       <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden divide-y divide-[var(--border)]">
@@ -689,6 +702,14 @@ export default function AccountsPage() {
           You can revoke access at any time from your provider&apos;s security settings.
         </p>
       </div>
+
+      {/* ── Toast notifications ── */}
+      {success && (
+        <Toast message={success} type="success" onClose={() => setSuccess(null)} />
+      )}
+      {error && (
+        <Toast message={error} type="error" onClose={() => setError(null)} />
+      )}
 
     </div>
   );
