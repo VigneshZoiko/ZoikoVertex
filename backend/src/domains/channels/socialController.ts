@@ -752,6 +752,85 @@ export const handleYoutubeCallback = async (req: Request, res: Response, next: N
 
 
 /**
+ * Handles the Google Ads OAuth callback (uses Google OAuth with adwords scope)
+ */
+export const handleGoogleAdsCallback = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { code, state: stateParam, error: oauthError } = req.query;
+
+    if (oauthError) {
+      logger.warn(`[Social] Google Ads OAuth denied: ${oauthError}`);
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=googleads&reason=${encodeURIComponent(oauthError as string)}`);
+    }
+
+    if (!code) {
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=googleads&reason=${encodeURIComponent('No authorization code returned')}`);
+    }
+
+    const workspaceId = stateParam as string;
+    logger.info(`[Social] Handling Google Ads callback for workspace: ${workspaceId}`);
+
+    const clientId     = env.GOOGLE_ADS_CLIENT_ID     || env.YOUTUBE_CLIENT_ID     || '';
+    const clientSecret = env.GOOGLE_ADS_CLIENT_SECRET || env.YOUTUBE_CLIENT_SECRET || '';
+    const redirectUri  = env.GOOGLE_ADS_REDIRECT_URI  || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/googleads/callback`;
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code:          code as string,
+        client_id:     clientId,
+        client_secret: clientSecret,
+        redirect_uri:  redirectUri,
+        grant_type:    'authorization_code',
+      }),
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (tokenData.error) {
+      logger.error({ details: tokenData }, '[Social] Google Ads token exchange failed');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=googleads&reason=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
+    }
+
+    const accessToken  = tokenData.access_token;
+    const refreshToken = tokenData.refresh_token || null;
+
+    // Fetch Google user info for account name
+    const profileRes  = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const profileData = await profileRes.json();
+
+    const accountData: Record<string, unknown> = {
+      workspace_id:  workspaceId,
+      platform:      'googleads',
+      account_name:  profileData.name || profileData.email || 'Google Ads Account',
+      account_handle: profileData.sub || profileData.email,
+      avatar_url:    profileData.picture || null,
+      access_token:  accessToken,
+      status:        'active',
+      token_expires_at: tokenData.expires_in
+        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+        : new Date(Date.now() + 3600 * 1000).toISOString(),
+      token_status: 'active',
+    };
+    if (refreshToken) accountData.refresh_token = refreshToken;
+
+    const { error: dbError } = await supabaseAdmin
+      .from('connected_accounts')
+      .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
+
+    if (dbError) throw dbError;
+
+    logger.info(`[Social] Google Ads account connected for workspace ${workspaceId}`);
+    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=googleads`);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Disconnects a social account
  */
 export const disconnectAccount = async (req: any, res: Response, next: NextFunction) => {
