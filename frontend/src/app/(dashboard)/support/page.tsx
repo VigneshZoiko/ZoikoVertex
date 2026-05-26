@@ -39,74 +39,77 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <div className="mb-10">
-        <h1 className="text-4xl font-black text-white tracking-tight flex items-center">
-          <HelpCircle className="w-10 h-10 mr-4 text-indigo-500" />
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="border-b border-[var(--border)] pb-4">
+        <h1 className="text-xl font-semibold text-[var(--foreground)] flex items-center gap-2.5">
+          <HelpCircle className="w-5 h-5 text-[var(--accent)]" />
           Help &amp; Support
         </h1>
-        <p className="text-zinc-400 mt-2 text-lg">
-          We&apos;re here to ensure your execution remains uninterrupted.
+        <p className="text-sm text-[var(--foreground-muted)] mt-0.5">
+          Get assistance from the ZoikoVertex team
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-3xl hover:border-indigo-500/30 transition-all group">
-          <Mail className="w-8 h-8 text-indigo-400 mb-4 group-hover:scale-110 transition-transform" />
-          <h3 className="text-white font-bold mb-1">Email Support</h3>
-          <p className="text-zinc-500 text-sm">Response within 24h</p>
-          <a href="mailto:support@zoikovertex.com" className="text-indigo-400 text-xs mt-3 flex items-center hover:underline">
-            support@zoikovertex.com <ExternalLink className="w-3 h-3 ml-1" />
+      {/* Contact Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
+          <Mail className="w-5 h-5 text-[var(--accent)] mb-2" />
+          <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5">Email Support</h3>
+          <p className="text-xs text-[var(--foreground-muted)] mb-2">Response within 24 hours</p>
+          <a href="mailto:support@zoikovertex.com" className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1">
+            support@zoikovertex.com <ExternalLink className="w-3 h-3" />
           </a>
         </div>
-        
-        <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-3xl hover:border-indigo-500/30 transition-all group">
-          <MessageSquare className="w-8 h-8 text-emerald-400 mb-4 group-hover:scale-110 transition-transform" />
-          <h3 className="text-white font-bold mb-1">Live Chat</h3>
-          <p className="text-zinc-500 text-sm">Available Mon-Fri</p>
-          <button className="text-emerald-400 text-xs mt-3 flex items-center hover:underline">
-            Open Chat Portal <ExternalLink className="w-3 h-3 ml-1" />
+
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
+          <MessageSquare className="w-5 h-5 text-[var(--accent)] mb-2" />
+          <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5">Live Chat</h3>
+          <p className="text-xs text-[var(--foreground-muted)] mb-2">Available Mon–Fri</p>
+          <button className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1">
+            Open Chat Portal <ExternalLink className="w-3 h-3" />
           </button>
         </div>
 
-        <div className="p-6 bg-zinc-900/50 border border-zinc-800 rounded-3xl hover:border-indigo-500/30 transition-all group">
-          <ShieldCheck className="w-8 h-8 text-amber-400 mb-4 group-hover:scale-110 transition-transform" />
-          <h3 className="text-white font-bold mb-1">Security Report</h3>
-          <p className="text-zinc-500 text-sm">Urgent vulnerabilities</p>
-          <button className="text-amber-400 text-xs mt-3 flex items-center hover:underline">
-            File Secure Report <ExternalLink className="w-3 h-3 ml-1" />
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
+          <ShieldCheck className="w-5 h-5 text-[var(--accent)] mb-2" />
+          <h3 className="text-sm font-medium text-[var(--foreground)] mb-0.5">Security Report</h3>
+          <p className="text-xs text-[var(--foreground-muted)] mb-2">Report urgent vulnerabilities</p>
+          <button className="text-xs text-[var(--accent)] hover:underline inline-flex items-center gap-1">
+            File Secure Report <ExternalLink className="w-3 h-3" />
           </button>
         </div>
       </div>
 
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
-        <div className="p-8 border-b border-zinc-800">
-          <h2 className="text-xl font-bold text-white mb-1">Open a Support Ticket</h2>
-          <p className="text-zinc-500 text-sm">Provide details about the issue you&apos;re encountering.</p>
+      {/* Ticket Form */}
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
+        <div className="px-5 py-4 border-b border-[var(--border)]">
+          <h2 className="text-sm font-semibold text-[var(--foreground)]">Open a Support Ticket</h2>
+          <p className="text-xs text-[var(--foreground-muted)] mt-0.5">Provide details about the issue you&apos;re encountering</p>
         </div>
 
         {submitted ? (
-          <div className="p-12 text-center animate-in fade-in zoom-in duration-500">
-            <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <ShieldCheck className="w-8 h-8 text-emerald-500" />
+          <div className="py-12 px-6 text-center">
+            <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h3 className="text-2xl font-bold text-white mb-2">Request Received</h3>
-            <p className="text-zinc-400 max-w-sm mx-auto">
-              Your support ticket has been prioritized. An expert from the ZoikoVertex team will contact you shortly.
+            <h3 className="text-base font-semibold text-[var(--foreground)] mb-1">Request Received</h3>
+            <p className="text-sm text-[var(--foreground-muted)] max-w-md mx-auto mb-5">
+              Your support ticket has been queued. Our team will follow up shortly.
             </p>
-            <button 
+            <button
               onClick={() => setSubmitted(false)}
-              className="mt-8 text-indigo-400 font-medium hover:underline"
+              className="text-sm text-[var(--accent)] hover:underline font-medium"
             >
               Submit another request
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Issue Category</label>
-                <select name="category" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors">
+                <label className="block text-xs font-medium text-[var(--foreground)] mb-1">Category</label>
+                <select name="category" className="w-full bg-[var(--background)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-colors">
                   <option>Authentication Issue</option>
                   <option>Organization Management</option>
                   <option>Social Posting Error</option>
@@ -115,8 +118,8 @@ export default function SupportPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Urgency Level</label>
-                <select name="urgency" className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors text-amber-500">
+                <label className="block text-xs font-medium text-[var(--foreground)] mb-1">Urgency</label>
+                <select name="urgency" className="w-full bg-[var(--background)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--accent)] transition-colors">
                   <option>Standard (Normal operations)</option>
                   <option>Urgent (Execution blocked)</option>
                   <option>Critical (Security/System down)</option>
@@ -125,37 +128,37 @@ export default function SupportPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Subject</label>
-              <input 
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1">Subject</label>
+              <input
                 name="subject"
-                type="text" 
+                type="text"
                 placeholder="Brief summary of the issue"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-[var(--background)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Description</label>
-              <textarea 
+              <label className="block text-xs font-medium text-[var(--foreground)] mb-1">Description</label>
+              <textarea
                 name="description"
-                rows={5}
-                placeholder="Please describe exactly what happened..."
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+                rows={4}
+                placeholder="Describe what happened in detail"
+                className="w-full bg-[var(--background)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors resize-none"
                 required
               ></textarea>
             </div>
 
-            <button 
+            <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20 flex items-center justify-center"
+              className="w-full py-2.5 bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-white text-sm font-medium rounded-md transition-colors flex items-center justify-center"
             >
               {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
-                  <Send className="w-5 h-5 mr-2" />
+                  <Send className="w-4 h-4 mr-2" />
                   Submit Support Request
                 </>
               )}
