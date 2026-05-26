@@ -86,7 +86,7 @@ export const getWorkflow = async (req: AuthRequest, res: Response, next: NextFun
   }
 };
 
-export const createWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createWorkflow = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const workspaceId = req.user?.workspace_id;
     const userId      = req.user?.id;
@@ -128,7 +128,7 @@ export const createWorkflow = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
-export const updateWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateWorkflow = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const id = getParam(req, 'id');
     const { name, description, risk_level, owner_id, owner_name, brand_ids, platforms } = req.body;
@@ -153,7 +153,7 @@ export const duplicateWorkflow = async (req: AuthRequest, res: Response, next: N
   }
 };
 
-export const deleteWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteWorkflow = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const id = getParam(req, 'id');
     await templateService.deleteDraftTemplate(id);
@@ -189,7 +189,7 @@ export const createDraftVersion = async (req: AuthRequest, res: Response, next: 
   }
 };
 
-export const submitForApproval = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const submitForApproval = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const versionId = getParam(req, 'versionId');
     const result = await versionService.submitForApproval(versionId);
@@ -421,7 +421,7 @@ export const getEscalationPaths = async (req: AuthRequest, res: Response, next: 
   }
 };
 
-export const startWorkflowInstance = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const startWorkflowInstance = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const { workflow_id, version_id, trigger_type, trigger_source, priority } = req.body;
 
@@ -472,7 +472,7 @@ export const getInstance = async (req: AuthRequest, res: Response, next: NextFun
   }
 };
 
-export const transitionInstance = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const transitionInstance = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const instanceId = getParam(req, 'instanceId');
     const { status, reason } = req.body;
@@ -520,7 +520,7 @@ export const getApprovals = async (req: AuthRequest, res: Response, next: NextFu
   }
 };
 
-export const recordApproval = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const recordApproval = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const approvalId = getParam(req, 'approvalId');
     const { decision, decision_reason, edited_output_ref, requested_changes } = req.body;
@@ -559,7 +559,7 @@ export const getApprovalStats = async (req: AuthRequest, res: Response, next: Ne
   }
 };
 
-export const runSimulation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const runSimulation = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const versionId = getParam(req, 'versionId');
     const { scenario_name, sample_input_ref } = req.body;
@@ -610,7 +610,7 @@ export const getWorkflowEvidence = async (req: AuthRequest, res: Response, next:
   }
 };
 
-export const createEvidence = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createEvidence = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   try {
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });

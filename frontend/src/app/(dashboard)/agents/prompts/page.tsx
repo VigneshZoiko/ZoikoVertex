@@ -1048,12 +1048,12 @@ function PromptDetailDrawer({
                 <div className="p-4 bg-black border border-slate-900 rounded-2xl text-[11px] text-slate-400 font-mono leading-relaxed">
                   <span className="text-slate-600 italic">[Version {prompt.active_version} — metadata]</span>
                   <br /><br />
-                  <span className="text-indigo-400">// Role: </span>{prompt.prompt_type}<br />
-                  <span className="text-indigo-400">// Agent: </span>{prompt.linked_agent}<br />
-                  <span className="text-indigo-400">// Workflow: </span>{prompt.linked_workflow}<br />
-                  <span className="text-indigo-400">// Risk Tier: </span>{RISK_META[prompt.risk_tier].label}<br />
-                  <span className="text-indigo-400">// Knowledge: </span>{prompt.knowledge_sources.join(", ") || "None"}<br />
-                  <span className="text-indigo-400">// Tools: </span>{prompt.tools_permitted.join(", ") || "None"}<br /><br />
+                  <span className="text-indigo-400">{"// Role: "}</span>{prompt.prompt_type}<br />
+                  <span className="text-indigo-400">{"// Agent: "}</span>{prompt.linked_agent}<br />
+                  <span className="text-indigo-400">{"// Workflow: "}</span>{prompt.linked_workflow}<br />
+                  <span className="text-indigo-400">{"// Risk Tier: "}</span>{RISK_META[prompt.risk_tier].label}<br />
+                  <span className="text-indigo-400">{"// Knowledge: "}</span>{prompt.knowledge_sources.join(", ") || "None"}<br />
+                  <span className="text-indigo-400">{"// Tools: "}</span>{prompt.tools_permitted.join(", ") || "None"}<br /><br />
                   <span className="text-slate-500">Prompt body was not returned by the registry API. Export via Evidence Vault to retrieve the full body with hash verification.</span>
                 </div>
               )}
