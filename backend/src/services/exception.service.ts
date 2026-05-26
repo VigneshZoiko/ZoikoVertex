@@ -1,7 +1,8 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
-import { internalEventBus } from '../shared/internalEventBus';
 import { broadcastWebhookEvent } from '../domains/integrations/apiWebhookController';
+import { logger } from '../shared/logger';
+import { internalEventBus } from '../shared/internalEventBus';
 
 export type ExceptionStatus = 'NEW' | 'TRIAGE' | 'ASSIGNED' | 'IN_PROGRESS' | 'WAITING_ON_SOURCE' | 'WAITING_ON_VALIDATION' | 'WAITING_ON_APPROVAL' | 'ESCALATED' | 'OVERRIDE_REQUESTED' | 'OVERRIDE_APPROVED' | 'OVERRIDE_DENIED' | 'BLOCKED' | 'RESOLVED' | 'CLOSED' | 'ARCHIVED' | 'CANCELLED';
 export type ExceptionSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -73,7 +74,7 @@ export async function createExceptionCase(input: ExceptionCaseInput): Promise<Ex
   broadcastWebhookEvent(input.workspace_id, 'exception.case_created', {
     exception_id: id, title: input.exception_title,
     category: input.exception_category, severity: input.severity,
-  }).catch(() => {});
+  }).catch((err) => logger.warn({ error: String(err) }, 'Exception webhook broadcast failed (non-blocking)'));
 
   return data as unknown as ExceptionCase;
 }
