@@ -43,12 +43,13 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-600 to-violet-600 text-white shadow-lg shadow-sky-500/20">
-                <span className="text-xl font-black">Z</span>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-950 tracking-tight">ZoikoVertex</p>
-              </div>
+               <img
+        src="/images/logo-wordmark.svg"
+        alt="ZoikoVertex"
+        width={160}
+        height={32}
+        className="h-8 w-auto"
+      />
             </div>
             <div className="hidden sm:flex items-center gap-6 text-sm font-medium text-slate-600">
               <a href="#" className="hover:text-slate-900 transition-colors">Security</a>
