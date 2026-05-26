@@ -200,7 +200,7 @@ import {
   getAuditTrail as getExceptionAuditTrail,
   exportExceptionRecord, closeExceptionCase, archiveExceptionCase,
 } from './domains/governance/exceptionV2Controller';
-import { listItems as listReviewItems, getItem as getReviewItem, takeAction as takeReviewAction, getStats as getReviewStats, getEligibility as getReviewEligibility, getAuditLog as getReviewAuditLog } from './domains/governance/reviewQueueController';
+import { listItems as listReviewItems, getItem as getReviewItem, takeAction as takeReviewAction, getStats as getReviewStats, getEligibility as getReviewEligibility, getAuditLog as getReviewAuditLog, createItem as createReviewItem } from './domains/governance/reviewQueueController';
 import { listValidationItems, getValidationItem, assignValidator, runValidation, revalidateItem, getValidationRunResults, requestRevision, sendToReviewQueue, sendToApprovals, escalateValidation, applyOverride, blockItem, completeManualCheck, addValidatorNote, getValidationAuditTrail, getValidationStats, getValidationEligibility, retryValidationCallback, exportValidationRecord } from './domains/governance/validationController';
 import {
   KnowledgeController,
@@ -1033,6 +1033,7 @@ app.post('/api/v1/governance/rules/conflicts/:conflictId/resolve', authenticate,
 app.post('/api/v1/governance/rules/:id/simulate', authenticate, scopeGuard('write:governance', '*'), runRuleSimulation);
 
 // ─── Review Queue Routes (Accountability Layer) ──────────────────────
+app.post('/api/v1/review-queue', authenticate, scopeGuard('write:governance', '*'), createReviewItem);
 app.get('/api/v1/review-queue', authenticate, scopeGuard('read:governance', '*'), listReviewItems);
 app.get('/api/v1/review-queue/stats', authenticate, scopeGuard('read:governance', '*'), getReviewStats);
 app.get('/api/v1/review-queue/items/:id', authenticate, scopeGuard('read:governance', '*'), getReviewItem);
