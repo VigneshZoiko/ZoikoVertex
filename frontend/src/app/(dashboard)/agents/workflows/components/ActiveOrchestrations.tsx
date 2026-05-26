@@ -1,7 +1,8 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { GitMerge, Loader2, Clock, CheckCircle2, AlertCircle, XCircle, Pause, ShieldAlert, BarChart2 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 // Per doc section 8 — Runtime Operations Requirements
 // Visible data: workflow name, instance ID, current step, owner, SLA, risk score,
@@ -81,7 +82,55 @@ const RiskBar = ({ score }: { score: number }) => {
   );
 };
 
-export default function ActiveOrchestrations({ data }: { data?: Orchestration[] }) {
+export default function ActiveOrchestrations({
+  data,
+  onActionComplete,
+}: {
+  data?: Orchestration[];
+  onActionComplete?: () => void;
+}) {
+  // Track per-instance loading state: key = `${instanceId}:pause` or `${instanceId}:escalate`
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+
+  const setLoading = (id: string, action: string, val: boolean) =>
+    setActionLoading((prev) => ({ ...prev, [`${id}:${action}`]: val }));
+
+  const handlePause = async (orch: Orchestration) => {
+    if (!window.confirm(`Pause instance "${orch.workflowName}" (${orch.id})?\n\nThis will suspend execution at the current step. State is preserved and the run can be resumed.`)) return;
+    setLoading(orch.id, 'pause', true);
+    try {
+      const res = await api.transitionWorkflowInstance(orch.id, { status: 'PAUSED', reason: 'Manually paused from Live Orchestrations panel' });
+      if (res?.success) {
+        onActionComplete?.();
+      } else {
+        alert(res?.error || 'Failed to pause instance. Please try again.');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Network error pausing instance.');
+    } finally {
+      setLoading(orch.id, 'pause', false);
+    }
+  };
+
+  const handleEscalate = async (orch: Orchestration) => {
+    const reason = window.prompt(`Escalate instance "${orch.workflowName}" (${orch.id})?\n\nEnter escalation reason (required):`, '');
+    if (reason === null) return; // cancelled
+    if (!reason.trim()) { alert('Escalation reason is required.'); return; }
+    setLoading(orch.id, 'escalate', true);
+    try {
+      const res = await api.escalateRun(orch.id, reason.trim());
+      if (res?.success) {
+        onActionComplete?.();
+      } else {
+        alert(res?.error || 'Failed to escalate instance. Please try again.');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Network error escalating instance.');
+    } finally {
+      setLoading(orch.id, 'escalate', false);
+    }
+  };
+
   if (!data) {
     return <div className="h-64 animate-pulse bg-[var(--surface)] rounded-2xl" />;
   }
@@ -198,16 +247,24 @@ export default function ActiveOrchestrations({ data }: { data?: Orchestration[] 
                 <td className="px-5 py-4">
                   <div className="flex items-center gap-1.5">
                     <button
-                      title="Pause"
-                      className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-amber-400 transition-colors"
+                      title="Pause instance"
+                      disabled={actionLoading[`${orch.id}:pause`] || orch.status === 'Paused' || orch.status === 'Completed'}
+                      onClick={() => handlePause(orch)}
+                      className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      <Pause className="w-3.5 h-3.5" />
+                      {actionLoading[`${orch.id}:pause`]
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <Pause className="w-3.5 h-3.5" />}
                     </button>
                     <button
-                      title="Escalate"
-                      className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-rose-400 transition-colors"
+                      title="Escalate instance"
+                      disabled={actionLoading[`${orch.id}:escalate`] || orch.status === 'Completed'}
+                      onClick={() => handleEscalate(orch)}
+                      className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-rose-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      <ShieldAlert className="w-3.5 h-3.5" />
+                      {actionLoading[`${orch.id}:escalate`]
+                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : <ShieldAlert className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </td>

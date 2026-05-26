@@ -327,6 +327,10 @@ function CollectionsPanel({
   onDeleteSource,
   onApproveSource,
   onRetireSource,
+  onActivateSource,
+  onPublishSource,
+  onRestrictSource,
+  onQuarantineSource,
   onUpdateCollection,
   onDeleteCollection,
 }: {
@@ -343,6 +347,10 @@ function CollectionsPanel({
   onDeleteSource: (id: string) => void;
   onApproveSource: (id: string) => void;
   onRetireSource: (id: string) => void;
+  onActivateSource: (id: string) => void;
+  onPublishSource: (id: string) => void;
+  onRestrictSource: (id: string) => void;
+  onQuarantineSource: (id: string) => void;
   onUpdateCollection?: (id: string, data: Partial<KnowledgeCollection>) => void;
   onDeleteCollection?: (id: string) => void;
 }) {
@@ -455,6 +463,10 @@ function CollectionsPanel({
                       onDelete={onDeleteSource}
                       onApprove={onApproveSource}
                       onRetire={onRetireSource}
+                      onActivate={onActivateSource}
+                      onPublish={onPublishSource}
+                      onRestrict={onRestrictSource}
+                      onQuarantine={onQuarantineSource}
                     />
                   ))}
                 </div>
@@ -981,31 +993,61 @@ function TaxonomyPanel() {
   );
 }
 
+const SETTINGS_DEFAULTS = [
+  { key: "review_cadence", label: "Default Review Cadence", default: "90 days", icon: Clock3 },
+  { key: "chunking_strategy", label: "Default Chunking Strategy", default: "Semantic structure", icon: Layers },
+  { key: "embedding_model", label: "Embedding Model", default: "text-embedding-3-large", icon: Brain },
+  { key: "citation_policy", label: "Citation Policy", default: "Required for claim-sensitive outputs", icon: ShieldCheck },
+  { key: "stale_threshold", label: "Stale Source Threshold", default: "30 days past review date", icon: AlertTriangle },
+  { key: "duplicate_detection", label: "Duplicate Detection", default: "Enabled — fingerprint + near-duplicate", icon: FlaskConical },
+  { key: "pii_scan", label: "PII Scan", default: "Enabled — blocks publication", icon: Lock },
+  { key: "retention_policy", label: "Retention Policy", default: "Retired sources: 7 years", icon: Archive },
+];
+
 function SettingsPanel() {
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [loadingSettings, setLoadingSettings] = useState(true);
+
+  useEffect(() => {
+    api.get("/api/v1/knowledge/settings")
+      .then((res) => {
+        if (res?.success && res.data && typeof res.data === "object") {
+          // Map API response fields to display values
+          const mapped: Record<string, string> = {};
+          if (res.data.review_cadence != null) mapped.review_cadence = `${res.data.review_cadence} days`;
+          if (res.data.chunking_strategy) mapped.chunking_strategy = res.data.chunking_strategy;
+          if (res.data.embedding_model) mapped.embedding_model = res.data.embedding_model;
+          if (res.data.citation_policy) mapped.citation_policy = res.data.citation_policy;
+          if (res.data.stale_threshold != null) mapped.stale_threshold = `${res.data.stale_threshold} days past review date`;
+          if (res.data.duplicate_detection != null) mapped.duplicate_detection = res.data.duplicate_detection ? "Enabled — fingerprint + near-duplicate" : "Disabled";
+          if (res.data.pii_scan != null) mapped.pii_scan = res.data.pii_scan ? "Enabled — blocks publication" : "Disabled";
+          if (res.data.retention_policy) mapped.retention_policy = res.data.retention_policy;
+          setSettings(mapped);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSettings(false));
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-black text-white uppercase tracking-wider">Knowledge Governance Settings</h2>
-        <p className="text-xs text-zinc-500">Chunking, embedding, review cadence, citation policy</p>
+        <p className="text-xs text-zinc-500">
+          {loadingSettings ? "Loading workspace settings…" : "Workspace-level defaults · contact AI Operations to change"}
+        </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[
-          { label: "Default Review Cadence", value: "90 days", icon: Clock3 },
-          { label: "Default Chunking Strategy", value: "Semantic structure", icon: Layers },
-          { label: "Embedding Model", value: "text-embedding-3-large", icon: Brain },
-          { label: "Citation Policy", value: "Required for claim-sensitive outputs", icon: ShieldCheck },
-          { label: "Stale Source Threshold", value: "30 days past review date", icon: AlertTriangle },
-          { label: "Duplicate Detection", value: "Enabled — fingerprint + near-duplicate", icon: FlaskConical },
-          { label: "PII Scan", value: "Enabled — blocks publication", icon: Lock },
-          { label: "Retention Policy", value: "Retired sources: 7 years", icon: Archive },
-        ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-5 flex items-start gap-3">
+        {SETTINGS_DEFAULTS.map(({ key, label, default: def, icon: Icon }) => (
+          <div key={key} className="bg-zinc-900/40 border border-zinc-800/50 rounded-2xl p-5 flex items-start gap-3">
             <div className="p-2 bg-zinc-800/60 rounded-lg text-zinc-400 shrink-0">
               <Icon className="w-4 h-4" />
             </div>
             <div>
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{label}</p>
-              <p className="text-sm font-bold text-white mt-0.5">{value}</p>
+              <p className="text-sm font-bold text-white mt-0.5">
+                {loadingSettings ? <span className="text-zinc-600 animate-pulse">Loading…</span> : (settings[key] ?? def)}
+              </p>
             </div>
           </div>
         ))}
@@ -1150,9 +1192,57 @@ function CreateSourceModal({
   const [secondaryColor, setSecondaryColor] = useState("");
   const [visualStyle, setVisualStyle] = useState("");
   const [fontFamily, setFontFamily] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const ALLOWED_FILE_EXTENSIONS = [".pdf", ".docx", ".pptx", ".txt", ".csv", ".md"];
+  const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
   const handleSubmit = () => {
-    if (!title && !selectedFile) return;
+    setValidationError(null);
+
+    if (!title) {
+      setValidationError("Title is required before ingesting a source.");
+      return;
+    }
+
+    if (!content.trim() && !sourceUrl.trim() && !selectedFile) {
+      setValidationError(
+        "Please provide at least one of: a Source URL, a file upload, or manual content."
+      );
+      return;
+    }
+
+    if (selectedFile) {
+      const ext = "." + (selectedFile.name.split(".").pop()?.toLowerCase() ?? "");
+      if (!ALLOWED_FILE_EXTENSIONS.includes(ext)) {
+        setValidationError(
+          `Unsupported file type "${ext}". Allowed formats: PDF, DOCX, PPTX, TXT, CSV, MD.`
+        );
+        return;
+      }
+      if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
+        setValidationError(
+          `File is too large (${(selectedFile.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is 10 MB.`
+        );
+        return;
+      }
+    }
+
+    if (sourceUrl.trim()) {
+      try {
+        const parsed = new URL(sourceUrl.trim());
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+          setValidationError("Source URL must begin with http:// or https://");
+          return;
+        }
+      } catch {
+        setValidationError(
+          "Source URL is not valid. Please enter a full URL, e.g. https://example.com/doc"
+        );
+        return;
+      }
+    }
+
     const formData = new FormData();
     formData.append("title", title);
     formData.append("content", content);
@@ -1288,7 +1378,7 @@ function CreateSourceModal({
                     <div className="text-center">
                       <p className="text-sm font-bold text-zinc-400">Click to upload or drag & drop</p>
                       <p className="text-[10px] text-zinc-600 mt-1 uppercase font-black tracking-tighter max-w-[240px]">
-                        Source will be scanned for duplicates, PII, and offensive content before processing
+                        Server-side: duplicate detection, PII check, and content scan run on ingestion
                       </p>
                     </div>
                   </>
@@ -1363,9 +1453,16 @@ function CreateSourceModal({
             </p>
           </div>
 
+          {validationError && (
+            <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 flex items-start gap-3">
+              <Info className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-rose-400 leading-relaxed font-medium">{validationError}</p>
+            </div>
+          )}
+
           <button
             onClick={handleSubmit}
-            disabled={creating || (!title && !selectedFile)}
+            disabled={creating || !title}
             className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-2"
           >
             {creating ? (
@@ -1391,6 +1488,24 @@ function CreateConflictModal({ onClose, onCreate }: {
   const [summary, setSummary] = useState("");
   const [severity, setSeverity] = useState<ConflictSeverity>("MEDIUM");
   const [sourceIds, setSourceIds] = useState("");
+  const [conflictValidationError, setConflictValidationError] = useState<string | null>(null);
+
+  const parsedSourceIds = sourceIds.split(",").map((s) => s.trim()).filter(Boolean);
+
+  const handleConflictSubmit = () => {
+    setConflictValidationError(null);
+    if (!summary.trim()) {
+      setConflictValidationError("Conflict summary is required.");
+      return;
+    }
+    if (parsedSourceIds.length < 1) {
+      setConflictValidationError(
+        "At least one Source ID is required. A conflict must reference the sources in dispute."
+      );
+      return;
+    }
+    onCreate({ summary, severity, source_ids: parsedSourceIds });
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -1414,13 +1529,19 @@ function CreateConflictModal({ onClose, onCreate }: {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Source IDs (comma-sep)</label>
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Source IDs * (comma-sep)</label>
               <input value={sourceIds} onChange={(e) => setSourceIds(e.target.value)} placeholder="src-001, src-002"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-3 text-white placeholder:text-zinc-700 outline-none focus:border-indigo-500 transition-all text-xs" />
             </div>
           </div>
-          <button onClick={() => onCreate({ summary, severity, source_ids: sourceIds.split(",").map(s => s.trim()).filter(Boolean) })}
-            disabled={!summary}
+          {conflictValidationError && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+              <Info className="w-4 h-4 shrink-0 mt-0.5" />
+              {conflictValidationError}
+            </div>
+          )}
+          <button onClick={handleConflictSubmit}
+            disabled={!summary || parsedSourceIds.length === 0}
             className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20">
             <Plus className="w-4 h-4" /> REPORT CONFLICT
           </button>
@@ -1749,6 +1870,10 @@ export default function KnowledgePage() {
             onDeleteSource={handleDeleteSource}
             onApproveSource={handleApproveSource}
             onRetireSource={handleRetireSource}
+            onActivateSource={handleActivateSource}
+            onPublishSource={handlePublishSource}
+            onRestrictSource={handleRestrictSource}
+            onQuarantineSource={handleQuarantineSource}
             onUpdateCollection={handleUpdateCollection}
             onDeleteCollection={handleDeleteCollection}
           />
