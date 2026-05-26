@@ -7,6 +7,55 @@ async function getTenantId(req: AuthRequest): Promise<string> {
   return req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
 }
 
+export async function createItem(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const tenantId = await getTenantId(req);
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const body = req.body as {
+      workspace_id: string;
+      item_type: string;
+      source_module: string;
+      source_entity_id: string;
+      title: string;
+      content_snapshot?: Record<string, unknown>;
+      platform?: string;
+      campaign_id?: string;
+      priority?: string;
+      risk_level?: string;
+      risk_category?: string;
+      due_at?: string;
+    };
+
+    const item = await reviewQueueService.createReviewItem({
+      tenant_id: tenantId,
+      workspace_id: body.workspace_id || tenantId,
+      item_type: body.item_type as any,
+      source_module: body.source_module,
+      source_entity_id: body.source_entity_id,
+      title: body.title,
+      content_snapshot: body.content_snapshot,
+      platform: body.platform,
+      campaign_id: body.campaign_id,
+      submitted_by: userId,
+      priority: body.priority as any,
+      risk_level: body.risk_level as any,
+      risk_category: body.risk_category,
+      due_at: body.due_at,
+    });
+
+    await logReviewAuditEvent({
+      workspaceId: tenantId, userId, itemId: item.id, action: 'review.item.created',
+      summary: `Review item "${item.title}" created`, itemType: item.item_type, riskLevel: item.risk_level,
+    });
+
+    res.status(201).json({ success: true, data: item });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function listItems(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const tenantId = await getTenantId(req);
@@ -208,6 +257,26 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.assigned',
         summary: `Review item "${item.title}" assigned`,
         itemType: item.item_type, riskLevel: item.risk_level,
+      });
+
+      return res.json({ success: true, data: updated });
+    }
+
+    if (action === 'release') {
+      if (item.status !== 'APPROVED') {
+        return res.status(400).json({ error: 'Only approved items can be released' });
+      }
+
+      const updated = await reviewQueueService.updateReviewItemStatus({
+        id, tenant_id: tenantId, status: 'RELEASED', userId,
+      });
+      await reviewQueueService.recordDecision({
+        review_item_id: id, decision_type: 'APPROVED', reason: 'Released to production', decided_by: userId,
+      });
+
+      await logReviewAuditEvent({
+        workspaceId: tenantId, userId, itemId: id, action: 'review.item.released',
+        summary: `Review item "${item.title}" released`, itemType: item.item_type, riskLevel: item.risk_level,
       });
 
       return res.json({ success: true, data: updated });

@@ -63,8 +63,8 @@ export async function emitAgentEvent(
         metadata,
         timestamp: new Date().toISOString(),
       }]);
-    } catch {
-      // Table may not exist yet — non-blocking
+    } catch (err) {
+      logToDatabase('warn', SERVICE, 'agent_events table unavailable (non-blocking)', { error: String(err) });
     }
     
     return { success: true, event_id: eventId };

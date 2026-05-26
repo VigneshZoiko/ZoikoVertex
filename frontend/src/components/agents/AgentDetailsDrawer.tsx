@@ -108,12 +108,10 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
 
   useEffect(() => {
     if (isOpen && agent) {
-      setIncidents([
-        { id: 'inc-001', severity: 'WARNING', incident_type: 'BRAND_DRIFT', description: 'Attempted non-standard brand tone deviation.', created_at: new Date(Date.now() - 86400000).toISOString() },
-        { id: 'inc-002', severity: 'INFO', incident_type: 'POLICY_CHECK', description: 'Routine safety scan passed with 99% confidence.', created_at: new Date(Date.now() - 172800000).toISOString() },
-      ]);
-
       Promise.allSettled([
+        api.get(`/api/v1/agents/${agent.id}/incidents`).then(r => {
+          if (r.success) setIncidents(r.incidents || r.data || []);
+        }).catch(() => {}),
         api.get(`/api/v1/agents/${agent.id}/versions`).then(r => {
           if (r.success) setVersions(r.versions || []);
         }).catch(() => {}),

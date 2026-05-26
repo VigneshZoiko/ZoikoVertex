@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bot,
@@ -67,94 +67,6 @@ interface Agent {
     environment?: string;
   } | null;
 }
-
-const MOCK_AGENTS: Agent[] = [
-  {
-    id: "00000000-0000-0000-0000-000000000001",
-    name: "Nexus Content Lead",
-    type: "content",
-    primary_dri: { full_name: "Harsha R.", email: "harsha@zoiko.com" },
-    backup_dri: { full_name: "Minit S.", email: "minit@zoiko.com" },
-    autonomy_level: "L4",
-    status: "ACTIVE",
-    risk_level: "medium",
-    trust_score: 0.94,
-    faithfulness_score: 0.98,
-    last_activity: "2 mins ago",
-    created_at: new Date().toISOString(),
-    assigned_brand: "Zoiko Core",
-    linked_channels: ["linkedin", "x", "instagram"],
-    linked_prompts: ["p-01"],
-    linked_workflows: ["wf-launch"],
-    linked_policies: ["policy-brand-safe"],
-    linked_knowledge_sources: ["kb-brand", "kb-market"],
-    purpose: "Drafts multi-platform launch content inside approved workflows.",
-    runtime_controls: { environment: "production" },
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000002",
-    name: "Sentinel Optimizer",
-    type: "optimization",
-    primary_dri: { full_name: "Minit S.", email: "minit@zoiko.com" },
-    autonomy_level: "L3",
-    status: "PAUSED",
-    risk_level: "low",
-    trust_score: 0.88,
-    faithfulness_score: 0.92,
-    last_activity: "1 hour ago",
-    created_at: new Date().toISOString(),
-    assigned_brand: "Zoiko Enterprise",
-    linked_channels: ["internal"],
-    linked_prompts: ["p-ops"],
-    linked_workflows: ["wf-scheduler"],
-    linked_policies: [],
-    linked_knowledge_sources: ["kb-analytics"],
-    purpose: "Recommends scheduling windows and sequencing plans.",
-    runtime_controls: { environment: "staging" },
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000003",
-    name: "Vision Research Bot",
-    type: "research",
-    primary_dri: { full_name: "Naresh K.", email: "naresh@zoiko.com" },
-    autonomy_level: "L5",
-    status: "APPROVED",
-    risk_level: "high",
-    trust_score: 0.96,
-    faithfulness_score: 0.99,
-    last_activity: "Just now",
-    created_at: new Date().toISOString(),
-    assigned_brand: "Zoiko Core",
-    linked_channels: ["internal", "linkedin"],
-    linked_prompts: ["p-research"],
-    linked_workflows: ["wf-research"],
-    linked_policies: ["policy-evidence"],
-    linked_knowledge_sources: ["kb-market", "kb-competitor", "kb-audience"],
-    purpose: "Builds evidence-backed briefs and opportunity reports.",
-    runtime_controls: { environment: "sandbox" },
-  },
-  {
-    id: "00000000-0000-0000-0000-000000000004",
-    name: "Brand Guardian",
-    type: "governance",
-    primary_dri: { full_name: "Harsha R.", email: "harsha@zoiko.com" },
-    autonomy_level: "L2",
-    status: "PENDING_CERTIFICATION",
-    risk_level: "critical",
-    trust_score: 0,
-    faithfulness_score: 0,
-    last_activity: "Created today",
-    created_at: new Date().toISOString(),
-    assigned_brand: "Zoiko Core",
-    linked_channels: ["internal"],
-    linked_prompts: [],
-    linked_workflows: [],
-    linked_policies: ["policy-brand-safe"],
-    linked_knowledge_sources: [],
-    purpose: "Checks brand alignment, prohibited claims, and escalation paths.",
-    runtime_controls: { environment: "sandbox" },
-  },
-];
 
 // All lifecycle states from spec
 const STATUS_OPTIONS = [
@@ -258,10 +170,18 @@ export default function StudioPage() {
   const [isSandboxOpen, setIsSandboxOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isKillSwitchOpen, setIsKillSwitchOpen] = useState(false);
+  const [importTemplateData, setImportTemplateData] = useState<Record<string, unknown> | undefined>(undefined);
+  const importFileRef = useRef<HTMLInputElement>(null);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  const [actionLoading, setActionLoading] = useState<Record<string, string>>({});
-  const [safetyCheckLoading, setSafetyCheckLoading] = useState<string | null>(null);
-  const [evidenceExportLoading, setEvidenceExportLoading] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<Record<string, string>>(
+    {},
+  );
+  const [safetyCheckLoading, setSafetyCheckLoading] = useState<string | null>(
+    null,
+  );
+  const [evidenceExportLoading, setEvidenceExportLoading] = useState<
+    string | null
+  >(null);
 
   const normalizedRole = (role || "").toUpperCase();
   const canManageAuthority = [
@@ -278,7 +198,8 @@ export default function StudioPage() {
         setLoading(true);
         setError(null);
         if (!activeWorkspace) {
-          setAgents(MOCK_AGENTS);
+          setAgents([]);
+          setError("Workspace context is not available yet for Agent Studio.");
           return;
         }
         const params = new URLSearchParams({ workspaceId: activeWorkspace });
@@ -286,20 +207,25 @@ export default function StudioPage() {
         if (riskFilter) params.set("risk_level", riskFilter);
         const result = await api.get(`/api/v1/agents?${params.toString()}`);
         if (result.success && Array.isArray(result.data)) {
-          setAgents(result.data.length ? result.data : []);
+          setAgents(result.data);
         } else {
-          setAgents(MOCK_AGENTS);
+          setError(
+            typeof result.error === "string"
+              ? result.error
+              : "Unable to load the governed agent catalog.",
+          );
+          setAgents([]);
         }
       } catch {
         setError(
-          "Live agent registry unavailable. Showing last known governed authority records."
+          "Live agent registry unavailable. Check your authentication and backend connection.",
         );
-        setAgents(MOCK_AGENTS);
+        setAgents([]);
       } finally {
         setLoading(false);
       }
     },
-    [workspaceId, statusFilter, riskFilter]
+    [workspaceId, statusFilter, riskFilter],
   );
 
   useEffect(() => {
@@ -310,7 +236,8 @@ export default function StudioPage() {
         setWorkspaceId(nextWorkspaceId);
         await fetchAgents(nextWorkspaceId);
       } catch {
-        setAgents(MOCK_AGENTS);
+        setError("Unable to load workspace context for Agent Studio.");
+        setAgents([]);
         setLoading(false);
       }
     };
@@ -358,7 +285,7 @@ export default function StudioPage() {
       if (agent.status === "ACTIVE") return "Export Evidence";
       return "Open Agent";
     },
-    [getReadiness]
+    [getReadiness],
   );
 
   const getNextActionDescription = useCallback((agent: Agent) => {
@@ -407,13 +334,20 @@ export default function StudioPage() {
     try {
       const res = await api.get(`/api/v1/agents/${agent.id}/evidence`);
       if (res.success) {
-        setSuccessMsg(`Evidence bundle exported for "${agent.name}". Bundle ID: ${res.data?.bundle_id || res.data?.id || "generated"}`);
+        setSuccessMsg(
+          `Evidence bundle exported for "${agent.name}". Bundle ID: ${res.data?.bundle_id || res.data?.id || "generated"}`,
+        );
         setTimeout(() => setSuccessMsg(null), 6000);
       } else {
-        setError(`Evidence export failed for "${agent.name}". Check your permissions.`);
+        setError(
+          `Evidence export failed for "${agent.name}". Check your permissions.`,
+        );
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : `Evidence export failed for "${agent.name}".`;
+      const msg =
+        err instanceof Error
+          ? err.message
+          : `Evidence export failed for "${agent.name}".`;
       setError(msg);
     } finally {
       setEvidenceExportLoading(null);
@@ -425,18 +359,28 @@ export default function StudioPage() {
     setSafetyCheckLoading(agent.id);
     setError(null);
     try {
-      const res = await api.post(`/api/v1/agents/${agent.id}/safety-checks/run`, {
-        triggered_by: "studio_manual",
-      });
+      const res = await api.post(
+        `/api/v1/agents/${agent.id}/safety-checks/run`,
+        {
+          content:
+            agent.purpose ||
+            `${agent.name} safety verification run from Agent Studio.`,
+        },
+      );
       if (res.success) {
-        setSuccessMsg(`Safety checks initiated for "${agent.name}". Results will update in the agent profile.`);
+        setSuccessMsg(
+          `Safety checks initiated for "${agent.name}". Results will update in the agent profile.`,
+        );
         setTimeout(() => setSuccessMsg(null), 6000);
         await fetchAgents(workspaceId);
       } else {
         setError(`Safety check failed to start for "${agent.name}".`);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : `Safety check error for "${agent.name}".`;
+      const msg =
+        err instanceof Error
+          ? err.message
+          : `Safety check error for "${agent.name}".`;
       setError(msg);
     } finally {
       setSafetyCheckLoading(null);
@@ -448,28 +392,52 @@ export default function StudioPage() {
     setActionLoading((c) => ({ ...c, [agent.id]: "deploy" }));
     setError(null);
     try {
-      // Step 1: Validate governance gates before deploy
-      const gatesRes = await api.get(`/api/v1/agents/${agent.id}/governance-gates`).catch(() => null);
+      // Step 1: Validate governance gates before deploy — gate API failure MUST block deploy
+      let gatesRes: Awaited<ReturnType<typeof api.get>> | null = null;
+      try {
+        gatesRes = await api.get(`/api/v1/agents/${agent.id}/governance-gates`);
+      } catch {
+        setError(
+          "Governance-gate check failed. Cannot proceed with deploy until gates are verifiable.",
+        );
+        return;
+      }
       if (gatesRes?.data) {
         const gates = gatesRes.data;
-        const blockingFailed = (gates.failed_gates || []).filter((g: { blocking: boolean }) => g.blocking);
+        const blockingFailed = (gates.failed_gates || []).filter(
+          (g: { blocking: boolean }) => g.blocking,
+        );
         if (blockingFailed.length > 0) {
-          const gateNames = blockingFailed.map((g: { name: string }) => g.name).join(", ");
-          setError(`Deploy blocked: ${blockingFailed.length} governance gate(s) failed — ${gateNames}. Resolve before deploying.`);
+          const gateNames = blockingFailed
+            .map((g: { name: string }) => g.name)
+            .join(", ");
+          setError(
+            `Deploy blocked: ${blockingFailed.length} governance gate(s) failed — ${gateNames}. Resolve before deploying.`,
+          );
           return;
         }
       }
       // Step 2: Proceed with deploy
-      const env = environmentFilter || agent.runtime_controls?.environment || "production";
+      const env =
+        environmentFilter ||
+        agent.runtime_controls?.environment ||
+        "production";
       await api.post(`/api/v1/agents/${agent.id}/deploy`, { environment: env });
       setSuccessMsg(`"${agent.name}" deployed to ${env} successfully.`);
       setTimeout(() => setSuccessMsg(null), 5000);
       await fetchAgents(workspaceId);
     } catch (deployErr) {
-      const msg = deployErr instanceof Error ? deployErr.message : `Deploy failed for "${agent.name}".`;
+      const msg =
+        deployErr instanceof Error
+          ? deployErr.message
+          : `Deploy failed for "${agent.name}".`;
       setError(msg);
     } finally {
-      setActionLoading((c) => { const n = { ...c }; delete n[agent.id]; return n; });
+      setActionLoading((c) => {
+        const n = { ...c };
+        delete n[agent.id];
+        return n;
+      });
     }
   };
 
@@ -482,52 +450,76 @@ export default function StudioPage() {
       | "resume"
       | "retire"
       | "clone"
-      | "rollback"
+      | "rollback",
   ) => {
-    const endpoints: Record<
-      typeof action,
-      { url: string; body: Record<string, unknown> }
-    > = {
-      approval: {
-        url: `/api/v1/agents/${agent.id}/approval/request`,
-        body: {
+    try {
+      setActionLoading((current) => ({ ...current, [agent.id]: action }));
+      let result;
+
+      if (action === "rollback") {
+        const versionsRes = await api.get(`/api/v1/agents/${agent.id}/versions`);
+        const versions = Array.isArray(versionsRes?.versions)
+          ? versionsRes.versions
+          : [];
+        const targetVersion = versions[0]?.id;
+
+        if (!targetVersion) {
+          setError(
+            `Rollback unavailable for "${agent.name}" because no prior version history exists yet.`,
+          );
+          return;
+        }
+
+        result = await api.post(`/api/v1/agents/${agent.id}/rollback`, {
+          version_id: targetVersion,
+        });
+      } else if (action === "approval") {
+        result = await api.post(`/api/v1/agents/${agent.id}/approval/request`, {
           notes: `Approval requested from Agent Studio for ${agent.name}.`,
-        },
-      },
-      deploy: {
-        url: `/api/v1/agents/${agent.id}/deploy`,
-        body: {
+        });
+      } else if (action === "deploy") {
+        result = await api.post(`/api/v1/agents/${agent.id}/deploy`, {
           environment:
             environmentFilter ||
             agent.runtime_controls?.environment ||
             "production",
-        },
-      },
-      pause: {
-        url: `/api/v1/agents/${agent.id}/pause`,
-        body: { reason: `Paused from Agent Studio for ${agent.name}.` },
-      },
-      resume: {
-        url: `/api/v1/agents/${agent.id}/resume`,
-        body: { reason: `Resumed from Agent Studio for ${agent.name}.` },
-      },
-      retire: {
-        url: `/api/v1/agents/${agent.id}/retire`,
-        body: { reason: `Retired from Agent Studio for ${agent.name}.` },
-      },
-      clone: {
-        url: `/api/v1/agents/${agent.id}/clone`,
-        body: {},
-      },
-      rollback: {
-        url: `/api/v1/agents/${agent.id}/rollback`,
-        body: {},
-      },
-    };
+        });
+      } else if (action === "pause") {
+        result = await api.post(`/api/v1/agents/${agent.id}/pause`, {
+          reason: `Paused from Agent Studio for ${agent.name}.`,
+        });
+      } else if (action === "resume") {
+        result = await api.post(`/api/v1/agents/${agent.id}/resume`, {
+          reason: `Resumed from Agent Studio for ${agent.name}.`,
+        });
+      } else if (action === "retire") {
+        result = await api.post(`/api/v1/agents/${agent.id}/retire`, {
+          reason: `Retired from Agent Studio for ${agent.name}.`,
+        });
+      } else {
+        result = await api.post(`/api/v1/agents/${agent.id}/clone`, {});
+      }
 
-    try {
-      setActionLoading((current) => ({ ...current, [agent.id]: action }));
-      await api.post(endpoints[action].url, endpoints[action].body);
+      if (!result?.success) {
+        setError(
+          typeof result?.error === "string"
+            ? result.error
+            : `Unable to ${action} ${agent.name}.`,
+        );
+        return;
+      }
+
+      const actionMessages: Record<string, string> = {
+        approval: `"${agent.name}" was submitted into the approval workflow.`,
+        deploy: `"${agent.name}" deployed successfully.`,
+        pause: `"${agent.name}" is now paused.`,
+        resume: `"${agent.name}" resumed successfully.`,
+        retire: `"${agent.name}" was retired and preserved for audit.`,
+        clone: `"${agent.name}" was cloned into a new draft.`,
+        rollback: `"${agent.name}" rolled back to the latest approved version snapshot.`,
+      };
+      setSuccessMsg(actionMessages[action]);
+      setTimeout(() => setSuccessMsg(null), 5000);
       await fetchAgents(workspaceId);
       if (selectedAgent?.id === agent.id) {
         setSelectedAgent((current) =>
@@ -537,11 +529,13 @@ export default function StudioPage() {
                 status:
                   action === "pause"
                     ? "PAUSED"
+                    : action === "resume"
+                      ? "ACTIVE"
                     : action === "retire"
-                    ? "RETIRED"
-                    : current.status,
+                      ? "RETIRED"
+                      : current.status,
               }
-            : current
+            : current,
         );
       }
     } catch (actionError) {
@@ -561,54 +555,54 @@ export default function StudioPage() {
 
   const hasFilters = Boolean(
     searchTerm ||
-      statusFilter ||
-      riskFilter ||
-      brandFilter ||
-      ownerFilter ||
-      channelFilter ||
-      workflowFilter ||
-      knowledgeFilter ||
-      environmentFilter
+    statusFilter ||
+    riskFilter ||
+    brandFilter ||
+    ownerFilter ||
+    channelFilter ||
+    workflowFilter ||
+    knowledgeFilter ||
+    environmentFilter,
   );
 
   const brandOptions = useMemo(
     () =>
       Array.from(
-        new Set(agents.map((a) => a.assigned_brand).filter(Boolean))
+        new Set(agents.map((a) => a.assigned_brand).filter(Boolean)),
       ) as string[],
-    [agents]
+    [agents],
   );
 
   const ownerOptions = useMemo(
     () =>
       Array.from(
-        new Set(agents.map((a) => a.primary_dri?.full_name).filter(Boolean))
+        new Set(agents.map((a) => a.primary_dri?.full_name).filter(Boolean)),
       ) as string[],
-    [agents]
+    [agents],
   );
 
   const channelOptions = useMemo(
     () =>
       Array.from(
-        new Set(agents.flatMap((a) => a.linked_channels || []))
+        new Set(agents.flatMap((a) => a.linked_channels || [])),
       ).sort(),
-    [agents]
+    [agents],
   );
 
   const workflowOptions = useMemo(
     () =>
       Array.from(
-        new Set(agents.flatMap((a) => a.linked_workflows || []))
+        new Set(agents.flatMap((a) => a.linked_workflows || [])),
       ).sort(),
-    [agents]
+    [agents],
   );
 
   const knowledgeOptions = useMemo(
     () =>
       Array.from(
-        new Set(agents.flatMap((a) => a.linked_knowledge_sources || []))
+        new Set(agents.flatMap((a) => a.linked_knowledge_sources || [])),
       ).sort(),
-    [agents]
+    [agents],
   );
 
   const filteredAgents = useMemo(() => {
@@ -618,14 +612,13 @@ export default function StudioPage() {
         normalizeText(agent.name).includes(normalizeText(searchTerm)) ||
         normalizeText(agent.type).includes(normalizeText(searchTerm)) ||
         normalizeText(agent.primary_dri?.full_name).includes(
-          normalizeText(searchTerm)
+          normalizeText(searchTerm),
         ) ||
         normalizeText(agent.assigned_brand).includes(normalizeText(searchTerm));
       const matchesStatus = !statusFilter || agent.status === statusFilter;
       const matchesRisk =
         !riskFilter || normalizeText(agent.risk_level) === riskFilter;
-      const matchesBrand =
-        !brandFilter || agent.assigned_brand === brandFilter;
+      const matchesBrand = !brandFilter || agent.assigned_brand === brandFilter;
       const matchesOwner =
         !ownerFilter || agent.primary_dri?.full_name === ownerFilter;
       const matchesChannel =
@@ -668,16 +661,16 @@ export default function StudioPage() {
   const summary = useMemo(() => {
     const active = agents.filter((a) => a.status === "ACTIVE").length;
     const certified = agents.filter((a) =>
-      ["APPROVED", "ACTIVE"].includes(a.status)
+      ["APPROVED", "ACTIVE"].includes(a.status),
     ).length;
     const riskAlerts = agents.filter((a) =>
-      ["RESTRICTED", "SUSPENDED", "IN_REVIEW", "PAUSED"].includes(a.status)
+      ["RESTRICTED", "SUSPENDED", "IN_REVIEW", "PAUSED"].includes(a.status),
     ).length;
     const avgTrust = agents.length
       ? `${Math.round(
           (agents.reduce((sum, a) => sum + (a.trust_score || 0), 0) /
             agents.length) *
-            100
+            100,
         )}%`
       : "—";
     const governanceDebt = agents.filter((a) => getReadiness(a) < 80).length;
@@ -686,10 +679,39 @@ export default function StudioPage() {
 
   return (
     <div className="p-8 mx-auto max-w-[1500px] space-y-6">
+      {/* Hidden file input for Import Template */}
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".json"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            try {
+              const parsed = JSON.parse(ev.target?.result as string);
+              if (typeof parsed !== "object" || Array.isArray(parsed)) {
+                throw new Error("Template must be a JSON object.");
+              }
+              setImportTemplateData(parsed);
+              setIsWizardOpen(true);
+            } catch (err: any) {
+              setError(`Invalid template file: ${err?.message || "Not valid JSON."}`);
+            }
+          };
+          reader.readAsText(file);
+          // Reset so the same file can be re-imported
+          e.target.value = "";
+        }}
+      />
+
       <CreateAgentWizard
         isOpen={isWizardOpen}
-        onClose={() => setIsWizardOpen(false)}
+        onClose={() => { setIsWizardOpen(false); setImportTemplateData(undefined); }}
         onSuccess={() => fetchAgents(workspaceId)}
+        initialData={importTemplateData}
       />
 
       {selectedAgent && (
@@ -699,7 +721,34 @@ export default function StudioPage() {
           agentId={selectedAgent.id}
           agentName={selectedAgent.name}
           currentLevel={selectedAgent.autonomy_level}
-          onCertified={() => fetchAgents(workspaceId)}
+          onCertified={(newLevel, newTrustScore, newFaithfulnessScore) => {
+            // Optimistic local update — works even when backend is mock/unavailable
+            setAgents((prev) =>
+              prev.map((a) =>
+                a.id === selectedAgent?.id
+                  ? {
+                      ...a,
+                      autonomy_level: newLevel,
+                      trust_score: newTrustScore,
+                      faithfulness_score: newFaithfulnessScore,
+                    }
+                  : a,
+              ),
+            );
+            // Also update selectedAgent so AgentDetailsDrawer reflects the change immediately
+            setSelectedAgent((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    autonomy_level: newLevel,
+                    trust_score: newTrustScore,
+                    faithfulness_score: newFaithfulnessScore,
+                  }
+                : prev,
+            );
+            // Then re-fetch in background to sync with server
+            fetchAgents(workspaceId);
+          }}
         />
       )}
 
@@ -764,8 +813,9 @@ export default function StudioPage() {
                 Hire New Agent
               </button>
               <button
-                onClick={() => setIsWizardOpen(true)}
+                onClick={() => importFileRef.current?.click()}
                 className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
+                title="Import an agent template JSON file"
               >
                 <Upload className="h-4 w-4" />
                 Import Template
@@ -1193,7 +1243,7 @@ export default function StudioPage() {
                       <td className="px-5 py-5">
                         <span
                           className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] ${getAutonomyStyle(
-                            agent.autonomy_level
+                            agent.autonomy_level,
                           )}`}
                         >
                           {agent.autonomy_level}
@@ -1223,8 +1273,8 @@ export default function StudioPage() {
                                   readiness >= 80
                                     ? "bg-emerald-500"
                                     : readiness >= 60
-                                    ? "bg-amber-500"
-                                    : "bg-rose-500"
+                                      ? "bg-amber-500"
+                                      : "bg-rose-500"
                                 }`}
                                 style={{ width: `${readiness}%` }}
                               />
@@ -1247,8 +1297,8 @@ export default function StudioPage() {
                                     agent.trust_score >= 0.8
                                       ? "bg-emerald-500"
                                       : agent.trust_score >= 0.6
-                                      ? "bg-amber-500"
-                                      : "bg-rose-500"
+                                        ? "bg-amber-500"
+                                        : "bg-rose-500"
                                   }`}
                                   style={{
                                     width: `${(agent.trust_score || 0) * 100}%`,
@@ -1367,14 +1417,10 @@ export default function StudioPage() {
                           )}
 
                           {/* Request Approval — DRAFT or PENDING_CERTIFICATION */}
-                          {["DRAFT", "PENDING_CERTIFICATION"].includes(
-                            agent.status
-                          ) && (
+                          {agent.status === "DRAFT" && (
                             <button
                               disabled={!canManageAuthority || isBusy}
-                              onClick={() =>
-                                runAgentAction(agent, "approval")
-                              }
+                              onClick={() => runAgentAction(agent, "approval")}
                               className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <FileCheck className="h-3.5 w-3.5" />
@@ -1388,7 +1434,9 @@ export default function StudioPage() {
                           {agent.status === "APPROVED" && (
                             <button
                               disabled={!canManageAuthority || isBusy}
-                              onClick={() => checkGovernanceGatesAndDeploy(agent)}
+                              onClick={() =>
+                                checkGovernanceGatesAndDeploy(agent)
+                              }
                               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <PlayCircle className="h-3.5 w-3.5" />
@@ -1430,9 +1478,7 @@ export default function StudioPage() {
                           {["ACTIVE", "RESTRICTED"].includes(agent.status) && (
                             <button
                               disabled={!canManageAuthority || isBusy}
-                              onClick={() =>
-                                runAgentAction(agent, "rollback")
-                              }
+                              onClick={() => runAgentAction(agent, "rollback")}
                               className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-amber-500/30 hover:text-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
@@ -1441,14 +1487,20 @@ export default function StudioPage() {
                           )}
 
                           {/* Run Safety Checks — DRAFT / PENDING_CERTIFICATION */}
-                          {["DRAFT", "PENDING_CERTIFICATION"].includes(agent.status) && (
+                          {["DRAFT", "PENDING_CERTIFICATION"].includes(
+                            agent.status,
+                          ) && (
                             <button
-                              disabled={safetyCheckLoading === agent.id || isBusy}
+                              disabled={
+                                safetyCheckLoading === agent.id || isBusy
+                              }
                               onClick={() => handleRunSafetyChecks(agent)}
                               className="inline-flex items-center gap-2 rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-400 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <ShieldCheck className="h-3.5 w-3.5" />
-                              {safetyCheckLoading === agent.id ? "Running..." : "Safety Check"}
+                              {safetyCheckLoading === agent.id
+                                ? "Running..."
+                                : "Safety Check"}
                             </button>
                           )}
 
@@ -1460,7 +1512,9 @@ export default function StudioPage() {
                               className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-400 transition hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Award className="h-3.5 w-3.5" />
-                              {evidenceExportLoading === agent.id ? "Exporting..." : "Export Evidence"}
+                              {evidenceExportLoading === agent.id
+                                ? "Exporting..."
+                                : "Export Evidence"}
                             </button>
                           )}
 
@@ -1528,7 +1582,7 @@ export default function StudioPage() {
                   </div>
                   <span
                     className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] ${getAutonomyStyle(
-                      agent.autonomy_level
+                      agent.autonomy_level,
                     )}`}
                   >
                     {agent.autonomy_level}
@@ -1559,7 +1613,9 @@ export default function StudioPage() {
                       Faithfulness: {formatPercent(agent.faithfulness_score)}
                     </span>
                   </div>
-                  <div>Last activity: {agent.last_activity || "Not yet active"}</div>
+                  <div>
+                    Last activity: {agent.last_activity || "Not yet active"}
+                  </div>
                 </div>
 
                 <div className="mt-3 space-y-1">
@@ -1573,8 +1629,8 @@ export default function StudioPage() {
                         readiness >= 80
                           ? "bg-emerald-500"
                           : readiness >= 60
-                          ? "bg-amber-500"
-                          : "bg-rose-500"
+                            ? "bg-amber-500"
+                            : "bg-rose-500"
                       }`}
                       style={{ width: `${readiness}%` }}
                     />
@@ -1606,7 +1662,9 @@ export default function StudioPage() {
                     className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ChevronRight className="h-3.5 w-3.5" />
-                    {actionLoading[agent.id] === "clone" ? "Cloning..." : "Clone"}
+                    {actionLoading[agent.id] === "clone"
+                      ? "Cloning..."
+                      : "Clone"}
                   </button>
                 </div>
               </div>

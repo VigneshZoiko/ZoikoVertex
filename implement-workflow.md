@@ -16,7 +16,7 @@
 10. [Page-by-Page Reference](#10-page-by-page-reference)
 11. [API Endpoints Reference](#11-api-endpoints-reference)
 
----
+---       
 
 ## 1. Platform Overview
 
@@ -42,32 +42,32 @@ ZoikoVertex is an **enterprise AI marketing operating system** where autonomous 
 │  LAYER 1 — AUTHORITY LAYER                                      │
 │  /agents/studio                                                 │
 │  Who: AGENT_ARCHITECT, GOVERNANCE_ADMIN                         │
-│  → Build, register, certify, and control AI agents             │
-│  → Set agent identity, type, DRI, trust scores                 │
+│  → Build, register, certify, and control AI agents              │
+│  → Set agent identity, type, DRI, trust scores                  │
 ├─────────────────────────────────────────────────────────────────┤
 │  LAYER 2 — SAFETY LAYER                                         │
 │  /agents/autonomy                                               │
 │  Who: GOVERNANCE_ADMIN                                          │
-│  → Set L0–L6 autonomy per agent                                │
-│  → Configure HITL rules, emergency locks, negative knowledge   │
+│  → Set L0–L6 autonomy per agent                                 │
+│  → Configure HITL rules, emergency locks, negative knowledge    │
 ├─────────────────────────────────────────────────────────────────┤
 │  LAYER 3 — ACCOUNTABILITY LAYER                                 │
 │  /queue  /governance/approvals  /governance/rules               │
-│  Who: REVIEWER, VALIDATOR, APPROVER, BRAND_REVIEWER            │
-│  → Human-in-the-loop review of every content intent            │
-│  → Approve / Return / Reject / Escalate / Block                │
+│  Who: REVIEWER, VALIDATOR, APPROVER, BRAND_REVIEWER             │
+│  → Human-in-the-loop review of every content intent             │
+│  → Approve / Return / Reject / Escalate / Block                 │
 ├─────────────────────────────────────────────────────────────────┤
 │  LAYER 4 — EVIDENCE LAYER                                       │
 │  /governance/audit  /governance/evidence  /governance/forensic  │
 │  Who: AUDITOR, COMPLIANCE_REVIEWER                              │
-│  → Tamper-evident audit trail of all actions                   │
-│  → Exportable evidence packs for legal/regulatory reporting    │
+│  → Tamper-evident audit trail of all actions                    │
+│  → Exportable evidence packs for legal/regulatory reporting     │
 ├─────────────────────────────────────────────────────────────────┤
 │  LAYER 5 — EXECUTION LAYER                                      │
 │  /publish  /library  /calendar  /manage-posts                   │
 │  Who: CREATOR, CAMPAIGN_MANAGER, PUBLISHER                      │
-│  → Create media, write captions, submit posts                  │
-│  → AI generates captions, schedules, fires to social platforms │
+│  → Create media, write captions, submit posts                   │
+│  → AI generates captions, schedules, fires to social platforms  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

@@ -421,10 +421,31 @@ interface RunDetailDrawerProps {
   onCreateIncident: () => void;
   onExportEvidence: (bundleId: string) => void;
   exportEvidenceLoading: boolean;
+  onApproveOutput: (run: AgentRun) => void;
+  onRejectOutput: (run: AgentRun) => void;
+  onRequestOutputChanges: (run: AgentRun) => void;
+  onExportSnapshot: (run: AgentRun, detail: RunDetail) => void;
+  onEscalateForReview: (runId: string, reason: string) => Promise<void>;
 }
 
-function RunDetailDrawer({ run, detail, timeline, loadingDetail, loadingTimeline, onClose, onCreateIncident, onExportEvidence, exportEvidenceLoading }: RunDetailDrawerProps) {
+function RunDetailDrawer({
+  run,
+  detail,
+  timeline,
+  loadingDetail,
+  loadingTimeline,
+  onClose,
+  onCreateIncident,
+  onExportEvidence,
+  exportEvidenceLoading,
+  onApproveOutput,
+  onRejectOutput,
+  onRequestOutputChanges,
+  onExportSnapshot,
+  onEscalateForReview,
+}: RunDetailDrawerProps) {
   const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
+  const [flagStaleLoading, setFlagStaleLoading] = useState<string | null>(null);
   const tabs: { id: DrawerTab; label: string; icon: React.ReactNode }[] = [
     { id: "overview",  label: "Overview",  icon: <Info className="w-3.5 h-3.5" />       },
     { id: "timeline",  label: "Timeline",  icon: <Clock className="w-3.5 h-3.5" />      },
@@ -599,9 +620,12 @@ function RunDetailDrawer({ run, detail, timeline, loadingDetail, loadingTimeline
                   <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-4 font-mono text-xs text-[#aaa] whitespace-pre-wrap max-h-64 overflow-y-auto">
                     {detail.prompt_template}
                   </div>
-                  <button className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                  <a
+                    href="/agents/prompts"
+                    className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
                     <ArrowRight className="w-3.5 h-3.5" /> Open Prompt Governance record
-                  </button>
+                  </a>
                 </>
               ) : (
                 <p className="text-sm text-[#555] text-center py-12">No prompt data available.</p>
@@ -630,8 +654,23 @@ function RunDetailDrawer({ run, detail, timeline, loadingDetail, loadingTimeline
                       <span>Freshness: {ks.freshness}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-2">
-                      <button className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1"><ArrowRight className="w-3 h-3" />Open source</button>
-                      <button className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Flag stale</button>
+                      <a href="/agents/knowledge" className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                        <ArrowRight className="w-3 h-3" />Open source
+                      </a>
+                      <button
+                        disabled={flagStaleLoading === ks.name}
+                        onClick={async () => {
+                          setFlagStaleLoading(ks.name);
+                          try { await onEscalateForReview(run.id, `Stale knowledge source flagged: ${ks.name}`); }
+                          finally { setFlagStaleLoading(null); }
+                        }}
+                        className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {flagStaleLoading === ks.name
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <AlertTriangle className="w-3 h-3" />}
+                        Flag stale
+                      </button>
                     </div>
                   </div>
                 ))
@@ -671,7 +710,12 @@ function RunDetailDrawer({ run, detail, timeline, loadingDetail, loadingTimeline
                       )}
                       {pr.remediation_required && (
                         <div className="mt-2 flex items-center gap-2">
-                          <button className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1"><ArrowRight className="w-3 h-3" />Send to reviewer</button>
+                          <button
+                            onClick={() => onEscalateForReview(run.id, `Policy violation sent to reviewer: ${pr.failed_category || pr.failed_rule || 'policy check'}`)}
+                            className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1"
+                          >
+                            <ArrowRight className="w-3 h-3" />Send to reviewer
+                          </button>
                           <button onClick={onCreateIncident} className="text-[10px] text-orange-400 hover:text-orange-300 flex items-center gap-1"><Ticket className="w-3 h-3" />Create incident</button>
                         </div>
                       )}
@@ -706,10 +750,34 @@ function RunDetailDrawer({ run, detail, timeline, loadingDetail, loadingTimeline
                     {detail.output_snapshot}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <button className="px-3 py-1.5 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5"><Check className="w-3.5 h-3.5" />Approve</button>
-                    <button className="px-3 py-1.5 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"><XCircle className="w-3.5 h-3.5" />Reject</button>
-                    <button className="px-3 py-1.5 text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/20 transition-colors flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Request Changes</button>
-                    <button className="px-3 py-1.5 text-xs bg-[#1f1f1f] border border-[#2a2a2a] text-[#888] rounded-lg hover:text-white transition-colors flex items-center gap-1.5"><Download className="w-3.5 h-3.5" />Export Snapshot</button>
+                    <button
+                      onClick={() => onApproveOutput(run)}
+                      className="px-3 py-1.5 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => onRejectOutput(run)}
+                      className="px-3 py-1.5 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => onRequestOutputChanges(run)}
+                      className="px-3 py-1.5 text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/20 transition-colors flex items-center gap-1.5"
+                    >
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Request Changes
+                    </button>
+                    <button
+                      onClick={() => onExportSnapshot(run, detail)}
+                      className="px-3 py-1.5 text-xs bg-[#1f1f1f] border border-[#2a2a2a] text-[#888] rounded-lg hover:text-white transition-colors flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Export Snapshot
+                    </button>
                   </div>
                 </>
               ) : (
@@ -876,7 +944,7 @@ export default function AgentOperationsPage() {
         api.listAgentRuns(params).catch(() => null),
         api.listQueues().catch(() => null),
         api.listIncidents().catch(() => null),
-        api.getOperationsAnalytics?.().catch(() => null),
+        api.getOperationsAnalytics().catch(() => null),
       ]);
 
       if (statsRes.status === "fulfilled" && statsRes.value) setStats(statsRes.value);
@@ -921,7 +989,7 @@ export default function AgentOperationsPage() {
     setLoadingTimeline(true);
     try {
       const [detailRes, timelineRes] = await Promise.allSettled([
-        api.getRunDetail?.(run.id).catch(() => null),
+        api.getRunDetail(run.id).catch(() => null),
         api.getRunTimeline(run.id).catch(() => null),
       ]);
       if (detailRes.status === "fulfilled" && detailRes.value) setRunDetail(detailRes.value);
@@ -937,7 +1005,7 @@ export default function AgentOperationsPage() {
   // ── Stale check before critical action ──
   const checkStaleAndAct = async (runId: string, action: typeof confirmAction) => {
     try {
-      const fresh = await api.getRunDetail?.(runId).catch(() => null);
+      const fresh = await api.getRunDetail(runId).catch(() => null);
       if (fresh?.run?.status && staleCheckRef.current[runId] && fresh.run.status !== staleCheckRef.current[runId]) {
         setError(`Run state changed to "${fresh.run.status}" before action was applied. Please review the current state.`);
         await fetchData();
@@ -958,8 +1026,8 @@ export default function AgentOperationsPage() {
         case "stop":          await api.stopRun(confirmAction.runId, reason); break;
         case "retry":         await api.retryRun(confirmAction.runId); break;
         case "quarantine":    await api.quarantineRun(confirmAction.runId, reason); break;
-        case "escalate":      await api.escalateRun?.(confirmAction.runId, reason); break;
-        case "emergency_pause": await api.emergencyPause?.(confirmAction.runId, reason); break;
+        case "escalate":      await api.escalateRun(confirmAction.runId, reason); break;
+        case "emergency_pause": await api.emergencyPause(confirmAction.runId, reason); break;
       }
       setConfirmAction(null);
       await fetchData();
@@ -975,7 +1043,7 @@ export default function AgentOperationsPage() {
     if (!evidenceExportBundleId) return;
     setEvidenceExportLoading(true);
     try {
-      await api.exportEvidence?.(evidenceExportBundleId, reason);
+      await api.exportEvidence(evidenceExportBundleId, reason);
       setEvidenceExportBundleId(null);
       setError(null);
     } catch {
@@ -986,6 +1054,126 @@ export default function AgentOperationsPage() {
   };
 
   // ── Create incident ──
+  const downloadSnapshot = useCallback((filename: string, payload: string) => {
+    const blob = new Blob([payload], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleQueueAssign = async (item: QueueItem) => {
+    try {
+      const res = await api.assignQueueItem(item.id);
+      if (!res?.success) throw new Error(res?.error || "Assign failed");
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to assign queue item.");
+    }
+  };
+
+  const handleQueueHold = async (item: QueueItem) => {
+    if (!item.run_id) {
+      setError("This queue item is not linked to a runnable task.");
+      return;
+    }
+    try {
+      const res = await api.pauseRun(item.run_id, "Held from task queue");
+      if (!res?.success) throw new Error(res?.error || "Hold failed");
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to hold queue item.");
+    }
+  };
+
+  const handleQueueEscalate = async (item: QueueItem) => {
+    if (!item.run_id) {
+      setError("This queue item is not linked to a runnable task.");
+      return;
+    }
+    const reason = window.prompt("Enter escalation reason:", "Escalated from task queue");
+    if (reason === null) return;
+    try {
+      const res = await api.escalateRun(item.run_id, reason || "Escalated from task queue");
+      if (!res?.success) throw new Error(res?.error || "Escalation failed");
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to escalate queue item.");
+    }
+  };
+
+  const handleQueueCancel = async (item: QueueItem) => {
+    if (!item.run_id) {
+      setError("This queue item is not linked to a runnable task.");
+      return;
+    }
+    try {
+      const res = await api.stopRun(item.run_id, "Cancelled from task queue");
+      if (!res?.success) throw new Error(res?.error || "Cancel failed");
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to cancel queue item.");
+    }
+  };
+
+  const handleEscalateForReview = async (runId: string, reason: string): Promise<void> => {
+    try {
+      const res = await api.escalateRun(runId, reason);
+      if (!res?.success) throw new Error(res?.error || "Escalation failed");
+      await fetchData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to escalate for review.");
+    }
+  };
+
+  const handleApproveOutput = async (run: AgentRun) => {
+    try {
+      const queueItem = queues.find((item) => item.run_id === run.id && item.status !== "RESOLVED");
+      if (queueItem) {
+        const res = await api.resolveQueueItem(queueItem.id);
+        if (!res?.success) throw new Error(res?.error || "Approval failed");
+      }
+      await fetchData();
+      await handleViewRun(run);
+    } catch (err: any) {
+      setError(err?.message || "Failed to approve output.");
+    }
+  };
+
+  const handleRejectOutput = async (run: AgentRun) => {
+    try {
+      const res = await api.quarantineRun(run.id, "Rejected from output review");
+      if (!res?.success) throw new Error(res?.error || "Reject failed");
+      await fetchData();
+      await handleViewRun(run);
+    } catch (err: any) {
+      setError(err?.message || "Failed to reject output.");
+    }
+  };
+
+  const handleRequestOutputChanges = async (run: AgentRun) => {
+    try {
+      const res = await api.escalateRun(run.id, "Output review requested changes");
+      if (!res?.success) throw new Error(res?.error || "Request changes failed");
+      await fetchData();
+      await handleViewRun(run);
+    } catch (err: any) {
+      setError(err?.message || "Failed to request changes.");
+    }
+  };
+
+  const handleExportSnapshot = useCallback(
+    (run: AgentRun, detail: RunDetail) => {
+      downloadSnapshot(
+        `run-output-${run.id}.txt`,
+        detail.output_snapshot || "No output snapshot available.",
+      );
+    },
+    [downloadSnapshot],
+  );
+
   const handleCreateIncident = async () => {
     setIncidentLoading(true);
     try {
@@ -1047,6 +1235,9 @@ export default function AgentOperationsPage() {
             <Building2 className="w-3.5 h-3.5 text-[#555] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-7 pr-3 py-1.5 text-xs text-[#aaa] appearance-none focus:outline-none focus:border-[#444]">
               <option value="">All Brands</option>
+              {[...new Set(runs.map((r) => r.brand_name).filter(Boolean))].sort().map((b) => (
+                <option key={b} value={b!}>{b}</option>
+              ))}
             </select>
           </div>
           <div className="relative">
@@ -1390,10 +1581,10 @@ export default function AgentOperationsPage() {
                         ) : <span className="text-[#333]">—</span>}
                       </div>
                       <div className="flex items-center gap-1">
-                        <button className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors" title="Assign"><UserCheck className="w-3.5 h-3.5" /></button>
-                        <button className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400/70 hover:text-amber-400 transition-colors" title="Hold"><Pause className="w-3.5 h-3.5" /></button>
-                        <button className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400/70 hover:text-orange-400 transition-colors" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
-                        <button className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400/70 hover:text-rose-400 transition-colors" title="Cancel"><XCircle className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueAssign(item)} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors" title="Assign"><UserCheck className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueHold(item)} className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400/70 hover:text-amber-400 transition-colors" title="Hold"><Pause className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueEscalate(item)} className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400/70 hover:text-orange-400 transition-colors" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueCancel(item)} className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400/70 hover:text-rose-400 transition-colors" title="Cancel"><XCircle className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   );
@@ -1487,7 +1678,20 @@ export default function AgentOperationsPage() {
                 ))}
               </div>
               <div className="flex justify-end">
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#888] rounded-xl text-xs hover:text-white hover:border-[#444] transition-colors">
+                <button
+                  onClick={() => {
+                    if (!analytics) return;
+                    const payload = { exported_at: new Date().toISOString(), metrics: analytics };
+                    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = `ops-analytics-${new Date().toISOString().split("T")[0]}.json`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#888] rounded-xl text-xs hover:text-white hover:border-[#444] transition-colors"
+                >
                   <Download className="w-3.5 h-3.5" /> Export Report
                 </button>
               </div>
@@ -1516,6 +1720,11 @@ export default function AgentOperationsPage() {
           onCreateIncident={() => setShowIncidentModal(true)}
           onExportEvidence={(bundleId) => setEvidenceExportBundleId(bundleId)}
           exportEvidenceLoading={evidenceExportLoading}
+          onApproveOutput={handleApproveOutput}
+          onRejectOutput={handleRejectOutput}
+          onRequestOutputChanges={handleRequestOutputChanges}
+          onExportSnapshot={handleExportSnapshot}
+          onEscalateForReview={handleEscalateForReview}
         />
       )}
 

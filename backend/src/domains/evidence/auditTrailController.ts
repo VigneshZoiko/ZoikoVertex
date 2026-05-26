@@ -16,6 +16,7 @@ import {
   UserRole,
 } from '../../services/auditTrail.service';
 import { createCase as createForensicCase } from '../../services/forensicHub.service';
+import { logger } from '../../shared/logger';
 
 async function logAuditAccess(params: {
   workspace_id: string;
@@ -40,8 +41,8 @@ async function logAuditAccess(params: {
       retention_class: 'STANDARD',
       correlation: {},
     });
-  } catch {
-    // Silent fail — audit access logging must not block the main response
+  } catch (err) {
+    logger.warn({ error: String(err) }, 'Audit access logging failed (not blocking main response)');
   }
 }
 
