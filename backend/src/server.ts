@@ -676,6 +676,7 @@ app.delete('/api/v1/library/:id', authenticate, planRateLimit('general'), scopeG
 
 // Protected User Routes
 app.get('/api/v1/user/context', authenticate, getUserContext);
+app.post('/api/v1/user/downgrade-to-free', authenticate, SuperAdminController.downgradeToFreePlan);
 
 // Workspace Settings Routes
 const workspaceGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN', 'SUPERADMIN');

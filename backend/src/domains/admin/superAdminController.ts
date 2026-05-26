@@ -257,6 +257,7 @@ export class SuperAdminController {
 
   /**
    * Resume an organization — sets workspace + parent org status back to ACTIVE
+   * and grants a 30-day premium grace period to prevent immediate auto-pause.
    */
   static async resumeOrganization(req: AuthRequest, res: Response, next: NextFunction) {
     try {
@@ -268,6 +269,8 @@ export class SuperAdminController {
         .eq('id', orgId)
         .single();
 
+      const graceUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
       await supabaseAdmin
         .from('workspaces')
         .update({ status: 'ACTIVE' })
@@ -276,23 +279,50 @@ export class SuperAdminController {
       if (ws?.org_id) {
         await supabaseAdmin
           .from('organizations')
-          .update({ status: 'ACTIVE' })
+          .update({ status: 'ACTIVE', premium_paid_until: graceUntil })
           .eq('id', ws.org_id);
       }
 
-      res.json({ success: true, message: 'Organization resumed.' });
+      res.json({ success: true, message: 'Organization resumed. 30-day premium grace period applied.' });
     } catch (error) {
       next(error);
     }
   }
 
+  // Throttle auto-pause to run at most once every 60 seconds
+  static lastPremiumCheck = 0;
+
   /**
    * Consolidated analytics — returns orgs + stats in one call
+   * Auto-pauses organizations with unpaid premium (throttled to 60s).
    */
   static async getAnalytics(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      // Auto-pause check — throttled to once per minute
+      const now = Date.now();
+      if (now - SuperAdminController.lastPremiumCheck > 60000) {
+        SuperAdminController.lastPremiumCheck = now;
+        const isoNow = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+        const { data: unpaidOrgs } = await supabaseAdmin
+          .from('organizations')
+          .select('id')
+          .in('plan_type', ['STARTER', 'GROWTH', 'ENTERPRISE'])
+          .eq('status', 'ACTIVE')
+          .or(`premium_paid_until.is.null,premium_paid_until.lt.${isoNow}`);
+
+        if (unpaidOrgs && unpaidOrgs.length > 0) {
+          const unpaidOrgIds = unpaidOrgs.map(o => o.id);
+          await Promise.all([
+            supabaseAdmin.from('organizations').update({ status: 'SUSPENDED' }).in('id', unpaidOrgIds),
+            supabaseAdmin.from('workspaces').update({ status: 'SUSPENDED' }).in('org_id', unpaidOrgIds),
+          ]);
+        }
+      }
+
       const [orgResult, statsResult] = await Promise.all([
-        supabaseAdmin.from('workspaces').select('*, workspace_members(count)'),
+        supabaseAdmin
+          .from('workspaces')
+          .select('id, name, status, type, org_id, workspace_members(count), organizations(plan_type, status, premium_paid_until)'),
         (async () => {
           const [
             { count: orgCount },
@@ -301,11 +331,11 @@ export class SuperAdminController {
             { count: assetCount },
             { count: accountCount }
           ] = await Promise.all([
-            supabaseAdmin.from('workspaces').select('*', { count: 'exact', head: true }),
-            supabaseAdmin.from('users').select('*', { count: 'exact', head: true }),
-            supabaseAdmin.from('scheduled_posts').select('*', { count: 'exact', head: true }),
-            supabaseAdmin.from('media_library').select('*', { count: 'exact', head: true }),
-            supabaseAdmin.from('connected_accounts').select('*', { count: 'exact', head: true })
+            supabaseAdmin.from('workspaces').select('id', { count: 'estimated', head: true }),
+            supabaseAdmin.from('users').select('id', { count: 'estimated', head: true }),
+            supabaseAdmin.from('scheduled_posts').select('id', { count: 'estimated', head: true }),
+            supabaseAdmin.from('media_library').select('id', { count: 'estimated', head: true }),
+            supabaseAdmin.from('connected_accounts').select('id', { count: 'estimated', head: true })
           ]);
           return { organizations: orgCount || 0, totalUsers: userCount || 0, totalPosts: postCount || 0, totalAssets: assetCount || 0, socialConnections: accountCount || 0, platformStatus: 'Operational' };
         })()
@@ -334,16 +364,20 @@ export class SuperAdminController {
         }
       }
 
-      const data = (orgResult.data || []).map(ws => ({
-        id: ws.id,
-        name: ws.name,
-        status: ws.status,
-        type: ws.type,
-        plan_type: ws.type,
-        memberCount: Array.isArray(ws.workspace_members) ? (ws.workspace_members[0] as any)?.count ?? 0 : 0,
-        adminName: adminMap[ws.id]?.full_name || null,
-        adminEmail: adminMap[ws.id]?.email || null,
-      }));
+      const data = (orgResult.data || []).map(ws => {
+        const orgData = Array.isArray(ws.organizations) ? ws.organizations[0] : ws.organizations;
+        return {
+          id: ws.id,
+          name: ws.name,
+          status: orgData?.status === 'SUSPENDED' ? 'SUSPENDED' : ws.status,
+          type: ws.type,
+          plan_type: orgData?.plan_type || ws.type,
+          premium_paid_until: orgData?.premium_paid_until || null,
+          memberCount: Array.isArray(ws.workspace_members) ? (ws.workspace_members[0] as any)?.count ?? 0 : 0,
+          adminName: adminMap[ws.id]?.full_name || null,
+          adminEmail: adminMap[ws.id]?.email || null,
+        };
+      });
 
       res.json({ success: true, data, stats: statsResult });
     } catch (error) {
@@ -363,6 +397,40 @@ export class SuperAdminController {
         .eq('id', orgId);
       if (error) throw error;
       res.json({ success: true, message: 'Organization and all metadata purged.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Downgrade the current user's organization to FREE plan and resume it.
+   */
+  static async downgradeToFreePlan(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { data: member } = await supabaseAdmin
+        .from('workspace_members')
+        .select('workspace_id, workspaces(org_id)')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle();
+
+      if (!member) return res.status(404).json({ error: 'No workspace found for user' });
+
+      const ws = Array.isArray(member.workspaces) ? member.workspaces[0] : member.workspaces;
+      const workspaceId = member.workspace_id;
+      const orgId = ws?.org_id;
+
+      await Promise.all([
+        supabaseAdmin.from('workspaces').update({ status: 'ACTIVE' }).eq('id', workspaceId),
+        orgId
+          ? supabaseAdmin.from('organizations').update({ status: 'ACTIVE', plan_type: 'FREE', premium_paid_until: null }).eq('id', orgId)
+          : Promise.resolve(),
+      ]);
+
+      res.json({ success: true, message: 'Organization downgraded to FREE plan and resumed.' });
     } catch (error) {
       next(error);
     }
