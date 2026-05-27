@@ -792,8 +792,11 @@ export default function StudioPage() {
         initialData={importTemplateData}
       />
 
-      {selectedAgent && (
+      {selectedAgent && isSandboxOpen && (
         <CertificationSandbox
+          // Fresh instance per agent (and per open) so one agent's sandbox
+          // run never leaks into another's — internal run state is reset.
+          key={selectedAgent.id}
           isOpen={isSandboxOpen}
           onClose={() => setIsSandboxOpen(false)}
           agentId={selectedAgent.id}
