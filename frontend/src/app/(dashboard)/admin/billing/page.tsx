@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { createPortal } from "react-dom";
+import { useRoleContext } from "@/lib/context/RoleContext";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -112,10 +113,21 @@ const PLAN_STATS: Record<string, { users: string; profiles: string; brands: stri
 
 // ── Main Component ─────────────────────────────────────────────
 
+// Maps billing page plan IDs → DB plan_type values sent to the API
+const PLAN_ID_TO_DB: Record<string, string> = {
+  starter:   'STARTER',
+  growth:    'GROWTH',
+  scale:     'SCALE',
+  corporate: 'ENTERPRISE',
+};
+
 export default function BillingPage() {
+  const { refresh: refreshRole } = useRoleContext();
   const [activeTab, setActiveTab] = useState<"credits" | "billing">("credits");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [changingPlan, setChangingPlan] = useState<string | null>(null);
+  const [planMessage, setPlanMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -198,6 +210,29 @@ export default function BillingPage() {
       setWallet(previousWallet);
     } finally {
       setUpdatingAutoTopup(false);
+    }
+  };
+
+  const handleChangePlan = async (planId: string) => {
+    const dbPlan = PLAN_ID_TO_DB[planId];
+    if (!dbPlan || planId === activePlanId) return;
+    setChangingPlan(planId);
+    setPlanMessage(null);
+    try {
+      const res = await api.patch('/api/v1/admin/plan', { plan_type: dbPlan });
+      if (res?.success === false) {
+        setPlanMessage({ type: 'error', text: res.error || 'Failed to change plan.' });
+      } else {
+        setActivePlanId(planId);
+        setPlanMessage({ type: 'success', text: `Plan updated to ${PLANS.find(p => p.id === planId)?.name ?? planId}!` });
+        // Bust the RoleContext cache so the new plan is reflected immediately everywhere
+        await refreshRole();
+        setTimeout(() => setShowUpgradeModal(false), 1200);
+      }
+    } catch {
+      setPlanMessage({ type: 'error', text: 'Something went wrong. Please try again.' });
+    } finally {
+      setChangingPlan(null);
     }
   };
 
@@ -597,12 +632,23 @@ export default function BillingPage() {
               </button>
             </div>
             
+            {planMessage && (
+              <div className={`mx-6 mt-4 p-3 rounded-lg text-sm font-medium text-center ${
+                planMessage.type === 'success'
+                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                  : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+              }`}>
+                {planMessage.text}
+              </div>
+            )}
+
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {PLANS.map(plan => {
                 const Icon = plan.icon;
                 const isActive = plan.id === activePlanId;
+                const isChanging = changingPlan === plan.id;
                 return (
-                  <div key={plan.id} className={`p-5 rounded-xl border flex flex-col ${isActive ? 'bg-zinc-900 border-zinc-600' : 'bg-zinc-900/50 border-zinc-800'}`}>
+                  <div key={plan.id} className={`p-5 rounded-xl border flex flex-col ${isActive ? 'bg-zinc-900 border-zinc-600 ring-1 ring-white/10' : 'bg-zinc-900/50 border-zinc-800'}`}>
                     <Icon className="w-6 h-6 text-zinc-300 mb-4" />
                     <h3 className="text-lg font-semibold text-white">{plan.name}</h3>
                     <p className="text-2xl font-bold text-white mt-2">
@@ -612,7 +658,7 @@ export default function BillingPage() {
                       </span>
                     </p>
                     <p className="text-xs text-zinc-400 mt-3 min-h-[48px]">{plan.desc}</p>
-                    
+
                     <ul className="mt-6 mb-6 space-y-3 flex-1">
                       {plan.features.slice(0, 4).map((f, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs text-zinc-300">
@@ -621,7 +667,7 @@ export default function BillingPage() {
                         </li>
                       ))}
                     </ul>
-                    
+
                     {isActive ? (
                       <button disabled className="w-full py-2.5 rounded-lg text-sm font-medium bg-zinc-800 text-zinc-500 cursor-not-allowed">
                         Current Plan
@@ -632,8 +678,13 @@ export default function BillingPage() {
                         Contact Sales <ArrowUpRight className="w-3.5 h-3.5" />
                       </a>
                     ) : (
-                      <button disabled className="w-full py-2.5 rounded-lg text-sm font-medium bg-zinc-900 border border-zinc-700 text-zinc-500 cursor-not-allowed">
-                        Stripe Coming Soon
+                      <button
+                        onClick={() => handleChangePlan(plan.id)}
+                        disabled={!!changingPlan}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium bg-white text-black hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isChanging ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                        {isChanging ? 'Switching…' : (activePlanId && PLANS.findIndex(p=>p.id===plan.id) < PLANS.findIndex(p=>p.id===activePlanId) ? 'Downgrade' : 'Upgrade')}
                       </button>
                     )}
                   </div>

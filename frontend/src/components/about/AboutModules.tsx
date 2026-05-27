@@ -142,7 +142,7 @@ export default function AboutModules() {
           </div>
           <p className="text-white/40 text-sm leading-relaxed">
             ZoikoVertex is structured as six governed layers — each with a defined
-            structural role in the execution chain. Together they form the world's first
+            structural role in the execution chain. Together they form the world&apos;s first
             Governed Execution Infrastructure platform.
           </p>
         </div>

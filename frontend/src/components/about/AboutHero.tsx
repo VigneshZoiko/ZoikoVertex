@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 export default function AboutHero() {
   const [visible, setVisible] = useState(false);
@@ -26,18 +27,20 @@ export default function AboutHero() {
         className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center"
       >
         {/* LEFT — Image only */}
+        {/* FIX: Added explicit height (h-[500px]) and w-full so `fill` has a sized container to fill */}
         <div
-          className={`relative transition-all duration-700 ease-out ${
+          className={`relative w-full h-[500px] transition-all duration-700 ease-out ${
             visible
               ? "opacity-100 translate-y-0"
               : "opacity-0 translate-y-10"
           }`}
           style={{ transitionDelay: "100ms" }}
         >
-          <img
+          <Image
             src="/images/about-hero.webp"
             alt="About ZoikoVertex"
-            className="w-full h-full object-cover rounded-2xl"
+            fill
+            className="object-cover rounded-2xl"
           />
         </div>
 
@@ -53,7 +56,6 @@ export default function AboutHero() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 border border-[#6366F140] bg-[#6366F11F] rounded-full px-4 py-1.5 mb-7">
             <span className="text-[#A5B4FC] text-xs">✦</span>
-
             <span className="text-[#A5B4FC] text-xs font-semibold tracking-widest uppercase">
               About Us
             </span>
@@ -93,16 +95,12 @@ export default function AboutHero() {
                 strokeWidth="1.5"
               >
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-
                 <polyline points="22,6 12,13 2,6" />
               </svg>
             </div>
 
             <div>
-              <p className="text-white/25 text-xs mb-0.5">
-                For any enquiry
-              </p>
-
+              <p className="text-white/25 text-xs mb-0.5">For any enquiry</p>
               <a
                 href="mailto:Support@zoikovertex.com"
                 style={{ color: "#22d3ee" }}

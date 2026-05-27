@@ -47,7 +47,7 @@ export const submitIntent = async (
       return res.status(403).json({ error: 'User is not associated with a workspace' });
     }
 
-    const targetWorkspaceId = workspaceId || '00000000-0000-0000-0000-000000000000'; // Default Dev Workspace for God Mode
+    const targetWorkspaceId = workspaceId || '00000000-0000-0000-0000-000000000000';
 
     const { data: accounts, error: accError } = await supabaseAdmin
       .from('connected_accounts')
