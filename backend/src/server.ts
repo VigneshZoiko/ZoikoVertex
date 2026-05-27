@@ -155,10 +155,13 @@ import {
 } from './domains/evidence/identityLedgerController';
 import { getCollusionMetrics } from './domains/governance/collusionController';
 import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
-import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
+import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleGoogleAdsCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
-import { getCampaignStats, submitCampaignForReview, checkLaunchGate, launchCampaign, pauseCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
+import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
+import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBudgetAuth, rejectBudgetAuth } from './domains/campaigns/budgetAuthController';
+import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights } from './domains/campaigns/adsController';
+import { getGoogleAdsCustomers, linkGoogleAdsCustomer, createGoogleBoost, syncGoogleBoostMetrics as syncGoogleMetrics, pauseGoogleBoost, resumeGoogleBoost, cancelGoogleBoost } from './domains/campaigns/googleAdsController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import {
   listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy,
@@ -207,6 +210,7 @@ import {
 } from './modules/knowledge/knowledgeController';
 import { PromptController } from './modules/prompts/promptController';
 import { getResourceUsage } from './domains/monitoring/usageController';
+import { getWalletData, updateAutoTopup } from './domains/billing/walletController';
 import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemetryController';
 import { performGlobalSearch } from './domains/admin/globalSearchController';
 import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
@@ -632,6 +636,7 @@ app.post('/api/auth/threads/deauthorize', handleThreadsDeauthorize);
 app.post('/api/auth/threads/data-deletion', handleThreadsDataDeletion);
 app.get('/api/auth/twitter/callback', handleTwitterCallback);
 app.get('/api/auth/youtube/callback', handleYoutubeCallback);
+app.get('/api/auth/googleads/callback', handleGoogleAdsCallback);
 // Protected Social/Account Routes
 app.delete('/api/v1/accounts/:id', authenticate, disconnectAccount);
 app.get('/api/v1/accounts/linkedin/pages', authenticate, getLinkedInPagesSession);
@@ -652,14 +657,43 @@ app.post('/api/v1/campaigns',          authenticate, campaignWriteGuard,  create
 app.patch('/api/v1/campaigns/:id',     authenticate, campaignWriteGuard,  updateCampaign);
 app.delete('/api/v1/campaigns/:id',    authenticate, campaignWriteGuard,  deleteCampaign);
 
-// Phase 2 — governed lifecycle
-app.post('/api/v1/campaigns/:id/submit-review',   authenticate, campaignWriteGuard,   submitCampaignForReview);
-app.get('/api/v1/campaigns/:id/launch-gate',      authenticate, campaignGuard,        checkLaunchGate);
-app.post('/api/v1/campaigns/:id/launch',          authenticate, campaignLaunchGuard,  launchCampaign);
-app.post('/api/v1/campaigns/:id/pause',           authenticate, campaignWriteGuard,   pauseCampaign);
+// Campaign lifecycle
+app.post('/api/v1/campaigns/:id/submit-review',   authenticate, campaignWriteGuard,    submitCampaignForReview);
+app.post('/api/v1/campaigns/:id/approve',         authenticate, campaignLaunchGuard,   approveCampaign);
+app.get('/api/v1/campaigns/:id/launch-gate',      authenticate, campaignGuard,         checkLaunchGate);
+app.post('/api/v1/campaigns/:id/launch',          authenticate, campaignLaunchGuard,   launchCampaign);
+app.post('/api/v1/campaigns/:id/pause',           authenticate, campaignWriteGuard,    pauseCampaign);
 app.post('/api/v1/campaigns/:id/emergency-pause', authenticate, campaignEmergencyGuard, emergencyPauseCampaign);
 app.get('/api/v1/campaigns/:id/events',           authenticate, campaignGuard,        getCampaignEvents);
 app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGuard,   updateSpend);
+
+// Budget Authorization routes (Phase 4)
+app.post('/api/v1/campaigns/:id/budget-auth/request', authenticate, campaignWriteGuard,    requestBudgetAuth);
+app.get('/api/v1/campaigns/:id/budget-auth',          authenticate, campaignGuard,         getBudgetAuthForCampaign);
+app.get('/api/v1/budget-authorizations',              authenticate, campaignGuard,         listBudgetAuths);
+app.post('/api/v1/budget-authorizations/:id/approve', authenticate, campaignLaunchGuard,   approveBudgetAuth);
+app.post('/api/v1/budget-authorizations/:id/reject',  authenticate, campaignLaunchGuard,   rejectBudgetAuth);
+
+// Ads / Boost routes (Meta Ads — Phase 2)
+const adsGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'SUPERADMIN');
+app.get('/api/v1/ads/accounts/:connectedAccountId/ad-accounts',  authenticate, adsGuard, getMetaAdAccounts);
+app.post('/api/v1/ads/accounts/:connectedAccountId/link-ad-account', authenticate, adsGuard, linkAdAccount);
+app.post('/api/v1/ads/boosts',          authenticate, adsGuard, createBoost);
+app.get('/api/v1/ads/boosts',           authenticate, adsGuard, listBoosts);
+app.post('/api/v1/ads/boosts/:id/sync', authenticate, adsGuard, syncBoostMetrics);
+app.post('/api/v1/ads/boosts/:id/pause',   authenticate, adsGuard, pauseBoost);
+app.post('/api/v1/ads/boosts/:id/resume',  authenticate, adsGuard, resumeBoost);
+app.delete('/api/v1/ads/boosts/:id',       authenticate, adsGuard, cancelBoost);
+app.get('/api/v1/campaigns/:id/insights',  authenticate, adsGuard, getCampaignInsights);
+
+// Google Ads / Boost routes (Phase 2b)
+app.get('/api/v1/ads/google/accounts/:connectedAccountId/customers',      authenticate, adsGuard, getGoogleAdsCustomers);
+app.post('/api/v1/ads/google/accounts/:connectedAccountId/link-customer', authenticate, adsGuard, linkGoogleAdsCustomer);
+app.post('/api/v1/ads/google/boosts',            authenticate, adsGuard, createGoogleBoost);
+app.post('/api/v1/ads/google/boosts/:id/sync',   authenticate, adsGuard, syncGoogleMetrics);
+app.post('/api/v1/ads/google/boosts/:id/pause',  authenticate, adsGuard, pauseGoogleBoost);
+app.post('/api/v1/ads/google/boosts/:id/resume', authenticate, adsGuard, resumeGoogleBoost);
+app.delete('/api/v1/ads/google/boosts/:id',      authenticate, adsGuard, cancelGoogleBoost);
 
 // Protected Scheduler Routes
 app.post('/api/v1/scheduler/recommend', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), getRecommendations);
@@ -836,6 +870,10 @@ app.get('/api/v1/operations/evidence', authenticate, listEvidenceBundles);
 
 // Monitoring Routes
 app.get('/api/v1/monitoring/usage', authenticate, scopeGuard('read:analytics', '*'), getResourceUsage);
+
+// Billing & Wallet
+app.get('/api/v1/billing/wallet', authenticate, getWalletData);
+app.put('/api/v1/billing/wallet/auto-topup', authenticate, updateAutoTopup);
 app.get('/api/v1/monitoring/models/performance/summary', authenticate, scopeGuard('read:analytics', '*'), getPerformanceSummary);
 app.get('/api/v1/monitoring/models/performance/trends', authenticate, scopeGuard('read:analytics', '*'), getPerformanceTrends);
 app.get('/api/v1/monitoring/models/performance/hallucinations', authenticate, scopeGuard('read:analytics', '*'), getHallucinationFlags);
@@ -1092,6 +1130,43 @@ app.post('/api/v1/validation/callbacks/:callbackId/retry', authenticate, scopeGu
 
 // Support Routes
 app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket);
+
+// ─── Inbox & Engagement Routes ───────────────────────────────────────────────
+import {
+  listInboxMessages, getInboxMessage, createReply, generateAiDraft, sendReply,
+  assignMessage, updateMessageStatus, escalateMessage, getEscalationQueue,
+  resolveEscalation, addNote as addInboxNote, deleteInboxMessages, archiveMessage,
+  getMessageAudit, syncPlatformMessages, getPostPreview,
+} from './domains/inbox/inboxController';
+import { verifyMetaWebhook, handleMetaWebhook } from './domains/inbox/inboxWebhook';
+import {
+  listAutoReplyRules, createAutoReplyRule, updateAutoReplyRule, deleteAutoReplyRule,
+} from './domains/inbox/inboxSettingsController';
+
+// Static routes before parameterized :id routes
+app.get('/api/v1/inbox/settings/auto-reply',           authenticate, listAutoReplyRules);
+app.post('/api/v1/inbox/settings/auto-reply',          authenticate, createAutoReplyRule);
+app.patch('/api/v1/inbox/settings/auto-reply/:id',     authenticate, updateAutoReplyRule);
+app.post('/api/v1/inbox/settings/auto-reply/:id/delete', authenticate, deleteAutoReplyRule);
+app.get('/api/v1/inbox/messages',                      authenticate, listInboxMessages);
+app.post('/api/v1/inbox/messages/delete',              authenticate, deleteInboxMessages);
+app.get('/api/v1/inbox/escalations',                   authenticate, getEscalationQueue);
+app.post('/api/v1/inbox/escalations/:escalationId/resolve', authenticate, resolveEscalation);
+app.post('/api/v1/inbox/sync',                         authenticate, syncPlatformMessages);
+app.get('/api/v1/inbox/messages/:id',                  authenticate, getInboxMessage);
+app.post('/api/v1/inbox/messages/:id/reply',           authenticate, createReply);
+app.post('/api/v1/inbox/messages/:id/reply/generate',  authenticate, generateAiDraft);
+app.post('/api/v1/inbox/messages/:replyId/reply/send', authenticate, sendReply);
+app.post('/api/v1/inbox/messages/:id/assign',          authenticate, assignMessage);
+app.patch('/api/v1/inbox/messages/:id/status',         authenticate, updateMessageStatus);
+app.post('/api/v1/inbox/messages/:id/escalate',        authenticate, escalateMessage);
+app.post('/api/v1/inbox/messages/:id/archive',         authenticate, archiveMessage);
+app.post('/api/v1/inbox/messages/:id/notes',           authenticate, addInboxNote);
+app.get('/api/v1/inbox/messages/:id/audit',            authenticate, getMessageAudit);
+app.get('/api/v1/inbox/messages/:id/post-preview',     authenticate, getPostPreview);
+// Meta webhook endpoints (no auth — verified by hub.verify_token / X-Hub-Signature-256)
+app.get('/api/v1/inbox/webhook/meta',  verifyMetaWebhook);
+app.post('/api/v1/inbox/webhook/meta', handleMetaWebhook);
 
 
 

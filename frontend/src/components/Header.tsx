@@ -106,22 +106,65 @@ const allRoutes: SearchItem[] = [
   { label: "Privacy Policy", href: "/privacy", icon: <FileText className="w-4 h-4" />, keywords: "policy terms legal data" },
 ];
 
+interface ApiSearchResult {
+  agents: { id: string; name: string; status: string; autonomy_level: string; workspace_id: string }[];
+  content: { id: string; content: string; platform: string; status: string; workspace_id: string }[];
+  campaigns: { id: string; title: string; status: string; workspace_id: string }[];
+  workflows: { id: string; name: string; status: string; risk_level: string; workspace_id: string }[];
+  policies: { id: string; name: string; status: string; risk_level: string; workspace_id: string }[];
+}
+
 export default function Header() {
   const router = useRouter();
   const { fullName, role, orgName, isSuperAdmin } = useRoleContext();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [apiResults, setApiResults] = useState<ApiSearchResult | null>(null);
+  const [apiLoading, setApiLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const q = query.toLowerCase().trim();
-  const filtered = q
-    ? allRoutes.filter(r =>
-        r.label.toLowerCase().includes(q) ||
-        (r.keywords && r.keywords.includes(q))
-      )
+  const words = q ? q.split(/\s+/).filter(Boolean) : [];
+  const filtered = words.length > 0
+    ? allRoutes.filter(r => {
+        const searchText = (r.label + ' ' + (r.keywords || '')).toLowerCase();
+        return words.every(w => searchText.includes(w));
+      })
     : allRoutes;
+
+  const hasApiResults = apiResults && (
+    apiResults.agents.length > 0 ||
+    apiResults.content.length > 0 ||
+    apiResults.campaigns.length > 0 ||
+    apiResults.workflows.length > 0 ||
+    apiResults.policies.length > 0
+  );
+
+  useEffect(() => {
+    if (words.length === 0) {
+      setApiResults(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setApiLoading(true);
+      try {
+        const res = await fetch(`/api/v1/search?q=${encodeURIComponent(query.trim())}`, {
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setApiResults(json.data ?? null);
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setApiLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, words.length]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -208,30 +251,106 @@ export default function Header() {
 
           {/* Dropdown */}
           {open && (
-            <div className="absolute top-full mt-1.5 left-0 right-0 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden z-50 max-h-72 overflow-y-auto">
-              {filtered.length === 0 ? (
+            <div className="absolute top-full mt-1.5 left-0 right-0 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden z-50 max-h-96 overflow-y-auto">
+              {filtered.length === 0 && !hasApiResults && !apiLoading && (
                 <div className="px-4 py-6 text-center text-sm text-[var(--foreground-muted)]">
                   No results for &quot;{query}&quot;
                 </div>
-              ) : (
-                filtered.map((item, i) => (
-                  <button
-                    key={item.href}
-                    onClick={() => navigate(item.href)}
-                    onMouseEnter={() => setSelectedIdx(i)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
-                      i === selectedIdx
-                        ? 'bg-[var(--accent-subtle)] text-[var(--accent)]'
-                        : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
-                    }`}
-                  >
-                    <span className={i === selectedIdx ? 'text-[var(--accent)]' : 'text-[var(--foreground-muted)]'}>
-                      {item.icon}
-                    </span>
-                    <span className="flex-1">{item.label}</span>
-                    <ChevronRight className={`w-3.5 h-3.5 ${i === selectedIdx ? 'text-[var(--accent)]' : 'text-[var(--foreground-muted)] opacity-0'}`} />
-                  </button>
-                ))
+              )}
+
+              {filtered.length > 0 && (
+                <>
+                  <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] bg-[var(--background)]/50">
+                    Pages
+                  </div>
+                  {filtered.map((item, i) => (
+                    <button
+                      key={item.href}
+                      onClick={() => navigate(item.href)}
+                      onMouseEnter={() => setSelectedIdx(i)}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
+                        i === selectedIdx
+                          ? 'bg-[var(--accent-subtle)] text-[var(--accent)]'
+                          : 'text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+                      }`}
+                    >
+                      <span className={i === selectedIdx ? 'text-[var(--accent)]' : 'text-[var(--foreground-muted)]'}>
+                        {item.icon}
+                      </span>
+                      <span className="flex-1">{item.label}</span>
+                      <ChevronRight className={`w-3.5 h-3.5 ${i === selectedIdx ? 'text-[var(--accent)]' : 'text-[var(--foreground-muted)] opacity-0'}`} />
+                    </button>
+                  ))}
+                </>
+              )}
+
+              {apiLoading && (
+                <div className="px-4 py-3 text-center text-xs text-[var(--foreground-muted)]">
+                  Searching data...
+                </div>
+              )}
+
+              {hasApiResults && (
+                <div className="border-t border-[var(--border)]">
+                  <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] bg-[var(--background)]/50">
+                    Data Results
+                  </div>
+                  {apiResults!.agents.map((item) => (
+                    <button
+                      key={`agent-${item.id}`}
+                      onClick={() => { setOpen(false); setQuery(""); router.push(`/agents/operations?id=${item.id}`); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+                    >
+                      <Settings className="w-4 h-4 text-[var(--foreground-muted)]" />
+                      <span className="flex-1 truncate">{item.name}</span>
+                      <span className="text-[10px] font-mono text-[var(--foreground-muted)]">{item.status}</span>
+                    </button>
+                  ))}
+                  {apiResults!.content.map((item) => (
+                    <button
+                      key={`content-${item.id}`}
+                      onClick={() => { setOpen(false); setQuery(""); router.push(`/publish?id=${item.id}`); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+                    >
+                      <FileText className="w-4 h-4 text-[var(--foreground-muted)]" />
+                      <span className="flex-1 truncate">{item.content?.substring(0, 60)}</span>
+                      <span className="text-[10px] font-mono text-[var(--foreground-muted)]">{item.platform}</span>
+                    </button>
+                  ))}
+                  {apiResults!.campaigns.map((item) => (
+                    <button
+                      key={`campaign-${item.id}`}
+                      onClick={() => { setOpen(false); setQuery(""); router.push(`/campaigns/${item.id}`); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+                    >
+                      <BarChart3 className="w-4 h-4 text-[var(--foreground-muted)]" />
+                      <span className="flex-1 truncate">{item.title}</span>
+                      <span className="text-[10px] font-mono text-[var(--foreground-muted)]">{item.status}</span>
+                    </button>
+                  ))}
+                  {apiResults!.workflows.map((item) => (
+                    <button
+                      key={`workflow-${item.id}`}
+                      onClick={() => { setOpen(false); setQuery(""); router.push(`/agents/workflows?id=${item.id}`); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+                    >
+                      <Settings className="w-4 h-4 text-[var(--foreground-muted)]" />
+                      <span className="flex-1 truncate">{item.name}</span>
+                      <span className="text-[10px] font-mono text-[var(--foreground-muted)]">{item.status}</span>
+                    </button>
+                  ))}
+                  {apiResults!.policies.map((item) => (
+                    <button
+                      key={`policy-${item.id}`}
+                      onClick={() => { setOpen(false); setQuery(""); router.push(`/governance/policy?id=${item.id}`); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+                    >
+                      <Shield className="w-4 h-4 text-[var(--foreground-muted)]" />
+                      <span className="flex-1 truncate">{item.name}</span>
+                      <span className="text-[10px] font-mono text-[var(--foreground-muted)]">{item.status}</span>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           )}

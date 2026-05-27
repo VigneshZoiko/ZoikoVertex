@@ -753,6 +753,22 @@ export const api = {
     return this.get(`/api/v1/inbox/messages/${messageId}/post-preview`);
   },
 
+  async listInboxAutoReplyRules() {
+    return this.get('/api/v1/inbox/settings/auto-reply');
+  },
+
+  async createInboxAutoReplyRule(body: { rule_name?: string; keywords: string[]; reply_body: string; is_active?: boolean; is_case_sensitive?: boolean }) {
+    return this.post('/api/v1/inbox/settings/auto-reply', body);
+  },
+
+  async updateInboxAutoReplyRule(id: string, body: { rule_name?: string; keywords?: string[]; reply_body?: string; is_active?: boolean; is_case_sensitive?: boolean }) {
+    return this.patch(`/api/v1/inbox/settings/auto-reply/${id}`, body);
+  },
+
+  async deleteInboxAutoReplyRule(id: string) {
+    return this.post(`/api/v1/inbox/settings/auto-reply/${id}/delete`, {});
+  },
+
   async getPlatformReach() {
     return this.get('/api/v1/analytics/platform-reach');
   },

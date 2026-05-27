@@ -55,7 +55,7 @@ export default function PricingSection() {
 
   return (
     <section className="bg-[#080E1A] w-full px-6 py-20 overflow-hidden">
-      <div className="max-w-[1200px] mx-auto">
+      <div className="max-w-[1200] mx-auto">
 
         {/* ── Header ── */}
         <div
