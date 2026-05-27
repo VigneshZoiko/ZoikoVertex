@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -43,13 +44,13 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-6">
             <div className="flex items-center gap-3">
-               <img
-        src="/images/logo-wordmark.svg"
-        alt="ZoikoVertex"
-        width={160}
-        height={32}
-        className="h-8 w-auto"
-      />
+              <Image
+                src="/images/logo-wordmark.svg"
+                alt="ZoikoVertex"
+                width={160}
+                height={32}
+                className="h-8 w-auto"
+              />
             </div>
             <div className="hidden sm:flex items-center gap-6 text-sm font-medium text-slate-600">
               <a href="#" className="hover:text-slate-900 transition-colors">Security</a>

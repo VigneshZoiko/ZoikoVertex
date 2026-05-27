@@ -102,6 +102,12 @@ export const CreateSchema = z.object({
   approval_tier:          z.enum(['low', 'medium', 'high', 'critical']).default('low'),
   wizard_step:            z.number().int().min(1).max(5).default(1),
 
+  // Post limit & auto-boost
+  post_limit:             z.number().int().positive().nullable().optional(),
+  auto_boost_enabled:     z.boolean().default(false),
+  boost_per_post_budget:  z.number().positive().nullable().optional(),
+  boost_settings:         z.record(z.string(), z.unknown()).nullable().optional(),
+
   // JSONB fields
   targeting:              TargetingSchema,
   creative:               CreativeSchema,
