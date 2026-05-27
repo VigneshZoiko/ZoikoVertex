@@ -915,3 +915,349 @@ export async function preserveEvents(params: {
 
   return { preserved: params.event_ids.length, preservation_event_id: preserveEvent.event_id };
 }
+
+// ─── Phase 2: Before/After Diff ──────────────────────────────────────────────
+
+interface DiffFieldChange {
+  field: string;
+  type: 'added' | 'removed' | 'changed' | 'unchanged';
+  previous_value: unknown;
+  new_value: unknown;
+}
+
+interface EventDiffResult {
+  event_a: { id: string; event_id: string; event_type: string; created_at: string };
+  event_b: { id: string; event_id: string; event_type: string; created_at: string };
+  changes: DiffFieldChange[];
+  summary: { total_fields: number; changed: number; added: number; removed: number };
+}
+
+function flattenObject(obj: Record<string, unknown>, prefix = ''): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+      Object.assign(result, flattenObject(val as Record<string, unknown>, path));
+    } else {
+      result[path] = val;
+    }
+  }
+  return result;
+}
+
+export async function getEventDiff(
+  eventIdA: string,
+  eventIdB: string,
+  workspace_id: string
+): Promise<EventDiffResult | null> {
+  const [eventA, eventB] = await Promise.all([
+    getAuditEvent(eventIdA, workspace_id),
+    getAuditEvent(eventIdB, workspace_id),
+  ]);
+
+  if (!eventA || !eventB) return null;
+
+  const skipFields = new Set(['id', 'event_id', 'hash', 'prev_hash', 'block_number', 'created_at', 'received_at']);
+  const a = flattenObject(eventA as unknown as Record<string, unknown>);
+  const b = flattenObject(eventB as unknown as Record<string, unknown>);
+  const allKeys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  const changes: DiffFieldChange[] = [];
+
+  for (const key of allKeys) {
+    if (skipFields.has(key)) continue;
+    const valA = a[key];
+    const valB = b[key];
+    const strA = typeof valA === 'object' ? JSON.stringify(valA) : String(valA ?? '');
+    const strB = typeof valB === 'object' ? JSON.stringify(valB) : String(valB ?? '');
+
+    if (key in a && !(key in b)) {
+      changes.push({ field: key, type: 'removed', previous_value: valA, new_value: null });
+    } else if (!(key in a) && key in b) {
+      changes.push({ field: key, type: 'added', previous_value: null, new_value: valB });
+    } else if (strA !== strB) {
+      changes.push({ field: key, type: 'changed', previous_value: valA, new_value: valB });
+    }
+  }
+
+  return {
+    event_a: { id: eventA.id, event_id: eventA.event_id, event_type: eventA.event_type, created_at: eventA.created_at },
+    event_b: { id: eventB.id, event_id: eventB.event_id, event_type: eventB.event_type, created_at: eventB.created_at },
+    changes,
+    summary: {
+      total_fields: allKeys.size,
+      changed: changes.filter(c => c.type === 'changed').length,
+      added: changes.filter(c => c.type === 'added').length,
+      removed: changes.filter(c => c.type === 'removed').length,
+    },
+  };
+}
+
+// ─── Phase 2: Correlation Timeline ───────────────────────────────────────────
+
+interface TimelineSegment {
+  start: string;
+  end: string;
+  event_count: number;
+  events: AuditEvent[];
+  segment_label: string;
+}
+
+interface CorrelationTimelineResult {
+  correlation_key: string;
+  correlation_value: string;
+  total_events: number;
+  time_range: { from: string; to: string };
+  segments: TimelineSegment[];
+  actor_summary: Array<{ actor_id: string; event_count: number; first_seen: string; last_seen: string }>;
+  event_type_breakdown: Array<{ event_type: string; count: number; percentage: number }>;
+}
+
+const VALID_CORRELATION_KEYS = ['workflow_run_id', 'approval_chain_id', 'campaign_id', 'brand_id'] as const;
+
+export async function getCorrelationTimeline(
+  workspace_id: string,
+  correlationKey: string,
+  correlationValue: string,
+  limit = 200
+): Promise<CorrelationTimelineResult> {
+  if (!VALID_CORRELATION_KEYS.includes(correlationKey as typeof VALID_CORRELATION_KEYS[number])) {
+    throw new Error(`Invalid correlation key. Must be one of: ${VALID_CORRELATION_KEYS.join(', ')}`);
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('audit_events')
+    .select('*')
+    .eq('workspace_id', workspace_id)
+    .filter(`correlation->>${correlationKey}`, 'eq', correlationValue)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+
+  const events = (data || []) as AuditEvent[];
+
+  if (events.length === 0) {
+    return {
+      correlation_key: correlationKey,
+      correlation_value: correlationValue,
+      total_events: 0,
+      time_range: { from: '', to: '' },
+      segments: [],
+      actor_summary: [],
+      event_type_breakdown: [],
+    };
+  }
+
+  // Build time segments (auto-partition into segments based on time gaps > 1 hour)
+  const segments: TimelineSegment[] = [];
+  let segmentStart = 0;
+  for (let i = 1; i <= events.length; i++) {
+    const isLast = i === events.length;
+    const gapExceeded = !isLast &&
+      new Date(events[i].created_at).getTime() - new Date(events[i - 1].created_at).getTime() > 3600000;
+
+    if (gapExceeded || isLast) {
+      const segmentEvents = events.slice(segmentStart, isLast ? i : i);
+      const segmentKey = segmentEvents.length > 1
+        ? `${segmentEvents[0].event_type} → ${segmentEvents[segmentEvents.length - 1].event_type}`
+        : segmentEvents[0].event_type;
+      segments.push({
+        start: segmentEvents[0].created_at,
+        end: segmentEvents[segmentEvents.length - 1].created_at,
+        event_count: segmentEvents.length,
+        events: segmentEvents,
+        segment_label: segmentKey,
+      });
+      segmentStart = i;
+    }
+  }
+
+  // Actor summary
+  const actorMap = new Map<string, { count: number; first: string; last: string }>();
+  for (const ev of events) {
+    const actor = (ev as unknown as Record<string, unknown>).actor as Record<string, string> | undefined;
+    const actorId = actor?.actor_id;
+    if (!actorId) continue;
+    const existing = actorMap.get(actorId) || { count: 0, first: ev.created_at, last: ev.created_at };
+    existing.count++;
+    if (ev.created_at < existing.first) existing.first = ev.created_at;
+    if (ev.created_at > existing.last) existing.last = ev.created_at;
+    actorMap.set(actorId, existing);
+  }
+
+  const actorSummary = Array.from(actorMap.entries())
+    .map(([actor_id, info]) => ({ actor_id, event_count: info.count, first_seen: info.first, last_seen: info.last }))
+    .sort((a, b) => b.event_count - a.event_count);
+
+  // Event type breakdown
+  const typeCount = new Map<string, number>();
+  for (const ev of events) {
+    typeCount.set(ev.event_type, (typeCount.get(ev.event_type) || 0) + 1);
+  }
+  const eventTypeBreakdown = Array.from(typeCount.entries())
+    .map(([event_type, count]) => ({
+      event_type,
+      count,
+      percentage: events.length > 0 ? Math.round((count / events.length) * 100) : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    correlation_key: correlationKey,
+    correlation_value: correlationValue,
+    total_events: events.length,
+    time_range: { from: events[0].created_at, to: events[events.length - 1].created_at },
+    segments,
+    actor_summary: actorSummary,
+    event_type_breakdown: eventTypeBreakdown,
+  };
+}
+
+// ─── Phase 2: Event Clustering ───────────────────────────────────────────────
+
+interface EventCluster {
+  cluster_id: string;
+  cluster_label: string;
+  cluster_reason: string;
+  event_count: number;
+  time_range: { from: string; to: string };
+  risk_levels: string[];
+  events: AuditEvent[];
+}
+
+interface EventClustersResult {
+  source_event_id: string;
+  clusters: EventCluster[];
+  total_related: number;
+}
+
+export async function getEventClusters(
+  eventId: string,
+  workspace_id: string
+): Promise<EventClustersResult> {
+  const event = await getAuditEvent(eventId, workspace_id);
+  if (!event) return { source_event_id: eventId, clusters: [], total_related: 0 };
+
+  const clusters: EventCluster[] = [];
+  const seen = new Set<string>();
+  seen.add(eventId);
+
+  const e = event as unknown as Record<string, unknown>;
+  const correlation = e.correlation as Record<string, string> | undefined;
+  const actor = e.actor as Record<string, string> | undefined;
+  const obj = e.object as Record<string, string> | undefined;
+  const relatedObjects = e.related_objects as Array<{ type: string; id: string }> | undefined;
+
+  const addToCluster = (clusterId: string, label: string, reason: string, newEvents: AuditEvent[]) => {
+    const unique = newEvents.filter(n => !seen.has(n.id));
+    unique.forEach(u => seen.add(u.id));
+    if (unique.length === 0) return;
+
+    const allRiskLevels = [...new Set(unique.map(u => u.risk_level || 'low').filter(Boolean))];
+    clusters.push({
+      cluster_id: clusterId,
+      cluster_label: label,
+      cluster_reason: reason,
+      event_count: unique.length,
+      time_range: {
+        from: unique[0].created_at,
+        to: unique[unique.length - 1].created_at,
+      },
+      risk_levels: allRiskLevels,
+      events: unique,
+    });
+  };
+
+  // Cluster 1: Same workflow run
+  if (correlation?.workflow_run_id) {
+    const { data } = await supabaseAdmin
+      .from('audit_events')
+      .select('*')
+      .eq('workspace_id', workspace_id)
+      .filter('correlation->>workflow_run_id', 'eq', correlation.workflow_run_id)
+      .order('created_at', { ascending: true })
+      .limit(100);
+    addToCluster('workflow', `Workflow: ${correlation.workflow_run_id.slice(0, 8)}`, 'Same workflow_run_id correlation', (data || []) as AuditEvent[]);
+  }
+
+  // Cluster 2: Same approval chain
+  if (correlation?.approval_chain_id) {
+    const { data } = await supabaseAdmin
+      .from('audit_events')
+      .select('*')
+      .eq('workspace_id', workspace_id)
+      .filter('correlation->>approval_chain_id', 'eq', correlation.approval_chain_id)
+      .order('created_at', { ascending: true })
+      .limit(100);
+    addToCluster('approval', `Approval Chain: ${correlation.approval_chain_id.slice(0, 8)}`, 'Same approval_chain_id correlation', (data || []) as AuditEvent[]);
+  }
+
+  // Cluster 3: Same campaign
+  if (correlation?.campaign_id) {
+    const twoHoursAgo = new Date(new Date(event.created_at).getTime() - 2 * 60 * 60 * 1000).toISOString();
+    const twoHoursAfter = new Date(new Date(event.created_at).getTime() + 2 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabaseAdmin
+      .from('audit_events')
+      .select('*')
+      .eq('workspace_id', workspace_id)
+      .filter('correlation->>campaign_id', 'eq', correlation.campaign_id)
+      .gte('created_at', twoHoursAgo)
+      .lte('created_at', twoHoursAfter)
+      .order('created_at', { ascending: true })
+      .limit(100);
+    addToCluster('campaign', `Campaign: ${correlation.campaign_id.slice(0, 8)}`, 'Same campaign_id scope', (data || []) as AuditEvent[]);
+  }
+
+  // Cluster 4: Actor proximity (+/- 15 min)
+  if (actor?.actor_id) {
+    const fifteenMinAgo = new Date(new Date(event.created_at).getTime() - 15 * 60 * 1000).toISOString();
+    const fifteenMinAfter = new Date(new Date(event.created_at).getTime() + 15 * 60 * 1000).toISOString();
+    const { data } = await supabaseAdmin
+      .from('audit_events')
+      .select('*')
+      .eq('workspace_id', workspace_id)
+      .filter('actor->>actor_id', 'eq', actor.actor_id)
+      .gte('created_at', fifteenMinAgo)
+      .lte('created_at', fifteenMinAfter)
+      .order('created_at', { ascending: true })
+      .limit(50);
+    addToCluster('actor', `Actor: ${actor.actor_id.slice(0, 8)}`, 'Same actor within 15-minute window', (data || []) as AuditEvent[]);
+  }
+
+  // Cluster 5: Same object lineage
+  if (obj?.object_id) {
+    const twoHoursAgo = new Date(new Date(event.created_at).getTime() - 2 * 60 * 60 * 1000).toISOString();
+    const twoHoursAfter = new Date(new Date(event.created_at).getTime() + 2 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabaseAdmin
+      .from('audit_events')
+      .select('*')
+      .eq('workspace_id', workspace_id)
+      .filter('object->>object_id', 'eq', obj.object_id)
+      .gte('created_at', twoHoursAgo)
+      .lte('created_at', twoHoursAfter)
+      .order('created_at', { ascending: true })
+      .limit(50);
+    addToCluster('object', `Object: ${obj.object_id.slice(0, 8)}`, 'Same object_id within 2-hour window', (data || []) as AuditEvent[]);
+  }
+
+  // Cluster 6: Related objects lineage
+  if (relatedObjects && relatedObjects.length > 0) {
+    const relatedIds = relatedObjects.map(r => r.id).filter(Boolean);
+    for (const rid of relatedIds) {
+      const { data } = await supabaseAdmin
+        .from('audit_events')
+        .select('*')
+        .eq('workspace_id', workspace_id)
+        .filter('object->>object_id', 'eq', rid)
+        .order('created_at', { ascending: true })
+        .limit(50);
+      addToCluster(`related_${rid.slice(0, 8)}`, `Related: ${rid.slice(0, 8)}`, 'Matches related_objects entry', (data || []) as AuditEvent[]);
+    }
+  }
+
+  return {
+    source_event_id: eventId,
+    clusters,
+    total_related: seen.size - 1,
+  };
+}

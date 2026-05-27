@@ -13,6 +13,9 @@ import {
   sealExpiredRecords,
   applyFieldAccess,
   createAuditEvent,
+  getEventDiff,
+  getCorrelationTimeline,
+  getEventClusters,
   UserRole,
 } from '../../services/auditTrail.service';
 import { createCase as createForensicCase } from '../../services/forensicHub.service';
@@ -430,6 +433,60 @@ export async function createInvestigation(req: AuthRequest, res: Response, next:
         severity,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── GET /api/audit-events/:id/diff?compare=:otherId ────────────────────
+
+export async function getEventDiffHandler(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
+
+    const eventId = req.params.id as string;
+    const compareId = req.query.compare as string;
+    if (!compareId) return res.status(400).json({ error: 'compare query param (event ID) required' });
+
+    const result = await getEventDiff(eventId, compareId, workspaceId);
+    if (!result) return res.status(404).json({ error: 'One or both events not found' });
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── GET /api/audit-events/correlations/:key/:value/timeline ────────────
+
+export async function getCorrelationTimelineHandler(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
+
+    const key = req.params.key as string;
+    const value = req.params.value as string;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 200;
+
+    const result = await getCorrelationTimeline(workspaceId, key, value, limit);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── GET /api/audit-events/:id/clusters ─────────────────────────────────
+
+export async function getEventClustersHandler(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
+
+    const eventId = req.params.id as string;
+
+    const result = await getEventClusters(eventId, workspaceId);
+    res.json({ success: true, data: result });
   } catch (err) {
     next(err);
   }

@@ -1,6 +1,12 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { createAuditEvent } from './auditTrail.service';
 import * as crypto from 'crypto';
+import {
+  submitAnchor,
+  confirmAnchor as extConfirmAnchor,
+  verifyAnchorIntegrity,
+  computeAnchorHash,
+} from './externalAnchor.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1628,6 +1634,39 @@ export async function listAsyncJobs(filters: {
 
 // ─── Phase 4: Chain Anchoring ─────────────────────────────────────────────────────
 
+async function resolveAnchorTargetData(params: {
+  package_id?: string;
+  item_id?: string;
+}): Promise<Record<string, unknown>> {
+  if (params.package_id) {
+    const pkg = await getPackage(params.package_id);
+    if (pkg) {
+      return {
+        package_id: pkg.package_id,
+        package_type: pkg.package_type,
+        title: pkg.title,
+        manifest_hash: pkg.manifest_hash,
+        item_count: pkg.item_count,
+        template_version: pkg.template_version,
+      };
+    }
+  }
+  if (params.item_id) {
+    const item = await getEvidenceItemByItemId(params.item_id);
+    if (item) {
+      return {
+        item_id: item.item_id,
+        source_type: item.source_type,
+        original_content_hash: item.original_content_hash,
+        normalized_content_hash: item.normalized_content_hash,
+        preservation_receipt_hash: item.preservation_receipt_hash,
+        vault_state: item.vault_state,
+      };
+    }
+  }
+  return {};
+}
+
 export async function createChainAnchor(params: {
   package_id?: string;
   item_id?: string;
@@ -1639,6 +1678,20 @@ export async function createChainAnchor(params: {
 }): Promise<VaultChainAnchor> {
   const anchorId = generateAnchorId();
   const scope = await resolveChainAnchorScope(params);
+  const provider = (['ethereum', 'opentimestamps', 'mock'].includes(params.anchor_provider)
+    ? params.anchor_provider
+    : 'mock') as 'ethereum' | 'opentimestamps' | 'mock';
+
+  const targetData = await resolveAnchorTargetData(params);
+  const hashPayload = { ...targetData, ...(params.anchor_data || {}) };
+  const anchorHash = computeAnchorHash(hashPayload);
+
+  const submission = await submitAnchor(anchorHash, provider, {
+    anchor_id: anchorId,
+    workspace_id: scope.workspace_id,
+    tenant_id: scope.tenant_id,
+    ...(params.anchor_data || {}),
+  });
 
   const { data, error } = await supabaseAdmin.from('vault_chain_anchors').insert({
     anchor_id: anchorId,
@@ -1646,9 +1699,16 @@ export async function createChainAnchor(params: {
     item_id: params.item_id || null,
     workspace_id: scope.workspace_id,
     tenant_id: scope.tenant_id,
-    anchor_provider: params.anchor_provider,
-    anchor_data: params.anchor_data || {},
-    status: 'pending',
+    anchor_provider: provider,
+    anchor_hash: anchorHash,
+    anchor_tx_hash: submission.tx_hash,
+    anchor_timestamp: submission.submitted_at,
+    anchor_data: {
+      ...(params.anchor_data || {}),
+      block_height: submission.block_height,
+      provider_response: submission.provider_response,
+    },
+    status: submission.status,
     created_by: params.created_by || null,
   }).select().single();
 
@@ -1657,12 +1717,94 @@ export async function createChainAnchor(params: {
   await emitVaultAuditEvent(
     'evidence.chain_anchored', scope.workspace_id, params.created_by || 'system',
     `Chain Anchor Created: ${anchorId}`,
-    `Hash anchor ${anchorId} created via ${params.anchor_provider}.`,
+    `Hash ${anchorHash.slice(0, 20)}... anchored via ${provider} (tx: ${submission.tx_hash?.slice(0, 16)}...).`,
     { object_type: 'vault_chain_anchor', object_id: anchorId },
-    undefined, undefined, scope.tenant_id,
+    { field_changed: 'vault_state', previous_value: null, new_value: 'anchored', change_reason: 'external_chain_anchor' },
+    { permission_used: 'evidence.anchor' },
+    scope.tenant_id,
   );
 
   return data;
+}
+
+export async function confirmChainAnchor(
+  anchorId: string,
+  workspace_id: string
+): Promise<VaultChainAnchor | null> {
+  const { data: anchor } = await supabaseAdmin
+    .from('vault_chain_anchors')
+    .select('*')
+    .eq('anchor_id', anchorId)
+    .eq('workspace_id', workspace_id)
+    .single();
+
+  if (!anchor) return null;
+  if (anchor.status !== 'submitted' && anchor.status !== 'pending') {
+    throw new Error(`Anchor ${anchorId} is already ${anchor.status}`);
+  }
+
+  const provider = (['ethereum', 'opentimestamps', 'mock'].includes(anchor.anchor_provider)
+    ? anchor.anchor_provider
+    : 'mock') as 'ethereum' | 'opentimestamps' | 'mock';
+
+  const confirmed = await extConfirmAnchor({
+    anchor_hash: anchor.anchor_hash,
+    provider,
+    status: 'submitted',
+    tx_hash: anchor.anchor_tx_hash,
+    block_height: anchor.anchor_data?.block_height || null,
+    submitted_at: anchor.anchor_timestamp || anchor.created_at,
+    confirmed_at: null,
+    provider_response: anchor.anchor_data?.provider_response || {},
+  });
+
+  const { data: updated, error } = await supabaseAdmin
+    .from('vault_chain_anchors')
+    .update({
+      status: 'confirmed',
+      confirmed_at: confirmed.confirmed_at,
+      anchor_data: {
+        ...(anchor.anchor_data || {}),
+        provider_response: confirmed.provider_response,
+      },
+    })
+    .eq('anchor_id', anchorId)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  await emitVaultAuditEvent(
+    'evidence.anchor_confirmed', workspace_id, 'system',
+    `Chain Anchor Confirmed: ${anchorId}`,
+    `Anchor ${anchorId} confirmed at ${confirmed.confirmed_at}.`,
+    { object_type: 'vault_chain_anchor', object_id: anchorId },
+    { field_changed: 'status', previous_value: 'submitted', new_value: 'confirmed', change_reason: 'external_confirmation' },
+    undefined, anchor.tenant_id,
+  );
+
+  return updated;
+}
+
+export async function verifyChainAnchor(
+  anchorId: string,
+  workspace_id: string
+): Promise<{ valid: boolean; computed_hash: string; stored_hash: string; anchor: VaultChainAnchor | null; reason?: string }> {
+  const { data: anchor } = await supabaseAdmin
+    .from('vault_chain_anchors')
+    .select('*')
+    .eq('anchor_id', anchorId)
+    .eq('workspace_id', workspace_id)
+    .single();
+
+  if (!anchor) {
+    return { valid: false, computed_hash: '', stored_hash: '', anchor: null, reason: 'Anchor not found' };
+  }
+
+  const targetData = await resolveAnchorTargetData(anchor);
+  const result = verifyAnchorIntegrity(targetData, anchor.anchor_hash);
+
+  return { ...result, anchor };
 }
 
 export async function listChainAnchors(filters: {

@@ -1,3 +1,4 @@
+
 import { logger } from '../../shared/logger';
 
 export class AutoCampaignBoostService {
