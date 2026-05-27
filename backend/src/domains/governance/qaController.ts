@@ -4,6 +4,7 @@ import { env } from '../../config/env';
 import { logger } from '../../shared/logger';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as qaService from '../../services/qualityAudit.service';
+import { DEFAULT_TENANT_ID } from '../../shared/constants';
 
 function getParamId(req: AuthRequest): string {
   const v = req.params.id;
@@ -79,7 +80,7 @@ export const performQualityCheck = async (req: AuthRequest, res: Response, next:
 
 export const listAuditItems = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const tenant_id = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+    const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const result = await qaService.listAuditItems({
       tenant_id,
       audit_status: req.query.audit_status as string,
@@ -111,7 +112,7 @@ export const getAuditItem = async (req: AuthRequest, res: Response, next: NextFu
 
 export const getQaAuditStats = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const tenant_id = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+    const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const assigned_auditor = req.query.assigned_auditor as string;
     const stats = await qaService.getAuditStats(tenant_id, assigned_auditor ? { assigned_auditor } : undefined);
     res.json({ success: true, data: stats });
@@ -368,7 +369,7 @@ export const addQaEvidence = async (req: AuthRequest, res: Response, next: NextF
 
 export const generateSample = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const tenant_id = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+    const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const userId = req.user?.id || '';
     const result = await qaService.generateSample({
       tenant_id,

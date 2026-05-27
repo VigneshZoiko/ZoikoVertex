@@ -2,13 +2,14 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as exceptionService from '../../services/exception.service';
+import { DEFAULT_TENANT_ID } from '../../shared/constants';
 
 function getTenantId(req: AuthRequest): string {
-  return (req.user?.workspace_id as string) || '00000000-0000-0000-0000-000000000000';
+  return req.user?.workspace_id || DEFAULT_TENANT_ID;
 }
 
 function getUserId(req: AuthRequest): string {
-  return (req.user?.id as string) || getTenantId(req);
+  return req.user?.id || '';
 }
 
 function paramStr(req: { params: Record<string, any> }, name: string): string {

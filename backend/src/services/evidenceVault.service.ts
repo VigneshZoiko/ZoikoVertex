@@ -164,10 +164,12 @@ async function emitVaultAuditEvent(
   object: { object_type: string; object_id: string; object_name?: string },
   change?: { field_changed?: string; previous_value?: unknown; new_value?: unknown; change_reason?: string },
   authority?: { permission_used?: string; override_reason?: string },
+  tenantId?: string,
 ): Promise<string | null> {
   try {
     const result = await createAuditEvent({
       workspace_id: workspaceId,
+      tenant_id: tenantId || workspaceId,
       event_category: 'evidence_legal',
       event_type: eventType,
       event_title: title,
@@ -258,7 +260,8 @@ export async function preserveEvidence(params: PreserveParams): Promise<VaultEvi
     `Evidence item ${itemId} preserved from ${params.source_system}:${params.source_id}.`,
     { object_type: 'vault_evidence_item', object_id: itemId },
     undefined,
-    { permission_used: 'evidence.item.preserve' }
+    { permission_used: 'evidence.item.preserve' },
+    params.tenant_id,
   );
 
   return data;
@@ -367,7 +370,8 @@ export async function verifyEvidenceItem(itemId: string, actorId: string): Promi
       new_value: (item.verification_count || 0) + 1,
       change_reason: verified ? 'Hashes match' : 'Hash mismatch detected',
     },
-    { permission_used: 'evidence.item.verify' }
+    { permission_used: 'evidence.item.verify' },
+    item.tenant_id,
   );
 
   return {
@@ -408,7 +412,8 @@ export async function createCollection(params: CollectionParams): Promise<VaultC
     'evidence.collection_created', params.workspace_id, params.created_by,
     `Collection Created: ${collectionId}`,
     `Evidence collection "${params.title}" created.`,
-    { object_type: 'vault_evidence_collection', object_id: collectionId }
+    { object_type: 'vault_evidence_collection', object_id: collectionId },
+    undefined, undefined, params.tenant_id,
   );
 
   return data;
@@ -476,7 +481,8 @@ export async function addItemsToCollection(
     `Collection Appended: ${collection.collection_id}`,
     `${itemIds.length} items added to collection ${collection.collection_id}.`,
     { object_type: 'vault_evidence_collection', object_id: collection.collection_id },
-    { field_changed: 'item_count', previous_value: collection.item_count || 0, new_value: (collection.item_count || 0) + itemIds.length }
+    { field_changed: 'item_count', previous_value: collection.item_count || 0, new_value: (collection.item_count || 0) + itemIds.length },
+    undefined, collection.tenant_id,
   );
 
   return { added: itemIds.length };
@@ -672,6 +678,7 @@ export async function createPackage(params: CreatePackageParams): Promise<VaultP
     `Package Created: ${packageId}`,
     `Evidence package "${params.title}" (${params.package_type}) created.`,
     { object_type: 'vault_package', object_id: packageId },
+    undefined, undefined, params.tenant_id,
   );
 
   return { ...data, item_count: params.item_ids?.length || 0 };
@@ -763,6 +770,7 @@ export async function sealPackage(packageId: string, actorId: string): Promise<V
     `Package Sealed: ${pkg.package_id}`,
     `Evidence package ${pkg.package_id} sealed with manifest hash ${manifestHash.substring(0, 16)}...`,
     { object_type: 'vault_package', object_id: pkg.package_id },
+    undefined, undefined, pkg.tenant_id,
   );
 
   return data;
@@ -816,6 +824,7 @@ export async function verifyPackage(packageId: string, actorId: string): Promise
     `Package ${verified ? 'Verified' : 'Verification Failed'}: ${pkg.package_id}`,
     `Package ${pkg.package_id} integrity verification ${verified ? 'PASSED' : 'FAILED'}.`,
     { object_type: 'vault_package', object_id: pkg.package_id },
+    undefined, undefined, pkg.tenant_id,
   );
 
   return { verified, manifest_hash_match: manifestHashMatch, item_results: itemResults };
@@ -861,6 +870,7 @@ export async function createExport(params: CreateExportParams): Promise<VaultExp
     `Export Requested: ${exportId}`,
     `Export ${exportId} requested for package ${pkg.package_id} (${params.disclosure_mode}).`,
     { object_type: 'vault_export', object_id: exportId },
+    undefined, undefined, params.tenant_id,
   );
 
   return data;
@@ -946,7 +956,8 @@ export async function applyHold(params: ApplyHoldParams): Promise<VaultHold> {
     `Legal hold applied to ${params.scope_type} ${params.scope_id || 'via query'} for matter ${params.matter_ref}.`,
     { object_type: 'vault_hold', object_id: holdId },
     undefined,
-    { permission_used: 'evidence.hold.apply' }
+    { permission_used: 'evidence.hold.apply' },
+    params.tenant_id,
   );
 
   return data;
@@ -1010,6 +1021,7 @@ export async function releaseHold(holdId: string, releasedBy: string, reason: st
     `Legal Hold Released: ${hold.hold_id}`,
     `Legal hold ${hold.hold_id} released for matter ${hold.matter_ref}. Reason: ${reason}`,
     { object_type: 'vault_hold', object_id: hold.hold_id },
+    undefined, undefined, hold.tenant_id,
   );
 
   return data;
@@ -1207,6 +1219,7 @@ export async function createShare(params: CreateShareParams): Promise<VaultShare
     `External Share Created: ${shareId}`,
     `Share for package ${pkg.package_id} created for ${params.recipient_email}.`,
     { object_type: 'vault_share', object_id: shareId },
+    undefined, undefined, params.tenant_id,
   );
 
   return data;
@@ -1261,6 +1274,7 @@ export async function revokeShare(shareId: string, revokedBy: string): Promise<V
     `External Share Revoked: ${share.share_id}`,
     `Share ${share.share_id} for package revoked by ${revokedBy}.`,
     { object_type: 'vault_share', object_id: share.share_id },
+    undefined, undefined, share.tenant_id,
   );
 
   return data;
@@ -1314,6 +1328,7 @@ export async function logShareAccess(shareId: string, access: {
     `External share ${shareId} accessed. Section: ${access.package_section || 'overview'}.`,
     { object_type: 'vault_share', object_id: shareId },
   );
+  // Note: share_viewed uses hardcoded workspace — tenant_id omitted intentionally (external viewer lacks context)
 }
 
 export async function getShareAccessLogs(shareId: string): Promise<VaultShareAccessLog[]> {
@@ -1375,6 +1390,7 @@ export async function runDlpScan(packageId: string, workerId?: string): Promise<
       `DLP Scan Flagged: ${pkg.package_id}`,
       `Package ${pkg.package_id} DLP scan found ${findings.length} issue(s). Export blocked until resolved.`,
       { object_type: 'vault_package', object_id: pkg.package_id },
+      undefined, undefined, pkg.tenant_id,
     );
   }
 
@@ -1567,6 +1583,7 @@ export async function createAsyncJob(params: {
     `Job Queued: ${jobId}`,
     `Async job ${jobId} of type ${params.job_type} queued.`,
     { object_type: 'vault_async_job', object_id: jobId },
+    undefined, undefined, params.tenant_id,
   );
 
   return data;
@@ -1642,6 +1659,7 @@ export async function createChainAnchor(params: {
     `Chain Anchor Created: ${anchorId}`,
     `Hash anchor ${anchorId} created via ${params.anchor_provider}.`,
     { object_type: 'vault_chain_anchor', object_id: anchorId },
+    undefined, undefined, scope.tenant_id,
   );
 
   return data;
@@ -1700,6 +1718,7 @@ export async function createTemplateVersion(params: {
     `Template Created: ${templateId}`,
     `Package template v${params.template_version} created for ${params.package_type}.`,
     { object_type: 'vault_template_version', object_id: templateId },
+    undefined, undefined, params.tenant_id,
   );
 
   return data;

@@ -2,9 +2,10 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { createAuditEvent } from '../../services/auditTrail.service';
 import * as reviewQueueService from '../../services/reviewQueue.service';
+import { DEFAULT_TENANT_ID } from '../../shared/constants';
 
 async function getTenantId(req: AuthRequest): Promise<string> {
-  return req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+  return req.user?.workspace_id || DEFAULT_TENANT_ID;
 }
 
 export async function createItem(req: AuthRequest, res: Response, next: NextFunction) {

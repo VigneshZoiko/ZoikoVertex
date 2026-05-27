@@ -1,13 +1,14 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as rulesService from '../../services/approvalRules.service';
+import { DEFAULT_TENANT_ID } from '../../shared/constants';
 
 function getTenantId(req: AuthRequest): string {
-  return req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+  return req.user?.workspace_id || DEFAULT_TENANT_ID;
 }
 
 function getUserId(req: AuthRequest): string {
-  return req.user?.id || getTenantId(req);
+  return req.user?.id || '';
 }
 
 export const listRules = async (req: AuthRequest, res: Response, next: NextFunction) => {
