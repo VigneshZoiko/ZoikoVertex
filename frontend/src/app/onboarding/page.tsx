@@ -330,6 +330,15 @@ export default function OnboardingPage() {
     router.replace("/login");
   };
 
+  /* ── Block browser back on done screen ─────────────────────────────────── */
+  useEffect(() => {
+    if (!done) return;
+    window.history.pushState(null, "", window.location.href);
+    const block = () => window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", block);
+    return () => window.removeEventListener("popstate", block);
+  }, [done]);
+
   /* ── Submit ──────────────────────────────────────────────────────────────── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,19 +346,24 @@ export default function OnboardingPage() {
     setLoading(true);
     setError("");
 
-    const res = await api.post("/api/v1/onboarding/setup", {
-      company_name:   companyName.trim(),
-      workspace_name: workspaceName.trim(),
-    });
+    try {
+      const res = await api.post("/api/v1/onboarding/setup", {
+        company_name:   companyName.trim(),
+        workspace_name: workspaceName.trim(),
+      });
 
-    if (!res.success) {
-      setError(res.data?.error || res.error || "Something went wrong. Please try again.");
+      if (!res.success) {
+        setError(res.data?.error || res.error || "Something went wrong. Please try again.");
+        return;
+      }
+
+      try { localStorage.removeItem("zv_role_cache"); } catch {}
+      setDone(true);
+    } catch {
+      setError("Connection error. Please try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    try { localStorage.removeItem("zv_role_cache"); } catch {}
-    setDone(true);
   };
 
   /* ── Handle plan selection from welcome screen ──────────────────────────── */
