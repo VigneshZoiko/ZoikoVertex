@@ -46,7 +46,7 @@ export async function createItem(req: AuthRequest, res: Response, next: NextFunc
     });
 
     await logReviewAuditEvent({
-      workspaceId: tenantId, userId, itemId: item.id, action: 'review.item.created',
+      workspaceId: tenantId, userId, itemId: item.id,       action: 'review.item.submitted',
       summary: `Review item "${item.title}" created`, itemType: item.item_type, riskLevel: item.risk_level,
     });
 

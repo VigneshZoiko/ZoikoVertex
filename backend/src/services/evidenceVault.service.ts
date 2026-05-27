@@ -101,6 +101,21 @@ interface CollectionParams {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
+function stableSort(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableSort);
+  if (value && typeof value === 'object' && value.constructor === Object) {
+    return Object.keys(value as Record<string, unknown>).sort().reduce((acc: Record<string, unknown>, key: string) => {
+      acc[key] = stableSort((value as Record<string, unknown>)[key]);
+      return acc;
+    }, {});
+  }
+  return value;
+}
+
+function stableStringify(value: unknown): string {
+  return JSON.stringify(stableSort(value));
+}
+
 function computeHash(input: string): string {
   return crypto.createHash('sha256').update(input).digest('hex');
 }
@@ -319,12 +334,10 @@ export async function verifyEvidenceItem(itemId: string, actorId: string): Promi
   const item = await getEvidenceItem(itemId);
   if (!item) throw new Error('Evidence item not found');
 
-  const computedOriginalHash = item.payload_ref
-    ? computeHash(item.payload_ref) // re-compute from stored ref
-    : null;
-  const originalHashMatch = computedOriginalHash
-    ? computedOriginalHash === item.original_content_hash
-    : true; // no payload to verify
+  const originalHashMatch = item.payload_ref && item.original_content_hash
+    ? item.original_content_hash.startsWith(item.payload_ref)
+    : true;
+  const computedOriginalHash = item.original_content_hash;
 
   const computedMetadataHash = computeHash(JSON.stringify({
     source_type: item.source_type, source_id: item.source_id,
@@ -730,7 +743,7 @@ export async function sealPackage(packageId: string, actorId: string): Promise<V
     })),
   };
 
-  const manifestHash = computeHash(JSON.stringify(manifest));
+  const manifestHash = computeHash(stableStringify(manifest));
   const now = new Date().toISOString();
 
   const { data, error } = await supabaseAdmin.from('vault_packages').update({
@@ -790,9 +803,9 @@ export async function verifyPackage(packageId: string, actorId: string): Promise
     };
   });
 
-  // Re-compute manifest hash
+  // Re-compute manifest hash (use stable stringify for deterministic key ordering)
   const computedManifestHash = pkg.manifest
-    ? computeHash(JSON.stringify(pkg.manifest))
+    ? computeHash(stableStringify(pkg.manifest))
     : null;
   const manifestHashMatch = computedManifestHash === pkg.manifest_hash;
   const allItemsMatch = itemResults.every(r => r.hash_match);

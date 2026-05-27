@@ -442,7 +442,7 @@ export async function createAuditEvent(input: AuditEventInput): Promise<AuditEve
       actorPayload.actor_name = binding.actor_display_name;
     }
   } catch (err) {
-    logger.warn({ error: String(err) }, 'Identity Ledger enrichment unavailable (audit will continue without it)');
+    logger.warn({ error: JSON.stringify(err), errorType: typeof err, errorKeys: err && typeof err === 'object' ? Object.keys(err as object) : [] }, 'Identity Ledger enrichment unavailable (audit will continue without it)');
   }
 
   const { data, error } = await supabaseAdmin.rpc('create_audit_event', {

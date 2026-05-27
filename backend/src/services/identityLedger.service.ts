@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { supabaseAdmin } from '../shared/supabase';
 import { getPermissionsForRole } from '../shared/rolePermissions';
 
-const DEFAULT_TENANT_ID = 'default';
+const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 const REDACTED_MARKER = 'REDACTED_BY_ACCESS_POLICY';
 const SUMMARY_MARKER = 'SUMMARY_ONLY';
 
@@ -198,7 +198,8 @@ function generateOpaqueId(prefix: string): string {
 }
 
 function normalizeTenantId(tenantId?: string | null): string {
-  return tenantId || DEFAULT_TENANT_ID;
+  if (!tenantId || tenantId === 'default') return DEFAULT_TENANT_ID;
+  return tenantId;
 }
 
 function resolveViewerRoleClass(viewer: ViewerContext): ViewerRoleClass {
