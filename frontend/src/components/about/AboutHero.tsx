@@ -21,7 +21,7 @@ export default function AboutHero() {
   }, []);
 
   return (
-    <section className="bg-[#080812] min-h-screen pt-40 pb-30 px-6 overflow-hidden">
+    <section className="bg-[#080812] min-h-screen pt-40 pb-30 px-5 overflow-hidden">
       <div
         ref={ref}
         className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center"
