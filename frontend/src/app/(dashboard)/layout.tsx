@@ -12,6 +12,7 @@ import { useRoleContext } from "@/lib/context/RoleContext";
 import { supabase } from "@/lib/supabase";
 import { canAccessSimple } from "@/lib/routeAccess";
 import { ShieldOff, ArrowLeft } from "lucide-react";
+import WorkspaceSetupScreen from "@/components/WorkspaceSetupScreen";
 
 export default function DashboardLayout({
   children,
@@ -20,7 +21,7 @@ export default function DashboardLayout({
 }>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { orgStatus, workspaceStatus, orgName, planType, premiumPaidUntil, isSuperAdmin, isLoading, role } = useRoleContext();
+  const { orgStatus, workspaceStatus, orgName, planType, premiumPaidUntil, isSuperAdmin, isLoading, role, refresh } = useRoleContext();
   const [isUnauthorized, setIsUnauthorized] = useState<boolean | null>(null);
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
@@ -38,15 +39,27 @@ export default function DashboardLayout({
   // ── Role guard ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isLoading) return;
-    // New SSO user with no workspace — redirect to onboarding (in effect, not in render)
-    if (!isSuperAdmin && orgStatus === 'NO_WORKSPACE') {
-      router.replace('/onboarding');
-      return;
-    }
-    // Role still resolving — defer. Auth guard already redirects unauthenticated users.
+    if (!isSuperAdmin && orgStatus === 'NO_WORKSPACE') return; // handled by setup screen below
     if (role === null && !isSuperAdmin) return;
     setIsUnauthorized(!canAccessSimple(pathname, role, isSuperAdmin, planType));
   }, [pathname, isLoading, role, isSuperAdmin, orgStatus, planType, router]);
+
+  // ── Poll until workspace is ready when NO_WORKSPACE ─────────────────────────
+  useEffect(() => {
+    if (isLoading || isSuperAdmin || orgStatus !== 'NO_WORKSPACE') return;
+    let active = true;
+    const poll = () => {
+      if (!active) return;
+      refresh().finally(() => { if (active) setTimeout(poll, 4000); });
+    };
+    setTimeout(poll, 3000);
+    return () => { active = false; };
+  }, [isLoading, isSuperAdmin, orgStatus]); // refresh is stable, intentionally omitted
+
+  // ── Workspace still provisioning ────────────────────────────────────────────
+  if (!isLoading && !isSuperAdmin && orgStatus === 'NO_WORKSPACE') {
+    return <WorkspaceSetupScreen />;
+  }
 
   // ── Loading skeleton (initial role fetch + auth check) ──────────────────────
   if (isLoading || isUnauthorized === null) {

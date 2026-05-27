@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
+import WorkspaceSetupScreen from "@/components/WorkspaceSetupScreen";
 
 /* ─── Perks (onboarding form) ────────────────────────────────────────────── */
 const PERKS = [
@@ -289,7 +290,8 @@ export default function OnboardingPage() {
   const [checking,   setChecking]   = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   const [error,      setError]      = useState("");
-  const [done,       setDone]       = useState(false);
+  // "form" → "setting_up" → "done"
+  const [step, setStep] = useState<"form" | "setting_up" | "done">("form");
 
   /* ── Auth + workspace guard ─────────────────────────────────────────────── */
   useEffect(() => {
@@ -330,14 +332,33 @@ export default function OnboardingPage() {
     router.replace("/login");
   };
 
-  /* ── Block browser back on done screen ─────────────────────────────────── */
+  /* ── Block browser back once workspace creation starts ─────────────────── */
   useEffect(() => {
-    if (!done) return;
+    if (step === "form") return;
     window.history.pushState(null, "", window.location.href);
     const block = () => window.history.pushState(null, "", window.location.href);
     window.addEventListener("popstate", block);
     return () => window.removeEventListener("popstate", block);
-  }, [done]);
+  }, [step]);
+
+  /* ── Poll until workspace is confirmed ready ────────────────────────────── */
+  useEffect(() => {
+    if (step !== "setting_up") return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const res = await api.get("/api/v1/user/context").catch(() => null);
+        if (!active) return;
+        if (res?.success && res.data?.workspace_id) {
+          setStep("done");
+          return;
+        }
+      } catch {}
+      if (active) setTimeout(poll, 3000);
+    };
+    setTimeout(poll, 2000);
+    return () => { active = false; };
+  }, [step]);
 
   /* ── Submit ──────────────────────────────────────────────────────────────── */
   const handleSubmit = async (e: React.FormEvent) => {
@@ -358,7 +379,7 @@ export default function OnboardingPage() {
       }
 
       try { localStorage.removeItem("zv_role_cache"); } catch {}
-      setDone(true);
+      setStep("setting_up");
     } catch {
       setError("Connection error. Please try again.");
     } finally {
@@ -385,8 +406,13 @@ export default function OnboardingPage() {
     );
   }
 
-  /* ── Welcome + plan selection (first-time users only) ──────────────────── */
-  if (done) {
+  /* ── Workspace provisioning screen ─────────────────────────────────────── */
+  if (step === "setting_up") {
+    return <WorkspaceSetupScreen />;
+  }
+
+  /* ── Welcome + plan selection (workspace confirmed ready) ───────────────── */
+  if (step === "done") {
     return (
       <WelcomeScreen
         userName={userName}
