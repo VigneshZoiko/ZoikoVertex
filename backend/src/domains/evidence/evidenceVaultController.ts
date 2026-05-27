@@ -2,6 +2,9 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as vaultService from '../../services/evidenceVault.service';
 
+const DEFAULT_WORKSPACE_ID = 'WRK-001';
+const DEFAULT_TENANT_ID = 'TEN-001';
+
 // ─── GET /api/evidence-vault/items ────────────────────────────────────────────
 
 export async function listEvidenceItems(req: AuthRequest, res: Response, next: NextFunction) {
@@ -46,8 +49,8 @@ export async function preserveEvidence(req: AuthRequest, res: Response, next: Ne
       preserved_by: req.user!.id,
       authority: authority || undefined,
       preservation_reason,
-      workspace_id: req.user!.workspace_id || 'WRK-001',
-      tenant_id: 'TEN-001',
+      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      tenant_id: DEFAULT_TENANT_ID,
       metadata,
     });
     res.status(201).json({ success: true, data: result });
@@ -71,8 +74,8 @@ export async function createCollection(req: AuthRequest, res: Response, next: Ne
     const { title, description, scope, created_reason } = req.body;
     if (!title) return res.status(400).json({ success: false, error: 'title is required' });
     const result = await vaultService.createCollection({
-      workspace_id: req.user!.workspace_id || 'WRK-001',
-      tenant_id: 'TEN-001',
+      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      tenant_id: DEFAULT_TENANT_ID,
       title, description, scope, created_reason,
       created_by: req.user!.id,
     });
@@ -148,8 +151,8 @@ export async function createPackage(req: AuthRequest, res: Response, next: NextF
       return res.status(400).json({ success: false, error: 'package_type and title are required' });
     }
     const result = await vaultService.createPackage({
-      workspace_id: req.user!.workspace_id || 'WRK-001',
-      tenant_id: 'TEN-001',
+      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      tenant_id: DEFAULT_TENANT_ID,
       package_type, title, description, source_collection_id, item_ids, metadata,
       created_by: req.user!.id,
     });
@@ -214,8 +217,8 @@ export async function createExport(req: AuthRequest, res: Response, next: NextFu
     }
     const result = await vaultService.createExport({
       package_id, disclosure_mode, requester_reason, delivery_method, expires_at,
-      workspace_id: req.user!.workspace_id || 'WRK-001',
-      tenant_id: 'TEN-001',
+      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      tenant_id: DEFAULT_TENANT_ID,
       requester_id: req.user!.id,
     });
     res.status(201).json({ success: true, data: result });
@@ -253,8 +256,8 @@ export async function applyHold(req: AuthRequest, res: Response, next: NextFunct
       return res.status(400).json({ success: false, error: 'scope_type, matter_ref, reason, and effective_date are required' });
     }
     const result = await vaultService.applyHold({
-      workspace_id: req.user!.workspace_id || 'WRK-001',
-      tenant_id: 'TEN-001',
+      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      tenant_id: DEFAULT_TENANT_ID,
       scope_type, scope_id, scope_query, matter_ref, jurisdiction, reason,
       requester_id: req.user!.id, approver_id, effective_date, review_date,
     });
@@ -319,8 +322,8 @@ export async function createShare(req: AuthRequest, res: Response, next: NextFun
     const result = await vaultService.createShare({
       package_id, recipient_email, recipient_name, disclosure_mode, redaction_policy_id,
       expires_at, max_views, watermark, allow_download, require_mfa,
-      workspace_id: req.user!.workspace_id || 'WRK-001',
-      tenant_id: 'TEN-001',
+      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      tenant_id: DEFAULT_TENANT_ID,
       created_by: req.user!.id,
     });
     res.status(201).json({ success: true, data: result });
@@ -406,8 +409,8 @@ export async function createAsyncJob(req: AuthRequest, res: Response, next: Next
     if (!job_type) return res.status(400).json({ success: false, error: 'job_type is required' });
     const result = await vaultService.createAsyncJob({
       job_type, params, priority, max_retries, idempotency_key,
-      workspace_id: req.user!.workspace_id || 'WRK-001',
-      tenant_id: 'TEN-001',
+      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      tenant_id: DEFAULT_TENANT_ID,
       created_by: req.user!.id,
     });
     res.status(201).json({ success: true, data: result });
@@ -445,8 +448,8 @@ export async function createChainAnchor(req: AuthRequest, res: Response, next: N
     const result = await vaultService.createChainAnchor({
       package_id,
       item_id,
-      workspace_id: req.user!.workspace_id || 'WRK-001',
-      tenant_id: 'TEN-001',
+      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      tenant_id: DEFAULT_TENANT_ID,
       anchor_provider,
       anchor_data,
       created_by: req.user!.id,
@@ -477,8 +480,8 @@ export async function createTemplateVersion(req: AuthRequest, res: Response, nex
       return res.status(400).json({ success: false, error: 'package_type, template_version, and schema are required' });
     }
     const result = await vaultService.createTemplateVersion({
-      workspace_id: req.user!.workspace_id || 'WRK-001',
-      tenant_id: 'TEN-001',
+      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      tenant_id: DEFAULT_TENANT_ID,
       package_type,
       template_version,
       schema,

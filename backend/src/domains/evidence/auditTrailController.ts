@@ -63,7 +63,8 @@ async function getUserRole(userId: string, workspaceId: string): Promise<UserRol
   if (roles.some(r => r === 'EXTERNAL_AUDITOR' || r === 'AUDITOR')) return 'EXTERNAL_AUDITOR';
   if (roles.some(r => r === 'PUBLISHER')) return 'PUBLISHER';
   if (roles.some(r => r === 'CAMPAIGN_MANAGER')) return 'CAMPAIGN_MANAGER';
-  return 'ADMIN';
+  if (roles.some(r => r === 'MEMBER' || r === 'VIEWER')) return 'VIEWER';
+  return 'EXTERNAL_AUDITOR';
 }
 
 // ─── GET /api/audit-events ──────────────────────────────────────────────────

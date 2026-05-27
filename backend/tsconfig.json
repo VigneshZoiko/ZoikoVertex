@@ -10,16 +10,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "ignoreDeprecations": "6.0",
-    "typeRoots": ["./node_modules/@types"],
-    "types": ["node", "express"],
-    "baseUrl": "./src",
-    "paths": {
-      "shared/*": ["shared/*"],
-      "services/*": ["services/*"],
-      "config/*": ["config/*"],
-      "domains/*": ["domains/*"]
-    }
+    "ignoreDeprecations": "5.0",
+    "types": ["node", "express"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/test/**", "src/**/*.test.ts"]

@@ -97,7 +97,7 @@ export interface AuditEvent extends AuditEventInput {
 
 // ─── Field-Level Access Control (Section 15) ─────────────────────────────────
 
-export type UserRole = 'ADMIN' | 'SECURITY' | 'COMPLIANCE' | 'LEGAL' | 'CAMPAIGN_MANAGER' | 'PUBLISHER' | 'EXEC_VIEWER' | 'EXTERNAL_AUDITOR';
+export type UserRole = 'ADMIN' | 'SECURITY' | 'COMPLIANCE' | 'LEGAL' | 'CAMPAIGN_MANAGER' | 'PUBLISHER' | 'EXEC_VIEWER' | 'EXTERNAL_AUDITOR' | 'VIEWER';
 export type FieldAccessState = 'full' | 'redacted' | 'hashed' | 'denied' | 'self_only' | 'scoped' | 'summary' | 'full_masked';
 
 const REDACTED_MARKER = 'REDACTED_BY_ACCESS_POLICY';

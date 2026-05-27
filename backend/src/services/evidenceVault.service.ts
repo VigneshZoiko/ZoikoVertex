@@ -198,8 +198,8 @@ export async function preserveEvidence(params: PreserveParams): Promise<VaultEvi
   const preservationInput = `${itemId}:${originalContentHash || 'no-payload'}:${metadataHash}:${now}`;
   const preservationReceiptHash = computeHash(preservationInput);
 
-  // Determine retention
-  const retentionClass = params.retention_class || 'standard';
+  // Determine retention (normalize to lowercase for case-insensitive matching)
+  const retentionClass = (params.retention_class || 'standard').toLowerCase();
   let retentionUntil: string | null = params.retention_until || null;
   if (!retentionUntil) {
     const baseDate = new Date();

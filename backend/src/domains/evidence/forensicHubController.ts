@@ -2,6 +2,8 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as forensicService from '../../services/forensicHub.service';
 
+const DEFAULT_WORKSPACE_ID = 'WRK-001';
+
 // ─── GET /api/forensic/cases ──────────────────────────────────────────────────
 
 export async function listCases(req: AuthRequest, res: Response, next: NextFunction) {
@@ -29,7 +31,7 @@ export async function createCase(req: AuthRequest, res: Response, next: NextFunc
       return res.status(400).json({ success: false, error: 'case_type and title are required' });
     }
     const result = await forensicService.createCase({
-      workspace_id: req.user!.workspace_id || 'WRK-001',
+      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
       case_type, title, summary, severity, source, source_event_ids,
       owner_user_id, sla_due_at, actor_id: req.user!.id,
     });
@@ -298,7 +300,7 @@ export async function preserveToVault(req: AuthRequest, res: Response, next: Nex
     }
     const result = await forensicService.preserveToVault({
       case_id: caseId, evidence_ids, retention_class: retention_class || 'standard',
-      preservation_reason, actor_id: req.user!.id, workspace_id: req.user!.workspace_id || 'WRK-001',
+      preservation_reason, actor_id: req.user!.id, workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
     });
     res.json({ success: true, data: result });
   } catch (error: any) {
