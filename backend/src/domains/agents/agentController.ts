@@ -888,12 +888,26 @@ export const certifyAgent = async (req: Request, res: Response, next: NextFuncti
 
     await logToDatabase('info', AGENT_SERVICE, `Certifying agent ${id} to ${level}`, { level, evidence_score }).catch(() => {});
 
+    // ── FIX: persist trust + faithfulness scores derived from the sandbox
+    //    evidence_score (0–100). Previously certifyAgent only bumped the
+    //    autonomy_level, so the UI's optimistic trust/faithfulness values
+    //    were overwritten with stale DB zeros on the next fetchAgents().
+    //    Scores stored on a 0–1 scale to match the agents table.
+    const rawScore = Number(evidence_score);
+    const normalizedScore = Number.isFinite(rawScore)
+      ? Math.max(0, Math.min(rawScore, 100))
+      : 0;
+    const trustScore = Number(Math.min(normalizedScore / 100, 0.99).toFixed(4));
+    const faithfulnessScore = Number(Math.min((normalizedScore * 0.95) / 100, 0.99).toFixed(4));
 
     const { data: agent, error: updateError } = await supabaseAdmin
       .from('agents')
       .update({
         autonomy_level: level,
         status: 'ACTIVE',
+        trust_score: trustScore,
+        faithfulness_score: faithfulnessScore,
+        last_activity_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -932,8 +946,12 @@ export const certifyAgent = async (req: Request, res: Response, next: NextFuncti
           .insert([{
             agent_id: id,
             version: 1,
-            artifact_type: 'certification_bootstrap',
-            content_ref: `auto-created on certification to ${level}`,
+            artifact: {
+              kind: 'certification_bootstrap',
+              note: `auto-created on certification to ${level}`,
+              evidence_score,
+              created_at: new Date().toISOString(),
+            },
           }])
           .select('id')
           .single();
