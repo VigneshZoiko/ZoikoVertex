@@ -100,7 +100,7 @@ export default function PlatformPainPoints() {
 
   return (
     <section className="bg-[#080E1A] py-24 px-6">
-      <div className="max-w-[1200px] mx-auto">
+      <div className="max-w-[1200] mx-auto">
 
         {/* Header */}
         <div

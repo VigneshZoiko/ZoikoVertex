@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { internalEventBus } from '../shared/internalEventBus';
 import { broadcastWebhookEvent } from '../domains/integrations/apiWebhookController';
+import { logger } from '../shared/logger';
 
 export type ApprovalItemStatus = 'PENDING_APPROVAL' | 'IN_REVIEW' | 'WAITING_ON_OTHERS' | 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED' | 'ESCALATED' | 'CONDITIONAL_APPROVAL' | 'BLOCKED' | 'CANCELLED' | 'COMPLETED' | 'ARCHIVED';
 export type ApprovalItemType = 'SOCIAL_POST' | 'INBOX_REPLY' | 'CAMPAIGN_ASSET' | 'AGENT_ACTION' | 'WORKFLOW_OUTPUT' | 'VALIDATION_OVERRIDE' | 'EXCEPTION_OUTCOME' | 'RESTRICTED_OPERATION' | 'COMPLIANCE_SENSITIVE_ITEM' | 'PUBLISHING_ACTION';
@@ -126,7 +127,7 @@ export async function createApprovalItem(input: ApprovalItemInput): Promise<Appr
     item_type: input.item_type,
     source_module: input.source_module,
     risk_level: input.risk_level,
-  }).catch(() => {});
+  }).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
 
   return data as unknown as ApprovalItem;
 }
@@ -366,7 +367,7 @@ export async function approveItem(itemId: string, tenant_id: string, userId: str
 
   broadcastWebhookEvent(item.workspace_id, 'approval.item_approved', {
     approval_item_id: itemId, title: item.title, decision_id: decision.id,
-  }).catch(() => {});
+  }).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
 
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
@@ -395,7 +396,7 @@ export async function rejectItem(itemId: string, tenant_id: string, userId: stri
 
   broadcastWebhookEvent(item.workspace_id, 'approval.item_rejected', {
     approval_item_id: itemId, title: item.title, reason, decision_id: decision.id,
-  }).catch(() => {});
+  }).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
 
   await triggerCallback(item, 'REJECTED');
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
@@ -427,7 +428,7 @@ export async function requestChanges(itemId: string, tenant_id: string, userId: 
 
   broadcastWebhookEvent(item.workspace_id, 'approval.changes_requested', {
     approval_item_id: itemId, instruction, decision_id: decision.id,
-  }).catch(() => {});
+  }).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
 
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
@@ -480,7 +481,7 @@ export async function escalateItem(itemId: string, tenant_id: string, userId: st
 
   broadcastWebhookEvent(item.workspace_id, 'approval.item_escalated', {
     approval_item_id: itemId, target_role: targetRole, reason, decision_id: decision.id,
-  }).catch(() => {});
+  }).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
 
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
@@ -712,7 +713,7 @@ export async function processPendingCallbacks(): Promise<number> {
         .maybeSingle();
 
       if (item) {
-        broadcastWebhookEvent(item.workspace_id, 'approval.callback_delivered', payload).catch(() => {});
+        broadcastWebhookEvent(item.workspace_id, 'approval.callback_delivered', payload).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
       }
 
       await supabaseAdmin.from('approval_callbacks')

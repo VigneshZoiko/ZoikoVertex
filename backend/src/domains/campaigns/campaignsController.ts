@@ -27,14 +27,14 @@ export const CAMPAIGN_STATUSES = [
 // Valid status transitions — enforced server-side
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   DRAFT:              ['READY_FOR_REVIEW', 'CANCELLED'],
-  READY_FOR_REVIEW:   ['IN_REVIEW', 'DRAFT'],
+  READY_FOR_REVIEW:   ['IN_REVIEW', 'APPROVED', 'DRAFT'],
   IN_REVIEW:          ['CHANGES_REQUESTED', 'APPROVED', 'REJECTED'],
   CHANGES_REQUESTED:  ['DRAFT', 'IN_REVIEW'],
   APPROVED:           ['SCHEDULED', 'ACTIVE', 'DRAFT'],
   SCHEDULED:          ['ACTIVE', 'PAUSED', 'CANCELLED'],
   ACTIVE:             ['PAUSING', 'PAUSED', 'COMPLETED'],
   PAUSING:            ['PAUSED', 'ACTIVE'],
-  PAUSED:             ['IN_REVIEW', 'COMPLETED', 'CANCELLED'],
+  PAUSED:             ['IN_REVIEW', 'APPROVED', 'COMPLETED', 'CANCELLED'],
   COMPLETED:          ['CLOSED'],
   CLOSED:             ['ARCHIVED'],
   REJECTED:           ['DRAFT'],
@@ -101,6 +101,12 @@ export const CreateSchema = z.object({
   autonomy_level:         z.enum(['L0', 'L1', 'L2', 'L3', 'L4']).default('L1'),
   approval_tier:          z.enum(['low', 'medium', 'high', 'critical']).default('low'),
   wizard_step:            z.number().int().min(1).max(5).default(1),
+
+  // Post limit & auto-boost
+  post_limit:             z.number().int().positive().nullable().optional(),
+  auto_boost_enabled:     z.boolean().default(false),
+  boost_per_post_budget:  z.number().positive().nullable().optional(),
+  boost_settings:         z.record(z.string(), z.unknown()).nullable().optional(),
 
   // JSONB fields
   targeting:              TargetingSchema,

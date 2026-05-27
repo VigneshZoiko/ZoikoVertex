@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../shared/supabase';
 import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { resolveAuthorityBindingForAuditEvent } from './identityLedger.service';
+import { logger } from '../shared/logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -440,8 +441,8 @@ export async function createAuditEvent(input: AuditEventInput): Promise<AuditEve
     if (!actorPayload.actor_name) {
       actorPayload.actor_name = binding.actor_display_name;
     }
-  } catch {
-    // Audit writes must continue even if Identity Ledger enrichment is temporarily unavailable.
+  } catch (err) {
+    logger.warn({ error: String(err) }, 'Identity Ledger enrichment unavailable (audit will continue without it)');
   }
 
   const { data, error } = await supabaseAdmin.rpc('create_audit_event', {
@@ -567,8 +568,8 @@ export async function getAuditStats(workspace_id: string) {
       .maybeSingle();
 
     if (data) return data;
-  } catch {
-    // Fall through to live query
+  } catch (err) {
+    logger.warn({ error: String(err) }, 'Failed to fetch audit_event_stats (falling through to live query)');
   }
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

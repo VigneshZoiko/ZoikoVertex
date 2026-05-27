@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
+import { AutoCampaignBoostService } from '../campaigns/autoCampaignBoostService';
 
 export function registerExecutionListeners(): void {
   internalEventBus.on('execution.requested', (payload: unknown) => {
@@ -74,12 +75,14 @@ export class ExecutionService {
       const allSuccessful = results.every(r => r.success);
       const firstError = results.find(r => !r.success)?.error;
 
-      // 3. Update final status
+      // 3. Update final status — also save platform post ID if Meta publish succeeded
+      const metaResult = results.find(r => r.success && r.id && ['facebook', 'instagram'].includes(r.platform));
       await supabaseAdmin
         .from('publish_intents')
         .update({
           status: allSuccessful ? 'PUBLISHED' : 'FAILED',
-          feedback: allSuccessful ? null : (firstError || 'One or more platforms failed to publish.')
+          feedback: allSuccessful ? null : (firstError || 'One or more platforms failed to publish.'),
+          ...(metaResult?.id ? { platform_post_id: metaResult.id } : {}),
         })
         .eq('id', intentId);
 
@@ -109,7 +112,13 @@ export class ExecutionService {
         }
       }
 
-      // 5. Broadcast webhook event
+      // 5. Auto-boost: if post published on an ACTIVE campaign, trigger immediately
+      if (allSuccessful && intent.campaign_id) {
+        AutoCampaignBoostService.triggerPostBoost(intentId, intent.campaign_id, intent.workspace_id)
+          .catch(err => logger.warn({ err, intentId }, '[Execution] Auto-boost trigger failed (non-fatal)'));
+      }
+
+      // 6. Broadcast webhook event
       broadcastWebhookEvent(intent.workspace_id, allSuccessful ? 'post.published' : 'post.failed', {
         intent_id: intentId,
         platform: intent.platform,

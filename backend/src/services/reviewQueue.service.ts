@@ -29,9 +29,7 @@ export interface ReviewItem {
   policy_flag_status?: string;
   source_grounding_status?: string;
   approval_rule_id?: string;
-  decision_eligibility_state?: EligibilityState;
   due_at?: string;
-  sla_status?: string;
   submitted_at: string;
   reviewed_at?: string;
   approved_at?: string;
@@ -80,7 +78,6 @@ export async function createReviewItem(input: ReviewItemInput): Promise<ReviewIt
       risk_level: input.risk_level || 'LOW',
       risk_category: input.risk_category || null,
       due_at: input.due_at || null,
-      decision_eligibility_state: 'REVIEW_REQUIRED',
     })
     .select()
     .single();

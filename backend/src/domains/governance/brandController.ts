@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Response } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logAuditEvent } from './evidenceController';

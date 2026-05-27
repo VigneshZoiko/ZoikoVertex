@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';

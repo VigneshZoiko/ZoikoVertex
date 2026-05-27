@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 export default function PlatformSection() {
   const [visible, setVisible] = useState(false);
@@ -60,9 +61,11 @@ export default function PlatformSection() {
           
             <div className="absolute inset-0 bg-cyan-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl z-10" />
 
-            <img
+            <Image
               src="/images/Platform.webp"
               alt="Platform Dashboard"
+              width={1200}
+              height={700}
               className="rounded-xl w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
             />
 

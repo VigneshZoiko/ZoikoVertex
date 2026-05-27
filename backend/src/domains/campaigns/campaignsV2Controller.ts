@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logCampaignEvent } from './campaignsController';
+import { AutoCampaignBoostService } from './autoCampaignBoostService';
+import { logger } from '../../shared/logger';
 
 // ── Budget threshold constants ───────────────────────────────
 
@@ -13,7 +15,7 @@ const BUDGET_THRESHOLDS = {
   INCIDENT: 1.10,
 };
 
-// ── Launch Gate: 13 conditions ───────────────────────────────
+// ── Launch Gate: 5 conditions ────────────────────────────────
 
 interface GateCondition {
   id:     string;
@@ -22,33 +24,13 @@ interface GateCondition {
   reason: string | null;
 }
 
-function evaluateLaunchGate(campaign: Record<string, unknown>, actorRole: string): GateCondition[] {
-  const targeting = (campaign.targeting as Record<string, unknown>) || {};
-  const creative  = (campaign.creative  as Record<string, unknown>) || {};
+function evaluateLaunchGate(campaign: Record<string, unknown>, actorRole: string, budgetAuthStatus?: string | null): GateCondition[] {
+  const creative = (campaign.creative as Record<string, unknown>) || {};
 
-  const conditions: GateCondition[] = [
+  return [
     {
       id:     '01',
-      label:  'Brief complete: objective, rationale, success metrics, target segment',
-      passed: !!(campaign.objective && campaign.business_rationale && campaign.success_metrics && targeting.audience_summary),
-      reason: (!campaign.objective || !campaign.business_rationale || !campaign.success_metrics || !targeting.audience_summary)
-        ? 'Missing: ' + [
-            !campaign.objective         && 'objective',
-            !campaign.business_rationale && 'business rationale',
-            !campaign.success_metrics   && 'success metrics',
-            !targeting.audience_summary && 'audience summary',
-          ].filter(Boolean).join(', ')
-        : null,
-    },
-    {
-      id:     '02',
-      label:  'Campaign owner assigned with Campaign Manager role',
-      passed: !!(campaign.campaign_manager_id),
-      reason: !campaign.campaign_manager_id ? 'No Campaign Manager assigned' : null,
-    },
-    {
-      id:     '03',
-      label:  'Budget total, currency, pacing, schedule, and Budget Owner assigned',
+      label:  'Budget, currency, pacing, schedule, and owner set',
       passed: !!(campaign.budget_total && campaign.budget_currency && campaign.budget_pacing && campaign.start_at && campaign.end_at && campaign.budget_owner_id),
       reason: (!(campaign.budget_total && campaign.budget_currency && campaign.budget_pacing && campaign.start_at && campaign.end_at && campaign.budget_owner_id))
         ? 'Missing: ' + [
@@ -62,87 +44,52 @@ function evaluateLaunchGate(campaign: Record<string, unknown>, actorRole: string
         : null,
     },
     {
-      id:     '04',
-      label:  'Campaign dates valid and not outside policy windows',
+      id:     '02',
+      label:  'Campaign dates valid (end date after start date)',
       passed: !!(campaign.start_at && campaign.end_at && new Date(campaign.end_at as string) > new Date(campaign.start_at as string)),
       reason: (campaign.start_at && campaign.end_at && new Date(campaign.end_at as string) <= new Date(campaign.start_at as string))
         ? 'End date must be after start date'
         : (!campaign.start_at || !campaign.end_at) ? 'Start and end dates required' : null,
     },
     {
-      id:     '05',
-      label:  'Audience geography, exclusions, and sensitivity declaration complete',
-      passed: !!(targeting.geography && Array.isArray(targeting.geography) && (targeting.geography as string[]).length > 0 && targeting.sensitive_category_status),
-      reason: (!(targeting.geography && Array.isArray(targeting.geography) && (targeting.geography as string[]).length > 0 && targeting.sensitive_category_status))
-        ? 'Missing: ' + [
-            (!(targeting.geography && Array.isArray(targeting.geography) && (targeting.geography as string[]).length > 0)) && 'geography',
-            !targeting.sensitive_category_status && 'sensitive category declaration',
-          ].filter(Boolean).join(', ')
-        : null,
-    },
-    {
-      id:     '06',
-      label:  'Sensitive category and jurisdictional checks completed',
-      passed: targeting.sensitive_category_status !== 'PENDING',
-      reason: targeting.sensitive_category_status === 'PENDING' ? 'Sensitive category check still pending' : null,
-    },
-    {
-      id:     '07',
-      label:  'Creative assets, copy, CTA, and landing page URL present',
-      passed: !!((creative.copy_text || (Array.isArray(creative.asset_ids) && (creative.asset_ids as string[]).length > 0)) && creative.cta_text && creative.landing_page_url),
-      reason: (!((creative.copy_text || (Array.isArray(creative.asset_ids) && (creative.asset_ids as string[]).length > 0)) && creative.cta_text && creative.landing_page_url))
-        ? 'Missing: ' + [
-            !(creative.copy_text || (Array.isArray(creative.asset_ids) && (creative.asset_ids as string[]).length > 0)) && 'copy or creative asset',
-            !creative.cta_text        && 'CTA text',
-            !creative.landing_page_url && 'landing page URL',
-          ].filter(Boolean).join(', ')
-        : null,
-    },
-    {
-      id:     '08',
-      label:  'Landing page URL present and correctly formatted',
-      passed: !!(creative.landing_page_url && String(creative.landing_page_url).startsWith('http')),
+      id:     '03',
+      label:  'Landing page URL present and UTM tracking configured or waived',
+      passed: !!(creative.landing_page_url && String(creative.landing_page_url).startsWith('http') && (creative.utm_configured || creative.utm_waived)),
       reason: !creative.landing_page_url
         ? 'Landing page URL missing'
         : !String(creative.landing_page_url).startsWith('http')
           ? 'Landing page URL must start with http/https'
-          : null,
+          : !(creative.utm_configured || creative.utm_waived)
+            ? 'UTM must be configured or explicitly waived'
+            : null,
     },
     {
-      id:     '09',
-      label:  'Tracking/UTM configured or deliberately waived with reason',
-      passed: !!(creative.utm_configured || creative.utm_waived),
-      reason: !(creative.utm_configured || creative.utm_waived) ? 'UTM must be configured or explicitly waived' : null,
-    },
-    {
-      id:     '10',
-      label:  'All required review gates completed',
+      id:     '04',
+      label:  'Launch approval received',
       passed: ['APPROVED', 'SCHEDULED'].includes(campaign.status as string),
-      reason: !['APPROVED', 'SCHEDULED'].includes(campaign.status as string) ? `Campaign status is ${campaign.status} — must be APPROVED` : null,
+      reason: !['APPROVED', 'SCHEDULED'].includes(campaign.status as string)
+        ? `Campaign must be approved before launch (current: ${campaign.status})`
+        : null,
     },
     {
-      id:     '11',
-      label:  'Three-Key Approval Protocol satisfied for current campaign version',
-      passed: campaign.three_key_status === 'APPROVED',
-      reason: campaign.three_key_status !== 'APPROVED' ? `Three-key status: ${campaign.three_key_status ?? 'PENDING'} — all three keys must be signed` : null,
-    },
-    {
-      id:     '12',
-      label:  'Evidence chain open and audit events healthy',
-      passed: !!(campaign._event_count && (campaign._event_count as number) > 0),
-      reason: !(campaign._event_count && (campaign._event_count as number) > 0) ? 'No campaign events recorded — evidence chain is empty' : null,
-    },
-    {
-      id:     '13',
-      label:  'Acting user has Approver or higher launch authority',
+      id:     '05',
+      label:  'Acting user has launch authority',
       passed: ['APPROVER', 'FINAL_APPROVER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'].includes(actorRole),
       reason: !['APPROVER', 'FINAL_APPROVER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'].includes(actorRole)
         ? `Role "${actorRole}" does not have launch authority`
         : null,
     },
+    {
+      id:     '06',
+      label:  'Budget authorized by budget owner',
+      passed: budgetAuthStatus === 'APPROVED',
+      reason: budgetAuthStatus === 'APPROVED' ? null
+        : budgetAuthStatus === 'PENDING'  ? 'Budget authorization is pending — awaiting budget owner decision'
+        : budgetAuthStatus === 'REJECTED' ? 'Budget authorization was rejected — re-request with updated justification'
+        : budgetAuthStatus === 'EXPIRED'  ? 'Budget authorization expired — re-request required'
+        : 'Budget authorization not yet requested — submit a request on the Budget tab',
+    },
   ];
-
-  return conditions;
 }
 
 // ── getCampaignStats — summary cards for dashboard ───────────
@@ -204,21 +151,16 @@ export const submitCampaignForReview = async (req: AuthRequest, res: Response, n
       return res.status(400).json({ error: `Cannot submit for review from status: ${campaign.status}` });
     }
 
-    // Validate all required fields for submission
+    // Validate required fields for approval request
     const gaps: string[] = [];
-    if (!campaign.objective)          gaps.push('objective');
-    if (!campaign.business_rationale) gaps.push('business rationale');
-    if (!campaign.campaign_manager_id) gaps.push('campaign manager');
-    if (!campaign.budget_total)       gaps.push('budget total');
-    if (!campaign.budget_owner_id)    gaps.push('budget owner');
-    if (!campaign.start_at)           gaps.push('start date');
-    if (!campaign.end_at)             gaps.push('end date');
-
-    const targeting = campaign.targeting || {};
-    if (!targeting.geography || !targeting.geography.length) gaps.push('audience geography');
+    if (!campaign.objective)       gaps.push('objective');
+    if (!campaign.budget_total)    gaps.push('budget total');
+    if (!campaign.budget_owner_id) gaps.push('budget owner');
+    if (!campaign.start_at)        gaps.push('start date');
+    if (!campaign.end_at)          gaps.push('end date');
 
     const creative = campaign.creative || {};
-    if (!creative.landing_page_url)   gaps.push('landing page URL');
+    if (!creative.landing_page_url) gaps.push('landing page URL');
 
     if (gaps.length > 0) {
       return res.status(400).json({
@@ -256,7 +198,7 @@ export const submitCampaignForReview = async (req: AuthRequest, res: Response, n
       { approval_tier: approvalTier, gaps_resolved: true },
     );
 
-    res.json({ success: true, data: updated, message: 'Campaign submitted for governance review' });
+    res.json({ success: true, data: updated, message: 'Approval request submitted — a workspace owner will review and approve.' });
   } catch (err) { next(err); }
 };
 
@@ -283,8 +225,20 @@ export const checkLaunchGate = async (req: AuthRequest, res: Response, next: Nex
       .select('id', { count: 'exact', head: true })
       .eq('campaign_id', campaign.id);
 
+    // Fetch active budget authorization status for condition 06
+    const { data: budgetAuthRow } = await supabaseAdmin
+      .from('budget_authorizations')
+      .select('status')
+      .eq('campaign_id', campaign.id)
+      .eq('workspace_id', workspaceId)
+      .in('status', ['PENDING', 'APPROVED'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const budgetAuthStatus = budgetAuthRow?.status ?? null;
     const campaignWithCount = { ...campaign, _event_count: eventCount ?? 0 };
-    const conditions = evaluateLaunchGate(campaignWithCount, actorRole);
+    const conditions = evaluateLaunchGate(campaignWithCount, actorRole, budgetAuthStatus);
 
     const passed  = conditions.filter(c => c.passed).length;
     const failed  = conditions.filter(c => !c.passed);
@@ -341,8 +295,18 @@ export const launchCampaign = async (req: AuthRequest, res: Response, next: Next
       .select('id', { count: 'exact', head: true })
       .eq('campaign_id', campaign.id);
 
+    const { data: launchBudgetAuth } = await supabaseAdmin
+      .from('budget_authorizations')
+      .select('status')
+      .eq('campaign_id', campaign.id)
+      .eq('workspace_id', workspaceId)
+      .in('status', ['PENDING', 'APPROVED'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const campaignWithCount = { ...campaign, _event_count: eventCount ?? 0 };
-    const conditions = evaluateLaunchGate(campaignWithCount, actorRole);
+    const conditions = evaluateLaunchGate(campaignWithCount, actorRole, launchBudgetAuth?.status ?? null);
     const failed = conditions.filter(c => !c.passed);
 
     if (failed.length > 0) {
@@ -377,6 +341,12 @@ export const launchCampaign = async (req: AuthRequest, res: Response, next: Next
       campaign.status, newStatus,
       { scheduled: isScheduled, start_at: campaign.start_at },
     );
+
+    // If campaign is immediately ACTIVE, process any already-published posts
+    if (newStatus === 'ACTIVE') {
+      AutoCampaignBoostService.processActiveCampaignPosts(campaign.id, workspaceId)
+        .catch(err => logger.warn({ err, campaignId: campaign.id }, '[Launch] processActiveCampaignPosts failed (non-fatal)'));
+    }
 
     res.json({
       success: true,
@@ -500,6 +470,54 @@ export const emergencyPauseCampaign = async (req: AuthRequest, res: Response, ne
     );
 
     res.json({ success: true, data: updated, message: 'Campaign emergency paused. Review required before resuming.' });
+  } catch (err) { next(err); }
+};
+
+// ── approveCampaign — owner/admin approves pending campaign ──
+
+export const approveCampaign = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId      = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+    const actorRole   = req.user?.role ?? '';
+    if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    if (!['ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN', 'APPROVER', 'FINAL_APPROVER'].includes(actorRole)) {
+      return res.status(403).json({ error: 'Only admins and workspace owners can approve campaigns' });
+    }
+
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('id, status, name')
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    if (!['READY_FOR_REVIEW', 'IN_REVIEW'].includes(campaign.status)) {
+      return res.status(400).json({ error: `Cannot approve campaign in status: ${campaign.status}` });
+    }
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('campaigns')
+      .update({ status: 'APPROVED', updated_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await logCampaignEvent(
+      workspaceId, campaign.id,
+      'campaign.approved',
+      userId, actorRole,
+      campaign.status, 'APPROVED',
+      { approved_by: userId },
+    );
+
+    res.json({ success: true, data: updated, message: 'Campaign approved — ready to launch.' });
   } catch (err) { next(err); }
 };
 
