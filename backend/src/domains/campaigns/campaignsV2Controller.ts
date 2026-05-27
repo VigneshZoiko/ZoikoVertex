@@ -345,7 +345,7 @@ export const launchCampaign = async (req: AuthRequest, res: Response, next: Next
     // If campaign is immediately ACTIVE, process any already-published posts
     if (newStatus === 'ACTIVE') {
       AutoCampaignBoostService.processActiveCampaignPosts(campaign.id, workspaceId)
-        .catch(err => logger.warn({ err, campaignId: campaign.id }, '[Launch] processActiveCampaignPosts failed (non-fatal)'));
+        .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Launch] processActiveCampaignPosts failed (non-fatal)'));
     }
 
     res.json({

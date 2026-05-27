@@ -453,3 +453,131 @@ export async function preserveToVault(req: AuthRequest, res: Response, next: Nex
     next(error);
   }
 }
+
+// ─── Service-Account Registry ─────────────────────────────────────────────────
+
+export async function registerServiceAccount(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    const userId = req.user?.id;
+    if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
+
+    const { actor_id, display_name, source_system, description, permissions, expires_at } = req.body;
+    if (!actor_id || !display_name || !source_system) {
+      return res.status(400).json({ error: 'actor_id, display_name, and source_system are required' });
+    }
+
+    const result = await identityLedgerService.registerServiceAccount({
+      actor_id,
+      workspace_id: workspaceId,
+      tenant_id: 'default',
+      display_name,
+      source_system,
+      description,
+      permissions,
+      expires_at,
+      created_by: userId,
+    });
+
+    res.status(201).json({ success: true, data: result });
+  } catch (error) { next(error); }
+}
+
+export async function listServiceAccounts(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
+
+    const { source_system, state, limit, offset } = req.query as Record<string, string | undefined>;
+    const result = await identityLedgerService.listServiceAccounts({
+      workspace_id: workspaceId,
+      source_system,
+      state,
+      limit: limit ? parseInt(limit) : 50,
+      offset: offset ? parseInt(offset) : 0,
+    });
+
+    res.json({ success: true, data: result.accounts, total: result.total });
+  } catch (error) { next(error); }
+}
+
+export async function revokeServiceAccount(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    const userId = req.user?.id;
+    if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
+
+    const actorId = req.params.actorId as string;
+    const { reason } = req.body as { reason?: string };
+
+    const result = await identityLedgerService.revokeServiceAccount(actorId, workspaceId, userId, reason);
+    if (!result) return res.status(404).json({ error: 'Service account not found' });
+
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+}
+
+// ─── Actor Timeline with Session Proof ───────────────────────────────────────
+
+export async function getActorTimelineWithSessions(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    const userId = req.user?.id;
+    if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
+
+    const viewer = await getViewerContext(req);
+    const { limit } = req.query as Record<string, string | undefined>;
+    const result = await identityLedgerService.getActorTimelineWithSessions({
+      workspace_id: workspaceId,
+      actor_id: req.params.actorId as string,
+      limit: limit ? parseInt(limit) : 100,
+      viewer,
+    });
+
+    if (!result) return res.status(404).json({ error: 'Actor not found' });
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+}
+
+// ─── Identity Risk Flags ──────────────────────────────────────────────────────
+
+export async function evaluateActorRiskFlags(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
+
+    const actorId = req.params.actorId as string;
+    const result = await identityLedgerService.evaluateActorRiskFlags(actorId, workspaceId);
+
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+}
+
+export async function setActorRiskFlags(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    const userId = req.user?.id;
+    if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
+
+    const actorId = req.params.actorId as string;
+    const { risk_flags, risk_level, reason } = req.body as { risk_flags?: string[]; risk_level?: string; reason?: string };
+
+    if (!Array.isArray(risk_flags)) return res.status(400).json({ error: 'risk_flags array required' });
+
+    const validLevels = ['low', 'medium', 'high', 'critical'] as const;
+    const level = risk_level as typeof validLevels[number] | undefined;
+    if (risk_level && !validLevels.includes(level!)) return res.status(400).json({ error: 'Invalid risk_level' });
+
+    const result = await identityLedgerService.setActorRiskFlags({
+      actor_id: actorId,
+      workspace_id: workspaceId,
+      risk_flags,
+      risk_level: level,
+      reason,
+      set_by: userId,
+    });
+
+    if (!result) return res.status(404).json({ error: 'Actor not found' });
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+}

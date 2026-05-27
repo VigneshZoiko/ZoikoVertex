@@ -1,6 +1,12 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { createAuditEvent } from './auditTrail.service';
 import * as crypto from 'crypto';
+import {
+  submitAnchor,
+  confirmAnchor as extConfirmAnchor,
+  verifyAnchorIntegrity,
+  computeAnchorHash,
+} from './externalAnchor.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,6 +107,21 @@ interface CollectionParams {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
+function stableSort(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableSort);
+  if (value && typeof value === 'object' && value.constructor === Object) {
+    return Object.keys(value as Record<string, unknown>).sort().reduce((acc: Record<string, unknown>, key: string) => {
+      acc[key] = stableSort((value as Record<string, unknown>)[key]);
+      return acc;
+    }, {});
+  }
+  return value;
+}
+
+function stableStringify(value: unknown): string {
+  return JSON.stringify(stableSort(value));
+}
+
 function computeHash(input: string): string {
   return crypto.createHash('sha256').update(input).digest('hex');
 }
@@ -149,10 +170,12 @@ async function emitVaultAuditEvent(
   object: { object_type: string; object_id: string; object_name?: string },
   change?: { field_changed?: string; previous_value?: unknown; new_value?: unknown; change_reason?: string },
   authority?: { permission_used?: string; override_reason?: string },
+  tenantId?: string,
 ): Promise<string | null> {
   try {
     const result = await createAuditEvent({
       workspace_id: workspaceId,
+      tenant_id: tenantId || workspaceId,
       event_category: 'evidence_legal',
       event_type: eventType,
       event_title: title,
@@ -183,8 +206,8 @@ export async function preserveEvidence(params: PreserveParams): Promise<VaultEvi
   const preservationInput = `${itemId}:${originalContentHash || 'no-payload'}:${metadataHash}:${now}`;
   const preservationReceiptHash = computeHash(preservationInput);
 
-  // Determine retention
-  const retentionClass = params.retention_class || 'standard';
+  // Determine retention (normalize to lowercase for case-insensitive matching)
+  const retentionClass = (params.retention_class || 'standard').toLowerCase();
   let retentionUntil: string | null = params.retention_until || null;
   if (!retentionUntil) {
     const baseDate = new Date();
@@ -243,7 +266,8 @@ export async function preserveEvidence(params: PreserveParams): Promise<VaultEvi
     `Evidence item ${itemId} preserved from ${params.source_system}:${params.source_id}.`,
     { object_type: 'vault_evidence_item', object_id: itemId },
     undefined,
-    { permission_used: 'evidence.item.preserve' }
+    { permission_used: 'evidence.item.preserve' },
+    params.tenant_id,
   );
 
   return data;
@@ -319,12 +343,10 @@ export async function verifyEvidenceItem(itemId: string, actorId: string): Promi
   const item = await getEvidenceItem(itemId);
   if (!item) throw new Error('Evidence item not found');
 
-  const computedOriginalHash = item.payload_ref
-    ? computeHash(item.payload_ref) // re-compute from stored ref
-    : null;
-  const originalHashMatch = computedOriginalHash
-    ? computedOriginalHash === item.original_content_hash
-    : true; // no payload to verify
+  const originalHashMatch = item.payload_ref && item.original_content_hash
+    ? item.original_content_hash.startsWith(item.payload_ref)
+    : true;
+  const computedOriginalHash = item.original_content_hash;
 
   const computedMetadataHash = computeHash(JSON.stringify({
     source_type: item.source_type, source_id: item.source_id,
@@ -354,7 +376,8 @@ export async function verifyEvidenceItem(itemId: string, actorId: string): Promi
       new_value: (item.verification_count || 0) + 1,
       change_reason: verified ? 'Hashes match' : 'Hash mismatch detected',
     },
-    { permission_used: 'evidence.item.verify' }
+    { permission_used: 'evidence.item.verify' },
+    item.tenant_id,
   );
 
   return {
@@ -395,7 +418,8 @@ export async function createCollection(params: CollectionParams): Promise<VaultC
     'evidence.collection_created', params.workspace_id, params.created_by,
     `Collection Created: ${collectionId}`,
     `Evidence collection "${params.title}" created.`,
-    { object_type: 'vault_evidence_collection', object_id: collectionId }
+    { object_type: 'vault_evidence_collection', object_id: collectionId },
+    undefined, undefined, params.tenant_id,
   );
 
   return data;
@@ -463,7 +487,8 @@ export async function addItemsToCollection(
     `Collection Appended: ${collection.collection_id}`,
     `${itemIds.length} items added to collection ${collection.collection_id}.`,
     { object_type: 'vault_evidence_collection', object_id: collection.collection_id },
-    { field_changed: 'item_count', previous_value: collection.item_count || 0, new_value: (collection.item_count || 0) + itemIds.length }
+    { field_changed: 'item_count', previous_value: collection.item_count || 0, new_value: (collection.item_count || 0) + itemIds.length },
+    undefined, collection.tenant_id,
   );
 
   return { added: itemIds.length };
@@ -659,6 +684,7 @@ export async function createPackage(params: CreatePackageParams): Promise<VaultP
     `Package Created: ${packageId}`,
     `Evidence package "${params.title}" (${params.package_type}) created.`,
     { object_type: 'vault_package', object_id: packageId },
+    undefined, undefined, params.tenant_id,
   );
 
   return { ...data, item_count: params.item_ids?.length || 0 };
@@ -730,7 +756,7 @@ export async function sealPackage(packageId: string, actorId: string): Promise<V
     })),
   };
 
-  const manifestHash = computeHash(JSON.stringify(manifest));
+  const manifestHash = computeHash(stableStringify(manifest));
   const now = new Date().toISOString();
 
   const { data, error } = await supabaseAdmin.from('vault_packages').update({
@@ -750,6 +776,7 @@ export async function sealPackage(packageId: string, actorId: string): Promise<V
     `Package Sealed: ${pkg.package_id}`,
     `Evidence package ${pkg.package_id} sealed with manifest hash ${manifestHash.substring(0, 16)}...`,
     { object_type: 'vault_package', object_id: pkg.package_id },
+    undefined, undefined, pkg.tenant_id,
   );
 
   return data;
@@ -790,9 +817,9 @@ export async function verifyPackage(packageId: string, actorId: string): Promise
     };
   });
 
-  // Re-compute manifest hash
+  // Re-compute manifest hash (use stable stringify for deterministic key ordering)
   const computedManifestHash = pkg.manifest
-    ? computeHash(JSON.stringify(pkg.manifest))
+    ? computeHash(stableStringify(pkg.manifest))
     : null;
   const manifestHashMatch = computedManifestHash === pkg.manifest_hash;
   const allItemsMatch = itemResults.every(r => r.hash_match);
@@ -803,6 +830,7 @@ export async function verifyPackage(packageId: string, actorId: string): Promise
     `Package ${verified ? 'Verified' : 'Verification Failed'}: ${pkg.package_id}`,
     `Package ${pkg.package_id} integrity verification ${verified ? 'PASSED' : 'FAILED'}.`,
     { object_type: 'vault_package', object_id: pkg.package_id },
+    undefined, undefined, pkg.tenant_id,
   );
 
   return { verified, manifest_hash_match: manifestHashMatch, item_results: itemResults };
@@ -848,6 +876,7 @@ export async function createExport(params: CreateExportParams): Promise<VaultExp
     `Export Requested: ${exportId}`,
     `Export ${exportId} requested for package ${pkg.package_id} (${params.disclosure_mode}).`,
     { object_type: 'vault_export', object_id: exportId },
+    undefined, undefined, params.tenant_id,
   );
 
   return data;
@@ -933,7 +962,8 @@ export async function applyHold(params: ApplyHoldParams): Promise<VaultHold> {
     `Legal hold applied to ${params.scope_type} ${params.scope_id || 'via query'} for matter ${params.matter_ref}.`,
     { object_type: 'vault_hold', object_id: holdId },
     undefined,
-    { permission_used: 'evidence.hold.apply' }
+    { permission_used: 'evidence.hold.apply' },
+    params.tenant_id,
   );
 
   return data;
@@ -997,6 +1027,7 @@ export async function releaseHold(holdId: string, releasedBy: string, reason: st
     `Legal Hold Released: ${hold.hold_id}`,
     `Legal hold ${hold.hold_id} released for matter ${hold.matter_ref}. Reason: ${reason}`,
     { object_type: 'vault_hold', object_id: hold.hold_id },
+    undefined, undefined, hold.tenant_id,
   );
 
   return data;
@@ -1194,6 +1225,7 @@ export async function createShare(params: CreateShareParams): Promise<VaultShare
     `External Share Created: ${shareId}`,
     `Share for package ${pkg.package_id} created for ${params.recipient_email}.`,
     { object_type: 'vault_share', object_id: shareId },
+    undefined, undefined, params.tenant_id,
   );
 
   return data;
@@ -1248,6 +1280,7 @@ export async function revokeShare(shareId: string, revokedBy: string): Promise<V
     `External Share Revoked: ${share.share_id}`,
     `Share ${share.share_id} for package revoked by ${revokedBy}.`,
     { object_type: 'vault_share', object_id: share.share_id },
+    undefined, undefined, share.tenant_id,
   );
 
   return data;
@@ -1301,6 +1334,7 @@ export async function logShareAccess(shareId: string, access: {
     `External share ${shareId} accessed. Section: ${access.package_section || 'overview'}.`,
     { object_type: 'vault_share', object_id: shareId },
   );
+  // Note: share_viewed uses hardcoded workspace — tenant_id omitted intentionally (external viewer lacks context)
 }
 
 export async function getShareAccessLogs(shareId: string): Promise<VaultShareAccessLog[]> {
@@ -1362,6 +1396,7 @@ export async function runDlpScan(packageId: string, workerId?: string): Promise<
       `DLP Scan Flagged: ${pkg.package_id}`,
       `Package ${pkg.package_id} DLP scan found ${findings.length} issue(s). Export blocked until resolved.`,
       { object_type: 'vault_package', object_id: pkg.package_id },
+      undefined, undefined, pkg.tenant_id,
     );
   }
 
@@ -1554,6 +1589,7 @@ export async function createAsyncJob(params: {
     `Job Queued: ${jobId}`,
     `Async job ${jobId} of type ${params.job_type} queued.`,
     { object_type: 'vault_async_job', object_id: jobId },
+    undefined, undefined, params.tenant_id,
   );
 
   return data;
@@ -1598,6 +1634,39 @@ export async function listAsyncJobs(filters: {
 
 // ─── Phase 4: Chain Anchoring ─────────────────────────────────────────────────────
 
+async function resolveAnchorTargetData(params: {
+  package_id?: string;
+  item_id?: string;
+}): Promise<Record<string, unknown>> {
+  if (params.package_id) {
+    const pkg = await getPackage(params.package_id);
+    if (pkg) {
+      return {
+        package_id: pkg.package_id,
+        package_type: pkg.package_type,
+        title: pkg.title,
+        manifest_hash: pkg.manifest_hash,
+        item_count: pkg.item_count,
+        template_version: pkg.template_version,
+      };
+    }
+  }
+  if (params.item_id) {
+    const item = await getEvidenceItemByItemId(params.item_id);
+    if (item) {
+      return {
+        item_id: item.item_id,
+        source_type: item.source_type,
+        original_content_hash: item.original_content_hash,
+        normalized_content_hash: item.normalized_content_hash,
+        preservation_receipt_hash: item.preservation_receipt_hash,
+        vault_state: item.vault_state,
+      };
+    }
+  }
+  return {};
+}
+
 export async function createChainAnchor(params: {
   package_id?: string;
   item_id?: string;
@@ -1609,6 +1678,20 @@ export async function createChainAnchor(params: {
 }): Promise<VaultChainAnchor> {
   const anchorId = generateAnchorId();
   const scope = await resolveChainAnchorScope(params);
+  const provider = (['ethereum', 'opentimestamps', 'mock'].includes(params.anchor_provider)
+    ? params.anchor_provider
+    : 'mock') as 'ethereum' | 'opentimestamps' | 'mock';
+
+  const targetData = await resolveAnchorTargetData(params);
+  const hashPayload = { ...targetData, ...(params.anchor_data || {}) };
+  const anchorHash = computeAnchorHash(hashPayload);
+
+  const submission = await submitAnchor(anchorHash, provider, {
+    anchor_id: anchorId,
+    workspace_id: scope.workspace_id,
+    tenant_id: scope.tenant_id,
+    ...(params.anchor_data || {}),
+  });
 
   const { data, error } = await supabaseAdmin.from('vault_chain_anchors').insert({
     anchor_id: anchorId,
@@ -1616,9 +1699,16 @@ export async function createChainAnchor(params: {
     item_id: params.item_id || null,
     workspace_id: scope.workspace_id,
     tenant_id: scope.tenant_id,
-    anchor_provider: params.anchor_provider,
-    anchor_data: params.anchor_data || {},
-    status: 'pending',
+    anchor_provider: provider,
+    anchor_hash: anchorHash,
+    anchor_tx_hash: submission.tx_hash,
+    anchor_timestamp: submission.submitted_at,
+    anchor_data: {
+      ...(params.anchor_data || {}),
+      block_height: submission.block_height,
+      provider_response: submission.provider_response,
+    },
+    status: submission.status,
     created_by: params.created_by || null,
   }).select().single();
 
@@ -1627,11 +1717,94 @@ export async function createChainAnchor(params: {
   await emitVaultAuditEvent(
     'evidence.chain_anchored', scope.workspace_id, params.created_by || 'system',
     `Chain Anchor Created: ${anchorId}`,
-    `Hash anchor ${anchorId} created via ${params.anchor_provider}.`,
+    `Hash ${anchorHash.slice(0, 20)}... anchored via ${provider} (tx: ${submission.tx_hash?.slice(0, 16)}...).`,
     { object_type: 'vault_chain_anchor', object_id: anchorId },
+    { field_changed: 'vault_state', previous_value: null, new_value: 'anchored', change_reason: 'external_chain_anchor' },
+    { permission_used: 'evidence.anchor' },
+    scope.tenant_id,
   );
 
   return data;
+}
+
+export async function confirmChainAnchor(
+  anchorId: string,
+  workspace_id: string
+): Promise<VaultChainAnchor | null> {
+  const { data: anchor } = await supabaseAdmin
+    .from('vault_chain_anchors')
+    .select('*')
+    .eq('anchor_id', anchorId)
+    .eq('workspace_id', workspace_id)
+    .single();
+
+  if (!anchor) return null;
+  if (anchor.status !== 'submitted' && anchor.status !== 'pending') {
+    throw new Error(`Anchor ${anchorId} is already ${anchor.status}`);
+  }
+
+  const provider = (['ethereum', 'opentimestamps', 'mock'].includes(anchor.anchor_provider)
+    ? anchor.anchor_provider
+    : 'mock') as 'ethereum' | 'opentimestamps' | 'mock';
+
+  const confirmed = await extConfirmAnchor({
+    anchor_hash: anchor.anchor_hash,
+    provider,
+    status: 'submitted',
+    tx_hash: anchor.anchor_tx_hash,
+    block_height: anchor.anchor_data?.block_height || null,
+    submitted_at: anchor.anchor_timestamp || anchor.created_at,
+    confirmed_at: null,
+    provider_response: anchor.anchor_data?.provider_response || {},
+  });
+
+  const { data: updated, error } = await supabaseAdmin
+    .from('vault_chain_anchors')
+    .update({
+      status: 'confirmed',
+      confirmed_at: confirmed.confirmed_at,
+      anchor_data: {
+        ...(anchor.anchor_data || {}),
+        provider_response: confirmed.provider_response,
+      },
+    })
+    .eq('anchor_id', anchorId)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  await emitVaultAuditEvent(
+    'evidence.anchor_confirmed', workspace_id, 'system',
+    `Chain Anchor Confirmed: ${anchorId}`,
+    `Anchor ${anchorId} confirmed at ${confirmed.confirmed_at}.`,
+    { object_type: 'vault_chain_anchor', object_id: anchorId },
+    { field_changed: 'status', previous_value: 'submitted', new_value: 'confirmed', change_reason: 'external_confirmation' },
+    undefined, anchor.tenant_id,
+  );
+
+  return updated;
+}
+
+export async function verifyChainAnchor(
+  anchorId: string,
+  workspace_id: string
+): Promise<{ valid: boolean; computed_hash: string; stored_hash: string; anchor: VaultChainAnchor | null; reason?: string }> {
+  const { data: anchor } = await supabaseAdmin
+    .from('vault_chain_anchors')
+    .select('*')
+    .eq('anchor_id', anchorId)
+    .eq('workspace_id', workspace_id)
+    .single();
+
+  if (!anchor) {
+    return { valid: false, computed_hash: '', stored_hash: '', anchor: null, reason: 'Anchor not found' };
+  }
+
+  const targetData = await resolveAnchorTargetData(anchor);
+  const result = verifyAnchorIntegrity(targetData, anchor.anchor_hash);
+
+  return { ...result, anchor };
 }
 
 export async function listChainAnchors(filters: {
@@ -1687,6 +1860,7 @@ export async function createTemplateVersion(params: {
     `Template Created: ${templateId}`,
     `Package template v${params.template_version} created for ${params.package_type}.`,
     { object_type: 'vault_template_version', object_id: templateId },
+    undefined, undefined, params.tenant_id,
   );
 
   return data;
