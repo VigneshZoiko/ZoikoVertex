@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 const TEAM = [
   {
@@ -86,9 +87,8 @@ export default function AboutTeam() {
 
         {/* Header — 2 col */}
         <div
-          className={`grid lg:grid-cols-2 gap-10 items-start mb-14 transition-all duration-700 ease-out ${
-            visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-          }`}
+          className={`grid lg:grid-cols-2 gap-10 items-start mb-14 transition-all duration-700 ease-out ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+            }`}
         >
           {/* Left */}
           <div>
@@ -117,7 +117,7 @@ export default function AboutTeam() {
           {TEAM.map((member, i) => (
             <div
               key={i}
-              className={`border border-white/8 rounded-2xl overflow-hidden bg-[#0E1B35]
+              className={`border border-white/8 rounded-2xl overflow-hidden bg-[#0a0a18]
                 hover:border-white/15 hover:-translate-y-1 transition-all duration-400 ease-out cursor-default
                 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
               style={{ transitionDelay: `${150 + i * 100}ms` }}
@@ -143,8 +143,8 @@ export default function AboutTeam() {
                       className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-black mb-2"
                       style={{
                         background: member.avatarColor || "#0f172a",
-  color: member.avatarText,
-  border: `2px solid ${member.avatarText}30`,
+                        color: member.avatarText,
+                        border: `2px solid ${member.avatarText}30`,
                       }}
                     >
                       {member.initials}
@@ -152,13 +152,14 @@ export default function AboutTeam() {
                     {/* Silhouette shape */}
                     <div
                       className="w-24 h-8 rounded-t-full mt-1 opacity-30"
-                      style={{  background: member.avatarColor || "transparent", }}
+                      style={{ background: member.avatarColor || "transparent", }}
                     />
                   </div>
                 )}
               </div>
 
               {/* Info */}
+
               <div className="p-4 flex flex-col gap-2">
                 {member.name && (
                   <p className="text-white text-sm font-black leading-snug">
@@ -178,6 +179,7 @@ export default function AboutTeam() {
                     Founder & Executive Chairman
                   </p>
                 )}
+
 
                 {/* Tag */}
                 <span
