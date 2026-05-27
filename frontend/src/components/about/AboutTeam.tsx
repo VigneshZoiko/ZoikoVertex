@@ -141,18 +141,20 @@ export default function AboutTeam() {
                     {/* Circle avatar */}
                     <div
                       className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-black mb-2"
-                      style={{
-                        background: member.avatarColor,
-                        color: member.avatarText,
-                        border: `2px solid ${member.avatarText}30`,
-                      }}
+                     style={{
+  background: member.avatarColor || "#0f172a",
+  color: member.avatarText,
+  border: `2px solid ${member.avatarText}30`,
+}}
                     >
                       {member.initials}
                     </div>
                     {/* Silhouette shape */}
                     <div
                       className="w-24 h-8 rounded-t-full mt-1 opacity-30"
-                      style={{ background: member.avatarColor }}
+                      style={{
+  background: member.avatarColor || "transparent",
+}}
                     />
                   </div>
                 )}
