@@ -153,6 +153,7 @@ interface QueueItem {
   claimed_at?: string | null;
   resolved_at?: string | null;
   sla_breached?: boolean;
+  resolution_notes?: string | null;
 }
 
 interface Incident {
@@ -181,17 +182,37 @@ interface OperationsStats {
   avg_trust_score: number;
   sla_breaches?: number;
   escalations?: number;
+  restricted_operations?: number;
 }
 
 interface AnalyticsMetrics {
+  throughput?: number;
+  backlog?: number;
   failure_rate?: number;
   retry_success_rate?: number;
   policy_block_rate?: number;
-  avg_review_time_minutes?: number;
+  approval_time?: number;
+  productivity?: number;
+  rework_rate?: number;
+  escalation_trends?: number;
   sla_breach_rate?: number;
+  evidence_completeness?: number;
+  avg_review_time_minutes?: number;
   incident_closure_time_hours?: number;
   evidence_completeness_pct?: number;
   throughput_per_day?: number;
+}
+
+interface SavedView {
+  id: string;
+  name: string;
+  statusFilter: string;
+  brandFilter: string;
+  envFilter: string;
+  queueTypeFilter: string;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  viewMode: "list" | "card";
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -892,11 +913,17 @@ export default function AgentOperationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [envFilter, setEnvFilter] = useState("");
+  const [queueTypeFilter, setQueueTypeFilter] = useState("");
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
 
   // ── Tabs and filters ──
   const [activeTab, setActiveTab] = useState<"runs" | "queues" | "incidents" | "analytics">("runs");
   const [statusFilter, setStatusFilter] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
+  const [sortBy, setSortBy] = useState("last_event_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   // ── Run detail state ──
   const [selectedRun, setSelectedRun] = useState<AgentRun | null>(null);
@@ -934,15 +961,21 @@ export default function AgentOperationsPage() {
     if (initialLoad.current) setLoading(true);
     setError(null);
     try {
-      const params: Record<string, string> = { limit: "50" };
-      if (statusFilter) params.status = statusFilter;
-      if (brandFilter) params.brand = brandFilter;
-      if (envFilter) params.environment = envFilter;
-
       const [statsRes, runsRes, queuesRes, incidentsRes, analyticsRes] = await Promise.allSettled([
         api.getOperationsStats().catch(() => null),
-        api.listAgentRuns(params).catch(() => null),
-        api.listQueues().catch(() => null),
+        api.listAgentRuns({
+          limit: 100,
+          status: statusFilter || undefined,
+          brand: brandFilter || undefined,
+          environment: envFilter || undefined,
+          search: searchQuery || undefined,
+          sort_by: sortBy,
+          sort_order: sortOrder,
+        }).catch(() => null),
+        api.listQueues({
+          queue_type: queueTypeFilter || undefined,
+          limit: 100,
+        }).catch(() => null),
         api.listIncidents().catch(() => null),
         api.getOperationsAnalytics().catch(() => null),
       ]);
@@ -971,7 +1004,7 @@ export default function AgentOperationsPage() {
         initialLoad.current = false;
       }
     }
-  }, [statusFilter, brandFilter, envFilter]);
+  }, [statusFilter, brandFilter, envFilter, queueTypeFilter, searchQuery, sortBy, sortOrder]);
 
   useEffect(() => {
     setLoading(true);
@@ -979,6 +1012,59 @@ export default function AgentOperationsPage() {
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("zv-operations-saved-views");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as SavedView[];
+      if (Array.isArray(parsed)) setSavedViews(parsed);
+    } catch {
+      // ignore malformed saved views
+    }
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter, brandFilter, envFilter, queueTypeFilter, sortBy, sortOrder]);
+
+  const persistSavedViews = useCallback((views: SavedView[]) => {
+    setSavedViews(views);
+    try {
+      window.localStorage.setItem("zv-operations-saved-views", JSON.stringify(views));
+    } catch {
+      // ignore persistence failure
+    }
+  }, []);
+
+  const handleSaveCurrentView = useCallback(() => {
+    const name = window.prompt("Save this operational view as:", `Ops view ${savedViews.length + 1}`);
+    if (!name?.trim()) return;
+    const nextView: SavedView = {
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      statusFilter,
+      brandFilter,
+      envFilter,
+      queueTypeFilter,
+      sortBy,
+      sortOrder,
+      viewMode,
+    };
+    persistSavedViews([nextView, ...savedViews].slice(0, 8));
+  }, [brandFilter, envFilter, persistSavedViews, queueTypeFilter, savedViews, sortBy, sortOrder, statusFilter, viewMode]);
+
+  const handleApplySavedView = useCallback((viewId: string) => {
+    const view = savedViews.find((item) => item.id === viewId);
+    if (!view) return;
+    setStatusFilter(view.statusFilter);
+    setBrandFilter(view.brandFilter);
+    setEnvFilter(view.envFilter);
+    setQueueTypeFilter(view.queueTypeFilter);
+    setSortBy(view.sortBy);
+    setSortOrder(view.sortOrder);
+    setViewMode(view.viewMode);
+  }, [savedViews]);
 
   // ── Open run drawer ──
   const handleViewRun = async (run: AgentRun) => {
@@ -1202,6 +1288,25 @@ export default function AgentOperationsPage() {
     }
     return true;
   });
+  const paginatedRuns = filteredRuns.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.max(1, Math.ceil(filteredRuns.length / pageSize));
+  const currentWorkspace = runs.find((run) => run.workspace_name)?.workspace_name || "Current Workspace";
+  const queueTypeOptions = [...new Set(queues.map((item) => item.queue_type).filter(Boolean))].sort();
+  const activeRunsExportPayload = filteredRuns.map((run) => ({
+    run_id: run.id,
+    agent_name: run.agent_name,
+    status: run.status,
+    severity: run.severity,
+    owner: run.owner_name,
+    policy_result: run.policy_result,
+    evidence_status: run.evidence_status,
+    next_action: run.next_action,
+    due_at: run.due_at,
+    last_event_at: run.last_event_at,
+    environment: run.environment,
+    brand: run.brand_name,
+    workspace: run.workspace_name,
+  }));
 
   const criticalCount = runs.filter((r) => r.severity === "critical" || ["FAILED", "POLICY_BLOCKED", "QUARANTINED", "ESCALATED"].includes(r.status)).length;
 
@@ -1233,6 +1338,12 @@ export default function AgentOperationsPage() {
           {/* Context selectors */}
           <div className="relative">
             <Building2 className="w-3.5 h-3.5 text-[#555] absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <select value={currentWorkspace} disabled className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-7 pr-3 py-1.5 text-xs text-[#666] appearance-none cursor-not-allowed">
+              <option value={currentWorkspace}>{currentWorkspace}</option>
+            </select>
+          </div>
+          <div className="relative">
+            <Building2 className="w-3.5 h-3.5 text-[#555] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-7 pr-3 py-1.5 text-xs text-[#aaa] appearance-none focus:outline-none focus:border-[#444]">
               <option value="">All Brands</option>
               {[...new Set(runs.map((r) => r.brand_name).filter(Boolean))].sort().map((b) => (
@@ -1249,6 +1360,29 @@ export default function AgentOperationsPage() {
               <option value="development">Development</option>
             </select>
           </div>
+          <div className="relative">
+            <ChevronDown className="w-3.5 h-3.5 text-[#555] absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <select
+              value=""
+              onChange={(e) => {
+                if (!e.target.value) return;
+                handleApplySavedView(e.target.value);
+                e.target.value = "";
+              }}
+              className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-7 pr-3 py-1.5 text-xs text-[#aaa] appearance-none focus:outline-none focus:border-[#444]"
+            >
+              <option value="">Saved Views</option>
+              {savedViews.map((view) => (
+                <option key={view.id} value={view.id}>{view.name}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={handleSaveCurrentView}
+            className="px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#888] rounded-xl text-xs hover:text-white hover:border-[#444] transition-colors"
+          >
+            Save View
+          </button>
           {/* Incident shortcut */}
           <button
             onClick={() => setShowIncidentModal(true)}
@@ -1256,6 +1390,9 @@ export default function AgentOperationsPage() {
           >
             <Siren className="w-3.5 h-3.5" /> New Incident
           </button>
+          <div className="px-2.5 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-[10px] text-[#666]">
+            Last refresh {lastRefreshed.toLocaleTimeString()}
+          </div>
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10px] text-emerald-400">
             <Radio className="w-3 h-3" />
             <span className="hidden sm:inline">Auto-refresh 30s</span>
@@ -1375,8 +1512,32 @@ export default function AgentOperationsPage() {
                   <option key={key} value={key}>{cfg.label}</option>
                 ))}
               </select>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-1.5 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
+              >
+                <option value="last_event_at">Sort: Last Event</option>
+                <option value="created_at">Sort: Created</option>
+                <option value="due_at">Sort: SLA Due</option>
+                <option value="priority">Sort: Priority</option>
+                <option value="severity">Sort: Severity</option>
+              </select>
+              <button
+                onClick={() => setSortOrder((current) => current === "desc" ? "asc" : "desc")}
+                className="px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-xs text-[#888] hover:text-white hover:border-[#444] transition-colors"
+              >
+                {sortOrder === "desc" ? "Newest first" : "Oldest first"}
+              </button>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => downloadSnapshot(`operations-runs-${new Date().toISOString().split("T")[0]}.json`, JSON.stringify(activeRunsExportPayload, null, 2))}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-xs text-[#888] hover:text-white hover:border-[#444] transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export Runs
+              </button>
               <div className="flex items-center gap-1 text-[10px] text-[#555]">
                 <SeverityDot severity="critical" /><span>Critical</span>
                 <span className="mx-1.5" />
@@ -1411,20 +1572,21 @@ export default function AgentOperationsPage() {
             /* ── List View ── */
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 border-b border-[#2a2a2a] text-[10px] font-semibold text-[#444] uppercase tracking-wider">
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 border-b border-[#2a2a2a] text-[10px] font-semibold text-[#444] uppercase tracking-wider">
                 <span>Run</span>
                 <span>Status</span>
                 <span>Policy</span>
                 <span>Evidence</span>
                 <span>SLA</span>
+                <span>Next Action</span>
                 <span>Actions</span>
               </div>
               <div className="divide-y divide-[#1f1f1f]">
-                {filteredRuns.map((run) => {
+                {paginatedRuns.map((run) => {
                   const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-[#888]", bg: "bg-white/5", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
                   const sla = formatTimeRemaining(run.due_at);
                   return (
-                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
+                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
                       {/* Run info */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
@@ -1454,6 +1616,9 @@ export default function AgentOperationsPage() {
                             {sla.label}
                           </span>
                         ) : <span className="text-[#333]">—</span>}
+                      </div>
+                      <div>
+                        <span className="text-xs text-[#888]">{run.next_action || "Inspect run"}</span>
                       </div>
                       {/* Actions */}
                       <div className="flex items-center gap-0.5">
@@ -1491,11 +1656,33 @@ export default function AgentOperationsPage() {
                   );
                 })}
               </div>
+              <div className="flex items-center justify-between px-4 py-3 border-t border-[#2a2a2a]">
+                <p className="text-[10px] text-[#555]">
+                  Showing {filteredRuns.length === 0 ? 0 : (page - 1) * pageSize + 1}-{Math.min(page * pageSize, filteredRuns.length)} of {filteredRuns.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    disabled={page === 1}
+                    className="px-2.5 py-1 text-[10px] rounded-lg border border-[#2a2a2a] text-[#888] hover:text-white hover:border-[#444] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-[10px] text-[#666]">Page {page} of {totalPages}</span>
+                  <button
+                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    disabled={page >= totalPages}
+                    className="px-2.5 py-1 text-[10px] rounded-lg border border-[#2a2a2a] text-[#888] hover:text-white hover:border-[#444] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             /* ── Card View ── */
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {filteredRuns.map((run) => {
+              {paginatedRuns.map((run) => {
                 const sla = formatTimeRemaining(run.due_at);
                 return (
                   <div key={run.id} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-4 hover:border-[#333] transition-colors">
@@ -1524,6 +1711,7 @@ export default function AgentOperationsPage() {
                         <Eye className="w-3.5 h-3.5" /> View
                       </button>
                     </div>
+                    <p className="text-[10px] text-[#666] mt-2">Next action: {run.next_action || "Inspect run"}</p>
                   </div>
                 );
               })}
@@ -1539,6 +1727,16 @@ export default function AgentOperationsPage() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-[#555]">{queues.length} item{queues.length !== 1 ? "s" : ""} in queue</p>
+            <select
+              value={queueTypeFilter}
+              onChange={(e) => setQueueTypeFilter(e.target.value)}
+              className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-1.5 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
+            >
+              <option value="">All Queues</option>
+              {queueTypeOptions.map((queueType) => (
+                <option key={queueType} value={queueType}>{queueType.replace(/_/g, " ")}</option>
+              ))}
+            </select>
           </div>
           {queues.length === 0 ? (
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">

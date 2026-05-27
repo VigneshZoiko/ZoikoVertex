@@ -16,43 +16,73 @@ export interface EvidenceBundle {
   created_at: string;
 }
 
-export async function getRunEvidence(bundleId: string) {
+async function getBundleScoped(bundleId: string, workspaceId: string) {
   const { data, error } = await supabaseAdmin
     .from('evidence_bundles')
     .select('*')
     .eq('id', bundleId)
-    .single();
-  if (error) throw Object.assign(new Error('Evidence bundle not found'), { statusCode: 404 });
-  return data as EvidenceBundle;
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data || null) as EvidenceBundle | null;
+}
+
+export async function getRunEvidence(bundleId: string, workspaceId: string) {
+  const bundle = await getBundleScoped(bundleId, workspaceId);
+  if (!bundle) {
+    throw Object.assign(new Error('Evidence bundle not found'), { statusCode: 404 });
+  }
+  return bundle;
 }
 
 export async function exportEvidence(params: {
+  workspaceId: string;
   bundleId: string;
   exportedBy: string;
+  exportedByName: string;
   exportReason: string;
   storageRef?: string;
 }) {
-  const { data: bundle, error: fetchError } = await supabaseAdmin
-    .from('evidence_bundles')
-    .select('*')
-    .eq('id', params.bundleId)
-    .single();
-  if (fetchError || !bundle) throw Object.assign(new Error('Evidence bundle not found'), { statusCode: 404 });
+  const bundle = await getBundleScoped(params.bundleId, params.workspaceId);
+  if (!bundle) {
+    throw Object.assign(new Error('Evidence bundle not found'), { statusCode: 404 });
+  }
 
   const now = new Date().toISOString();
   const { error: updateError } = await supabaseAdmin
     .from('evidence_bundles')
     .update({
-      status: 'exported',
+      status: bundle.locked_at ? bundle.status : 'EXPORT_READY',
       exported_by: params.exportedBy,
       exported_at: now,
       export_reason: params.exportReason,
-      storage_ref: params.storageRef || null,
+      storage_ref: params.storageRef || bundle.storage_ref || null,
     })
-    .eq('id', params.bundleId);
+    .eq('id', params.bundleId)
+    .eq('workspace_id', params.workspaceId);
   if (updateError) throw updateError;
 
-  return { id: params.bundleId, exported_by: params.exportedBy, exported_at: now };
+  await supabaseAdmin.from('run_events').insert({
+    id: uuidv4(),
+    run_id: bundle.run_id,
+    event_type: 'evidence.exported',
+    actor_type: 'user',
+    actor_id: params.exportedBy,
+    actor_name: params.exportedByName,
+    previous_state: null,
+    new_state: null,
+    reason: params.exportReason,
+    payload_ref: params.bundleId,
+  });
+
+  return {
+    id: params.bundleId,
+    exported_by: params.exportedBy,
+    exported_at: now,
+    export_reason: params.exportReason,
+    run_id: bundle.run_id,
+  };
 }
 
 export async function createEvidenceBundle(params: {
@@ -67,27 +97,28 @@ export async function createEvidenceBundle(params: {
     id,
     workspace_id: params.workspace_id,
     run_id: params.run_id,
-    status: 'pending',
+    status: 'PARTIAL',
     hash,
   });
   if (error) throw error;
   return { id, hash };
 }
 
-export async function lockEvidenceBundle(bundleId: string) {
-  const { data: bundle, error: fetchError } = await supabaseAdmin
-    .from('evidence_bundles')
-    .select('*')
-    .eq('id', bundleId)
-    .single();
-  if (fetchError || !bundle) throw Object.assign(new Error('Evidence bundle not found'), { statusCode: 404 });
-  if (bundle.locked_at) throw Object.assign(new Error('Evidence bundle already locked'), { statusCode: 409 });
+export async function lockEvidenceBundle(bundleId: string, workspaceId: string) {
+  const bundle = await getBundleScoped(bundleId, workspaceId);
+  if (!bundle) {
+    throw Object.assign(new Error('Evidence bundle not found'), { statusCode: 404 });
+  }
+  if (bundle.locked_at) {
+    throw Object.assign(new Error('Evidence bundle already locked'), { statusCode: 409 });
+  }
 
   const now = new Date().toISOString();
   const { error } = await supabaseAdmin
     .from('evidence_bundles')
-    .update({ status: 'locked', locked_at: now })
-    .eq('id', bundleId);
+    .update({ status: 'LOCKED', locked_at: now })
+    .eq('id', bundleId)
+    .eq('workspace_id', workspaceId);
   if (error) throw error;
   return { id: bundleId, locked_at: now };
 }

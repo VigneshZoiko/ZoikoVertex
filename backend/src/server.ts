@@ -276,7 +276,7 @@ import {
 } from './domains/decisions/approvalV2Controller';
 import { authenticate, provisionGuard, scopeGuard } from './shared/authMiddleware';
 import { integrationPlanGate, blockApiKeyUsers, planRateLimit } from './shared/planLimits';
-import { requireRole } from './shared/permissionMiddleware';
+import { requirePermission, requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';
 import {
   listApiKeys, createApiKey, revokeApiKey, deleteApiKey,
@@ -394,6 +394,12 @@ app.post('/api/v1/exceptions/cases/:id/send-to-quality-audit', authenticate, sco
 app.get('/api/v1/exceptions/cases/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getExceptionAuditTrail);
 app.post('/api/v1/exceptions/cases/:id/export', authenticate, scopeGuard('read:governance', '*'), exportExceptionRecord);
 const govGuard = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER');
+// Server-side authority enforcement for agent lifecycle actions. Mirrors the
+// frontend `canManageAuthority` role set so direct API calls can't bypass the
+// UI gate. requireRole already bypasses superadmins and returns a 403 with the
+// standard error envelope. Approval approve/reject routes are intentionally NOT
+// guarded here — they have their own internal approver-role checks.
+const agentAuthorityGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'GOVERNANCE_ADMIN');
 // Protected Governance
 app.post('/api/v1/governance/transition', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), transitionStatus);
 app.post('/api/v1/governance/submit', authenticate, planRateLimit('general'), scopeGuard('write:content', 'write:publish', '*'), submitIntent);
@@ -715,6 +721,12 @@ app.post('/api/v1/user/downgrade-to-free', authenticate, SuperAdminController.do
 
 // Workspace Settings Routes
 const workspaceGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'PRIVACY_ADMIN', 'SUPERADMIN');
+const operationsViewGuard = requirePermission('operations:view');
+const operationsManageGuard = requirePermission('operations:manage');
+const queueViewGuard = requirePermission('queue:view');
+const queueManageGuard = requirePermission('queue:manage');
+const evidenceExportGuard = requirePermission('evidence:view');
+const operationsEmergencyGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SECURITY_ADMIN', 'SUPERADMIN');
 app.get('/api/v1/workspace/settings', authenticate, workspaceGuard, getWorkspaceSettings);
 app.patch('/api/v1/workspace/settings', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), updateWorkspaceSettings);
 app.get('/api/v1/workspace/data-export', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), exportWorkspaceData);
@@ -796,6 +808,11 @@ app.get('/api/v1/agents/workflows/:id/versions', authenticate, scopeGuard('read:
 app.post('/api/v1/agents/workflows/:id/versions', authenticate, scopeGuard('write:agents', '*'), createDraftVersion);
 app.post('/api/v1/agents/workflows/:id/rollback', authenticate, scopeGuard('write:agents', '*'), rollbackVersion);
 app.get('/api/v1/agents/workflows/:id/dependencies', authenticate, scopeGuard('read:agents', '*'), getDependencies);
+// ── Literal template routes MUST be registered BEFORE the parameterized
+//    /api/v1/agents/:id route, otherwise Express matches "templates" as :id and
+//    the template endpoints become unreachable.
+app.get('/api/v1/agents/templates', authenticate, scopeGuard('read:agents', '*'), listAgentTemplates);
+app.get('/api/v1/agents/templates/:id', authenticate, scopeGuard('read:agents', '*'), getAgentTemplate);
 app.get('/api/v1/agents/:id', authenticate, scopeGuard('read:agents', '*'), getAgent);
 app.post('/api/v1/agents', authenticate, scopeGuard('write:agents', '*'), registerAgent);
 app.post('/api/v1/agents/:id/certify', authenticate, scopeGuard('write:agents', '*'), certifyAgent);
@@ -804,7 +821,7 @@ app.get('/api/v1/agents/:id/sandbox/history', authenticate, scopeGuard('read:age
 app.patch('/api/v1/agents/:id/autonomy', authenticate, scopeGuard('write:agents', '*'), updateAutonomy);
 app.get('/api/v1/agents/:id/capabilities', authenticate, scopeGuard('read:agents', '*'), getAgentCapabilities);
 app.get('/api/v1/agents/:id/versions', authenticate, scopeGuard('read:agents', '*'), getAgentVersions);
-app.post('/api/v1/agents/:id/rollback', authenticate, scopeGuard('write:agents', '*'), rollbackAgent);
+app.post('/api/v1/agents/:id/rollback', authenticate, scopeGuard('write:agents', '*'), agentAuthorityGuard, rollbackAgent);
 app.post('/api/v1/agents/:id/test', authenticate, scopeGuard('write:agents', '*'), runAgentSandbox);
 app.get('/api/v1/agents/:id/tests', authenticate, scopeGuard('read:agents', '*'), getAgentTestHistory);
 app.get('/api/v1/agents/:id/resources', authenticate, scopeGuard('read:agents', '*'), getAgentLinkedResources);
@@ -814,20 +831,18 @@ app.get('/api/v1/agents/:id/evidence', authenticate, scopeGuard('read:agents', '
 app.get('/api/v1/agents/evidence/:bundleId', authenticate, scopeGuard('read:agents', '*'), getEvidence);
 
 // Agent Lifecycle — Deployment & Retirement
-app.post('/api/v1/agents/:id/deploy', authenticate, scopeGuard('write:agents', '*'), deployAgent);
-app.post('/api/v1/agents/:id/pause', authenticate, scopeGuard('write:agents', '*'), pauseAgent);
-app.post('/api/v1/agents/:id/resume', authenticate, scopeGuard('write:agents', '*'), resumeAgent);
-app.post('/api/v1/agents/:id/retire', authenticate, scopeGuard('write:agents', '*'), retireAgent);
-app.post('/api/v1/agents/:id/clone', authenticate, scopeGuard('write:agents', '*'), cloneAgent);
-app.post('/api/v1/agents/:id/approval/request', authenticate, scopeGuard('write:agents', '*'), requestApproval);
+app.post('/api/v1/agents/:id/deploy', authenticate, scopeGuard('write:agents', '*'), agentAuthorityGuard, deployAgent);
+app.post('/api/v1/agents/:id/pause', authenticate, scopeGuard('write:agents', '*'), agentAuthorityGuard, pauseAgent);
+app.post('/api/v1/agents/:id/resume', authenticate, scopeGuard('write:agents', '*'), agentAuthorityGuard, resumeAgent);
+app.post('/api/v1/agents/:id/retire', authenticate, scopeGuard('write:agents', '*'), agentAuthorityGuard, retireAgent);
+app.post('/api/v1/agents/:id/clone', authenticate, scopeGuard('write:agents', '*'), agentAuthorityGuard, cloneAgent);
+app.post('/api/v1/agents/:id/approval/request', authenticate, scopeGuard('write:agents', '*'), agentAuthorityGuard, requestApproval);
 app.post('/api/v1/agents/:id/approval/approve', authenticate, scopeGuard('write:agents', '*'), approveAgent);
 app.post('/api/v1/agents/:id/approval/reject', authenticate, scopeGuard('write:agents', '*'), rejectAgentApproval);
 app.patch('/api/v1/agents/:id/runtime', authenticate, scopeGuard('write:agents', '*'), updateRuntimeControls);
 
 // Agent Studio Extended Routes — Profile, Templates, Permission Sets, Safety, Platform, Incidents
 app.patch('/api/v1/agents/:id/update', authenticate, scopeGuard('write:agents', '*'), updateAgent);
-app.get('/api/v1/agents/templates', authenticate, scopeGuard('read:agents', '*'), listAgentTemplates);
-app.get('/api/v1/agents/templates/:id', authenticate, scopeGuard('read:agents', '*'), getAgentTemplate);
 app.post('/api/v1/agents/from-template', authenticate, scopeGuard('write:agents', '*'), createAgentFromTemplate);
 app.get('/api/v1/agents/:id/profile', authenticate, scopeGuard('read:agents', '*'), getAgentProfile);
 app.get('/api/v1/agents/:id/governance-gates', authenticate, scopeGuard('read:agents', '*'), getAgentGovernanceGates);
@@ -842,33 +857,33 @@ app.post('/api/v1/agents/:id/incidents', authenticate, scopeGuard('write:agents'
 app.patch('/api/v1/agents/:id/incidents/:incidentId/resolve', authenticate, scopeGuard('write:agents', '*'), resolveAgentIncident);
 
 // Agent Operations Routes
-app.get('/api/v1/operations/runs', authenticate, listAgentRuns);
-app.get('/api/v1/operations/runs/:id', authenticate, getAgentRun);
-app.get('/api/v1/operations/runs/:id/timeline', authenticate, getRunTimeline);
-app.post('/api/v1/operations/runs/:id/pause', authenticate, pauseRun);
-app.post('/api/v1/operations/runs/:id/resume', authenticate, resumeRun);
-app.post('/api/v1/operations/runs/:id/stop', authenticate, stopRun);
-app.post('/api/v1/operations/runs/:id/retry', authenticate, retryRun);
-app.post('/api/v1/operations/runs/:id/quarantine', authenticate, quarantineRun);
-app.get('/api/v1/operations/queues', authenticate, listQueues);
-app.post('/api/v1/operations/queues/:id/assign', authenticate, assignQueueItem);
-app.post('/api/v1/operations/queues/:id/resolve', authenticate, resolveQueueItem);
-app.post('/api/v1/operations/incidents', authenticate, createIncident);
-app.get('/api/v1/operations/incidents', authenticate, listIncidents);
-app.patch('/api/v1/operations/incidents/:id/resolve', authenticate, resolveIncident);
-app.get('/api/v1/operations/stats', authenticate, getOperationsStats);
-app.get('/api/v1/operations/evidence/:bundleId', authenticate, getRunEvidence);
-app.post('/api/v1/operations/evidence/:bundleId/export', authenticate, exportEvidence);
-app.post('/api/v1/operations/runs/:id/emergency-pause', authenticate, emergencyPause);
-app.post('/api/v1/operations/runs/:id/escalate', authenticate, escalateRun);
-app.post('/api/v1/operations/runs/:id/restricted-mode', authenticate, restrictedMode);
-app.post('/api/v1/operations/runs/:id/policy-check', authenticate, runPolicyCheck);
-app.get('/api/v1/operations/runs/:id/policy-results', authenticate, getPolicyResults);
-app.get('/api/v1/operations/runs/:id/control-log', authenticate, getRuntimeControlLog);
-app.get('/api/v1/operations/analytics', authenticate, getAnalyticsMetrics);
-app.post('/api/v1/operations/evidence', authenticate, createEvidenceBundle);
-app.post('/api/v1/operations/evidence/:bundleId/lock', authenticate, lockEvidenceBundle);
-app.get('/api/v1/operations/evidence', authenticate, listEvidenceBundles);
+app.get('/api/v1/operations/runs', authenticate, operationsViewGuard, listAgentRuns);
+app.get('/api/v1/operations/runs/:id', authenticate, operationsViewGuard, getAgentRun);
+app.get('/api/v1/operations/runs/:id/timeline', authenticate, operationsViewGuard, getRunTimeline);
+app.post('/api/v1/operations/runs/:id/pause', authenticate, operationsManageGuard, pauseRun);
+app.post('/api/v1/operations/runs/:id/resume', authenticate, operationsManageGuard, resumeRun);
+app.post('/api/v1/operations/runs/:id/stop', authenticate, operationsManageGuard, stopRun);
+app.post('/api/v1/operations/runs/:id/retry', authenticate, operationsManageGuard, retryRun);
+app.post('/api/v1/operations/runs/:id/quarantine', authenticate, operationsManageGuard, quarantineRun);
+app.get('/api/v1/operations/queues', authenticate, queueViewGuard, listQueues);
+app.post('/api/v1/operations/queues/:id/assign', authenticate, queueManageGuard, assignQueueItem);
+app.post('/api/v1/operations/queues/:id/resolve', authenticate, queueManageGuard, resolveQueueItem);
+app.post('/api/v1/operations/incidents', authenticate, operationsManageGuard, createIncident);
+app.get('/api/v1/operations/incidents', authenticate, operationsViewGuard, listIncidents);
+app.patch('/api/v1/operations/incidents/:id/resolve', authenticate, operationsManageGuard, resolveIncident);
+app.get('/api/v1/operations/stats', authenticate, operationsViewGuard, getOperationsStats);
+app.get('/api/v1/operations/evidence/:bundleId', authenticate, operationsViewGuard, getRunEvidence);
+app.post('/api/v1/operations/evidence/:bundleId/export', authenticate, evidenceExportGuard, exportEvidence);
+app.post('/api/v1/operations/runs/:id/emergency-pause', authenticate, operationsEmergencyGuard, emergencyPause);
+app.post('/api/v1/operations/runs/:id/escalate', authenticate, operationsManageGuard, escalateRun);
+app.post('/api/v1/operations/runs/:id/restricted-mode', authenticate, operationsEmergencyGuard, restrictedMode);
+app.post('/api/v1/operations/runs/:id/policy-check', authenticate, operationsManageGuard, runPolicyCheck);
+app.get('/api/v1/operations/runs/:id/policy-results', authenticate, operationsViewGuard, getPolicyResults);
+app.get('/api/v1/operations/runs/:id/control-log', authenticate, operationsViewGuard, getRuntimeControlLog);
+app.get('/api/v1/operations/analytics', authenticate, operationsViewGuard, getAnalyticsMetrics);
+app.post('/api/v1/operations/evidence', authenticate, operationsManageGuard, createEvidenceBundle);
+app.post('/api/v1/operations/evidence/:bundleId/lock', authenticate, operationsManageGuard, lockEvidenceBundle);
+app.get('/api/v1/operations/evidence', authenticate, operationsViewGuard, listEvidenceBundles);
 
 // Monitoring Routes
 app.get('/api/v1/monitoring/usage', authenticate, scopeGuard('read:analytics', '*'), getResourceUsage);

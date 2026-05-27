@@ -18,6 +18,18 @@ export interface QueueItem {
   updated_at: string;
 }
 
+async function getQueueItemScoped(queueId: string, workspaceId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('queue_items')
+    .select('*')
+    .eq('id', queueId)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data || null) as QueueItem | null;
+}
+
 export async function listQueues(params: {
   workspace_id: string;
   queue_type?: string;
@@ -38,21 +50,28 @@ export async function listQueues(params: {
 
   const { data, error, count } = await query;
   if (error) throw error;
-  return { queues: data || [], total: count || 0 };
+
+  const queues = (data || []).map((item) => ({
+    ...item,
+    sla_breached:
+      Boolean(item.due_at) &&
+      !['RESOLVED', 'CANCELLED'].includes(String(item.status || '').toUpperCase()) &&
+      new Date(item.due_at).getTime() < Date.now(),
+  }));
+
+  return { queues, total: count || 0 };
 }
 
 export async function assignQueueItem(
+  workspaceId: string,
   queueId: string,
   assigneeId: string,
-  assigneeName: string
+  assigneeName: string,
 ) {
-  const { data: item, error: fetchError } = await supabaseAdmin
-    .from('queue_items')
-    .select('*')
-    .eq('id', queueId)
-    .single();
-  if (fetchError) throw Object.assign(new Error('Queue item not found'), { statusCode: 404 });
-  if (!item) throw Object.assign(new Error('Queue item not found'), { statusCode: 404 });
+  const item = await getQueueItemScoped(queueId, workspaceId);
+  if (!item) {
+    throw Object.assign(new Error('Queue item not found'), { statusCode: 404 });
+  }
 
   const { error: updateError } = await supabaseAdmin
     .from('queue_items')
@@ -64,13 +83,23 @@ export async function assignQueueItem(
       claimed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('id', queueId);
+    .eq('id', queueId)
+    .eq('workspace_id', workspaceId);
   if (updateError) throw updateError;
 
   return { id: queueId, assignee_id: assigneeId, assignee_name: assigneeName };
 }
 
-export async function resolveQueueItem(queueId: string) {
+export async function resolveQueueItem(
+  workspaceId: string,
+  queueId: string,
+  resolutionNotes?: string,
+) {
+  const item = await getQueueItemScoped(queueId, workspaceId);
+  if (!item) {
+    throw Object.assign(new Error('Queue item not found'), { statusCode: 404 });
+  }
+
   const { error } = await supabaseAdmin
     .from('queue_items')
     .update({
@@ -78,7 +107,9 @@ export async function resolveQueueItem(queueId: string) {
       resolved_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('id', queueId);
+    .eq('id', queueId)
+    .eq('workspace_id', workspaceId);
   if (error) throw error;
-  return { id: queueId, status: 'RESOLVED' };
+
+  return { id: queueId, status: 'RESOLVED', resolution_notes: resolutionNotes || null };
 }

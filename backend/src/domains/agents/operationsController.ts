@@ -65,18 +65,24 @@ export const listAgentRuns = async (
       return res.status(403).json({ error: "Workspace not found" });
     const status = getQueryValue(req, "status");
     const agent_id = getQueryValue(req, "agent_id");
+    const brand = getQueryValue(req, "brand");
     const environment = getQueryValue(req, "environment");
     const severity = getQueryValue(req, "severity");
     const search = getQueryValue(req, "search");
+    const sort_by = getQueryValue(req, "sort_by");
+    const sort_order = getQueryValue(req, "sort_order");
     const limit = getQueryNumber(req, "limit", 50);
     const offset = getQueryNumber(req, "offset", 0);
     const result = await runService.listAgentRuns({
       workspace_id: workspaceId,
       status,
       agent_id,
+      brand,
       environment,
       severity,
       search,
+      sort_by,
+      sort_order: sort_order === "asc" ? "asc" : "desc",
       limit,
       offset,
     });
@@ -101,11 +107,13 @@ export const getAgentRun = async (
   try {
     const id = getParam(req, "id");
     const workspaceId = req.user?.workspace_id;
-    const run = await runService.getAgentRun(id);
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
+    const run = await runService.getAgentRun(id, workspaceId);
     if (!run) return res.status(404).json({ error: "Agent run not found" });
     const [policyResults, timeline, evidenceBundles] = await Promise.all([
       policyService.getPolicyResultsForRun(id).catch(() => []),
-      runService.getRunTimeline(id).catch(() => []),
+      runService.getRunTimeline(id, workspaceId).catch(() => []),
       workspaceId
         ? evidenceService
             .listEvidenceBundles({
@@ -154,7 +162,10 @@ export const getRunTimeline = async (
 ) => {
   try {
     const id = getParam(req, "id");
-    const events = await runService.getRunTimeline(id);
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
+    const events = await runService.getRunTimeline(id, workspaceId);
     res.json({ events });
   } catch (err) {
     logger.error({ err }, "Failed to get run timeline");
@@ -169,10 +180,14 @@ export const pauseRun = async (
 ) => {
   try {
     const id = getParam(req, "id");
+    const workspaceId = req.user?.workspace_id;
     const { reason } = req.body;
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
     const result = await runService.pauseRun(
+      workspaceId,
       id,
       reason || "Manual pause",
       userId,
@@ -205,10 +220,14 @@ export const resumeRun = async (
 ) => {
   try {
     const id = getParam(req, "id");
+    const workspaceId = req.user?.workspace_id;
     const { reason } = req.body;
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
     const result = await runService.resumeRun(
+      workspaceId,
       id,
       reason || "Manual resume",
       userId,
@@ -241,10 +260,14 @@ export const stopRun = async (
 ) => {
   try {
     const id = getParam(req, "id");
+    const workspaceId = req.user?.workspace_id;
     const { reason } = req.body;
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
     const result = await runService.stopRun(
+      workspaceId,
       id,
       reason || "Manual stop",
       userId,
@@ -277,10 +300,14 @@ export const retryRun = async (
 ) => {
   try {
     const id = getParam(req, "id");
+    const workspaceId = req.user?.workspace_id;
     const { reason } = req.body;
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
     const result = await runService.retryRun(
+      workspaceId,
       id,
       reason || "Manual retry",
       userId,
@@ -310,10 +337,14 @@ export const quarantineRun = async (
 ) => {
   try {
     const id = getParam(req, "id");
+    const workspaceId = req.user?.workspace_id;
     const { reason } = req.body;
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
     const result = await runService.quarantineRun(
+      workspaceId,
       id,
       reason || "Safety concern",
       userId,
@@ -346,10 +377,14 @@ export const emergencyPause = async (
 ) => {
   try {
     const id = getParam(req, "id");
+    const workspaceId = req.user?.workspace_id;
     const { reason } = req.body;
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
     const result = await runService.emergencyPauseRun(
+      workspaceId,
       id,
       reason || "Emergency pause",
       userId,
@@ -382,10 +417,14 @@ export const escalateRun = async (
 ) => {
   try {
     const id = getParam(req, "id");
+    const workspaceId = req.user?.workspace_id;
     const { reason } = req.body;
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
     const incidentId = req.body?.incident_id;
+    const run = await runService.getAgentRun(id, workspaceId);
     await runtimeControlService.recordRuntimeControlAction({
       run_id: id,
       action_type: "escalate",
@@ -399,10 +438,21 @@ export const escalateRun = async (
       `Run ${id} escalated by ${userName}`,
       { runId: id, reason, incidentId },
     );
+    await runService.pauseRun(
+      workspaceId,
+      id,
+      `Escalated: ${reason || "Escalated"}`,
+      userId,
+      userName,
+    ).catch(() => null);
     res.json({
       success: true,
       message: "Run escalated",
-      data: { run_id: id, escalated_at: new Date().toISOString() },
+      data: {
+        run_id: id,
+        escalated_at: new Date().toISOString(),
+        severity: run.severity,
+      },
     });
   } catch (err) {
     logger.error({ err }, "Failed to escalate run");
@@ -417,10 +467,14 @@ export const restrictedMode = async (
 ) => {
   try {
     const id = getParam(req, "id");
+    const workspaceId = req.user?.workspace_id;
     const { reason } = req.body;
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
     const result = await runService.restrictedModeRun(
+      workspaceId,
       id,
       reason || "Restricted mode activated",
       userId,
@@ -486,9 +540,13 @@ export const assignQueueItem = async (
   try {
     const id = getParam(req, "id");
     const { assignee_id, assignee_name } = req.body;
+    const workspaceId = req.user?.workspace_id;
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
     const result = await queueService.assignQueueItem(
+      workspaceId,
       id,
       assignee_id || userId,
       assignee_name || userName,
@@ -511,7 +569,14 @@ export const resolveQueueItem = async (
 ) => {
   try {
     const id = getParam(req, "id");
-    const result = await queueService.resolveQueueItem(id);
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
+    const result = await queueService.resolveQueueItem(
+      workspaceId,
+      id,
+      req.body?.resolution_notes,
+    );
     res.json({
       success: true,
       ...result,
@@ -676,7 +741,10 @@ export const getRunEvidence = async (
 ) => {
   try {
     const bundleId = getParam(req, "bundleId");
-    const evidence = await evidenceService.getRunEvidence(bundleId);
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
+    const evidence = await evidenceService.getRunEvidence(bundleId, workspaceId);
     res.json({ evidence });
   } catch (err) {
     logger.error({ err }, "Failed to get run evidence");
@@ -694,9 +762,14 @@ export const exportEvidence = async (
     const { reason } = req.body;
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
     const result = await evidenceService.exportEvidence({
+      workspaceId,
       bundleId,
       exportedBy: userId,
+      exportedByName: userName,
       exportReason: reason || "Manual export",
     });
     await logToDatabase(
@@ -723,7 +796,11 @@ export const runPolicyCheck = async (
 ) => {
   try {
     const id = getParam(req, "id");
+    const workspaceId = req.user?.workspace_id;
     const userId = req.user?.id || "system";
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
+    await runService.getAgentRun(id, workspaceId);
     const result = await policyService.runPolicyCheck(id);
     await runtimeControlService.recordRuntimeControlAction({
       run_id: id,
@@ -746,6 +823,10 @@ export const getPolicyResults = async (
 ) => {
   try {
     const id = getParam(req, "id");
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
+    await runService.getAgentRun(id, workspaceId);
     const results = await policyService.getPolicyResultsForRun(id);
     res.json({ policy_results: results });
   } catch (err) {
@@ -761,6 +842,10 @@ export const getRuntimeControlLog = async (
 ) => {
   try {
     const id = getParam(req, "id");
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
+    await runService.getAgentRun(id, workspaceId);
     const actions = await runtimeControlService.getRuntimeControlActions(id);
     res.json({ runtime_actions: actions });
   } catch (err) {
@@ -797,7 +882,10 @@ export const lockEvidenceBundle = async (
 ) => {
   try {
     const bundleId = getParam(req, "bundleId");
-    const result = await evidenceService.lockEvidenceBundle(bundleId);
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId)
+      return res.status(403).json({ error: "Workspace not found" });
+    const result = await evidenceService.lockEvidenceBundle(bundleId, workspaceId);
     res.json({ success: true, ...result, message: "Evidence bundle locked" });
   } catch (err) {
     logger.error({ err }, "Failed to lock evidence bundle");

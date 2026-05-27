@@ -26,7 +26,7 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'notifications:view', 'notifications:manage', 'status:view', 'crisis:view', 'support:view',
   ],
   GOVERNANCE_ADMIN: [
-    'dashboard:view', 'operations:view',
+    'dashboard:view', 'operations:view', 'operations:manage',
     'governance:view', 'governance:manage', 'policy:view', 'policy:manage',
     'risk:view', 'risk:manage', 'audit:view', 'evidence:view',
     'rules:view', 'rules:manage', 'autonomy:view', 'autonomy:manage',
@@ -66,17 +66,17 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'queue:view', 'knowledge:view', 'support:view',
   ],
   REVIEWER: [
-    'dashboard:view', 'queue:view', 'queue:manage',
+    'dashboard:view', 'operations:view', 'queue:view', 'queue:manage',
     'library:view', 'projects:view', 'knowledge:view',
     'brand:view', 'brand-library:view', 'support:view',
   ],
   VALIDATOR: [
-    'dashboard:view', 'queue:view', 'validation:view', 'validation:manage',
+    'dashboard:view', 'operations:view', 'queue:view', 'validation:view', 'validation:manage',
     'knowledge:view', 'brand:view', 'brand-library:view',
     'governance:view', 'audit:view', 'approvals:view', 'support:view',
   ],
   APPROVER: [
-    'dashboard:view', 'approvals:view', 'approvals:manage',
+    'dashboard:view', 'operations:view', 'approvals:view', 'approvals:manage',
     'validation:view', 'queue:view', 'brand:view', 'brand-library:view',
     'audit:view', 'support:view',
   ],
@@ -86,11 +86,11 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'approvals:view', 'inbox:view', 'inbox:manage', 'support:view',
   ],
   COMPLIANCE_REVIEWER: [
-    'dashboard:view', 'governance:view', 'risk:view',
+    'dashboard:view', 'operations:view', 'governance:view', 'risk:view',
     'audit:view', 'evidence:view', 'analytics:view', 'support:view',
   ],
   AUDITOR: [
-    'dashboard:view', 'audit:view', 'evidence:view',
+    'dashboard:view', 'operations:view', 'audit:view', 'evidence:view',
     'analytics:view', 'approvals:view', 'queue:view',
     'models:view', 'developer:view', 'identity-ledger:view', 'support:view',
   ],
@@ -102,16 +102,17 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'dashboard:view', 'agents:view', 'operations:view', 'analytics:view', 'audit:view', 'support:view',
   ],
   SECURITY_ADMIN: [
-    'dashboard:view', 'security:view', 'security:manage',
-    'team:view', 'audit:view', 'support:view',
+    'dashboard:view', 'operations:view', 'operations:manage',
+    'security:view', 'security:manage', 'team:view', 'audit:view', 'support:view',
   ],
   PRIVACY_ADMIN: [
     'dashboard:view', 'privacy:view', 'privacy:manage',
     'audit:view', 'support:view',
   ],
   BRAND_REVIEWER: [
-    'dashboard:view', 'queue:view', 'brand:view', 'brand:manage',
-    'brand-library:view', 'brand-library:manage', 'quality:view', 'support:view',
+    'dashboard:view', 'operations:view', 'operations:manage', 'queue:view',
+    'brand:view', 'brand:manage', 'brand-library:view', 'brand-library:manage',
+    'quality:view', 'support:view',
   ],
   DEVELOPER: [
     'dashboard:view', 'developer:view', 'developer:manage',
@@ -122,8 +123,8 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'dashboard:view', 'external:view', 'projects:view', 'queue:view', 'support:view',
   ],
   VIEWER: [
-    'dashboard:view', 'analytics:view', 'projects:view', 'campaigns:view',
-    'calendar:view', 'library:view', 'support:view',
+    'dashboard:view', 'operations:view', 'analytics:view', 'projects:view',
+    'campaigns:view', 'calendar:view', 'library:view', 'support:view',
   ],
 };
 

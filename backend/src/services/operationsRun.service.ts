@@ -30,54 +30,170 @@ export interface AgentRun {
   completed_at: string;
   due_at: string;
   last_event_at: string;
+  retry_count?: number;
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  SCHEDULED: ['RUNNING', 'CANCELLED'],
-  QUEUED: ['RUNNING', 'CANCELLED', 'BLOCKED'],
-  RUNNING: ['PAUSED', 'COMPLETED', 'FAILED', 'BLOCKED', 'QUARANTINED'],
-  PAUSED: ['RUNNING', 'STOPPED', 'QUARANTINED'],
-  BLOCKED: ['RUNNING', 'QUARANTINED', 'CANCELLED'],
-  COMPLETED: [],
-  FAILED: ['QUEUED'],
-  CANCELLED: [],
+  SCHEDULED: ['QUEUED', 'PAUSED', 'FAILED', 'QUARANTINED'],
+  QUEUED: ['RUNNING', 'PAUSED', 'WAITING_HUMAN_REVIEW', 'POLICY_BLOCKED', 'FAILED', 'QUARANTINED'],
+  RUNNING: ['WAITING_HUMAN_REVIEW', 'POLICY_BLOCKED', 'FAILED', 'PAUSED', 'COMPLETED', 'QUARANTINED'],
+  WAITING_HUMAN_REVIEW: ['RUNNING', 'PAUSED', 'POLICY_BLOCKED', 'FAILED', 'COMPLETED', 'QUARANTINED'],
+  POLICY_BLOCKED: ['PAUSED', 'QUEUED', 'FAILED', 'QUARANTINED'],
+  FAILED: ['QUEUED', 'QUARANTINED'],
+  PAUSED: ['QUEUED', 'RUNNING', 'FAILED', 'QUARANTINED'],
+  COMPLETED: ['QUARANTINED'],
+  QUARANTINED: ['PAUSED', 'FAILED', 'COMPLETED'],
   STOPPED: [],
-  QUARANTINED: ['INVESTIGATING', 'RESTORED'],
-  INVESTIGATING: ['QUARANTINED', 'RESTORED'],
-  RESTORED: ['RUNNING', 'COMPLETED'],
+  CANCELLED: [],
 };
 
 function isValidTransition(from: string, to: string): boolean {
   const allowed = VALID_TRANSITIONS[from];
-  if (!allowed) return false;
-  return allowed.includes(to);
+  return Array.isArray(allowed) && allowed.includes(to);
+}
+
+async function getRunScoped(runId: string, workspaceId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('agent_runs')
+    .select('*')
+    .eq('id', runId)
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data || null) as AgentRun | null;
+}
+
+async function insertRunEvent(params: {
+  run_id: string;
+  event_type: string;
+  actor_id: string;
+  actor_name: string;
+  previous_state: string | null;
+  new_state: string | null;
+  reason: string;
+  payload_ref?: string | null;
+  correlation_id?: string | null;
+}) {
+  const eventId = uuidv4();
+  const { error } = await supabaseAdmin.from('run_events').insert({
+    id: eventId,
+    run_id: params.run_id,
+    event_type: params.event_type,
+    actor_type: 'user',
+    actor_id: params.actor_id,
+    actor_name: params.actor_name,
+    previous_state: params.previous_state,
+    new_state: params.new_state,
+    reason: params.reason,
+    payload_ref: params.payload_ref || null,
+    correlation_id: params.correlation_id || null,
+  });
+
+  if (error) throw error;
+  return eventId;
+}
+
+async function transitionRunState(params: {
+  workspace_id: string;
+  run_id: string;
+  new_status: string;
+  reason: string;
+  actor_id: string;
+  actor_name: string;
+  event_type?: string;
+  force?: boolean;
+  extra_updates?: Record<string, any>;
+}) {
+  const run = await getRunScoped(params.run_id, params.workspace_id);
+  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
+
+  if (!params.force && !isValidTransition(run.status, params.new_status)) {
+    throw Object.assign(
+      new Error(`Cannot transition run from ${run.status} to ${params.new_status}`),
+      { statusCode: 409 },
+    );
+  }
+
+  const now = new Date().toISOString();
+  const updateData: Record<string, any> = {
+    status: params.new_status,
+    previous_status: run.status,
+    last_event_at: now,
+    updated_at: now,
+    ...params.extra_updates,
+  };
+
+  if (params.new_status === 'RUNNING' && !run.started_at) updateData.started_at = now;
+  if (['COMPLETED', 'FAILED', 'STOPPED', 'CANCELLED'].includes(params.new_status)) {
+    updateData.completed_at = now;
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('agent_runs')
+    .update(updateData)
+    .eq('id', params.run_id)
+    .eq('workspace_id', params.workspace_id);
+  if (updateError) throw updateError;
+
+  const eventId = await insertRunEvent({
+    run_id: params.run_id,
+    event_type: params.event_type || `state.${params.new_status.toLowerCase()}`,
+    actor_id: params.actor_id,
+    actor_name: params.actor_name,
+    previous_state: run.status,
+    new_state: params.new_status,
+    reason: params.reason,
+    correlation_id: run.workflow_id,
+  });
+
+  return {
+    previous_status: run.status,
+    new_status: params.new_status,
+    event_id: eventId,
+    run,
+  };
 }
 
 export async function listAgentRuns(params: {
   workspace_id: string;
   status?: string;
   agent_id?: string;
+  brand?: string;
   environment?: string;
   severity?: string;
   priority?: string;
   search?: string;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
   limit: number;
   offset: number;
 }) {
+  const sortBy = ['created_at', 'last_event_at', 'due_at', 'priority', 'status', 'severity'].includes(
+    params.sort_by || '',
+  )
+    ? (params.sort_by as string)
+    : 'last_event_at';
+  const ascending = params.sort_order === 'asc';
+
   let query = supabaseAdmin
     .from('agent_runs')
     .select('*', { count: 'exact' })
     .eq('workspace_id', params.workspace_id)
-    .order('created_at', { ascending: false })
+    .order(sortBy, { ascending, nullsFirst: false })
     .range(params.offset, params.offset + params.limit - 1);
 
   if (params.status) query = query.eq('status', params.status);
   if (params.agent_id) query = query.eq('agent_id', params.agent_id);
+  if (params.brand) query = query.or(`brand_name.eq.${params.brand},brand_id.eq.${params.brand}`);
   if (params.environment) query = query.eq('environment', params.environment);
   if (params.severity) query = query.eq('severity', params.severity);
   if (params.priority) query = query.eq('priority', parseInt(params.priority, 10));
   if (params.search) {
-    query = query.or(`task_objective.ilike.%${params.search}%,agent_name.ilike.%${params.search}%`);
+    const safeSearch = params.search.replace(/,/g, ' ');
+    query = query.or(
+      `task_objective.ilike.%${safeSearch}%,agent_name.ilike.%${safeSearch}%,id.ilike.%${safeSearch}%,workflow_name.ilike.%${safeSearch}%`,
+    );
   }
 
   const { data, error, count } = await query;
@@ -85,17 +201,16 @@ export async function listAgentRuns(params: {
   return { runs: data || [], total: count || 0 };
 }
 
-export async function getAgentRun(runId: string) {
-  const { data, error } = await supabaseAdmin
-    .from('agent_runs')
-    .select('*')
-    .eq('id', runId)
-    .single();
-  if (error) throw error;
-  return data as AgentRun;
+export async function getAgentRun(runId: string, workspaceId: string) {
+  const data = await getRunScoped(runId, workspaceId);
+  if (!data) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
+  return data;
 }
 
-export async function getRunTimeline(runId: string) {
+export async function getRunTimeline(runId: string, workspaceId: string) {
+  const run = await getRunScoped(runId, workspaceId);
+  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
+
   const { data, error } = await supabaseAdmin
     .from('run_events')
     .select('*')
@@ -105,121 +220,172 @@ export async function getRunTimeline(runId: string) {
   return data || [];
 }
 
-async function transitionRunState(runId: string, newStatus: string, reason: string, actorId: string, actorName: string) {
-  const run = await getAgentRun(runId);
-  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
+export async function pauseRun(
+  workspaceId: string,
+  runId: string,
+  reason: string,
+  actorId: string,
+  actorName: string,
+) {
+  return transitionRunState({
+    workspace_id: workspaceId,
+    run_id: runId,
+    new_status: 'PAUSED',
+    reason,
+    actor_id: actorId,
+    actor_name: actorName,
+    event_type: 'run.paused',
+  });
+}
 
-  if (!isValidTransition(run.status, newStatus)) {
+export async function resumeRun(
+  workspaceId: string,
+  runId: string,
+  reason: string,
+  actorId: string,
+  actorName: string,
+) {
+  const run = await getRunScoped(runId, workspaceId);
+  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
+  if (run.status !== 'PAUSED') {
+    throw Object.assign(new Error('Only paused runs can be resumed'), { statusCode: 409 });
+  }
+
+  const resumeTarget =
+    run.previous_status && ['RUNNING', 'QUEUED', 'WAITING_HUMAN_REVIEW'].includes(run.previous_status)
+      ? run.previous_status
+      : 'QUEUED';
+
+  return transitionRunState({
+    workspace_id: workspaceId,
+    run_id: runId,
+    new_status: resumeTarget,
+    reason,
+    actor_id: actorId,
+    actor_name: actorName,
+    event_type: 'run.resumed',
+  });
+}
+
+export async function stopRun(
+  workspaceId: string,
+  runId: string,
+  reason: string,
+  actorId: string,
+  actorName: string,
+) {
+  return transitionRunState({
+    workspace_id: workspaceId,
+    run_id: runId,
+    new_status: 'FAILED',
+    reason,
+    actor_id: actorId,
+    actor_name: actorName,
+    event_type: 'run.stopped',
+    force: true,
+    extra_updates: {
+      error_code: 'MANUAL_STOP',
+    },
+  });
+}
+
+export async function quarantineRun(
+  workspaceId: string,
+  runId: string,
+  reason: string,
+  actorId: string,
+  actorName: string,
+) {
+  return transitionRunState({
+    workspace_id: workspaceId,
+    run_id: runId,
+    new_status: 'QUARANTINED',
+    reason,
+    actor_id: actorId,
+    actor_name: actorName,
+    event_type: 'output.quarantined',
+    force: true,
+    extra_updates: {
+      evidence_status: 'LOCKED',
+      severity: 'critical',
+    },
+  });
+}
+
+export async function emergencyPauseRun(
+  workspaceId: string,
+  runId: string,
+  reason: string,
+  actorId: string,
+  actorName: string,
+) {
+  const run = await getRunScoped(runId, workspaceId);
+  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
+  if (!['RUNNING', 'QUEUED', 'SCHEDULED', 'WAITING_HUMAN_REVIEW'].includes(run.status)) {
     throw Object.assign(
-      new Error(`Cannot transition run from ${run.status} to ${newStatus}`),
-      { statusCode: 409 }
+      new Error('Only active or pending runs can be emergency paused'),
+      { statusCode: 409 },
     );
   }
 
-  const updateData: Record<string, any> = {
-    status: newStatus,
-    previous_status: run.status,
-    last_event_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-
-  if (newStatus === 'RUNNING') updateData.started_at = new Date().toISOString();
-  if (['COMPLETED', 'FAILED', 'STOPPED', 'CANCELLED'].includes(newStatus)) {
-    updateData.completed_at = new Date().toISOString();
-  }
-
-  const { error: updateError } = await supabaseAdmin
-    .from('agent_runs')
-    .update(updateData)
-    .eq('id', runId);
-  if (updateError) throw updateError;
-
-  const eventId = uuidv4();
-  const { error: eventError } = await supabaseAdmin
-    .from('run_events')
-    .insert({
-      id: eventId,
-      run_id: runId,
-      event_type: `state.${newStatus.toLowerCase()}`,
-      actor_type: 'user',
-      actor_id: actorId,
-      actor_name: actorName,
-      previous_state: run.status,
-      new_state: newStatus,
-      reason,
-    });
-  if (eventError) throw eventError;
-
-  return { previous_status: run.status, new_status: newStatus, event_id: eventId, run };
-}
-
-export async function pauseRun(runId: string, reason: string, actorId: string, actorName: string) {
-  return transitionRunState(runId, 'PAUSED', reason, actorId, actorName);
-}
-
-export async function resumeRun(runId: string, reason: string, actorId: string, actorName: string) {
-  return transitionRunState(runId, 'RUNNING', reason, actorId, actorName);
-}
-
-export async function stopRun(runId: string, reason: string, actorId: string, actorName: string) {
-  return transitionRunState(runId, 'STOPPED', reason, actorId, actorName);
-}
-
-export async function quarantineRun(runId: string, reason: string, actorId: string, actorName: string) {
-  return transitionRunState(runId, 'QUARANTINED', reason, actorId, actorName);
-}
-
-export async function emergencyPauseRun(runId: string, reason: string, actorId: string, actorName: string) {
-  const run = await getAgentRun(runId);
-  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
-  if (run.status !== 'RUNNING' && run.status !== 'QUEUED') {
-    throw Object.assign(new Error('Only RUNNING or QUEUED runs can be emergency paused'), { statusCode: 409 });
-  }
-  return transitionRunState(runId, 'PAUSED', `[EMERGENCY] ${reason}`, actorId, actorName);
-}
-
-export async function restrictedModeRun(runId: string, reason: string, actorId: string, actorName: string) {
-  const run = await getAgentRun(runId);
-  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
-  if (run.status !== 'RUNNING') {
-    throw Object.assign(new Error('Only RUNNING runs can enter restricted mode'), { statusCode: 409 });
-  }
-  const updateData: Record<string, any> = {
-    status: 'BLOCKED',
-    previous_status: run.status,
-    last_event_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-  const { error: updateError } = await supabaseAdmin
-    .from('agent_runs')
-    .update(updateData)
-    .eq('id', runId);
-  if (updateError) throw updateError;
-
-  const eventId = uuidv4();
-  await supabaseAdmin.from('run_events').insert({
-    id: eventId,
+  return transitionRunState({
+    workspace_id: workspaceId,
     run_id: runId,
-    event_type: 'state.restricted',
-    actor_type: 'user',
+    new_status: 'PAUSED',
+    reason: `[EMERGENCY] ${reason}`,
     actor_id: actorId,
     actor_name: actorName,
-    previous_state: run.status,
-    new_state: 'BLOCKED',
-    reason: `[RESTRICTED_MODE] ${reason}`,
+    event_type: 'run.paused',
+    extra_updates: {
+      severity: 'critical',
+    },
   });
-
-  return { previous_status: run.status, new_status: 'BLOCKED', event_id: eventId };
 }
 
-export async function retryRun(runId: string, reason: string, actorId: string, actorName: string) {
-  const run = await getAgentRun(runId);
+export async function restrictedModeRun(
+  workspaceId: string,
+  runId: string,
+  reason: string,
+  actorId: string,
+  actorName: string,
+) {
+  return transitionRunState({
+    workspace_id: workspaceId,
+    run_id: runId,
+    new_status: 'POLICY_BLOCKED',
+    reason: `[RESTRICTED_MODE] ${reason}`,
+    actor_id: actorId,
+    actor_name: actorName,
+    event_type: 'policy.blocked',
+    force: true,
+    extra_updates: {
+      severity: 'critical',
+      policy_result: 'BLOCKED',
+    },
+  });
+}
+
+export async function retryRun(
+  workspaceId: string,
+  runId: string,
+  reason: string,
+  actorId: string,
+  actorName: string,
+) {
+  const run = await getRunScoped(runId, workspaceId);
   if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
   if (run.status !== 'FAILED') {
-    throw Object.assign(new Error('Only FAILED runs can be retried'), { statusCode: 409 });
+    throw Object.assign(new Error('Only failed runs can be retried'), { statusCode: 409 });
   }
 
+  const retryCount = (run.retry_count || 0) + 1;
+  if (retryCount > 5) {
+    throw Object.assign(new Error('Retry limit reached for this run'), { statusCode: 409 });
+  }
+
+  const now = new Date().toISOString();
   const newRunId = uuidv4();
+
   const { error: insertError } = await supabaseAdmin
     .from('agent_runs')
     .insert({
@@ -242,17 +408,40 @@ export async function retryRun(runId: string, reason: string, actorId: string, a
       owner_id: run.owner_id,
       owner_name: run.owner_name,
       priority: run.priority,
-      previous_status: 'FAILED',
-      evidence_status: 'pending',
-    });
+      previous_status: run.status,
+      policy_result: 'PENDING_REVIEW',
+      evidence_status: 'PARTIAL',
+      created_at: now,
+      last_event_at: now,
+      retry_count: retryCount,
+    } as Record<string, any>);
   if (insertError) throw insertError;
 
-  const eventId = uuidv4();
-  await supabaseAdmin.from('run_events').insert({
-    id: eventId,
+  await supabaseAdmin
+    .from('agent_runs')
+    .update({
+      last_event_at: now,
+      updated_at: now,
+      retry_count: retryCount,
+    })
+    .eq('id', run.id)
+    .eq('workspace_id', workspaceId);
+
+  const originalEventId = await insertRunEvent({
+    run_id: run.id,
+    event_type: 'run.retry_requested',
+    actor_id: actorId,
+    actor_name: actorName,
+    previous_state: run.status,
+    new_state: run.status,
+    reason,
+    payload_ref: newRunId,
+    correlation_id: run.workflow_id,
+  });
+
+  const retryEventId = await insertRunEvent({
     run_id: newRunId,
     event_type: 'state.queued',
-    actor_type: 'user',
     actor_id: actorId,
     actor_name: actorName,
     previous_state: null,
@@ -262,5 +451,10 @@ export async function retryRun(runId: string, reason: string, actorId: string, a
     correlation_id: run.workflow_id,
   });
 
-  return { new_run_id: newRunId, original_run_id: runId, event_id: eventId };
+  return {
+    new_run_id: newRunId,
+    original_run_id: runId,
+    event_id: retryEventId,
+    original_event_id: originalEventId,
+  };
 }

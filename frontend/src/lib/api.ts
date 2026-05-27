@@ -180,13 +180,23 @@ export const api = {
 
   async listAgentRuns(params?: {
     status?: string;
+    brand?: string;
+    environment?: string;
     severity?: string;
+    search?: string;
+    sort_by?: string;
+    sort_order?: "asc" | "desc";
     limit?: number;
     offset?: number;
   }) {
     const query = new URLSearchParams();
     if (params?.status) query.set("status", params.status);
+    if (params?.brand) query.set("brand", params.brand);
+    if (params?.environment) query.set("environment", params.environment);
     if (params?.severity) query.set("severity", params.severity);
+    if (params?.search) query.set("search", params.search);
+    if (params?.sort_by) query.set("sort_by", params.sort_by);
+    if (params?.sort_order) query.set("sort_order", params.sort_order);
     if (params?.limit) query.set("limit", String(params.limit));
     if (params?.offset) query.set("offset", String(params.offset));
     return this.get(`/api/v1/operations/runs?${query.toString()}`);
@@ -220,10 +230,12 @@ export const api = {
     return this.post(`/api/v1/operations/runs/${id}/quarantine`, { reason });
   },
 
-  async listQueues(params?: { queue_type?: string; status?: string }) {
+  async listQueues(params?: { queue_type?: string; status?: string; limit?: number; offset?: number }) {
     const query = new URLSearchParams();
     if (params?.queue_type) query.set("queue_type", params.queue_type);
     if (params?.status) query.set("status", params.status);
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.offset) query.set("offset", String(params.offset));
     return this.get(`/api/v1/operations/queues?${query.toString()}`);
   },
 
@@ -234,8 +246,8 @@ export const api = {
     });
   },
 
-  async resolveQueueItem(id: string) {
-    return this.post(`/api/v1/operations/queues/${id}/resolve`, {});
+  async resolveQueueItem(id: string, resolution_notes?: string) {
+    return this.post(`/api/v1/operations/queues/${id}/resolve`, { resolution_notes });
   },
 
   async createIncident(data: {

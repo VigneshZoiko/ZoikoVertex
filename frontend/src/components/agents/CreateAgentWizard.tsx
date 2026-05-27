@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   X,
   ChevronRight,
@@ -195,6 +195,20 @@ export default function CreateAgentWizard({
   // ── FIX: track submit success/error state for user feedback ──
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // When the wizard opens, smooth-scroll it into view. Mirrors the
+  // CertificationSandbox pattern: a transformed ancestor can make this
+  // position:fixed overlay resolve relative to that ancestor (so it can land
+  // off-screen) — the user no longer has to scroll to find it.
+  useEffect(() => {
+    if (!isOpen) return;
+    const raf = requestAnimationFrame(() => {
+      modalRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [isOpen]);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -799,7 +813,7 @@ export default function CreateAgentWizard({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] backdrop-blur-sm animate-in fade-in duration-300">
+    <div ref={modalRef} className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-[var(--card)] border border-[var(--card-border)] w-full max-w-3xl mx-4 rounded-3xl shadow-2xl flex flex-col max-h-[90vh]">
         {/* ── Header ── */}
         <div className="px-6 py-4 border-b border-[var(--card-border)] flex items-center justify-between bg-[var(--surface)]/50 shrink-0">

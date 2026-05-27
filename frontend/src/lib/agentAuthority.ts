@@ -1,3 +1,5 @@
+// Maps a selectable operating mode to its autonomy level. Caps at L4 by design:
+// L5/L6 are certification-earned, not creation-selectable (see AGENT_MODES below).
 export const AGENT_MODE_TO_AUTONOMY: Record<string, string> = {
   draft_only: 'L0',
   recommend_only: 'L1',
@@ -69,6 +71,12 @@ export const AGENT_TYPES = [
   { id: 'insight', label: 'Performance Insight Agent', description: 'Analyzes campaign results and proposes optimizations.' },
 ] as const;
 
+// Operating modes selectable at agent creation. These intentionally cap at L4
+// (limited_autonomy). Per the Agent Autonomy/HITL Control Matrix and agents.md,
+// L5 (Conditional Autonomy) and L6 (Governed Enterprise Autonomy) are NOT
+// creation-selectable — they are earned only through certification once the
+// agent clears the required trust/faithfulness thresholds and team sign-off.
+// Reachable via CertificationSandbox (one level per certification, capped at L6).
 export const AGENT_MODES = [
   { id: 'draft_only', label: 'Draft Only', description: 'May draft content only — no external actions.', targetLevel: 'L0' },
   { id: 'recommend_only', label: 'Recommend Only', description: 'May draft and recommend — execution blocked.', targetLevel: 'L1' },
