@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 const TEAM = [
   {
@@ -131,10 +132,11 @@ export default function AboutTeam() {
                 }}
               >
                 {member.image ? (
-                  <img
+                  <Image
                     src={member.image}
                     alt={member.name || ""}
-                    className="w-full h-43 object-cover object-top"
+                    fill
+                    className="object-cover object-top"
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8">

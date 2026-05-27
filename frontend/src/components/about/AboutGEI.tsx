@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 const FEATURES = [
   {
@@ -66,10 +67,11 @@ export default function AboutGEI() {
           style={{ transitionDelay: "100ms", minHeight: "360px" }}
         >
           {/* Background image */}
-          <img
+          <Image
             src="/images/about-gei.webp"
             alt="GEI"
-            className="absolute inset-0 w-full h-full object-cover"
+            fill
+            className="object-cover"
           />
 
           {/* Dark overlay */}

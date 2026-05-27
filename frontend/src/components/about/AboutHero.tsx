@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 export default function AboutHero() {
   const [visible, setVisible] = useState(false);
@@ -34,10 +35,11 @@ export default function AboutHero() {
           }`}
           style={{ transitionDelay: "100ms" }}
         >
-          <img
+          <Image
             src="/images/about-hero.webp"
             alt="About ZoikoVertex"
-            className="w-full h-full object-cover rounded-2xl"
+            fill
+            className="object-cover rounded-2xl"
           />
         </div>
 
