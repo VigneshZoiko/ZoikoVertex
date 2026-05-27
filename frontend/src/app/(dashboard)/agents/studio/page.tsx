@@ -28,6 +28,7 @@ import {
   Award,
   RotateCcw,
   Archive,
+  X,
 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import CreateAgentWizard from "@/components/agents/CreateAgentWizard";
@@ -184,6 +185,52 @@ export default function StudioPage() {
     string | null
   >(null);
 
+  // ── Dismissed retired agents. Retirement preserves the audit record in the
+  //    DB (Doc 5 §5/§14 — retired agents must never be hard-deleted), but an
+  //    operator may want to clear a retired agent's disabled card out of their
+  //    view. We track dismissed IDs client-side and persist them so the view
+  //    stays clean across reloads. They reappear via the RETIRED status filter
+  //    or "Show dismissed".
+  const DISMISSED_KEY = "zv:dismissedRetiredAgents";
+  const [dismissedIds, setDismissedIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(DISMISSED_KEY);
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const persistDismissed = useCallback((ids: string[]) => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(DISMISSED_KEY, JSON.stringify(ids));
+    } catch {
+      // localStorage unavailable (private mode / quota) — dismiss stays
+      // in-memory for this session only.
+    }
+  }, []);
+
+  const dismissRetiredAgent = useCallback(
+    (agent: Agent) => {
+      if (agent.status !== "RETIRED") return;
+      setDismissedIds((current) => {
+        if (current.includes(agent.id)) return current;
+        const next = [...current, agent.id];
+        persistDismissed(next);
+        return next;
+      });
+      if (selectedAgent?.id === agent.id) setIsDetailsOpen(false);
+    },
+    [persistDismissed, selectedAgent],
+  );
+
+  const restoreDismissedAgents = useCallback(() => {
+    setDismissedIds([]);
+    persistDismissed([]);
+  }, [persistDismissed]);
+
   const normalizedRole = (role || "").toUpperCase();
   // ── FIX: superadmins ("God Mode") have role: null from /user/context.
   //    Without this bypass, they get every authority-gated action disabled
@@ -198,10 +245,17 @@ export default function StudioPage() {
     ].includes(normalizedRole);
 
   const fetchAgents = useCallback(
-    async (targetWorkspaceId?: string | null) => {
+    async (
+      targetWorkspaceId?: string | null,
+      options?: { silent?: boolean },
+    ) => {
       const activeWorkspace = targetWorkspaceId || workspaceId;
+      // Silent refresh (after an action) updates data in place without the
+      // full-page loading skeleton, so cloning/retiring/etc. don't visually
+      // reload the entire UI.
+      const silent = options?.silent === true;
       try {
-        setLoading(true);
+        if (!silent) setLoading(true);
         setError(null);
         // ── FIX: superadmins ("God Mode") have workspace_id: null in /user/context
         //    but the backend accepts a missing workspaceId param and returns ALL
@@ -233,7 +287,7 @@ export default function StudioPage() {
         );
         setAgents([]);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     },
     [workspaceId, statusFilter, riskFilter, isSuperadmin],
@@ -395,7 +449,7 @@ export default function StudioPage() {
           `Safety checks initiated for "${agent.name}". Results will update in the agent profile.`,
         );
         setTimeout(() => setSuccessMsg(null), 6000);
-        await fetchAgents(workspaceId);
+        await fetchAgents(workspaceId, { silent: true });
       } else {
         setError(`Safety check failed to start for "${agent.name}".`);
       }
@@ -448,7 +502,7 @@ export default function StudioPage() {
       await api.post(`/api/v1/agents/${agent.id}/deploy`, { environment: env });
       setSuccessMsg(`"${agent.name}" deployed to ${env} successfully.`);
       setTimeout(() => setSuccessMsg(null), 5000);
-      await fetchAgents(workspaceId);
+      await fetchAgents(workspaceId, { silent: true });
     } catch (deployErr) {
       const msg =
         deployErr instanceof Error
@@ -543,7 +597,7 @@ export default function StudioPage() {
       };
       setSuccessMsg(actionMessages[action]);
       setTimeout(() => setSuccessMsg(null), 5000);
-      await fetchAgents(workspaceId);
+      await fetchAgents(workspaceId, { silent: true });
       if (selectedAgent?.id === agent.id) {
         setSelectedAgent((current) =>
           current
@@ -630,6 +684,9 @@ export default function StudioPage() {
 
   const filteredAgents = useMemo(() => {
     return agents.filter((agent) => {
+      // Hide retired agents the operator has dismissed from their view.
+      // They remain in the DB and return via the RETIRED filter / "Show dismissed".
+      if (dismissedIds.includes(agent.id)) return false;
       const matchesSearch =
         !searchTerm ||
         normalizeText(agent.name).includes(normalizeText(searchTerm)) ||
@@ -675,6 +732,7 @@ export default function StudioPage() {
     agents,
     brandFilter,
     channelFilter,
+    dismissedIds,
     environmentFilter,
     knowledgeFilter,
     ownerFilter,
@@ -741,8 +799,11 @@ export default function StudioPage() {
         initialData={importTemplateData}
       />
 
-      {selectedAgent && (
+      {selectedAgent && isSandboxOpen && (
         <CertificationSandbox
+          // Fresh instance per agent (and per open) so one agent's sandbox
+          // run never leaks into another's — internal run state is reset.
+          key={selectedAgent.id}
           isOpen={isSandboxOpen}
           onClose={() => setIsSandboxOpen(false)}
           agentId={selectedAgent.id}
@@ -986,6 +1047,16 @@ export default function StudioPage() {
                 <Zap className="h-3.5 w-3.5" />
                 {filteredAgents.length} visible agents
               </div>
+              {dismissedIds.length > 0 && (
+                <button
+                  onClick={restoreDismissedAgents}
+                  title="Show retired agents you removed from view"
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 transition hover:border-indigo-500/30 hover:text-indigo-500"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Show {dismissedIds.length} dismissed
+                </button>
+              )}
               {!canManageAuthority && (
                 <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-amber-500">
                   <AlertTriangle className="h-3.5 w-3.5" />
@@ -1570,6 +1641,20 @@ export default function StudioPage() {
                                 : "Retire"}
                             </button>
                           )}
+
+                          {/* Remove from view — only once retired. Hides the
+                              disabled card; the audit record is preserved. */}
+                          {isRetired && (
+                            <button
+                              onClick={() => dismissRetiredAgent(agent)}
+                              title="Remove from view (record preserved for audit)"
+                              aria-label={`Remove ${agent.name} from view`}
+                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              Remove
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1706,6 +1791,20 @@ export default function StudioPage() {
                       {actionLoading[agent.id] === "retire"
                         ? "Retiring..."
                         : "Retire"}
+                    </button>
+                  )}
+
+                  {/* Remove from view — only once retired. Hides the disabled
+                      card; the audit record is preserved in the DB. */}
+                  {isRetired && (
+                    <button
+                      onClick={() => dismissRetiredAgent(agent)}
+                      title="Remove from view (record preserved for audit)"
+                      aria-label={`Remove ${agent.name} from view`}
+                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Remove
                     </button>
                   )}
                 </div>
