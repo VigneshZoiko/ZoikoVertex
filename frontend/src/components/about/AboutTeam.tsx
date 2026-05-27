@@ -127,7 +127,7 @@ export default function AboutTeam() {
               <div
                 className="w-full flex items-center justify-center"
                 style={{
-                  background: member.image ? "transparent" : `${member.avatarColor}60`,
+                  background: member.image ? "transparent" : member.avatarColor ? `${member.avatarColor}60` : undefined,
                   minHeight: "140px",
                 }}
               >
@@ -144,9 +144,9 @@ export default function AboutTeam() {
                     <div
                       className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-black mb-2"
                       style={{
-                        background: member.avatarColor,
-                        color: member.avatarText,
-                        border: `2px solid ${member.avatarText}30`,
+                        background: member.avatarColor ?? undefined,
+                        color: member.avatarText ?? undefined,
+                        border: member.avatarText ? `2px solid ${member.avatarText}30` : undefined,
                       }}
                     >
                       {member.initials}
@@ -154,7 +154,7 @@ export default function AboutTeam() {
                     {/* Silhouette shape */}
                     <div
                       className="w-24 h-8 rounded-t-full mt-1 opacity-30"
-                      style={{ background: member.avatarColor }}
+                      style={{ background: member.avatarColor ?? undefined }}
                     />
                   </div>
                 )}
