@@ -52,8 +52,6 @@ import {
   Bell,
   Eye,
   Lock,
-  Pencil,
-  Briefcase,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -190,18 +188,6 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/library",
         icon: Database,
         roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","PUBLISHER","REVIEWER","ANALYST","VIEWER"],
-      },
-      {
-        name: "Content Studio",
-        href: "/studio",
-        icon: Pencil,
-        roles: ["ADMIN","WORKSPACE_OWNER","CREATOR","CAMPAIGN_MANAGER"],
-      },
-      {
-        name: "Projects",
-        href: "/projects",
-        icon: Briefcase,
-        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","CREATOR","ANALYST","VIEWER"],
       },
       {
         name: "Campaigns",

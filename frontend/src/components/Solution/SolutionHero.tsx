@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function SolutionHero() {
   const [visible, setVisible] = useState(false);
@@ -84,9 +85,11 @@ export default function SolutionHero() {
           }`}
           style={{ transitionDelay: "300ms" }}
         >
-          <img
+          <Image
             src="/images/Vertex-Tab.webp"
             alt="Solution"
+            width={1200}
+            height={900}
             className="w-full h-full object-cover rounded-2xl"
           />
         </div>

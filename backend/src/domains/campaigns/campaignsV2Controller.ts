@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logCampaignEvent } from './campaignsController';
+import { AutoCampaignBoostService } from './autoCampaignBoostService';
+import { logger } from '../../shared/logger';
 
 // ── Budget threshold constants ───────────────────────────────
 
@@ -339,6 +341,12 @@ export const launchCampaign = async (req: AuthRequest, res: Response, next: Next
       campaign.status, newStatus,
       { scheduled: isScheduled, start_at: campaign.start_at },
     );
+
+    // If campaign is immediately ACTIVE, process any already-published posts
+    if (newStatus === 'ACTIVE') {
+      AutoCampaignBoostService.processActiveCampaignPosts(campaign.id, workspaceId)
+        .catch(err => logger.warn({ err, campaignId: campaign.id }, '[Launch] processActiveCampaignPosts failed (non-fatal)'));
+    }
 
     res.json({
       success: true,

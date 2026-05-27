@@ -27,6 +27,7 @@ interface Campaign {
   campaign_manager_id?: string; campaign_manager_name?: string;
   targeting?: Record<string, unknown>; creative?: Record<string, unknown>;
   wizard_step?: number; created_at: string; updated_at?: string; created_by?: string;
+  post_limit?: number | null; auto_boost_enabled?: boolean; boost_per_post_budget?: number | null;
 }
 
 interface GateCondition { id: string; label: string; passed: boolean; reason: string | null; }
@@ -38,6 +39,7 @@ interface CampaignPost {
   id: string; content: string; platform: string; status: string;
   media_urls?: string[]; created_at: string; creator_name?: string | null;
   platform_post_id?: string | null;
+  auto_boost_status?: string | null; boost_id?: string | null;
 }
 interface CampaignBoost {
   id: string; platform: string; boost_type: 'POST' | 'CAMPAIGN'; status: string;
@@ -643,6 +645,41 @@ export default function CampaignDetailPage() {
         {/* POSTS */}
         {activeTab === "posts" && (
           <div className="space-y-4">
+            {/* Post-limit progress + auto-boost indicator */}
+            {(campaign?.post_limit || campaign?.auto_boost_enabled) && (
+              <div className="flex flex-col gap-3 p-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl">
+                {campaign.post_limit && (() => {
+                  const published = posts.filter(p => p.status === "PUBLISHED").length;
+                  const pct = Math.min(100, Math.round((published / campaign.post_limit) * 100));
+                  return (
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-2">
+                        <span className="text-zinc-400 font-medium">Post Limit</span>
+                        <span className={`font-bold ${published >= campaign.post_limit! ? "text-amber-400" : "text-zinc-200"}`}>
+                          {published} / {campaign.post_limit}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${published >= campaign.post_limit! ? "bg-amber-500" : "bg-indigo-500"}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      {published >= campaign.post_limit && (
+                        <p className="text-[10px] text-amber-400 mt-1.5">Post limit reached — new posts won&apos;t be auto-boosted.</p>
+                      )}
+                    </div>
+                  );
+                })()}
+                {campaign.auto_boost_enabled && campaign.status === "ACTIVE" && (
+                  <div className="flex items-center gap-2 text-xs text-emerald-400">
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Auto-boost active — {campaign.budget_currency || "USD"} {campaign.boost_per_post_budget?.toLocaleString() ?? "—"} per post</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             <InfoCard title={`Published Posts (${posts.filter(p => p.status === "PUBLISHED").length})`}>
               <p className="text-xs text-zinc-500 mb-4">Posts published through the Publishing Hub linked to this campaign.</p>
               {posts.filter(p => p.status === "PUBLISHED").length === 0 ? (
@@ -662,6 +699,25 @@ export default function CampaignDetailPage() {
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 uppercase">{p.platform}</span>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">PUBLISHED</span>
+                          {/* Auto-boost status badge */}
+                          {p.auto_boost_status && (() => {
+                            const bMap: Record<string, string> = {
+                              LIVE:          "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+                              QUEUED:        "bg-blue-500/10 border-blue-500/20 text-blue-400",
+                              BOOSTING:      "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
+                              FAILED:        "bg-rose-500/10 border-rose-500/20 text-rose-400",
+                              LOW_BALANCE:   "bg-amber-500/10 border-amber-500/20 text-amber-400",
+                              LIMIT_REACHED: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+                              SKIPPED:       "bg-zinc-800 border-zinc-700 text-zinc-500",
+                            };
+                            const cls = bMap[p.auto_boost_status] ?? "bg-zinc-800 border-zinc-700 text-zinc-500";
+                            return (
+                              <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${cls}`}>
+                                <Zap className="w-2.5 h-2.5" />
+                                {p.auto_boost_status.replace(/_/g, " ")}
+                              </span>
+                            );
+                          })()}
                           {p.creator_name && <span className="text-[10px] text-zinc-500">{p.creator_name}</span>}
                           <span className="text-[10px] text-zinc-600 ml-auto">{fmt(p.created_at)}</span>
                         </div>

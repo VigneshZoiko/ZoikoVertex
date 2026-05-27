@@ -274,8 +274,10 @@ export default function CaseDetailPage() {
       if (res.success) setAiSummaries(res.data);
     } catch { /* ignore */ }
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAiSummaries(); }, [id]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAll(); }, [id]);
 
   const handleAddNote = async () => {

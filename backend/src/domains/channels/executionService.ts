@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
+import { AutoCampaignBoostService } from '../campaigns/autoCampaignBoostService';
 
 export function registerExecutionListeners(): void {
   internalEventBus.on('execution.requested', (payload: unknown) => {
@@ -111,7 +112,13 @@ export class ExecutionService {
         }
       }
 
-      // 5. Broadcast webhook event
+      // 5. Auto-boost: if post published on an ACTIVE campaign, trigger immediately
+      if (allSuccessful && intent.campaign_id) {
+        AutoCampaignBoostService.triggerPostBoost(intentId, intent.campaign_id, intent.workspace_id)
+          .catch(err => logger.warn({ err, intentId }, '[Execution] Auto-boost trigger failed (non-fatal)'));
+      }
+
+      // 6. Broadcast webhook event
       broadcastWebhookEvent(intent.workspace_id, allSuccessful ? 'post.published' : 'post.failed', {
         intent_id: intentId,
         platform: intent.platform,

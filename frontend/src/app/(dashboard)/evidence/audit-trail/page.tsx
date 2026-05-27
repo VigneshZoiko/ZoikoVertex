@@ -351,7 +351,7 @@ function EventsTab() {
 
       if (eventsRes.success) {
         const data = eventsRes.data;
-        setEvents(cursor ? [...events, ...data.events] : data.events);
+        setEvents(prev => cursor ? [...prev, ...data.events] : data.events);
         setNextCursor(data.next_cursor);
         setTotal(data.total);
       }
@@ -361,7 +361,12 @@ function EventsTab() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, selectedRisk, selectedStatus, search, dateRange]);
+  }, [
+    selectedCategory, selectedRisk, selectedStatus, search, dateRange,
+    selectedEventType, selectedEvidenceState, selectedRetentionClass,
+    policyRuleId, dataResidency, selectedActorId, selectedObjectId,
+    workflowRunId, approvalChainId, customDateFrom, customDateTo,
+  ]);
 
   useEffect(() => {
     fetchEvents();
