@@ -15,7 +15,6 @@ import {
   fetchEvidenceArtifacts,
   fetchEvidenceArtifactDetail,
   computeEvidenceStats,
-  generateEvidencePDF,
   generateEvidenceZIP,
 } from '../../services/govEvidence.service';
 

@@ -6,7 +6,7 @@ import PDFDocument from 'pdfkit';
 import * as archiverLib from 'archiver';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const { ZipArchive } = archiverLib as any;
-import { DEFAULT_TENANT_ID, DEFAULT_WORKSPACE_ID } from '../shared/constants';
+import { DEFAULT_WORKSPACE_ID } from '../shared/constants';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
