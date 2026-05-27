@@ -4,14 +4,13 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
-import WelcomeOverlay from "@/components/WelcomeOverlay";
 import PendingApproval from "@/components/PendingApproval";
 import SuspendedOverlay from "@/components/SuspendedOverlay";
 import { DraftGuardProvider } from "@/lib/context/DraftGuardContext";
 import { NotificationProvider } from "@/lib/context/NotificationContext";
 import { useRoleContext } from "@/lib/context/RoleContext";
 import { supabase } from "@/lib/supabase";
-import { canAccess } from "@/lib/routeAccess";
+import { canAccessSimple } from "@/lib/routeAccess";
 import { ShieldOff, ArrowLeft } from "lucide-react";
 
 export default function DashboardLayout({
@@ -37,14 +36,17 @@ export default function DashboardLayout({
   }, [pathname, router]);
 
   // ── Role guard ──────────────────────────────────────────────────────────────
-  // Waits for the role to load, then checks if this pathname is allowed.
-  // If role is still null after loading (cache miss / background refresh pending),
-  // defer the check — the auth guard handles unauthenticated users via redirect.
   useEffect(() => {
     if (isLoading) return;
+    // New SSO user with no workspace — redirect to onboarding (in effect, not in render)
+    if (!isSuperAdmin && orgStatus === 'NO_WORKSPACE') {
+      router.replace('/onboarding');
+      return;
+    }
+    // Role still resolving — defer. Auth guard already redirects unauthenticated users.
     if (role === null && !isSuperAdmin) return;
-    setIsUnauthorized(!canAccess(pathname, role, isSuperAdmin));
-  }, [pathname, isLoading, role, isSuperAdmin]);
+    setIsUnauthorized(!canAccessSimple(pathname, role, isSuperAdmin, planType));
+  }, [pathname, isLoading, role, isSuperAdmin, orgStatus, planType, router]);
 
   // ── Loading skeleton (initial role fetch + auth check) ──────────────────────
   if (isLoading || isUnauthorized === null) {
@@ -96,14 +98,12 @@ export default function DashboardLayout({
   // ── Suspended/deleted org gate ──────────────────────────────────────────────
   const isSupportRoute = pathname.startsWith('/support');
   const isSuspended = !isSuperAdmin && !isSupportRoute && (workspaceStatus === "SUSPENDED" || orgStatus === "SUSPENDED");
-  const isDeleted = !isSuperAdmin && !isSupportRoute && orgStatus === "NO_WORKSPACE" && !isLoading;
-  const showSuspension = isSuspended || isDeleted;
-  const suspensionType = isSuspended ? 'paused' as const : 'deleted' as const;
+  const showSuspension = isSuspended;
+  const suspensionType = 'paused' as const;
 
   return (
     <NotificationProvider>
       <DraftGuardProvider>
-        <WelcomeOverlay />
         <div className="bg-[var(--background)] text-[var(--foreground)] h-screen overflow-hidden flex transition-colors">
           <div className={`w-64 shrink-0 transition-all duration-500 ${showSuspension ? 'opacity-20 pointer-events-none select-none' : ''}`}>
             <Sidebar />

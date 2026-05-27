@@ -44,7 +44,7 @@ export const getLinguisticProfile = async (req: AuthRequest, res: Response) => {
 
     const { data: profile, error } = await query
       .limit(1)
-      .maybeSingle(); // Changed from single() to maybeSingle() to handle empty states better for God Mode
+      .maybeSingle();
 
     if (error) {
       return res.json({ success: true, data: null });

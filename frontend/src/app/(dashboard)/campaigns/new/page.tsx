@@ -196,6 +196,7 @@ export default function NewCampaignPage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [touched,     setTouched]     = useState<Partial<Record<keyof WizardData, boolean>>>({});
   const [advOpen,     setAdvOpen]     = useState<Record<number, boolean>>({ 1: false, 2: false, 3: false });
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     api.get("/api/v1/team/members").then(r => setMembers(r.data || [])).catch(() => {});
@@ -358,11 +359,18 @@ export default function NewCampaignPage() {
   const handleSubmit = async () => {
     if (!campaignId) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
-      await api.post(`/api/v1/campaigns/${campaignId}/submit-review`, {});
+      const res = await api.post(`/api/v1/campaigns/${campaignId}/submit-review`, {});
+      if (res?.success === false) {
+        const body = res.data as { message?: string; error?: string } | undefined;
+        setSubmitError(body?.message || body?.error || res.error || "Submit failed — please try again.");
+        return;
+      }
       router.push(`/campaigns/${campaignId}`);
-    } catch { /* stay */ }
-    finally { setSubmitting(false); }
+    } catch {
+      setSubmitError("Submit failed — please try again.");
+    } finally { setSubmitting(false); }
   };
 
   const fieldErr = (key: keyof WizardData) =>
@@ -998,6 +1006,13 @@ export default function NewCampaignPage() {
           {step === 4 && (
             <div className="p-6 space-y-5">
               <StepHeader icon={ClipboardCheck} title="Review & Submit" subtitle="Confirm everything looks right before requesting approval." />
+
+              {submitError && (
+                <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-xl flex items-start gap-3">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-rose-300">{submitError}</p>
+                </div>
+              )}
 
               {missing.length > 0 && (
                 <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-2">

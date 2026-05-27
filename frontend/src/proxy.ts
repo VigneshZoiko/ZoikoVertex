@@ -43,7 +43,7 @@ function isProtectedPath(pathname: string): boolean {
 // zv_auth cookie is set client-side via supabase onAuthStateChange.
 // It acts as a first-layer signal; the real validation is client-side in
 // (dashboard)/layout.tsx via supabase.auth.getSession().
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasAuthCookie = request.cookies.has("zv_auth");
 
