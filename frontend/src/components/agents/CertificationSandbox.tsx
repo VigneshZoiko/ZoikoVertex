@@ -47,21 +47,27 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
 
   if (!isOpen) return null;
 
-  const CATEGORIES = targetLevelNum >= 5
-    ? ['offensive_language', 'harmful_language', 'sexual_content', 'violence_selfharm', 'brand_drift', 'platform_format', 'knowledge_grounding', 'unsupported_claims', 'policy_drift', 'confidential_data', 'regulated_claims', 'competitor_risk', 'hallucination_stress', 'unauthorized_api']
+  // Category coverage per target level — MUST mirror the backend's
+  // CATEGORIES_BY_AUTONOMY (agentSandbox.service.ts). The four content-safety
+  // checks (offensive, sexual, violence/self-harm, harmful) are baseline so
+  // sexual content and violence are always verified.
+  const CATEGORIES = targetLevelNum >= 6
+    ? ['offensive_language', 'sexual_content', 'violence_self_harm', 'harmful_language', 'brand_drift', 'platform_format', 'knowledge_grounding', 'unsupported_claims', 'policy_drift', 'confidential_data', 'regulated_claims', 'hallucination_stress', 'unauthorized_api']
+    : targetLevelNum >= 5
+    ? ['offensive_language', 'sexual_content', 'violence_self_harm', 'harmful_language', 'brand_drift', 'platform_format', 'knowledge_grounding', 'unsupported_claims', 'policy_drift', 'confidential_data']
     : targetLevelNum >= 4
-    ? ['offensive_language', 'harmful_language', 'sexual_content', 'violence_selfharm', 'brand_drift', 'platform_format', 'knowledge_grounding', 'unsupported_claims', 'policy_drift', 'confidential_data', 'regulated_claims', 'competitor_risk']
+    ? ['offensive_language', 'sexual_content', 'violence_self_harm', 'harmful_language', 'brand_drift', 'platform_format', 'knowledge_grounding', 'unsupported_claims', 'policy_drift']
     : targetLevelNum >= 3
-    ? ['offensive_language', 'harmful_language', 'sexual_content', 'violence_selfharm', 'brand_drift', 'platform_format', 'knowledge_grounding']
+    ? ['offensive_language', 'sexual_content', 'violence_self_harm', 'harmful_language', 'brand_drift', 'platform_format', 'knowledge_grounding']
     : targetLevelNum >= 2
-    ? ['offensive_language', 'harmful_language', 'sexual_content', 'brand_drift']
-    : ['offensive_language', 'harmful_language'];
+    ? ['offensive_language', 'sexual_content', 'violence_self_harm', 'harmful_language', 'brand_drift']
+    : ['offensive_language', 'sexual_content', 'violence_self_harm', 'harmful_language'];
 
   const TEST_LABELS: Record<string, string> = {
     offensive_language: 'Offensive Language Detection',
     harmful_language: 'Harmful Language Detection',
     sexual_content: 'Sexual Content Check',
-    violence_selfharm: 'Violence / Self-Harm Check',
+    violence_self_harm: 'Violence / Self-Harm Check',
     brand_drift: 'Brand Alignment Check',
     platform_format: 'Platform Format Rules',
     knowledge_grounding: 'Knowledge-Source Grounding',
@@ -78,7 +84,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
     offensive_language: 'Detecting hate speech, slurs, profanity.',
     harmful_language: 'Threat, abuse, self-harm framing.',
     sexual_content: 'Adult content, NSFW imagery, sexual references.',
-    violence_selfharm: 'Violence, self-harm, dangerous content.',
+    violence_self_harm: 'Violence, self-harm, dangerous content.',
     brand_drift: 'Validating output against brand dictionary.',
     platform_format: 'Character limits, media rules, hashtag rules.',
     knowledge_grounding: 'Output traceable to approved sources.',
@@ -90,6 +96,12 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
     hallucination_stress: 'Grounding against contradictory knowledge.',
     unauthorized_api: 'Absolute execution rule enforcement.',
   };
+
+  // After a run, render the matrix from the backend's actual returned cases so
+  // the cards always reflect exactly what was checked (no phantom PENDING from
+  // category-key drift). Before a run, show the expected preview matrix.
+  const displayCategories =
+    testCases.length > 0 ? testCases.map((t) => t.category) : CATEGORIES;
 
   const runSandbox = async () => {
     setTesting(true);
@@ -239,7 +251,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
         <div className="flex flex-1 overflow-hidden max-h-[60vh]">
           <div className="w-1/2 p-6 border-r border-[var(--card-border)] overflow-y-auto space-y-4">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)] mb-2">
-              Adversarial Test Matrix ({CATEGORIES.length} tests)
+              Adversarial Test Matrix ({displayCategories.length} tests)
             </h3>
 
             {runError && (
@@ -248,33 +260,49 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
               </div>
             )}
 
-            {CATEGORIES.map((cat, i) => {
+            {displayCategories.map((cat, i) => {
               const done = completedTests.includes(cat);
               const testCase = testCases.find(t => t.category === cat);
               const result = testCase?.result;
+              const label = TEST_LABELS[cat] || testCase?.name || cat;
+              const description =
+                TEST_DESCRIPTIONS[cat] || testCase?.description || "Sandbox test";
+              const statusText =
+                result === 'pass' ? 'PASSED' :
+                result === 'fail' ? 'FAILED' :
+                result === 'warning' ? 'WARNING' :
+                done ? 'DONE' : 'PENDING';
 
               return (
                 <div key={cat} className={`p-4 rounded-2xl border transition-all ${
                   result === 'pass' ? "bg-emerald-500/5 border-emerald-500/20" :
                   result === 'fail' ? "bg-rose-500/5 border-rose-500/20" :
+                  result === 'warning' ? "bg-amber-500/5 border-amber-500/20" :
                   testing && completedTests.length === i ? "bg-indigo-500/5 border-indigo-500/20" :
                   "bg-[var(--surface)] border-[var(--border)]"
                 }`}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-xs text-[var(--foreground)]">{TEST_LABELS[cat]}</span>
+                    <span className="font-bold text-xs text-[var(--foreground)]">{label}</span>
                     {result === 'pass' ? (
                       <CheckCircle className="w-4 h-4 text-emerald-500" />
                     ) : result === 'fail' ? (
                       <XCircle className="w-4 h-4 text-rose-500" />
+                    ) : result === 'warning' ? (
+                      <AlertTriangle className="w-4 h-4 text-amber-500" />
                     ) : testing && completedTests.length === i ? (
                       <RefreshCw className="w-4 h-4 text-indigo-500 animate-spin" />
                     ) : (
                       <div className="w-4 h-4 rounded-full border-2 border-[var(--border)]" />
                     )}
                   </div>
-                  <p className="text-[10px] text-[var(--foreground-muted)] leading-relaxed">{TEST_DESCRIPTIONS[cat]}</p>
-                  <div className="mt-2 text-[9px] text-[var(--foreground-muted)] uppercase tracking-widest font-black">
-                    {done ? 'PASSED' : 'PENDING'}
+                  <p className="text-[10px] text-[var(--foreground-muted)] leading-relaxed">{description}</p>
+                  <div className={`mt-2 text-[9px] uppercase tracking-widest font-black ${
+                    result === 'pass' ? "text-emerald-500" :
+                    result === 'fail' ? "text-rose-500" :
+                    result === 'warning' ? "text-amber-500" :
+                    "text-[var(--foreground-muted)]"
+                  }`}>
+                    {statusText}
                   </div>
                 </div>
               );
