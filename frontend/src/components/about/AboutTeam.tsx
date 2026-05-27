@@ -7,7 +7,7 @@ const TEAM = [
     role: "Founder & Executive Chairman",
     tag: "Zoiko Group Inc.",
     tagColor: "#22d3ee",
-    tagBg: "#00C8F0",
+    tagBg: "#00C8F01F",
     tagBorder: "#00C8F033",
     image: "/images/team/lennox.png",
     initials: null,
@@ -141,20 +141,18 @@ export default function AboutTeam() {
                     {/* Circle avatar */}
                     <div
                       className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-black mb-2"
-                     style={{
-  background: member.avatarColor || "#0f172a",
+                      style={{
+                        background: member.avatarColor || "#0f172a",
   color: member.avatarText,
   border: `2px solid ${member.avatarText}30`,
-}}
+                      }}
                     >
                       {member.initials}
                     </div>
                     {/* Silhouette shape */}
                     <div
                       className="w-24 h-8 rounded-t-full mt-1 opacity-30"
-                      style={{
-  background: member.avatarColor || "transparent",
-}}
+                      style={{  background: member.avatarColor || "transparent", }}
                     />
                   </div>
                 )}
