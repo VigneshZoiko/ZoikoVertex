@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 
 const INDUSTRIES = [
   {
@@ -131,10 +132,12 @@ export default function SolutionIndustries() {
             >
               {/* Image */}
               <div className="relative h-44 overflow-hidden">
-                <img
+                <Image
                   src={item.image}
                   alt={item.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 {/* Dark gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a18] via-[#0a0a18]/20 to-transparent" />

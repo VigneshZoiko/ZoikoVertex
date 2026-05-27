@@ -18,12 +18,19 @@ export class PromptTestService {
     scenario_count?: number;
     evaluator_config?: Record<string, unknown>;
   }) {
+    // ── FIX: required_for_risk_tier is a Postgres enum array
+    //    (prompt_risk_tier[]) whose values are lowercase
+    //    (tier_1_low / tier_2_medium / tier_3_high / tier_4_critical).
+    //    Controller passes wizard shortforms like 'TIER_2_MEDIUM' —
+    //    normalize each to the canonical lowercase enum value.
+    const tiers = (input.required_for_risk_tier || []).map((t) => t.toLowerCase());
+
     const { data, error } = await supabaseAdmin
       .from('prompt_test_suites')
       .insert({
         prompt_id: input.prompt_id,
         suite_name: input.suite_name,
-        required_for_risk_tier: input.required_for_risk_tier || [],
+        required_for_risk_tier: tiers,
         scenario_count: input.scenario_count || 0,
         evaluator_config: input.evaluator_config || {},
       })
