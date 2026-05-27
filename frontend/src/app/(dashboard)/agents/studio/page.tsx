@@ -155,6 +155,7 @@ export default function StudioPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [riskFilter, setRiskFilter] = useState("");
@@ -184,12 +185,17 @@ export default function StudioPage() {
   >(null);
 
   const normalizedRole = (role || "").toUpperCase();
-  const canManageAuthority = [
-    "ADMIN",
-    "WORKSPACE_OWNER",
-    "AGENT_ARCHITECT",
-    "GOVERNANCE_ADMIN",
-  ].includes(normalizedRole);
+  // ── FIX: superadmins ("God Mode") have role: null from /user/context.
+  //    Without this bypass, they get every authority-gated action disabled
+  //    (retire, deploy, pause, resume, request approval, clone, rollback).
+  const canManageAuthority =
+    isSuperadmin ||
+    [
+      "ADMIN",
+      "WORKSPACE_OWNER",
+      "AGENT_ARCHITECT",
+      "GOVERNANCE_ADMIN",
+    ].includes(normalizedRole);
 
   const fetchAgents = useCallback(
     async (targetWorkspaceId?: string | null) => {
@@ -197,15 +203,20 @@ export default function StudioPage() {
       try {
         setLoading(true);
         setError(null);
-        if (!activeWorkspace) {
+        // ── FIX: superadmins ("God Mode") have workspace_id: null in /user/context
+        //    but the backend accepts a missing workspaceId param and returns ALL
+        //    agents for that role. Only block non-superadmins when workspace is absent.
+        if (!activeWorkspace && !isSuperadmin) {
           setAgents([]);
           setError("Workspace context is not available yet for Agent Studio.");
           return;
         }
-        const params = new URLSearchParams({ workspaceId: activeWorkspace });
+        const params = new URLSearchParams();
+        if (activeWorkspace) params.set("workspaceId", activeWorkspace);
         if (statusFilter) params.set("status", statusFilter);
         if (riskFilter) params.set("risk_level", riskFilter);
-        const result = await api.get(`/api/v1/agents?${params.toString()}`);
+        const qs = params.toString();
+        const result = await api.get(`/api/v1/agents${qs ? `?${qs}` : ""}`);
         if (result.success && Array.isArray(result.data)) {
           setAgents(result.data);
         } else {
@@ -225,7 +236,7 @@ export default function StudioPage() {
         setLoading(false);
       }
     },
-    [workspaceId, statusFilter, riskFilter],
+    [workspaceId, statusFilter, riskFilter, isSuperadmin],
   );
 
   useEffect(() => {
@@ -233,8 +244,12 @@ export default function StudioPage() {
       try {
         const context = await api.get("/api/v1/user/context");
         const nextWorkspaceId = context?.data?.workspace_id || null;
+        const nextIsSuperadmin = Boolean(context?.data?.is_superadmin);
         setWorkspaceId(nextWorkspaceId);
-        await fetchAgents(nextWorkspaceId);
+        setIsSuperadmin(nextIsSuperadmin);
+        // Note: the secondary useEffect below triggers fetchAgents once the
+        // workspaceId / isSuperadmin state has settled, so we don't need to
+        // call it directly here (which would use a stale closure).
       } catch {
         setError("Unable to load workspace context for Agent Studio.");
         setAgents([]);
@@ -242,11 +257,11 @@ export default function StudioPage() {
       }
     };
     init();
-  }, [fetchAgents]);
+  }, []);
 
   useEffect(() => {
-    if (workspaceId) fetchAgents(workspaceId);
-  }, [workspaceId, statusFilter, riskFilter, fetchAgents]);
+    if (workspaceId || isSuperadmin) fetchAgents(workspaceId);
+  }, [workspaceId, isSuperadmin, statusFilter, riskFilter, fetchAgents]);
 
   const getAutonomyStyle = useCallback((level: string) => {
     const color = AUTONOMY_COLOR[level] || AUTONOMY_COLOR.L0;
@@ -334,8 +349,16 @@ export default function StudioPage() {
     try {
       const res = await api.get(`/api/v1/agents/${agent.id}/evidence`);
       if (res.success) {
+        // Backend returns `data` as an array of evidence bundles. Surface the
+        // most recent bundle's id (first item, ordered DESC server-side) or a
+        // count fallback when the array is empty.
+        const bundles = Array.isArray(res.data) ? res.data : [];
+        const headline =
+          bundles[0]?.bundle_id ||
+          bundles[0]?.id ||
+          (bundles.length > 0 ? `${bundles.length} bundles` : "generated");
         setSuccessMsg(
-          `Evidence bundle exported for "${agent.name}". Bundle ID: ${res.data?.bundle_id || res.data?.id || "generated"}`,
+          `Evidence bundle exported for "${agent.name}". Bundle ID: ${headline}`,
         );
         setTimeout(() => setSuccessMsg(null), 6000);
       } else {
@@ -615,7 +638,11 @@ export default function StudioPage() {
           normalizeText(searchTerm),
         ) ||
         normalizeText(agent.assigned_brand).includes(normalizeText(searchTerm));
-      const matchesStatus = !statusFilter || agent.status === statusFilter;
+      // Defensive case-insensitive match: agent.status may be stored as
+      // uppercase or lowercase depending on which code path created the row.
+      const matchesStatus =
+        !statusFilter ||
+        String(agent.status || "").toUpperCase() === statusFilter.toUpperCase();
       const matchesRisk =
         !riskFilter || normalizeText(agent.risk_level) === riskFilter;
       const matchesBrand = !brandFilter || agent.assigned_brand === brandFilter;
@@ -1666,6 +1693,21 @@ export default function StudioPage() {
                       ? "Cloning..."
                       : "Clone"}
                   </button>
+                  {/* Retire — not already retired (card view) */}
+                  {!isRetired && (
+                    <button
+                      onClick={() => runAgentAction(agent, "retire")}
+                      disabled={
+                        !canManageAuthority || Boolean(actionLoading[agent.id])
+                      }
+                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Archive className="h-3.5 w-3.5" />
+                      {actionLoading[agent.id] === "retire"
+                        ? "Retiring..."
+                        : "Retire"}
+                    </button>
+                  )}
                 </div>
               </div>
             );
