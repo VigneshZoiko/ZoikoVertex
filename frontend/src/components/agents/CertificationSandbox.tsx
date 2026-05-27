@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ShieldCheck, AlertTriangle, Play, Terminal, Lock,
   CheckCircle, XCircle, Activity, RefreshCw, Loader2,
@@ -44,6 +44,25 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
   const currentLevelNum = parseInt(currentLevel.replace("L", ""), 10) || 0;
   const targetLevel = `L${Math.min(currentLevelNum + 1, 6)}`;
   const targetLevelNum = parseInt(targetLevel.replace("L", ""), 10);
+
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // When the sandbox opens, bring it into view and lock the page behind it.
+  // scrollIntoView covers layouts where a transformed ancestor makes
+  // position:fixed resolve relative to that ancestor (so the overlay can land
+  // off-screen) — the user no longer has to scroll to find it.
+  useEffect(() => {
+    if (!isOpen) return;
+    const raf = requestAnimationFrame(() => {
+      modalRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      cancelAnimationFrame(raf);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -233,7 +252,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay)] backdrop-blur-md animate-in fade-in duration-500">
+    <div ref={modalRef} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay)] backdrop-blur-md animate-in fade-in duration-500">
       <div className="bg-[var(--card)] border border-[var(--card-border)] w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
         <div className="px-8 py-6 border-b border-[var(--card-border)] bg-indigo-600 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">

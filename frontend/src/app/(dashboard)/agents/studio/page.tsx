@@ -245,10 +245,17 @@ export default function StudioPage() {
     ].includes(normalizedRole);
 
   const fetchAgents = useCallback(
-    async (targetWorkspaceId?: string | null) => {
+    async (
+      targetWorkspaceId?: string | null,
+      options?: { silent?: boolean },
+    ) => {
       const activeWorkspace = targetWorkspaceId || workspaceId;
+      // Silent refresh (after an action) updates data in place without the
+      // full-page loading skeleton, so cloning/retiring/etc. don't visually
+      // reload the entire UI.
+      const silent = options?.silent === true;
       try {
-        setLoading(true);
+        if (!silent) setLoading(true);
         setError(null);
         // ── FIX: superadmins ("God Mode") have workspace_id: null in /user/context
         //    but the backend accepts a missing workspaceId param and returns ALL
@@ -280,7 +287,7 @@ export default function StudioPage() {
         );
         setAgents([]);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     },
     [workspaceId, statusFilter, riskFilter, isSuperadmin],
@@ -442,7 +449,7 @@ export default function StudioPage() {
           `Safety checks initiated for "${agent.name}". Results will update in the agent profile.`,
         );
         setTimeout(() => setSuccessMsg(null), 6000);
-        await fetchAgents(workspaceId);
+        await fetchAgents(workspaceId, { silent: true });
       } else {
         setError(`Safety check failed to start for "${agent.name}".`);
       }
@@ -495,7 +502,7 @@ export default function StudioPage() {
       await api.post(`/api/v1/agents/${agent.id}/deploy`, { environment: env });
       setSuccessMsg(`"${agent.name}" deployed to ${env} successfully.`);
       setTimeout(() => setSuccessMsg(null), 5000);
-      await fetchAgents(workspaceId);
+      await fetchAgents(workspaceId, { silent: true });
     } catch (deployErr) {
       const msg =
         deployErr instanceof Error
@@ -590,7 +597,7 @@ export default function StudioPage() {
       };
       setSuccessMsg(actionMessages[action]);
       setTimeout(() => setSuccessMsg(null), 5000);
-      await fetchAgents(workspaceId);
+      await fetchAgents(workspaceId, { silent: true });
       if (selectedAgent?.id === agent.id) {
         setSelectedAgent((current) =>
           current

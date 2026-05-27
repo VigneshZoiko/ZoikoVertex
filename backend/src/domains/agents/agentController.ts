@@ -235,9 +235,34 @@ export const cloneAgent = async (req: Request, res: Response, next: NextFunction
       .single();
     
     if (fetchError) throw fetchError;
-    
+
+    // ── Clone naming: strip any existing "(Copy)"/"(Copy N)" suffix to get the
+    //    base name, then pick the next free copy index so repeated cloning
+    //    yields "Name (Copy)", "Name (Copy 2)", "Name (Copy 3)" instead of
+    //    stacking "Name (Copy)(Copy)".
+    const baseName = String(original.name).replace(/\s*\(Copy(?:\s+\d+)?\)\s*$/i, '').trim();
+    const escapedBase = baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const copyPattern = new RegExp(`^${escapedBase}\\s*\\(Copy(?:\\s+(\\d+))?\\)$`, 'i');
+
+    const { data: siblings } = await supabaseAdmin
+      .from('agents')
+      .select('name')
+      .eq('workspace_id', original.workspace_id)
+      .ilike('name', `${baseName}%`);
+
+    let maxCopy = 0;
+    for (const sibling of siblings || []) {
+      const match = copyPattern.exec(String(sibling.name));
+      if (match) {
+        const n = match[1] ? parseInt(match[1], 10) : 1; // bare "(Copy)" counts as 1
+        if (n > maxCopy) maxCopy = n;
+      }
+    }
+    const nextCopy = maxCopy + 1;
+    const clonedName = nextCopy === 1 ? `${baseName} (Copy)` : `${baseName} (Copy ${nextCopy})`;
+
     const cloned = {
-      name: `${original.name} (Copy)`,
+      name: clonedName,
       type: original.type,
       status: 'DRAFT',
       autonomy_level: 'L0',
