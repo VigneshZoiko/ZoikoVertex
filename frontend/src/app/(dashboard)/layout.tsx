@@ -93,19 +93,24 @@ export default function DashboardLayout({
     return <PendingApproval orgName={orgName ?? undefined} />;
   }
 
-  // ── Suspended/deleted org gate ──────────────────────────────────────────────
+  // ── Suspended/deleted/restricted org gate ──────────────────────────────────
   const isSupportRoute = pathname.startsWith('/support');
   const isSuspended = !isSuperAdmin && !isSupportRoute && (workspaceStatus === "SUSPENDED" || orgStatus === "SUSPENDED");
+  const isRestricted = !isSuperAdmin && !isSupportRoute && (workspaceStatus === "RESTRICTED" || orgStatus === "RESTRICTED");
   const isDeleted = !isSuperAdmin && !isSupportRoute && orgStatus === "NO_WORKSPACE" && !isLoading;
-  const showSuspension = isSuspended || isDeleted;
-  const suspensionType = isSuspended ? 'paused' as const : 'deleted' as const;
+  const showSuspension = isSuspended || isDeleted || isRestricted;
+  const sidebarDisabled = isSuspended || isDeleted;
+  let suspensionType: 'paused' | 'deleted' | 'restricted' = 'paused' as const;
+  if (isSuspended) suspensionType = 'paused' as const;
+  else if (isDeleted) suspensionType = 'deleted' as const;
+  else if (isRestricted) suspensionType = 'restricted' as const;
 
   return (
     <NotificationProvider>
       <DraftGuardProvider>
         <WelcomeOverlay />
         <div className="bg-[var(--background)] text-[var(--foreground)] h-screen overflow-hidden flex transition-colors">
-          <div className={`w-64 shrink-0 transition-all duration-500 ${showSuspension ? 'opacity-20 pointer-events-none select-none' : ''}`}>
+          <div className={`w-64 shrink-0 transition-all duration-500 ${sidebarDisabled ? 'opacity-20 pointer-events-none select-none' : ''}`}>
             <Sidebar />
           </div>
           <div className="flex-1 flex flex-col min-w-0 h-screen">

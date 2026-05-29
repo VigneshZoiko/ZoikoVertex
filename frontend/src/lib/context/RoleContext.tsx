@@ -140,6 +140,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
           premiumPaidUntil: result.data.premium_paid_until ?? null,
           isSuperAdmin: nextIsSuperAdmin,
         });
+      } else if (result.data?.code === 'ORG_DELETED') {
+        clearCache();
+        await supabase.auth.signOut();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login?error=org_deleted';
+        }
+        return;
       }
     } catch (err) {
       console.error("Failed to fetch user role context:", err);
