@@ -611,9 +611,9 @@ export default function Sidebar() {
     const dest = pendingHref;
     setPendingHref(null);
     if (!dest) return;
-    if (dest === "/login") {
+    if (dest === "/login" || dest === "/platform-login") {
       await supabase.auth.signOut();
-      router.replace("/login");
+      router.replace(dest);
     } else {
       router.push(dest);
     }
@@ -625,20 +625,22 @@ export default function Sidebar() {
   }, []);
 
   const handleLogout = async () => {
+    const loginDest = isSuperAdmin ? "/platform-login" : "/login";
     if (isDirty) {
-      setPendingHref("/login");
+      setPendingHref(loginDest);
       setShowDiscardModal(true);
       return;
     }
     await supabase.auth.signOut();
-    router.replace("/login");
+    router.replace(loginDest);
   };
 
   const visibleGroups = useMemo(() => {
     return NAV_GROUPS.map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        if (isSuperAdmin) return true;
+        // Platform owner sees only their own group — no org sections
+        if (isSuperAdmin) return group.id === "platform";
 
         if (!role && !roleLoaded) {
           return item.roles.includes("CREATOR");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, Loader2, ShieldAlert, Crown, Lock } from "lucide-react";
+import { Eye, EyeOff, Loader2, Shield, Lock, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -17,7 +17,6 @@ export default function PlatformLoginPage() {
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState("");
 
-  // If already logged in as superadmin, skip straight to /superadmin
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
@@ -26,7 +25,6 @@ export default function PlatformLoginPage() {
           router.replace("/superadmin");
           return;
         }
-        // Logged in but not superadmin — sign them out to avoid confusion
         await supabase.auth.signOut();
       }
       setChecking(false);
@@ -37,17 +35,14 @@ export default function PlatformLoginPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-
     try {
       const { data: { session }, error: authError } = await supabase.auth.signInWithPassword({
         email: PLATFORM_EMAIL,
         password,
       });
-
       if (authError) throw authError;
       if (!session) throw new Error("Authentication failed.");
 
-      // Verify SUPERADMIN status from backend
       const result = await api.get("/api/v1/user/context");
       if (!result?.success || !result.data?.is_superadmin) {
         await supabase.auth.signOut();
@@ -63,78 +58,107 @@ export default function PlatformLoginPage() {
   };
 
   if (checking) {
-    return <div className="min-h-screen bg-[#080808]" />;
+    return <div className="min-h-screen bg-zinc-950" />;
   }
 
   return (
-    <div className="min-h-screen bg-[#080808] flex flex-col antialiased">
-      {/* Background glow */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-[600px] w-[600px] rounded-full bg-amber-500/5 blur-[120px]" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-64 w-full bg-[radial-gradient(ellipse_at_bottom,rgba(245,158,11,0.04),transparent_60%)]" />
-        {/* Subtle grid */}
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        />
+    <div className="min-h-screen bg-zinc-950 flex antialiased">
+      {/* Left panel — branding */}
+      <div className="hidden lg:flex w-[420px] shrink-0 flex-col justify-between bg-zinc-900 border-r border-zinc-800 px-10 py-10">
+        <div>
+          <Image
+            src="/images/logo-wordmark.svg"
+            alt="ZoikoVertex"
+            width={148}
+            height={30}
+            className="h-7 w-auto brightness-0 invert opacity-90"
+          />
+        </div>
+
+        <div className="space-y-8">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[0.3em] uppercase text-zinc-500 mb-3">
+              Platform Administration
+            </p>
+            <h2 className="text-2xl font-bold text-white leading-snug">
+              Centralised control for the entire platform.
+            </h2>
+            <p className="mt-4 text-sm text-zinc-400 leading-relaxed">
+              Manage workspaces, organisations, system-wide configuration, and platform health from a single secure interface.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              "Workspace & organisation management",
+              "System-wide billing and subscriptions",
+              "Platform health and diagnostics",
+              "Audit logs and access controls",
+            ].map((item) => (
+              <div key={item} className="flex items-start gap-3">
+                <div className="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-zinc-600 flex items-center justify-center">
+                  <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                </div>
+                <span className="text-sm text-zinc-400">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-[11px] text-zinc-600">
+          &copy; {new Date().getFullYear()} ZoikoGroup. All rights reserved.
+        </p>
       </div>
 
-      {/* Top bar */}
-      <header className="relative z-10 flex items-center justify-between px-8 py-5 border-b border-white/5">
-        <Image
-          src="/images/logo-wordmark.svg"
-          alt="ZoikoVertex"
-          width={140}
-          height={28}
-          className="h-7 w-auto opacity-60 brightness-0 invert"
-        />
-        <span className="flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase text-amber-500/80">
-          <ShieldAlert className="h-3.5 w-3.5" />
-          Restricted Access
-        </span>
-      </header>
+      {/* Right panel — form */}
+      <div className="flex flex-1 flex-col">
+        {/* Top bar (mobile logo + badge) */}
+        <header className="flex items-center justify-between px-8 py-5 border-b border-zinc-800 lg:justify-end">
+          <Image
+            src="/images/logo-wordmark.svg"
+            alt="ZoikoVertex"
+            width={130}
+            height={26}
+            className="h-6 w-auto brightness-0 invert opacity-70 lg:hidden"
+          />
+          <span className="flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.25em] uppercase text-zinc-500">
+            <Shield className="h-3 w-3" />
+            Restricted Portal
+          </span>
+        </header>
 
-      {/* Main */}
-      <main className="relative z-10 flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-[420px]">
-          {/* Card */}
-          <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-8 shadow-[0_0_80px_rgba(0,0,0,0.6)] backdrop-blur-sm">
-            {/* Icon + title */}
-            <div className="mb-8 text-center">
-              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                <Crown className="h-7 w-7 text-amber-400" />
-              </div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Platform Owner Access</h1>
-              <p className="mt-2 text-sm text-white/40">
-                This portal is restricted to authorised platform administrators only.
+        {/* Form area */}
+        <div className="flex flex-1 items-center justify-center px-6 py-12">
+          <div className="w-full max-w-[380px]">
+
+            <div className="mb-8">
+              <h1 className="text-[22px] font-bold text-white tracking-tight">Platform Owner Login</h1>
+              <p className="mt-1.5 text-sm text-zinc-500">
+                Authorised personnel only. All sessions are recorded.
               </p>
             </div>
 
-            {/* Error */}
             {error && (
-              <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+              <div className="mb-6 rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-3 text-sm text-red-400">
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="space-y-5">
-              {/* Locked email badge */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
+            <form onSubmit={handleLogin} className="space-y-4">
+              {/* Locked account */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-semibold tracking-[0.25em] uppercase text-zinc-500">
                   Account
                 </label>
-                <div className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.04] px-4 py-3">
-                  <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500/60" />
-                  <span className="text-sm font-medium text-white/50">{PLATFORM_EMAIL}</span>
+                <div className="flex items-center gap-2.5 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3">
+                  <Lock className="h-3.5 w-3.5 shrink-0 text-zinc-600" />
+                  <span className="text-sm text-zinc-400 font-medium">{PLATFORM_EMAIL}</span>
                 </div>
               </div>
 
               {/* Password */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-semibold tracking-[0.25em] uppercase text-zinc-500">
                   Password
                 </label>
                 <div className="relative">
@@ -145,13 +169,13 @@ export default function PlatformLoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 pr-11 text-sm text-white placeholder-white/20 outline-none transition focus:border-amber-500/40 focus:ring-2 focus:ring-amber-500/10"
+                    className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 pr-11 text-sm text-white placeholder-zinc-600 outline-none transition focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
                     tabIndex={-1}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400 transition-colors"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -161,35 +185,36 @@ export default function PlatformLoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-sm font-bold text-black shadow-lg shadow-amber-500/20 transition hover:bg-amber-400 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-zinc-100 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Authenticating…
+                  </>
                 ) : (
-                  <Crown className="h-4 w-4" />
+                  <>
+                    Sign In
+                    <ArrowRight className="h-4 w-4" />
+                  </>
                 )}
-                {loading ? "Authenticating…" : "Access Platform"}
               </button>
             </form>
-          </div>
 
-          {/* Footer note */}
-          <p className="mt-6 text-center text-[11px] text-white/20 leading-5">
-            All access to this portal is logged and monitored.
-            <br />
-            Unauthorised access attempts are reported.
-          </p>
-
-          <div className="mt-6 text-center">
-            <a
-              href="/login"
-              className="text-xs text-white/25 hover:text-white/50 transition-colors underline underline-offset-2"
-            >
-              Workspace login &rarr;
-            </a>
+            <div className="mt-8 border-t border-zinc-800 pt-6">
+              <p className="text-[11px] text-zinc-600 leading-relaxed">
+                This portal is monitored. Unauthorised access attempts are logged and reported to system administrators.
+              </p>
+              <a
+                href="/login"
+                className="mt-4 inline-block text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors underline underline-offset-2"
+              >
+                Go to workspace login
+              </a>
+            </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

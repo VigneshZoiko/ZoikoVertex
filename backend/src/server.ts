@@ -177,7 +177,7 @@ import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPos
 import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
 import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
 import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBudgetAuth, rejectBudgetAuth } from './domains/campaigns/budgetAuthController';
-import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights } from './domains/campaigns/adsController';
+import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
 import { getGoogleAdsCustomers, linkGoogleAdsCustomer, createGoogleBoost, syncGoogleBoostMetrics as syncGoogleMetrics, pauseGoogleBoost, resumeGoogleBoost, cancelGoogleBoost } from './domains/campaigns/googleAdsController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import {
@@ -710,6 +710,7 @@ app.post('/api/v1/campaigns/:id/pause',           authenticate, campaignWriteGua
 app.post('/api/v1/campaigns/:id/emergency-pause', authenticate, campaignEmergencyGuard, emergencyPauseCampaign);
 app.get('/api/v1/campaigns/:id/events',           authenticate, campaignGuard,        getCampaignEvents);
 app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGuard,   updateSpend);
+app.post('/api/v1/campaigns/:id/push-to-meta',   authenticate, campaignLaunchGuard,  pushCampaignToMetaHandler);
 
 // Budget Authorization routes (Phase 4)
 app.post('/api/v1/campaigns/:id/budget-auth/request', authenticate, campaignWriteGuard,    requestBudgetAuth);

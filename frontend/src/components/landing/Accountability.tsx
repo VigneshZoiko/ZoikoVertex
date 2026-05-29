@@ -1,4 +1,4 @@
-export default function Accountability() {
+﻿export default function Accountability() {
   const bullets = [
     "ROI per campaign, channel, and platform",
     "Cost per acquisition and contribution margin impact",
@@ -11,7 +11,7 @@ export default function Accountability() {
   const metrics = [
     {
       label: "Campaign ROI",
-      value: "2.3× → 3.7×",
+      value: "2.3Ã— â†’ 3.7Ã—",
       badge: "#dcfce7",
       text: "#15803d",
     },
@@ -41,7 +41,7 @@ export default function Accountability() {
     },
     {
       label: "Attribution confidence",
-      value: "Multi-touch ✓",
+      value: "Multi-touch âœ“",
       badge: "#dcfce7",
       text: "#15803d",
     },
@@ -52,7 +52,7 @@ export default function Accountability() {
       <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-start">
         <div>
           <p className="text-cyan-500 text-xs font-bold tracking-widest uppercase mb-4">
-            — ROI Engine
+            â€” ROI Engine
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-5">
             Audit-grade financial accountability
@@ -93,7 +93,7 @@ export default function Accountability() {
             <p className="text-sm text-teal-800 leading-relaxed">
               <span className="font-bold">Economic instability:</span>{" "}
               ZoikoVertex improves marketing efficiency by over 35%. It pays for
-              itself multiple times over — making low-adoption financially
+              itself multiple times over â€” making low-adoption financially
               irrational in performance-sensitive organisations.
             </p>
           </div>
