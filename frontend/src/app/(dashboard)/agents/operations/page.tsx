@@ -1034,7 +1034,7 @@ export default function AgentOperationsPage() {
           setRealtimeDegraded(true);
           return;
         }
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || ""}/api/v1/operations/events`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || ""}/api/v1/operations/events`, { 
           headers: { Authorization: `Bearer ${token}` },
           signal: controller.signal,
         });

@@ -31,6 +31,23 @@ export interface AgentRun {
   completed_at: string;
   due_at: string;
   last_event_at: string;
+  // Extended fields
+  channel?: string;
+  brand_name?: string;
+  campaign_name?: string;
+  workspace_name?: string;
+  current_step?: string;
+  trigger_source?: string;
+  next_action?: string;
+  error_code?: string;
+  retry_attempt?: number;
+  original_run_id?: string;
+  inputs?: Record<string, unknown>;
+  knowledge_sources?: Array<{ name: string; version: string; freshness: string; confidence: number }>;
+  prompt_template?: string;
+  prompt_version?: string;
+  output_snapshot?: string;
+  output_status?: string;
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
