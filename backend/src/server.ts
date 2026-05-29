@@ -331,7 +331,8 @@ import {
   getAnalyticsMetrics,
   createEvidenceBundle,
   lockEvidenceBundle,
-  listEvidenceBundles
+  listEvidenceBundles,
+  subscribeOperationsEvents
 } from './domains/agents/operationsController';
 
 const upload = multer({ dest: os.tmpdir() });
@@ -887,6 +888,7 @@ app.patch('/api/v1/agents/:id/incidents/:incidentId/resolve', authenticate, scop
 
 // Agent Operations Routes
 app.get('/api/v1/operations/runs', authenticate, listAgentRuns);
+app.get('/api/v1/operations/events', authenticate, subscribeOperationsEvents);
 app.get('/api/v1/operations/runs/:id', authenticate, getAgentRun);
 app.get('/api/v1/operations/runs/:id/timeline', authenticate, getRunTimeline);
 app.post('/api/v1/operations/runs/:id/pause', authenticate, pauseRun);

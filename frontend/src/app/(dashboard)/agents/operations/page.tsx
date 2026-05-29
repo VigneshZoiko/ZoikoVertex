@@ -56,6 +56,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,6 +90,8 @@ interface AgentRun {
   next_action?: string;
   error_code?: string;
   retry_count?: number;
+  permitted_actions?: RuntimeActionType[];
+  action_gates?: Array<{ action: RuntimeActionType; allowed: boolean; reason?: string }>;
 }
 
 interface RunEvent {
@@ -183,15 +186,20 @@ interface OperationsStats {
   escalations?: number;
 }
 
+type NumericMetric = number | Record<string, number | undefined> | null | undefined;
+type RuntimeActionType = "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "restricted_mode" | "export_evidence";
+
 interface AnalyticsMetrics {
-  failure_rate?: number;
-  retry_success_rate?: number;
-  policy_block_rate?: number;
-  avg_review_time_minutes?: number;
-  sla_breach_rate?: number;
-  incident_closure_time_hours?: number;
-  evidence_completeness_pct?: number;
-  throughput_per_day?: number;
+  failure_rate?: NumericMetric;
+  retry_success_rate?: NumericMetric;
+  policy_block_rate?: NumericMetric;
+  avg_review_time_minutes?: NumericMetric;
+  sla_breach_rate?: NumericMetric;
+  incident_closure_time_hours?: NumericMetric;
+  evidence_completeness_pct?: NumericMetric;
+  evidence_completeness?: NumericMetric;
+  throughput_per_day?: NumericMetric;
+  throughput?: NumericMetric;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -261,7 +269,39 @@ function shortId(id: string): string {
   return id.slice(0, 8).toUpperCase();
 }
 
+function metricNumber(metric: NumericMetric, period = "30d"): number | null {
+  if (typeof metric === "number") {
+    return Number.isFinite(metric) ? metric : null;
+  }
+  if (metric && typeof metric === "object") {
+    const value = metric[period] ?? metric["7d"] ?? metric["24h"];
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return null;
+}
+
+function formatPercentMetric(metric: NumericMetric, period = "30d"): string {
+  const value = metricNumber(metric, period);
+  if (value === null) return "—";
+  const percent = Math.abs(value) <= 1 ? value * 100 : value;
+  return `${percent.toFixed(1)}%`;
+}
+
+function formatUnitMetric(metric: NumericMetric, suffix = "", period = "30d"): string {
+  const value = metricNumber(metric, period);
+  if (value === null) return "—";
+  return `${value}${suffix}`;
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function actionGate(run: AgentRun, action: RuntimeActionType) {
+  return run.action_gates?.find((gate) => gate.action === action) || {
+    action,
+    allowed: Boolean(run.permitted_actions?.includes(action)),
+    reason: "Action is not currently permitted",
+  };
+}
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -934,17 +974,19 @@ export default function AgentOperationsPage() {
     if (initialLoad.current) setLoading(true);
     setError(null);
     try {
-      const params: Record<string, string> = { limit: "50" };
+      const scopedParams: Record<string, string> = {};
+      if (brandFilter) scopedParams.brand = brandFilter;
+      if (envFilter) scopedParams.environment = envFilter;
+      const params: Record<string, string> = { ...scopedParams, limit: "50" };
       if (statusFilter) params.status = statusFilter;
-      if (brandFilter) params.brand = brandFilter;
-      if (envFilter) params.environment = envFilter;
+      if (searchQuery.trim()) params.search = searchQuery.trim();
 
       const [statsRes, runsRes, queuesRes, incidentsRes, analyticsRes] = await Promise.allSettled([
-        api.getOperationsStats().catch(() => null),
+        api.getOperationsStatsScoped(scopedParams).catch(() => null),
         api.listAgentRuns(params).catch(() => null),
-        api.listQueues().catch(() => null),
-        api.listIncidents().catch(() => null),
-        api.getOperationsAnalytics().catch(() => null),
+        api.listQueues(scopedParams).catch(() => null),
+        api.listIncidents(scopedParams).catch(() => null),
+        api.getOperationsAnalytics(scopedParams).catch(() => null),
       ]);
 
       if (statsRes.status === "fulfilled" && statsRes.value) setStats(statsRes.value);
@@ -971,13 +1013,57 @@ export default function AgentOperationsPage() {
         initialLoad.current = false;
       }
     }
-  }, [statusFilter, brandFilter, envFilter]);
+  }, [statusFilter, brandFilter, envFilter, searchQuery]);
 
   useEffect(() => {
     setLoading(true);
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
+  }, [fetchData]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let closed = false;
+
+    async function connectOperationsStream() {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) {
+          setRealtimeDegraded(true);
+          return;
+        }
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || ""}/api/v1/operations/events`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body) {
+          setRealtimeDegraded(true);
+          return;
+        }
+        setRealtimeDegraded(false);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        while (!closed && !controller.signal.aborted) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          if (chunk.includes("event: operations")) {
+            await fetchData();
+          }
+        }
+        if (!closed) setRealtimeDegraded(true);
+      } catch {
+        if (!closed && !controller.signal.aborted) setRealtimeDegraded(true);
+      }
+    }
+
+    connectOperationsStream();
+    return () => {
+      closed = true;
+      controller.abort();
+    };
   }, [fetchData]);
 
   // ── Open run drawer ──
@@ -1302,7 +1388,7 @@ export default function AgentOperationsPage() {
             { label: "Open Incidents", val: stats.open_incidents, icon: <Ticket className="w-3.5 h-3.5" />,  color: "text-orange-400",   bg: "bg-orange-500/10" },
             { label: "Escalations",    val: stats.escalations ?? 0, icon: <ArrowUpRight className="w-3.5 h-3.5" />, color: "text-purple-400", bg: "bg-purple-500/10" },
             { label: "SLA Breaches",   val: stats.sla_breaches ?? 0, icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "text-rose-400", bg: "bg-rose-500/10" },
-            { label: "Avg Trust",      val: `${stats.avg_trust_score}%`, icon: <ShieldCheck className="w-3.5 h-3.5" />, color: stats.avg_trust_score >= 80 ? "text-emerald-400" : "text-amber-400", bg: stats.avg_trust_score >= 80 ? "bg-emerald-500/10" : "bg-amber-500/10" },
+            { label: "Avg Trust",      val: `${stats.avg_trust_score ?? 0}%`, icon: <ShieldCheck className="w-3.5 h-3.5" />, color: (stats.avg_trust_score ?? 0) >= 80 ? "text-emerald-400" : "text-amber-400", bg: (stats.avg_trust_score ?? 0) >= 80 ? "bg-emerald-500/10" : "bg-amber-500/10" },
           ].map((card) => (
             <div key={card.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3 flex items-center gap-2.5">
               <div className={`w-7 h-7 ${card.bg} rounded-lg flex items-center justify-center shrink-0 ${card.color}`}>
@@ -1658,14 +1744,14 @@ export default function AgentOperationsPage() {
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: "Failure Rate",           val: analytics.failure_rate !== undefined ? `${(analytics.failure_rate * 100).toFixed(1)}%` : "—",           icon: <XCircle className="w-4 h-4" />,        color: "text-red-400",    bg: "bg-red-500/10",    trend: "down"    },
-                  { label: "Retry Success Rate",     val: analytics.retry_success_rate !== undefined ? `${(analytics.retry_success_rate * 100).toFixed(1)}%` : "—", icon: <RotateCcw className="w-4 h-4" />,    color: "text-blue-400",   bg: "bg-blue-500/10",   trend: "up"      },
-                  { label: "Policy Block Rate",      val: analytics.policy_block_rate !== undefined ? `${(analytics.policy_block_rate * 100).toFixed(1)}%` : "—",   icon: <Ban className="w-4 h-4" />,          color: "text-rose-400",   bg: "bg-rose-500/10",   trend: "down"    },
-                  { label: "Avg Review Time",        val: analytics.avg_review_time_minutes !== undefined ? `${analytics.avg_review_time_minutes}m` : "—",           icon: <Clock className="w-4 h-4" />,        color: "text-amber-400",  bg: "bg-amber-500/10",  trend: "down"    },
-                  { label: "SLA Breach Rate",        val: analytics.sla_breach_rate !== undefined ? `${(analytics.sla_breach_rate * 100).toFixed(1)}%` : "—",       icon: <AlertTriangle className="w-4 h-4" />, color: "text-orange-400", bg: "bg-orange-500/10", trend: "down"    },
-                  { label: "Incident Closure Time",  val: analytics.incident_closure_time_hours !== undefined ? `${analytics.incident_closure_time_hours}h` : "—",   icon: <Ticket className="w-4 h-4" />,       color: "text-purple-400", bg: "bg-purple-500/10", trend: "down"    },
-                  { label: "Evidence Completeness",  val: analytics.evidence_completeness_pct !== undefined ? `${analytics.evidence_completeness_pct}%` : "—",       icon: <Lock className="w-4 h-4" />,         color: "text-indigo-400", bg: "bg-indigo-500/10", trend: "up"      },
-                  { label: "Throughput / Day",       val: analytics.throughput_per_day !== undefined ? String(analytics.throughput_per_day) : "—",                   icon: <Activity className="w-4 h-4" />,     color: "text-emerald-400",bg: "bg-emerald-500/10",trend: "up"      },
+                  { label: "Failure Rate",           val: formatPercentMetric(analytics.failure_rate),                                       icon: <XCircle className="w-4 h-4" />,        color: "text-red-400",    bg: "bg-red-500/10",    trend: "down"    },
+                  { label: "Retry Success Rate",     val: formatPercentMetric(analytics.retry_success_rate),                                 icon: <RotateCcw className="w-4 h-4" />,    color: "text-blue-400",   bg: "bg-blue-500/10",   trend: "up"      },
+                  { label: "Policy Block Rate",      val: formatPercentMetric(analytics.policy_block_rate),                                  icon: <Ban className="w-4 h-4" />,          color: "text-rose-400",   bg: "bg-rose-500/10",   trend: "down"    },
+                  { label: "Avg Review Time",        val: formatUnitMetric(analytics.avg_review_time_minutes, "m"),                          icon: <Clock className="w-4 h-4" />,        color: "text-amber-400",  bg: "bg-amber-500/10",  trend: "down"    },
+                  { label: "SLA Breach Rate",        val: formatPercentMetric(analytics.sla_breach_rate),                                    icon: <AlertTriangle className="w-4 h-4" />, color: "text-orange-400", bg: "bg-orange-500/10", trend: "down"    },
+                  { label: "Incident Closure Time",  val: formatUnitMetric(analytics.incident_closure_time_hours, "h"),                      icon: <Ticket className="w-4 h-4" />,       color: "text-purple-400", bg: "bg-purple-500/10", trend: "down"    },
+                  { label: "Evidence Completeness",  val: formatPercentMetric(analytics.evidence_completeness_pct ?? analytics.evidence_completeness), icon: <Lock className="w-4 h-4" />,         color: "text-indigo-400", bg: "bg-indigo-500/10", trend: "up"      },
+                  { label: "Throughput / Day",       val: formatUnitMetric(analytics.throughput_per_day ?? analytics.throughput, ""),         icon: <Activity className="w-4 h-4" />,     color: "text-emerald-400",bg: "bg-emerald-500/10",trend: "up"      },
                 ].map((m) => (
                   <div key={m.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">

@@ -9,4 +9,7 @@ export const internalEventBus = {
   on(event: string, handler: (...args: unknown[]) => void): void {
     emitter.on(event, handler);
   },
+  off(event: string, handler: (...args: unknown[]) => void): void {
+    emitter.off(event, handler);
+  },
 };
