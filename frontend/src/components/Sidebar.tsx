@@ -537,6 +537,7 @@ export default function Sidebar() {
   const [showDiscardModal, setShowDiscardModal] = useState(false);
 
   const [pendingCount, setPendingCount] = useState(0);
+  const [supportTicketCount, setSupportTicketCount] = useState(0);
 
   const { state } = useNotifications();
   const unreadCount = state?.notifications?.filter((n) => !n.read).length || 0;
@@ -559,12 +560,27 @@ export default function Sidebar() {
     }
   }, []);
 
+  const fetchSupportTicketCount = useCallback(async () => {
+    try {
+      const result = await api.get("/api/v1/superadmin/tickets/count");
+      if (result.success) setSupportTicketCount(result.count ?? 0);
+    } catch {
+      setSupportTicketCount(0);
+    }
+  }, []);
+
   useEffect(() => {
     if (!roleLoading) {
       setRoleLoaded(true);
       if (role) fetchPendingCount(role);
     }
   }, [roleLoading, role, fetchPendingCount]);
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      fetchSupportTicketCount();
+    }
+  }, [isSuperAdmin, fetchSupportTicketCount]);
 
   useEffect(() => {
     if (!role) return;
@@ -582,6 +598,23 @@ export default function Sidebar() {
       supabase.removeChannel(channel);
     };
   }, [role, fetchPendingCount]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const channel = supabase
+      .channel("support-ticket-count-sync")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "support_tickets" },
+        () => {
+          fetchSupportTicketCount();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isSuperAdmin, fetchSupportTicketCount]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -611,9 +644,9 @@ export default function Sidebar() {
     const dest = pendingHref;
     setPendingHref(null);
     if (!dest) return;
-    if (dest === "/login") {
+    if (dest === "/login" || dest === "/platform-login") {
       await supabase.auth.signOut();
-      router.replace("/login");
+      router.replace(dest);
     } else {
       router.push(dest);
     }
@@ -625,20 +658,22 @@ export default function Sidebar() {
   }, []);
 
   const handleLogout = async () => {
+    const loginDest = isSuperAdmin ? "/platform-login" : "/login";
     if (isDirty) {
-      setPendingHref("/login");
+      setPendingHref(loginDest);
       setShowDiscardModal(true);
       return;
     }
     await supabase.auth.signOut();
-    router.replace("/login");
+    router.replace(loginDest);
   };
 
   const visibleGroups = useMemo(() => {
     return NAV_GROUPS.map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        if (isSuperAdmin) return true;
+        // Platform owner sees only their own group — no org sections
+        if (isSuperAdmin) return group.id === "platform";
 
         if (!role && !roleLoaded) {
           return item.roles.includes("CREATOR");
@@ -765,6 +800,12 @@ export default function Sidebar() {
                           {item.badge && pendingCount > 0 && (
                             <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-black text-white shadow-lg shadow-indigo-500/20 animate-in zoom-in duration-300">
                               {pendingCount}
+                            </span>
+                          )}
+
+                          {item.name === "Support Queue" && supportTicketCount > 0 && (
+                            <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-lg shadow-rose-500/20 animate-in zoom-in duration-300">
+                              {supportTicketCount > 9 ? "9+" : supportTicketCount}
                             </span>
                           )}
 

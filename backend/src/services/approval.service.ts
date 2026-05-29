@@ -342,6 +342,10 @@ export async function approveItem(itemId: string, tenant_id: string, userId: str
           newStatus = 'WAITING_ON_OTHERS';
           await advanceStage(path.id);
         }
+
+        if (path.path_type === 'PARALLEL' && incompleteStages.length > 0) {
+          newStatus = 'WAITING_ON_OTHERS';
+        }
       }
     }
   }
@@ -368,6 +372,16 @@ export async function approveItem(itemId: string, tenant_id: string, userId: str
   broadcastWebhookEvent(item.workspace_id, 'approval.item_approved', {
     approval_item_id: itemId, title: item.title, decision_id: decision.id,
   }).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
+
+  try {
+    internalEventBus.emit('approval.decision_made', {
+      workspace_id: item.workspace_id,
+      tenant_id,
+      actor_id: userId,
+      item_id: itemId,
+      decision: 'APPROVED',
+    });
+  } catch { /* non-blocking */ }
 
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
@@ -399,6 +413,17 @@ export async function rejectItem(itemId: string, tenant_id: string, userId: stri
   }).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
 
   await triggerCallback(item, 'REJECTED');
+
+  try {
+    internalEventBus.emit('approval.decision_made', {
+      workspace_id: item.workspace_id,
+      tenant_id,
+      actor_id: userId,
+      item_id: itemId,
+      decision: 'REJECTED',
+    });
+  } catch { /* non-blocking */ }
+
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
 

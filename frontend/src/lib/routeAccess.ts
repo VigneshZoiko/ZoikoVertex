@@ -41,7 +41,13 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: '/evidence',                      roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'],                                                            plan: 'evidence_vault' },
 
   // ── Safety Layer / Governance ─────────────────────────────────────────────
+  { prefix: '/governance/brand-library',      roles: ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'BRAND_REVIEWER', 'SUPERADMIN'],                                                                               plan: 'brand_standards' },
+  { prefix: '/governance/legal',              roles: ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'AUDITOR', 'SUPERADMIN'],                                                              plan: 'legal_holds' },
+  { prefix: '/governance/forensic',           roles: ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'AUDITOR', 'SECURITY_ADMIN', 'SUPERADMIN'],                                           plan: 'forensic_hub' },
   { prefix: '/governance',                    roles: ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'AUDITOR', 'REVIEWER', 'VALIDATOR', 'APPROVER', 'BRAND_REVIEWER', 'SECURITY_ADMIN', 'SUPERADMIN'], plan: 'governance' },
+
+  // ── Admin / Crisis ────────────────────────────────────────────────────────
+  { prefix: '/admin/crisis',                  roles: ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'SECURITY_ADMIN', 'SUPERADMIN'],                                                                              plan: 'crisis_console' },
 
   // ── Accountability Layer ──────────────────────────────────────────────────
   { prefix: '/queue',                         roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'REVIEWER', 'VALIDATOR', 'APPROVER', 'BRAND_REVIEWER', 'CAMPAIGN_MANAGER', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'],          plan: 'review_queue' },

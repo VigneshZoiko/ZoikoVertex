@@ -164,6 +164,7 @@ export default function AccountsPage() {
   const [error, setError]                               = useState<string | null>(null);
   const [success, setSuccess]                           = useState<string | null>(null);
   const { role: userRole, isSuperAdmin, isLoading } = useRoles();
+  const canManageAccounts = isSuperAdmin || ['PUBLISHER','CAMPAIGN_MANAGER','ADMIN','WORKSPACE_OWNER'].includes(userRole ?? '');
   const [isSubmitting, setIsSubmitting]                 = useState<string | null>(null);
   const [disconnecting, setDisconnecting]               = useState<string | null>(null);
   const [confirmingDisconnect, setConfirmingDisconnect] = useState<string | null>(null);
@@ -587,7 +588,7 @@ export default function AccountsPage() {
                             <CheckCircle2 className="w-3 h-3" />
                             Active
                           </span>
-                          {(userRole !== "CREATOR" || isSuperAdmin) && (
+                          {canManageAccounts && (
                             confirmingDisconnect === account.id ? (
                               <div className="flex items-center gap-2">
                                 <span className="text-[11px] text-[var(--foreground-muted)]">Remove?</span>

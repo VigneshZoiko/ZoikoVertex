@@ -1,4 +1,4 @@
-export default function Accountability() {
+﻿export default function Accountability() {
   const bullets = [
     "ROI per campaign, channel, and platform",
     "Cost per acquisition and contribution margin impact",
@@ -15,6 +15,7 @@ export default function Accountability() {
     { label: "Budget reallocated",     value: "$18,200 auto",   bg: "#1a2a3a", text: "#60a5fa", border: "#2a3a5a" },
     { label: "Daily profit impact",    value: "+14.0%",         bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
     { label: "Attribution confidence", value: "Multi-touch ✓",  bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
+
   ];
 
   return (

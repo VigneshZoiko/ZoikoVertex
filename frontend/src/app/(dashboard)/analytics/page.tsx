@@ -101,6 +101,71 @@ function Skeleton({ className }: { className: string }) {
   return <div className={`animate-pulse bg-[var(--border)] rounded ${className}`} />;
 }
 
+function safeNumber(value: unknown, fallback = 0): number {
+  const numberValue = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(numberValue) ? numberValue : fallback;
+}
+
+function safePercent(value: unknown, decimals = 1): string {
+  return safeNumber(value).toFixed(decimals);
+}
+
+function boundedPercent(value: unknown): number {
+  return Math.max(0, Math.min(safeNumber(value), 100));
+}
+
+function normalizeAnalytics(payload: Partial<OpsAnalytics>): OpsAnalytics {
+  return {
+    active_runs: {
+      value: safeNumber(payload.active_runs?.value),
+      trend: payload.active_runs?.trend || "stable",
+    },
+    queue_depth: {
+      value: safeNumber(payload.queue_depth?.value),
+      trend: payload.queue_depth?.trend || "stable",
+    },
+    throughput: {
+      "24h": safeNumber(payload.throughput?.["24h"]),
+      "7d": safeNumber(payload.throughput?.["7d"]),
+      "30d": safeNumber(payload.throughput?.["30d"]),
+    },
+    failure_rate: {
+      "24h": boundedPercent(payload.failure_rate?.["24h"]),
+      "7d": boundedPercent(payload.failure_rate?.["7d"]),
+      "30d": boundedPercent(payload.failure_rate?.["30d"]),
+    },
+    policy_block_rate: {
+      "24h": boundedPercent(payload.policy_block_rate?.["24h"]),
+      "7d": boundedPercent(payload.policy_block_rate?.["7d"]),
+      "30d": boundedPercent(payload.policy_block_rate?.["30d"]),
+    },
+    incidents: {
+      "24h": payload.incidents?.["24h"] || {},
+      "7d": payload.incidents?.["7d"] || {},
+      "30d": payload.incidents?.["30d"] || {},
+    },
+    sla_breach_rate: boundedPercent(payload.sla_breach_rate),
+    evidence_completeness: boundedPercent(payload.evidence_completeness),
+  };
+}
+
+function normalizeCampaignStats(payload: Partial<CampaignStats>): CampaignStats {
+  return {
+    total: safeNumber(payload.total),
+    draft: safeNumber(payload.draft),
+    in_review: safeNumber(payload.in_review),
+    approval_pending: safeNumber(payload.approval_pending),
+    active: safeNumber(payload.active),
+    pausing: safeNumber(payload.pausing),
+    paused: safeNumber(payload.paused),
+    completed: safeNumber(payload.completed),
+    risk_flags: safeNumber(payload.risk_flags),
+    budget_allocated: safeNumber(payload.budget_allocated),
+    spend_recorded: safeNumber(payload.spend_recorded),
+    needs_action: safeNumber(payload.needs_action),
+  };
+}
+
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<OpsAnalytics | null>(null);
   const [campaigns, setCampaigns] = useState<CampaignStats | null>(null);
@@ -117,12 +182,18 @@ export default function AnalyticsPage() {
           api.get("/api/v1/campaigns/stats"),
           api.getPlatformReach(),
         ]);
-        if (analyticsRes.status === "fulfilled" && analyticsRes.value.success)
-          setAnalytics(analyticsRes.value.data);
-        if (campRes.status === "fulfilled" && campRes.value.success)
-          setCampaigns(campRes.value.data);
-        if (platformRes.status === "fulfilled" && platformRes.value.success)
-          setPlatforms(platformRes.value.data ?? []);
+        if (analyticsRes.status === "fulfilled") {
+          const payload = analyticsRes.value?.success ? analyticsRes.value.data : analyticsRes.value;
+          if (payload) setAnalytics(normalizeAnalytics(payload));
+        }
+        if (campRes.status === "fulfilled") {
+          const payload = campRes.value?.success ? campRes.value.data : campRes.value;
+          if (payload) setCampaigns(normalizeCampaignStats(payload));
+        }
+        if (platformRes.status === "fulfilled") {
+          const payload = platformRes.value?.success ? platformRes.value.data : platformRes.value;
+          setPlatforms(Array.isArray(payload) ? payload : []);
+        }
       } catch (err) {
         console.error("Analytics fetch error", err);
       } finally {

@@ -1,17 +1,56 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Users, UserPlus, ShieldAlert, Check, X, Shield,
-  RefreshCw, ChevronRight, Trash2, AlertTriangle,
+  RefreshCw, Trash2, AlertTriangle, Lock, ChevronDown,
 } from "lucide-react";
 import { ROLE_ARCHITECTURE } from "@/lib/roles";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
 import { useRoles } from "@/lib/hooks/useRoles";
+import { useRoleContext } from "@/lib/context/RoleContext";
+
+/* ── Plan → available roles ───────────────────────────────────────────────── */
+const PLAN_ROLES: Record<string, string[]> = {
+  FREE: [
+    "CREATOR", "REVIEWER", "VIEWER", "ANALYST", "EXTERNAL_COLLABORATOR",
+  ],
+  GROWTH: [
+    "CREATOR", "REVIEWER", "VIEWER", "ANALYST", "EXTERNAL_COLLABORATOR",
+    "CAMPAIGN_MANAGER", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER",
+    "APPROVER", "PUBLISHER", "VALIDATOR", "BRAND_REVIEWER", "DEVELOPER",
+  ],
+  SCALE: [
+    "CREATOR", "REVIEWER", "VIEWER", "ANALYST", "EXTERNAL_COLLABORATOR",
+    "CAMPAIGN_MANAGER", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER",
+    "APPROVER", "PUBLISHER", "VALIDATOR", "BRAND_REVIEWER", "DEVELOPER",
+    "AGENT_ARCHITECT", "GOVERNANCE_ADMIN", "AUDITOR", "COMPLIANCE_REVIEWER", "ADMIN",
+  ],
+  ENTERPRISE: [
+    "WORKSPACE_OWNER", "ADMIN", "SECURITY_ADMIN", "GOVERNANCE_ADMIN",
+    "AGENT_ARCHITECT", "AGENT_OPERATOR", "KNOWLEDGE_MANAGER", "CAMPAIGN_MANAGER",
+    "CREATOR", "BRAND_REVIEWER", "REVIEWER", "VALIDATOR", "APPROVER", "PUBLISHER",
+    "COMPLIANCE_REVIEWER", "AUDITOR", "ANALYST", "PRIVACY_ADMIN", "DEVELOPER",
+    "EXTERNAL_COLLABORATOR", "VIEWER",
+  ],
+};
+
+const PLAN_ORDER  = ["FREE", "GROWTH", "SCALE", "ENTERPRISE"] as const;
+const PLAN_LABELS: Record<string, string> = {
+  FREE: "Starter", GROWTH: "Growth", SCALE: "Scale", ENTERPRISE: "Enterprise",
+};
+
+const ROLE_GROUPS = [
+  { group: "Build Control",      roles: ["WORKSPACE_OWNER","ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","DEVELOPER"] },
+  { group: "Governance Control", roles: ["GOVERNANCE_ADMIN","SECURITY_ADMIN","PRIVACY_ADMIN","COMPLIANCE_REVIEWER","AUDITOR"] },
+  { group: "Output Control",     roles: ["BRAND_REVIEWER","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","ANALYST"] },
+  { group: "External",           roles: ["EXTERNAL_COLLABORATOR","VIEWER"] },
+];
 
 export default function TeamPage() {
   const { role: currentUserRole, isSuperAdmin, isLoading } = useRoles();
+  const { planType } = useRoleContext();
   const [workspaceId, setWorkspaceId]     = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -25,12 +64,38 @@ export default function TeamPage() {
   const [role, setRole]                       = useState("CREATOR");
   const [password, setPassword]               = useState("");
   const [formLoading, setFormLoading]         = useState(false);
-  const [showAdvancedRoles, setShowAdvancedRoles] = useState(false);
   const [message, setMessage]                 = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Role dropdown
+  const [dropdownOpen, setDropdownOpen]       = useState(false);
+  const dropdownRef                           = useRef<HTMLDivElement>(null);
 
   // Delete confirm
   const [confirmDelete, setConfirmDelete]     = useState<string | null>(null); // user id
   const [deleting, setDeleting]               = useState<string | null>(null);
+
+  // Plan-gating helpers
+  const effectivePlan = isSuperAdmin ? "ENTERPRISE" : (planType?.toUpperCase() ?? "FREE");
+  const availableRoles = new Set(PLAN_ROLES[effectivePlan] ?? PLAN_ROLES.FREE);
+  const isRoleLocked = (roleId: string) => !availableRoles.has(roleId);
+  const getRequiredPlan = (roleId: string) => {
+    for (const p of PLAN_ORDER) {
+      if (PLAN_ROLES[p].includes(roleId)) return PLAN_LABELS[p];
+    }
+    return "Enterprise";
+  };
+  const selectedRoleName = ROLE_ARCHITECTURE.find(r => r.id === role)?.name ?? role;
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -194,57 +259,73 @@ export default function TeamPage() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-medium text-[var(--foreground-muted)]">Assign Role</label>
+                <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">Assign Role</label>
+                <div ref={dropdownRef} className="relative">
+                  {/* Trigger */}
                   <button
                     type="button"
-                    onClick={() => setShowAdvancedRoles(!showAdvancedRoles)}
-                    className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-wider flex items-center gap-1"
+                    onClick={() => setDropdownOpen(o => !o)}
+                    className="w-full flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm hover:border-indigo-500/50 transition-colors"
                   >
-                    {showAdvancedRoles ? "Standard Roles" : "Enterprise Roles"}
-                    <ChevronRight className={`w-2.5 h-2.5 transition-transform ${showAdvancedRoles ? "rotate-90" : ""}`} />
+                    <span>{selectedRoleName}</span>
+                    <ChevronDown className={`w-4 h-4 text-[var(--foreground-muted)] transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
                   </button>
-                </div>
-                <select
-                  value={role} onChange={e => setRole(e.target.value)}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm"
-                >
-                  {!showAdvancedRoles ? (
-                    <>
-                      <optgroup label="— Build Layer">
-                        <option value="CREATOR">Contributor — drafts only</option>
-                        <option value="CAMPAIGN_MANAGER">Campaign Manager — campaign execution</option>
-                        <option value="AGENT_OPERATOR">Agent Operator — live agent supervision</option>
-                        <option value="KNOWLEDGE_MANAGER">Knowledge Manager — RAG & sources</option>
-                      </optgroup>
-                      <optgroup label="— Output Layer">
-                        <option value="REVIEWER">Reviewer — general content review</option>
-                        <option value="VALIDATOR">Validator — HITL accuracy validation</option>
-                        <option value="APPROVER">Approver — formal approval authority</option>
-                        <option value="PUBLISHER">Publisher — live publishing</option>
-                      </optgroup>
-                      {(currentUserRole === "ADMIN" || isSuperAdmin) && (
-                        <optgroup label="— Administration">
-                          <option value="ADMIN">Administrator — full workspace control</option>
-                          <option value="GOVERNANCE_ADMIN">Governance Lead — policies & rules</option>
-                        </optgroup>
-                      )}
-                    </>
-                  ) : (
-                    [
-                      { group: "Build Control",      roles: ["WORKSPACE_OWNER","ADMIN","AGENT_ARCHITECT","AGENT_OPERATOR","KNOWLEDGE_MANAGER","CAMPAIGN_MANAGER","CREATOR","DEVELOPER"] },
-                      { group: "Governance Control", roles: ["GOVERNANCE_ADMIN","SECURITY_ADMIN","PRIVACY_ADMIN","COMPLIANCE_REVIEWER","AUDITOR"] },
-                      { group: "Output Control",     roles: ["BRAND_REVIEWER","REVIEWER","VALIDATOR","APPROVER","PUBLISHER","ANALYST"] },
-                      { group: "External",           roles: ["EXTERNAL_COLLABORATOR","VIEWER"] },
-                    ].map(({ group, roles: groupRoles }) => (
-                      <optgroup key={group} label={`— ${group}`}>
-                        {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id)).map(r => (
-                          <option key={r.id} value={r.id}>{r.name} — {r.description.slice(0, 50)}</option>
+
+                  {/* Panel */}
+                  {dropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden">
+                      <div className="max-h-64 overflow-y-auto py-1">
+                        {ROLE_GROUPS.map(({ group, roles: groupRoles }) => (
+                          <div key={group}>
+                            {/* Group header */}
+                            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--foreground-muted)] bg-[var(--surface)]/60 border-b border-[var(--border)]/50">
+                              {group}
+                            </div>
+                            {ROLE_ARCHITECTURE.filter(r => groupRoles.includes(r.id)).map(r => {
+                              const locked = isRoleLocked(r.id);
+                              const reqPlan = locked ? getRequiredPlan(r.id) : null;
+                              return (
+                                <button
+                                  key={r.id}
+                                  type="button"
+                                  disabled={locked}
+                                  onClick={() => { if (!locked) { setRole(r.id); setDropdownOpen(false); } }}
+                                  className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left transition-colors
+                                    ${locked
+                                      ? "opacity-40 cursor-not-allowed"
+                                      : role === r.id
+                                        ? "bg-indigo-500/15 text-indigo-400"
+                                        : "hover:bg-[var(--surface-hover)] text-[var(--foreground)]"
+                                    }`}
+                                >
+                                  <span className="font-medium">{r.name}</span>
+                                  {locked ? (
+                                    <span className="flex items-center gap-1 text-[10px] font-bold text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-0.5 shrink-0">
+                                      <Lock className="w-2.5 h-2.5" />
+                                      {reqPlan}+
+                                    </span>
+                                  ) : role === r.id ? (
+                                    <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                                  ) : null}
+                                </button>
+                              );
+                            })}
+                          </div>
                         ))}
-                      </optgroup>
-                    ))
+                      </div>
+                      {/* Upgrade nudge */}
+                      {effectivePlan !== "ENTERPRISE" && (
+                        <div className="px-3 py-2 border-t border-[var(--border)]/50 bg-[var(--surface)]/40 flex items-center gap-1.5">
+                          <Lock className="w-3 h-3 text-amber-500/70 shrink-0" />
+                          <span className="text-[10px] text-[var(--foreground-muted)]">
+                            Locked roles require a higher plan. Upgrade in{" "}
+                            <span className="text-amber-500/90 font-semibold">Settings → Billing</span>.
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   )}
-                </select>
+                </div>
               </div>
 
               <div>
