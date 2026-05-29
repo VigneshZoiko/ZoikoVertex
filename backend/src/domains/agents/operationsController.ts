@@ -395,6 +395,7 @@ export const emergencyPause = async (
       reason,
       userId,
       userName,
+      impactScope,
     );
     await logToDatabase(
       "warn",
@@ -466,6 +467,7 @@ export const restrictedMode = async (
       reason,
       userId,
       userName,
+      impactScope,
     );
     await logToDatabase(
       "warn",
@@ -702,7 +704,6 @@ export const resolveIncident = async (
     const id = getParam(req, "id");
     const { remediation } = req.body;
     const userId = req.user?.id || "system";
-    const workspaceId = req.user?.workspace_id;
     if (!req.user?.is_superadmin) {
       const existing = await incidentService.getIncident(id);
       assertWorkspaceScope(req.user, existing.workspace_id);
