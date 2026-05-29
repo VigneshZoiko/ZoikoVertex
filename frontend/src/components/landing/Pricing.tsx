@@ -1,317 +1,338 @@
-﻿import Link from "next/link";
-import { Play, Clock, FileText } from "lucide-react";
+"use client";
+import { useEffect, useRef, useState } from "react";
 
-const Check = () => (
-  <svg
-    width="8"
-    height="8"
-    viewBox="0 0 10 8"
-    fill="none"
-    className="flex-shrink-0"
-  >
-    <path
-      d="M1 4l3 3 5-6"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
+const PLANS = [
+  {
+    tier: "FREE TIER",
+    tierSub: null,
+    name: "Vertex Starter",
+    price: { monthly: "0", annual: "0" },
+    priceNote: { monthly: "Always free", annual: "Always free" },
+    description:
+      "Connect channels, understand your governance posture, and see where ZoikoVertex reduces risk before your team commits.",
+    cta: "Start free",
+    ctaIcon: "play",
+    highlighted: false,
+    stats: [
+      { value: "2", label: "users" },
+      { value: "2", label: "channels" },
+      { value: "1", label: "brand" },
+      { value: "30d", label: "history" },
+    ],
+    includedLabel: "INCLUDED",
+    included: [
+      "Command Center (limited)",
+      "Analytics snapshot",
+      "AI recommendations — read-only",
+      "Basic activity log",
+      "Email support + help center",
+    ],
+    notIncludedLabel: "NOT INCLUDED",
+    notIncluded: [
+      "Live publishing or execution",
+      "Approvals or workflows",
+      "API access",
+    ],
+    footer: "No live execution authority on this plan.",
+  },
+  {
+    tier: "FIRST PAID TIER",
+    tierSub: null,
+    name: "Vertex Growth",
+    price: { monthly: "349", annual: "299" },
+    priceNote: { monthly: null, annual: "$399 billed annually" },
+    description:
+      "Run governed campaigns with AI agents, approvals, publishing, and audit-ready execution for one brand team.",
+    cta: "Start 14-day trial",
+    ctaIcon: "clock",
+    highlighted: false,
+    stats: [
+      { value: "7", label: "users" },
+      { value: "8", label: "profiles" },
+      { value: "1", label: "brand" },
+      { value: "12mo", label: "history" },
+    ],
+    includedLabel: "EXECUTION",
+    included: [
+      "Content Studio + publishing",
+      "5 AI agents — standard governed",
+      "Review Queue + two-step approvals",
+      "Immutable audit trail + export",
+      "Basic Brand Library",
+      "Analytics & ROI — standard",
+      "Priority email support",
+    ],
+    notIncludedLabel: "NOT INCLUDED",
+    notIncluded: [
+      "Multi-brand portfolio",
+      "Crisis Console",
+      "SSO / SCIM",
+    ],
+    footer: "Single brand workspace only. No multi-entity governance.",
+  },
+  {
+    tier: "RECOMMENDED",
+    tierSub: "COMMERCIAL CENTER",
+    name: "Vertex Scale",
+    price: { monthly: "999", annual: "799" },
+    priceNote: { monthly: null, annual: "$999 billed annually" },
+    description:
+      "Coordinate multi-brand teams with advanced approvals, full Brand Library, governed agents, and cross-brand performance intelligence.",
+    cta: "Book strategy call",
+    ctaIcon: "calendar",
+    highlighted: true,
+    stats: [
+      { value: "20", label: "users" },
+      { value: "25", label: "profiles" },
+      { value: "5", label: "brands" },
+      { value: "24mo", label: "history" },
+    ],
+    includedLabel: "EVERYTHING IN GROWTH, PLUS",
+    included: [
+      "5 AI agents — advanced multi-brand",
+      "Advanced multi-stage approvals",
+      "Multi-key approval + SoD enforcement",
+      "Full Brand Library — standards & rules",
+      "Crisis Console (standard activation)",
+      "Advanced evidence packaging",
+      "Cross-brand Analytics & ROI",
+      "Named Customer Success Manager",
+      "Quarterly governance review",
+    ],
+    notIncludedLabel: null,
+    notIncluded: [],
+    footer: "No legal hold or custom SLA unless separately contracted.",
+  },
+  {
+    tier: "PROCUREMENT-READY",
+    tierSub: null,
+    name: "Vertex Corporate",
+    price: { monthly: "Custom", annual: "Custom" },
+    priceNote: { monthly: "Annual or multi-year contract.", annual: "Annual or multi-year contract." },
+    description:
+      "Deploy across corporate brands, regulated workflows, advanced security, evidence-grade auditability, and custom governance architecture.",
+    cta: "Request corporate brief",
+    ctaIcon: "doc",
+    highlighted: false,
+    stats: [
+      { value: "Custom", label: "" },
+      { value: "Custom", label: "" },
+      { value: "Custom", label: "" },
+      { value: "Custom", label: "" },
+    ],
+    includedLabel: "EVERYTHING IN SCALE, PLUS",
+    included: [
+      "Three-key approval protocol",
+      "Evidence Vault + legal hold",
+      "Chain-of-custody + watermarked exports",
+      "Custom AI governance configuration",
+      "Crisis Console — full dual-authorization",
+      "SSO/SAML + SCIM provisioning",
+      "DPA + security whitepaper",
+      "Named AE + TAM + agreed SLA",
+    ],
+    notIncludedLabel: null,
+    notIncluded: [],
+    footer: "Security and legal review required. BYOK subject to approval.",
+  },
+];
+
+function CtaIcon({ type }: { type: string }) {
+  if (type === "play") return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+  );
+  if (type === "clock") return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+  );
+  if (type === "calendar") return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+  );
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+  );
+}
 
 export default function Pricing() {
-  const plans = [
-    {
-      tag: "FREE TIER",
-      name: "Vertex Starter",
-      price: "$0",
-      billingNote: "always free",
-      desc: "Connect channels, understand your governance posture, and see where ZoikoVertex reduces risk before your team commits.",
-      stats: [
-        { label: "users", value: "2" },
-        { label: "channels", value: "2" },
-        { label: "history", value: "386" },
-      ],
-      sectionLabel: "INCLUDED",
-      features: [
-        "Command Center (limited)",
-        "Analytics snapshot",
-        "AI recommendations â€” read-only",
-        "Basic activity log",
-        "Email support + help center",
-      ],
-      excluded: [
-        "Live publishing or execution",
-        "Approvals or workflows",
-        "API access",
-      ],
-      cta: "Start free",
-      ctaIcon: "play",
-      ctaStyle: "ghost",
-      highlight: false,
-      recommended: false,
-      footerNote: "No live execution authority on this plan.",
-    },
-    {
-      tag: "ENTRY STEP, TIER",
-      name: "Vertex Growth",
-      price: "$299",
-      billingNote: "$299 billed annually",
-      desc: "Run governed campaigns with AI agents, approvals, publishing, and audit-ready execution for one brand team.",
-      stats: [
-        { label: "users", value: "7" },
-        { label: "profiles", value: "8" },
-        { label: "brand", value: "1" },
-        { label: "history", value: "12mo" },
-      ],
-      sectionLabel: "EXECUTION",
-      features: [
-        "Content Studio + publishing",
-        "5 AI agents â€” standard governed",
-        "Review Queue + two-step approvals",
-        "Immutable audit trail + export",
-        "Basic Brand Library",
-        "Analytics & ROI â€” standard",
-        "Priority email support",
-      ],
-      excluded: ["Multi-brand portfolio", "Crisis Console", "SSO/SCIM"],
-      cta: "Start 14-day trial",
-      ctaIcon: "clock",
-      ctaStyle: "ghost",
-      highlight: false,
-      recommended: false,
-      footerNote: "Single-brand workspace only. No multi-entity governance.",
-    },
-    {
-      tag: "RECOMMENDED Â· COMMERCIAL CENTER",
-      name: "Vertex Scale",
-      price: "$799",
-      billingNote: "$799 billed annually",
-      desc: "Coordinate multi-brand teams with advanced approvals, full Brand Library, governed agents, and cross-brand performance intelligence.",
-      stats: [
-        { label: "users", value: "20" },
-        { label: "profiles", value: "25" },
-        { label: "brands", value: "5" },
-        { label: "history", value: "24mo" },
-      ],
-      sectionLabel: "EVERYTHING IN GROWTH, PLUS",
-      features: [
-        "5 AI agents â€” advanced multi-brand",
-        "Advanced multi-stage approvals",
-        "Multi-key approval + SoD enforcement",
-        "Full Brand Library â€” standards & rules",
-        "Crisis Console (standard activation)",
-        "Advanced evidence packaging",
-        "Cross-brand Analytics & ROI",
-        "Named Customer Success Manager",
-        "Quarterly governance review",
-      ],
-      excluded: [],
-      cta: "Book strategy call",
-      ctaIcon: "",
-      ctaStyle: "solid",
-      highlight: true,
-      recommended: true,
-      footerNote:
-        "Best option for multi-brand teams requiring enterprise-validated governance.",
-    },
-    {
-      tag: "REQUIREMENT-BASED",
-      name: "Vertex Corporate",
-      price: "Custom",
-      billingNote: "Annual multi-year contract",
-      desc: "Deploy across corporate brands, regulated workflows, advanced security, evidence-grade auditability, and custom governance architecture.",
-      stats: [
-        { label: "users", value: "Custom" },
-        { label: "profiles", value: "Custom" },
-        { label: "brands", value: "Custom" },
-      ],
-      sectionLabel: "EVERYTHING IN SCALE, PLUS",
-      features: [
-        "Three-key approval protocol",
-        "Evidence Vault + legal hold",
-        "Chain-of-custody + watermarked exports",
-        "Custom AI governance configuration",
-        "Crisis Console â€” full dual-activation",
-        "SSO/SAML + SCIM provisioning",
-        "DPA + security whitepaper",
-        "Named AE + TAM + agreed SLA",
-      ],
-      excluded: [],
-      cta: "Request corporate brief",
-      ctaIcon: "file",
-      ctaStyle: "ghost-cyan",
-      highlight: false,
-      recommended: false,
-      footerNote:
-        "Security and legal review required. SOC2 subject to approval.",
-    },
-  ];
+  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
+      { threshold: 0.05 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <section className="bg-[#080812] py-24 px-6" id="pricing">
-      <div className="max-w-7xl mx-auto text-center mb-14">
-        <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4">
-          â€” Pricing
-        </p>
-        <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
-          Start with proof. Scale with confidence.
-        </h2>
-        <p className="text-white/50 max-w-xl mx-auto mb-8">
-          Your deployment team has built us a good base security. Free to start,
-          no credit card required.
-        </p>
-        <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 rounded-full px-2 py-1.5">
-          <button className="text-sm text-white/40 px-4 py-1.5 rounded-full transition-all">
-            Monthly
-          </button>
-          <button className="text-sm font-semibold text-black bg-white px-4 py-1.5 rounded-full transition-all">
-            Annual
-          </button>
-          <span className="text-xs font-bold text-cyan-400 bg-cyan-400/10 border border-cyan-400/20 px-3 py-1 rounded-full">
-            Save up to 30%
-          </span>
+    <section className="bg-[#080E1A] py-24 px-6">
+      <div ref={ref} className="max-w-[1200] mx-auto">
+
+        {/* Header */}
+        <div className={`text-center mb-10 transition-all duration-700 ease-out ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
+          <h1 className="text-4xl lg:text-5xl font-black text-white leading-tight mb-4">
+            Start with proof. Scale with confidence.
+          </h1>
+          <p className="text-white/40 text-sm leading-relaxed max-w-md mx-auto">
+            Four deployment tiers matched to your governance maturity. Free to
+            start, no credit card required.
+          </p>
         </div>
-      </div>
-      <div className="max-w-7xl mx-auto grid lg:grid-cols-4 gap-5 items-start">
-        {plans.map((p) => (
-          <div
-            key={p.name}
-            className={`rounded-2xl p-6 border flex flex-col relative ${
-              p.highlight
-                ? "border-cyan-400/50 shadow-[0_0_40px_rgba(0,200,240,0.12)]"
-                : "border-white/10"
-            }`}
-            style={
-              p.highlight
-                ? {
-                    background:
-                      "linear-gradient(160deg,#0d1a2e 0%,#080d1a 100%)",
-                  }
-                : { background: "rgba(255,255,255,0.03)" }
-            }
-          >
-            {p.recommended && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-black tracking-widest uppercase text-black bg-cyan-400 px-4 py-1 rounded-full whitespace-nowrap">
-                Recommended
-              </span>
-            )}
-            <p
-              className="text-[10px] font-bold tracking-widest uppercase mb-3"
-              style={{
-                color: p.highlight ? "#00c8f0" : "rgba(255,255,255,0.35)",
-              }}
-            >
-              {p.tag}
-            </p>
-            <h3 className="text-white font-black text-xl mb-2">{p.name}</h3>
-            <div className="flex items-end gap-1 mb-1">
-              {p.price !== "Custom" && (
-                <span className="text-white/50 text-sm leading-none mb-1">
-                  $
-                </span>
-              )}
-              <span className="text-4xl font-black text-white leading-none">
-                {p.price === "Custom" ? "Custom" : p.price.replace("$", "")}
-              </span>
-              {p.price !== "Custom" && (
-                <span className="text-white/40 text-xs mb-1">/mo</span>
-              )}
-            </div>
-            <p className="text-white/30 text-[10px] mb-4">{p.billingNote}</p>
-            <p className="text-white/50 text-xs leading-relaxed mb-5 pb-5 border-b border-white/10">
-              {p.desc}
-            </p>
-            <Link
-              href="/signup"
-              className={`text-center font-bold py-2.5 rounded-xl text-xs transition-all mb-5 flex items-center justify-center gap-2 ${
-                p.ctaStyle === "solid"
-                  ? "bg-cyan-400 hover:bg-cyan-300 text-black"
-                  : p.ctaStyle === "ghost-cyan"
-                    ? "border border-cyan-400/60 hover:border-cyan-400 text-cyan-400 hover:bg-cyan-400/5"
-                    : "border border-white/20 hover:border-white/40 text-white hover:bg-white/5"
+
+        {/* Billing toggle */}
+        <div className={`flex items-center justify-center gap-3 mb-10 transition-all duration-700 ease-out ${visible ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: "150ms" }}>
+          <div className="flex items-center border border-white/10 rounded-full p-1 bg-[#0a0a18]">
+            <button
+              onClick={() => setBilling("monthly")}
+              className={`px-5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
+                billing === "monthly" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60"
               }`}
             >
-              {p.ctaIcon === "play" && <Play className="w-3 h-3" />}
-              {p.ctaIcon === "clock" && <Clock className="w-3 h-3" />}
-              {p.ctaIcon === "file" && <FileText className="w-3 h-3" />}
-              {p.cta}
-            </Link>
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-5 pb-5 border-b border-white/10">
-              {p.stats.map((s) => (
-                <div key={s.label}>
-                  <p className="text-white font-bold text-sm">{s.value}</p>
-                  <p className="text-white/30 text-[10px]">{s.label}</p>
-                </div>
-              ))}
-            </div>
-            <p className="text-[10px] font-bold tracking-widest uppercase text-white/30 mb-3">
-              {p.sectionLabel}
-            </p>
-            <ul className="space-y-2 mb-4">
-              {p.features.map((f) => (
-                <li
-                  key={f}
-                  className="flex items-start gap-2 text-white/70 text-xs"
-                >
-                  <span
-                    className="w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{
-                      background: "rgba(0,200,240,0.15)",
-                      color: "#00c8f0",
-                    }}
-                  >
-                    <Check />
-                  </span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-            {p.excluded.length > 0 && (
-              <>
-                <p className="text-[10px] font-bold tracking-widest uppercase text-white/20 mb-3 mt-2">
-                  NOT INCLUDED
-                </p>
-                <ul className="space-y-2 mb-4">
-                  {p.excluded.map((f) => (
-                    <li
-                      key={f}
-                      className="flex items-start gap-2 text-white/30 text-xs"
-                    >
-                      <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-white/5 text-white/20">
-                        <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
-                          <path
-                            d="M1 1l6 6M7 1L1 7"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      </span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {p.footerNote && (
-              <p className="text-white/20 text-[10px] leading-relaxed mt-auto pt-4 border-t border-white/5">
-                {p.footerNote}
-              </p>
-            )}
+              Monthly
+            </button>
+            <button
+              onClick={() => setBilling("annual")}
+              className={`px-5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 ${
+                billing === "annual" ? "bg-cyan-400 text-black" : "text-white/40 hover:text-white/60"
+              }`}
+            >
+              Annual
+            </button>
           </div>
-        ))}
-      </div>
-      <div className="max-w-7xl mx-auto mt-12">
-        <div className="flex items-center justify-center gap-3 py-5">
-          <span className="text-white/40 text-sm">Need help choosing?</span>
-          <a
-            href="#"
-            className="text-cyan-400 hover:text-cyan-300 text-sm font-semibold transition-colors flex items-center gap-1.5"
-          >
-            Compare all plans <span>â†’</span>
-          </a>
+          <span className="text-xs font-bold px-3 py-1.5 rounded-full border border-green-400/30 bg-green-400/8 text-green-400">
+            Save up to 25%
+          </span>
         </div>
+
+        {/* Cards — NO gap, shared borders */}
+        <div
+          className={`grid grid-cols-1 md:grid-cols-4 transition-all duration-700 ease-out ${
+            visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+          }`}
+          style={{ transitionDelay: "250ms" }}
+        >
+          {PLANS.map((plan, i) => (
+            <div
+              key={plan.name}
+              className={`relative flex flex-col p-5
+                ${plan.highlighted
+                  ? "border-2 border-[#20E7F2]  bg-[#0D1929] z-10 -mx-px"
+                  : "border border-white/10 bg-[#0a0a18]"
+                }
+                ${!plan.highlighted && i === 0 ? "rounded-l-2xl" : ""}
+                ${!plan.highlighted && i === PLANS.length - 1 ? "rounded-r-2xl" : ""}
+                ${!plan.highlighted && i > 0 && !PLANS[i-1].highlighted ? "-ml-px" : ""}
+              `}
+            >
+              {/* Tier label */}
+              <div className="mb-3">
+                {plan.highlighted ? (
+                  <>
+                    <p className="text-cyan-400 text-xs font-medium tracking-widest uppercase">{plan.tier}</p>
+                    <p className="text-[#20E7F280] text-xs font-regular tracking-widest uppercase">{plan.tierSub}</p>
+                  </>
+                ) : (
+                  <p className="text-[#FFFFFF47] text-xs font-medium tracking-widest uppercase">{plan.tier}</p>
+                )}
+                <h3 className="text-white text-lg font-black mt-1">{plan.name}</h3>
+              </div>
+
+              {/* Price */}
+              <div className="mb-3">
+                {plan.price.annual === "Custom" ? (
+                  <>
+                    <p className="text-white text-3xl font-black">Custom</p>
+                    <p className="text-white/30 text-xs mt-1">{plan.priceNote[billing]}</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-0.5">
+                      <span className="text-white text-xs font-bold mt-1.5">$</span>
+                      <span className="text-white text-4xl font-black leading-none">
+                        {plan.price[billing]}
+                      </span>
+                      <span className="text-white/40 text-xs mt-4">/mo</span>
+                    </div>
+                    {plan.priceNote[billing] && (
+                      <p className="text-white/30 text-xs mt-1">{plan.priceNote[billing]}</p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Description */}
+              <p className="text-white/40 text-xs leading-relaxed mb-4">{plan.description}</p>
+
+              {/* CTA */}
+              {plan.highlighted ? (
+                <button className="w-full flex items-center justify-center gap-2 bg-cyan-400 hover:bg-cyan-300 text-black text-xs font-black py-2.5 rounded-xl transition-colors duration-300 mb-4">
+                  <CtaIcon type={plan.ctaIcon} />
+                  {plan.cta}
+                </button>
+              ) : (
+                <button className="w-full flex items-center justify-center gap-2 border border-white/15 text-white/60 hover:text-white hover:border-white/30 text-xs font-semibold py-2.5 rounded-xl transition-all duration-300 mb-4">
+                  <CtaIcon type={plan.ctaIcon} />
+                  {plan.cta}
+                </button>
+              )}
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 mb-4">
+                {plan.stats.map((s, si) => (
+                  <div key={si} className="flex items-center gap-1">
+                    <span className={`text-xs font-medium ${plan.highlighted ? "text-[#FFFFFF80]" : "text-[#FFFFFF80]"}`}>
+                      {s.value}
+                    </span>
+                    {s.label && <span className="text-white/30 text-xs">{s.label}</span>}
+                  </div>
+                ))}
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-white/5 mb-4" />
+
+              {/* Included */}
+              <div className="flex flex-col gap-1.5 flex-1">
+                <p className="text-white/25 text-xs font-medium tracking-widest uppercase mb-2">
+                  {plan.includedLabel}
+                </p>
+                {plan.included.map((f) => (
+                  <div key={f} className="flex items-start gap-2">
+                    <svg className="shrink-0 mt-0.5" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" strokeWidth="2.5">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <span className="text-white/50 text-xs leading-relaxed">{f}</span>
+                  </div>
+                ))}
+
+                {/* Not included */}
+                {plan.notIncluded.length > 0 && (
+                  <>
+                    <p className="text-white/25 text-xs font-black tracking-widest uppercase mt-3 mb-2">
+                      NOT INCLUDED
+                    </p>
+                    {plan.notIncluded.map((f) => (
+                      <div key={f} className="flex items-start gap-2">
+                        <svg className="shrink-0 mt-0.5" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2.5">
+                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                        <span className="text-white/20 text-xs leading-relaxed line-through">{f}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              {/* Footer */}
+              <p className="text-white/15 text-xs leading-relaxed mt-4 pt-3 border-t border-white/5">
+                {plan.footer}
+              </p>
+            </div>
+          ))}
+        </div>
+
       </div>
     </section>
   );
