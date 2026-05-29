@@ -297,6 +297,7 @@ import { authenticate, provisionGuard, scopeGuard } from './shared/authMiddlewar
 import { integrationPlanGate, blockApiKeyUsers, planRateLimit } from './shared/planLimits';
 import { requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';
+import { registerEventBridge } from './services/eventBridge';
 import {
   listApiKeys, createApiKey, revokeApiKey, deleteApiKey,
   listWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, getDeliveryLogs,
@@ -1227,6 +1228,7 @@ import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
+  registerEventBridge();
   const server = app.listen(port, () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers

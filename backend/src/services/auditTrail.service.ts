@@ -1,7 +1,8 @@
 import { supabaseAdmin } from '../shared/supabase';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { resolveAuthorityBindingForAuditEvent } from './identityLedger.service';
+import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -373,6 +374,10 @@ export function computeEventHash(input: {
   return `sha256:${hash}`;
 }
 
+function computeHash(input: string): string {
+  return createHash('sha256').update(input).digest('hex');
+}
+
 function sortedJson(obj: unknown): string {
   if (obj === null || obj === undefined) return '{}';
   if (Array.isArray(obj)) return JSON.stringify(obj);
@@ -475,6 +480,17 @@ export async function createAuditEvent(input: AuditEventInput): Promise<AuditEve
   if (error) throw error;
 
   const result = data as unknown as AuditEvent;
+  try {
+    internalEventBus.emit('audit.event_created', {
+      workspace_id: input.workspace_id,
+      actor_id: input.actor.actor_id,
+      event_id: result.event_id,
+      event_type: input.event_type,
+      event_category: input.event_category,
+    });
+  } catch (emitErr) {
+    logger.error({ emitErr }, 'Failed to emit audit.event_created');
+  }
   return result;
 }
 
@@ -894,7 +910,58 @@ export async function preserveEvents(params: {
   org_id?: string;
   actor: { actor_id: string; actor_type: ActorType; actor_name?: string };
 }) {
-  // Create an evidence.preserved audit event (does NOT mutate original events)
+  const now = new Date().toISOString();
+
+  const { data: events, error: fetchError } = await supabaseAdmin
+    .from('audit_events')
+    .select('*')
+    .in('event_id', params.event_ids)
+    .eq('workspace_id', params.workspace_id);
+
+  if (fetchError) throw fetchError;
+  if (!events || events.length === 0) throw new Error('No audit events found to preserve');
+
+  const vaultIds: string[] = [];
+  for (const event of events) {
+    const payload = JSON.stringify(event);
+    const contentHash = computeHash(payload);
+    const metadataHash = computeHash(JSON.stringify({
+      source_type: 'audit_event', source_id: event.event_id,
+      source_system: 'audit_trail', evidence_type: 'audit_event',
+    }));
+    const itemId = `EVI-${now.substring(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
+    const preservationInput = `${itemId}:${contentHash}:${metadataHash}:${now}`;
+    const preservationReceiptHash = computeHash(preservationInput);
+
+    const { data: vaultItem, error: vaultError } = await supabaseAdmin
+      .from('vault_evidence_items')
+      .insert({
+        item_id: itemId, schema_version: '1.0',
+        tenant_id: params.org_id || 'default', workspace_id: params.workspace_id,
+        data_residency: 'auto',
+        source_type: 'audit_event', source_id: event.event_id,
+        source_system: 'audit_trail',
+        source_timestamp_utc: event.timestamp_utc || event.created_at,
+        evidence_type: 'audit_event', risk_level: event.risk_level || 'medium',
+        sensitivity: 'internal',
+        original_content_hash: contentHash,
+        normalized_content_hash: contentHash,
+        metadata_hash: metadataHash,
+        preservation_receipt_hash: preservationReceiptHash,
+        hash_algorithm: 'SHA-256',
+        preserved_by_actor_id: params.actor.actor_id,
+        preservation_reason: params.reason,
+        retention_class: params.retention_class,
+        vault_state: 'preserved',
+        captured_at: now,
+      })
+      .select('item_id')
+      .single();
+
+    if (vaultError) throw vaultError;
+    vaultIds.push(vaultItem.item_id);
+  }
+
   const preserveEvent = await createAuditEvent({
     workspace_id: params.workspace_id,
     org_id: params.org_id,
@@ -908,12 +975,12 @@ export async function preserveEvents(params: {
     risk_level: 'low',
     status: 'success',
     evidence_state: 'preserved',
-    correlation: { preserved_event_ids: params.event_ids.join(',') },
+    correlation: { preserved_event_ids: params.event_ids.join(','), vault_item_ids: vaultIds.join(',') },
     authority: { permission_used: 'evidence.preserve' },
     change: { field_changed: 'evidence_state', previous_value: 'not_preserved', new_value: 'preserved', change_reason: params.reason },
   } as unknown as AuditEventInput);
 
-  return { preserved: params.event_ids.length, preservation_event_id: preserveEvent.event_id };
+  return { preserved: params.event_ids.length, preservation_event_id: preserveEvent.event_id, vault_item_ids: vaultIds };
 }
 
 // ─── Phase 2: Before/After Diff ──────────────────────────────────────────────
