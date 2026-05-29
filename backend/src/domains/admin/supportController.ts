@@ -83,6 +83,34 @@ export class SupportController {
   }
 
   /**
+   * Count open tickets (SuperAdmin only)
+   */
+  static async countOpenTickets(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('is_superadmin')
+        .eq('id', userId)
+        .single();
+
+      if (!user?.is_superadmin) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const { count, error } = await supabaseAdmin
+        .from('support_tickets')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'OPEN');
+
+      if (error) throw error;
+      res.json({ success: true, count: count ?? 0 });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Resolve/Update ticket status (SuperAdmin only)
    */
   static async updateTicketStatus(req: AuthRequest, res: Response, next: NextFunction) {

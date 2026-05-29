@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import {
   Sliders, Building2, Users, Link2, Calendar,
-  Save, Loader2, CheckCircle2, AlertCircle, RefreshCw,
+  Save, Loader2, CheckCircle2, AlertCircle, RefreshCw, PanelLeftClose,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useSidebarCollapse } from "@/lib/hooks/useSidebarCollapse";
 
 interface WorkspaceSettings {
   id: string;
@@ -27,6 +28,7 @@ const PLAN_COLORS: Record<string, string> = {
 };
 
 export default function WorkspaceSettingsPage() {
+  const { enabled: collapseEnabled, setCollapse } = useSidebarCollapse();
   const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
@@ -172,6 +174,41 @@ export default function WorkspaceSettingsPage() {
                 <AlertCircle className="w-4 h-4" /> Failed to save
               </span>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Interface Preferences */}
+      <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
+        <div className="p-6 border-b border-zinc-800">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <PanelLeftClose className="w-5 h-5 text-indigo-400" />
+            Interface Preferences
+          </h2>
+          <p className="text-zinc-500 text-sm mt-0.5">Customise your workspace layout and display behaviour.</p>
+        </div>
+        <div className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white text-sm font-semibold">Auto-collapse sidebar</p>
+              <p className="text-zinc-500 text-xs mt-0.5">
+                Collapses the sidebar to icons only. Hover over it to expand temporarily.
+              </p>
+            </div>
+            <button
+              onClick={() => setCollapse(!collapseEnabled)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                collapseEnabled ? "bg-indigo-500" : "bg-zinc-700"
+              }`}
+              role="switch"
+              aria-checked={collapseEnabled}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                  collapseEnabled ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
           </div>
         </div>
       </div>

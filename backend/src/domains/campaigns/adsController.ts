@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { logger } from '../../shared/logger';
 
 const META_GRAPH = 'https://graph.facebook.com/v18.0';
 
@@ -25,6 +26,189 @@ async function metaPost(path: string, token: string, body: Record<string, unknow
 function toAdAccountId(raw: string): string {
   return raw.startsWith('act_') ? raw : `act_${raw}`;
 }
+
+// ── Objective mapping: internal → Meta API ────────────────────
+
+const META_OBJECTIVE_MAP: Record<string, string> = {
+  BRAND_AWARENESS:  'BRAND_AWARENESS',
+  TRAFFIC:          'OUTCOME_TRAFFIC',
+  LEAD_GENERATION:  'OUTCOME_LEADS',
+  CONVERSIONS:      'OUTCOME_SALES',
+  POST_ENGAGEMENT:  'POST_ENGAGEMENT',
+  VIDEO_VIEWS:      'VIDEO_VIEWS',
+  REACH:            'REACH',
+};
+
+function resolveMetaObjective(objective: string): string {
+  return META_OBJECTIVE_MAP[objective?.toUpperCase()] || 'REACH';
+}
+
+// ── pushCampaignToMeta — shared service function ───────────────
+// Called from launchCampaign (auto) and POST /push-to-meta (manual).
+// Returns a result object — never throws, so callers can treat it non-fatally.
+
+export async function pushCampaignToMeta(
+  campaign: Record<string, any>,
+  workspaceId: string,
+  userId?: string,
+): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const connectedAccountId = (campaign.boost_settings as Record<string, unknown> | null)?.meta_connected_account_id as string | undefined;
+    if (!connectedAccountId) {
+      return { success: false, error: 'No Meta ad account configured on this campaign. Select one in the campaign wizard.' };
+    }
+
+    const { data: acct } = await supabaseAdmin
+      .from('connected_accounts')
+      .select('id, platform, access_token, account_name, ad_account_id')
+      .eq('id', connectedAccountId)
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!acct) return { success: false, error: 'Meta connected account not found.' };
+    if (!acct.ad_account_id) return { success: false, error: 'No Meta Ad Account linked to this account. Link one in the Accounts page.' };
+
+    const adAccountId = toAdAccountId(acct.ad_account_id);
+    const token       = acct.access_token;
+    const objective   = resolveMetaObjective(campaign.objective || '');
+    const label       = `ZoikoVertex · ${campaign.name}`;
+    const currency    = campaign.budget_currency || 'USD';
+
+    const budgetTotal = campaign.budget_total ? Math.round(Number(campaign.budget_total) * 100) : null;
+    const budgetDaily = campaign.budget_daily ? Math.round(Number(campaign.budget_daily) * 100) : null;
+
+    // 1. Create Meta Campaign
+    const metaCampaign = await metaPost(`/${adAccountId}/campaigns`, token, {
+      name:                  label,
+      objective,
+      status:                'ACTIVE',
+      special_ad_categories: [],
+    }) as any;
+
+    if (metaCampaign.error) {
+      return { success: false, error: `Meta campaign: ${metaCampaign.error.message} (code ${metaCampaign.error.code})` };
+    }
+
+    const metaCampaignId = metaCampaign.id as string;
+
+    // 2. Targeting
+    const geography = (campaign.targeting?.geography as string[] | undefined) || [];
+    const targetingSpec: Record<string, unknown> = {
+      age_min:       18,
+      age_max:       65,
+      geo_locations: { countries: geography.length > 0 ? geography : ['US', 'GB', 'AE'] },
+    };
+
+    // 3. Create Ad Set
+    const startTime = campaign.start_at ? new Date(campaign.start_at).toISOString() : new Date().toISOString();
+    const endTime   = campaign.end_at
+      ? new Date(campaign.end_at).toISOString()
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const adSetBody: Record<string, unknown> = {
+      name:          `${label} · Ad Set`,
+      campaign_id:   metaCampaignId,
+      billing_event: 'IMPRESSIONS',
+      start_time:    startTime,
+      end_time:      endTime,
+      targeting:     targetingSpec,
+      status:        'ACTIVE',
+    };
+
+    if (budgetTotal)    adSetBody.lifetime_budget = budgetTotal;
+    else if (budgetDaily) adSetBody.daily_budget  = budgetDaily;
+    else                adSetBody.daily_budget    = 1000; // $10 fallback
+
+    const metaAdSet = await metaPost(`/${adAccountId}/adsets`, token, adSetBody) as any;
+
+    if (metaAdSet.error) {
+      await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+      return { success: false, error: `Meta ad set: ${metaAdSet.error.message}` };
+    }
+
+    const metaAdSetId = metaAdSet.id as string;
+
+    // 4. Save to campaign_boosts
+    const { data: boost, error: boostErr } = await supabaseAdmin
+      .from('campaign_boosts')
+      .insert({
+        workspace_id:         workspaceId,
+        campaign_id:          campaign.id,
+        connected_account_id: connectedAccountId,
+        platform:             acct.platform,
+        boost_type:           'CAMPAIGN',
+        status:               'ACTIVE',
+        budget_total:         campaign.budget_total || null,
+        budget_daily:         campaign.budget_daily || null,
+        budget_currency:      currency,
+        start_at:             campaign.start_at || startTime,
+        end_at:               campaign.end_at   || endTime,
+        objective,
+        targeting:            { countries: geography.length > 0 ? geography : ['US', 'GB', 'AE'], age_min: 18, age_max: 65 },
+        ad_account_id:        adAccountId,
+        meta_campaign_id:     metaCampaignId,
+        meta_adset_id:        metaAdSetId,
+        created_by:           userId || null,
+      })
+      .select()
+      .single();
+
+    if (boostErr) throw boostErr;
+
+    logger.info({ campaignId: campaign.id, metaCampaignId, metaAdSetId }, '[Meta] Campaign pushed to Meta Ads');
+    return { success: true, data: boost };
+  } catch (err: any) {
+    logger.warn({ err, campaignId: campaign.id }, '[Meta] pushCampaignToMeta failed');
+    return { success: false, error: err.message || 'Unknown error pushing to Meta.' };
+  }
+}
+
+// ── POST /api/v1/campaigns/:id/push-to-meta — Manual trigger ──
+
+export const pushCampaignToMetaHandler = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    const userId      = req.user?.id;
+    if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+    if (!campaign.platforms?.includes('Meta')) {
+      return res.status(400).json({ error: 'This campaign does not target Meta.' });
+    }
+
+    // Check for existing active CAMPAIGN boost to prevent duplicates
+    const { data: existing } = await supabaseAdmin
+      .from('campaign_boosts')
+      .select('id, status, meta_campaign_id')
+      .eq('campaign_id', campaign.id)
+      .eq('boost_type', 'CAMPAIGN')
+      .in('status', ['ACTIVE', 'PENDING'])
+      .maybeSingle();
+
+    if (existing) {
+      return res.status(409).json({
+        error:  'An active Meta campaign already exists for this campaign.',
+        boost_id:   existing.id,
+        meta_campaign_id: existing.meta_campaign_id,
+      });
+    }
+
+    const result = await pushCampaignToMeta(campaign, workspaceId, userId);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.status(201).json({ success: true, data: result.data, message: 'Campaign live on Meta Ads.' });
+  } catch (err) { next(err); }
+};
 
 // ── GET /api/v1/ads/accounts/:connectedAccountId/ad-accounts ──
 // Fetches Meta ad accounts accessible with the connected token

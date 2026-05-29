@@ -156,6 +156,8 @@ export default function CampaignDetailPage() {
   const [pauseReason, setPauseReason]     = useState("");
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [boostTarget, setBoostTarget] = useState<{ type: 'POST' | 'CAMPAIGN'; postId?: string; postContent?: string } | null>(null);
+  const [pushingToMeta, setPushingToMeta] = useState(false);
+  const [metaPushError, setMetaPushError] = useState<string | null>(null);
 
   // Phase 1 — load just the campaign so the page renders immediately
   const loadCampaign = useCallback(async () => {
@@ -250,6 +252,16 @@ export default function CampaignDetailPage() {
       await api.post(`/api/v1/ads/boosts/${boostId}/sync`, {});
       await load();
     } catch {}
+  };
+
+  const handlePushToMeta = async () => {
+    setPushingToMeta(true); setMetaPushError(null);
+    try {
+      await api.post(`/api/v1/campaigns/${id}/push-to-meta`, {});
+      await load();
+    } catch (err: any) {
+      setMetaPushError(err?.data?.error || err?.message || "Failed to push to Meta.");
+    } finally { setPushingToMeta(false); }
   };
 
   const handleRequestBudgetAuth = async () => {
@@ -469,6 +481,71 @@ export default function CampaignDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* Meta Ads Status */}
+            {campaign.platforms?.includes("Meta") && (() => {
+              const metaBoost = boosts.find(b => b.boost_type === "CAMPAIGN" && ["ACTIVE", "PAUSED", "PENDING"].includes(b.status));
+              const failedBoost = boosts.find(b => b.boost_type === "CAMPAIGN" && b.status === "FAILED");
+              return (
+                <div className="p-5 border border-zinc-800 rounded-2xl bg-zinc-900/40">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                        <svg className="w-3.5 h-3.5 text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                      </div>
+                      <h3 className="font-bold text-white text-sm">Meta Ads</h3>
+                      {metaBoost && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          metaBoost.status === "ACTIVE"  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" :
+                          metaBoost.status === "PAUSED"  ? "text-amber-400 bg-amber-500/10 border-amber-500/20" :
+                                                           "text-zinc-400 bg-zinc-800 border-zinc-700"
+                        }`}>{metaBoost.status}</span>
+                      )}
+                    </div>
+                    {!metaBoost && campaign.status === "ACTIVE" && (
+                      <button
+                        onClick={handlePushToMeta}
+                        disabled={pushingToMeta}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-60"
+                      >
+                        {pushingToMeta ? <><Loader2 className="w-3 h-3 animate-spin" />Pushing…</> : <>Push to Meta</>}
+                      </button>
+                    )}
+                    {metaBoost && (
+                      <button onClick={() => handleSyncBoost(metaBoost.id)} className="text-xs text-zinc-500 hover:text-zinc-300 transition">Sync metrics</button>
+                    )}
+                  </div>
+
+                  {metaPushError && (
+                    <div className="mb-3 flex items-start gap-2 p-3 bg-rose-500/5 border border-rose-500/20 rounded-xl text-xs text-rose-400">
+                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{metaPushError}
+                    </div>
+                  )}
+
+                  {metaBoost ? (
+                    <div className="grid grid-cols-4 gap-3">
+                      {[
+                        { label: "Impressions", value: (metaBoost.impressions || 0).toLocaleString() },
+                        { label: "Reach",       value: (metaBoost.reach || 0).toLocaleString() },
+                        { label: "Clicks",      value: (metaBoost.clicks || 0).toLocaleString() },
+                        { label: "Ad Spend",    value: `${campaign.budget_currency || "USD"} ${(metaBoost.spend_recorded || 0).toFixed(2)}` },
+                      ].map(k => (
+                        <div key={k.label} className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                          <p className="text-sm font-bold text-white">{k.value}</p>
+                          <p className="text-[10px] text-zinc-500 mt-0.5">{k.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : failedBoost ? (
+                    <p className="text-xs text-rose-400">Previous push failed. Try again when the campaign is active.</p>
+                  ) : campaign.status === "ACTIVE" ? (
+                    <p className="text-xs text-zinc-500">Campaign has not been pushed to Meta Ads yet. Click <strong className="text-white">Push to Meta</strong> to create the campaign in your Meta Ad Account.</p>
+                  ) : (
+                    <p className="text-xs text-zinc-500">Meta campaign will be created automatically when this campaign is launched, if a Meta Ad Account is configured.</p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Launch gate */}
             {gate && ["APPROVED", "SCHEDULED"].includes(campaign.status) && (

@@ -96,7 +96,7 @@ async function recreateAccounts() {
       id: userId,
       email,
       full_name: name,
-      is_superadmin: role === 'ADMIN' || role === 'WORKSPACE_OWNER' || role === 'DEVELOPER'
+      is_superadmin: false
     });
     if (userError) console.error(`Failed to upsert user ${email}:`, userError.message);
 

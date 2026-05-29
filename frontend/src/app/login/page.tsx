@@ -29,6 +29,12 @@ function LoginForm() {
     });
   }, [router, searchParams]);
 
+  useEffect(() => {
+    if (searchParams.get('error') === 'org_deleted') {
+      setError('Your organization has been permanently deleted. Please contact support for assistance.');
+    }
+  }, [searchParams]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
