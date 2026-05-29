@@ -2,6 +2,8 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as forensicAi from '../../services/forensicAi.service';
 
+const DEFAULT_WORKSPACE_ID = 'WRK-001';
+
 // ─── AI: Generate Case Summary ────────────────────────────────────────────────
 
 export async function generateAiSummary(req: AuthRequest, res: Response, next: NextFunction) {
@@ -130,7 +132,7 @@ export async function createAuditorSession(req: AuthRequest, res: Response, next
     }
     const result = await forensicAi.createAuditorSession({
       case_id, export_id, auditor_id,
-      workspace_id: req.user!.workspace_id || 'WRK-001',
+      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
     });
     res.status(201).json({ success: true, data: result });
   } catch (error) {

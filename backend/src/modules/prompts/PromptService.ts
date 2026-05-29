@@ -18,6 +18,30 @@ interface CreatePromptInput {
   created_by?: string;
 }
 
+// UI shortform → DB enum canonical value. The frontend wizard
+// emits short labels; the deployed `prompt_type` enum uses
+// fuller identifiers. Keep this map in sync with the DB enum.
+const PROMPT_TYPE_MAP: Record<string, string> = {
+  system: 'system_prompt',
+  developer: 'developer_prompt',
+  agent_role: 'agent_role_instruction',
+  task: 'task_instruction',
+  channel: 'channel_instruction',
+  tool_use: 'tool_use_instruction',
+  escalation: 'escalation_instruction',
+  refusal: 'refusal_logic',
+  safety: 'safety_rule',
+  localization: 'localization_instruction',
+  output_format: 'output_format_constraint',
+};
+
+function normalizePromptType(raw: string | undefined): string {
+  const v = (raw || 'system').toLowerCase();
+  // If the UI already sent a canonical value, accept it as-is.
+  if (Object.values(PROMPT_TYPE_MAP).includes(v)) return v;
+  return PROMPT_TYPE_MAP[v] || 'system_prompt';
+}
+
 export class PromptService {
   static async list(workspaceId: string, filters?: { status?: string; risk_tier?: string; prompt_type?: string }) {
     let query = supabaseAdmin.from('prompts').select('*').eq('workspace_id', workspaceId);
@@ -92,17 +116,23 @@ export class PromptService {
   }
 
   static async create(input: CreatePromptInput) {
+    // ── FIX: align with deployed `prompts` schema discovered via
+    //    information_schema. The table has NOT NULL `tenant_id`
+    //    and three Postgres enums (`prompt_type`, `prompt_risk_tier`,
+    //    `prompt_status`) whose values are lowercase. Insert was
+    //    failing with NOT NULL / 22P02 invalid_enum errors.
     const { data, error } = await supabaseAdmin
       .from('prompts')
       .insert({
+        tenant_id: input.workspace_id,          // NOT NULL in schema; mirror workspace
         workspace_id: input.workspace_id,
         name: input.name,
         description: input.description || '',
-        prompt_type: input.prompt_type || 'system',
+        prompt_type: normalizePromptType(input.prompt_type),
         owner_id: input.owner_id,
         owner_name: input.owner_name || '',
-        risk_tier: input.risk_tier || 'TIER_2_MEDIUM',
-        status: 'DRAFT',
+        risk_tier: (input.risk_tier || 'tier_2_medium').toLowerCase(),
+        status: 'draft',                        // enum is lowercase
         linked_agent: input.linked_agent || '',
         linked_agent_id: input.linked_agent_id || null,
         linked_workflow: input.linked_workflow || '',

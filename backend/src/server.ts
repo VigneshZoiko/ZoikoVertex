@@ -29,6 +29,9 @@ import {
   sealExpired,
   createInvestigation,
   createEvent,
+  getEventDiffHandler,
+  getCorrelationTimelineHandler,
+  getEventClustersHandler,
 } from './domains/evidence/auditTrailController';
 import {
   subscribeSSE,
@@ -132,6 +135,8 @@ import {
   getAsyncJob,
   createChainAnchor,
   listChainAnchors,
+  confirmChainAnchor,
+  verifyChainAnchor,
   createTemplateVersion,
   listTemplateVersions,
 } from './domains/evidence/evidenceVaultController';
@@ -151,14 +156,29 @@ import {
   endBreakGlass,
   reviewBreakGlass,
   exportLedger,
-  preserveToVault as identityLedgerPreserveToVault
+  preserveToVault as identityLedgerPreserveToVault,
+  registerServiceAccount,
+  listServiceAccounts,
+  revokeServiceAccount,
+  getActorTimelineWithSessions,
+  evaluateActorRiskFlags,
+  setActorRiskFlags
 } from './domains/evidence/identityLedgerController';
+import {
+  routeToModule,
+  executeChain,
+  listRoutingHistory,
+  listWorkflowChains,
+} from './domains/governance/routingController';
 import { getCollusionMetrics } from './domains/governance/collusionController';
 import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
-import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
+import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleGoogleAdsCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
 import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPosts, updateScheduledPost, getScheduledPost } from './domains/campaigns/schedulerController';
 import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
-import { getCampaignStats, submitCampaignForReview, checkLaunchGate, launchCampaign, pauseCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
+import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
+import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBudgetAuth, rejectBudgetAuth } from './domains/campaigns/budgetAuthController';
+import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
+import { getGoogleAdsCustomers, linkGoogleAdsCustomer, createGoogleBoost, syncGoogleBoostMetrics as syncGoogleMetrics, pauseGoogleBoost, resumeGoogleBoost, cancelGoogleBoost } from './domains/campaigns/googleAdsController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import {
   listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy,
@@ -184,6 +204,7 @@ import {
 import { SuperAdminController } from './domains/admin/superAdminController';
 import { SupportController } from './domains/admin/supportController';
 import { getUserContext } from './domains/identity/userController';
+import { changePlan } from './domains/identity/planController';
 import { listAccounts } from './domains/channels/accountsController';
 import { getPlatformReach } from './domains/channels/platformInsightsController';
 import { listMembers, listRequests, createRequest, updateRequest, deleteMember } from './domains/identity/teamController';
@@ -207,10 +228,12 @@ import {
 } from './modules/knowledge/knowledgeController';
 import { PromptController } from './modules/prompts/promptController';
 import { getResourceUsage } from './domains/monitoring/usageController';
+import { getWalletData, updateAutoTopup } from './domains/billing/walletController';
 import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemetryController';
 import { performGlobalSearch } from './domains/admin/globalSearchController';
 import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
 import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
+import { setupWorkspace } from './domains/identity/onboardingController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
@@ -240,6 +263,7 @@ import {
   getControlStrip,
   getEscalationPaths,
   startWorkflowInstance,
+  executeWorkflowInstance,
   listInstances,
   getInstance,
   transitionInstance,
@@ -273,6 +297,7 @@ import { authenticate, provisionGuard, scopeGuard } from './shared/authMiddlewar
 import { integrationPlanGate, blockApiKeyUsers, planRateLimit } from './shared/planLimits';
 import { requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';
+import { registerEventBridge } from './services/eventBridge';
 import {
   listApiKeys, createApiKey, revokeApiKey, deleteApiKey,
   listWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, getDeliveryLogs,
@@ -307,7 +332,8 @@ import {
   getAnalyticsMetrics,
   createEvidenceBundle,
   lockEvidenceBundle,
-  listEvidenceBundles
+  listEvidenceBundles,
+  subscribeOperationsEvents
 } from './domains/agents/operationsController';
 
 const upload = multer({ dest: os.tmpdir() });
@@ -355,6 +381,7 @@ app.get('/api/v1/health', (req, res) => {
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.post('/api/v1/auth/signup-enterprise', enterpriseSignup);
+app.post('/api/v1/onboarding/setup', authenticate, setupWorkspace);
 app.post('/api/v1/users/provision', provisionGuard, provisionUser);
 
 // Protected Intelligence/AI
@@ -388,6 +415,13 @@ app.post('/api/v1/exceptions/cases/:id/send-to-approvals', authenticate, scopeGu
 app.post('/api/v1/exceptions/cases/:id/send-to-quality-audit', authenticate, scopeGuard('write:governance', '*'), sendToQualityAudit);
 app.get('/api/v1/exceptions/cases/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getExceptionAuditTrail);
 app.post('/api/v1/exceptions/cases/:id/export', authenticate, scopeGuard('read:governance', '*'), exportExceptionRecord);
+
+// ─── Cross-Module Automated Routing ──────────────────────────────────────────
+app.get('/api/v1/routing/chains', authenticate, scopeGuard('read:governance', '*'), listWorkflowChains);
+app.post('/api/v1/routing/route', authenticate, scopeGuard('write:governance', '*'), routeToModule);
+app.post('/api/v1/routing/chain', authenticate, scopeGuard('write:governance', '*'), executeChain);
+app.get('/api/v1/routing/history', authenticate, scopeGuard('read:governance', '*'), listRoutingHistory);
+
 const govGuard = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER');
 // Protected Governance
 app.post('/api/v1/governance/transition', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), transitionStatus);
@@ -427,8 +461,11 @@ app.get('/api/audit-events/subscriptions/:id', authenticate, scopeGuard('read:go
 app.patch('/api/audit-events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), updateSubscriptionRoute);
 app.delete('/api/audit-events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), deleteSubscriptionRoute);
 app.post('/api/audit-events/subscriptions/:id/test', authenticate, govGuard, scopeGuard('read:governance', '*'), testSubscription);
+app.get('/api/audit-events/correlations/:key/:value/timeline', authenticate, scopeGuard('read:governance', '*'), getCorrelationTimelineHandler);
 app.get('/api/audit-events/:id', authenticate, scopeGuard('read:governance', '*'), getEventDetail);
 app.get('/api/audit-events/:id/related', authenticate, scopeGuard('read:governance', '*'), getEventRelated);
+app.get('/api/audit-events/:id/diff', authenticate, scopeGuard('read:governance', '*'), getEventDiffHandler);
+app.get('/api/audit-events/:id/clusters', authenticate, scopeGuard('read:governance', '*'), getEventClustersHandler);
 
 // ─── Audit Trail Routes (Spec-Aligned /api/v1/evidence/audit-trail) ─────────
 app.post('/api/v1/evidence/audit-trail/events', authenticate, govGuard, scopeGuard('read:governance', '*'), createEvent);
@@ -447,8 +484,11 @@ app.get('/api/v1/evidence/audit-trail/events/subscriptions/:id', authenticate, s
 app.patch('/api/v1/evidence/audit-trail/events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), updateSubscriptionRoute);
 app.delete('/api/v1/evidence/audit-trail/events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), deleteSubscriptionRoute);
 app.post('/api/v1/evidence/audit-trail/events/subscriptions/:id/test', authenticate, govGuard, scopeGuard('read:governance', '*'), testSubscription);
+app.get('/api/v1/evidence/audit-trail/events/correlations/:key/:value/timeline', authenticate, scopeGuard('read:governance', '*'), getCorrelationTimelineHandler);
 app.get('/api/v1/evidence/audit-trail/events/:id', authenticate, scopeGuard('read:governance', '*'), getEventDetail);
 app.get('/api/v1/evidence/audit-trail/events/:id/related', authenticate, scopeGuard('read:governance', '*'), getEventRelated);
+app.get('/api/v1/evidence/audit-trail/events/:id/diff', authenticate, scopeGuard('read:governance', '*'), getEventDiffHandler);
+app.get('/api/v1/evidence/audit-trail/events/:id/clusters', authenticate, scopeGuard('read:governance', '*'), getEventClustersHandler);
 
 // ─── Forensic Hub Routes ──────────────────────────────────────────────────────
 app.get('/api/forensic/cases/stats', authenticate, scopeGuard('read:governance', '*'), getForensicStats);
@@ -546,6 +586,8 @@ app.get('/api/evidence-vault/jobs', authenticate, scopeGuard('read:governance', 
 app.get('/api/evidence-vault/jobs/:id', authenticate, scopeGuard('read:governance', '*'), getAsyncJob);
 app.post('/api/evidence-vault/chain-anchors', authenticate, scopeGuard('read:governance', '*'), createChainAnchor);
 app.get('/api/evidence-vault/chain-anchors', authenticate, scopeGuard('read:governance', '*'), listChainAnchors);
+app.post('/api/evidence-vault/chain-anchors/:anchorId/confirm', authenticate, govGuard, scopeGuard('read:governance', '*'), confirmChainAnchor);
+app.get('/api/evidence-vault/chain-anchors/:anchorId/verify', authenticate, scopeGuard('read:governance', '*'), verifyChainAnchor);
 app.post('/api/evidence-vault/templates', authenticate, scopeGuard('read:governance', '*'), createTemplateVersion);
 app.get('/api/evidence-vault/templates', authenticate, scopeGuard('read:governance', '*'), listTemplateVersions);
 
@@ -566,6 +608,14 @@ app.post('/api/identity-ledger/break-glass/:id/end', authenticate, scopeGuard('w
 app.post('/api/identity-ledger/break-glass/:id/review', authenticate, scopeGuard('write:governance', '*'), reviewBreakGlass);
 app.post('/api/identity-ledger/export', authenticate, scopeGuard('read:governance', '*'), exportLedger);
 app.post('/api/identity-ledger/preserve', authenticate, scopeGuard('write:governance', '*'), identityLedgerPreserveToVault);
+
+// Identity Ledger — Phase 2 Governance Depth
+app.get('/api/identity-ledger/service-accounts', authenticate, scopeGuard('read:governance', '*'), listServiceAccounts);
+app.post('/api/identity-ledger/service-accounts', authenticate, scopeGuard('write:governance', '*'), registerServiceAccount);
+app.post('/api/identity-ledger/service-accounts/:actorId/revoke', authenticate, scopeGuard('write:governance', '*'), revokeServiceAccount);
+app.get('/api/identity-ledger/actors/:actorId/timeline/sessions', authenticate, scopeGuard('read:governance', '*'), getActorTimelineWithSessions);
+app.post('/api/identity-ledger/actors/:actorId/risk/evaluate', authenticate, scopeGuard('read:governance', '*'), evaluateActorRiskFlags);
+app.put('/api/identity-ledger/actors/:actorId/risk/flags', authenticate, scopeGuard('write:governance', '*'), setActorRiskFlags);
 
 // Protected Risk & Compliance Command Center
 app.get('/api/v1/governance/risk/pulse', authenticate, govGuard, scopeGuard('read:governance', '*'), getRiskPulse);
@@ -632,6 +682,7 @@ app.post('/api/auth/threads/deauthorize', handleThreadsDeauthorize);
 app.post('/api/auth/threads/data-deletion', handleThreadsDataDeletion);
 app.get('/api/auth/twitter/callback', handleTwitterCallback);
 app.get('/api/auth/youtube/callback', handleYoutubeCallback);
+app.get('/api/auth/googleads/callback', handleGoogleAdsCallback);
 // Protected Social/Account Routes
 app.delete('/api/v1/accounts/:id', authenticate, disconnectAccount);
 app.get('/api/v1/accounts/linkedin/pages', authenticate, getLinkedInPagesSession);
@@ -652,14 +703,44 @@ app.post('/api/v1/campaigns',          authenticate, campaignWriteGuard,  create
 app.patch('/api/v1/campaigns/:id',     authenticate, campaignWriteGuard,  updateCampaign);
 app.delete('/api/v1/campaigns/:id',    authenticate, campaignWriteGuard,  deleteCampaign);
 
-// Phase 2 — governed lifecycle
-app.post('/api/v1/campaigns/:id/submit-review',   authenticate, campaignWriteGuard,   submitCampaignForReview);
-app.get('/api/v1/campaigns/:id/launch-gate',      authenticate, campaignGuard,        checkLaunchGate);
-app.post('/api/v1/campaigns/:id/launch',          authenticate, campaignLaunchGuard,  launchCampaign);
-app.post('/api/v1/campaigns/:id/pause',           authenticate, campaignWriteGuard,   pauseCampaign);
+// Campaign lifecycle
+app.post('/api/v1/campaigns/:id/submit-review',   authenticate, campaignWriteGuard,    submitCampaignForReview);
+app.post('/api/v1/campaigns/:id/approve',         authenticate, campaignLaunchGuard,   approveCampaign);
+app.get('/api/v1/campaigns/:id/launch-gate',      authenticate, campaignGuard,         checkLaunchGate);
+app.post('/api/v1/campaigns/:id/launch',          authenticate, campaignLaunchGuard,   launchCampaign);
+app.post('/api/v1/campaigns/:id/pause',           authenticate, campaignWriteGuard,    pauseCampaign);
 app.post('/api/v1/campaigns/:id/emergency-pause', authenticate, campaignEmergencyGuard, emergencyPauseCampaign);
 app.get('/api/v1/campaigns/:id/events',           authenticate, campaignGuard,        getCampaignEvents);
 app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGuard,   updateSpend);
+app.post('/api/v1/campaigns/:id/push-to-meta',   authenticate, campaignLaunchGuard,  pushCampaignToMetaHandler);
+
+// Budget Authorization routes (Phase 4)
+app.post('/api/v1/campaigns/:id/budget-auth/request', authenticate, campaignWriteGuard,    requestBudgetAuth);
+app.get('/api/v1/campaigns/:id/budget-auth',          authenticate, campaignGuard,         getBudgetAuthForCampaign);
+app.get('/api/v1/budget-authorizations',              authenticate, campaignGuard,         listBudgetAuths);
+app.post('/api/v1/budget-authorizations/:id/approve', authenticate, campaignLaunchGuard,   approveBudgetAuth);
+app.post('/api/v1/budget-authorizations/:id/reject',  authenticate, campaignLaunchGuard,   rejectBudgetAuth);
+
+// Ads / Boost routes (Meta Ads — Phase 2)
+const adsGuard = requireRole('ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'SUPERADMIN');
+app.get('/api/v1/ads/accounts/:connectedAccountId/ad-accounts',  authenticate, adsGuard, getMetaAdAccounts);
+app.post('/api/v1/ads/accounts/:connectedAccountId/link-ad-account', authenticate, adsGuard, linkAdAccount);
+app.post('/api/v1/ads/boosts',          authenticate, adsGuard, createBoost);
+app.get('/api/v1/ads/boosts',           authenticate, adsGuard, listBoosts);
+app.post('/api/v1/ads/boosts/:id/sync', authenticate, adsGuard, syncBoostMetrics);
+app.post('/api/v1/ads/boosts/:id/pause',   authenticate, adsGuard, pauseBoost);
+app.post('/api/v1/ads/boosts/:id/resume',  authenticate, adsGuard, resumeBoost);
+app.delete('/api/v1/ads/boosts/:id',       authenticate, adsGuard, cancelBoost);
+app.get('/api/v1/campaigns/:id/insights',  authenticate, adsGuard, getCampaignInsights);
+
+// Google Ads / Boost routes (Phase 2b)
+app.get('/api/v1/ads/google/accounts/:connectedAccountId/customers',      authenticate, adsGuard, getGoogleAdsCustomers);
+app.post('/api/v1/ads/google/accounts/:connectedAccountId/link-customer', authenticate, adsGuard, linkGoogleAdsCustomer);
+app.post('/api/v1/ads/google/boosts',            authenticate, adsGuard, createGoogleBoost);
+app.post('/api/v1/ads/google/boosts/:id/sync',   authenticate, adsGuard, syncGoogleMetrics);
+app.post('/api/v1/ads/google/boosts/:id/pause',  authenticate, adsGuard, pauseGoogleBoost);
+app.post('/api/v1/ads/google/boosts/:id/resume', authenticate, adsGuard, resumeGoogleBoost);
+app.delete('/api/v1/ads/google/boosts/:id',      authenticate, adsGuard, cancelGoogleBoost);
 
 // Protected Scheduler Routes
 app.post('/api/v1/scheduler/recommend', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), getRecommendations);
@@ -676,6 +757,7 @@ app.delete('/api/v1/library/:id', authenticate, planRateLimit('general'), scopeG
 
 // Protected User Routes
 app.get('/api/v1/user/context', authenticate, getUserContext);
+app.patch('/api/v1/admin/plan', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'), changePlan);
 app.post('/api/v1/user/downgrade-to-free', authenticate, SuperAdminController.downgradeToFreePlan);
 
 // Workspace Settings Routes
@@ -748,6 +830,7 @@ app.post('/api/v1/agents/workflows/instances', authenticate, scopeGuard('write:a
 app.get('/api/v1/agents/workflows/instances', authenticate, scopeGuard('read:agents', '*'), listInstances);
 app.get('/api/v1/agents/workflows/instances/:instanceId', authenticate, scopeGuard('read:agents', '*'), getInstance);
 app.patch('/api/v1/agents/workflows/instances/:instanceId/transition', authenticate, scopeGuard('write:agents', '*'), transitionInstance);
+app.post('/api/v1/agents/workflows/instances/:instanceId/execute', authenticate, scopeGuard('write:agents', '*'), executeWorkflowInstance);
 app.get('/api/v1/agents/workflows/instances/:instanceId/step-runs', authenticate, scopeGuard('read:agents', '*'), getInstanceStepRuns);
 app.get('/api/v1/agents/workflows/instances/:instanceId/evidence', authenticate, scopeGuard('read:agents', '*'), getWorkflowEvidence);
 app.post('/api/v1/agents/workflows/instances/:instanceId/evidence', authenticate, scopeGuard('write:agents', '*'), createEvidence);
@@ -807,6 +890,7 @@ app.patch('/api/v1/agents/:id/incidents/:incidentId/resolve', authenticate, scop
 
 // Agent Operations Routes
 app.get('/api/v1/operations/runs', authenticate, listAgentRuns);
+app.get('/api/v1/operations/events', authenticate, subscribeOperationsEvents);
 app.get('/api/v1/operations/runs/:id', authenticate, getAgentRun);
 app.get('/api/v1/operations/runs/:id/timeline', authenticate, getRunTimeline);
 app.post('/api/v1/operations/runs/:id/pause', authenticate, pauseRun);
@@ -836,6 +920,10 @@ app.get('/api/v1/operations/evidence', authenticate, listEvidenceBundles);
 
 // Monitoring Routes
 app.get('/api/v1/monitoring/usage', authenticate, scopeGuard('read:analytics', '*'), getResourceUsage);
+
+// Billing & Wallet
+app.get('/api/v1/billing/wallet', authenticate, getWalletData);
+app.put('/api/v1/billing/wallet/auto-topup', authenticate, updateAutoTopup);
 app.get('/api/v1/monitoring/models/performance/summary', authenticate, scopeGuard('read:analytics', '*'), getPerformanceSummary);
 app.get('/api/v1/monitoring/models/performance/trends', authenticate, scopeGuard('read:analytics', '*'), getPerformanceTrends);
 app.get('/api/v1/monitoring/models/performance/hallucinations', authenticate, scopeGuard('read:analytics', '*'), getHallucinationFlags);
@@ -848,10 +936,13 @@ app.post('/api/v1/superadmin/organizations', authenticate, superAdminGuard, Supe
 app.post('/api/v1/superadmin/organizations/:orgId/approve', authenticate, superAdminGuard, SuperAdminController.approveOrganization);
 app.post('/api/v1/superadmin/organizations/:orgId/pause', authenticate, superAdminGuard, SuperAdminController.pauseOrganization);
 app.post('/api/v1/superadmin/organizations/:orgId/resume', authenticate, superAdminGuard, SuperAdminController.resumeOrganization);
+app.post('/api/v1/superadmin/organizations/:orgId/restrict', authenticate, superAdminGuard, SuperAdminController.restrictOrganization);
+app.put('/api/v1/superadmin/organizations/:orgId/plan', authenticate, superAdminGuard, SuperAdminController.upgradeOrganizationPlan);
 app.delete('/api/v1/superadmin/organizations/:orgId', authenticate, superAdminGuard, SuperAdminController.deleteOrganization);
 app.get('/api/v1/superadmin/analytics', authenticate, superAdminGuard, SuperAdminController.getAnalytics);
 app.get('/api/v1/superadmin/stats', authenticate, superAdminGuard, SuperAdminController.getPlatformStats);
 app.get('/api/v1/superadmin/tickets', authenticate, superAdminGuard, SupportController.listAllTickets);
+app.get('/api/v1/superadmin/tickets/count', authenticate, superAdminGuard, SupportController.countOpenTickets);
 app.patch('/api/v1/superadmin/tickets/:id', authenticate, superAdminGuard, SupportController.updateTicketStatus);
 
 // Knowledge Base Routes — Governed Knowledge Layer
@@ -1093,6 +1184,43 @@ app.post('/api/v1/validation/callbacks/:callbackId/retry', authenticate, scopeGu
 // Support Routes
 app.post('/api/v1/support/tickets', authenticate, SupportController.submitTicket);
 
+// ─── Inbox & Engagement Routes ───────────────────────────────────────────────
+import {
+  listInboxMessages, getInboxMessage, createReply, generateAiDraft, sendReply,
+  assignMessage, updateMessageStatus, escalateMessage, getEscalationQueue,
+  resolveEscalation, addNote as addInboxNote, deleteInboxMessages, archiveMessage,
+  getMessageAudit, syncPlatformMessages, getPostPreview,
+} from './domains/inbox/inboxController';
+import { verifyMetaWebhook, handleMetaWebhook } from './domains/inbox/inboxWebhook';
+import {
+  listAutoReplyRules, createAutoReplyRule, updateAutoReplyRule, deleteAutoReplyRule,
+} from './domains/inbox/inboxSettingsController';
+
+// Static routes before parameterized :id routes
+app.get('/api/v1/inbox/settings/auto-reply',           authenticate, listAutoReplyRules);
+app.post('/api/v1/inbox/settings/auto-reply',          authenticate, createAutoReplyRule);
+app.patch('/api/v1/inbox/settings/auto-reply/:id',     authenticate, updateAutoReplyRule);
+app.post('/api/v1/inbox/settings/auto-reply/:id/delete', authenticate, deleteAutoReplyRule);
+app.get('/api/v1/inbox/messages',                      authenticate, listInboxMessages);
+app.post('/api/v1/inbox/messages/delete',              authenticate, deleteInboxMessages);
+app.get('/api/v1/inbox/escalations',                   authenticate, getEscalationQueue);
+app.post('/api/v1/inbox/escalations/:escalationId/resolve', authenticate, resolveEscalation);
+app.post('/api/v1/inbox/sync',                         authenticate, syncPlatformMessages);
+app.get('/api/v1/inbox/messages/:id',                  authenticate, getInboxMessage);
+app.post('/api/v1/inbox/messages/:id/reply',           authenticate, createReply);
+app.post('/api/v1/inbox/messages/:id/reply/generate',  authenticate, generateAiDraft);
+app.post('/api/v1/inbox/messages/:replyId/reply/send', authenticate, sendReply);
+app.post('/api/v1/inbox/messages/:id/assign',          authenticate, assignMessage);
+app.patch('/api/v1/inbox/messages/:id/status',         authenticate, updateMessageStatus);
+app.post('/api/v1/inbox/messages/:id/escalate',        authenticate, escalateMessage);
+app.post('/api/v1/inbox/messages/:id/archive',         authenticate, archiveMessage);
+app.post('/api/v1/inbox/messages/:id/notes',           authenticate, addInboxNote);
+app.get('/api/v1/inbox/messages/:id/audit',            authenticate, getMessageAudit);
+app.get('/api/v1/inbox/messages/:id/post-preview',     authenticate, getPostPreview);
+// Meta webhook endpoints (no auth — verified by hub.verify_token / X-Hub-Signature-256)
+app.get('/api/v1/inbox/webhook/meta',  verifyMetaWebhook);
+app.post('/api/v1/inbox/webhook/meta', handleMetaWebhook);
+
 
 
 // Global Error Handler
@@ -1105,6 +1233,7 @@ import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
+  registerEventBridge();
   const server = app.listen(port, () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers

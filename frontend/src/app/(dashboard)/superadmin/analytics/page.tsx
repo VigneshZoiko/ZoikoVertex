@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Shield, 
+  Shield,
   AlertCircle, 
   CheckCircle2, 
   X, 
@@ -15,7 +15,8 @@ import {
   MoreHorizontal,
   Users,
   RotateCcw,
-  Mail
+  Mail,
+  ArrowUpCircle
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -29,6 +30,16 @@ export default function PlatformAnalytics() {
   const [searchTerm, setSearchTerm] = useState("");
   const [tabFilter, setTabFilter] = useState<'all' | 'active' | 'paused' | 'deleted'>('all');
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [openMenuOrgId, setOpenMenuOrgId] = useState<string | null>(null);
+  const [upgradeOrgId, setUpgradeOrgId] = useState<string | null>(null);
+  const [upgradePlanType, setUpgradePlanType] = useState<string>('GROWTH');
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: 'restrict' | 'delete' | 'pause';
+    orgId: string;
+    orgName: string;
+  } | null>(null);
+  const [dropdownUpward, setDropdownUpward] = useState(false);
+
 
   const fetchData = async () => {
     setFetching(true);
@@ -57,18 +68,8 @@ export default function PlatformAnalytics() {
   }, [success, error]);
 
   const handlePause = async (orgId: string) => {
-    if (!confirm("Are you sure you want to pause this organization? All associated workspaces will be restricted.")) return;
-    setActionLoading(orgId);
-    setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'SUSPENDED' } : o));
-    try {
-      await api.post(`/api/v1/superadmin/organizations/${orgId}/pause`, {});
-      setSuccess("Organization paused. All workspaces restricted.");
-    } catch (err) {
-      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
-      setError("Failed to pause organization.");
-    } finally {
-      setActionLoading(null);
-    }
+    const org = organizations.find(o => o.id === orgId);
+    setConfirmDialog({ type: 'pause', orgId, orgName: org?.name || 'Unknown' });
   };
 
   const handleResume = async (orgId: string) => {
@@ -86,12 +87,12 @@ export default function PlatformAnalytics() {
   };
 
   const handleDelete = async (orgId: string) => {
-    if (!confirm("Are you absolutely sure? This will delete the organization and ALL associated workspace data across the entire platform.")) return;
-    setActionLoading(orgId);
+    const org = organizations.find(o => o.id === orgId);
+    setConfirmDialog({ type: 'delete', orgId, orgName: org?.name || 'Unknown' });
     setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'DELETED' } : o));
     try {
       await api.delete(`/api/v1/superadmin/organizations/${orgId}`);
-      setSuccess("Organization and all metadata purged successfully.");
+      setSuccess("Organization permanently banned and all data purged.");
     } catch (err) {
       setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
       setError("Deletion failed. Organization may have active dependencies.");
@@ -99,6 +100,53 @@ export default function PlatformAnalytics() {
       setActionLoading(null);
     }
   };
+
+  const handleRestrict = async (orgId: string) => {
+    const org = organizations.find(o => o.id === orgId);
+    setOpenMenuOrgId(null);
+    setConfirmDialog({ type: 'restrict', orgId, orgName: org?.name || 'Unknown' });
+    setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'RESTRICTED' } : o));
+    try {
+      await api.post(`/api/v1/superadmin/organizations/${orgId}/restrict`, {});
+      setSuccess("Organization temporarily banned.");
+    } catch {
+      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
+      setError("Failed to restrict organization.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUpgradePlan = async () => {
+    if (!upgradeOrgId) return;
+    const orgName = organizations.find(o => o.id === upgradeOrgId)?.name || 'this organization';
+    if (!confirm(`Upgrade ${orgName} to ${upgradePlanType} plan?`)) return;
+    setActionLoading(upgradeOrgId);
+    setUpgradeOrgId(null);
+    setOrganizations(current => current.map(o =>
+      o.id === upgradeOrgId ? { ...o, plan_type: upgradePlanType, status: 'ACTIVE' } : o
+    ));
+    try {
+      await api.put(`/api/v1/superadmin/organizations/${upgradeOrgId}/plan`, { planType: upgradePlanType });
+      setSuccess(`Organization upgraded to ${upgradePlanType}.`);
+    } catch {
+      setError("Failed to upgrade plan.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!openMenuOrgId) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-dropdown-menu]')) {
+        setOpenMenuOrgId(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openMenuOrgId]);
 
   const handleRestore = async (orgId: string) => {
     setActionLoading(orgId);
@@ -114,13 +162,55 @@ export default function PlatformAnalytics() {
     }
   };
 
+  const executeConfirmAction = async () => {
+    if (!confirmDialog) return;
+    const { type, orgId } = confirmDialog;
+    setConfirmDialog(null);
+    setActionLoading(orgId);
+    if (type === 'delete') {
+      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'DELETED' } : o));
+      try {
+        await api.delete(`/api/v1/superadmin/organizations/${orgId}`);
+        setSuccess("Organization permanently banned and all data purged.");
+      } catch (err) {
+        setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
+        setError("Deletion failed. Organization may have active dependencies.");
+      } finally {
+        setActionLoading(null);
+      }
+    } else if (type === 'restrict') {
+      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'RESTRICTED' } : o));
+      try {
+        await api.post(`/api/v1/superadmin/organizations/${orgId}/restrict`, {});
+        setSuccess("Organization temporarily banned.");
+      } catch {
+        setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
+        setError("Failed to restrict organization.");
+      } finally {
+        setActionLoading(null);
+      }
+    } else if (type === 'pause') {
+      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'SUSPENDED' } : o));
+      try {
+        await api.post(`/api/v1/superadmin/organizations/${orgId}/pause`, {});
+        setSuccess("Organization paused. All workspaces restricted.");
+      } catch (err) {
+        setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
+        setError("Failed to pause organization.");
+      } finally {
+        setActionLoading(null);
+      }
+    }
+  };
+
   const activeOrgs = organizations.filter(o => o.status === 'ACTIVE');
   const pausedOrgs = organizations.filter(o => o.status === 'SUSPENDED');
   const deletedOrgs = organizations.filter(o => o.status === 'DELETED');
+  const restrictedOrgs = organizations.filter(o => o.status === 'RESTRICTED');
 
   const filteredOrgs = organizations.filter(org => {
     if (tabFilter === 'active') return org.status === 'ACTIVE';
-    if (tabFilter === 'paused') return org.status === 'SUSPENDED';
+    if (tabFilter === 'paused') return (org.status === 'SUSPENDED' || org.status === 'RESTRICTED');
     if (tabFilter === 'deleted') return org.status === 'DELETED';
     return org.status !== 'DELETED';
   }).filter(org => 
@@ -196,7 +286,7 @@ export default function PlatformAnalytics() {
                     : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                 }`}
               >
-                Paused {pausedOrgs.length}
+                Paused {pausedOrgs.length + restrictedOrgs.length}
               </button>
               <button
                 onClick={() => setTabFilter('deleted')}
@@ -278,11 +368,13 @@ export default function PlatformAnalytics() {
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
                           : org.status === 'SUSPENDED'
                             ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                            : org.status === 'DELETED'
+                            : org.status === 'RESTRICTED'
                               ? 'bg-red-500/10 text-red-600 dark:text-red-400'
-                              : 'bg-[var(--surface)] text-[var(--foreground-muted)]'
+                              : org.status === 'DELETED'
+                                ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                : 'bg-[var(--surface)] text-[var(--foreground-muted)]'
                       }`}>
-                        {org.status === 'SUSPENDED' ? 'Paused' : org.status.charAt(0) + org.status.slice(1).toLowerCase()}
+                        {org.status === 'SUSPENDED' ? 'Paused' : org.status === 'RESTRICTED' ? 'Restricted' : org.status.charAt(0) + org.status.slice(1).toLowerCase()}
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-sm text-[var(--foreground-muted)] align-top">{org.memberCount}</td>
@@ -321,19 +413,56 @@ export default function PlatformAnalytics() {
                                 <Play className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            <button 
-                              onClick={() => handleDelete(org.id)}
-                              disabled={!!actionLoading}
-                              className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-red-500 border border-[var(--border)] rounded transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
                           </>
                         )}
-                        <button className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)] rounded transition-colors">
-                          <MoreHorizontal className="w-3.5 h-3.5" />
-                        </button>
+                        {org.status !== 'DELETED' && (
+                          <button
+                            onClick={() => { setUpgradeOrgId(org.id); setUpgradePlanType(org.plan_type === 'ENTERPRISE' ? 'ENTERPRISE' : org.plan_type === 'GROWTH' ? 'ENTERPRISE' : 'GROWTH'); }}
+                            disabled={!!actionLoading}
+                            className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-indigo-500 border border-[var(--border)] rounded transition-colors"
+                            title="Upgrade Plan"
+                          >
+                            <ArrowUpCircle className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <div className="relative" data-dropdown-menu>
+                          <button
+                            onClick={(e) => {
+                              const willOpen = openMenuOrgId !== org.id;
+                              if (willOpen) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setDropdownUpward(window.innerHeight - rect.bottom < 180);
+                              }
+                              setOpenMenuOrgId(willOpen ? org.id : null);
+                            }}
+                            className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)] rounded transition-colors"
+                            title="More"
+                          >
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </button>
+                          {openMenuOrgId === org.id && (
+                            <div className={`absolute right-0 z-50 w-44 bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-xl py-1 overflow-hidden ${
+                              dropdownUpward ? 'bottom-full mb-1' : 'top-full mt-1'
+                            }`}>
+                              <button
+                                onClick={() => { setOpenMenuOrgId(null); handleDelete(org.id); }}
+                                disabled={!!actionLoading}
+                                className="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-left text-red-600 dark:text-red-400 hover:bg-[var(--surface-hover)] transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete Organization
+                              </button>
+                              <button
+                                onClick={() => handleRestrict(org.id)}
+                                disabled={!!actionLoading}
+                                className="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-left text-[var(--foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+                              >
+                                <Shield className="w-3.5 h-3.5" />
+                                Restrict Organization
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -378,6 +507,110 @@ export default function PlatformAnalytics() {
           </p>
         </div>
       </div>
+
+      {/* Upgrade Plan Modal */}
+      {upgradeOrgId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setUpgradeOrgId(null)}>
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3">Upgrade Plan</h3>
+            <p className="text-xs text-[var(--foreground-muted)] mb-4">
+              {organizations.find(o => o.id === upgradeOrgId)?.name}
+            </p>
+            <div className="flex flex-col gap-1.5 mb-4">
+              {[
+                { value: 'STARTER', label: 'Vertex Starter (FREE)' },
+                { value: 'GROWTH', label: 'Vertex Growth ($399/mo)' },
+                { value: 'ENTERPRISE', label: 'Vertex Enterprise ($999/mo)' },
+              ].map(p => (
+                <label
+                  key={p.value}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                    upgradePlanType === p.value
+                      ? 'border-indigo-500 bg-indigo-500/10 text-[var(--foreground)]'
+                      : 'border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)]'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="planType"
+                    value={p.value}
+                    checked={upgradePlanType === p.value}
+                    onChange={() => setUpgradePlanType(p.value)}
+                    className="accent-indigo-500"
+                  />
+                  <span className="text-xs font-medium">{p.label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setUpgradeOrgId(null)}
+                className="px-3 py-1.5 bg-[var(--background)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpgradePlan}
+                disabled={!!actionLoading}
+                className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUpCircle className="w-3.5 h-3.5" />}
+                Upgrade
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Dialog Modal */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setConfirmDialog(null)}>
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg ${
+              confirmDialog.type === 'delete'
+                ? 'bg-rose-500/10 text-rose-400 shadow-rose-500/10'
+                : confirmDialog.type === 'pause'
+                  ? 'bg-amber-500/10 text-amber-400 shadow-amber-500/10'
+                  : 'bg-amber-500/10 text-amber-400 shadow-amber-500/10'
+            }`}>
+              {confirmDialog.type === 'delete' ? <Trash2 className="w-6 h-6" /> : <Shield className="w-6 h-6" />}
+            </div>
+            <h3 className="text-sm font-semibold text-[var(--foreground)] text-center mb-2">
+              {confirmDialog.type === 'delete' ? 'Permanent Ban' : confirmDialog.type === 'pause' ? 'Pause Organization' : 'Temporary Ban'}
+            </h3>
+            <p className="text-xs text-[var(--foreground-muted)] text-center mb-1">
+              <span className="text-[var(--foreground)] font-semibold">{confirmDialog.orgName}</span>
+            </p>
+            <p className="text-xs text-[var(--foreground-muted)] text-center mb-5">
+              {confirmDialog.type === 'delete'
+                ? 'This is a permanent ban. The organization and ALL associated workspace data will be deleted across the entire platform. This action cannot be undone.'
+                : confirmDialog.type === 'pause'
+                  ? 'This will pause the organization and restrict all associated workspaces until resumed.'
+                  : 'This is a temporary ban. The organization will lose all access until restored by an administrator.'}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="px-3 py-1.5 bg-[var(--background)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeConfirmAction}
+                disabled={!!actionLoading}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                  confirmDialog.type === 'delete'
+                    ? 'bg-red-600 hover:bg-red-500 text-white'
+                    : 'bg-amber-600 hover:bg-amber-500 text-white'
+                }`}
+              >
+                {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                {confirmDialog.type === 'delete' ? 'Permanently Delete' : confirmDialog.type === 'pause' ? 'Pause' : 'Temporarily Ban'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toasts */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-50 pointer-events-none">

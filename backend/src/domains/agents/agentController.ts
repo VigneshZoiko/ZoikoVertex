@@ -235,9 +235,34 @@ export const cloneAgent = async (req: Request, res: Response, next: NextFunction
       .single();
     
     if (fetchError) throw fetchError;
-    
+
+    // ── Clone naming: strip any existing "(Copy)"/"(Copy N)" suffix to get the
+    //    base name, then pick the next free copy index so repeated cloning
+    //    yields "Name (Copy)", "Name (Copy 2)", "Name (Copy 3)" instead of
+    //    stacking "Name (Copy)(Copy)".
+    const baseName = String(original.name).replace(/\s*\(Copy(?:\s+\d+)?\)\s*$/i, '').trim();
+    const escapedBase = baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const copyPattern = new RegExp(`^${escapedBase}\\s*\\(Copy(?:\\s+(\\d+))?\\)$`, 'i');
+
+    const { data: siblings } = await supabaseAdmin
+      .from('agents')
+      .select('name')
+      .eq('workspace_id', original.workspace_id)
+      .ilike('name', `${baseName}%`);
+
+    let maxCopy = 0;
+    for (const sibling of siblings || []) {
+      const match = copyPattern.exec(String(sibling.name));
+      if (match) {
+        const n = match[1] ? parseInt(match[1], 10) : 1; // bare "(Copy)" counts as 1
+        if (n > maxCopy) maxCopy = n;
+      }
+    }
+    const nextCopy = maxCopy + 1;
+    const clonedName = nextCopy === 1 ? `${baseName} (Copy)` : `${baseName} (Copy ${nextCopy})`;
+
     const cloned = {
-      name: `${original.name} (Copy)`,
+      name: clonedName,
       type: original.type,
       status: 'DRAFT',
       autonomy_level: 'L0',
@@ -704,20 +729,47 @@ export const getAgent = async (req: Request, res: Response, next: NextFunction) 
   try {
     const id = getParam(req, 'id');
 
+    // ── FIX: separate-query pattern instead of PostgREST embed JOIN.
+    //    Embed syntax (users!primary_dri_id(...)) depends on FK metadata
+    //    in PostgREST's schema cache — silently fails when stale.
     const { data: agent, error } = await supabaseAdmin
       .from('agents')
-      .select(`
-        *,
-        primary_dri:users!primary_dri_id(full_name, email),
-        backup_dri:users!backup_dri_id(full_name, email),
-        artifacts:agent_artifacts(*)
-      `)
+      .select('*')
       .eq('id', id)
       .single();
 
     if (error) throw error;
+    if (!agent) {
+      return res.status(404).json({ success: false, message: 'Agent not found' });
+    }
 
-    res.status(200).json({ success: true, data: agent });
+    // Hydrate DRI users in a separate query (no FK metadata required).
+    const driIds = [agent.primary_dri_id, agent.backup_dri_id].filter(Boolean);
+    const userMap: Record<string, { full_name: string; email: string }> = {};
+    if (driIds.length > 0) {
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', driIds);
+      (users || []).forEach((u: any) => {
+        userMap[u.id] = { full_name: u.full_name, email: u.email };
+      });
+    }
+
+    // Hydrate artifacts in a separate query (no FK metadata required).
+    const { data: artifacts } = await supabaseAdmin
+      .from('agent_artifacts')
+      .select('*')
+      .eq('agent_id', id);
+
+    const hydrated = {
+      ...agent,
+      primary_dri: agent.primary_dri_id ? userMap[agent.primary_dri_id] || null : null,
+      backup_dri: agent.backup_dri_id ? userMap[agent.backup_dri_id] || null : null,
+      artifacts: artifacts || [],
+    };
+
+    res.status(200).json({ success: true, data: hydrated });
   } catch (error) {
     next(error);
   }
@@ -861,12 +913,26 @@ export const certifyAgent = async (req: Request, res: Response, next: NextFuncti
 
     await logToDatabase('info', AGENT_SERVICE, `Certifying agent ${id} to ${level}`, { level, evidence_score }).catch(() => {});
 
+    // ── FIX: persist trust + faithfulness scores derived from the sandbox
+    //    evidence_score (0–100). Previously certifyAgent only bumped the
+    //    autonomy_level, so the UI's optimistic trust/faithfulness values
+    //    were overwritten with stale DB zeros on the next fetchAgents().
+    //    Scores stored on a 0–1 scale to match the agents table.
+    const rawScore = Number(evidence_score);
+    const normalizedScore = Number.isFinite(rawScore)
+      ? Math.max(0, Math.min(rawScore, 100))
+      : 0;
+    const trustScore = Number(Math.min(normalizedScore / 100, 0.99).toFixed(4));
+    const faithfulnessScore = Number(Math.min((normalizedScore * 0.95) / 100, 0.99).toFixed(4));
 
     const { data: agent, error: updateError } = await supabaseAdmin
       .from('agents')
       .update({
         autonomy_level: level,
         status: 'ACTIVE',
+        trust_score: trustScore,
+        faithfulness_score: faithfulnessScore,
+        last_activity_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -894,6 +960,33 @@ export const certifyAgent = async (req: Request, res: Response, next: NextFuncti
       // agent_artifacts table may not exist
     }
 
+    // ── FIX: agent_certifications.artifact_id is NOT NULL in the deployed
+    //    schema. If the agent has no prior artifact, bootstrap a minimal
+    //    one tied to this certification event so the audit chain stays
+    //    intact and the certification insert satisfies the constraint.
+    if (!latestArtifact) {
+      try {
+        const { data: bootstrapped } = await supabaseAdmin
+          .from('agent_artifacts')
+          .insert([{
+            agent_id: id,
+            version: 1,
+            artifact: {
+              kind: 'certification_bootstrap',
+              note: `auto-created on certification to ${level}`,
+              evidence_score,
+              created_at: new Date().toISOString(),
+            },
+          }])
+          .select('id')
+          .single();
+        latestArtifact = bootstrapped;
+      } catch {
+        // agent_artifacts insert failed (table missing or extra NOT NULL
+        // columns); fall through — the cert insert below will fail closed.
+      }
+    }
+
     const { error: certError } = await supabaseAdmin
       .from('agent_certifications')
       .insert([{
@@ -908,6 +1001,17 @@ export const certifyAgent = async (req: Request, res: Response, next: NextFuncti
     if (certError) {
       if ((certError as any).code === '42P01') {
         return res.status(200).json({ success: true, message: `Agent certified to ${level} (certification record skipped — table not available).`, data: agent });
+      }
+      // ── FIX: NOT NULL violation on artifact_id (or any other missing
+      //    column) should not blackhole the certification — the agent was
+      //    already promoted to ACTIVE above. Degrade gracefully and surface
+      //    the underlying message so the operator can patch the schema.
+      if ((certError as any).code === '23502') {
+        return res.status(200).json({
+          success: true,
+          message: `Agent certified to ${level}. Certification audit row skipped: ${(certError as any).message || 'schema NOT NULL constraint not satisfied'}.`,
+          data: agent,
+        });
       }
       throw certError;
     }
@@ -1079,6 +1183,9 @@ export const getAgentEvidence = async (req: Request, res: Response, next: NextFu
   try {
     const id = getParam(req, 'id');
     const bundles = await fetchEvidenceBundles(id);
+    // Canonical response shape: { success, data: <array of bundles> }.
+    // The legacy `evidence` key is kept for one release to avoid breaking
+    // any out-of-tree consumers; remove after frontend rollout.
     res.status(200).json({ success: true, data: bundles, evidence: bundles });
   } catch (error) {
     next(error);

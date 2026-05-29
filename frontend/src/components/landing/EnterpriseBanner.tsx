@@ -1,4 +1,4 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import { Shield, Globe, BarChart2, FileText } from "lucide-react";
 
 export default function EnterpriseBanner() {
@@ -10,7 +10,7 @@ export default function EnterpriseBanner() {
     },
     {
       title: "Jurisdiction-aware multi-market control",
-      desc: "ZoikoVertex applies the correct regulatory framework per market — automatically. Different rules for different regions, enforced at the agent level.",
+      desc: "ZoikoVertex applies the correct regulatory framework per market â€” automatically. Different rules for different regions, enforced at the agent level.",
       icon: Globe,
     },
     {
@@ -49,7 +49,7 @@ export default function EnterpriseBanner() {
               Governance Control Tower
             </p>
             <p className="text-white/30 text-[11px] text-center mb-6">
-              Autonomous by default · Manual by exception
+              Autonomous by default Â· Manual by exception
             </p>
             <div
               className="relative flex items-center justify-center mb-6"
@@ -209,14 +209,14 @@ export default function EnterpriseBanner() {
 
         <div>
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4">
-            — Governance & Compliance
+            â€” Governance & Compliance
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-white leading-tight mb-5">
             Full autonomy without governance is unacceptable in enterprise
           </h2>
           <p className="text-white/50 text-sm leading-relaxed mb-10">
             ZoikoVertex is designed for autonomous-but-governed controlled,
-            audit-ready outcomes. Enterprise-safe autonomy — the governance
+            audit-ready outcomes. Enterprise-safe autonomy â€” the governance
             rails, but not the brake.
           </p>
           <div className="space-y-7">

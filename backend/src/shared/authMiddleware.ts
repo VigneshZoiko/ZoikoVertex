@@ -123,6 +123,26 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       workspacePlan = 'ENTERPRISE';
     }
 
+    // ── Block deleted-domain users ───────────────────────────────────────
+    if (user.email && !isSuperAdmin) {
+      const domain = user.email.split('@')[1]?.toLowerCase();
+      if (domain) {
+        const { data: deletedOrg } = await supabaseAdmin
+          .from('organizations')
+          .select('id')
+          .eq('deleted_domain', domain)
+          .eq('status', 'DELETED')
+          .maybeSingle();
+        if (deletedOrg) {
+          logger.warn(`[Auth] Rejected login for deleted org domain: ${domain} (user: ${user.email})`);
+          return res.status(403).json({
+            error: 'Your organization has been permanently deleted. Please contact support.',
+            code: 'ORG_DELETED',
+          });
+        }
+      }
+    }
+
     req.user = {
       id: user.id,
       email: user.email,

@@ -207,6 +207,7 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
         workspace_status: null,
         org_id: null,
         org_name: 'ZoikoGroup',
+        plan_type: userData?.is_superadmin ? 'ENTERPRISE' : 'FREE',
         role,
         org_status: effectiveOrgStatus,
         permissions: userData?.is_superadmin ? ['*'] : (ROLE_PERMISSIONS_MAP[String(role || '').toUpperCase()] || []),

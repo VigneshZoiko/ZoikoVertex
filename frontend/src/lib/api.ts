@@ -181,12 +181,24 @@ export const api = {
   async listAgentRuns(params?: {
     status?: string;
     severity?: string;
+    environment?: string;
+    brand?: string;
+    brand_id?: string;
+    search?: string;
+    sort_by?: string;
+    sort_dir?: string;
     limit?: number;
     offset?: number;
   }) {
     const query = new URLSearchParams();
     if (params?.status) query.set("status", params.status);
     if (params?.severity) query.set("severity", params.severity);
+    if (params?.environment) query.set("environment", params.environment);
+    if (params?.brand) query.set("brand", params.brand);
+    if (params?.brand_id) query.set("brand_id", params.brand_id);
+    if (params?.search) query.set("search", params.search);
+    if (params?.sort_by) query.set("sort_by", params.sort_by);
+    if (params?.sort_dir) query.set("sort_dir", params.sort_dir);
     if (params?.limit) query.set("limit", String(params.limit));
     if (params?.offset) query.set("offset", String(params.offset));
     return this.get(`/api/v1/operations/runs?${query.toString()}`);
@@ -212,18 +224,21 @@ export const api = {
     return this.post(`/api/v1/operations/runs/${id}/stop`, { reason });
   },
 
-  async retryRun(id: string, scope?: string) {
-    return this.post(`/api/v1/operations/runs/${id}/retry`, { scope });
+  async retryRun(id: string, reason?: string, scope?: string) {
+    return this.post(`/api/v1/operations/runs/${id}/retry`, { reason, scope });
   },
 
   async quarantineRun(id: string, reason?: string) {
     return this.post(`/api/v1/operations/runs/${id}/quarantine`, { reason });
   },
 
-  async listQueues(params?: { queue_type?: string; status?: string }) {
+  async listQueues(params?: { queue_type?: string; status?: string; environment?: string; brand?: string; brand_id?: string }) {
     const query = new URLSearchParams();
     if (params?.queue_type) query.set("queue_type", params.queue_type);
     if (params?.status) query.set("status", params.status);
+    if (params?.environment) query.set("environment", params.environment);
+    if (params?.brand) query.set("brand", params.brand);
+    if (params?.brand_id) query.set("brand_id", params.brand_id);
     return this.get(`/api/v1/operations/queues?${query.toString()}`);
   },
 
@@ -249,10 +264,13 @@ export const api = {
     return this.post("/api/v1/operations/incidents", data);
   },
 
-  async listIncidents(params?: { severity?: string; status?: string }) {
+  async listIncidents(params?: { severity?: string; status?: string; environment?: string; brand?: string; brand_id?: string }) {
     const query = new URLSearchParams();
     if (params?.severity) query.set("severity", params.severity);
     if (params?.status) query.set("status", params.status);
+    if (params?.environment) query.set("environment", params.environment);
+    if (params?.brand) query.set("brand", params.brand);
+    if (params?.brand_id) query.set("brand_id", params.brand_id);
     return this.get(`/api/v1/operations/incidents?${query.toString()}`);
   },
 
@@ -280,11 +298,25 @@ export const api = {
   async getOperationsAnalytics(params?: {
     time_range?: string;
     metric?: string;
+    environment?: string;
+    brand?: string;
+    brand_id?: string;
   }) {
     const query = new URLSearchParams();
     if (params?.time_range) query.set("time_range", params.time_range);
     if (params?.metric) query.set("metric", params.metric);
+    if (params?.environment) query.set("environment", params.environment);
+    if (params?.brand) query.set("brand", params.brand);
+    if (params?.brand_id) query.set("brand_id", params.brand_id);
     return this.get(`/api/v1/operations/analytics?${query.toString()}`);
+  },
+
+  async getOperationsStatsScoped(params?: { environment?: string; brand?: string; brand_id?: string }) {
+    const query = new URLSearchParams();
+    if (params?.environment) query.set("environment", params.environment);
+    if (params?.brand) query.set("brand", params.brand);
+    if (params?.brand_id) query.set("brand_id", params.brand_id);
+    return this.get(`/api/v1/operations/stats?${query.toString()}`);
   },
 
   async emergencyPause(id: string, reason?: string) {
@@ -751,6 +783,22 @@ export const api = {
 
   async getInboxPostPreview(messageId: string) {
     return this.get(`/api/v1/inbox/messages/${messageId}/post-preview`);
+  },
+
+  async listInboxAutoReplyRules() {
+    return this.get('/api/v1/inbox/settings/auto-reply');
+  },
+
+  async createInboxAutoReplyRule(body: { rule_name?: string; keywords: string[]; reply_body: string; is_active?: boolean; is_case_sensitive?: boolean }) {
+    return this.post('/api/v1/inbox/settings/auto-reply', body);
+  },
+
+  async updateInboxAutoReplyRule(id: string, body: { rule_name?: string; keywords?: string[]; reply_body?: string; is_active?: boolean; is_case_sensitive?: boolean }) {
+    return this.patch(`/api/v1/inbox/settings/auto-reply/${id}`, body);
+  },
+
+  async deleteInboxAutoReplyRule(id: string) {
+    return this.post(`/api/v1/inbox/settings/auto-reply/${id}/delete`, {});
   },
 
   async getPlatformReach() {

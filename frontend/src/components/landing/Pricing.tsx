@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Play, Clock, FileText } from "lucide-react";
 
 const Check = () => (
@@ -36,7 +36,7 @@ export default function Pricing() {
       features: [
         "Command Center (limited)",
         "Analytics snapshot",
-        "AI recommendations — read-only",
+        "AI recommendations â€” read-only",
         "Basic activity log",
         "Email support + help center",
       ],
@@ -67,11 +67,11 @@ export default function Pricing() {
       sectionLabel: "EXECUTION",
       features: [
         "Content Studio + publishing",
-        "5 AI agents — standard governed",
+        "5 AI agents â€” standard governed",
         "Review Queue + two-step approvals",
         "Immutable audit trail + export",
         "Basic Brand Library",
-        "Analytics & ROI — standard",
+        "Analytics & ROI â€” standard",
         "Priority email support",
       ],
       excluded: ["Multi-brand portfolio", "Crisis Console", "SSO/SCIM"],
@@ -83,7 +83,7 @@ export default function Pricing() {
       footerNote: "Single-brand workspace only. No multi-entity governance.",
     },
     {
-      tag: "RECOMMENDED · COMMERCIAL CENTER",
+      tag: "RECOMMENDED Â· COMMERCIAL CENTER",
       name: "Vertex Scale",
       price: "$799",
       billingNote: "$799 billed annually",
@@ -96,10 +96,10 @@ export default function Pricing() {
       ],
       sectionLabel: "EVERYTHING IN GROWTH, PLUS",
       features: [
-        "5 AI agents — advanced multi-brand",
+        "5 AI agents â€” advanced multi-brand",
         "Advanced multi-stage approvals",
         "Multi-key approval + SoD enforcement",
-        "Full Brand Library — standards & rules",
+        "Full Brand Library â€” standards & rules",
         "Crisis Console (standard activation)",
         "Advanced evidence packaging",
         "Cross-brand Analytics & ROI",
@@ -132,7 +132,7 @@ export default function Pricing() {
         "Evidence Vault + legal hold",
         "Chain-of-custody + watermarked exports",
         "Custom AI governance configuration",
-        "Crisis Console — full dual-activation",
+        "Crisis Console â€” full dual-activation",
         "SSO/SAML + SCIM provisioning",
         "DPA + security whitepaper",
         "Named AE + TAM + agreed SLA",
@@ -152,7 +152,7 @@ export default function Pricing() {
     <section className="bg-[#080812] py-24 px-6" id="pricing">
       <div className="max-w-7xl mx-auto text-center mb-14">
         <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4">
-          — Pricing
+          â€” Pricing
         </p>
         <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
           Start with proof. Scale with confidence.
@@ -309,7 +309,7 @@ export default function Pricing() {
             href="#"
             className="text-cyan-400 hover:text-cyan-300 text-sm font-semibold transition-colors flex items-center gap-1.5"
           >
-            Compare all plans <span>→</span>
+            Compare all plans <span>â†’</span>
           </a>
         </div>
       </div>

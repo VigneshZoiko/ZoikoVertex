@@ -1,8 +1,8 @@
-export default function Architecture() {
+﻿export default function Architecture() {
   const layers = [
     {
       label: "STRATEGY",
-      name: "LAYER 1 — STRATEGIC CONTROL",
+      name: "LAYER 1 â€” STRATEGIC CONTROL",
       bg: "#eeeeff",
       labelColor: "#6366f1",
       nameColor: "#a5b4fc",
@@ -20,7 +20,7 @@ export default function Architecture() {
     },
     {
       label: "EXECUTION",
-      name: "LAYER 2 — EXECUTION INTELLIGENCE",
+      name: "LAYER 2 â€” EXECUTION INTELLIGENCE",
       bg: "#ede9fe",
       labelColor: "#7c3aed",
       nameColor: "#c4b5fd",
@@ -36,7 +36,7 @@ export default function Architecture() {
     },
     {
       label: "FINANCIAL",
-      name: "LAYER 3 — FINANCIAL & OPTIMIZATION",
+      name: "LAYER 3 â€” FINANCIAL & OPTIMIZATION",
       bg: "#ccfbf1",
       labelColor: "#0d9488",
       nameColor: "#5eead4",
@@ -52,7 +52,7 @@ export default function Architecture() {
     },
     {
       label: "GOVERNED",
-      name: "LAYER 4 — GOVERNANCE & RISK",
+      name: "LAYER 4 â€” GOVERNANCE & RISK",
       bg: "#ddd6fe",
       labelColor: "#5b21b6",
       nameColor: "#a78bfa",
@@ -68,7 +68,7 @@ export default function Architecture() {
     },
     {
       label: "SIMULATE",
-      name: "LAYER 5 — SIMULATION",
+      name: "LAYER 5 â€” SIMULATION",
       bg: "#d1fae5",
       labelColor: "#059669",
       nameColor: "#6ee7b7",
@@ -91,13 +91,13 @@ export default function Architecture() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-14">
           <p className="text-indigo-500 text-xs font-bold tracking-widest uppercase mb-3">
-            — Agentic Intelligence Architecture
+            â€” Agentic Intelligence Architecture
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">
             A layered system, not a collection of AI helpers
           </h2>
           <p className="text-gray-500 max-w-lg mx-auto text-sm leading-relaxed">
-            Five intelligence layers operating in concert — each purpose-built,
+            Five intelligence layers operating in concert â€” each purpose-built,
             each governed, each working as a closed loop that connects creative,
             channel, spend, and revenue in real time.
           </p>

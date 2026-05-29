@@ -22,7 +22,7 @@ const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 const CACHE_KEY = 'zv_role_cache';
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 interface RoleCache {
   role: string | null;
@@ -112,13 +112,6 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       let nextRole: string | null = null;
       let nextIsSuperAdmin = false;
 
-      if (user.email === 'developer@zoikogroup.com') {
-        nextIsSuperAdmin = true;
-        nextRole = "SUPERADMIN";
-        setIsSuperAdmin(true);
-        setRole("SUPERADMIN");
-      }
-
       const result = await api.get("/api/v1/user/context");
       if (result.success) {
         if (result.data.role) { nextRole = result.data.role.toUpperCase(); setRole(nextRole); }
@@ -140,6 +133,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
           premiumPaidUntil: result.data.premium_paid_until ?? null,
           isSuperAdmin: nextIsSuperAdmin,
         });
+      } else if (result.data?.code === 'ORG_DELETED') {
+        clearCache();
+        await supabase.auth.signOut();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login?error=org_deleted';
+        }
+        return;
       }
     } catch (err) {
       console.error("Failed to fetch user role context:", err);

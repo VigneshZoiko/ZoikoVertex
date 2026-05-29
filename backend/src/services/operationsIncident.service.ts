@@ -26,9 +26,27 @@ export async function listIncidents(params: {
   status?: string;
   severity?: string;
   category?: string;
+  environment?: string;
+  brand_id?: string;
+  brand_name?: string;
   limit: number;
   offset: number;
 }) {
+  let scopedRunIds: string[] | null = null;
+  if (params.environment || params.brand_id || params.brand_name) {
+    let runScope = supabaseAdmin
+      .from('agent_runs')
+      .select('id')
+      .eq('workspace_id', params.workspace_id);
+    if (params.environment) runScope = runScope.eq('environment', params.environment);
+    if (params.brand_id) runScope = runScope.eq('brand_id', params.brand_id);
+    if (params.brand_name) runScope = runScope.ilike('brand_name', params.brand_name);
+    const { data: runs, error: runScopeError } = await runScope;
+    if (runScopeError) throw runScopeError;
+    scopedRunIds = (runs || []).map((run) => run.id);
+    if (scopedRunIds.length === 0) return { incidents: [], total: 0 };
+  }
+
   let query = supabaseAdmin
     .from('incidents')
     .select('*', { count: 'exact' })
@@ -39,6 +57,7 @@ export async function listIncidents(params: {
   if (params.status) query = query.eq('status', params.status);
   if (params.severity) query = query.eq('severity', params.severity);
   if (params.category) query = query.eq('category', params.category);
+  if (scopedRunIds) query = query.in('run_id', scopedRunIds);
 
   const { data, error, count } = await query;
   if (error) throw error;
@@ -94,13 +113,18 @@ export async function createIncident(params: {
   return { id };
 }
 
-export async function resolveIncident(incidentId: string, closedBy: string, remediation?: string) {
-  const { data: existing, error: fetchError } = await supabaseAdmin
+export async function getIncident(incidentId: string) {
+  const { data, error } = await supabaseAdmin
     .from('incidents')
     .select('*')
     .eq('id', incidentId)
     .single();
-  if (fetchError || !existing) throw Object.assign(new Error('Incident not found'), { statusCode: 404 });
+  if (error || !data) throw Object.assign(new Error('Incident not found'), { statusCode: 404 });
+  return data as Incident;
+}
+
+export async function resolveIncident(incidentId: string, closedBy: string, remediation?: string) {
+  const existing = await getIncident(incidentId);
   if (existing.status === 'resolved') throw Object.assign(new Error('Incident already resolved'), { statusCode: 409 });
 
   const updateData: Record<string, any> = {

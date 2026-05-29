@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   images: {
     remotePatterns: [
       {
@@ -69,7 +73,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/v1/:path*',
-        destination: `${process.env.BACKEND_URL || 'http://localhost:5006'}/api/v1/:path*`,
+        destination: `${process.env.BACKEND_URL || 'http://localhost:5005'}/api/v1/:path*`,
       },
     ];
   },

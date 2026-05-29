@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
 import { logToDatabase } from '../shared/databaseLogger';
 
@@ -322,6 +323,19 @@ export async function updateAuditStatus(
     new_value: status,
     performed_by,
   });
+
+  const terminalStates: AuditStatus[] = ['PASSED', 'FAILED', 'CLOSED', 'ARCHIVED'];
+  if (terminalStates.includes(status)) {
+    try {
+      internalEventBus.emit('quality.audit_completed', {
+        workspace_id: 'default',
+        tenant_id: extra?.tenant_id as string || performed_by,
+        actor_id: performed_by,
+        audit_item_id: id,
+        result: status,
+      });
+    } catch { /* non-blocking */ }
+  }
 }
 
 export async function assignAuditor(

@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   FolderKanban, Plus, Loader2, AlertCircle, RefreshCw, X,
-  TrendingUp, Layers, Clock, CheckCircle2, AlertTriangle,
-  DollarSign, ShieldAlert, Zap, ChevronRight, Filter,
+  TrendingUp, Layers, Clock, CheckCircle2,
+  DollarSign, Zap, Filter,
   MoreHorizontal, Pause, Play, Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { useRoleContext } from "@/lib/context/RoleContext";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -25,8 +26,6 @@ interface Campaign {
   spend_recorded?: number;
   spend_data_state?: string;
   risk_tier?: string;
-  approval_tier?: string;
-  three_key_status?: string;
   campaign_manager_name?: string;
   budget_owner_name?: string;
   start_at?: string | null;
@@ -94,23 +93,25 @@ const SPEND_STATE_STYLES: Record<string, string> = {
 // Next action label per status
 function nextAction(c: Campaign): string {
   if (c.status === "DRAFT" && (c.wizard_step ?? 1) < 5) return "Complete wizard";
-  if (c.status === "DRAFT") return "Submit for review";
-  if (c.status === "READY_FOR_REVIEW") return "Awaiting review";
-  if (c.status === "IN_REVIEW") return "Under review";
-  if (c.status === "CHANGES_REQUESTED") return "Address feedback";
+  if (c.status === "DRAFT") return "Request approval";
+  if (c.status === "READY_FOR_REVIEW") return "Awaiting approval";
+  if (c.status === "IN_REVIEW") return "Awaiting approval";
+  if (c.status === "CHANGES_REQUESTED") return "Request approval";
   if (c.status === "APPROVED") return "Ready to launch";
-  if (c.status === "SCHEDULED") return "Launching on schedule";
+  if (c.status === "SCHEDULED") return "Launching soon";
   if (c.status === "ACTIVE") return "Monitoring";
   if (c.status === "PAUSING") return "Pause pending";
   if (c.status === "PAUSED") return "Resume or close";
-  if (c.status === "COMPLETED") return "Close campaign";
+  if (c.status === "COMPLETED") return "View results";
   return "—";
 }
 
-const FILTERS = ["ALL", "NEEDS ACTION", "ACTIVE", "IN REVIEW", "APPROVED", "PAUSED", "DRAFT", "COMPLETED"];
+const FILTERS = ["ALL", "NEEDS ACTION", "ACTIVE", "PENDING APPROVAL", "APPROVED", "PAUSED", "DRAFT", "COMPLETED"];
 
 export default function CampaignsPage() {
   const router = useRouter();
+  const { role, isSuperAdmin } = useRoleContext();
+  const canCreateCampaign = isSuperAdmin || ['ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','CREATOR'].includes(role ?? '');
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -139,7 +140,7 @@ export default function CampaignsPage() {
     if (filter === "ALL") return campaigns;
     if (filter === "NEEDS ACTION") return campaigns.filter(c =>
       ["READY_FOR_REVIEW", "IN_REVIEW", "CHANGES_REQUESTED", "PAUSING"].includes(c.status));
-    if (filter === "IN REVIEW") return campaigns.filter(c =>
+    if (filter === "PENDING APPROVAL") return campaigns.filter(c =>
       ["READY_FOR_REVIEW", "IN_REVIEW", "CHANGES_REQUESTED"].includes(c.status));
     if (filter === "APPROVED") return campaigns.filter(c =>
       ["APPROVED", "SCHEDULED"].includes(c.status));
@@ -167,7 +168,7 @@ export default function CampaignsPage() {
             <h1 className="text-2xl font-bold text-white tracking-tight">Campaigns</h1>
           </div>
           <p className="text-zinc-500 text-sm ml-[52px]">
-            Governed paid campaign operating surface — authority, budget, risk, approval, evidence.
+            Create and manage campaigns. Link posts, track spend, and measure performance.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -175,10 +176,12 @@ export default function CampaignsPage() {
             className="p-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-400 rounded-xl transition-all">
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button onClick={() => router.push("/campaigns/new")}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-indigo-600/20">
-            <Plus className="w-4 h-4" />New Campaign
-          </button>
+          {canCreateCampaign && (
+            <button onClick={() => router.push("/campaigns/new")}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-indigo-600/20">
+              <Plus className="w-4 h-4" />New Campaign
+            </button>
+          )}
         </div>
       </div>
 
@@ -195,14 +198,14 @@ export default function CampaignsPage() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
           {[
-            { label: "Draft",           value: stats.draft,            icon: Layers,       color: "text-zinc-400",    bg: "bg-zinc-800",         alert: false },
-            { label: "In Review",       value: stats.in_review,        icon: Clock,        color: "text-blue-400",    bg: "bg-blue-500/10",       alert: false },
-            { label: "Appr. Pending",   value: stats.approval_pending, icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/10",    alert: false },
-            { label: "Active",          value: stats.active,           icon: Play,         color: "text-emerald-400", bg: "bg-emerald-500/10",    alert: false },
-            { label: "Pausing",         value: stats.pausing,          icon: Pause,        color: "text-amber-400",   bg: "bg-amber-500/10",      alert: stats.pausing > 0 },
-            { label: "Risk Flags",      value: stats.risk_flags,       icon: ShieldAlert,  color: "text-rose-400",    bg: "bg-rose-500/10",       alert: stats.risk_flags > 0 },
-            { label: "Budget",          value: `$${(stats.budget_allocated / 1000).toFixed(0)}k`, icon: DollarSign, color: "text-indigo-400", bg: "bg-indigo-500/10", alert: false },
-            { label: "Needs Action",    value: stats.needs_action,     icon: Zap,          color: "text-amber-400",   bg: "bg-amber-500/10",      alert: stats.needs_action > 0 },
+            { label: "Draft",            value: stats.draft,            icon: Layers,       color: "text-zinc-400",    bg: "bg-zinc-800",        alert: false },
+            { label: "Pending Approval", value: stats.in_review,        icon: Clock,        color: "text-blue-400",    bg: "bg-blue-500/10",     alert: stats.in_review > 0 },
+            { label: "Approved",         value: stats.approval_pending, icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/10",  alert: false },
+            { label: "Active",           value: stats.active,           icon: Play,         color: "text-emerald-400", bg: "bg-emerald-500/10",  alert: false },
+            { label: "Pausing",          value: stats.pausing,          icon: Pause,        color: "text-amber-400",   bg: "bg-amber-500/10",    alert: stats.pausing > 0 },
+            { label: "Paused",           value: stats.paused,           icon: Pause,        color: "text-amber-400",   bg: "bg-amber-500/10",    alert: false },
+            { label: "Budget",           value: `$${(stats.budget_allocated / 1000).toFixed(0)}k`, icon: DollarSign, color: "text-indigo-400", bg: "bg-indigo-500/10", alert: false },
+            { label: "Needs Action",     value: stats.needs_action,     icon: Zap,          color: "text-amber-400",   bg: "bg-amber-500/10",    alert: stats.needs_action > 0 },
           ].map(({ label, value, icon: Icon, color, bg, alert }) => (
             <div key={label} className={`p-4 bg-zinc-900/40 border rounded-2xl transition-colors ${alert ? "border-amber-500/30 hover:border-amber-500/50" : "border-zinc-800 hover:border-zinc-700"}`}>
               <div className={`w-7 h-7 ${bg} rounded-xl flex items-center justify-center mb-3`}>
@@ -222,7 +225,7 @@ export default function CampaignsPage() {
           {FILTERS.map(f => {
             const count = f === "ALL" ? campaigns.length
               : f === "NEEDS ACTION" ? (stats?.needs_action ?? 0)
-              : f === "IN REVIEW" ? (stats?.in_review ?? 0)
+              : f === "PENDING APPROVAL" ? (stats?.in_review ?? 0)
               : f === "APPROVED" ? (stats?.approval_pending ?? 0)
               : f === "ACTIVE" ? (stats?.active ?? 0)
               : f === "PAUSED" ? (stats?.paused ?? 0)
@@ -261,16 +264,18 @@ export default function CampaignsPage() {
           <p className="text-zinc-600 text-sm mt-1 max-w-xs">
             {filter === "NEEDS ACTION" ? "No campaigns need attention right now." : "Try a different filter or create a new campaign."}
           </p>
-          <button onClick={() => router.push("/campaigns/new")}
-            className="mt-5 flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all">
-            <Plus className="w-4 h-4" />New Campaign
-          </button>
+          {canCreateCampaign && (
+            <button onClick={() => router.push("/campaigns/new")}
+              className="mt-5 flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all">
+              <Plus className="w-4 h-4" />New Campaign
+            </button>
+          )}
         </div>
       ) : (
         <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden">
           {/* Table Header */}
-          <div className="grid grid-cols-[1fr_80px_100px_80px_100px_120px_80px_100px_40px] gap-3 px-4 py-3 border-b border-zinc-800 bg-zinc-900/60">
-            {["Campaign", "Type", "Status", "Risk", "Budget / Spend", "Owner", "Approval", "Next Action", ""].map(h => (
+          <div className="grid grid-cols-[1fr_80px_110px_80px_110px_130px_110px_40px] gap-3 px-4 py-3 border-b border-zinc-800 bg-zinc-900/60">
+            {["Campaign", "Type", "Status", "Risk", "Budget / Spend", "Owner", "Next Action", ""].map(h => (
               <p key={h} className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest truncate">{h}</p>
             ))}
           </div>
@@ -281,7 +286,7 @@ export default function CampaignsPage() {
             const spendColor = pct == null ? "" : pct >= 110 ? "text-rose-400" : pct >= 85 ? "text-amber-400" : "text-zinc-300";
             return (
               <div key={c.id}
-                className={`grid grid-cols-[1fr_80px_100px_80px_100px_120px_80px_100px_40px] gap-3 px-4 py-3.5 items-center hover:bg-zinc-900/60 transition-colors ${i < filtered.length - 1 ? "border-b border-zinc-800/60" : ""}`}>
+                className={`grid grid-cols-[1fr_80px_110px_80px_110px_130px_110px_40px] gap-3 px-4 py-3.5 items-center hover:bg-zinc-900/60 transition-colors ${i < filtered.length - 1 ? "border-b border-zinc-800/60" : ""}`}>
 
                 {/* Name */}
                 <div className="min-w-0">
@@ -332,15 +337,6 @@ export default function CampaignsPage() {
                 <p className="text-xs text-zinc-400 truncate">
                   {c.campaign_manager_name || <span className="text-zinc-700">Unassigned</span>}
                 </p>
-
-                {/* Three-key */}
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md w-fit ${
-                  c.three_key_status === "APPROVED" ? "text-emerald-400 bg-emerald-400/10"
-                    : c.three_key_status === "VOIDED" ? "text-rose-400 bg-rose-400/10"
-                    : "text-zinc-500 bg-zinc-800"
-                }`}>
-                  {c.three_key_status === "APPROVED" ? "Signed" : c.three_key_status === "VOIDED" ? "Voided" : "Pending"}
-                </span>
 
                 {/* Next Action */}
                 <Link href={`/campaigns/${c.id}`}

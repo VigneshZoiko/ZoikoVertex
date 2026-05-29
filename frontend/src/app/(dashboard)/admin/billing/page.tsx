@@ -2,477 +2,699 @@
 
 import { useState, useEffect } from "react";
 import {
-  CreditCard, Zap, ShieldCheck, CheckCircle2,
-  ArrowRight, Crown, Building2, Layers,
-  Clock, Download, Sliders, Users, Globe,
-  Database, DollarSign, Lock, AlertTriangle,
-  Loader2, RefreshCw, BarChart3, Activity,
-  FileText, ChevronRight
+  Zap, CheckCircle2, Crown, Globe, Database, DollarSign,
+  Loader2, Activity, FileText, Download, Rocket,
+  TrendingUp, ArrowUpRight, X, Plus, Wallet,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { createPortal } from "react-dom";
+import { useRoleContext } from "@/lib/context/RoleContext";
 
-interface UsageSummaryItem {
-  quantity: number;
-  cost: number;
-  unit: string;
+// ── Types ────────────────────────────────────────────────────────
+
+interface UsageSummaryItem { quantity: number; cost: number; unit: string; }
+
+interface WalletTransaction {
+  id: string;
+  amount: number;
+  type: "CREDIT" | "DEBIT";
+  description: string;
+  campaign_name: string | null;
+  created_at: string;
 }
+
+interface WalletData {
+  balance: number;
+  currency: string;
+  auto_topup_enabled: boolean;
+  auto_topup_threshold: number;
+  auto_topup_amount: number;
+}
+
+// ── Plan data ──────────────────────────────────────────────────
 
 const PLANS = [
   {
     id: "starter",
     name: "Vertex Starter",
-    price: "$0",
+    price: 0,
     annual: null,
     period: "/ month",
     desc: "Start with visibility. Connect limited channels and understand your social governance posture.",
-    cta: "Start Free",
-    color: "text-slate-400",
-    border: "border-slate-800",
-    activeBorder: "border-slate-500",
-    badge: null,
+    icon: Globe,
     features: [
-      "2 users",
-      "2 connected social profiles",
-      "1 workspace & 1 brand",
-      "AI agent preview only",
-      "Analytics snapshot",
-      "Basic activity log",
-      "30-day data retention",
-      "Email & help center support",
+      "2 users", "2 connected social profiles",
+      "1 workspace & 1 brand", "AI agent preview only",
+      "Analytics snapshot", "Basic activity log",
+      "30-day data retention", "Email & help center support",
     ],
     limits: ["No live publishing", "No approval workflows", "No Brand Library", "No Crisis Console"],
   },
   {
     id: "growth",
     name: "Vertex Growth",
-    price: "$399",
-    annual: "$299",
+    price: 399,
+    annual: 299,
     period: "/ month",
     desc: "Run governed campaigns with AI-assisted content, approvals, publishing, and audit-ready execution.",
-    cta: "Start 14-Day Trial",
-    color: "text-indigo-400",
-    border: "border-indigo-900",
-    activeBorder: "border-indigo-500",
-    badge: null,
+    icon: Rocket,
     features: [
-      "7 included users",
-      "8 connected social profiles",
-      "1 brand workspace",
-      "5 AI agents (standard governed mode)",
-      "Full Campaigns & Content Studio",
-      "Review Queue, Validation & Approvals",
-      "Standard Inbox / Engagement",
-      "Immutable audit trail + export controls",
-      "12-month data retention",
-      "Priority email support",
+      "7 included users", "8 connected social profiles",
+      "1 brand workspace", "5 AI agents (standard governed mode)",
+      "Full Campaigns & Content Studio", "Review Queue, Validation & Approvals",
+      "Standard Inbox / Engagement", "Immutable audit trail + export controls",
+      "12-month data retention", "Priority email support",
     ],
     limits: ["No multi-brand portfolio", "No Crisis Console", "No legal hold", "No SSO/SCIM"],
   },
   {
     id: "scale",
     name: "Vertex Scale",
-    price: "$999",
-    annual: "$799",
+    price: 999,
+    annual: 799,
     period: "/ month",
     desc: "Coordinate multi-brand teams with advanced approvals, governed agents, and cross-brand performance intelligence.",
-    cta: "Book Strategy Call",
-    color: "text-cyan-400",
-    border: "border-cyan-900",
-    activeBorder: "border-cyan-500",
-    badge: "Most Popular",
+    icon: TrendingUp,
     features: [
-      "20 included users",
-      "25 connected social profiles",
-      "Up to 5 brands / workspaces",
-      "5 AI agents (advanced governed mode)",
-      "Advanced multi-stage approvals + multi-key",
-      "Full Brand Library",
-      "Crisis Console (standard)",
-      "Advanced evidence packaging",
-      "24-month data retention",
-      "Named Customer Success Manager",
+      "20 included users", "25 connected social profiles",
+      "Up to 5 brands / workspaces", "5 AI agents (advanced governed mode)",
+      "Advanced multi-stage approvals + multi-key", "Full Brand Library",
+      "Crisis Console (standard)", "Advanced evidence packaging",
+      "24-month data retention", "Named Customer Success Manager",
     ],
     limits: ["No full legal hold", "No dedicated environment", "No custom SLA credits"],
   },
   {
     id: "corporate",
     name: "Vertex Corporate",
-    price: "Custom",
+    price: null,
     annual: null,
     period: "pricing",
     desc: "Deploy across corporate brands, regulated workflows, executive oversight, and custom governance architecture.",
-    cta: "Request Corporate Brief",
-    color: "text-amber-400",
-    border: "border-amber-900",
-    activeBorder: "border-amber-500",
-    badge: "Enterprise",
+    icon: Crown,
     features: [
-      "Custom users & profiles",
-      "Custom multi-entity workspaces",
-      "5 AI agents (custom-governed)",
-      "Three-key approval protocol",
-      "Evidence Vault + legal hold",
-      "Full Crisis Console",
-      "SSO / SAML / SCIM",
-      "Custom data retention",
-      "DPA & sub-processor list",
-      "TAM + AE + agreed SLA",
+      "Custom users & profiles", "Custom multi-entity workspaces",
+      "5 AI agents (custom-governed)", "Three-key approval protocol",
+      "Evidence Vault + legal hold", "Full Crisis Console",
+      "SSO / SAML / SCIM", "Custom data retention",
+      "DPA & sub-processor list", "TAM + AE + agreed SLA",
     ],
     limits: [],
   },
 ];
 
-const MATRIX_ROWS = [
-  { label: "Users included", vals: ["2", "7", "20", "Custom"] },
-  { label: "Social profiles", vals: ["2 (limited)", "8", "25", "Custom"] },
-  { label: "Brands / workspaces", vals: ["1", "1", "Up to 5", "Custom"] },
-  { label: "Production publishing", vals: [false, true, true, true] },
-  { label: "AI agents", vals: ["Preview", "5 standard", "5 advanced", "5 custom"] },
-  { label: "Content Studio", vals: [false, true, true, true] },
-  { label: "Review Queue", vals: [false, true, true, true] },
-  { label: "Approvals", vals: [false, "Standard", "Advanced / multi-key", "Three-key protocol"] },
-  { label: "Brand Library", vals: [false, "Basic", "Full", "Advanced / multi-entity"] },
-  { label: "Crisis Console", vals: [false, false, "Standard", "Full"] },
-  { label: "Audit & Evidence", vals: ["Basic log", "Standard immutable", "Advanced packaging", "Evidence Vault + legal hold"] },
-  { label: "SSO / SAML / SCIM", vals: [false, false, "Optional add-on", true] },
-  { label: "Data retention", vals: ["30 days", "12 months", "24 months", "Custom"] },
-  { label: "Support", vals: ["Email / help center", "Priority email", "Named CSM", "TAM + AE + SLA"] },
-];
+// ── Plan stat map (avoids fragile feature-string splitting) ────
+const PLAN_STATS: Record<string, { users: string; profiles: string; brands: string; agents: string }> = {
+  starter:   { users: "2",      profiles: "2",      brands: "1",        agents: "Preview" },
+  growth:    { users: "7",      profiles: "8",      brands: "1",        agents: "5" },
+  scale:     { users: "20",     profiles: "25",     brands: "Up to 5",  agents: "5" },
+  corporate: { users: "Custom", profiles: "Custom", brands: "Custom",   agents: "5 (Custom)" },
+};
+
+// ── Main Component ─────────────────────────────────────────────
+
+// Maps billing page plan IDs → DB plan_type values sent to the API
+const PLAN_ID_TO_DB: Record<string, string> = {
+  starter:   'STARTER',
+  growth:    'GROWTH',
+  scale:     'SCALE',
+  corporate: 'ENTERPRISE',
+};
 
 export default function BillingPage() {
-  const [activePlan] = useState("corporate");
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+  const { refresh: refreshRole } = useRoleContext();
+  const [activeTab, setActiveTab] = useState<"credits" | "billing">("credits");
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [changingPlan, setChangingPlan] = useState<string | null>(null);
+  const [planMessage, setPlanMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // State
+  const [activePlanId, setActivePlanId] = useState<string | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState(true);
   const [summary, setSummary] = useState<Record<string, UsageSummaryItem>>({});
   const [loadingUsage, setLoadingUsage] = useState(true);
 
+  const [wallet, setWallet] = useState<WalletData>({
+    balance: 0, currency: "USD",
+    auto_topup_enabled: false, auto_topup_threshold: 50, auto_topup_amount: 500
+  });
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [loadingWallet, setLoadingWallet] = useState(true);
+
+  // Load Data
   useEffect(() => {
-    const fetchUsage = async () => {
+    const fetchData = async () => {
       setLoadingUsage(true);
+      setLoadingWallet(true);
+      setLoadingPlan(true);
       try {
         const ctx = await api.get("/api/v1/user/context");
         if (ctx.success && ctx.data?.workspace_id) {
-          const res = await api.get(`/api/v1/monitoring/usage?workspaceId=${ctx.data.workspace_id}`);
-          if (res.success) setSummary(res.data?.summary || {});
+          if (ctx.data.plan_type) {
+            let planId = ctx.data.plan_type.toLowerCase();
+            if (planId === 'free')       planId = 'starter';
+            if (planId === 'enterprise') planId = 'corporate';
+            setActivePlanId(PLANS.find(p => p.id === planId) ? planId : 'starter');
+          } else {
+            setActivePlanId('starter');
+          }
+
+          const [usageRes, walletRes] = await Promise.allSettled([
+            api.get(`/api/v1/monitoring/usage?workspaceId=${ctx.data.workspace_id}`),
+            api.get('/api/v1/billing/wallet'),
+          ]);
+
+          if (usageRes.status === 'fulfilled' && usageRes.value?.success)
+            setSummary(usageRes.value.data?.summary || {});
+
+          if (walletRes.status === 'fulfilled' && walletRes.value?.success) {
+            setWallet(walletRes.value.data?.wallet || {
+              balance: 0, currency: "USD",
+              auto_topup_enabled: false, auto_topup_threshold: 50, auto_topup_amount: 500,
+            });
+            setTransactions(walletRes.value.data?.transactions || []);
+          }
         }
       } catch { /* silent */ }
-      finally { setLoadingUsage(false); }
+      finally {
+        setLoadingUsage(false);
+        setLoadingWallet(false);
+        setLoadingPlan(false);
+      }
     };
-    fetchUsage();
+    fetchData();
   }, []);
 
-  const totalCost = Object.values(summary).reduce((a, b) => a + b.cost, 0);
+  const activePlan = PLANS.find(p => p.id === (activePlanId ?? 'starter')) || PLANS[0];
+  const ActiveIcon = activePlan.icon;
+  const activePlanPrice =
+    activePlan.price === null ? "Custom pricing"
+    : activePlan.price === 0  ? "Free"
+    : `$${activePlan.price}${activePlan.period}`;
 
-  const getPrice = (plan: typeof PLANS[0]) => {
-    if (plan.annual && billingCycle === "annual") return plan.annual;
-    return plan.price;
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [updatingAutoTopup, setUpdatingAutoTopup] = useState(false);
+  const handleAutoTopupChange = async (updates: Partial<WalletData>) => {
+    const previousWallet = wallet;
+    const newWallet = { ...wallet, ...updates };
+    setWallet(newWallet);
+    setUpdatingAutoTopup(true);
+    try {
+      await api.put('/api/v1/billing/wallet/auto-topup', newWallet);
+    } catch {
+      setWallet(previousWallet);
+    } finally {
+      setUpdatingAutoTopup(false);
+    }
+  };
+
+  const handleChangePlan = async (planId: string) => {
+    const dbPlan = PLAN_ID_TO_DB[planId];
+    if (!dbPlan || planId === activePlanId) return;
+    setChangingPlan(planId);
+    setPlanMessage(null);
+    try {
+      const res = await api.patch('/api/v1/admin/plan', { plan_type: dbPlan });
+      if (res?.success === false) {
+        setPlanMessage({ type: 'error', text: res.error || 'Failed to change plan.' });
+      } else {
+        setActivePlanId(planId);
+        setPlanMessage({ type: 'success', text: `Plan updated to ${PLANS.find(p => p.id === planId)?.name ?? planId}!` });
+        // Bust the RoleContext cache so the new plan is reflected immediately everywhere
+        await refreshRole();
+        setTimeout(() => setShowUpgradeModal(false), 1200);
+      }
+    } catch {
+      setPlanMessage({ type: 'error', text: 'Something went wrong. Please try again.' });
+    } finally {
+      setChangingPlan(null);
+    }
+  };
+
+  const handleDownloadCSV = () => {
+    if (transactions.length === 0) return;
+    const header = "Date,Description,Campaign,Type,Amount\n";
+    const rows = transactions.map(tx =>
+      `${new Date(tx.created_at).toLocaleDateString()},${JSON.stringify(tx.description || "")},${JSON.stringify(tx.campaign_name || "")},${tx.type},$${Number(tx.amount).toFixed(2)}`
+    ).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-16 pb-32">
-
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <div className="flex items-center gap-2 text-indigo-400 mb-2">
-            <CreditCard className="w-4 h-4" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em]">Licensing & Usage</span>
-          </div>
-          <h1 className="text-4xl font-black text-white tracking-tighter">Billing & Plan Access</h1>
-          <p className="text-zinc-500 mt-1 font-medium">Governed execution platform pricing · Role access · Dashboard surfaces</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="px-5 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center gap-2">
-            <Crown className="w-4 h-4 text-amber-400" />
-            <span className="text-[10px] font-black text-white uppercase tracking-widest">Vertex Corporate Active</span>
-          </div>
-        </div>
+    <div className="p-8 max-w-7xl mx-auto space-y-8 pb-24">
+      {/* ── Header ── */}
+      <div className="space-y-1">
+        <h1 className="text-3xl font-semibold text-white tracking-tight">Billing & Administration</h1>
+        <p className="text-sm text-zinc-400">Manage your workspace plan, platform usage, and credits.</p>
       </div>
 
-      {/* Billing Cycle Toggle */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => setBillingCycle("monthly")}
-          className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${billingCycle === "monthly" ? "bg-indigo-600 text-white" : "bg-zinc-900 text-zinc-500 hover:text-white border border-zinc-800"}`}
+      {/* ── Tabs ── */}
+      <div className="flex items-center gap-6 border-b border-zinc-800">
+        <button 
+          onClick={() => setActiveTab("credits")}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === "credits" ? "border-white text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
+          }`}
         >
-          Monthly
+          Credits
         </button>
-        <button
-          onClick={() => setBillingCycle("annual")}
-          className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${billingCycle === "annual" ? "bg-indigo-600 text-white" : "bg-zinc-900 text-zinc-500 hover:text-white border border-zinc-800"}`}
+        <button 
+          onClick={() => setActiveTab("billing")}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+            activeTab === "billing" ? "border-white text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
+          }`}
         >
-          Annual
-          <span className="ml-2 text-emerald-400">Save ~25%</span>
+          Billing & Usage
         </button>
       </div>
 
-      {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        {PLANS.map((plan) => {
-          const isActive = plan.id === activePlan;
-          return (
-            <div
-              key={plan.id}
-              className={`bg-zinc-950 border ${isActive ? plan.activeBorder + " shadow-[0_0_40px_rgba(99,102,241,0.08)]" : plan.border} rounded-3xl p-8 flex flex-col gap-6 relative transition-all`}
-            >
-              {plan.badge && (
-                <div className={`absolute -top-3 left-6 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${plan.id === "scale" ? "bg-cyan-500 text-black" : "bg-amber-500 text-black"}`}>
-                  {plan.badge}
-                </div>
-              )}
-              {isActive && (
-                <div className="absolute -top-3 right-6 px-3 py-1 bg-indigo-600 rounded-full text-[9px] font-black uppercase tracking-widest text-white">
-                  Active Plan
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <div className={`text-[10px] font-black uppercase tracking-[0.3em] ${plan.color}`}>{plan.name}</div>
-                <div className="text-3xl font-black text-white tracking-tighter">
-                  {getPrice(plan)}
-                  {plan.price !== "Custom" && (
-                    <span className="text-xs text-zinc-500 font-medium tracking-normal ml-1">{plan.period}</span>
-                  )}
-                </div>
-                {plan.annual && billingCycle === "annual" && (
-                  <div className="text-[10px] text-emerald-500 font-bold">Billed annually</div>
-                )}
-                <p className="text-[11px] text-zinc-500 leading-relaxed mt-2">{plan.desc}</p>
+      {/* ── Tab Content: Credits ── */}
+      {activeTab === "credits" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Balance Card */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 flex flex-col justify-center">
+              <h3 className="text-sm font-medium text-zinc-400 mb-2">Available Balance</h3>
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-semibold text-white">
+                  {loadingWallet ? "—" : `$${Number(wallet.balance).toFixed(2)}`}
+                </span>
               </div>
-
-              <div className="space-y-2.5 flex-1">
-                {plan.features.map((f, j) => (
-                  <div key={j} className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                    <span className="text-[11px] text-zinc-300 leading-snug">{f}</span>
-                  </div>
-                ))}
-                {plan.limits.map((l, j) => (
-                  <div key={j} className="flex items-start gap-2.5 opacity-40">
-                    <Lock className="w-3.5 h-3.5 text-zinc-600 shrink-0 mt-0.5" />
-                    <span className="text-[11px] text-zinc-500 leading-snug">{l}</span>
-                  </div>
-                ))}
+              <div className="mt-6">
+                <button
+                  onClick={() => setShowTopUpModal(true)}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-white text-black hover:bg-zinc-200 text-sm font-medium rounded-lg transition-colors">
+                  <Plus className="w-4 h-4" />Add Funds
+                </button>
               </div>
+            </div>
 
-              <button className={`w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                isActive
-                  ? "bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 cursor-default"
-                  : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600"
-              }`}>
-                {isActive ? "Current Plan" : plan.cta}
-                {!isActive && <ChevronRight className="w-3 h-3" />}
+            {/* Auto Top-up Settings */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-white">Auto Top-up</h3>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer"
+                    checked={wallet.auto_topup_enabled}
+                    onChange={(e) => handleAutoTopupChange({ auto_topup_enabled: e.target.checked })}
+                    disabled={updatingAutoTopup}
+                  />
+                  <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-zinc-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 peer-checked:after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white"></div>
+                </label>
+              </div>
+              
+              {wallet.auto_topup_enabled ? (
+                <div className="space-y-4 mt-4 pt-4 border-t border-zinc-800">
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1">When balance falls below</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">$</span>
+                      <input
+                        type="number"
+                        value={wallet.auto_topup_threshold}
+                        onBlur={(e) => handleAutoTopupChange({ auto_topup_threshold: Number(e.target.value) })}
+                        onChange={(e) => setWallet({...wallet, auto_topup_threshold: Number(e.target.value)})}
+                        disabled={updatingAutoTopup}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 pl-7 pr-3 text-sm text-white focus:outline-none focus:border-zinc-600 transition-colors disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1">Auto-recharge with</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">$</span>
+                      <input
+                        type="number"
+                        value={wallet.auto_topup_amount}
+                        onBlur={(e) => handleAutoTopupChange({ auto_topup_amount: Number(e.target.value) })}
+                        onChange={(e) => setWallet({...wallet, auto_topup_amount: Number(e.target.value)})}
+                        disabled={updatingAutoTopup}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 pl-7 pr-3 text-sm text-white focus:outline-none focus:border-zinc-600 transition-colors disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-500 leading-relaxed">
+                  Never run out of funds. We will automatically recharge your balance when it falls below your threshold.
+                </p>
+              )}
+            </div>
+
+            {/* Quick Stats or Instructions */}
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+              <h3 className="text-sm font-medium text-white mb-4">How Credits Work</h3>
+              <p className="text-sm text-zinc-400 leading-relaxed mb-4">
+                Credits fund your active campaigns and execution channels. Your balance is drawn down automatically as campaigns accrue spend. 
+              </p>
+              <div className="flex items-center gap-2 mt-4 text-sm">
+                <CheckCircle2 className="w-4 h-4 text-zinc-300" />
+                <span className="text-zinc-300">Funds are non-refundable.</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Transactions Table */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
+            <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
+              <h3 className="text-sm font-medium text-white">Transaction History</h3>
+              <button
+                onClick={handleDownloadCSV}
+                disabled={transactions.length === 0}
+                className="text-xs font-medium text-zinc-400 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Download className="w-3.5 h-3.5" /> Download CSV
               </button>
             </div>
-          );
-        })}
-      </div>
-
-      {/* Live Usage Metrics */}
-      <div>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Activity className="w-5 h-5 text-indigo-400" />
-            <h2 className="text-xl font-black text-white tracking-tighter">Live Usage Metrics</h2>
-          </div>
-          {loadingUsage && <Loader2 className="w-4 h-4 text-zinc-600 animate-spin" />}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* AI Tokens */}
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-500">
-                <Zap className="w-5 h-5" />
-              </div>
-              <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Intelligence</span>
-            </div>
-            <div>
-              <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">AI Tokens Consumed</div>
-              <div className="text-3xl font-black text-white tracking-tighter">
-                {loadingUsage ? "—" : (summary["AI_TOKENS"]?.quantity?.toLocaleString() || "0")}
-                <span className="text-xs text-zinc-600 font-medium ml-1">tokens</span>
-              </div>
-              <div className="text-[10px] text-zinc-600 mt-1">
-                Est. cost: <span className="text-amber-500">${loadingUsage ? "—" : (summary["AI_TOKENS"]?.cost?.toFixed(4) || "0.0000")}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Social API Calls */}
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-indigo-500">
-                <Globe className="w-5 h-5" />
-              </div>
-              <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Execution</span>
-            </div>
-            <div>
-              <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Social API Calls</div>
-              <div className="text-3xl font-black text-white tracking-tighter">
-                {loadingUsage ? "—" : (summary["SOCIAL_API_CALLS"]?.quantity?.toLocaleString() || "0")}
-                <span className="text-xs text-zinc-600 font-medium ml-1">calls</span>
-              </div>
-              <div className="text-[10px] text-zinc-600 mt-1">
-                Est. cost: <span className="text-indigo-400">${loadingUsage ? "—" : (summary["SOCIAL_API_CALLS"]?.cost?.toFixed(4) || "0.0000")}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Total Spend */}
-          <div className="bg-indigo-600 rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl rounded-full -mr-16 -mt-16" />
-            <div className="relative z-10 space-y-1">
-              <div className="p-2.5 bg-white/10 rounded-xl w-fit text-white mb-3">
-                <DollarSign className="w-5 h-5" />
-              </div>
-              <div className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">Total Operational Spend</div>
-              <div className="text-4xl font-black text-white tracking-tighter">
-                {loadingUsage ? "—" : `$${totalCost.toFixed(4)}`}
-              </div>
-              <div className="text-[10px] text-indigo-300">
-                Est. monthly burn: <span className="text-white font-black">{loadingUsage ? "—" : `$${(totalCost * 30).toFixed(2)}`}</span>
-              </div>
-            </div>
-            <button className="mt-6 w-full py-3 bg-white text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-50 transition-all flex items-center justify-center gap-2">
-              <Download className="w-3.5 h-3.5" /> Export Cost Report
-            </button>
-          </div>
-        </div>
-
-        {/* Storage */}
-        <div className="mt-6 bg-zinc-950 border border-zinc-800 rounded-2xl p-6">
-          <div className="flex items-center gap-2 mb-5">
-            <Database className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm font-black text-white uppercase tracking-widest">Storage Consumption</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                <span>Knowledge / Vector Storage</span>
-                <span className="text-white">{loadingUsage ? "—" : `${summary["STORAGE_MB"]?.quantity?.toFixed(1) || "0"} MB`}</span>
-              </div>
-              <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: loadingUsage ? "0%" : `${Math.min(100, ((summary["STORAGE_MB"]?.quantity || 0) / 500) * 100)}%` }} />
-              </div>
-              <div className="text-[9px] text-zinc-600">Custom limit under Corporate plan</div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                <span>Media Asset Blob Storage</span>
-                <span className="text-white">{loadingUsage ? "—" : `${((summary["STORAGE_MB"]?.quantity || 0) * 0.1).toFixed(2)} GB`}</span>
-              </div>
-              <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: "8%" }} />
-              </div>
-              <div className="text-[9px] text-zinc-600">Custom limit under Corporate plan</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Access Matrix */}
-      <div>
-        <div className="flex items-center gap-3 mb-6">
-          <BarChart3 className="w-5 h-5 text-indigo-400" />
-          <h2 className="text-xl font-black text-white tracking-tighter">Plan Capability Matrix</h2>
-        </div>
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="text-left p-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest w-48">Capability</th>
-                  {PLANS.map(p => (
-                    <th key={p.id} className={`text-center p-4 text-[10px] font-black uppercase tracking-widest ${p.id === activePlan ? p.color : "text-zinc-600"}`}>
-                      {p.id === activePlan ? "★ " : ""}{p.name.replace("Vertex ", "")}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {MATRIX_ROWS.map((row, i) => (
-                  <tr key={i} className="border-b border-zinc-900 hover:bg-zinc-900/30 transition-colors">
-                    <td className="p-4 text-[11px] font-bold text-zinc-400">{row.label}</td>
-                    {row.vals.map((val, j) => (
-                      <td key={j} className="p-4 text-center">
-                        {val === true ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto" />
-                        ) : val === false ? (
-                          <span className="text-zinc-700 text-lg">—</span>
-                        ) : (
-                          <span className={`text-[10px] font-bold ${j === 3 && PLANS[3].id === activePlan ? "text-amber-400" : j === PLANS.findIndex(p => p.id === activePlan) ? "text-indigo-300" : "text-zinc-500"}`}>
-                            {val as string}
-                          </span>
-                        )}
-                      </td>
-                    ))}
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-zinc-900/50 text-zinc-400">
+                  <tr>
+                    <th className="px-5 py-3 font-medium">Date</th>
+                    <th className="px-5 py-3 font-medium">Description</th>
+                    <th className="px-5 py-3 font-medium">Campaign</th>
+                    <th className="px-5 py-3 font-medium text-right">Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/50 text-zinc-300">
+                  {loadingWallet ? (
+                    <tr>
+                      <td colSpan={4} className="px-5 py-8 text-center text-zinc-500">
+                        <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                        Loading transactions...
+                      </td>
+                    </tr>
+                  ) : transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-5 py-8 text-center text-zinc-500">
+                        No transactions found.
+                      </td>
+                    </tr>
+                  ) : (
+                    transactions.map(tx => (
+                      <tr key={tx.id} className="hover:bg-zinc-800/30 transition-colors">
+                        <td className="px-5 py-3 whitespace-nowrap text-zinc-400">
+                          {new Date(tx.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-5 py-3">{tx.description}</td>
+                        <td className="px-5 py-3 text-zinc-400">
+                          {tx.campaign_name ? tx.campaign_name : "—"}
+                        </td>
+                        <td className={`px-5 py-3 text-right font-medium ${tx.type === 'CREDIT' ? 'text-zinc-200' : 'text-zinc-400'}`}>
+                          {tx.type === 'CREDIT' ? '+' : '-'}${Number(tx.amount).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Payment & Invoices */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Payment Method */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-8 space-y-6">
-          <div className="flex items-center gap-3">
-            <CreditCard className="w-5 h-5 text-indigo-400" />
-            <h3 className="text-sm font-black text-white uppercase tracking-widest">Payment Method</h3>
-          </div>
-          <div className="p-5 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-                <Building2 className="w-5 h-5" />
+      {/* ── Tab Content: Billing & Usage ── */}
+      {activeTab === "billing" && (
+        <div className="space-y-6">
+          
+          {/* Active Plan Overview */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+            {loadingPlan ? (
+              <div className="flex items-center gap-3 animate-pulse">
+                <div className="w-10 h-10 rounded-lg bg-zinc-800" />
+                <div className="space-y-2">
+                  <div className="h-4 w-36 rounded bg-zinc-800" />
+                  <div className="h-3 w-56 rounded bg-zinc-800" />
+                </div>
               </div>
-              <div>
-                <div className="text-sm font-black text-white">Corporate Invoice</div>
-                <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Annual contract · Auto-renew</div>
+            ) : (
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+
+                <div className="space-y-5 flex-1">
+                  {/* Plan header */}
+                  <div className="flex items-start gap-3">
+                    <div className="p-2.5 bg-zinc-800 rounded-lg border border-zinc-700 mt-0.5">
+                      <ActiveIcon className="w-5 h-5 text-zinc-300" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h2 className="text-lg font-semibold text-white">{activePlan.name}</h2>
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 uppercase tracking-wider">Active</span>
+                        <span className="text-sm font-semibold text-zinc-200">{activePlanPrice}</span>
+                        {activePlan.annual && (
+                          <span className="text-xs text-zinc-500">(${activePlan.annual}/mo billed annually)</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-zinc-400 mt-1">{activePlan.desc}</p>
+                    </div>
+                  </div>
+
+                  {/* Stat chips */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                    {[
+                      { label: "Included Users",    value: PLAN_STATS[activePlan.id]?.users    ?? "—" },
+                      { label: "Social Profiles",   value: PLAN_STATS[activePlan.id]?.profiles ?? "—" },
+                      { label: "Brands/Workspaces", value: PLAN_STATS[activePlan.id]?.brands   ?? "—" },
+                      { label: "AI Agents",         value: PLAN_STATS[activePlan.id]?.agents   ?? "—" },
+                    ].map(stat => (
+                      <div key={stat.label} className="bg-zinc-800/50 rounded-lg px-3 py-2.5 border border-zinc-800">
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">{stat.label}</p>
+                        <p className="text-sm font-semibold text-zinc-100">{stat.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Included features */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 pt-2">
+                    {activePlan.features.map((f, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs text-zinc-400">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-zinc-600 shrink-0 mt-0.5" />
+                        <span>{f}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Limits (what's not included) */}
+                  {activePlan.limits.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {activePlan.limits.map((l, i) => (
+                        <span key={i} className="text-[10px] px-2 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-600">{l}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* CTA */}
+                <div className="flex flex-col items-start md:items-end gap-3 min-w-[180px] justify-start pt-1">
+                  <button
+                    onClick={() => setShowUpgradeModal(true)}
+                    className="px-5 py-2.5 w-full bg-white text-black hover:bg-zinc-200 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    {activePlan.id === 'corporate' ? 'Manage Plan' : 'Upgrade Plan'}
+                    <ArrowUpRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+              </div>
+            )}
+          </div>
+
+          {/* Usage Metrics */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-zinc-400" />
+              <h3 className="text-sm font-medium text-white">Current Usage</h3>
+              {loadingUsage && <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin ml-2" />}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Intelligence */}
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="w-4 h-4 text-zinc-400" />
+                  <span className="text-sm font-medium text-zinc-300">Intelligence</span>
+                </div>
+                <p className="text-2xl font-semibold text-white">
+                  {loadingUsage ? "—" : (summary["AI_TOKENS"]?.quantity?.toLocaleString() || "0")}
+                </p>
+                <p className="text-xs text-zinc-500 mt-1">AI Tokens processed</p>
+              </div>
+
+              {/* Execution */}
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Globe className="w-4 h-4 text-zinc-400" />
+                  <span className="text-sm font-medium text-zinc-300">Execution</span>
+                </div>
+                <p className="text-2xl font-semibold text-white">
+                  {loadingUsage ? "—" : (summary["SOCIAL_API_CALLS"]?.quantity?.toLocaleString() || "0")}
+                </p>
+                <p className="text-xs text-zinc-500 mt-1">Social API Calls</p>
+              </div>
+
+              {/* Storage */}
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Database className="w-4 h-4 text-zinc-400" />
+                  <span className="text-sm font-medium text-zinc-300">Storage</span>
+                </div>
+                <p className="text-2xl font-semibold text-white">
+                  {loadingUsage ? "—" : (summary["STORAGE_MB"]?.quantity?.toFixed(1) || "0.0")}
+                </p>
+                <p className="text-xs text-zinc-500 mt-1">MB of Knowledge Data</p>
               </div>
             </div>
-            <button className="p-2 hover:bg-zinc-800 rounded-lg transition-colors">
-              <ArrowRight className="w-4 h-4 text-indigo-400" />
+          </div>
+
+          {/* Payment History */}
+          <div className="space-y-4 pt-4 border-t border-zinc-800/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-zinc-400" />
+                <h3 className="text-sm font-medium text-white">Payment History</h3>
+              </div>
+            </div>
+            
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-8 text-center">
+              <FileText className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
+              <p className="text-sm font-medium text-zinc-400">No invoices yet</p>
+              <p className="text-xs text-zinc-600 mt-1">Invoices will appear here once Stripe billing is connected.</p>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* ── Top-Up Modal ── */}
+      {showTopUpModal && mounted && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowTopUpModal(false)} />
+          <div className="relative z-10 w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-zinc-800 rounded-xl"><Wallet className="w-4 h-4 text-zinc-300" /></div>
+                <h2 className="text-base font-semibold text-white">Add Funds</h2>
+              </div>
+              <button onClick={() => setShowTopUpModal(false)} className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-xl text-center space-y-2">
+              <DollarSign className="w-8 h-8 text-zinc-500 mx-auto" />
+              <p className="text-sm font-medium text-zinc-300">Stripe integration coming soon</p>
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Campaign wallet top-up via Stripe will be available in Phase 5.
+                Once enabled, funds will be drawn down automatically as campaigns accrue ad spend.
+              </p>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {["$25", "$50", "$100", "$250"].map(amt => (
+                <div key={amt} className="py-2 text-center text-sm font-medium text-zinc-600 bg-zinc-900 border border-zinc-800 rounded-lg">{amt}</div>
+              ))}
+            </div>
+            <button disabled className="w-full py-2.5 bg-zinc-800 text-zinc-600 text-sm font-medium rounded-lg cursor-not-allowed border border-zinc-700">
+              Top Up — Coming Soon
             </button>
           </div>
-          <button className="w-full py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border border-zinc-800">
-            Manage Billing Portal
-          </button>
-        </div>
+        </div>,
+        document.body
+      )}
 
-        {/* Invoices & Audit */}
-        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-8 space-y-6">
-          <div className="flex items-center gap-3">
-            <FileText className="w-5 h-5 text-indigo-400" />
-            <h3 className="text-sm font-black text-white uppercase tracking-widest">Invoices & Audit Exports</h3>
-          </div>
-          <div className="space-y-3">
-            {["May 2025", "Apr 2025", "Mar 2025"].map((month, i) => (
-              <div key={i} className="flex items-center justify-between p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800/60 transition-all group cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-zinc-600" />
-                  <div>
-                    <div className="text-xs font-black text-white">{month} — Corporate Invoice</div>
-                    <div className="text-[10px] text-zinc-600 uppercase tracking-widest">Annual contract · PDF</div>
-                  </div>
-                </div>
-                <Download className="w-4 h-4 text-zinc-600 group-hover:text-indigo-400 transition-colors" />
+      {/* ── Upgrade Modal ── */}
+      {showUpgradeModal && mounted && createPortal(
+        <div className="fixed inset-0 z-[9999] flex justify-end">
+          <div 
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" 
+            onClick={() => setShowUpgradeModal(false)} 
+          />
+          <div className="relative z-10 w-full max-w-5xl bg-zinc-950 border-l border-zinc-800 h-full overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="sticky top-0 z-20 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800 p-6 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-white">Change subscription plan</h2>
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {planMessage && (
+              <div className={`mx-6 mt-4 p-3 rounded-lg text-sm font-medium text-center ${
+                planMessage.type === 'success'
+                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                  : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+              }`}>
+                {planMessage.text}
               </div>
-            ))}
-          </div>
-          <p className="text-[10px] text-zinc-600 text-center">Full audit ledger exports available in the Evidence Vault</p>
-        </div>
-      </div>
+            )}
 
-      {/* Policy Alert */}
-      <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-6 flex items-center gap-4">
-        <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0" />
-        <div>
-          <div className="text-xs font-black text-emerald-400 uppercase tracking-widest">Corporate Plan Active — No Quota Limits</div>
-          <p className="text-xs text-emerald-500/60 mt-0.5">Your plan has custom limits. Contact your Account Executive or TAM for entitlement review.</p>
-        </div>
-      </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {PLANS.map(plan => {
+                const Icon = plan.icon;
+                const isActive = plan.id === activePlanId;
+                const isChanging = changingPlan === plan.id;
+                return (
+                  <div key={plan.id} className={`p-5 rounded-xl border flex flex-col ${isActive ? 'bg-zinc-900 border-zinc-600 ring-1 ring-white/10' : 'bg-zinc-900/50 border-zinc-800'}`}>
+                    <Icon className="w-6 h-6 text-zinc-300 mb-4" />
+                    <h3 className="text-lg font-semibold text-white">{plan.name}</h3>
+                    <p className="text-2xl font-bold text-white mt-2">
+                      {plan.price !== null && plan.price > 0 ? `$${plan.price}` : plan.price === 0 ? "Free" : "Custom"}
+                      <span className="text-sm font-normal text-zinc-500">
+                        {plan.price !== null && plan.price > 0 ? plan.period : ""}
+                      </span>
+                    </p>
+                    <p className="text-xs text-zinc-400 mt-3 min-h-[48px]">{plan.desc}</p>
+
+                    <ul className="mt-6 mb-6 space-y-3 flex-1">
+                      {plan.features.slice(0, 4).map((f, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-zinc-300">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-zinc-500 shrink-0 mt-0.5" />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {isActive ? (
+                      <button disabled className="w-full py-2.5 rounded-lg text-sm font-medium bg-zinc-800 text-zinc-500 cursor-not-allowed">
+                        Current Plan
+                      </button>
+                    ) : plan.id === 'corporate' ? (
+                      <a href="mailto:sales@zoikogroup.com?subject=Vertex Corporate Inquiry"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium bg-white text-black hover:bg-zinc-200 transition-colors">
+                        Contact Sales <ArrowUpRight className="w-3.5 h-3.5" />
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => handleChangePlan(plan.id)}
+                        disabled={!!changingPlan}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium bg-white text-black hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isChanging ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                        {isChanging ? 'Switching…' : (activePlanId && PLANS.findIndex(p=>p.id===plan.id) < PLANS.findIndex(p=>p.id===activePlanId) ? 'Downgrade' : 'Upgrade')}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
     </div>
   );

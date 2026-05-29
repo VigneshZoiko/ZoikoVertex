@@ -41,6 +41,22 @@ export class SuperAdminController {
       // 2. Validate Input
       const { name, adminEmail, adminName, password } = CreateOrgSchema.parse(req.body);
 
+      // 2a. Reject email domain if it belongs to a permanently deleted org
+      const domain = adminEmail.toLowerCase().split('@')[1];
+      if (domain) {
+        const { data: deletedOrg } = await supabaseAdmin
+          .from('organizations')
+          .select('id')
+          .eq('deleted_domain', domain)
+          .eq('status', 'DELETED')
+          .maybeSingle();
+        if (deletedOrg) {
+          return res.status(403).json({
+            error: `Cannot create an organization with email domain @${domain}. This domain belongs to a permanently deleted organization.`,
+          });
+        }
+      }
+
       logger.info(`[SuperAdmin] Creating organization: ${name} with admin: ${adminEmail}`);
 
       let adminUserId: string;
@@ -386,17 +402,120 @@ export class SuperAdminController {
   }
 
   /**
+   * Restrict an organization — sets workspace + parent org status to RESTRICTED
+   */
+  static async restrictOrganization(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { orgId } = req.params;
+
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('org_id')
+        .eq('id', orgId)
+        .single();
+
+      await supabaseAdmin
+        .from('workspaces')
+        .update({ status: 'RESTRICTED' })
+        .eq('id', orgId);
+
+      if (ws?.org_id) {
+        await supabaseAdmin
+          .from('organizations')
+          .update({ status: 'RESTRICTED' })
+          .eq('id', ws.org_id);
+      }
+
+      res.json({ success: true, message: 'Organization restricted.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Manually upgrade an organization's plan (SuperAdmin only)
+   */
+  static async upgradeOrganizationPlan(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { orgId } = req.params;
+      const { planType } = req.body;
+
+      if (!planType || !['FREE', 'STARTER', 'GROWTH', 'ENTERPRISE'].includes(planType)) {
+        return res.status(400).json({ error: 'Invalid plan type. Must be FREE, STARTER, GROWTH, or ENTERPRISE.' });
+      }
+
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('org_id')
+        .eq('id', orgId)
+        .single();
+
+      await supabaseAdmin
+        .from('workspaces')
+        .update({ status: 'ACTIVE' })
+        .eq('id', orgId);
+
+      if (ws?.org_id) {
+        const updateData: Record<string, any> = { status: 'ACTIVE', plan_type: planType };
+        // Set a 1-year premium grace for paid plans
+        if (planType !== 'FREE' && planType !== 'STARTER') {
+          updateData.premium_paid_until = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+        } else {
+          updateData.premium_paid_until = null;
+        }
+        await supabaseAdmin
+          .from('organizations')
+          .update(updateData)
+          .eq('id', ws.org_id);
+      }
+
+      res.json({ success: true, message: `Organization upgraded to ${planType} plan.` });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Delete an organization and its associated data
    */
   static async deleteOrganization(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { orgId } = req.params;
-      const { error } = await supabaseAdmin
+      const { data: ws } = await supabaseAdmin
         .from('workspaces')
-        .delete()
+        .select('org_id')
+        .eq('id', orgId)
+        .single();
+      let deletedDomain: string | null = null;
+      if (ws?.org_id) {
+        const { data: adminMember } = await supabaseAdmin
+          .from('workspace_members')
+          .select('user_id')
+          .eq('workspace_id', orgId)
+          .eq('role', 'ADMIN')
+          .maybeSingle();
+        if (adminMember?.user_id) {
+          const { data: adminUser } = await supabaseAdmin
+            .from('users')
+            .select('email')
+            .eq('id', adminMember.user_id)
+            .single();
+          if (adminUser?.email) {
+            deletedDomain = adminUser.email.split('@')[1]?.toLowerCase() || null;
+          }
+        }
+      }
+      await supabaseAdmin
+        .from('workspaces')
+        .update({ status: 'DELETED' })
         .eq('id', orgId);
-      if (error) throw error;
-      res.json({ success: true, message: 'Organization and all metadata purged.' });
+      if (ws?.org_id) {
+        await supabaseAdmin
+          .from('organizations')
+          .update({ status: 'DELETED', deleted_domain: deletedDomain })
+          .eq('id', ws.org_id);
+      }
+      res.json({ success: true, message: 'Organization permanently banned and all data purged.' });
     } catch (error) {
       next(error);
     }

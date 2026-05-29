@@ -28,6 +28,7 @@ import {
   Award,
   RotateCcw,
   Archive,
+  X,
 } from "lucide-react";
 import StatusBadge from "@/components/ui/StatusBadge";
 import CreateAgentWizard from "@/components/agents/CreateAgentWizard";
@@ -155,6 +156,7 @@ export default function StudioPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [riskFilter, setRiskFilter] = useState("");
@@ -183,29 +185,86 @@ export default function StudioPage() {
     string | null
   >(null);
 
+  // ── Dismissed retired agents. Retirement preserves the audit record in the
+  //    DB (Doc 5 §5/§14 — retired agents must never be hard-deleted), but an
+  //    operator may want to clear a retired agent's disabled card out of their
+  //    view. We track dismissed IDs client-side and persist them so the view
+  //    stays clean across reloads. They reappear via the RETIRED status filter
+  //    or "Show dismissed".
+  const DISMISSED_KEY = "zv:dismissedRetiredAgents";
+  const [dismissedIds, setDismissedIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(DISMISSED_KEY);
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const persistDismissed = useCallback((ids: string[]) => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(DISMISSED_KEY, JSON.stringify(ids));
+    } catch {
+      // localStorage unavailable (private mode / quota) — dismiss stays
+      // in-memory for this session only.
+    }
+  }, []);
+
+  const dismissRetiredAgent = useCallback(
+    (agent: Agent) => {
+      if (agent.status !== "RETIRED") return;
+      setDismissedIds((current) => {
+        if (current.includes(agent.id)) return current;
+        const next = [...current, agent.id];
+        persistDismissed(next);
+        return next;
+      });
+      if (selectedAgent?.id === agent.id) setIsDetailsOpen(false);
+    },
+    [persistDismissed, selectedAgent],
+  );
+
+  const restoreDismissedAgents = useCallback(() => {
+    setDismissedIds([]);
+    persistDismissed([]);
+  }, [persistDismissed]);
+
   const normalizedRole = (role || "").toUpperCase();
-  const canManageAuthority = [
-    "ADMIN",
-    "WORKSPACE_OWNER",
-    "AGENT_ARCHITECT",
-    "GOVERNANCE_ADMIN",
-  ].includes(normalizedRole);
+  const canManageAuthority =
+    isSuperadmin ||
+    [
+      "ADMIN",
+      "WORKSPACE_OWNER",
+      "AGENT_ARCHITECT",
+      "GOVERNANCE_ADMIN",
+    ].includes(normalizedRole);
 
   const fetchAgents = useCallback(
-    async (targetWorkspaceId?: string | null) => {
+    async (
+      targetWorkspaceId?: string | null,
+      options?: { silent?: boolean },
+    ) => {
       const activeWorkspace = targetWorkspaceId || workspaceId;
+      // Silent refresh (after an action) updates data in place without the
+      // full-page loading skeleton, so cloning/retiring/etc. don't visually
+      // reload the entire UI.
+      const silent = options?.silent === true;
       try {
-        setLoading(true);
+        if (!silent) setLoading(true);
         setError(null);
-        if (!activeWorkspace) {
+        if (!activeWorkspace && !isSuperadmin) {
           setAgents([]);
           setError("Workspace context is not available yet for Agent Studio.");
           return;
         }
-        const params = new URLSearchParams({ workspaceId: activeWorkspace });
+        const params = new URLSearchParams();
+        if (activeWorkspace) params.set("workspaceId", activeWorkspace);
         if (statusFilter) params.set("status", statusFilter);
         if (riskFilter) params.set("risk_level", riskFilter);
-        const result = await api.get(`/api/v1/agents?${params.toString()}`);
+        const qs = params.toString();
+        const result = await api.get(`/api/v1/agents${qs ? `?${qs}` : ""}`);
         if (result.success && Array.isArray(result.data)) {
           setAgents(result.data);
         } else {
@@ -222,10 +281,10 @@ export default function StudioPage() {
         );
         setAgents([]);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     },
-    [workspaceId, statusFilter, riskFilter],
+    [workspaceId, statusFilter, riskFilter, isSuperadmin],
   );
 
   useEffect(() => {
@@ -233,8 +292,12 @@ export default function StudioPage() {
       try {
         const context = await api.get("/api/v1/user/context");
         const nextWorkspaceId = context?.data?.workspace_id || null;
+        const nextIsSuperadmin = Boolean(context?.data?.is_superadmin);
         setWorkspaceId(nextWorkspaceId);
-        await fetchAgents(nextWorkspaceId);
+        setIsSuperadmin(nextIsSuperadmin);
+        // Note: the secondary useEffect below triggers fetchAgents once the
+        // workspaceId / isSuperadmin state has settled, so we don't need to
+        // call it directly here (which would use a stale closure).
       } catch {
         setError("Unable to load workspace context for Agent Studio.");
         setAgents([]);
@@ -242,11 +305,11 @@ export default function StudioPage() {
       }
     };
     init();
-  }, [fetchAgents]);
+  }, []);
 
   useEffect(() => {
-    if (workspaceId) fetchAgents(workspaceId);
-  }, [workspaceId, statusFilter, riskFilter, fetchAgents]);
+    if (workspaceId || isSuperadmin) fetchAgents(workspaceId);
+  }, [workspaceId, isSuperadmin, statusFilter, riskFilter, fetchAgents]);
 
   const getAutonomyStyle = useCallback((level: string) => {
     const color = AUTONOMY_COLOR[level] || AUTONOMY_COLOR.L0;
@@ -334,8 +397,16 @@ export default function StudioPage() {
     try {
       const res = await api.get(`/api/v1/agents/${agent.id}/evidence`);
       if (res.success) {
+        // Backend returns `data` as an array of evidence bundles. Surface the
+        // most recent bundle's id (first item, ordered DESC server-side) or a
+        // count fallback when the array is empty.
+        const bundles = Array.isArray(res.data) ? res.data : [];
+        const headline =
+          bundles[0]?.bundle_id ||
+          bundles[0]?.id ||
+          (bundles.length > 0 ? `${bundles.length} bundles` : "generated");
         setSuccessMsg(
-          `Evidence bundle exported for "${agent.name}". Bundle ID: ${res.data?.bundle_id || res.data?.id || "generated"}`,
+          `Evidence bundle exported for "${agent.name}". Bundle ID: ${headline}`,
         );
         setTimeout(() => setSuccessMsg(null), 6000);
       } else {
@@ -372,7 +443,7 @@ export default function StudioPage() {
           `Safety checks initiated for "${agent.name}". Results will update in the agent profile.`,
         );
         setTimeout(() => setSuccessMsg(null), 6000);
-        await fetchAgents(workspaceId);
+        await fetchAgents(workspaceId, { silent: true });
       } else {
         setError(`Safety check failed to start for "${agent.name}".`);
       }
@@ -425,7 +496,7 @@ export default function StudioPage() {
       await api.post(`/api/v1/agents/${agent.id}/deploy`, { environment: env });
       setSuccessMsg(`"${agent.name}" deployed to ${env} successfully.`);
       setTimeout(() => setSuccessMsg(null), 5000);
-      await fetchAgents(workspaceId);
+      await fetchAgents(workspaceId, { silent: true });
     } catch (deployErr) {
       const msg =
         deployErr instanceof Error
@@ -520,7 +591,7 @@ export default function StudioPage() {
       };
       setSuccessMsg(actionMessages[action]);
       setTimeout(() => setSuccessMsg(null), 5000);
-      await fetchAgents(workspaceId);
+      await fetchAgents(workspaceId, { silent: true });
       if (selectedAgent?.id === agent.id) {
         setSelectedAgent((current) =>
           current
@@ -607,6 +678,9 @@ export default function StudioPage() {
 
   const filteredAgents = useMemo(() => {
     return agents.filter((agent) => {
+      // Hide retired agents the operator has dismissed from their view.
+      // They remain in the DB and return via the RETIRED filter / "Show dismissed".
+      if (dismissedIds.includes(agent.id)) return false;
       const matchesSearch =
         !searchTerm ||
         normalizeText(agent.name).includes(normalizeText(searchTerm)) ||
@@ -615,7 +689,11 @@ export default function StudioPage() {
           normalizeText(searchTerm),
         ) ||
         normalizeText(agent.assigned_brand).includes(normalizeText(searchTerm));
-      const matchesStatus = !statusFilter || agent.status === statusFilter;
+      // Defensive case-insensitive match: agent.status may be stored as
+      // uppercase or lowercase depending on which code path created the row.
+      const matchesStatus =
+        !statusFilter ||
+        String(agent.status || "").toUpperCase() === statusFilter.toUpperCase();
       const matchesRisk =
         !riskFilter || normalizeText(agent.risk_level) === riskFilter;
       const matchesBrand = !brandFilter || agent.assigned_brand === brandFilter;
@@ -648,6 +726,7 @@ export default function StudioPage() {
     agents,
     brandFilter,
     channelFilter,
+    dismissedIds,
     environmentFilter,
     knowledgeFilter,
     ownerFilter,
@@ -714,8 +793,11 @@ export default function StudioPage() {
         initialData={importTemplateData}
       />
 
-      {selectedAgent && (
+      {selectedAgent && isSandboxOpen && (
         <CertificationSandbox
+          // Fresh instance per agent (and per open) so one agent's sandbox
+          // run never leaks into another's — internal run state is reset.
+          key={selectedAgent.id}
           isOpen={isSandboxOpen}
           onClose={() => setIsSandboxOpen(false)}
           agentId={selectedAgent.id}
@@ -959,6 +1041,16 @@ export default function StudioPage() {
                 <Zap className="h-3.5 w-3.5" />
                 {filteredAgents.length} visible agents
               </div>
+              {dismissedIds.length > 0 && (
+                <button
+                  onClick={restoreDismissedAgents}
+                  title="Show retired agents you removed from view"
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 transition hover:border-indigo-500/30 hover:text-indigo-500"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Show {dismissedIds.length} dismissed
+                </button>
+              )}
               {!canManageAuthority && (
                 <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-amber-500">
                   <AlertTriangle className="h-3.5 w-3.5" />
@@ -1543,6 +1635,20 @@ export default function StudioPage() {
                                 : "Retire"}
                             </button>
                           )}
+
+                          {/* Remove from view — only once retired. Hides the
+                              disabled card; the audit record is preserved. */}
+                          {isRetired && (
+                            <button
+                              onClick={() => dismissRetiredAgent(agent)}
+                              title="Remove from view (record preserved for audit)"
+                              aria-label={`Remove ${agent.name} from view`}
+                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              Remove
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1666,6 +1772,35 @@ export default function StudioPage() {
                       ? "Cloning..."
                       : "Clone"}
                   </button>
+                  {/* Retire — not already retired (card view) */}
+                  {!isRetired && (
+                    <button
+                      onClick={() => runAgentAction(agent, "retire")}
+                      disabled={
+                        !canManageAuthority || Boolean(actionLoading[agent.id])
+                      }
+                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Archive className="h-3.5 w-3.5" />
+                      {actionLoading[agent.id] === "retire"
+                        ? "Retiring..."
+                        : "Retire"}
+                    </button>
+                  )}
+
+                  {/* Remove from view — only once retired. Hides the disabled
+                      card; the audit record is preserved in the DB. */}
+                  {isRetired && (
+                    <button
+                      onClick={() => dismissRetiredAgent(agent)}
+                      title="Remove from view (record preserved for audit)"
+                      aria-label={`Remove ${agent.name} from view`}
+                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
             );

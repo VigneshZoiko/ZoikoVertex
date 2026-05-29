@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
 
 export type ValidationItemType = 'social_post' | 'inbox_reply' | 'campaign_asset' | 'agent_action' | 'workflow_output' | 'revision_item' | 'escalated_item' | 'approval_bound_item' | 'platform_specific_content' | 'source_claim_item';
@@ -207,6 +208,16 @@ export async function updateValidationStatus(id: string, status: ValidationStatu
   if (error) throw error;
 
   await createAuditLog(tenant_id, id, `STATUS_${status}`, current?.validation_status, status, performed_by);
+
+  try {
+    internalEventBus.emit('validation.status_changed', {
+      workspace_id: tenant_id,
+      tenant_id,
+      actor_id: performed_by,
+      item_id: id,
+      status,
+    });
+  } catch { /* non-blocking */ }
 }
 
 export async function assignValidator(id: string, validator_id: string, performed_by: string, tenant_id: string): Promise<void> {
@@ -298,9 +309,9 @@ export async function completeValidationRun(
     else if (r.result === 'WARNING') warnings++;
     else if (r.result === 'FAILED') failed++;
     if (r.override_eligible) overrideEligible++;
-    else if (r.result === 'BLOCKED') blocked++;
+    if (r.result === 'BLOCKED') blocked++;
     else if (r.result === 'MANUAL_CHECK_REQUIRED') manualCheck++;
-    else n_a++;
+    else if (r.result !== 'PASSED' && r.result !== 'WARNING' && r.result !== 'FAILED') n_a++;
 
     if (r.severity && (!highestSev || (sevOrder[r.severity] || 0) > (sevOrder[highestSev] || 0))) {
       highestSev = r.severity;
@@ -498,9 +509,7 @@ export async function markRevalidationNeeded(id: string, tenant_id: string, reas
     .single();
   if (!item) throw new Error('Validation item not found');
 
-  const previous = item.validation_status;
   await updateValidationStatus(id, 'REVALIDATION_NEEDED', performed_by, tenant_id);
-  await createAuditLog(tenant_id, id, 'REVALIDATION_NEEDED', previous, reason, performed_by);
 }
 
 // ─── Callbacks ───────────────────────────────────────────────────────────
