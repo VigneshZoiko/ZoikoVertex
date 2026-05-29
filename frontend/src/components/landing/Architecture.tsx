@@ -4,7 +4,7 @@
       label: "STRATEGY",
       name: "LAYER 1 — STRATEGIC CONTROL",
       bg: "#eef0fb",
-      border: "#d4d8f5"
+      border: "#d4d8f5",
       labelColor: "#6366f1",
       nameColor: "#818cf8",
       cardBorder: "#e0e3f7",

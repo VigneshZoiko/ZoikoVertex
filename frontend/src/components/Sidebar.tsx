@@ -105,7 +105,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Platform Owner",
     icon: Shield,
     items: [
-      { name: "Governance Node",  href: "/superadmin",           icon: Shield,      roles: ["SUPERADMIN"] },
       { name: "Global Analytics", href: "/superadmin/analytics", icon: LineChart,   roles: ["SUPERADMIN"] },
       { name: "Support Queue",    href: "/superadmin/tickets",   icon: MessageSquare, roles: ["SUPERADMIN"] },
     ],
