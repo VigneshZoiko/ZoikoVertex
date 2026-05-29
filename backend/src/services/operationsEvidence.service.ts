@@ -5,6 +5,8 @@ import * as crypto from 'crypto';
 export interface EvidenceBundle {
   id: string;
   workspace_id: string;
+  tenant_id?: string | null;
+  brand_id?: string | null;
   run_id: string;
   status: string;
   hash: string;
@@ -19,11 +21,17 @@ export interface EvidenceBundle {
 export async function getRunEvidence(bundleId: string) {
   const { data, error } = await supabaseAdmin
     .from('evidence_bundles')
-    .select('*')
+    .select('*, agent_runs!inner(tenant_id, brand_id, workspace_id)')
     .eq('id', bundleId)
     .single();
   if (error) throw Object.assign(new Error('Evidence bundle not found'), { statusCode: 404 });
-  return data as EvidenceBundle;
+  const run = (data as any).agent_runs;
+  return {
+    ...(data as any),
+    tenant_id: run?.tenant_id || null,
+    brand_id: run?.brand_id || null,
+    workspace_id: (data as any).workspace_id || run?.workspace_id,
+  } as EvidenceBundle;
 }
 
 export async function exportEvidence(params: {
@@ -32,12 +40,7 @@ export async function exportEvidence(params: {
   exportReason: string;
   storageRef?: string;
 }) {
-  const { data: bundle, error: fetchError } = await supabaseAdmin
-    .from('evidence_bundles')
-    .select('*')
-    .eq('id', params.bundleId)
-    .single();
-  if (fetchError || !bundle) throw Object.assign(new Error('Evidence bundle not found'), { statusCode: 404 });
+  const bundle = await getRunEvidence(params.bundleId);
 
   const now = new Date().toISOString();
   const { error: updateError } = await supabaseAdmin

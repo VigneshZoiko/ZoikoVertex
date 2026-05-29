@@ -2,6 +2,7 @@
 import { Response, NextFunction } from "express";
 import { logger } from "../../shared/logger";
 import { logToDatabase } from "../../shared/databaseLogger";
+import { internalEventBus } from "../../shared/internalEventBus";
 import { AuthRequest } from "../../shared/authMiddleware";
 import * as runService from "../../services/operationsRun.service";
 import * as queueService from "../../services/operationsQueue.service";
@@ -10,6 +11,12 @@ import * as analyticsService from "../../services/operationsAnalytics.service";
 import * as incidentService from "../../services/operationsIncident.service";
 import * as evidenceService from "../../services/operationsEvidence.service";
 import * as runtimeControlService from "../../services/operationsRuntimeControl.service";
+import {
+  assertOperationsPermission,
+  assertWorkspaceScope,
+  getRuntimeActionGates,
+  requireReason,
+} from "../../services/operationsAuthorization.service";
 import { getParam, getQueryNumber, getQueryValue } from "../../shared/request";
 
 const STATUS_MAP: Record<
@@ -31,6 +38,7 @@ const STATUS_MAP: Record<
   },
   FAILED: { label: "Failed", color: "text-red-400", severity: "critical" },
   PAUSED: { label: "Paused", color: "text-orange-400", severity: "warning" },
+  STOPPED: { label: "Stopped", color: "text-slate-400", severity: "warning" },
   COMPLETED: {
     label: "Completed",
     color: "text-emerald-400",
@@ -54,34 +62,60 @@ function withStatusMeta(run: any) {
   };
 }
 
+function withRunControlMeta(req: AuthRequest, run: any) {
+  const gates = getRuntimeActionGates(req.user, run.status);
+  return {
+    ...withStatusMeta(run),
+    permitted_actions: gates.filter((gate) => gate.allowed).map((gate) => gate.action),
+    action_gates: gates,
+  };
+}
+
+function operationsScopeFilters(req: AuthRequest) {
+  return {
+    environment: getQueryValue(req, "environment"),
+    brand_id: getQueryValue(req, "brand_id"),
+    brand_name: getQueryValue(req, "brand"),
+  };
+}
+
 export const listAgentRuns = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "view");
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId)
       return res.status(403).json({ error: "Workspace not found" });
     const status = getQueryValue(req, "status");
     const agent_id = getQueryValue(req, "agent_id");
     const environment = getQueryValue(req, "environment");
+    const brand_id = getQueryValue(req, "brand_id");
+    const brand_name = getQueryValue(req, "brand");
     const severity = getQueryValue(req, "severity");
     const search = getQueryValue(req, "search");
     const limit = getQueryNumber(req, "limit", 50);
     const offset = getQueryNumber(req, "offset", 0);
+    const sort_by = getQueryValue(req, "sort_by");
+    const sort_dir = getQueryValue(req, "sort_dir");
     const result = await runService.listAgentRuns({
       workspace_id: workspaceId,
       status,
       agent_id,
       environment,
+      brand_id,
+      brand_name,
       severity,
       search,
+      sort_by,
+      sort_dir,
       limit,
       offset,
     });
     res.json({
-      runs: result.runs.map(withStatusMeta),
+      runs: result.runs.map((run) => withRunControlMeta(req, run)),
       total: result.total,
       limit,
       offset,
@@ -99,10 +133,12 @@ export const getAgentRun = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "view");
     const id = getParam(req, "id");
     const workspaceId = req.user?.workspace_id;
     const run = await runService.getAgentRun(id);
     if (!run) return res.status(404).json({ error: "Agent run not found" });
+    assertWorkspaceScope(req.user, run.workspace_id);
     const [policyResults, timeline, evidenceBundles] = await Promise.all([
       policyService.getPolicyResultsForRun(id).catch(() => []),
       runService.getRunTimeline(id).catch(() => []),
@@ -132,11 +168,14 @@ export const getAgentRun = async (
       }));
 
     res.json({
-      run: withStatusMeta(run),
+      run: withRunControlMeta(req, run),
       prompt_version: run.agent_version || undefined,
-      knowledge_sources: [],
+      inputs: run.inputs || undefined,
+      knowledge_sources: run.knowledge_sources || [],
+      prompt_template: run.prompt_template || undefined,
       policy_results: policyResults,
-      output_snapshot: undefined,
+      output_snapshot: run.output_snapshot || undefined,
+      output_status: run.output_status || undefined,
       approval_chain: approvalChain,
       evidence_bundle: evidenceBundles.bundles?.[0] || undefined,
     });
@@ -153,7 +192,10 @@ export const getRunTimeline = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "view");
     const id = getParam(req, "id");
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
     const events = await runService.getRunTimeline(id);
     res.json({ events });
   } catch (err) {
@@ -168,23 +210,21 @@ export const pauseRun = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "pause");
     const id = getParam(req, "id");
-    const { reason } = req.body;
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
+    const reason = requireReason(req.body?.reason, "pause");
+    const impactScope = req.body?.impact_scope || "selected_run";
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
     const result = await runService.pauseRun(
       id,
-      reason || "Manual pause",
+      reason,
       userId,
       userName,
+      impactScope,
     );
-    await runtimeControlService.recordRuntimeControlAction({
-      run_id: id,
-      action_type: "pause",
-      requested_by: userId,
-      reason: reason || "Manual pause",
-      result: "completed",
-    });
     await logToDatabase(
       "info",
       "Operations",
@@ -204,23 +244,21 @@ export const resumeRun = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "resume");
     const id = getParam(req, "id");
-    const { reason } = req.body;
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
+    const reason = requireReason(req.body?.reason, "resume");
+    const impactScope = req.body?.impact_scope || "selected_run";
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
     const result = await runService.resumeRun(
       id,
-      reason || "Manual resume",
+      reason,
       userId,
       userName,
+      impactScope,
     );
-    await runtimeControlService.recordRuntimeControlAction({
-      run_id: id,
-      action_type: "resume",
-      requested_by: userId,
-      reason: reason || "Manual resume",
-      result: "completed",
-    });
     await logToDatabase(
       "info",
       "Operations",
@@ -240,23 +278,21 @@ export const stopRun = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "stop");
     const id = getParam(req, "id");
-    const { reason } = req.body;
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
+    const reason = requireReason(req.body?.reason, "stop");
+    const impactScope = req.body?.impact_scope || "selected_run";
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
     const result = await runService.stopRun(
       id,
-      reason || "Manual stop",
+      reason,
       userId,
       userName,
+      impactScope,
     );
-    await runtimeControlService.recordRuntimeControlAction({
-      run_id: id,
-      action_type: "stop",
-      requested_by: userId,
-      reason: reason || "Manual stop",
-      result: "completed",
-    });
     await logToDatabase(
       "warn",
       "Operations",
@@ -276,13 +312,16 @@ export const retryRun = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "retry");
     const id = getParam(req, "id");
-    const { reason } = req.body;
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
+    const reason = requireReason(req.body?.reason, "retry");
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
     const result = await runService.retryRun(
       id,
-      reason || "Manual retry",
+      reason,
       userId,
       userName,
     );
@@ -309,23 +348,21 @@ export const quarantineRun = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "quarantine");
     const id = getParam(req, "id");
-    const { reason } = req.body;
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
+    const reason = requireReason(req.body?.reason, "quarantine");
+    const impactScope = req.body?.impact_scope || "run_output";
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
     const result = await runService.quarantineRun(
       id,
-      reason || "Safety concern",
+      reason,
       userId,
       userName,
+      impactScope,
     );
-    await runtimeControlService.recordRuntimeControlAction({
-      run_id: id,
-      action_type: "quarantine",
-      requested_by: userId,
-      reason: reason || "Safety concern",
-      result: "completed",
-    });
     await logToDatabase(
       "warn",
       "Operations",
@@ -345,23 +382,20 @@ export const emergencyPause = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "emergency_pause");
     const id = getParam(req, "id");
-    const { reason } = req.body;
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
+    const reason = requireReason(req.body?.reason, "emergency_pause");
+    const impactScope = req.body?.impact_scope || "selected_run";
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
     const result = await runService.emergencyPauseRun(
       id,
-      reason || "Emergency pause",
+      reason,
       userId,
       userName,
     );
-    await runtimeControlService.recordRuntimeControlAction({
-      run_id: id,
-      action_type: "emergency_pause",
-      requested_by: userId,
-      reason: `[EMERGENCY] ${reason || "No reason provided"}`,
-      result: "completed",
-    });
     await logToDatabase(
       "warn",
       "Operations",
@@ -381,8 +415,11 @@ export const escalateRun = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "escalate");
     const id = getParam(req, "id");
-    const { reason } = req.body;
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
+    const reason = requireReason(req.body?.reason, "escalate");
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
     const incidentId = req.body?.incident_id;
@@ -390,7 +427,7 @@ export const escalateRun = async (
       run_id: id,
       action_type: "escalate",
       requested_by: userId,
-      reason: reason || "Escalated",
+      reason,
       result: "completed",
     });
     await logToDatabase(
@@ -416,23 +453,20 @@ export const restrictedMode = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "restricted_mode");
     const id = getParam(req, "id");
-    const { reason } = req.body;
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
+    const reason = requireReason(req.body?.reason, "restricted_mode");
+    const impactScope = req.body?.impact_scope || "selected_run";
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
     const result = await runService.restrictedModeRun(
       id,
-      reason || "Restricted mode activated",
+      reason,
       userId,
       userName,
     );
-    await runtimeControlService.recordRuntimeControlAction({
-      run_id: id,
-      action_type: "restricted_mode",
-      requested_by: userId,
-      reason: reason || "Restricted mode",
-      result: "completed",
-    });
     await logToDatabase(
       "warn",
       "Operations",
@@ -456,17 +490,22 @@ export const listQueues = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "view");
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId)
       return res.status(403).json({ error: "Workspace not found" });
     const queue_type = getQueryValue(req, "queue_type");
     const status = getQueryValue(req, "status");
+    const scope = operationsScopeFilters(req);
     const limit = getQueryNumber(req, "limit", 50);
     const offset = getQueryNumber(req, "offset", 0);
     const result = await queueService.listQueues({
       workspace_id: workspaceId,
       queue_type: queue_type || "",
       status: status || "",
+      environment: scope.environment || undefined,
+      brand_id: scope.brand_id || undefined,
+      brand_name: scope.brand_name || undefined,
       limit,
       offset,
     });
@@ -484,6 +523,7 @@ export const assignQueueItem = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "manage_queue");
     const id = getParam(req, "id");
     const { assignee_id, assignee_name } = req.body;
     const userId = req.user?.id || "system";
@@ -492,7 +532,15 @@ export const assignQueueItem = async (
       id,
       assignee_id || userId,
       assignee_name || userName,
+      req.user?.is_superadmin ? null : req.user?.workspace_id,
     );
+    internalEventBus.emit("operations.event", {
+      type: "queue.assigned",
+      queue_id: id,
+      workspace_id: req.user?.workspace_id,
+      assignee_id: assignee_id || userId,
+      created_at: new Date().toISOString(),
+    });
     res.json({
       success: true,
       ...result,
@@ -510,8 +558,18 @@ export const resolveQueueItem = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "manage_queue");
     const id = getParam(req, "id");
-    const result = await queueService.resolveQueueItem(id);
+    const result = await queueService.resolveQueueItem(
+      id,
+      req.user?.is_superadmin ? null : req.user?.workspace_id,
+    );
+    internalEventBus.emit("operations.event", {
+      type: "queue.resolved",
+      queue_id: id,
+      workspace_id: req.user?.workspace_id,
+      created_at: new Date().toISOString(),
+    });
     res.json({
       success: true,
       ...result,
@@ -529,6 +587,7 @@ export const createIncident = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "create_incident");
     console.log("=== CREATE INCIDENT DEBUG ===", {
       workspace_id: req.user?.workspace_id,
       user_id: req.user?.id,
@@ -542,6 +601,7 @@ export const createIncident = async (
       owner_id,
       owner_name,
       root_cause,
+      remediation,
       due_at,
     } = req.body;
     const userId = req.user?.id || "system";
@@ -549,6 +609,10 @@ export const createIncident = async (
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId)
       return res.status(403).json({ error: "Workspace not found" });
+    if (run_id) {
+      const linkedRun = await runService.getAgentRun(run_id);
+      assertWorkspaceScope(req.user, linkedRun.workspace_id);
+    }
     const result = await incidentService.createIncident({
       workspace_id: workspaceId,
       run_id,
@@ -560,6 +624,15 @@ export const createIncident = async (
       created_by_name: userName,
       due_at,
       root_cause,
+      remediation,
+    });
+    internalEventBus.emit("operations.event", {
+      type: "incident.created",
+      incident_id: result.id,
+      run_id,
+      workspace_id: workspaceId,
+      severity,
+      created_at: new Date().toISOString(),
     });
     await logToDatabase(
       "warn",
@@ -591,12 +664,14 @@ export const listIncidents = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "view");
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId)
       return res.status(403).json({ error: "Workspace not found" });
     const status = getQueryValue(req, "status");
     const severity = getQueryValue(req, "severity");
     const category = getQueryValue(req, "category");
+    const scope = operationsScopeFilters(req);
     const limit = getQueryNumber(req, "limit", 50);
     const offset = getQueryNumber(req, "offset", 0);
     const result = await incidentService.listIncidents({
@@ -604,6 +679,9 @@ export const listIncidents = async (
       status: status || "",
       severity: severity || "",
       category: category || "",
+      environment: scope.environment || undefined,
+      brand_id: scope.brand_id || undefined,
+      brand_name: scope.brand_name || undefined,
       limit,
       offset,
     });
@@ -620,9 +698,15 @@ export const resolveIncident = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "create_incident");
     const id = getParam(req, "id");
     const { remediation } = req.body;
     const userId = req.user?.id || "system";
+    const workspaceId = req.user?.workspace_id;
+    if (!req.user?.is_superadmin) {
+      const existing = await incidentService.getIncident(id);
+      assertWorkspaceScope(req.user, existing.workspace_id);
+    }
     const result = await incidentService.resolveIncident(
       id,
       userId,
@@ -641,10 +725,11 @@ export const getOperationsStats = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "view");
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId)
       return res.status(403).json({ error: "Workspace not found" });
-    const stats = await analyticsService.getOperationsStats(workspaceId);
+    const stats = await analyticsService.getOperationsStats(workspaceId, operationsScopeFilters(req));
     res.json(stats);
   } catch (err) {
     logger.error({ err }, "Failed to get operations stats");
@@ -658,10 +743,11 @@ export const getAnalyticsMetrics = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "view");
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId)
       return res.status(403).json({ error: "Workspace not found" });
-    const metrics = await analyticsService.getAnalyticsMetrics(workspaceId);
+    const metrics = await analyticsService.getAnalyticsMetrics(workspaceId, operationsScopeFilters(req));
     res.json(metrics);
   } catch (err) {
     logger.error({ err }, "Failed to get analytics metrics");
@@ -675,8 +761,10 @@ export const getRunEvidence = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "view");
     const bundleId = getParam(req, "bundleId");
     const evidence = await evidenceService.getRunEvidence(bundleId);
+    assertWorkspaceScope(req.user, evidence.workspace_id);
     res.json({ evidence });
   } catch (err) {
     logger.error({ err }, "Failed to get run evidence");
@@ -690,14 +778,24 @@ export const exportEvidence = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "export_evidence");
     const bundleId = getParam(req, "bundleId");
-    const { reason } = req.body;
+    const reason = requireReason(req.body?.reason, "export_evidence");
     const userId = req.user?.id || "system";
     const userName = req.user?.email || "Unknown";
+    const evidence = await evidenceService.getRunEvidence(bundleId);
+    assertWorkspaceScope(req.user, evidence.workspace_id);
     const result = await evidenceService.exportEvidence({
       bundleId,
       exportedBy: userId,
-      exportReason: reason || "Manual export",
+      exportReason: reason,
+    });
+    internalEventBus.emit("operations.event", {
+      type: "evidence.exported",
+      evidence_bundle_id: bundleId,
+      run_id: evidence.run_id,
+      workspace_id: evidence.workspace_id,
+      created_at: new Date().toISOString(),
     });
     await logToDatabase(
       "info",
@@ -722,7 +820,10 @@ export const runPolicyCheck = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "run_policy_check");
     const id = getParam(req, "id");
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
     const userId = req.user?.id || "system";
     const result = await policyService.runPolicyCheck(id);
     await runtimeControlService.recordRuntimeControlAction({
@@ -745,7 +846,10 @@ export const getPolicyResults = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "view");
     const id = getParam(req, "id");
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
     const results = await policyService.getPolicyResultsForRun(id);
     res.json({ policy_results: results });
   } catch (err) {
@@ -760,7 +864,10 @@ export const getRuntimeControlLog = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "view");
     const id = getParam(req, "id");
+    const run = await runService.getAgentRun(id);
+    assertWorkspaceScope(req.user, run.workspace_id);
     const actions = await runtimeControlService.getRuntimeControlActions(id);
     res.json({ runtime_actions: actions });
   } catch (err) {
@@ -775,10 +882,15 @@ export const createEvidenceBundle = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "manage_queue");
     const { run_id } = req.body;
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId)
       return res.status(403).json({ error: "Workspace not found" });
+    if (run_id) {
+      const run = await runService.getAgentRun(run_id);
+      assertWorkspaceScope(req.user, run.workspace_id);
+    }
     const result = await evidenceService.createEvidenceBundle({
       workspace_id: workspaceId,
       run_id,
@@ -796,7 +908,10 @@ export const lockEvidenceBundle = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "export_evidence");
     const bundleId = getParam(req, "bundleId");
+    const evidence = await evidenceService.getRunEvidence(bundleId);
+    assertWorkspaceScope(req.user, evidence.workspace_id);
     const result = await evidenceService.lockEvidenceBundle(bundleId);
     res.json({ success: true, ...result, message: "Evidence bundle locked" });
   } catch (err) {
@@ -811,6 +926,7 @@ export const listEvidenceBundles = async (
   next: NextFunction,
 ) => {
   try {
+    assertOperationsPermission(req.user, "view");
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId)
       return res.status(403).json({ error: "Workspace not found" });
@@ -828,6 +944,47 @@ export const listEvidenceBundles = async (
     res.json({ bundles: result.bundles, total: result.total });
   } catch (err) {
     logger.error({ err }, "Failed to list evidence bundles");
+    next(err);
+  }
+};
+
+export const subscribeOperationsEvents = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    assertOperationsPermission(req.user, "view");
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) {
+      return res.status(403).json({ error: "Workspace not found" });
+    }
+
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    });
+    res.write(`event: connected\ndata: ${JSON.stringify({ workspace_id: workspaceId, connected_at: new Date().toISOString() })}\n\n`);
+
+    const heartbeat = setInterval(() => {
+      res.write(`event: heartbeat\ndata: ${JSON.stringify({ at: new Date().toISOString() })}\n\n`);
+    }, 25000);
+
+    const handler = (payload: unknown) => {
+      const event = payload as { workspace_id?: string };
+      if (req.user?.is_superadmin || event.workspace_id === workspaceId) {
+        res.write(`event: operations\ndata: ${JSON.stringify(payload)}\n\n`);
+      }
+    };
+
+    internalEventBus.on("operations.event", handler);
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      internalEventBus.off("operations.event", handler);
+      res.end();
+    });
+  } catch (err) {
     next(err);
   }
 };
