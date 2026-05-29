@@ -9,7 +9,7 @@ import { useState } from "react";
 
 interface Props {
   orgName?: string;
-  type: "paused" | "deleted";
+  type: "paused" | "banned" | "deleted";
   planType?: string | null;
   premiumPaidUntil?: string | null;
 }
@@ -97,8 +97,9 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
     );
   }
 
-  /* ── Org Paused / Deleted ─────────────────────────────────────────────────── */
+  /* ── Org Banned / Deleted ─────────────────────────────────────────────────── */
   const isDeleted = type === "deleted";
+  const isBanned  = type === "banned";
 
   return (
     <div className="fixed inset-0 z-[9999] bg-zinc-950 flex items-center justify-center p-6">
@@ -113,23 +114,32 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-semibold text-white tracking-tight">
-              Organization {isDeleted ? "Deleted" : "Paused"}
+              Organization {isDeleted ? "Permanently Banned" : "Banned"}
             </h2>
             <p className="text-sm text-zinc-400 leading-relaxed">
               Your organization
               {orgName && <span className="text-white font-medium"> {orgName}</span>} has been{" "}
-              {isDeleted ? "deactivated" : "paused"} and you no longer have access to ZoikoVertex features.
+              {isDeleted ? "permanently banned" : "banned"}.
             </p>
-            <p className="text-sm text-zinc-500 leading-relaxed pt-1">
-              Please{" "}
-              <Link
-                href="/support"
-                className="text-zinc-300 hover:text-white underline underline-offset-2 transition-colors"
-              >
-                contact your administrator
-              </Link>{" "}
-              for assistance.
-            </p>
+            {isBanned && (
+              <p className="text-sm text-zinc-500 leading-relaxed pt-1">
+                Please{" "}
+                <Link
+                  href="/support"
+                  className="text-zinc-300 hover:text-white underline underline-offset-2 transition-colors"
+                >
+                  contact support
+                </Link>{" "}
+                or visit our{" "}
+                <Link
+                  href="/docs"
+                  className="text-zinc-300 hover:text-white underline underline-offset-2 transition-colors"
+                >
+                  documentation
+                </Link>{" "}
+                for assistance.
+              </p>
+            )}
           </div>
         </div>
 

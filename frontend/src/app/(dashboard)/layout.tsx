@@ -87,7 +87,7 @@ export default function DashboardLayout({
   );
 
   const resolvedStatus = blockedStatuses.find(s => s === workspaceStatus || s === orgStatus) ?? null;
-  const suspensionType = resolvedStatus === 'DELETED' ? 'deleted' : 'paused' as const;
+  const suspensionType = resolvedStatus === 'DELETED' ? 'deleted' : resolvedStatus === 'RESTRICTED' ? 'banned' : 'paused' as const;
 
   return (
     <NotificationProvider>
