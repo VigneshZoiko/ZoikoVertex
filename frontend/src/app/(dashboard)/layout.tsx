@@ -79,10 +79,15 @@ export default function DashboardLayout({
     return <PendingApproval orgName={orgName ?? undefined} />;
   }
 
-  // ── Suspended org gate ──────────────────────────────────────────────────────
+  // ── Suspended / restricted / deleted org gate ──────────────────────────────
   const isSupportRoute = pathname.startsWith('/support');
-  const isSuspended    = !isSuperAdmin && !isSupportRoute && (workspaceStatus === "SUSPENDED" || orgStatus === "SUSPENDED");
-  const suspensionType = 'paused' as const;
+  const blockedStatuses = ['SUSPENDED', 'RESTRICTED', 'DELETED'];
+  const isSuspended    = !isSuperAdmin && !isSupportRoute && (
+    blockedStatuses.includes(workspaceStatus ?? '') || blockedStatuses.includes(orgStatus ?? '')
+  );
+
+  const resolvedStatus = blockedStatuses.find(s => s === workspaceStatus || s === orgStatus) ?? null;
+  const suspensionType = resolvedStatus === 'DELETED' ? 'deleted' : 'paused' as const;
 
   return (
     <NotificationProvider>

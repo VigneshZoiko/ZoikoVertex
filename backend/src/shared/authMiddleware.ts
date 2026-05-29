@@ -139,6 +139,20 @@ export const authenticate = async (
 
       workspacePlan = ws?.plan_type ?? null;
       workspaceStatus = ws?.status ?? null;
+
+      // ── Block restricted / deleted / suspended workspaces ─────────────────
+      if (workspaceStatus && !['ACTIVE', 'PENDING'].includes(workspaceStatus)) {
+        const statusMessages: Record<string, string> = {
+          SUSPENDED: 'Your organization has been suspended. Please contact support.',
+          RESTRICTED: 'Your organization has been temporarily restricted. Please contact support.',
+          DELETED: 'Your organization has been permanently deleted. Please contact support.',
+        };
+        logger.warn(`[Auth] Rejected request — workspace ${member.workspace_id} status: ${workspaceStatus} (user: ${user.email})`);
+        return res.status(403).json({
+          error: statusMessages[workspaceStatus] || 'Access denied.',
+          code: `ORG_${workspaceStatus}`,
+        });
+      }
     } else if (isSuperAdmin) {
       workspacePlan = "ENTERPRISE";
     }
