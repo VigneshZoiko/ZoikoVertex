@@ -83,7 +83,7 @@ export async function createExceptionCase(input: ExceptionCaseInput): Promise<Ex
       actor_id: input.created_by,
       exception_id: id,
     });
-  } catch (emitErr) { /* non-blocking */ }
+  } catch { /* non-blocking */ }
 
   return data as unknown as ExceptionCase;
 }

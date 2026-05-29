@@ -697,7 +697,7 @@ export async function detectRuleConflicts(approval_rule_id: string, tenant_id: s
         rule_id: approval_rule_id,
         conflict_count: conflicts.length,
       });
-    } catch (emitErr) { /* non-blocking */ }
+    } catch { /* non-blocking */ }
   }
 
   return conflicts;

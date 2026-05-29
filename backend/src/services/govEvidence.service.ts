@@ -246,7 +246,7 @@ export async function createLegalHold(params: {
       hold_id: hold.id,
       object_id: params.object_id,
     });
-  } catch (emitErr) { /* non-blocking */ }
+  } catch { /* non-blocking */ }
 
   return hold;
 }

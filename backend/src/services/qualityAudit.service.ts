@@ -334,7 +334,7 @@ export async function updateAuditStatus(
         audit_item_id: id,
         result: status,
       });
-    } catch (emitErr) { /* non-blocking */ }
+    } catch { /* non-blocking */ }
   }
 }
 

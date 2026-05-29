@@ -217,7 +217,7 @@ export async function updateValidationStatus(id: string, status: ValidationStatu
       item_id: id,
       status,
     });
-  } catch (emitErr) { /* non-blocking */ }
+  } catch { /* non-blocking */ }
 }
 
 export async function assignValidator(id: string, validator_id: string, performed_by: string, tenant_id: string): Promise<void> {

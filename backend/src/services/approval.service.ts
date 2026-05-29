@@ -381,7 +381,7 @@ export async function approveItem(itemId: string, tenant_id: string, userId: str
       item_id: itemId,
       decision: 'APPROVED',
     });
-  } catch (emitErr) { /* non-blocking */ }
+  } catch { /* non-blocking */ }
 
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
@@ -422,7 +422,7 @@ export async function rejectItem(itemId: string, tenant_id: string, userId: stri
       item_id: itemId,
       decision: 'REJECTED',
     });
-  } catch (emitErr) { /* non-blocking */ }
+  } catch { /* non-blocking */ }
 
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }

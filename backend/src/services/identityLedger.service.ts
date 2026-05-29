@@ -1316,7 +1316,7 @@ export async function createDelegation(params: {
       entry_id: (data as { id: string }).id,
       change_type: 'delegation.created',
     });
-  } catch (emitErr) { /* non-blocking */ }
+  } catch { /* non-blocking */ }
   return data;
 }
 

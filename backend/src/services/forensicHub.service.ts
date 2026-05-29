@@ -3,8 +3,6 @@ import { createAuditEvent } from './auditTrail.service';
 import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
 
-const BUSINESS_HOURS_PER_DAY = 8;
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ForensicCase {
@@ -659,7 +657,7 @@ export async function createCase(params: {
       case_id: caseRecord.case_id,
       title: params.title,
     });
-  } catch (emitErr) { /* non-blocking */ }
+  } catch { /* non-blocking */ }
 
   return caseRecord;
 }
@@ -956,7 +954,7 @@ export async function closeCase(caseId: string, params: {
       actor_id: params.actor_id,
       case_id: caseRec.case_id,
     });
-  } catch (emitErr) { /* non-blocking */ }
+  } catch { /* non-blocking */ }
 
   const updated = await getCase(caseId);
   if (!updated) throw new Error('Case not found after close');

@@ -188,7 +188,7 @@ export async function updateReviewItemStatus(params: {
         item_id: params.id,
         decision: params.status,
       });
-    } catch (emitErr) { /* non-blocking */ }
+    } catch { /* non-blocking */ }
   }
 
   return data as unknown as ReviewItem;

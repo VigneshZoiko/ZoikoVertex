@@ -282,7 +282,7 @@ export async function preserveEvidence(params: PreserveParams): Promise<VaultEvi
       item_id: itemId,
       source_type: params.source_type,
     });
-  } catch (emitErr) {
+  } catch {
     // non-blocking
   }
 
