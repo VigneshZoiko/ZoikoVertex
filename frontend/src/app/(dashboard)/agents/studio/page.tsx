@@ -232,9 +232,6 @@ export default function StudioPage() {
   }, [persistDismissed]);
 
   const normalizedRole = (role || "").toUpperCase();
-  // ── FIX: superadmins ("God Mode") have role: null from /user/context.
-  //    Without this bypass, they get every authority-gated action disabled
-  //    (retire, deploy, pause, resume, request approval, clone, rollback).
   const canManageAuthority =
     isSuperadmin ||
     [
@@ -257,9 +254,6 @@ export default function StudioPage() {
       try {
         if (!silent) setLoading(true);
         setError(null);
-        // ── FIX: superadmins ("God Mode") have workspace_id: null in /user/context
-        //    but the backend accepts a missing workspaceId param and returns ALL
-        //    agents for that role. Only block non-superadmins when workspace is absent.
         if (!activeWorkspace && !isSuperadmin) {
           setAgents([]);
           setError("Workspace context is not available yet for Agent Studio.");

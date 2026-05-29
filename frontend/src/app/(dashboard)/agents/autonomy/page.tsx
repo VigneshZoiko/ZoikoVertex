@@ -7,6 +7,7 @@ import {
   Activity, AlertCircle, ChevronDown, ChevronUp, X
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useRoleContext } from "@/lib/context/RoleContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,6 +95,8 @@ function trustLabel(pct: number): string {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AutonomyPage() {
+  const { role, isSuperAdmin } = useRoleContext();
+  const canManageAutonomy = isSuperAdmin || ['GOVERNANCE_ADMIN','ADMIN','WORKSPACE_OWNER'].includes(role ?? '');
   const [tab, setTab] = useState<"agents"|"locks"|"hitl"|"nks">("agents");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -515,7 +518,7 @@ export default function AutonomyPage() {
                 className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-white placeholder-[#444] outline-none focus:border-rose-500/50 resize-none" />
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowLockForm(false)} className="px-3 py-1.5 text-[#666] hover:text-white text-xs font-bold transition-all"><X className="w-4 h-4" /></button>
-                <button onClick={handleCreateLock} disabled={actionId === "lock"} className="flex items-center gap-1.5 px-4 py-1.5 bg-rose-500 hover:bg-rose-400 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50">
+                <button onClick={handleCreateLock} disabled={actionId === "lock" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-rose-500 hover:bg-rose-400 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "lock" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
                   Apply Lock
                 </button>
@@ -577,7 +580,7 @@ export default function AutonomyPage() {
               </div>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowHITLForm(false)} className="p-1.5 text-[#666] hover:text-white transition-all"><X className="w-4 h-4" /></button>
-                <button onClick={handleCreateHITL} disabled={actionId === "hitl"} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50">
+                <button onClick={handleCreateHITL} disabled={actionId === "hitl" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "hitl" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                   Create
                 </button>
@@ -596,11 +599,11 @@ export default function AutonomyPage() {
                   </div>
                   <p className="text-[11px] text-[#666]">Route to: <span className="text-[#aaa]">{rule.route_to_role}</span></p>
                 </div>
-                <button onClick={() => handleToggleHITL(rule)} disabled={actionId === rule.id}
+                <button onClick={() => handleToggleHITL(rule)} disabled={actionId === rule.id || !canManageAutonomy}
                   className={`w-10 h-6 rounded-full relative transition-all shrink-0 ${rule.enabled ? "bg-indigo-600" : "bg-white/10"}`}>
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${rule.enabled ? "left-5" : "left-1"}`} />
                 </button>
-                <button onClick={() => handleDeleteHITL(rule.id)} disabled={actionId === rule.id} className="p-1.5 text-[#444] hover:text-rose-400 transition-colors">
+                <button onClick={() => handleDeleteHITL(rule.id)} disabled={actionId === rule.id || !canManageAutonomy} className="p-1.5 text-[#444] hover:text-rose-400 transition-colors">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -640,7 +643,7 @@ export default function AutonomyPage() {
               </div>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowNKSForm(false)} className="p-1.5 text-[#666] hover:text-white"><X className="w-4 h-4" /></button>
-                <button onClick={handleCreateNKS} disabled={actionId === "nks"} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50">
+                <button onClick={handleCreateNKS} disabled={actionId === "nks" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "nks" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                   Create Set
                 </button>
@@ -673,7 +676,7 @@ export default function AutonomyPage() {
                     </div>
                     <p className="text-[10px] text-[#555]">Scope: {nks.scope} · Owner: {nks.owner_role}</p>
                   </div>
-                  <button onClick={() => handleDeleteNKS(nks.id)} disabled={actionId === nks.id} className="p-1.5 text-[#444] hover:text-rose-400 transition-colors shrink-0">
+                  <button onClick={() => handleDeleteNKS(nks.id)} disabled={actionId === nks.id || !canManageAutonomy} className="p-1.5 text-[#444] hover:text-rose-400 transition-colors shrink-0">
                     {actionId === nks.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                   </button>
                 </div>

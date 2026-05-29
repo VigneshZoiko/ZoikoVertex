@@ -110,6 +110,7 @@ function PublishPageInner() {
 
   // Governance State
   const [userRole, setUserRole] = useState<string | null>(null);
+  const canPublish = ['PUBLISHER','CAMPAIGN_MANAGER','MANAGER','CREATOR','ADMIN','WORKSPACE_OWNER','SUPERADMIN'].includes(userRole ?? '');
   const [revisions, setRevisions] = useState<any[]>([]);
   const [pendingPosts, setPendingPosts] = useState<any[]>([]);
   const [activeRevisionId, setActiveRevisionId] = useState<string | null>(null);
@@ -1706,7 +1707,8 @@ function PublishPageInner() {
           {/* Submit */}
           <button
             onClick={handleSubmitIntent}
-            disabled={submitting}
+            disabled={submitting || !canPublish}
+            title={!canPublish ? "Your role cannot publish content" : undefined}
             className="w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-500"
           >
             {submitting ? (
@@ -2108,7 +2110,8 @@ function PublishPageInner() {
 
               <button
                 onClick={handleManualSchedule}
-                disabled={submitting || !manualScheduleDate || !manualScheduleTime || selectedAccountIds.length === 0}
+                disabled={submitting || !manualScheduleDate || !manualScheduleTime || selectedAccountIds.length === 0 || !canPublish}
+                title={!canPublish ? "Your role cannot schedule posts" : undefined}
                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
               >
                 {submitting ? (
