@@ -936,10 +936,13 @@ app.post('/api/v1/superadmin/organizations', authenticate, superAdminGuard, Supe
 app.post('/api/v1/superadmin/organizations/:orgId/approve', authenticate, superAdminGuard, SuperAdminController.approveOrganization);
 app.post('/api/v1/superadmin/organizations/:orgId/pause', authenticate, superAdminGuard, SuperAdminController.pauseOrganization);
 app.post('/api/v1/superadmin/organizations/:orgId/resume', authenticate, superAdminGuard, SuperAdminController.resumeOrganization);
+app.post('/api/v1/superadmin/organizations/:orgId/restrict', authenticate, superAdminGuard, SuperAdminController.restrictOrganization);
+app.put('/api/v1/superadmin/organizations/:orgId/plan', authenticate, superAdminGuard, SuperAdminController.upgradeOrganizationPlan);
 app.delete('/api/v1/superadmin/organizations/:orgId', authenticate, superAdminGuard, SuperAdminController.deleteOrganization);
 app.get('/api/v1/superadmin/analytics', authenticate, superAdminGuard, SuperAdminController.getAnalytics);
 app.get('/api/v1/superadmin/stats', authenticate, superAdminGuard, SuperAdminController.getPlatformStats);
 app.get('/api/v1/superadmin/tickets', authenticate, superAdminGuard, SupportController.listAllTickets);
+app.get('/api/v1/superadmin/tickets/count', authenticate, superAdminGuard, SupportController.countOpenTickets);
 app.patch('/api/v1/superadmin/tickets/:id', authenticate, superAdminGuard, SupportController.updateTicketStatus);
 
 // Knowledge Base Routes — Governed Knowledge Layer
