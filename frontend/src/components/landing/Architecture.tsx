@@ -1,4 +1,4 @@
-export default function Architecture() {
+﻿export default function Architecture() {
   const layers = [
     {
       label: "STRATEGY",
@@ -8,6 +8,7 @@ export default function Architecture() {
       labelColor: "#6366F1",
       nameColor: "#6366F1",
       cardBorder: "#C7D2FE",
+
       components: [
         { title: "Chief Strategy Agent",      desc: "Revenue & EBITDA alignment" },
         { title: "Business Context Engine",   desc: "ERP, inventory, pricing, margin" },
@@ -78,7 +79,6 @@ export default function Architecture() {
   return (
     <section className="py-24 px-6" style={{ background: "#F8FAFC" }}>
       <div className="max-w-6xl mx-auto">
-
         {/* Header */}
         <div className="text-center mb-16">
           <p className="inline-flex items-center gap-2 text-indigo-500 text-xs font-bold tracking-widest uppercase mb-4">
@@ -89,7 +89,7 @@ export default function Architecture() {
             A layered system, not a collection of AI helpers
           </h2>
           <p className="text-gray-500 max-w-lg mx-auto text-sm leading-relaxed">
-            Five intelligence layers operating in concert — each purpose-built,
+            Five intelligence layers operating in concert â€” each purpose-built,
             each governed, each working as a closed loop that connects creative,
             channel, spend, and revenue in real time.
           </p>

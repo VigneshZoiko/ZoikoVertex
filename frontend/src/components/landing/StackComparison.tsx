@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect, useRef, useState } from "react";
 
@@ -94,6 +95,7 @@ export default function StackComparison() {
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-5 flex items-center justify-center gap-3">
             <span className="w-6 h-px bg-cyan-400 inline-block" />
             COMPETITIVE ADVANTAGE
+
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-white leading-tight mb-5">
             Why current stacks fall short

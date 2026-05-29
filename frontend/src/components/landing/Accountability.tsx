@@ -1,4 +1,4 @@
-export default function Accountability() {
+﻿export default function Accountability() {
   const bullets = [
     "ROI per campaign, channel, and platform",
     "Cost per acquisition and contribution margin impact",
@@ -9,12 +9,12 @@ export default function Accountability() {
   ];
 
   const metrics = [
-    { label: "Campaign ROI",           value: "2.3× → 3.7×",   bg: "#22C55E1F", text: "#22C55E", border: "#22C55E38" },
-    { label: "Cost per acquisition",   value: "-26% reduction", bg: "#F59E0B1A", text: "#F59E0B", border: "#F59E0B38" },
-    { label: "Wasted spend recovered", value: "$6,400 / 48h",   bg: "#3B82F61F", text: "#60A5FA", border: "#3B82F638" },
-    { label: "Budget reallocated",     value: "$18,200 auto",   bg: "#20E7F21A", text: "#20E7F2", border: "#20E7F22E" },
-    { label: "Daily profit impact",    value: "+14.0%",         bg: "#22C55E1F", text: "#22C55E", border: "#22C55E38" },
-    { label: "Attribution confidence", value: "Multi-touch ✓",  bg: "#6366F11A", text: "#A5B4FC", border: "#6366F138" },
+    { label: "Campaign ROI",           value: "2.3× → 3.7×",   bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
+    { label: "Cost per acquisition",   value: "-26% reduction", bg: "#3a2a10", text: "#f59e0b", border: "#5a4020" },
+    { label: "Wasted spend recovered", value: "$6,400 / 48h",   bg: "#1a2a3a", text: "#60a5fa", border: "#2a3a5a" },
+    { label: "Budget reallocated",     value: "$18,200 auto",   bg: "#1a2a3a", text: "#60a5fa", border: "#2a3a5a" },
+    { label: "Daily profit impact",    value: "+14.0%",         bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
+    { label: "Attribution confidence", value: "Multi-touch ✓",  bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
   ];
 
   return (

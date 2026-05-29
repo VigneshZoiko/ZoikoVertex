@@ -1,9 +1,11 @@
-export default function Stats() {
+﻿export default function Stats() {
   const stats = [
+
     { number: "26", suffix: "%", label: "Average CPA reduction" },
     { number: "72", suffix: "h", label: "Time to first insight" },
     { number: "3.7", suffix: "×", label: "Campaign ROI uplift" },
     { number: "30", suffix: "d", label: "Measurable ROI evidence" },
+
   ];
 
   return (
@@ -21,7 +23,7 @@ export default function Stats() {
           </h2>
           <p className="text-gray-500 text-sm max-w-md mx-auto leading-relaxed text-center">
             Not abstract intelligence. Measurable performance movement, reduced
-            waste, and improved capital efficiency — reportable to finance.
+            waste, and improved capital efficiency â€” reportable to finance.
           </p>
         </div>
 
