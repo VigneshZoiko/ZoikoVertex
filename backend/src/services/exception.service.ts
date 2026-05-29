@@ -76,6 +76,15 @@ export async function createExceptionCase(input: ExceptionCaseInput): Promise<Ex
     category: input.exception_category, severity: input.severity,
   }).catch((err) => logger.warn({ error: String(err) }, 'Exception webhook broadcast failed (non-blocking)'));
 
+  try {
+    internalEventBus.emit('exception.case_created', {
+      workspace_id: input.workspace_id,
+      tenant_id: input.tenant_id,
+      actor_id: input.created_by,
+      exception_id: id,
+    });
+  } catch { /* non-blocking */ }
+
   return data as unknown as ExceptionCase;
 }
 

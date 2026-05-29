@@ -177,7 +177,7 @@ import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPos
 import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
 import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
 import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBudgetAuth, rejectBudgetAuth } from './domains/campaigns/budgetAuthController';
-import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights } from './domains/campaigns/adsController';
+import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
 import { getGoogleAdsCustomers, linkGoogleAdsCustomer, createGoogleBoost, syncGoogleBoostMetrics as syncGoogleMetrics, pauseGoogleBoost, resumeGoogleBoost, cancelGoogleBoost } from './domains/campaigns/googleAdsController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import {
@@ -297,6 +297,7 @@ import { authenticate, provisionGuard, scopeGuard } from './shared/authMiddlewar
 import { integrationPlanGate, blockApiKeyUsers, planRateLimit } from './shared/planLimits';
 import { requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';
+import { registerEventBridge } from './services/eventBridge';
 import {
   listApiKeys, createApiKey, revokeApiKey, deleteApiKey,
   listWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, getDeliveryLogs,
@@ -711,6 +712,7 @@ app.post('/api/v1/campaigns/:id/pause',           authenticate, campaignWriteGua
 app.post('/api/v1/campaigns/:id/emergency-pause', authenticate, campaignEmergencyGuard, emergencyPauseCampaign);
 app.get('/api/v1/campaigns/:id/events',           authenticate, campaignGuard,        getCampaignEvents);
 app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGuard,   updateSpend);
+app.post('/api/v1/campaigns/:id/push-to-meta',   authenticate, campaignLaunchGuard,  pushCampaignToMetaHandler);
 
 // Budget Authorization routes (Phase 4)
 app.post('/api/v1/campaigns/:id/budget-auth/request', authenticate, campaignWriteGuard,    requestBudgetAuth);
@@ -1228,6 +1230,7 @@ import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
+  registerEventBridge();
   const server = app.listen(port, () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers

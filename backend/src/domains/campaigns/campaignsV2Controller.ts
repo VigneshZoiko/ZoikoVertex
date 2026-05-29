@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logCampaignEvent } from './campaignsController';
 import { AutoCampaignBoostService } from './autoCampaignBoostService';
+import { pushCampaignToMeta } from './adsController';
 import { logger } from '../../shared/logger';
 
 // ── Budget threshold constants ───────────────────────────────
@@ -349,6 +350,17 @@ export const launchCampaign = async (req: AuthRequest, res: Response, next: Next
     if (newStatus === 'ACTIVE') {
       AutoCampaignBoostService.processActiveCampaignPosts(campaign.id, workspaceId)
         .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Launch] processActiveCampaignPosts failed (non-fatal)'));
+
+      // Auto-push to Meta Ads if campaign targets Meta and has an ad account configured
+      const hasMeta = (campaign.platforms as string[] | undefined)?.includes('Meta');
+      const hasMetaAccount = !!(campaign.boost_settings as Record<string, unknown> | null)?.meta_connected_account_id;
+      if (hasMeta && hasMetaAccount) {
+        pushCampaignToMeta(campaign, workspaceId, userId)
+          .then(r => {
+            if (!r.success) logger.warn({ campaignId: campaign.id, reason: r.error }, '[Launch] Meta push failed (non-fatal)');
+          })
+          .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Launch] Meta push threw (non-fatal)'));
+      }
     }
 
     res.json({
