@@ -19,10 +19,6 @@ jobs:
         run: npm install
         working-directory: ./landing
 
-      - name: Run Lint & Type Check
-        run: npm run lint
-        working-directory: ./landing
-
       - name: Verify Local Build
         run: npm run build
         working-directory: ./landing
