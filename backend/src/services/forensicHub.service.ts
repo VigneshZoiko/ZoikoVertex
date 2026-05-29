@@ -1,8 +1,7 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { createAuditEvent } from './auditTrail.service';
+import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
-
-const BUSINESS_HOURS_PER_DAY = 8;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -194,12 +193,11 @@ export function applyFieldAccess(userRoles: string[], fieldKey: string, value: a
   const access = rules[role] || 'denied';
   switch (access) {
     case 'full': return value;
-    case 'scoped': return value; // tenant-scoped; treated as full in Phase 1
+    case 'scoped': return value;
     case 'self_scoped': return value;
     case 'self_only': return userId && resourceUserId && userId === resourceUserId ? value : undefined;
     case 'redacted': return 'REDACTED_BY_ACCESS_POLICY';
     case 'hashed': return value ? `hash:${value.toString().substring(0, 16)}` : undefined;
-    case 'hashed_if_approved': return value ? `hash:${value.toString().substring(0, 16)}` : undefined;
     case 'hashed_if_approved': return value ? `hash:${value.toString().substring(0, 16)}` : undefined;
     case 'denied': return undefined;
     case 'denied_unless_added': return undefined;
@@ -212,19 +210,30 @@ export function applyFieldAccess(userRoles: string[], fieldKey: string, value: a
     case 'approved_package_only': return undefined;
     case 'full_for_approved': return value;
     case 'summary': return 'SUMMARY_ONLY';
-    default: return value;
+    default: return undefined;
   }
 }
 
 // ─── Phase 2: SLA Calculation ──────────────────────────────────────────────────
 
+function addBusinessDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  let remaining = days;
+  while (remaining > 0) {
+    result.setDate(result.getDate() + 1);
+    const day = result.getDay();
+    if (day !== 0 && day !== 6) remaining--;
+  }
+  return result;
+}
+
 function calculateSlaDueAt(severity: string): string {
   const now = new Date();
   switch (severity) {
-    case 'critical': return new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(); // 24h
-    case 'high': return new Date(now.getTime() + 3 * BUSINESS_HOURS_PER_DAY * 60 * 60 * 1000).toISOString(); // 3 business days
-    case 'medium': return new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000).toISOString(); // 10 calendar days
-    case 'low': return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 calendar days
+    case 'critical': return new Date(now.getTime() + 15 * 60 * 1000).toISOString(); // 15 min per spec
+    case 'high': return addBusinessDays(now, 3).toISOString(); // 3 business days per spec
+    case 'medium': return addBusinessDays(now, 10).toISOString(); // 10 business days per spec
+    case 'low': return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 calendar days per spec
     default: return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
   }
 }
@@ -233,9 +242,10 @@ export function checkSlaBreach(slaDueAt: string | null): { breached: boolean; ho
   if (!slaDueAt) return null;
   const now = new Date();
   const due = new Date(slaDueAt);
-  if (now <= due) return { breached: false, hoursOverdue: 0 };
-  const msOverdue = now.getTime() - due.getTime();
-  return { breached: true, hoursOverdue: Math.round(msOverdue / (1000 * 60 * 60)) };
+  const msDiff = now.getTime() - due.getTime();
+  const hoursDiff = Math.round(msDiff / (1000 * 60 * 60));
+  if (now <= due) return { breached: false, hoursOverdue: hoursDiff };
+  return { breached: true, hoursOverdue: hoursDiff };
 }
 
 // ─── Phase 2: Enhanced Timeline with Deterministic Correlation ──────────────
@@ -639,6 +649,16 @@ export async function createCase(params: {
     audit_event_id: auditId,
   });
 
+  try {
+    internalEventBus.emit('forensic.case_created', {
+      workspace_id: params.workspace_id,
+      tenant_id: params.workspace_id,
+      actor_id: params.actor_id,
+      case_id: caseRecord.case_id,
+      title: params.title,
+    });
+  } catch { /* non-blocking */ }
+
   return caseRecord;
 }
 
@@ -927,6 +947,14 @@ export async function closeCase(caseId: string, params: {
     reason: params.rationale, before_state: { status: caseRec.status }, after_state: { status: 'closed', closure },
     audit_event_id: auditId,
   });
+
+  try {
+    internalEventBus.emit('forensic.case_closed', {
+      workspace_id: caseRec.workspace_id,
+      actor_id: params.actor_id,
+      case_id: caseRec.case_id,
+    });
+  } catch { /* non-blocking */ }
 
   const updated = await getCase(caseId);
   if (!updated) throw new Error('Case not found after close');

@@ -1,4 +1,4 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import { Clock, Zap, CheckSquare } from "lucide-react";
 
 export default function FeatureBlock() {

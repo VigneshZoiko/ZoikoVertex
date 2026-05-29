@@ -14,6 +14,8 @@ import { api } from "@/lib/api";
 
 interface TeamMember { id: string; full_name?: string; email: string; role: string; }
 
+interface ConnectedAccount { id: string; platform: string; account_name: string; ad_account_id?: string; ad_account_name?: string; }
+
 interface WizardData {
   // Step 1 — Identity
   name: string;
@@ -26,6 +28,7 @@ interface WizardData {
   post_limit: string;
   auto_boost_enabled: boolean;
   boost_per_post_budget: string;
+  meta_connected_account_id: string;
   budget_total: string;
   budget_currency: string;
   budget_type: string;
@@ -65,6 +68,7 @@ const DEFAULT: WizardData = {
   campaign_subtype: "", special_ad_category: "NONE",
   region: "",
   post_limit: "", auto_boost_enabled: false, boost_per_post_budget: "",
+  meta_connected_account_id: "",
   budget_total: "", budget_currency: "USD", budget_type: "LIFETIME",
   start_at: "", end_at: "", bidding_strategy: "",
   budget_owner_id: "", budget_owner_name: "", daily_budget_cap: "",
@@ -192,13 +196,19 @@ export default function NewCampaignPage() {
   const [campaignId,  setCampaignId]  = useState<string | null>(editId);
   const [saving,      setSaving]      = useState(false);
   const [submitting,  setSubmitting]  = useState(false);
-  const [members,     setMembers]     = useState<TeamMember[]>([]);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [touched,     setTouched]     = useState<Partial<Record<keyof WizardData, boolean>>>({});
-  const [advOpen,     setAdvOpen]     = useState<Record<number, boolean>>({ 1: false, 2: false, 3: false });
+  const [members,       setMembers]       = useState<TeamMember[]>([]);
+  const [metaAccounts, setMetaAccounts] = useState<ConnectedAccount[]>([]);
+  const [fieldErrors, setFieldErrors]   = useState<FieldErrors>({});
+  const [touched,     setTouched]       = useState<Partial<Record<keyof WizardData, boolean>>>({});
+  const [advOpen,     setAdvOpen]       = useState<Record<number, boolean>>({ 1: false, 2: false, 3: false });
+  const [submitError, setSubmitError]   = useState<string | null>(null);
 
   useEffect(() => {
     api.get("/api/v1/team/members").then(r => setMembers(r.data || [])).catch(() => {});
+    api.get("/api/v1/accounts").then(r => {
+      const all: ConnectedAccount[] = r.data || [];
+      setMetaAccounts(all.filter(a => ["facebook", "instagram"].includes(a.platform) && a.ad_account_id));
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -234,6 +244,7 @@ export default function NewCampaignPage() {
         display_url: cr.display_url || "",
         utm_source: utm.source || "", utm_medium: utm.medium || "", utm_campaign_param: utm.campaign || "",
         facebook_page_id: cr.facebook_page_id || "", instagram_account_id: cr.instagram_account_id || "",
+        meta_connected_account_id: (c.boost_settings as Record<string, string> | null)?.meta_connected_account_id || "",
       });
     }).catch(() => {});
   }, [editId]);
@@ -304,6 +315,9 @@ export default function NewCampaignPage() {
           budget_owner_name: data.budget_owner_name || undefined,
           daily_budget_cap: data.daily_budget_cap ? parseFloat(data.daily_budget_cap) : undefined,
           start_at: data.start_at || null, end_at: data.end_at || null,
+          boost_settings: data.meta_connected_account_id
+            ? { meta_connected_account_id: data.meta_connected_account_id }
+            : undefined,
         });
       }
       if (step === 3) {
@@ -358,11 +372,18 @@ export default function NewCampaignPage() {
   const handleSubmit = async () => {
     if (!campaignId) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
-      await api.post(`/api/v1/campaigns/${campaignId}/submit-review`, {});
+      const res = await api.post(`/api/v1/campaigns/${campaignId}/submit-review`, {});
+      if (res?.success === false) {
+        const body = res.data as { message?: string; error?: string } | undefined;
+        setSubmitError(body?.message || body?.error || res.error || "Submit failed — please try again.");
+        return;
+      }
       router.push(`/campaigns/${campaignId}`);
-    } catch { /* stay */ }
-    finally { setSubmitting(false); }
+    } catch {
+      setSubmitError("Submit failed — please try again.");
+    } finally { setSubmitting(false); }
   };
 
   const fieldErr = (key: keyof WizardData) =>
@@ -698,6 +719,37 @@ export default function NewCampaignPage() {
                 )}
               </div>
 
+              {/* Meta Ad Account */}
+              {data.platforms.includes("Meta") && (
+                <div className="p-4 bg-zinc-900/60 border border-zinc-800 rounded-xl space-y-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Meta Ad Account</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Select which Meta Ad Account will fund this campaign when it launches.
+                    </p>
+                  </div>
+                  {metaAccounts.length === 0 ? (
+                    <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      No Meta accounts with a linked ad account found. Go to <strong className="mx-1">Accounts → Connect Facebook</strong> and link an Ad Account first.
+                    </div>
+                  ) : (
+                    <select
+                      value={data.meta_connected_account_id}
+                      onChange={e => set("meta_connected_account_id", e.target.value)}
+                      className={`${baseCls} ${okCls}`}
+                    >
+                      <option value="">Select Meta Ad Account…</option>
+                      {metaAccounts.map(a => (
+                        <option key={a.id} value={a.id}>
+                          {a.account_name} — {a.ad_account_name || a.ad_account_id}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
               {/* Advanced Toggle */}
               <AdvancedToggle open={advOpen[2]} filled={advFilledCount(2)} onToggle={() => toggleAdv(2)} />
               {advOpen[2] && (
@@ -999,6 +1051,13 @@ export default function NewCampaignPage() {
             <div className="p-6 space-y-5">
               <StepHeader icon={ClipboardCheck} title="Review & Submit" subtitle="Confirm everything looks right before requesting approval." />
 
+              {submitError && (
+                <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-xl flex items-start gap-3">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-rose-300">{submitError}</p>
+                </div>
+              )}
+
               {missing.length > 0 && (
                 <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-2">
                   <p className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
@@ -1045,6 +1104,15 @@ export default function NewCampaignPage() {
                   />
                   {data.bidding_strategy  && <ReviewRow label="Bidding" value={data.bidding_strategy.replace(/_/g, " ")} />}
                   {data.budget_owner_name && <ReviewRow label="Owner"   value={data.budget_owner_name} />}
+                  {data.platforms.includes("Meta") && (
+                    <ReviewRow label="Meta Ad Account"
+                      value={data.meta_connected_account_id
+                        ? (metaAccounts.find(a => a.id === data.meta_connected_account_id)?.ad_account_name
+                            || metaAccounts.find(a => a.id === data.meta_connected_account_id)?.account_name
+                            || data.meta_connected_account_id)
+                        : "⚠ Not selected — campaign won't auto-launch on Meta"}
+                    />
+                  )}
                 </ReviewSection>
 
                 <ReviewSection title="Audience & Creative">

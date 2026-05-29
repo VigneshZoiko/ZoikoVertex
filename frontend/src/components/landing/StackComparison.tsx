@@ -1,4 +1,4 @@
-export default function StackComparison() {
+﻿export default function StackComparison() {
   const rows = [
     { feature: "Autonomous capital allocation", us: true, them: false },
     { feature: "Inventory & margin integration", us: true, them: false },
@@ -21,7 +21,7 @@ export default function StackComparison() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12">
           <p className="text-indigo-500 text-xs font-bold tracking-widest uppercase mb-4">
-            — Competitive Advantage
+            â€” Competitive Advantage
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">
             Why current stacks fall short

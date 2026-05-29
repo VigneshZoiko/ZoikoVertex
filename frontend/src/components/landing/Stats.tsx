@@ -1,8 +1,8 @@
-export default function Stats() {
+﻿export default function Stats() {
   const stats = [
     { value: "26%", label: "Average CPA reduction" },
     { value: "72h", label: "Time to first insight" },
-    { value: "3.7×", label: "Campaign ROI uplift" },
+    { value: "3.7Ã—", label: "Campaign ROI uplift" },
     { value: "30d", label: "Measurable ROI evidence" },
   ];
 
@@ -23,7 +23,7 @@ export default function Stats() {
           </h2>
           <p className="text-gray-500 text-sm max-w-sm mx-auto leading-relaxed text-center">
             Not abstract intelligence. Measurable performance movement, reduced
-            waste, and improved capital efficiency — reportable to finance.
+            waste, and improved capital efficiency â€” reportable to finance.
           </p>
         </div>
         <div className="flex divide-x" style={{ borderColor: "#E3E9F0" }}>

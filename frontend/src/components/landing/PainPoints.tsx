@@ -1,20 +1,20 @@
-export default function PainPoints() {
+﻿export default function PainPoints() {
   const chaos = [
     "Marketing spend distributed across platforms with no unified campaigns or decision system",
     "Campaigns continue running when close to cost-demand, margins are weak, or strategic priorities have shifted",
     "Teams optimise for engagement and impressions rather than contribution margin and profit",
-    "Attribution remains inconsistent — finance teams distrust marketing-reported ROI",
+    "Attribution remains inconsistent â€” finance teams distrust marketing-reported ROI",
     "Legal has flagged claimed topics, copyright exposure, or jurisdiction restriction concerns",
     "Leadership lacks a single operating view of what marketing is doing to revenue and cost efficiency",
   ];
 
   const governed = [
     "Capital allocation engine that moves budget to the highest-return opportunities automatically",
-    "Business context integration — inventory, pricing, margin signal directly into campaign decisions",
-    "Decisions governed by revenue, contribution margin, and marketing efficiency — not vanity metrics",
-    "Multi-touch attribution reconciled to finance — ROI every CFO can defend to the board",
-    "Pre-publication compliance review — brand-safe, legally defensible, sector-aware before every post",
-    "Executive Command Centre — profit impact, actions taken, approvals pending, in one view",
+    "Business context integration â€” inventory, pricing, margin signal directly into campaign decisions",
+    "Decisions governed by revenue, contribution margin, and marketing efficiency â€” not vanity metrics",
+    "Multi-touch attribution reconciled to finance â€” ROI every CFO can defend to the board",
+    "Pre-publication compliance review â€” brand-safe, legally defensible, sector-aware before every post",
+    "Executive Command Centre â€” profit impact, actions taken, approvals pending, in one view",
   ];
 
   return (
@@ -22,7 +22,7 @@ export default function PainPoints() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-14">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4">
-            — The Executive Problem
+            â€” The Executive Problem
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-white mb-5">
             What most businesses are actually struggling with

@@ -29,6 +29,9 @@ import {
   sealExpired,
   createInvestigation,
   createEvent,
+  getEventDiffHandler,
+  getCorrelationTimelineHandler,
+  getEventClustersHandler,
 } from './domains/evidence/auditTrailController';
 import {
   subscribeSSE,
@@ -132,6 +135,8 @@ import {
   getAsyncJob,
   createChainAnchor,
   listChainAnchors,
+  confirmChainAnchor,
+  verifyChainAnchor,
   createTemplateVersion,
   listTemplateVersions,
 } from './domains/evidence/evidenceVaultController';
@@ -151,8 +156,20 @@ import {
   endBreakGlass,
   reviewBreakGlass,
   exportLedger,
-  preserveToVault as identityLedgerPreserveToVault
+  preserveToVault as identityLedgerPreserveToVault,
+  registerServiceAccount,
+  listServiceAccounts,
+  revokeServiceAccount,
+  getActorTimelineWithSessions,
+  evaluateActorRiskFlags,
+  setActorRiskFlags
 } from './domains/evidence/identityLedgerController';
+import {
+  routeToModule,
+  executeChain,
+  listRoutingHistory,
+  listWorkflowChains,
+} from './domains/governance/routingController';
 import { getCollusionMetrics } from './domains/governance/collusionController';
 import { getBrandProfiles, getLinguisticProfile, getClaimsLedger, updateBrandRule } from './domains/governance/brandController';
 import { handleFacebookCallback, handleLinkedInCallback, handlePinterestCallback, handleThreadsCallback, handleThreadsDeauthorize, handleThreadsDataDeletion, handleTwitterCallback, handleYoutubeCallback, handleGoogleAdsCallback, disconnectAccount, getLinkedInPagesSession, saveLinkedInPages } from './domains/channels/socialController';
@@ -160,7 +177,7 @@ import { getRecommendations, schedulePost, cancelScheduledPost, listScheduledPos
 import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampaign, getCampaignPosts } from './domains/campaigns/campaignsController';
 import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
 import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBudgetAuth, rejectBudgetAuth } from './domains/campaigns/budgetAuthController';
-import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights } from './domains/campaigns/adsController';
+import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
 import { getGoogleAdsCustomers, linkGoogleAdsCustomer, createGoogleBoost, syncGoogleBoostMetrics as syncGoogleMetrics, pauseGoogleBoost, resumeGoogleBoost, cancelGoogleBoost } from './domains/campaigns/googleAdsController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
 import {
@@ -187,6 +204,7 @@ import {
 import { SuperAdminController } from './domains/admin/superAdminController';
 import { SupportController } from './domains/admin/supportController';
 import { getUserContext } from './domains/identity/userController';
+import { changePlan } from './domains/identity/planController';
 import { listAccounts } from './domains/channels/accountsController';
 import { getPlatformReach } from './domains/channels/platformInsightsController';
 import { listMembers, listRequests, createRequest, updateRequest, deleteMember } from './domains/identity/teamController';
@@ -215,6 +233,7 @@ import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemet
 import { performGlobalSearch } from './domains/admin/globalSearchController';
 import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
 import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
+import { setupWorkspace } from './domains/identity/onboardingController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
@@ -278,6 +297,7 @@ import { authenticate, provisionGuard, scopeGuard } from './shared/authMiddlewar
 import { integrationPlanGate, blockApiKeyUsers, planRateLimit } from './shared/planLimits';
 import { requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';
+import { registerEventBridge } from './services/eventBridge';
 import {
   listApiKeys, createApiKey, revokeApiKey, deleteApiKey,
   listWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, getDeliveryLogs,
@@ -360,6 +380,7 @@ app.get('/api/v1/health', (req, res) => {
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.post('/api/v1/auth/signup-enterprise', enterpriseSignup);
+app.post('/api/v1/onboarding/setup', authenticate, setupWorkspace);
 app.post('/api/v1/users/provision', provisionGuard, provisionUser);
 
 // Protected Intelligence/AI
@@ -393,6 +414,13 @@ app.post('/api/v1/exceptions/cases/:id/send-to-approvals', authenticate, scopeGu
 app.post('/api/v1/exceptions/cases/:id/send-to-quality-audit', authenticate, scopeGuard('write:governance', '*'), sendToQualityAudit);
 app.get('/api/v1/exceptions/cases/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getExceptionAuditTrail);
 app.post('/api/v1/exceptions/cases/:id/export', authenticate, scopeGuard('read:governance', '*'), exportExceptionRecord);
+
+// ─── Cross-Module Automated Routing ──────────────────────────────────────────
+app.get('/api/v1/routing/chains', authenticate, scopeGuard('read:governance', '*'), listWorkflowChains);
+app.post('/api/v1/routing/route', authenticate, scopeGuard('write:governance', '*'), routeToModule);
+app.post('/api/v1/routing/chain', authenticate, scopeGuard('write:governance', '*'), executeChain);
+app.get('/api/v1/routing/history', authenticate, scopeGuard('read:governance', '*'), listRoutingHistory);
+
 const govGuard = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER');
 // Protected Governance
 app.post('/api/v1/governance/transition', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), transitionStatus);
@@ -432,8 +460,11 @@ app.get('/api/audit-events/subscriptions/:id', authenticate, scopeGuard('read:go
 app.patch('/api/audit-events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), updateSubscriptionRoute);
 app.delete('/api/audit-events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), deleteSubscriptionRoute);
 app.post('/api/audit-events/subscriptions/:id/test', authenticate, govGuard, scopeGuard('read:governance', '*'), testSubscription);
+app.get('/api/audit-events/correlations/:key/:value/timeline', authenticate, scopeGuard('read:governance', '*'), getCorrelationTimelineHandler);
 app.get('/api/audit-events/:id', authenticate, scopeGuard('read:governance', '*'), getEventDetail);
 app.get('/api/audit-events/:id/related', authenticate, scopeGuard('read:governance', '*'), getEventRelated);
+app.get('/api/audit-events/:id/diff', authenticate, scopeGuard('read:governance', '*'), getEventDiffHandler);
+app.get('/api/audit-events/:id/clusters', authenticate, scopeGuard('read:governance', '*'), getEventClustersHandler);
 
 // ─── Audit Trail Routes (Spec-Aligned /api/v1/evidence/audit-trail) ─────────
 app.post('/api/v1/evidence/audit-trail/events', authenticate, govGuard, scopeGuard('read:governance', '*'), createEvent);
@@ -452,8 +483,11 @@ app.get('/api/v1/evidence/audit-trail/events/subscriptions/:id', authenticate, s
 app.patch('/api/v1/evidence/audit-trail/events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), updateSubscriptionRoute);
 app.delete('/api/v1/evidence/audit-trail/events/subscriptions/:id', authenticate, govGuard, scopeGuard('read:governance', '*'), deleteSubscriptionRoute);
 app.post('/api/v1/evidence/audit-trail/events/subscriptions/:id/test', authenticate, govGuard, scopeGuard('read:governance', '*'), testSubscription);
+app.get('/api/v1/evidence/audit-trail/events/correlations/:key/:value/timeline', authenticate, scopeGuard('read:governance', '*'), getCorrelationTimelineHandler);
 app.get('/api/v1/evidence/audit-trail/events/:id', authenticate, scopeGuard('read:governance', '*'), getEventDetail);
 app.get('/api/v1/evidence/audit-trail/events/:id/related', authenticate, scopeGuard('read:governance', '*'), getEventRelated);
+app.get('/api/v1/evidence/audit-trail/events/:id/diff', authenticate, scopeGuard('read:governance', '*'), getEventDiffHandler);
+app.get('/api/v1/evidence/audit-trail/events/:id/clusters', authenticate, scopeGuard('read:governance', '*'), getEventClustersHandler);
 
 // ─── Forensic Hub Routes ──────────────────────────────────────────────────────
 app.get('/api/forensic/cases/stats', authenticate, scopeGuard('read:governance', '*'), getForensicStats);
@@ -551,6 +585,8 @@ app.get('/api/evidence-vault/jobs', authenticate, scopeGuard('read:governance', 
 app.get('/api/evidence-vault/jobs/:id', authenticate, scopeGuard('read:governance', '*'), getAsyncJob);
 app.post('/api/evidence-vault/chain-anchors', authenticate, scopeGuard('read:governance', '*'), createChainAnchor);
 app.get('/api/evidence-vault/chain-anchors', authenticate, scopeGuard('read:governance', '*'), listChainAnchors);
+app.post('/api/evidence-vault/chain-anchors/:anchorId/confirm', authenticate, govGuard, scopeGuard('read:governance', '*'), confirmChainAnchor);
+app.get('/api/evidence-vault/chain-anchors/:anchorId/verify', authenticate, scopeGuard('read:governance', '*'), verifyChainAnchor);
 app.post('/api/evidence-vault/templates', authenticate, scopeGuard('read:governance', '*'), createTemplateVersion);
 app.get('/api/evidence-vault/templates', authenticate, scopeGuard('read:governance', '*'), listTemplateVersions);
 
@@ -571,6 +607,14 @@ app.post('/api/identity-ledger/break-glass/:id/end', authenticate, scopeGuard('w
 app.post('/api/identity-ledger/break-glass/:id/review', authenticate, scopeGuard('write:governance', '*'), reviewBreakGlass);
 app.post('/api/identity-ledger/export', authenticate, scopeGuard('read:governance', '*'), exportLedger);
 app.post('/api/identity-ledger/preserve', authenticate, scopeGuard('write:governance', '*'), identityLedgerPreserveToVault);
+
+// Identity Ledger — Phase 2 Governance Depth
+app.get('/api/identity-ledger/service-accounts', authenticate, scopeGuard('read:governance', '*'), listServiceAccounts);
+app.post('/api/identity-ledger/service-accounts', authenticate, scopeGuard('write:governance', '*'), registerServiceAccount);
+app.post('/api/identity-ledger/service-accounts/:actorId/revoke', authenticate, scopeGuard('write:governance', '*'), revokeServiceAccount);
+app.get('/api/identity-ledger/actors/:actorId/timeline/sessions', authenticate, scopeGuard('read:governance', '*'), getActorTimelineWithSessions);
+app.post('/api/identity-ledger/actors/:actorId/risk/evaluate', authenticate, scopeGuard('read:governance', '*'), evaluateActorRiskFlags);
+app.put('/api/identity-ledger/actors/:actorId/risk/flags', authenticate, scopeGuard('write:governance', '*'), setActorRiskFlags);
 
 // Protected Risk & Compliance Command Center
 app.get('/api/v1/governance/risk/pulse', authenticate, govGuard, scopeGuard('read:governance', '*'), getRiskPulse);
@@ -667,6 +711,7 @@ app.post('/api/v1/campaigns/:id/pause',           authenticate, campaignWriteGua
 app.post('/api/v1/campaigns/:id/emergency-pause', authenticate, campaignEmergencyGuard, emergencyPauseCampaign);
 app.get('/api/v1/campaigns/:id/events',           authenticate, campaignGuard,        getCampaignEvents);
 app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGuard,   updateSpend);
+app.post('/api/v1/campaigns/:id/push-to-meta',   authenticate, campaignLaunchGuard,  pushCampaignToMetaHandler);
 
 // Budget Authorization routes (Phase 4)
 app.post('/api/v1/campaigns/:id/budget-auth/request', authenticate, campaignWriteGuard,    requestBudgetAuth);
@@ -711,6 +756,7 @@ app.delete('/api/v1/library/:id', authenticate, planRateLimit('general'), scopeG
 
 // Protected User Routes
 app.get('/api/v1/user/context', authenticate, getUserContext);
+app.patch('/api/v1/admin/plan', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'), changePlan);
 app.post('/api/v1/user/downgrade-to-free', authenticate, SuperAdminController.downgradeToFreePlan);
 
 // Workspace Settings Routes
@@ -1182,6 +1228,7 @@ import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
+  registerEventBridge();
   const server = app.listen(port, () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers

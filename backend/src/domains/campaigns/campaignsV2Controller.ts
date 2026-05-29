@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logCampaignEvent } from './campaignsController';
 import { AutoCampaignBoostService } from './autoCampaignBoostService';
+import { pushCampaignToMeta } from './adsController';
 import { logger } from '../../shared/logger';
 
 // ── Budget threshold constants ───────────────────────────────
@@ -153,11 +154,10 @@ export const submitCampaignForReview = async (req: AuthRequest, res: Response, n
 
     // Validate required fields for approval request
     const gaps: string[] = [];
-    if (!campaign.objective)       gaps.push('objective');
-    if (!campaign.budget_total)    gaps.push('budget total');
-    if (!campaign.budget_owner_id) gaps.push('budget owner');
-    if (!campaign.start_at)        gaps.push('start date');
-    if (!campaign.end_at)          gaps.push('end date');
+    if (!campaign.objective)    gaps.push('objective');
+    if (!campaign.budget_total) gaps.push('budget total');
+    if (!campaign.start_at)     gaps.push('start date');
+    if (!campaign.end_at)       gaps.push('end date');
 
     const creative = campaign.creative || {};
     if (!creative.landing_page_url) gaps.push('landing page URL');
@@ -175,9 +175,13 @@ export const submitCampaignForReview = async (req: AuthRequest, res: Response, n
       ? parsed.data.approval_tier
       : campaign.risk_tier || 'low';
 
+    // Auto-assign budget owner to the submitting user if not already set
+    const budgetOwnerPatch = campaign.budget_owner_id ? {} : { budget_owner_id: userId };
+
     const { data: updated, error: updateErr } = await supabaseAdmin
       .from('campaigns')
       .update({
+        ...budgetOwnerPatch,
         status:        'READY_FOR_REVIEW',
         approval_tier: approvalTier,
         wizard_step:   5,
@@ -345,7 +349,18 @@ export const launchCampaign = async (req: AuthRequest, res: Response, next: Next
     // If campaign is immediately ACTIVE, process any already-published posts
     if (newStatus === 'ACTIVE') {
       AutoCampaignBoostService.processActiveCampaignPosts(campaign.id, workspaceId)
-        .catch(err => logger.warn({ err, campaignId: campaign.id }, '[Launch] processActiveCampaignPosts failed (non-fatal)'));
+        .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Launch] processActiveCampaignPosts failed (non-fatal)'));
+
+      // Auto-push to Meta Ads if campaign targets Meta and has an ad account configured
+      const hasMeta = (campaign.platforms as string[] | undefined)?.includes('Meta');
+      const hasMetaAccount = !!(campaign.boost_settings as Record<string, unknown> | null)?.meta_connected_account_id;
+      if (hasMeta && hasMetaAccount) {
+        pushCampaignToMeta(campaign, workspaceId, userId)
+          .then(r => {
+            if (!r.success) logger.warn({ campaignId: campaign.id, reason: r.error }, '[Launch] Meta push failed (non-fatal)');
+          })
+          .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Launch] Meta push threw (non-fatal)'));
+      }
     }
 
     res.json({

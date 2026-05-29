@@ -70,7 +70,8 @@ interface EnforcementEvent {
 }
 
 export default function PolicyControlMatrixPage() {
-  const { hasRole, isLoading: rolesLoading } = useRoles();
+  const { role: currentRole, isSuperAdmin, hasRole, isLoading: rolesLoading } = useRoles();
+  const canManagePolicies = isSuperAdmin || hasRole(['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER']);
 
   const [summary, setSummary] = useState<PolicySummary | null>(null);
   const [policies, setPolicies] = useState<PolicyRule[]>([]);
@@ -260,13 +261,15 @@ export default function PolicyControlMatrixPage() {
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-white" : ""}`} />
             </button>
-            <button
-              onClick={() => setIsBuilderOpen(true)}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black text-sm font-extrabold rounded-xl transition-all flex items-center gap-1.5 shadow-lg shadow-amber-500/10"
-            >
-              <Plus className="w-4 h-4" />
-              New Guardrail
-            </button>
+            {canManagePolicies && (
+              <button
+                onClick={() => setIsBuilderOpen(true)}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black text-sm font-extrabold rounded-xl transition-all flex items-center gap-1.5 shadow-lg shadow-amber-500/10"
+              >
+                <Plus className="w-4 h-4" />
+                New Guardrail
+              </button>
+            )}
           </div>
         </div>
 
@@ -387,15 +390,17 @@ export default function PolicyControlMatrixPage() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
+                        <button
                           onClick={() => { setSelectedSimRule(pol); setIsSimulatorOpen(true); }}
                           className="px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 rounded font-bold text-[10px] flex items-center gap-1"
                         >
                           <Play className="w-3 h-3" /> Simulate
                         </button>
-                        <button className="px-2 py-1 bg-[#222] hover:bg-[#333] border border-[#333] text-white rounded font-bold text-[10px]">
-                          Edit
-                        </button>
+                        {canManagePolicies && (
+                          <button className="px-2 py-1 bg-[#222] hover:bg-[#333] border border-[#333] text-white rounded font-bold text-[10px]">
+                            Edit
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

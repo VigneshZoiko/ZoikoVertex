@@ -1,4 +1,4 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import Link from "next/link";
 import {
   Activity,
@@ -59,7 +59,7 @@ export default function Hero() {
               href="#pricing"
               className="bg-white/5 border border-white/15 hover:bg-white/10 text-white font-semibold px-8 py-3.5 rounded-full transition-all flex items-center gap-2.5"
             >
-              Find Your Ideal Plan →
+              Find Your Ideal Plan â†’
             </a>
           </div>
           <p className="text-white/30 text-xs mb-4">
