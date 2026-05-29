@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { useRoleContext } from "@/lib/context/RoleContext";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -109,6 +110,8 @@ const FILTERS = ["ALL", "NEEDS ACTION", "ACTIVE", "PENDING APPROVAL", "APPROVED"
 
 export default function CampaignsPage() {
   const router = useRouter();
+  const { role, isSuperAdmin } = useRoleContext();
+  const canCreateCampaign = isSuperAdmin || ['ADMIN','WORKSPACE_OWNER','CAMPAIGN_MANAGER','CREATOR'].includes(role ?? '');
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -173,10 +176,12 @@ export default function CampaignsPage() {
             className="p-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-400 rounded-xl transition-all">
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button onClick={() => router.push("/campaigns/new")}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-indigo-600/20">
-            <Plus className="w-4 h-4" />New Campaign
-          </button>
+          {canCreateCampaign && (
+            <button onClick={() => router.push("/campaigns/new")}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-indigo-600/20">
+              <Plus className="w-4 h-4" />New Campaign
+            </button>
+          )}
         </div>
       </div>
 
@@ -259,10 +264,12 @@ export default function CampaignsPage() {
           <p className="text-zinc-600 text-sm mt-1 max-w-xs">
             {filter === "NEEDS ACTION" ? "No campaigns need attention right now." : "Try a different filter or create a new campaign."}
           </p>
-          <button onClick={() => router.push("/campaigns/new")}
-            className="mt-5 flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all">
-            <Plus className="w-4 h-4" />New Campaign
-          </button>
+          {canCreateCampaign && (
+            <button onClick={() => router.push("/campaigns/new")}
+              className="mt-5 flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all">
+              <Plus className="w-4 h-4" />New Campaign
+            </button>
+          )}
         </div>
       ) : (
         <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl overflow-hidden">

@@ -11,6 +11,7 @@ import {
   Trash2, CheckSquare, Square, Settings, Plus, Pencil, ToggleLeft, ToggleRight,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useRoleContext } from "@/lib/context/RoleContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -621,6 +622,8 @@ function ComposeBar({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function InboxPage() {
+  const { role, isSuperAdmin } = useRoleContext();
+  const canManageInboxRules = isSuperAdmin || ['ADMIN','WORKSPACE_OWNER','GOVERNANCE_ADMIN'].includes(role ?? '');
   const [tab, setTab] = useState("all");
   const [platform, setPlatform] = useState("");
   const [search, setSearch] = useState("");
@@ -1763,7 +1766,8 @@ export default function InboxPage() {
                       )}
                       <button
                         onClick={handleSaveRule}
-                        disabled={savingRule || !newRuleKeywords.trim() || !newRuleReply.trim()}
+                        disabled={savingRule || !newRuleKeywords.trim() || !newRuleReply.trim() || !canManageInboxRules}
+                        title={!canManageInboxRules ? "Only Admins can manage auto-reply rules" : undefined}
                         className="flex items-center gap-1.5 text-[11px] text-white/90 bg-sky-600/70 hover:bg-sky-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
                       >
                         {savingRule ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
@@ -1815,7 +1819,8 @@ export default function InboxPage() {
                             <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                               <button
                                 onClick={() => handleToggleRule(rule)}
-                                className="p-1 rounded-md hover:bg-white/[0.04] transition-colors"
+                                disabled={!canManageInboxRules}
+                                className="p-1 rounded-md hover:bg-white/[0.04] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 title={rule.is_active ? "Disable" : "Enable"}
                               >
                                 {rule.is_active
@@ -1824,13 +1829,15 @@ export default function InboxPage() {
                               </button>
                               <button
                                 onClick={() => startEditRule(rule)}
-                                className="p-1 rounded-md text-[#2e2e2e] hover:text-white/60 hover:bg-white/[0.04] transition-colors"
+                                disabled={!canManageInboxRules}
+                                className="p-1 rounded-md text-[#2e2e2e] hover:text-white/60 hover:bg-white/[0.04] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <Pencil className="w-3 h-3" />
                               </button>
                               <button
                                 onClick={() => handleDeleteRule(rule.id)}
-                                className="p-1 rounded-md text-[#2e2e2e] hover:text-red-400 hover:bg-red-500/[0.06] transition-colors"
+                                disabled={!canManageInboxRules}
+                                className="p-1 rounded-md text-[#2e2e2e] hover:text-red-400 hover:bg-red-500/[0.06] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>

@@ -14,14 +14,17 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [checking, setChecking]   = useState(true);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         const next = searchParams.get('next');
         router.replace(next && next.startsWith('/') ? next : '/dashboard');
+      } else {
+        setChecking(false);
       }
     });
   }, [router, searchParams]);
@@ -57,7 +60,7 @@ function LoginForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/dashboard`
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       });
       if (error) throw error;
@@ -66,6 +69,10 @@ function LoginForm() {
       setLoading(false);
     }
   };
+
+  if (checking) {
+    return <div className="min-h-screen bg-[#09090b]" />;
+  }
 
   return (
     <AuthLayout>

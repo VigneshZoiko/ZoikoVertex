@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -10,9 +10,10 @@ import { DraftGuardProvider } from "@/lib/context/DraftGuardContext";
 import { NotificationProvider } from "@/lib/context/NotificationContext";
 import { useRoleContext } from "@/lib/context/RoleContext";
 import { supabase } from "@/lib/supabase";
-import { canAccessSimple } from "@/lib/routeAccess";
-import { ShieldOff, ArrowLeft } from "lucide-react";
-import WorkspaceSetupScreen from "@/components/WorkspaceSetupScreen";
+import { api } from "@/lib/api";
+import { canAccess } from "@/lib/routeAccess";
+import { type Plan, type Feature, PLAN_DISPLAY, PLAN_BADGE_COLOR, FEATURE_UPGRADE_REASON, FEATURE_MIN_PLAN } from "@/lib/planFeatures";
+import { ShieldOff, ArrowLeft, Lock, ArrowRight } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -20,13 +21,17 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
-  const router = useRouter();
+  const router   = useRouter();
   const { orgStatus, workspaceStatus, orgName, planType, premiumPaidUntil, isSuperAdmin, isLoading, role, refresh } = useRoleContext();
-  const [isUnauthorized, setIsUnauthorized] = useState<boolean | null>(null);
+  const [accessDenied, setAccessDenied] = useState<
+    | { reason: 'role' }
+    | { reason: 'plan'; requiredPlan: Plan; feature: Feature }
+    | false
+    | null
+  >(null);
+  const verifyingRef = useRef(false);
 
   // ── Auth guard ──────────────────────────────────────────────────────────────
-  // Runs on every route change. getSession() reads from localStorage so it's
-  // synchronous-fast. Redirects to /login if no valid session exists.
   useEffect(() => {
     let cancelled = false;
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -36,106 +41,69 @@ export default function DashboardLayout({
     return () => { cancelled = true; };
   }, [pathname, router]);
 
+  // ── No workspace → verify API before redirecting (guards against stale RoleContext) ─
+  useEffect(() => {
+    if (isLoading || isSuperAdmin || orgStatus !== 'NO_WORKSPACE') return;
+    if (verifyingRef.current) return;
+    verifyingRef.current = true;
+    api.get('/api/v1/user/context').then(res => {
+      verifyingRef.current = false;
+      if (res?.success && res.data?.workspace_id) {
+        // Context was stale — refresh silently and stay on dashboard
+        refresh();
+      } else {
+        router.replace('/onboarding');
+      }
+    }).catch(() => {
+      verifyingRef.current = false;
+      router.replace('/onboarding');
+    });
+  }, [isLoading, isSuperAdmin, orgStatus, router]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Role guard ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isLoading) return;
-    if (!isSuperAdmin && orgStatus === 'NO_WORKSPACE') return; // handled by setup screen below
+    if (!isSuperAdmin && orgStatus === 'NO_WORKSPACE') return;
     if (role === null && !isSuperAdmin) return;
-    setIsUnauthorized(!canAccessSimple(pathname, role, isSuperAdmin, planType));
-  }, [pathname, isLoading, role, isSuperAdmin, orgStatus, planType, router]);
+    const result = canAccess(pathname, role, isSuperAdmin, planType);
+    setAccessDenied(result.allowed ? false : result);
+  }, [pathname, isLoading, role, isSuperAdmin, orgStatus, planType]);
 
-  // ── Poll until workspace is ready when NO_WORKSPACE ─────────────────────────
-  useEffect(() => {
-    if (isLoading || isSuperAdmin || orgStatus !== 'NO_WORKSPACE') return;
-    let active = true;
-    const poll = () => {
-      if (!active) return;
-      refresh().finally(() => { if (active) setTimeout(poll, 4000); });
-    };
-    setTimeout(poll, 3000);
-    return () => { active = false; };
-  }, [isLoading, isSuperAdmin, orgStatus]); // refresh is stable, intentionally omitted
-
-  // ── Workspace still provisioning ────────────────────────────────────────────
-  if (!isLoading && !isSuperAdmin && orgStatus === 'NO_WORKSPACE') {
-    return <WorkspaceSetupScreen />;
+  // ── Silent wait — plain dark background, nothing visible to the user ───────
+  if (isLoading || accessDenied === null) {
+    return <div className="h-screen bg-[var(--background,#111111)]" />;
   }
 
-  // ── Loading skeleton (initial role fetch + auth check) ──────────────────────
-  if (isLoading || isUnauthorized === null) {
-    return (
-      <div className="h-screen bg-[var(--background,#111111)] flex overflow-hidden">
-        {/* Sidebar skeleton */}
-        <div className="w-64 shrink-0 bg-[var(--sidebar-bg,#1a1a1a)] border-r border-[var(--sidebar-border,#2a2a2a)] flex flex-col">
-          <div className="px-4 pt-5 pb-4 border-b border-[var(--sidebar-border,#2a2a2a)]">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[var(--sidebar-hover,#222)] animate-pulse" />
-              <div className="h-5 w-28 rounded bg-[var(--sidebar-hover,#222)] animate-pulse" />
-            </div>
-          </div>
-          <div className="flex-1 py-4 px-3 space-y-2">
-            {[80, 60, 72, 64, 56, 68].map((w, i) => (
-              <div key={i} className="h-9 rounded-lg bg-[var(--sidebar-hover,#222)] animate-pulse" style={{ width: `${w}%`, animationDelay: `${i * 60}ms` }} />
-            ))}
-          </div>
-        </div>
-        {/* Main area skeleton */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="h-16 border-b border-[var(--border,#2a2a2a)] bg-[var(--header-bg,#111)] px-8 flex items-center justify-between shrink-0">
-            <div className="h-8 w-80 rounded-lg bg-[var(--surface,#1a1a1a)] animate-pulse" />
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[var(--surface,#1a1a1a)] animate-pulse" />
-              <div className="w-8 h-8 rounded-full bg-[var(--surface,#1a1a1a)] animate-pulse" />
-              <div className="h-8 w-32 rounded-lg bg-[var(--surface,#1a1a1a)] animate-pulse" />
-            </div>
-          </div>
-          <div className="flex-1 p-8 space-y-4">
-            <div className="h-8 w-48 rounded-lg bg-[var(--surface,#1a1a1a)] animate-pulse" />
-            <div className="grid grid-cols-4 gap-4">
-              {[1,2,3,4].map(i => (
-                <div key={i} className="h-28 rounded-2xl bg-[var(--surface,#1a1a1a)] animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
-              ))}
-            </div>
-            <div className="h-64 rounded-2xl bg-[var(--surface,#1a1a1a)] animate-pulse" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Pending org approval gate ────────────────────────────────────────────────
+  // ── Pending org approval ────────────────────────────────────────────────────
   if (!isSuperAdmin && orgStatus === "PENDING") {
     return <PendingApproval orgName={orgName ?? undefined} />;
   }
 
-  // ── Suspended/deleted org gate ──────────────────────────────────────────────
+  // ── Suspended org gate ──────────────────────────────────────────────────────
   const isSupportRoute = pathname.startsWith('/support');
-  const isSuspended = !isSuperAdmin && !isSupportRoute && (workspaceStatus === "SUSPENDED" || orgStatus === "SUSPENDED");
-  const showSuspension = isSuspended;
+  const isSuspended    = !isSuperAdmin && !isSupportRoute && (workspaceStatus === "SUSPENDED" || orgStatus === "SUSPENDED");
   const suspensionType = 'paused' as const;
 
   return (
     <NotificationProvider>
       <DraftGuardProvider>
         <div className="bg-[var(--background)] text-[var(--foreground)] h-screen overflow-hidden flex transition-colors">
-          <div className={`w-64 shrink-0 transition-all duration-500 ${showSuspension ? 'opacity-20 pointer-events-none select-none' : ''}`}>
+          <div className={`w-64 shrink-0 transition-all duration-500 ${isSuspended ? 'opacity-20 pointer-events-none select-none' : ''}`}>
             <Sidebar />
           </div>
           <div className="flex-1 flex flex-col min-w-0 h-screen">
             <Header />
             <main className="flex-1 overflow-hidden flex flex-col bg-[var(--background)] transition-colors">
-              {showSuspension ? (
+              {isSuspended ? (
                 <SuspendedOverlay orgName={orgName ?? undefined} type={suspensionType} planType={planType} premiumPaidUntil={premiumPaidUntil} />
-              ) : isUnauthorized ? (
-                <UnauthorizedView pathname={pathname} onBack={() => router.replace('/dashboard')} />
+              ) : accessDenied ? (
+                accessDenied.reason === 'plan'
+                  ? <PlanBlockView requiredPlan={accessDenied.requiredPlan} feature={accessDenied.feature} onBack={() => router.replace('/dashboard')} />
+                  : <UnauthorizedView pathname={pathname} onBack={() => router.replace('/dashboard')} />
               ) : (
                 <div
                   key={pathname}
-                  className={`page-enter flex-1 ${
-                    pathname === '/inbox'
-                      ? 'overflow-hidden'
-                      : 'overflow-y-auto p-8'
-                  }`}
+                  className={`page-enter flex-1 ${pathname === '/inbox' ? 'overflow-hidden' : 'overflow-y-auto p-8'}`}
                 >
                   {children}
                 </div>
@@ -148,29 +116,56 @@ export default function DashboardLayout({
   );
 }
 
-// ── Inline 403 component ─────────────────────────────────────────────────────
-function UnauthorizedView({ pathname, onBack }: { pathname: string; onBack: () => void }) {
-  // Derive a readable section name from the first path segment
-  const section = pathname.split('/').filter(Boolean)[0];
-  const label = section
-    ? section.charAt(0).toUpperCase() + section.slice(1).replace(/-/g, ' ')
-    : 'this page';
+function PlanBlockView({ requiredPlan, feature, onBack }: { requiredPlan: Plan; feature: Feature; onBack: () => void }) {
+  const router = useRouter();
+  const badgeClass = PLAN_BADGE_COLOR[requiredPlan];
+  const reason = FEATURE_UPGRADE_REASON[feature];
+  const minPlan = FEATURE_MIN_PLAN[feature];
+  const displayName = PLAN_DISPLAY[minPlan];
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 page-enter">
+      <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-6">
+        <Lock className="w-7 h-7 text-amber-400" />
+      </div>
+      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border mb-4 ${badgeClass}`}>
+        {displayName}
+      </span>
+      <h1 className="text-2xl font-bold text-[var(--foreground)] mb-2 tracking-tight">Feature Locked</h1>
+      <p className="text-[var(--foreground-muted)] text-sm max-w-sm leading-relaxed mb-8">{reason}</p>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-all duration-200"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </button>
+        <button
+          onClick={() => router.push('/admin/billing')}
+          className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black rounded-xl text-sm font-bold transition-all duration-200"
+        >
+          View Plans
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
+function UnauthorizedView({ pathname, onBack }: { pathname: string; onBack: () => void }) {
+  const section = pathname.split('/').filter(Boolean)[0];
+  const label   = section ? section.charAt(0).toUpperCase() + section.slice(1).replace(/-/g, ' ') : 'this page';
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 page-enter">
       <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-6">
         <ShieldOff className="w-7 h-7 text-rose-400" />
       </div>
-
-      <h1 className="text-2xl font-bold text-[var(--foreground)] mb-2 tracking-tight">
-        Access Restricted
-      </h1>
+      <h1 className="text-2xl font-bold text-[var(--foreground)] mb-2 tracking-tight">Access Restricted</h1>
       <p className="text-[var(--foreground-muted)] text-sm max-w-sm leading-relaxed mb-8">
         Your current role does not have permission to view{' '}
         <span className="text-[var(--foreground)] font-semibold">{label}</span>.
         Contact your workspace administrator if you need access.
       </p>
-
       <button
         onClick={onBack}
         className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm font-semibold text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-[var(--border-hover)] transition-all duration-200"

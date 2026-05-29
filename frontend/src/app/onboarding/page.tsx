@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
+import { useRoleContext } from "@/lib/context/RoleContext";
 import WorkspaceSetupScreen from "@/components/WorkspaceSetupScreen";
 
 /* ─── Perks (onboarding form) ────────────────────────────────────────────── */
@@ -243,13 +244,13 @@ function WelcomeScreen({
                       {plan.cta}
                     </button>
                   ) : plan.kind === "contact" ? (
-                    <a
-                      href="mailto:sales@zoikogroup.com?subject=Vertex Corporate Inquiry"
-                      style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5, width:"100%", padding:"9px 0", borderRadius:9, background:"#fff", color:"#09090b", fontSize:13, fontWeight:600, textDecoration:"none", boxSizing:"border-box" }}
+                    <button
+                      onClick={() => onAction("contact", plan.id)}
                       className="w-btn-white"
+                      style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5, width:"100%", padding:"9px 0", borderRadius:9, border:"none", background:"#fff", color:"#09090b", fontSize:13, fontWeight:600, cursor:"pointer" }}
                     >
                       {plan.cta} <ArrowUpRight style={{ width:12, height:12 }} />
-                    </a>
+                    </button>
                   ) : (
                     <button
                       onClick={() => onAction("upgrade", plan.id)}
@@ -278,6 +279,10 @@ function WelcomeScreen({
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { refresh: refreshRole } = useRoleContext();
+  // Stable ref so the polling effect doesn't restart when refreshRole changes reference
+  const refreshRoleRef = useRef(refreshRole);
+  useEffect(() => { refreshRoleRef.current = refreshRole; }, [refreshRole]);
 
   const [companyName,   setCompanyName]   = useState("");
   const [workspaceName, setWorkspaceName] = useState("");
@@ -290,8 +295,8 @@ export default function OnboardingPage() {
   const [checking,   setChecking]   = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   const [error,      setError]      = useState("");
-  // "form" → "setting_up" → "done"
-  const [step, setStep] = useState<"form" | "setting_up" | "done">("form");
+  // "form" → "welcome" → "setting_up" → dashboard
+  const [step, setStep] = useState<"form" | "welcome" | "setting_up">("form");
 
   /* ── Auth + workspace guard ─────────────────────────────────────────────── */
   useEffect(() => {
@@ -341,24 +346,42 @@ export default function OnboardingPage() {
     return () => window.removeEventListener("popstate", block);
   }, [step]);
 
-  /* ── Poll until workspace is confirmed ready ────────────────────────────── */
+  /* ── Poll while building screen is shown ────────────────────────────────── */
+  // Fires immediately, retries every 2 s.
+  // Refreshes RoleContext BEFORE navigating so dashboard never sees stale NO_WORKSPACE.
   useEffect(() => {
     if (step !== "setting_up") return;
     let active = true;
+    let navigated = false; // separate flag — not reset by effect cleanup
+
+    const go = async () => {
+      if (navigated) return;
+      navigated = true;
+      try { localStorage.removeItem("zv_role_cache"); } catch {}
+      await refreshRoleRef.current(); // update RoleContext with fresh workspace data
+      router.replace("/dashboard"); // navigate regardless of active — we already committed
+    };
+
+    // 2-minute hard deadline
+    const deadline = setTimeout(go, 120_000);
+
     const poll = async () => {
+      if (!active || navigated) return;
       try {
         const res = await api.get("/api/v1/user/context").catch(() => null);
-        if (!active) return;
+        if (!active || navigated) return;
         if (res?.success && res.data?.workspace_id) {
-          setStep("done");
+          clearTimeout(deadline);
+          go(); // fire-and-forget; navigated flag prevents double-call
           return;
         }
       } catch {}
-      if (active) setTimeout(poll, 3000);
+      if (active && !navigated) setTimeout(poll, 2000);
     };
-    setTimeout(poll, 2000);
-    return () => { active = false; };
-  }, [step]);
+
+    poll();
+    return () => { active = false; clearTimeout(deadline); };
+  }, [step, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Submit ──────────────────────────────────────────────────────────────── */
   const handleSubmit = async (e: React.FormEvent) => {
@@ -379,7 +402,7 @@ export default function OnboardingPage() {
       }
 
       try { localStorage.removeItem("zv_role_cache"); } catch {}
-      setStep("setting_up");
+      setStep("welcome");
     } catch {
       setError("Connection error. Please try again.");
     } finally {
@@ -389,30 +412,17 @@ export default function OnboardingPage() {
 
   /* ── Handle plan selection from welcome screen ──────────────────────────── */
   const handleWelcomeAction = (kind: PlanKind, _planId: string) => {
-    if (kind === "free") {
-      router.replace("/dashboard");
-    } else if (kind === "upgrade") {
-      router.replace("/admin/billing");
+    if (kind === "contact") {
+      window.open("mailto:sales@zoikogroup.com?subject=Vertex Corporate Inquiry", "_blank");
     }
-    // "contact" uses an <a href="mailto:"> directly
+    // All plans (free, upgrade, contact) proceed to the building screen next
+    setStep("setting_up");
   };
 
-  /* ── Spinner while checking ─────────────────────────────────────────────── */
-  if (checking) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <Loader2 className="w-5 h-5 animate-spin text-neutral-400" />
-      </div>
-    );
-  }
+  if (checking) return <div className="min-h-screen bg-[#09090b]" />;
 
-  /* ── Workspace provisioning screen ─────────────────────────────────────── */
-  if (step === "setting_up") {
-    return <WorkspaceSetupScreen />;
-  }
-
-  /* ── Welcome + plan selection (workspace confirmed ready) ───────────────── */
-  if (step === "done") {
+  /* ── Welcome + plan selection (shown immediately after API success) ─────── */
+  if (step === "welcome") {
     return (
       <WelcomeScreen
         userName={userName}
@@ -420,6 +430,11 @@ export default function OnboardingPage() {
         onAction={handleWelcomeAction}
       />
     );
+  }
+
+  /* ── Building screen — polls workspace, redirects when ready or 2 min up ── */
+  if (step === "setting_up") {
+    return <WorkspaceSetupScreen />;
   }
 
   /* ── Main onboarding form ───────────────────────────────────────────────── */

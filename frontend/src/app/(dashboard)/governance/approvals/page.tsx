@@ -12,6 +12,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useRoles } from "@/lib/hooks/useRoles";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -179,6 +180,10 @@ function RiskDot({ risk }: { risk: RiskLevel }) {
 // ─── Main Page ────────────────────────────────────────────────────────────
 
 export default function ApprovalsPage() {
+  const { role, isSuperAdmin } = useRoles();
+  const canDecide = isSuperAdmin || ['APPROVER', 'VALIDATOR', 'GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER'].includes(role ?? '');
+  const canAssign = isSuperAdmin || ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER'].includes(role ?? '');
+
   const [items, setItems] = useState<ApprovalItem[]>(MOCK_ITEMS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -326,20 +331,22 @@ export default function ApprovalsPage() {
         </div>
         <div className="flex items-center gap-1.5">
           {[
-            { label: "Approve Selected", icon: ThumbsUp, key: "bulk_approve", disabledTooltip: "Select items in the queue to enable bulk approval" },
-            { label: "Assign", icon: UserPlus, key: "assign", disabledTooltip: "Select an item to assign an approver" },
-            { label: "Request Changes", icon: MessageCircle, key: "request_changes", disabledTooltip: "Select an item to request changes" },
-            { label: "Escalate", icon: ArrowUpRight, key: "escalate", disabledTooltip: "Select an item eligible for escalation" },
-            { label: "Export", icon: Download, key: "export", disabledTooltip: "Select an item to export its approval record" },
-            { label: "Settings", icon: Settings, key: "settings", disabledTooltip: "Approval configuration settings" },
+            { label: "Approve Selected", icon: ThumbsUp, key: "bulk_approve", needsDecide: true,  disabledTooltip: canDecide ? "Select items in the queue to enable bulk approval" : "Requires Approver role or above" },
+            { label: "Assign",           icon: UserPlus, key: "assign",        needsAssign: true,  disabledTooltip: canAssign ? "Select an item to assign an approver" : "Requires Admin or Governance Lead role" },
+            { label: "Request Changes",  icon: MessageCircle, key: "request_changes", needsDecide: true, disabledTooltip: canDecide ? "Select an item to request changes" : "Requires Approver role or above" },
+            { label: "Escalate",         icon: ArrowUpRight, key: "escalate",  needsDecide: true,  disabledTooltip: canDecide ? "Select an item eligible for escalation" : "Requires Approver role or above" },
+            { label: "Export",           icon: Download, key: "export",        needsDecide: false, disabledTooltip: "Select an item to export its approval record" },
+            { label: "Settings",         icon: Settings, key: "settings",      needsDecide: false, disabledTooltip: "Approval configuration settings" },
           ].map(btn => {
-            const isDisabled = btn.key === "settings" ? true :
+            const roleBlocked = (btn.needsDecide && !canDecide) || (btn.needsAssign && !canAssign);
+            const isDisabled = roleBlocked || btn.key === "settings" ? true :
               btn.key === "bulk_approve" ? bulkSelected.size === 0 :
               !selectedItem;
             return (
               <div key={btn.label} className="group relative">
                 <button disabled={isDisabled}
                   onClick={() => {
+                    if (roleBlocked) return;
                     if (btn.key === "bulk_approve" && bulkSelected.size > 0) {
                       Array.from(bulkSelected).forEach(id => handleAction("approve", id));
                       setBulkSelected(new Set()); setBulkMode(false);
@@ -718,35 +725,45 @@ export default function ApprovalsPage() {
               {/* Decision Controls */}
               <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-3">
                 <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Decision</p>
-                <div className="space-y-1.5">
-                  <button onClick={() => selectedId && handleAction("approve", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-emerald-500/15 text-emerald-300 rounded-lg text-xs font-medium hover:bg-emerald-500/25 transition-colors">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Approve
-                  </button>
-                  <button onClick={() => selectedId && handleAction("reject", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-rose-500/15 text-rose-300 rounded-lg text-xs font-medium hover:bg-rose-500/25 transition-colors">
-                    <XCircle className="w-3.5 h-3.5" /> Reject
-                  </button>
-                  <button onClick={() => selectedId && handleAction("request-changes", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-orange-500/15 text-orange-300 rounded-lg text-xs font-medium hover:bg-orange-500/25 transition-colors">
-                    <MessageCircle className="w-3.5 h-3.5" /> Request Changes
-                  </button>
-                  <button onClick={() => selectedId && handleAction("conditional-approve", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/15 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-500/25 transition-colors">
-                    <Flag className="w-3.5 h-3.5" /> Approve with Conditions
-                  </button>
-                  <button onClick={() => selectedId && handleAction("escalate", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-red-500/15 text-red-300 rounded-lg text-xs font-medium hover:bg-red-500/25 transition-colors">
-                    <ArrowUpRight className="w-3.5 h-3.5" /> Escalate
-                  </button>
-                </div>
+                {canDecide ? (
+                  <div className="space-y-1.5">
+                    <button onClick={() => selectedId && handleAction("approve", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-emerald-500/15 text-emerald-300 rounded-lg text-xs font-medium hover:bg-emerald-500/25 transition-colors">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                    </button>
+                    <button onClick={() => selectedId && handleAction("reject", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-rose-500/15 text-rose-300 rounded-lg text-xs font-medium hover:bg-rose-500/25 transition-colors">
+                      <XCircle className="w-3.5 h-3.5" /> Reject
+                    </button>
+                    <button onClick={() => selectedId && handleAction("request-changes", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-orange-500/15 text-orange-300 rounded-lg text-xs font-medium hover:bg-orange-500/25 transition-colors">
+                      <MessageCircle className="w-3.5 h-3.5" /> Request Changes
+                    </button>
+                    <button onClick={() => selectedId && handleAction("conditional-approve", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/15 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-500/25 transition-colors">
+                      <Flag className="w-3.5 h-3.5" /> Approve with Conditions
+                    </button>
+                    <button onClick={() => selectedId && handleAction("escalate", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-red-500/15 text-red-300 rounded-lg text-xs font-medium hover:bg-red-500/25 transition-colors">
+                      <ArrowUpRight className="w-3.5 h-3.5" /> Escalate
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-[#555] py-2 text-center">
+                    Read-only — your role cannot make decisions on approval items.
+                  </p>
+                )}
               </div>
 
               {/* Secondary Actions */}
               <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-3">
                 <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Actions</p>
                 <div className="space-y-1.5">
-                  <button onClick={() => selectedId && handleAction("assign", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] text-[#888] rounded-lg text-xs hover:text-white border border-[#2d2d2d]">
-                    <UserPlus className="w-3 h-3" /> Assign
-                  </button>
-                  <button onClick={() => selectedId && handleAction("reassign", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] text-[#888] rounded-lg text-xs hover:text-white border border-[#2d2d2d]">
-                    <RefreshCcw className="w-3 h-3" /> Reassign
-                  </button>
+                  {canAssign && (
+                    <button onClick={() => selectedId && handleAction("assign", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] text-[#888] rounded-lg text-xs hover:text-white border border-[#2d2d2d]">
+                      <UserPlus className="w-3 h-3" /> Assign
+                    </button>
+                  )}
+                  {canAssign && (
+                    <button onClick={() => selectedId && handleAction("reassign", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] text-[#888] rounded-lg text-xs hover:text-white border border-[#2d2d2d]">
+                      <RefreshCcw className="w-3 h-3" /> Reassign
+                    </button>
+                  )}
                   <button onClick={() => selectedId && handleAction("export", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] text-[#888] rounded-lg text-xs hover:text-white border border-[#2d2d2d]">
                     <FileText className="w-3 h-3" /> Export
                   </button>
