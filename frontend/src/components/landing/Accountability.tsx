@@ -5,79 +5,49 @@
     "Lifetime value correlation and revenue path",
     "Wasted spend identified, recovered, and reported",
     "Budget reallocation effect on profit, not just spend",
-    "Revenue path from touchpoint to a sale event",
+    "Revenue path from touchpoint to cash event",
   ];
 
   const metrics = [
-    {
-      label: "Campaign ROI",
-      value: "2.3Ã— â†’ 3.7Ã—",
-      badge: "#dcfce7",
-      text: "#15803d",
-    },
-    {
-      label: "Cost per acquisition",
-      value: "-26% reduction",
-      badge: "#dcfce7",
-      text: "#15803d",
-    },
-    {
-      label: "Wasted spend recovered",
-      value: "$6,400 / 48h",
-      badge: "#ede9fe",
-      text: "#6d28d9",
-    },
-    {
-      label: "Budget reallocated",
-      value: "$18,200 auto",
-      badge: "#ede9fe",
-      text: "#6d28d9",
-    },
-    {
-      label: "Daily profit impact",
-      value: "+14.0%",
-      badge: "#dcfce7",
-      text: "#15803d",
-    },
-    {
-      label: "Attribution confidence",
-      value: "Multi-touch âœ“",
-      badge: "#dcfce7",
-      text: "#15803d",
-    },
+    { label: "Campaign ROI",           value: "2.3× → 3.7×",   bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
+    { label: "Cost per acquisition",   value: "-26% reduction", bg: "#3a2a10", text: "#f59e0b", border: "#5a4020" },
+    { label: "Wasted spend recovered", value: "$6,400 / 48h",   bg: "#1a2a3a", text: "#60a5fa", border: "#2a3a5a" },
+    { label: "Budget reallocated",     value: "$18,200 auto",   bg: "#1a2a3a", text: "#60a5fa", border: "#2a3a5a" },
+    { label: "Daily profit impact",    value: "+14.0%",         bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
+    { label: "Attribution confidence", value: "Multi-touch ✓",  bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
+
   ];
 
   return (
-    <section className="bg-white py-24 px-6">
+    <section style={{ background: "#0e1829" }} className="py-24 px-6">
       <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-start">
+
+        {/* ── LEFT ── */}
         <div>
-          <p className="text-cyan-500 text-xs font-bold tracking-widest uppercase mb-4">
-            â€” ROI Engine
-          </p>
-          <h2 className="text-4xl lg:text-5xl font-black text-gray-900 leading-tight mb-5">
+          <div className="flex items-center gap-2 mb-5">
+            <span className="w-4 h-px bg-teal-400 inline-block" />
+            <p className="text-teal-400 text-[10px] font-bold tracking-[0.2em] uppercase">
+              ROI Engine
+            </p>
+          </div>
+
+          <h2 className="text-4xl lg:text-5xl font-black text-white leading-tight mb-5">
             Audit-grade financial accountability
           </h2>
-          <p className="text-gray-500 text-sm leading-relaxed mb-8">
+
+          <p className="text-[#8b9cb3] text-[14px] leading-relaxed mb-8">
             ZoikoVertex is designed to satisfy the core finance question: is
             marketing generating profit, or only activity? The ROI engine
-            reconciles spend to contribution margin in a language CFOs and
-            boards can verify.
+            reconciles spend to contribution margin in a language CFOs
+            and boards can verify.
           </p>
-          <ul className="space-y-3 mb-10">
+
+          <ul className="space-y-2.5 mb-10">
             {bullets.map((b) => (
-              <li
-                key={b}
-                className="flex items-start gap-3 text-gray-600 text-sm"
-              >
+              <li key={b} className="flex items-start gap-3 text-[#8b9cb3] text-[13px]">
                 <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#6366f1"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                   className="flex-shrink-0 mt-0.5"
                 >
                   <polyline points="20 6 9 17 4 12" />
@@ -86,50 +56,76 @@
               </li>
             ))}
           </ul>
+
           <div
             className="rounded-xl p-5"
-            style={{ background: "#f0fdfa", border: "1px solid #99f6e4" }}
+            style={{ background: "#111e30", borderLeft: "3px solid #3b5ea6" }}
           >
-            <p className="text-sm text-teal-800 leading-relaxed">
-              <span className="font-bold">Economic instability:</span>{" "}
-              ZoikoVertex improves marketing efficiency by over 35%. It pays for
-              itself multiple times over â€” making low-adoption financially
-              irrational in performance-sensitive organisations.
+            <p className="text-[#8b9cb3] text-[13px] leading-relaxed italic">
+              <span className="text-white font-bold not-italic">Economic inevitability:</span>{" "}
+              If ZoikoVertex improves marketing efficiency by even 15%, it pays for itself
+              multiple times over — making non-adoption financially irrational in
+              performance-sensitive organizations.
             </p>
           </div>
         </div>
-        <div className="rounded-2xl shadow-lg overflow-hidden">
-          <div className="px-6 pt-6 pb-0">
-            <p
-              className="font-bold text-gray-900 text-sm inline-flex items-center"
+
+        {/* ── RIGHT: Dashboard card ── */}
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{
+            background: "#152032",
+            border: "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.35)",
+          }}
+        >
+          {/* Header — distinct lighter bg */}
+          <div
+            className="flex items-center justify-between px-5 py-4"
+            style={{
+              background: "#1c2e45",
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <span className="text-white font-bold text-[14px]">
+              Campaign Performance Dashboard
+            </span>
+            <span
+              className="flex items-center gap-1.5 text-[#4ade80] text-[11px] font-semibold px-2.5 py-1 rounded-full"
               style={{
-                borderBottom: "0.8px solid #F1F5F9",
-                paddingBottom: "14.8px",
-                paddingRight: "193.403px",
+                background: "rgba(34,197,94,0.12)",
+                border: "1px solid rgba(34,197,94,0.25)",
               }}
             >
-              Campaign Performance Dashboard
-            </p>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80]" />
+              Live
+            </span>
           </div>
-          <div>
-            {metrics.map((m) => (
-              <div key={m.label} className="px-4 py-2">
-                <div
-                  className="flex items-center justify-between px-4 py-3 rounded-xl"
-                  style={{ background: "#f8f8f8" }}
+
+          {/* Metric rows */}
+          <div className="flex flex-col">
+            {metrics.map((m, i) => (
+              <div
+                key={m.label}
+                className="flex items-center justify-between px-5 py-4"
+                style={{
+                  borderBottom: i < metrics.length - 1
+                    ? "1px solid rgba(255,255,255,0.05)"
+                    : "none",
+                }}
+              >
+                <span className="text-[#8b9cb3] text-[13px]">{m.label}</span>
+                <span
+                  className="text-[12px] font-bold px-3 py-1.5 rounded-full"
+                  style={{ background: m.bg, color: m.text, border: `1px solid ${m.border}` }}
                 >
-                  <span className="text-gray-500 text-sm">{m.label}</span>
-                  <span
-                    className="text-xs font-bold px-3 py-1.5 rounded-full"
-                    style={{ background: m.badge, color: m.text }}
-                  >
-                    {m.value}
-                  </span>
-                </div>
+                  {m.value}
+                </span>
               </div>
             ))}
           </div>
         </div>
+
       </div>
     </section>
   );
