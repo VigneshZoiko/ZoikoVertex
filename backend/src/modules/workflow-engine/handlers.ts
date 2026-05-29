@@ -367,7 +367,8 @@ const escalateHandler: StepHandler = async (ctx): Promise<StepResult> => {
   try {
     await supabaseAdmin.from("incidents").insert([
       {
-        instance_id: ctx.instanceId,
+        run_id: ctx.instanceId,
+        workspace_id: ctx.workspaceId || '',
         severity: ctx.bag.lastModeration?.severity || "medium",
         category: "workflow_escalation",
       },
