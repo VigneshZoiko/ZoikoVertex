@@ -207,7 +207,7 @@ export default function MediaLibraryPage() {
                       )}
 
                       {/* Delete Action - Only for Admin or Owner */}
-                      {(userRole === 'ADMIN' || currentUserId === asset.uploader_id) && (
+                      {(['ADMIN','WORKSPACE_OWNER'].includes(userRole ?? '') || currentUserId === asset.uploader_id) && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteAsset(asset.id, asset.title); }}
                           className="absolute top-3 right-3 p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl backdrop-blur-md border border-rose-500/20 transition-all opacity-0 group-hover:opacity-100 z-10"

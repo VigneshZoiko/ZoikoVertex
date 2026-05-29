@@ -115,7 +115,7 @@ export class ExecutionService {
       // 5. Auto-boost: if post published on an ACTIVE campaign, trigger immediately
       if (allSuccessful && intent.campaign_id) {
         AutoCampaignBoostService.triggerPostBoost(intentId, intent.campaign_id, intent.workspace_id)
-          .catch(err => logger.warn({ err, intentId }, '[Execution] Auto-boost trigger failed (non-fatal)'));
+          .catch((err: any) => logger.warn({ err, intentId }, '[Execution] Auto-boost trigger failed (non-fatal)'));
       }
 
       // 6. Broadcast webhook event

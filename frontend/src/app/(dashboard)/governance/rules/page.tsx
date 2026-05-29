@@ -18,6 +18,7 @@ import {
   BarChart3, Network, Database, Fingerprint
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { useRoles } from "@/lib/hooks/useRoles";
 
 type RuleStatus =
   | "Draft" | "Needs Review" | "Ready to Publish" | "Active"
@@ -386,6 +387,9 @@ function ErrorState({ message, onRetry }: { message: string; onRetry?: () => voi
 }
 
 export default function ApprovalRulesPage() {
+  const { role: currentRole, isSuperAdmin } = useRoles();
+  const canManageRules = isSuperAdmin || ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER'].includes(currentRole ?? '');
+
   const [rules, setRules] = useState<ApprovalRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -730,39 +734,49 @@ export default function ApprovalRulesPage() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {saving && <span className="text-[10px] text-indigo-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving...</span>}
-            <button onClick={() => handleHeaderAction("create")} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors">
-              <Plus className="w-4 h-4" /> Create Rule
-            </button>
+            {canManageRules && (
+              <button onClick={() => handleHeaderAction("create")} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors">
+                <Plus className="w-4 h-4" /> Create Rule
+              </button>
+            )}
             <TooltipBtn disabled={!selectedRuleId} tooltip="Test this rule against sample content">
               <button onClick={() => selectedRuleId && handleRunSimulation(selectedRuleId)} disabled={!selectedRuleId}
                 className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 <TestTube className="w-4 h-4" /> Test
               </button>
             </TooltipBtn>
-            <TooltipBtn disabled={!selectedRuleId || !(selectedRule?.status === "Draft" || selectedRule?.status === "Conflict Detected")} tooltip="Submit this rule for governance review">
-              <button onClick={() => selectedRuleId && handleSubmitForReview(selectedRuleId)} disabled={!selectedRuleId || !(selectedRule?.status === "Draft" || selectedRule?.status === "Conflict Detected")}
-                className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                <Send className="w-4 h-4" /> Submit
-              </button>
-            </TooltipBtn>
-            <TooltipBtn disabled={!selectedRuleId || selectedRule?.status === "Active"} tooltip="Publish the current version of this rule">
-              <button onClick={() => selectedRuleId && handlePublish(selectedRuleId)} disabled={!selectedRuleId || selectedRule?.status === "Active"}
-                className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                <Upload className="w-4 h-4" /> Publish
-              </button>
-            </TooltipBtn>
-            <TooltipBtn disabled={!selectedRuleId} tooltip="Clone this rule">
-              <button onClick={() => selectedRuleId && handleHeaderAction("clone")} disabled={!selectedRuleId}
-                className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-300 disabled:hover:border-[#2d2d2d]">
-                <Copy className="w-4 h-4" /> Clone
-              </button>
-            </TooltipBtn>
-            <TooltipBtn disabled={!selectedRuleId || selectedRule?.status !== "Active"} tooltip="Deactivate this active rule">
-              <button onClick={() => selectedRuleId && handleDeactivate(selectedRuleId)} disabled={!selectedRuleId || selectedRule?.status !== "Active"}
-                className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                <Ban className="w-4 h-4" /> Deactivate
-              </button>
-            </TooltipBtn>
+            {canManageRules && (
+              <TooltipBtn disabled={!selectedRuleId || !(selectedRule?.status === "Draft" || selectedRule?.status === "Conflict Detected")} tooltip="Submit this rule for governance review">
+                <button onClick={() => selectedRuleId && handleSubmitForReview(selectedRuleId)} disabled={!selectedRuleId || !(selectedRule?.status === "Draft" || selectedRule?.status === "Conflict Detected")}
+                  className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  <Send className="w-4 h-4" /> Submit
+                </button>
+              </TooltipBtn>
+            )}
+            {canManageRules && (
+              <TooltipBtn disabled={!selectedRuleId || selectedRule?.status === "Active"} tooltip="Publish the current version of this rule">
+                <button onClick={() => selectedRuleId && handlePublish(selectedRuleId)} disabled={!selectedRuleId || selectedRule?.status === "Active"}
+                  className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  <Upload className="w-4 h-4" /> Publish
+                </button>
+              </TooltipBtn>
+            )}
+            {canManageRules && (
+              <TooltipBtn disabled={!selectedRuleId} tooltip="Clone this rule">
+                <button onClick={() => selectedRuleId && handleHeaderAction("clone")} disabled={!selectedRuleId}
+                  className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-slate-300 disabled:hover:border-[#2d2d2d]">
+                  <Copy className="w-4 h-4" /> Clone
+                </button>
+              </TooltipBtn>
+            )}
+            {canManageRules && (
+              <TooltipBtn disabled={!selectedRuleId || selectedRule?.status !== "Active"} tooltip="Deactivate this active rule">
+                <button onClick={() => selectedRuleId && handleDeactivate(selectedRuleId)} disabled={!selectedRuleId || selectedRule?.status !== "Active"}
+                  className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  <Ban className="w-4 h-4" /> Deactivate
+                </button>
+              </TooltipBtn>
+            )}
             <TooltipBtn disabled={true} tooltip="Export rule configuration">
               <button disabled
                 className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-sm text-slate-500 cursor-not-allowed">

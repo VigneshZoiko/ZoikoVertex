@@ -348,7 +348,7 @@ export function calculateEligibility(item: ReviewItem, role: string): Eligibilit
   if (item.status === 'BLOCKED' || item.status === 'EXPIRED' || item.status === 'ARCHIVED') {
     return 'BLOCKED';
   }
-  if (item.status === 'APPROVED' || item.status === 'RELEASED') {
+  if (item.status === 'RELEASED') {
     return 'BLOCKED';
   }
 

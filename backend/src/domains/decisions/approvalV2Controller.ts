@@ -2,17 +2,18 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as approvalService from '../../services/approval.service';
+import { DEFAULT_TENANT_ID } from '../../shared/constants';
 
 function getTenantId(req: AuthRequest): string {
-  return req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+  return req.user?.workspace_id || DEFAULT_TENANT_ID;
 }
 
 function getUserId(req: AuthRequest): string {
-  return (req.user?.id as string) || getTenantId(req);
+  return req.user?.id || '';
 }
 
 function getRole(req: AuthRequest): string {
-  return (req.user?.role || '').toUpperCase() || 'REVIEWER';
+  return ((req.user?.role as string) || 'REVIEWER').toUpperCase();
 }
 
 function isSuperAdmin(req: AuthRequest): boolean {

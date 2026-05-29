@@ -21,6 +21,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import NotificationPanel from "@/components/NotificationPanel";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { useRoleContext } from "@/lib/context/RoleContext";
+import { canAccessSimple } from "@/lib/routeAccess";
 
 interface SearchItem {
   label: string;
@@ -116,7 +117,7 @@ interface ApiSearchResult {
 
 export default function Header() {
   const router = useRouter();
-  const { fullName, role, orgName, isSuperAdmin } = useRoleContext();
+  const { fullName, role, orgName, isSuperAdmin, planType } = useRoleContext();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -127,12 +128,13 @@ export default function Header() {
 
   const q = query.toLowerCase().trim();
   const words = q ? q.split(/\s+/).filter(Boolean) : [];
+  const accessibleRoutes = allRoutes.filter(r => canAccessSimple(r.href, role ?? null, isSuperAdmin, planType));
   const filtered = words.length > 0
-    ? allRoutes.filter(r => {
+    ? accessibleRoutes.filter(r => {
         const searchText = (r.label + ' ' + (r.keywords || '')).toLowerCase();
         return words.every(w => searchText.includes(w));
       })
-    : allRoutes;
+    : accessibleRoutes;
 
   const hasApiResults = apiResults && (
     apiResults.agents.length > 0 ||

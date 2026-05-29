@@ -22,7 +22,7 @@ const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 const CACHE_KEY = 'zv_role_cache';
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 interface RoleCache {
   role: string | null;
@@ -111,13 +111,6 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
       let nextRole: string | null = null;
       let nextIsSuperAdmin = false;
-
-      if (user.email === 'developer@zoikogroup.com') {
-        nextIsSuperAdmin = true;
-        nextRole = "SUPERADMIN";
-        setIsSuperAdmin(true);
-        setRole("SUPERADMIN");
-      }
 
       const result = await api.get("/api/v1/user/context");
       if (result.success) {

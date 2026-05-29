@@ -148,40 +148,69 @@ export default function CampaignDetailPage() {
   const [budgetAuthLoading, setBudgetAuthLoading] = useState<string | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [loading, setLoading]         = useState(true);
+  const [secondaryLoading, setSecondaryLoading] = useState(true);
+  const [error, setError]             = useState<string | null>(null);
+  const [activeTab, setActiveTab]     = useState("overview");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [pauseReason, setPauseReason]     = useState("");
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [boostTarget, setBoostTarget] = useState<{ type: 'POST' | 'CAMPAIGN'; postId?: string; postContent?: string } | null>(null);
 
-  const load = useCallback(async () => {
+  // Phase 1 — load just the campaign so the page renders immediately
+  const loadCampaign = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [cRes, eRes, gRes, pRes, bRes, iRes, baRes] = await Promise.allSettled([
-        api.get(`/api/v1/campaigns/${id}`),
-        api.get(`/api/v1/campaigns/${id}/events`),
-        api.get(`/api/v1/campaigns/${id}/launch-gate`),
-        api.get(`/api/v1/campaigns/${id}/posts`),
-        api.get(`/api/v1/ads/boosts?campaign_id=${id}`),
-        api.get(`/api/v1/campaigns/${id}/insights`),
-        api.get(`/api/v1/campaigns/${id}/budget-auth`),
-      ]);
-      if (cRes.status === "fulfilled") setCampaign(cRes.value.data);
-      else throw new Error("Campaign not found");
-      if (eRes.status === "fulfilled") setEvents(eRes.value.data || []);
-      if (gRes.status === "fulfilled") setGate(gRes.value.data);
-      if (pRes.status === "fulfilled") setPosts(pRes.value.data || []);
-      if (bRes.status === "fulfilled") setBoosts(bRes.value.data || []);
-      if (iRes.status === "fulfilled") setInsights(iRes.value.data || null);
-      if (baRes.status === "fulfilled") setBudgetAuth(baRes.value.data || null);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load");
+      const res = await api.get(`/api/v1/campaigns/${id}`);
+      setCampaign(res.data);
+    } catch {
+      setError("Campaign not found");
     } finally { setLoading(false); }
   }, [id]);
 
-  useEffect(() => { load(); }, [load]);
+  // Phase 2 — load secondary data in the background (non-blocking)
+  const loadSecondary = useCallback(async () => {
+    setSecondaryLoading(true);
+    const [eRes, gRes, pRes, bRes, iRes, baRes] = await Promise.allSettled([
+      api.get(`/api/v1/campaigns/${id}/events`),
+      api.get(`/api/v1/campaigns/${id}/launch-gate`),
+      api.get(`/api/v1/campaigns/${id}/posts`),
+      api.get(`/api/v1/ads/boosts?campaign_id=${id}`),
+      api.get(`/api/v1/campaigns/${id}/insights`),
+      api.get(`/api/v1/campaigns/${id}/budget-auth`),
+    ]);
+    if (eRes.status === "fulfilled") setEvents(eRes.value.data || []);
+    if (gRes.status === "fulfilled") setGate(gRes.value.data);
+    if (pRes.status === "fulfilled") setPosts(pRes.value.data || []);
+    if (bRes.status === "fulfilled") setBoosts(bRes.value.data || []);
+    if (iRes.status === "fulfilled") setInsights(iRes.value.data || null);
+    if (baRes.status === "fulfilled") setBudgetAuth(baRes.value.data || null);
+    setSecondaryLoading(false);
+  }, [id]);
+
+  // Full refresh — used after actions (approve, launch, pause, etc.)
+  const load = useCallback(async () => {
+    const [cRes, eRes, gRes, pRes, bRes, iRes, baRes] = await Promise.allSettled([
+      api.get(`/api/v1/campaigns/${id}`),
+      api.get(`/api/v1/campaigns/${id}/events`),
+      api.get(`/api/v1/campaigns/${id}/launch-gate`),
+      api.get(`/api/v1/campaigns/${id}/posts`),
+      api.get(`/api/v1/ads/boosts?campaign_id=${id}`),
+      api.get(`/api/v1/campaigns/${id}/insights`),
+      api.get(`/api/v1/campaigns/${id}/budget-auth`),
+    ]);
+    if (cRes.status === "fulfilled") setCampaign(cRes.value.data);
+    if (eRes.status === "fulfilled") setEvents(eRes.value.data || []);
+    if (gRes.status === "fulfilled") setGate(gRes.value.data);
+    if (pRes.status === "fulfilled") setPosts(pRes.value.data || []);
+    if (bRes.status === "fulfilled") setBoosts(bRes.value.data || []);
+    if (iRes.status === "fulfilled") setInsights(iRes.value.data || null);
+    if (baRes.status === "fulfilled") setBudgetAuth(baRes.value.data || null);
+  }, [id]);
+
+  useEffect(() => {
+    loadCampaign().then(() => loadSecondary());
+  }, [loadCampaign, loadSecondary]);
 
   const doAction = async (action: string, body?: Record<string, unknown>) => {
     setActionLoading(action); setError(null);
@@ -252,10 +281,29 @@ export default function CampaignDetailPage() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Loader2 className="w-7 h-7 animate-spin text-indigo-400" />
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-5 animate-pulse">
+      {/* Header skeleton */}
+      <div className="flex items-start gap-4">
+        <div className="w-9 h-9 rounded-xl bg-zinc-800 shrink-0" />
+        <div className="space-y-2 flex-1">
+          <div className="h-4 w-24 rounded bg-zinc-800" />
+          <div className="h-7 w-72 rounded-lg bg-zinc-800" />
+        </div>
+      </div>
+      {/* Tab bar skeleton */}
+      <div className="flex gap-2 border-b border-zinc-800 pb-px">
+        {[80, 60, 72, 56, 72, 64].map((w, i) => (
+          <div key={i} className="h-9 rounded-t-lg bg-zinc-800" style={{ width: w }} />
+        ))}
+      </div>
+      {/* Cards skeleton */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1,2,3,4].map(i => <div key={i} className="h-28 rounded-2xl bg-zinc-800/60" />)}
+      </div>
+      <div className="h-48 rounded-2xl bg-zinc-800/40" />
     </div>
   );
+
   if (!campaign) return (
     <div className="p-8 max-w-4xl mx-auto">
       <div className="flex items-center gap-3 p-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400">
@@ -300,7 +348,7 @@ export default function CampaignDetailPage() {
         {/* Action Rail */}
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
           <button onClick={load} className="p-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-zinc-400 transition-all">
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${secondaryLoading ? "animate-spin text-indigo-400" : ""}`} />
           </button>
 
           {["DRAFT", "CHANGES_REQUESTED"].includes(campaign.status) && (

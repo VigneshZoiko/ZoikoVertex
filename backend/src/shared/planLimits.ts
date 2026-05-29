@@ -9,15 +9,16 @@ export interface PlanLimit {
   allowWildcard: boolean;
 }
 
-// Per-plan limits — matches DB plan_type values: FREE | STARTER | GROWTH | ENTERPRISE
+// Per-plan limits — matches DB plan_type values: FREE | STARTER | GROWTH | SCALE | ENTERPRISE
 export const PLAN_LIMITS: Record<string, PlanLimit> = {
   FREE:       { maxKeys: 0,  maxWebhooks: 0,  reqPerMin: 0,   aiPerMin: 0,   allowWildcard: false },
   STARTER:    { maxKeys: 0,  maxWebhooks: 0,  reqPerMin: 0,   aiPerMin: 0,   allowWildcard: false },
   GROWTH:     { maxKeys: 10, maxWebhooks: 5,  reqPerMin: 100, aiPerMin: 20,  allowWildcard: false },
+  SCALE:      { maxKeys: 50, maxWebhooks: 20, reqPerMin: 200, aiPerMin: 40,  allowWildcard: false },
   ENTERPRISE: { maxKeys: -1, maxWebhooks: -1, reqPerMin: 400, aiPerMin: 80,  allowWildcard: true  },
 };
 
-const ALLOWED_PLANS    = ['GROWTH', 'ENTERPRISE'];
+const ALLOWED_PLANS    = ['GROWTH', 'SCALE', 'ENTERPRISE'];
 
 // Block API key users from integration management — dashboard only
 export const blockApiKeyUsers = (req: AuthRequest, res: Response, next: NextFunction) => {

@@ -289,6 +289,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
 };
 
+
 export const ROLE_GROUP_MAPPING: Record<string, string[]> = {
   "platform": ["SUPERADMIN"],
   "command": ["ADMIN", "WORKSPACE_OWNER", "ANALYST", "CAMPAIGN_MANAGER", "AUDITOR", "GOVERNANCE_ADMIN"],

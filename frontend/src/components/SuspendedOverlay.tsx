@@ -1,6 +1,6 @@
 "use client";
 
-import { PauseCircle, Trash2, LogOut, CreditCard, Sparkles } from "lucide-react";
+import { CreditCard, LogOut, PauseCircle, Trash2, ArrowUpRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -9,17 +9,16 @@ import { useState } from "react";
 
 interface Props {
   orgName?: string;
-  type: 'paused' | 'deleted';
+  type: "paused" | "deleted";
   planType?: string | null;
   premiumPaidUntil?: string | null;
 }
 
-export default function SuspendedOverlay({ orgName, type, planType, premiumPaidUntil }: Props) {
+export default function SuspendedOverlay({ orgName, type, planType }: Props) {
   const router = useRouter();
   const [downgrading, setDowngrading] = useState(false);
 
-  const isPaused = type === 'paused';
-  const isPlanExpiry = isPaused;
+  const isPlanExpiry = type === "paused";
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -29,7 +28,7 @@ export default function SuspendedOverlay({ orgName, type, planType, premiumPaidU
   const handleDowngradeToFree = async () => {
     setDowngrading(true);
     try {
-      await api.post('/api/v1/user/downgrade-to-free', {});
+      await api.post("/api/v1/user/downgrade-to-free", {});
       window.location.reload();
     } catch {
       alert("Failed to downgrade. Please contact support.");
@@ -38,101 +37,116 @@ export default function SuspendedOverlay({ orgName, type, planType, premiumPaidU
     }
   };
 
+  /* ── Plan Expired ─────────────────────────────────────────────────────────── */
   if (isPlanExpiry) {
     return (
-      <div className="flex items-center justify-center min-h-full p-6">
-        <div className="w-full max-w-[440px] bg-[var(--card)] border border-[var(--border)] rounded-3xl p-12 text-center shadow-2xl shadow-black/30 animate-in fade-in zoom-in duration-500">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 shadow-lg shadow-amber-500/10 flex items-center justify-center mx-auto mb-8">
-            <CreditCard className="w-8 h-8" />
+      <div className="fixed inset-0 z-[9999] bg-zinc-950 flex items-center justify-center p-6">
+        <div className="w-full max-w-[420px] space-y-8">
+
+          {/* Icon + heading */}
+          <div className="text-center space-y-5">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700">
+              <CreditCard className="w-5 h-5 text-zinc-300" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold text-white tracking-tight">
+                Plan Expired
+              </h2>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Your organization
+                {orgName && <span className="text-white font-medium"> {orgName}</span>}&apos;s{" "}
+                <span className="text-white font-medium">{planType ?? "paid"}</span> plan has expired.
+                Renew to restore full access or continue on the free tier.
+              </p>
+            </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-[var(--foreground)] mb-4 tracking-tight">
-            Plan Expired
-          </h2>
+          {/* Divider */}
+          <div className="border-t border-zinc-800" />
 
-          <p className="text-[var(--foreground-muted)] text-sm leading-relaxed mb-8">
-            Your organization{orgName && <span className="text-[var(--foreground)] font-semibold"> {orgName}</span>}&apos;s
-            <span className="text-[var(--foreground)] font-semibold"> {planType}</span> plan has expired.
-            Renew to restore full access or switch to the Free plan.
-          </p>
-
+          {/* Actions */}
           <div className="space-y-3">
             <Link
               href="/admin/billing"
-              className="w-full h-[52px] flex items-center justify-center gap-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl transition-all duration-200 font-bold text-sm"
+              className="w-full h-11 flex items-center justify-center gap-2 bg-white text-black hover:bg-zinc-200 rounded-lg transition-colors text-sm font-medium"
             >
-              <Sparkles className="w-4 h-4" />
               Renew Plan
+              <ArrowUpRight className="w-4 h-4" />
             </Link>
 
             <button
               onClick={handleDowngradeToFree}
               disabled={downgrading}
-              className="w-full h-[52px] flex items-center justify-center gap-3 bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] hover:border-[var(--card-border)] rounded-2xl transition-all duration-200 font-bold text-sm disabled:opacity-50"
+              className="w-full h-11 flex items-center justify-center gap-2 bg-zinc-900/50 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-600 rounded-lg transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Sparkles className="w-4 h-4" />
-              {downgrading ? 'Downgrading...' : 'Continue with Free Plan'}
+              {downgrading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {downgrading ? "Switching…" : "Continue with Free Plan"}
             </button>
 
             <button
               onClick={handleLogout}
-              className="w-full h-[52px] flex items-center justify-center gap-3 bg-transparent border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] rounded-2xl transition-all duration-200 font-bold text-sm"
+              className="w-full h-11 flex items-center justify-center gap-2 border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 rounded-lg transition-colors text-sm font-medium"
             >
               <LogOut className="w-4 h-4" />
               Sign Out
             </button>
           </div>
 
-          <p className="mt-10 text-[11px] font-bold text-[var(--foreground-muted)] uppercase tracking-[0.2em] opacity-50">
-            ZoikoVertex Enterprise Protocol
-          </p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="flex items-center justify-center min-h-full p-6">
-      <div className="w-full max-w-[440px] bg-[var(--card)] border border-[var(--border)] rounded-3xl p-12 text-center shadow-2xl shadow-black/30 animate-in fade-in zoom-in duration-500">
+  /* ── Org Paused / Deleted ─────────────────────────────────────────────────── */
+  const isDeleted = type === "deleted";
 
-        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg ${
-          isPaused
-            ? 'bg-amber-500/10 text-amber-400 shadow-amber-500/10'
-            : 'bg-rose-500/10 text-rose-400 shadow-rose-500/10'
-        }`}>
-          {isPaused ? <PauseCircle className="w-8 h-8" /> : <Trash2 className="w-8 h-8" />}
+  return (
+    <div className="fixed inset-0 z-[9999] bg-zinc-950 flex items-center justify-center p-6">
+      <div className="w-full max-w-[420px] space-y-8">
+
+        <div className="text-center space-y-5">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700">
+            {isDeleted
+              ? <Trash2 className="w-5 h-5 text-zinc-300" />
+              : <PauseCircle className="w-5 h-5 text-zinc-300" />
+            }
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-semibold text-white tracking-tight">
+              Organization {isDeleted ? "Deleted" : "Paused"}
+            </h2>
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              Your organization
+              {orgName && <span className="text-white font-medium"> {orgName}</span>} has been{" "}
+              {isDeleted ? "deactivated" : "paused"} and you no longer have access to ZoikoVertex features.
+            </p>
+            <p className="text-sm text-zinc-500 leading-relaxed pt-1">
+              Please{" "}
+              <Link
+                href="/support"
+                className="text-zinc-300 hover:text-white underline underline-offset-2 transition-colors"
+              >
+                contact your administrator
+              </Link>{" "}
+              for assistance.
+            </p>
+          </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-[var(--foreground)] mb-4 tracking-tight">
-          Organization {isPaused ? 'Paused' : 'Deleted'}
-        </h2>
-
-        <p className="text-[var(--foreground-muted)] text-sm leading-relaxed mb-8">
-          Your organization{" "}
-          {orgName && <span className="text-[var(--foreground)] font-semibold">{orgName}</span>}{" "}
-          has been {isPaused ? 'paused' : 'deactivated'}. You no longer have access to ZoikoVertex features.
-        </p>
-
-        <p className="text-[var(--foreground-muted)] text-sm leading-relaxed mb-10">
-          Please{" "}
-          <Link href="/support" className="text-indigo-400 font-bold hover:text-indigo-300 underline underline-offset-2 transition-colors">
-            contact your administrator
-          </Link>{" "}
-          through the Support & Docs page for assistance.
-        </p>
+        <div className="border-t border-zinc-800" />
 
         <div className="space-y-3">
           <button
             onClick={handleLogout}
-            className="w-full h-[52px] flex items-center justify-center gap-3 bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] hover:border-[var(--card-border)] rounded-2xl transition-all duration-200 font-bold text-sm"
+            className="w-full h-11 flex items-center justify-center gap-2 bg-white text-black hover:bg-zinc-200 rounded-lg transition-colors text-sm font-medium"
           >
             <LogOut className="w-4 h-4" />
             Sign Out
           </button>
         </div>
 
-        <p className="mt-10 text-[11px] font-bold text-[var(--foreground-muted)] uppercase tracking-[0.2em] opacity-50">
-          ZoikoVertex Enterprise Protocol
+        <p className="text-center text-[10px] font-semibold text-zinc-700 uppercase tracking-[0.18em]">
+          ZoikoVertex · Platform Protocol
         </p>
       </div>
     </div>

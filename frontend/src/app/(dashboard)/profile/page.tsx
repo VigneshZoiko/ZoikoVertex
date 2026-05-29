@@ -9,6 +9,7 @@ import {
   ExternalLink, LogOut, ChevronRight
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useRoleContext } from "@/lib/context/RoleContext";
 
 type Tab = "overview" | "security" | "access";
 
@@ -16,10 +17,16 @@ interface Profile {
   full_name: string;
   email: string;
   phone_number: string;
-  designation: string;
-  department: string;
-  employment_type: string;
   avatar_url: string;
+}
+
+function formatRole(role: string | null): string {
+  if (!role) return "—";
+  return role
+    .toLowerCase()
+    .split("_")
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 }
 
 interface AccessLog {
@@ -37,11 +44,11 @@ export default function ProfilePage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { role } = useRoleContext();
 
   // Profile
   const [profile, setProfile] = useState<Profile>({
-    full_name: "", email: "", phone_number: "",
-    designation: "", department: "", employment_type: "", avatar_url: "",
+    full_name: "", email: "", phone_number: "", avatar_url: "",
   });
   const [avatarPreview, setAvatarPreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -77,7 +84,7 @@ export default function ProfilePage() {
 
     const { data } = await supabase
       .from("users")
-      .select("full_name, phone_number, designation, department, employment_type, avatar_url")
+      .select("full_name, phone_number, avatar_url")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -85,9 +92,6 @@ export default function ProfilePage() {
       full_name: data?.full_name ?? "",
       email: user.email ?? "",
       phone_number: data?.phone_number ?? "",
-      designation: data?.designation ?? "",
-      department: data?.department ?? "",
-      employment_type: data?.employment_type ?? "",
       avatar_url: data?.avatar_url ?? "",
     };
     setProfile(p);
@@ -187,9 +191,6 @@ export default function ProfilePage() {
     const { error } = await supabase.from("users").update({
       full_name: profile.full_name,
       phone_number: profile.phone_number,
-      designation: profile.designation,
-      department: profile.department,
-      employment_type: profile.employment_type,
     }).eq("id", userId);
     setSaving(false);
     if (error) showToast("error", "Failed to save: " + error.message);
@@ -397,40 +398,16 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Designation */}
+              {/* Designation — auto-fetched from workspace role */}
               <div className="space-y-2">
                 <label className="block text-sm font-bold text-[var(--foreground)]">Designation</label>
                 <input
                   type="text"
-                  value={profile.designation}
-                  onChange={e => setProfile(p => ({ ...p, designation: e.target.value }))}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-indigo-500 transition-colors"
-                  placeholder="Ascend Associate - AI Associate"
+                  value={formatRole(role)}
+                  readOnly
+                  className="w-full bg-[var(--surface)]/50 border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground-muted)] outline-none cursor-not-allowed"
                 />
-              </div>
-
-              {/* Department */}
-              <div className="space-y-2">
-                <label className="block text-sm font-bold text-[var(--foreground)]">Department</label>
-                <input
-                  type="text"
-                  value={profile.department}
-                  onChange={e => setProfile(p => ({ ...p, department: e.target.value }))}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-indigo-500 transition-colors"
-                  placeholder="Technology Infrastructure"
-                />
-              </div>
-
-              {/* Employment Type */}
-              <div className="space-y-2">
-                <label className="block text-sm font-bold text-[var(--foreground)]">Employment Type</label>
-                <input
-                  type="text"
-                  value={profile.employment_type}
-                  onChange={e => setProfile(p => ({ ...p, employment_type: e.target.value }))}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-indigo-500 transition-colors"
-                  placeholder="part time"
-                />
+                <p className="text-xs text-[var(--foreground-muted)]">Set by your workspace role assignment.</p>
               </div>
             </div>
 
