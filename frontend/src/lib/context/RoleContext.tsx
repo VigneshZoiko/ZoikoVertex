@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useLayoutEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, ReactNode } from "react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
@@ -77,6 +77,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [premiumPaidUntil, setPremiumPaidUntil] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const workspaceIdRef = useRef<string | null>(null);
 
   // Seed from localStorage before first paint — eliminates skeleton flash on revisit
   useClientLayoutEffect(() => {
@@ -122,6 +123,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         if (result.data.plan_type) setPlanType(result.data.plan_type);
         if (result.data.premium_paid_until !== undefined) setPremiumPaidUntil(result.data.premium_paid_until);
         if (result.data.is_superadmin) { nextIsSuperAdmin = true; setIsSuperAdmin(true); }
+
+        workspaceIdRef.current = result.data.workspace_id || null;
 
         writeCache({
           role: nextRole,
@@ -170,7 +173,26 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return () => { subscription.unsubscribe(); };
+    // ── Realtime subscription: re-fetch when workspace/org status changes ──
+    const statusChannel = supabase
+      .channel('user-org-status')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'workspaces' },
+        (payload) => {
+          const newWs = payload.new as { id: string; status?: string };
+          if (workspaceIdRef.current && newWs.id === workspaceIdRef.current && newWs.status) {
+            clearCache();
+            fetchUserRole(true);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(statusChannel);
+    };
   }, []);
 
   const hasRole = (allowedRoles: string[]) => {
