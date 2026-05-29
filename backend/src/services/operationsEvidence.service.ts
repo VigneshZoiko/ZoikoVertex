@@ -40,8 +40,6 @@ export async function exportEvidence(params: {
   exportReason: string;
   storageRef?: string;
 }) {
-  const bundle = await getRunEvidence(params.bundleId);
-
   const now = new Date().toISOString();
   const { error: updateError } = await supabaseAdmin
     .from('evidence_bundles')

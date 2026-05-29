@@ -110,7 +110,7 @@ export class KnowledgeController {
       //    going forward; knowledge_bases is the legacy fallback).
       const { data: collection } = await supabaseAdmin
         .from('knowledge_collections')
-        .select('id, tenant_id, workspace_id')
+        .select('id, workspace_id')
         .eq('id', baseId)
         .maybeSingle();
 
