@@ -605,7 +605,7 @@ export default function Sidebar() {
       .channel("support-ticket-count-sync")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "support_tickets" },
+        { event: "*", schema: "public", table: "support_tickets" },
         () => {
           fetchSupportTicketCount();
         },
