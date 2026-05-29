@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
 import { canAccess } from "@/lib/routeAccess";
 import { type Plan, type Feature, PLAN_DISPLAY, PLAN_BADGE_COLOR, FEATURE_UPGRADE_REASON, FEATURE_MIN_PLAN } from "@/lib/planFeatures";
+import { useSidebarCollapse } from "@/lib/hooks/useSidebarCollapse";
 import { ShieldOff, ArrowLeft, Lock, ArrowRight } from "lucide-react";
 
 export default function DashboardLayout({
@@ -23,6 +24,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router   = useRouter();
   const { orgStatus, workspaceStatus, orgName, planType, premiumPaidUntil, isSuperAdmin, isLoading, role, refresh } = useRoleContext();
+  const { enabled: sidebarCollapseEnabled } = useSidebarCollapse();
   const [accessDenied, setAccessDenied] = useState<
     | { reason: 'role' }
     | { reason: 'plan'; requiredPlan: Plan; feature: Feature }
@@ -69,9 +71,45 @@ export default function DashboardLayout({
     setAccessDenied(result.allowed ? false : result);
   }, [pathname, isLoading, role, isSuperAdmin, orgStatus, planType]);
 
-  // ── Silent wait — plain dark background, nothing visible to the user ───────
+  // ── Loading skeleton — mimics sidebar + header + content so transition feels instant ──
   if (isLoading || accessDenied === null) {
-    return <div className="h-screen bg-[var(--background,#111111)]" />;
+    return (
+      <div className="h-screen bg-[var(--background,#111111)] flex overflow-hidden">
+        {/* Sidebar skeleton */}
+        <div className="w-64 shrink-0 border-r border-white/5 flex flex-col gap-3 p-4">
+          <div className="h-8 w-32 rounded-lg bg-white/5 animate-pulse mb-4" />
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-8 rounded-lg bg-white/5 animate-pulse" style={{ opacity: 1 - i * 0.12 }} />
+          ))}
+          <div className="mt-auto flex flex-col gap-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-8 rounded-lg bg-white/5 animate-pulse" />
+            ))}
+          </div>
+        </div>
+        {/* Main area skeleton */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header skeleton */}
+          <div className="h-14 border-b border-white/5 flex items-center px-6 gap-4 shrink-0">
+            <div className="h-5 w-40 rounded-md bg-white/5 animate-pulse" />
+            <div className="ml-auto flex gap-3">
+              <div className="h-8 w-8 rounded-full bg-white/5 animate-pulse" />
+              <div className="h-8 w-8 rounded-full bg-white/5 animate-pulse" />
+            </div>
+          </div>
+          {/* Content skeleton */}
+          <div className="flex-1 p-8 flex flex-col gap-5">
+            <div className="h-8 w-56 rounded-lg bg-white/5 animate-pulse" />
+            <div className="grid grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-28 rounded-2xl bg-white/5 animate-pulse" />
+              ))}
+            </div>
+            <div className="h-64 rounded-2xl bg-white/5 animate-pulse" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // ── Pending org approval ────────────────────────────────────────────────────
@@ -93,7 +131,7 @@ export default function DashboardLayout({
     <NotificationProvider>
       <DraftGuardProvider>
         <div className="bg-[var(--background)] text-[var(--foreground)] h-screen overflow-hidden flex transition-colors">
-          <div className={`w-64 shrink-0 transition-all duration-500 ${isSuspended ? 'opacity-20 pointer-events-none select-none' : ''}`}>
+          <div className={`shrink-0 transition-all duration-200 ${sidebarCollapseEnabled ? 'w-16' : 'w-64'} ${isSuspended ? 'opacity-20 pointer-events-none select-none' : ''}`}>
             <Sidebar />
           </div>
           <div className="flex-1 flex flex-col min-w-0 h-screen">

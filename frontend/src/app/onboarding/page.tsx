@@ -381,7 +381,7 @@ export default function OnboardingPage() {
 
     poll();
     return () => { active = false; clearTimeout(deadline); };
-  }, [step, router]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, router]);
 
   /* ── Submit ──────────────────────────────────────────────────────────────── */
   const handleSubmit = async (e: React.FormEvent) => {

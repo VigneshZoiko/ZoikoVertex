@@ -28,9 +28,21 @@ package-lock.json
 !**/frontend/package-lock.json
 
 # Logs
-backend/backend.log
-frontend/frontend.log
-frontend/lint.log
+*.log
+backend/*.log
+frontend/*.log
+
+# Test screenshots and ad-hoc scripts
+Screenshot*.png
+testingscreenshots/
+frontend/e2e_screenshots/
+frontend/testingscreenshots/
+frontend/screenshot_*.png
+frontend/*_login*.png
+frontend/screenshot_health.png
+e2e_*.mjs
+test_*.mjs
+*_audit.mjs
 
 # Claude Code
 .claude/

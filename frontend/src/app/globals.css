@@ -149,6 +149,15 @@ h6 {
   background: var(--foreground-muted);
 }
 
+/* ─── Hidden Scrollbar (scrollable but no visible bar) ──────────────────── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* ─── Selection ──────────────────────────────────────────────────────────── */
 ::selection {
   background: rgba(99, 102, 241, 0.2);

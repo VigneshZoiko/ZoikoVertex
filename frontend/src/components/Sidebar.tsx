@@ -60,6 +60,7 @@ import { useDraftGuard } from "@/lib/context/DraftGuardContext";
 import { useNotifications } from "@/lib/context/NotificationContext";
 import { useRoleContext } from "@/lib/context/RoleContext";
 import { usePlan } from "@/lib/hooks/usePlan";
+import { useSidebarCollapse } from "@/lib/hooks/useSidebarCollapse";
 import { type Feature } from "@/lib/planFeatures";
 import DiscardModal from "@/components/DiscardModal";
 import PlanUpgradeModal from "@/components/PlanUpgradeModal";
@@ -528,6 +529,9 @@ export default function Sidebar() {
   const router = useRouter();
   const { role, isSuperAdmin, isLoading: roleLoading } = useRoleContext();
   const { canUse, minPlanLabelFor } = usePlan();
+  const { enabled: collapseEnabled } = useSidebarCollapse();
+  const [isHovered, setIsHovered] = useState(false);
+  const isCollapsed = collapseEnabled && !isHovered;
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [lockedFeature, setLockedFeature] = useState<Feature | null>(null);
 
@@ -710,72 +714,105 @@ export default function Sidebar() {
         onClose={() => setLockedFeature(null)}
       />
 
-      <div className="w-64 bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col h-screen transition-colors">
+      <div
+        onMouseEnter={() => collapseEnabled && setIsHovered(true)}
+        onMouseLeave={() => collapseEnabled && setIsHovered(false)}
+        style={{ width: isCollapsed ? "4rem" : "16rem" }}
+        className={`
+          bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col h-screen overflow-hidden
+          transition-[width] duration-300 ease-in-out
+          ${collapseEnabled && isHovered ? "absolute left-0 top-0 z-50 shadow-2xl shadow-black/40" : "relative"}
+        `}
+      >
         {/* Brand */}
-        <div className="flex flex-col px-4 pt-5 pb-4 border-b border-[var(--sidebar-border)]">
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center mr-3 shrink-0 relative">
+        <div className="flex flex-col px-3 pt-4 pb-3 border-b border-[var(--sidebar-border)] shrink-0">
+          <div className="flex items-center min-w-0">
+            <div className={`rounded-full overflow-hidden shrink-0 relative border border-[var(--sidebar-border)] transition-all duration-300 ${isCollapsed ? "w-8 h-8" : "w-8 h-8"}`}>
               <Image
-                src="/images/logo-wordmark.svg"
-                alt="ZoikoVertex Logo"
+                src="/images/vertex-logo-dark.jpeg"
+                alt="ZoikoVertex"
                 fill
                 sizes="32px"
                 className="object-cover"
               />
             </div>
-            <span className="text-[var(--sidebar-text)] font-bold text-xl tracking-wide">
-              ZoikoVertex
-            </span>
+            <div className={`overflow-hidden transition-[max-width,opacity] duration-300 ease-in-out ${isCollapsed ? "max-w-0 opacity-0" : "max-w-[160px] opacity-100"}`}>
+              <span className="ml-3 text-[var(--sidebar-text)] font-bold text-xl tracking-wide whitespace-nowrap">
+                ZoikoVertex
+              </span>
+            </div>
           </div>
-          <p className="text-[var(--sidebar-text-muted)] text-xs mt-1 ml-11">
-            Where Execution Becomes Accountable.
-          </p>
+          <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${isCollapsed ? "max-h-0 opacity-0" : "max-h-8 opacity-100"}`}>
+            <p className="text-[var(--sidebar-text-muted)] text-xs mt-1 ml-11 whitespace-nowrap">
+              Where Execution Becomes Accountable.
+            </p>
+          </div>
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 overflow-y-auto py-3 px-2">
+        <div className="flex-1 overflow-y-auto no-scrollbar py-3 px-2">
           {!roleLoaded ? (
             <div className="space-y-1 px-2">
               {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="h-10 rounded-lg bg-[var(--sidebar-hover)]/50 animate-pulse"
-                />
+                <div key={i} className="h-10 rounded-lg bg-[var(--sidebar-hover)]/50 animate-pulse" />
               ))}
             </div>
           ) : (
             visibleGroups.map((group) => (
               <div key={group.id} className="mb-2">
-                <button
-                  onClick={() => toggleGroup(group.id)}
-                  className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-[var(--sidebar-text-muted)] uppercase tracking-wider hover:text-[var(--sidebar-text)] transition-colors"
-                >
-                  <span>{group.label}</span>
-                  <ChevronDown
-                    className={`w-3 h-3 transition-transform ${openGroups[group.id] ? "" : "-rotate-90"}`}
-                  />
-                </button>
+                {/* Group header — fades out when collapsed */}
+                <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${isCollapsed ? "max-h-0 opacity-0" : "max-h-8 opacity-100"}`}>
+                  <button
+                    onClick={() => toggleGroup(group.id)}
+                    className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-[var(--sidebar-text-muted)] uppercase tracking-wider hover:text-[var(--sidebar-text)] transition-colors"
+                  >
+                    <span className="whitespace-nowrap">{group.label}</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform shrink-0 ${openGroups[group.id] ? "" : "-rotate-90"}`} />
+                  </button>
+                </div>
 
-                {openGroups[group.id] && (
+                {/* Items — always rendered, text fades */}
+                {(openGroups[group.id] || isCollapsed) && (
                   <nav className="space-y-0.5 mt-1">
                     {group.items.map((item) => {
                       const Icon = item.icon;
                       const isActive = pathname === item.href;
                       const planLocked = !!(item.plan && !canUse(item.plan));
 
+                      const badges = (
+                        <>
+                          {item.badge && pendingCount > 0 && (
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-black text-white shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
+                              {pendingCount}
+                            </span>
+                          )}
+                          {item.name === "Support Queue" && supportTicketCount > 0 && (
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
+                              {supportTicketCount > 9 ? "9+" : supportTicketCount}
+                            </span>
+                          )}
+                          {item.name === "Notifications" && unreadCount > 0 && (
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shrink-0 animate-pulse transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
+                              {unreadCount > 9 ? "9+" : unreadCount}
+                            </span>
+                          )}
+                        </>
+                      );
+
                       if (planLocked) {
-                        const requiredLabel = minPlanLabelFor(item.plan!);
                         return (
                           <button
                             key={item.name}
                             type="button"
-                            title={`Requires ${requiredLabel}`}
+                            title={isCollapsed ? `${item.name} — Upgrade required` : undefined}
                             onClick={() => setLockedFeature(item.plan!)}
                             className="w-full flex items-center px-3 py-2 rounded-lg transition-colors text-zinc-600 hover:text-zinc-500 hover:bg-[var(--sidebar-hover)]/40 group"
                           >
-                            <Icon className="w-4 h-4 mr-3 shrink-0 text-zinc-700" />
-                            <span className="flex-1 text-sm text-left">{item.name}</span>
-                            <Lock className="w-3 h-3 text-zinc-700 shrink-0" />
+                            <Icon className="w-4 h-4 shrink-0 text-zinc-700" />
+                            <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-300 ease-in-out text-sm text-left flex-1 ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[140px] opacity-100 ml-3"}`}>
+                              {item.name}
+                            </span>
+                            <Lock className={`w-3 h-3 text-zinc-700 shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[12px]"}`} />
                           </button>
                         );
                       }
@@ -784,6 +821,7 @@ export default function Sidebar() {
                         <Link
                           key={item.name}
                           href={item.href}
+                          title={isCollapsed ? item.name : undefined}
                           onClick={(e) => handleNavClick(e, item.href)}
                           className={`flex items-center px-3 py-2 rounded-lg transition-colors group ${
                             isActive
@@ -791,34 +829,13 @@ export default function Sidebar() {
                               : "text-[var(--sidebar-text-muted)] hover:text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)]"
                           }`}
                         >
-                          <Icon
-                            className={`w-4 h-4 mr-3 shrink-0 ${isActive ? "text-indigo-400" : "text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)]"}`}
-                          />
-                          <span className="flex-1 text-sm">{item.name}</span>
-
-                          {item.badge && pendingCount > 0 && (
-                            <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-black text-white shadow-lg shadow-indigo-500/20 animate-in zoom-in duration-300">
-                              {pendingCount}
-                            </span>
-                          )}
-
-                          {item.name === "Support Queue" && supportTicketCount > 0 && (
-                            <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-lg shadow-rose-500/20 animate-in zoom-in duration-300">
-                              {supportTicketCount > 9 ? "9+" : supportTicketCount}
-                            </span>
-                          )}
-
-                          {item.name === "Notifications" && unreadCount > 0 && (
-                            <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-lg shadow-rose-500/20 animate-pulse animate-in zoom-in duration-300">
-                              {unreadCount > 9 ? "9+" : unreadCount}
-                            </span>
-                          )}
-
+                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-indigo-400" : "text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)]"}`} />
+                          <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-300 ease-in-out text-sm flex-1 ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[140px] opacity-100 ml-3"}`}>
+                            {item.name}
+                          </span>
+                          {badges}
                           {item.dirty && isDirty && (
-                            <span
-                              className="ml-auto w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-lg shadow-amber-400/20"
-                              title="Unsaved draft"
-                            />
+                            <span className={`w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[8px] ml-auto"}`} />
                           )}
                         </Link>
                       );
@@ -831,25 +848,38 @@ export default function Sidebar() {
         </div>
 
         {/* Action Footer */}
-        <div className="px-4 pb-6 pt-4 border-t border-[var(--sidebar-border)] bg-[var(--sidebar-bg)]">
+        <div className="border-t border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] px-3 py-4 shrink-0">
           <div className="flex items-center gap-3">
             <Link
               href="/profile"
               onClick={(e) => handleNavClick(e, "/profile")}
+              title={isCollapsed ? "Settings & Profile" : undefined}
               className="w-10 h-10 flex items-center justify-center bg-[var(--surface)] text-[var(--sidebar-text-muted)] hover:text-indigo-400 hover:bg-[var(--sidebar-hover)] border border-[var(--sidebar-border)] rounded-full transition-all shadow-sm group shrink-0"
-              title="Settings & Profile"
             >
-              <Settings className="w-5 h-5 transition-transform duration-500 group-hover:rotate-90" />
+              <Settings className="w-4 h-4 transition-transform duration-500 group-hover:rotate-90" />
             </Link>
-
             <button
               onClick={handleLogout}
-              className="flex-1 flex items-center justify-center h-10 px-4 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all font-semibold text-sm group"
-              title="Logout"
+              title={isCollapsed ? "Log out" : undefined}
+              className={`overflow-hidden flex items-center justify-center h-10 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all font-semibold text-sm group ${isCollapsed ? "w-0 opacity-0 px-0" : "flex-1 px-4 opacity-100"}`}
+              style={{ transition: "width 300ms ease-in-out, opacity 300ms ease-in-out, padding 300ms ease-in-out, flex 300ms ease-in-out" }}
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              <span>Log out</span>
+              <LogOut className="w-4 h-4 shrink-0" />
+              <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-300 ease-in-out ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[80px] opacity-100 ml-2"}`}>
+                Log out
+              </span>
             </button>
+            {/* Collapsed logout icon button */}
+            {isCollapsed && (
+              <button
+                onClick={handleLogout}
+                title="Log out"
+                className="w-10 h-10 flex items-center justify-center bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-full transition-all shrink-0"
+                style={{ transition: "opacity 300ms ease-in-out" }}
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
