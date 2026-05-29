@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { internalEventBus } from '../shared/internalEventBus';
 
 export type ReviewItemType = 'social_post' | 'campaign_asset' | 'inbox_reply' | 'agent_action' | 'workflow_output' | 'policy_flagged' | 'validation_failed' | 'exception_item' | 'scheduled_content';
 export type ReviewStatus = 'PENDING_REVIEW' | 'ASSIGNED' | 'IN_REVIEW' | 'AWAITING_REVISION' | 'RESUBMITTED' | 'APPROVED' | 'REJECTED' | 'ESCALATED' | 'BLOCKED' | 'EXPIRED' | 'RELEASED' | 'ARCHIVED';
@@ -177,6 +178,19 @@ export async function updateReviewItemStatus(params: {
     performed_by: params.userId,
   });
 
+  const isTerminal = ['APPROVED', 'REJECTED', 'ESCALATED', 'BLOCKED', 'RELEASED'].includes(params.status);
+  if (isTerminal) {
+    try {
+      internalEventBus.emit('review.decision_made', {
+        workspace_id: params.tenant_id,
+        tenant_id: params.tenant_id,
+        actor_id: params.userId,
+        item_id: params.id,
+        decision: params.status,
+      });
+    } catch (emitErr) { /* non-blocking */ }
+  }
+
   return data as unknown as ReviewItem;
 }
 
@@ -283,10 +297,11 @@ export async function listReviewAuditLog(review_item_id: string) {
   return data;
 }
 
-export async function getReviewStats(_tenant_id: string, _userId: string) {
+export async function getReviewStats(tenantId: string, userId: string) {
   const query = supabaseAdmin
     .from('review_items')
-    .select('status, risk_level');
+    .select('status, risk_level, assigned_to')
+    .eq('tenant_id', tenantId);
 
   const { data: all } = await query;
   if (!all) return defaultStats();
@@ -302,6 +317,7 @@ export async function getReviewStats(_tenant_id: string, _userId: string) {
     if (item.status === 'APPROVED') stats.approved++;
     if (item.status === 'REJECTED') stats.rejected++;
     if (item.status === 'RELEASED') stats.released++;
+    if (item.assigned_to === userId) stats.assigned_to_me++;
     if (item.risk_level === 'CRITICAL' && ['PENDING_REVIEW', 'ASSIGNED', 'IN_REVIEW'].includes(item.status)) {
       stats.critical_overdue++;
     }
@@ -344,7 +360,7 @@ async function createAuditLog(params: {
   if (error) console.error('[ReviewQueue] Audit log error:', error);
 }
 
-export function calculateEligibility(item: ReviewItem, role: string): EligibilityState {
+export function calculateEligibility(item: ReviewItem, role: string, userId?: string): EligibilityState {
   if (item.status === 'BLOCKED' || item.status === 'EXPIRED' || item.status === 'ARCHIVED') {
     return 'BLOCKED';
   }
@@ -381,7 +397,7 @@ export function calculateEligibility(item: ReviewItem, role: string): Eligibilit
   }
 
   const canApprove = ['ADMIN', 'WORKSPACE_OWNER', 'REVIEWER', 'MANAGER', 'GOVERNANCE_ADMIN'].includes(role);
-  const isAssignedToMe = item.assigned_to === null || true;
+  const isAssignedToMe = item.assigned_to === null || item.assigned_to === userId;
   if (canApprove && isAssignedToMe && item.risk_level !== 'HIGH' && item.risk_level !== 'CRITICAL') {
     return 'ELIGIBLE_FOR_APPROVAL';
   }

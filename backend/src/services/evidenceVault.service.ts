@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { createAuditEvent } from './auditTrail.service';
+import { internalEventBus } from '../shared/internalEventBus';
 import * as crypto from 'crypto';
 import {
   submitAnchor,
@@ -186,7 +187,10 @@ async function emitVaultAuditEvent(
       evidence_state: 'preserved', retention_class: 'REGULATED' as const,
     });
     return result?.event_id || null;
-  } catch { return null; }
+  } catch (err) {
+    console.error('[EvidenceVault] Audit event emission failed:', err);
+    return null;
+  }
 }
 
 // ─── Evidence Item Functions ────────────────────────────────────────────────────
@@ -269,6 +273,18 @@ export async function preserveEvidence(params: PreserveParams): Promise<VaultEvi
     { permission_used: 'evidence.item.preserve' },
     params.tenant_id,
   );
+
+  try {
+    internalEventBus.emit('vault.item_preserved', {
+      workspace_id: params.workspace_id,
+      tenant_id: params.tenant_id,
+      actor_id: params.preserved_by,
+      item_id: itemId,
+      source_type: params.source_type,
+    });
+  } catch (emitErr) {
+    // non-blocking
+  }
 
   return data;
 }
