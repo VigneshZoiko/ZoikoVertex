@@ -15,18 +15,17 @@
     { label: "Budget reallocated",     value: "$18,200 auto",   bg: "#1a2a3a", text: "#60a5fa", border: "#2a3a5a" },
     { label: "Daily profit impact",    value: "+14.0%",         bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
     { label: "Attribution confidence", value: "Multi-touch ✓",  bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
-
   ];
 
   return (
-    <section style={{ background: "#0e1829" }} className="py-24 px-6">
-      <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-start">
+    <section style={{ background: "#1E2F55" }} className="py-24 px-6">
+      <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
 
         {/* ── LEFT ── */}
         <div>
           <div className="flex items-center gap-2 mb-5">
-            <span className="w-4 h-px bg-teal-400 inline-block" />
-            <p className="text-teal-400 text-[10px] font-bold tracking-[0.2em] uppercase">
+            <span className="w-4 h-px bg-[#6366F1] inline-block" />
+            <p className="text-[#6366F1] text-[10px] font-bold tracking-[0.2em] uppercase">
               ROI Engine
             </p>
           </div>
@@ -58,8 +57,8 @@
           </ul>
 
           <div
-            className="rounded-xl p-5"
-            style={{ background: "#111e30", borderLeft: "3px solid #3b5ea6" }}
+            className=" p-5"
+            style={{ background: "#1E2F55", borderLeft: "3px solid #6366F1" }}
           >
             <p className="text-[#8b9cb3] text-[13px] leading-relaxed italic">
               <span className="text-white font-bold not-italic">Economic inevitability:</span>{" "}
@@ -74,16 +73,16 @@
         <div
           className="rounded-2xl overflow-hidden"
           style={{
-            background: "#152032",
+            background: "#1E2F55",
             border: "1px solid rgba(255,255,255,0.10)",
-            boxShadow: "0 24px 60px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.35)",
+            boxShadow: "0 24px 60px #00000073, 0 8px 24px #00000073",
           }}
         >
           {/* Header — distinct lighter bg */}
           <div
             className="flex items-center justify-between px-5 py-4"
             style={{
-              background: "#1c2e45",
+              background: "#00000040",
               borderBottom: "1px solid rgba(255,255,255,0.08)",
             }}
           >
@@ -91,11 +90,7 @@
               Campaign Performance Dashboard
             </span>
             <span
-              className="flex items-center gap-1.5 text-[#4ade80] text-[11px] font-semibold px-2.5 py-1 rounded-full"
-              style={{
-                background: "rgba(34,197,94,0.12)",
-                border: "1px solid rgba(34,197,94,0.25)",
-              }}
+              className="flex items-center gap-1.5 text-[#22C55E] text-[11px] font-semibold px-2.5 py-1 rounded-full"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80]" />
               Live

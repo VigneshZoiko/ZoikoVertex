@@ -3,11 +3,12 @@
     {
       label: "STRATEGY",
       name: "LAYER 1 — STRATEGIC CONTROL",
-      bg: "#eef0fb",
-      border: "#d4d8f5",
-      labelColor: "#6366f1",
-      nameColor: "#818cf8",
-      cardBorder: "#e0e3f7",
+
+      bg: "bg-gradient-to-r from-[#6366F1]/20 to-[#00C8F0]/10",
+      border: "#A5B4FC",
+      labelColor: "#6366F1",
+      nameColor: "#6366F1",
+      cardBorder: "#C7D2FE",
       components: [
         { title: "Chief Strategy Agent",      desc: "Revenue & EBITDA alignment" },
         { title: "Business Context Engine",   desc: "ERP, inventory, pricing, margin" },
@@ -17,10 +18,10 @@
     {
       label: "EXECUTION",
       name: "LAYER 2 — EXECUTION INTELLIGENCE",
-      bg: "#f0edfb",
-      border: "#ddd6f5",
-      labelColor: "#7c3aed",
-      nameColor: "#a78bfa",
+      bg: "bg-gradient-to-r from-[#4C52E8]/15 to-[#818CF8]/10",
+      border: "#818CF8",
+      labelColor: "#6366F1",
+      nameColor: "#6366F1",
       cardBorder: "#e8e3f7",
       components: [
         { title: "Creative Intelligence Lab", desc: "Platform-native content & copy" },
@@ -32,10 +33,10 @@
     {
       label: "FINANCIAL",
       name: "LAYER 3 — FINANCIAL & OPTIMIZATION",
-      bg: "#eaf8f6",
-      border: "#b2e8e2",
-      labelColor: "#0d9488",
-      nameColor: "#2dd4bf",
+      bg: "bg-[linear-gradient(90deg,rgba(0,200,240,0.15)_0%,rgba(99,102,241,0.08)_100%)]",
+      border: "#67E8F9",
+      labelColor: "#0097B5",
+      nameColor: "#0097B5",
       cardBorder: "#c8eeea",
       components: [
         { title: "Quant Ad Spend Agent",      desc: "CPA / ROAS / marginal return" },
@@ -47,11 +48,11 @@
     {
       label: "GOVERNED",
       name: "LAYER 4 — GOVERNANCE & RISK",
-      bg: "#eeebfb",
-      border: "#cfc8f0",
-      labelColor: "#5b21b6",
-      nameColor: "#8b5cf6",
-      cardBorder: "#ddd8f5",
+      bg: "bg-[linear-gradient(90deg,rgba(30,50,128,0.25)_0%,rgba(55,48,163,0.15)_100%)]",
+      border: "#818CF8",
+      labelColor: "#A5B4FC",
+      nameColor: "#0E7490",
+      cardBorder: "#818CF8",
       components: [
         { title: "Compliance Sentry",       desc: "Brand + legal + sector rules" },
         { title: "Governance Engine",       desc: "Confidence scoring + approvals" },
@@ -62,11 +63,11 @@
     {
       label: "SIMULATE",
       name: "LAYER 5 — SIMULATION",
-      bg: "#e8f8f2",
-      border: "#a7e8d0",
+      bg: "bg-[linear-gradient(90deg,rgba(16,185,129,0.15)_0%,rgba(99,102,241,0.08)_100%)]",
+      border: "#6EE7B7",
       labelColor: "#059669",
-      nameColor: "#34d399",
-      cardBorder: "#b8e8d4",
+      nameColor: "#059669",
+      cardBorder: "#6EE7B7",
       components: [
         { title: "Synthetic Audience Engine",   desc: "Predict response before spend" },
         { title: "Creative Scenario Modelling", desc: "Test before budget is committed" },
@@ -76,7 +77,7 @@
   ];
 
   return (
-    <section className="py-24 px-6" style={{ background: "#f8f8fc" }}>
+    <section className="py-24 px-6" style={{ background: "#F8FAFC" }}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
@@ -164,10 +165,10 @@
                             minWidth: 0,
                           }}
                         >
-                          <p className="text-gray-900 font-bold text-[12px] mb-1 leading-snug">
+                          <p className=" font-bold text-[12px] mb-1 leading-snug" style={{ color: layer.nameColor  }}>
                             {c.title}
                           </p>
-                          <p className="text-gray-400 text-[11px] leading-snug">
+                          <p className="text-[11px] leading-snug" style={{ color: layer.nameColor  }}>
                             {c.desc}
                           </p>
                         </div>
