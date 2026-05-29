@@ -1,0 +1,31 @@
+name: Vercel Landing Deployment
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_LANDING_PROJECT_ID }}
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'landing/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: npm install
+        working-directory: ./landing
+
+      - name: Run Lint & Type Check
+        run: npm run lint
+        working-directory: ./landing
+
+      - name: Verify Local Build
+        run: npm run build
+        working-directory: ./landing
+
+      - name: Deploy to Vercel
+        run: npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --cwd ./landing --yes --archive=tgz
