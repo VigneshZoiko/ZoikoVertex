@@ -3,12 +3,12 @@
     {
       label: "STRATEGY",
       name: "LAYER 1 — STRATEGIC CONTROL",
+
       bg: "bg-gradient-to-r from-[#6366F1]/20 to-[#00C8F0]/10",
       border: "#A5B4FC",
       labelColor: "#6366F1",
       nameColor: "#6366F1",
       cardBorder: "#C7D2FE",
-
       components: [
         { title: "Chief Strategy Agent",      desc: "Revenue & EBITDA alignment" },
         { title: "Business Context Engine",   desc: "ERP, inventory, pricing, margin" },
