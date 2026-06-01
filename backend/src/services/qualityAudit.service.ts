@@ -996,8 +996,51 @@ export async function generateSample(params: {
 }): Promise<AuditItem[]> {
   const count = params.count || 10;
   const items: AuditItem[] = [];
+  let remaining = count;
 
-  for (let i = 0; i < count; i++) {
+  // Try to pull published/approved content from review_items for meaningful audits
+  let query = supabaseAdmin
+    .from('review_items')
+    .select('*')
+    .eq('tenant_id', params.tenant_id)
+    .in('status', ['APPROVED', 'RELEASED']);
+
+  if (params.source_module) {
+    query = query.eq('source_module', params.source_module);
+  }
+  if (params.campaign_id) {
+    query = query.eq('campaign_id', params.campaign_id);
+  }
+  if (params.risk_level) {
+    query = query.eq('risk_level', params.risk_level);
+  }
+
+  const { data: sourceItems } = await query
+    .order('created_at', { ascending: false })
+    .limit(count);
+
+  if (sourceItems && sourceItems.length > 0) {
+    for (const src of sourceItems) {
+      const item = await createAuditItem({
+        tenant_id: params.tenant_id,
+        workspace_id: params.workspace_id,
+        source_module: src.source_module,
+        source_entity_id: src.source_entity_id,
+        item_type: (src.item_type as AuditItemType) || 'sampled_item',
+        title: `Audit: ${src.title}`,
+        campaign_id: src.campaign_id,
+        platform: src.platform,
+        risk_level: (src.risk_level as RiskLevel) || 'LOW',
+        content_snapshot: src.content_snapshot,
+        audit_due_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      });
+      items.push(item);
+      remaining--;
+    }
+  }
+
+  // Fall back to synthetic items if not enough were sourced
+  for (let i = 0; i < remaining; i++) {
     const item = await createAuditItem({
       tenant_id: params.tenant_id,
       workspace_id: params.workspace_id,

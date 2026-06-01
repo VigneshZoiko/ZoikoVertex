@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS public.quality_audit_callbacks (
   audit_item_id UUID NOT NULL REFERENCES public.quality_audit_items(id) ON DELETE CASCADE,
   source_module TEXT NOT NULL,
   source_entity_id TEXT NOT NULL,
-  callback_status TEXT NOT NULL DEFAULT 'PENDING' CHECK (callback_status IN ('PENDING', 'SUCCEEDED', 'FAILED')),
+  callback_status TEXT NOT NULL DEFAULT 'PENDING' CHECK (callback_status IN ('PENDING', 'SUCCEEDED', 'COMPLETED', 'FAILED')),
   callback_payload JSONB DEFAULT '{}',
   last_attempt_at TIMESTAMPTZ,
   retry_count INTEGER NOT NULL DEFAULT 0,
@@ -290,5 +290,13 @@ VALUES
   ('quality_audit.evidence.added', 'quality_audit', 'Evidence Added', 'Evidence added to audit.', 'low', 'REGULATED'),
   ('quality_audit.callback.succeeded', 'quality_audit', 'Callback Succeeded', 'Source module callback succeeded.', 'low', 'REGULATED'),
   ('quality_audit.callback.failed', 'quality_audit', 'Callback Failed', 'Source module callback failed.', 'medium', 'REGULATED'),
-  ('quality_audit.callback.retried', 'quality_audit', 'Callback Retried', 'Source module callback retried.', 'low', 'REGULATED')
+   ('quality_audit.callback.retried', 'quality_audit', 'Callback Retried', 'Source module callback retried.', 'low', 'REGULATED')
 ON CONFLICT (event_type) DO NOTHING;
+
+-- Fix callback_status check constraint to allow COMPLETED (services write COMPLETED, not SUCCEEDED)
+DO $$ BEGIN
+  ALTER TABLE public.quality_audit_callbacks DROP CONSTRAINT IF EXISTS quality_audit_callbacks_callback_status_check;
+  ALTER TABLE public.quality_audit_callbacks ADD CONSTRAINT quality_audit_callbacks_callback_status_check
+    CHECK (callback_status IN ('PENDING', 'SUCCEEDED', 'COMPLETED', 'FAILED'));
+EXCEPTION WHEN undefined_object THEN NULL;
+END $$;

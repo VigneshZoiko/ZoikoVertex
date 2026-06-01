@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { broadcastWebhookEvent } from '../domains/integrations/apiWebhookController';
 import { logger } from '../shared/logger';
 import { internalEventBus } from '../shared/internalEventBus';
+import { createValidationItem } from './validationDesk.service';
+import { createAuditItem } from './qualityAudit.service';
 
 export type ExceptionStatus = 'NEW' | 'TRIAGE' | 'ASSIGNED' | 'IN_PROGRESS' | 'WAITING_ON_SOURCE' | 'WAITING_ON_VALIDATION' | 'WAITING_ON_APPROVAL' | 'ESCALATED' | 'OVERRIDE_REQUESTED' | 'OVERRIDE_APPROVED' | 'OVERRIDE_DENIED' | 'BLOCKED' | 'RESOLVED' | 'CLOSED' | 'ARCHIVED' | 'CANCELLED';
 export type ExceptionSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -443,6 +445,20 @@ export async function sendToValidation(exceptionId: string, tenant_id: string, u
   const ec = await getExceptionCase(exceptionId, tenant_id);
   if (!ec) throw new Error('Exception case not found');
   await updateStatus(exceptionId, tenant_id, userId, 'WAITING_ON_VALIDATION');
+  try {
+    await createValidationItem({
+      tenant_id,
+      workspace_id: ec.workspace_id,
+      source_module: ec.source_module,
+      source_entity_id: `exception-${exceptionId}`,
+      item_type: 'escalated_item',
+      title: `Validation: ${ec.exception_title}`,
+      submitted_by: userId,
+      risk_level: (ec.risk_level as any) || 'MEDIUM',
+    });
+  } catch (err) {
+    logger.warn({ err, exceptionId }, '[Exception] Failed to create validation item');
+  }
   internalEventBus.emit('exception.sent_to_validation', { exception_id: exceptionId, source_module: ec.source_module });
 }
 
@@ -456,6 +472,20 @@ export async function sendToApprovals(exceptionId: string, tenant_id: string, us
 export async function sendToQualityAudit(exceptionId: string, tenant_id: string, _userId: string): Promise<void> {
   const ec = await getExceptionCase(exceptionId, tenant_id);
   if (!ec) throw new Error('Exception case not found');
+  try {
+    const auditItem = await createAuditItem({
+      tenant_id,
+      workspace_id: ec.workspace_id,
+      source_module: ec.source_module,
+      source_entity_id: `exception-${exceptionId}`,
+      item_type: 'escalation_outcome',
+      title: `Audit: ${ec.exception_title}`,
+      risk_level: (ec.risk_level as any) || 'MEDIUM',
+    });
+    logger.info({ auditItemId: auditItem.id, exceptionId }, '[Exception] Created quality audit item from exception');
+  } catch (err) {
+    logger.warn({ err, exceptionId }, '[Exception] Failed to create quality audit item');
+  }
   internalEventBus.emit('exception.sent_to_quality_audit', { exception_id: exceptionId, source_module: ec.source_module });
 }
 

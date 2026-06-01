@@ -15,6 +15,49 @@ function getParam(req: AuthRequest, name: string): string {
 
 // ─── Items ───────────────────────────────────────────────────────────────
 
+export const createValidationItem = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const body = req.body as {
+      source_module: string;
+      source_entity_id: string;
+      item_type: string;
+      title: string;
+      campaign_id?: string;
+      platform?: string;
+      content_snapshot?: Record<string, unknown>;
+      risk_level?: string;
+      due_at?: string;
+    };
+
+    if (!body.source_module || !body.source_entity_id || !body.item_type || !body.title) {
+      return res.status(400).json({ error: 'source_module, source_entity_id, item_type, and title are required' });
+    }
+
+    const item = await validationService.createValidationItem({
+      tenant_id,
+      workspace_id: tenant_id,
+      source_module: body.source_module,
+      source_entity_id: body.source_entity_id,
+      item_type: body.item_type as any,
+      title: body.title,
+      campaign_id: body.campaign_id,
+      platform: body.platform,
+      content_snapshot: body.content_snapshot,
+      submitted_by: userId,
+      risk_level: body.risk_level as any,
+      due_at: body.due_at,
+    });
+
+    res.status(201).json({ success: true, data: item });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const listValidationItems = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;

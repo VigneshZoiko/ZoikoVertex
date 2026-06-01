@@ -222,7 +222,7 @@ import {
   exportExceptionRecord, closeExceptionCase, archiveExceptionCase,
 } from './domains/governance/exceptionV2Controller';
 import { listItems as listReviewItems, getItem as getReviewItem, takeAction as takeReviewAction, getStats as getReviewStats, getEligibility as getReviewEligibility, getAuditLog as getReviewAuditLog, createItem as createReviewItem } from './domains/governance/reviewQueueController';
-import { listValidationItems, getValidationItem, assignValidator, runValidation, revalidateItem, getValidationRunResults, requestRevision, sendToReviewQueue, sendToApprovals, escalateValidation, applyOverride, blockItem, completeManualCheck, addValidatorNote, getValidationAuditTrail, getValidationStats, getValidationEligibility, retryValidationCallback, exportValidationRecord } from './domains/governance/validationController';
+import { createValidationItem, listValidationItems, getValidationItem, assignValidator, runValidation, revalidateItem, getValidationRunResults, requestRevision, sendToReviewQueue, sendToApprovals, escalateValidation, applyOverride, blockItem, completeManualCheck, addValidatorNote, getValidationAuditTrail, getValidationStats, getValidationEligibility, retryValidationCallback, exportValidationRecord } from './domains/governance/validationController';
 import {
   KnowledgeController,
 } from './modules/knowledge/knowledgeController';
@@ -1161,6 +1161,7 @@ app.get('/api/v1/quality-audit/items/:id/eligibility', authenticate, scopeGuard(
 app.get('/api/v1/quality-audit/items/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getQaAuditTrail);
 
 // ─── Validation Desk Routes (Accountability Layer) ───────────────────
+app.post('/api/v1/validation/items', authenticate, scopeGuard('write:governance', '*'), createValidationItem);
 app.get('/api/v1/validation/items', authenticate, scopeGuard('read:governance', '*'), listValidationItems);
 app.get('/api/v1/validation/stats', authenticate, scopeGuard('read:governance', '*'), getValidationStats);
 app.get('/api/v1/validation/items/:id', authenticate, scopeGuard('read:governance', '*'), getValidationItem);
