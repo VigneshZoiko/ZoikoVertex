@@ -1623,86 +1623,122 @@ function PublishPageInner() {
             />
           </div>
 
-          {/* Active Campaign linking */}
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
-            <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
-              <FolderKanban className="w-3.5 h-3.5 text-indigo-400" />
-              Link to Active Campaign
-            </h3>
-            {publishCampaigns.length === 0 ? (
-              <p className="text-xs text-[var(--foreground-muted)]">No active campaigns — launch one from Campaigns first.</p>
-            ) : (
-              <select
-                value={selectedCampaignId}
-                onChange={e => setSelectedCampaignId(e.target.value)}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-indigo-500 transition-colors"
-              >
-                <option value="">None</option>
-                {publishCampaigns.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          {/* Platform constraint warnings */}
+          {/* Platform constraint warnings — shown ABOVE campaign selector */}
           {(() => {
+            const mediaType = assetType || (media?.type?.startsWith("video") ? "video" : media ? "image" : "");
+            const count = selectedUrls.length || (media ? 1 : 0);
             const violations = getPlatformViolations();
             if (violations.length === 0) return null;
-            const blocking = violations.filter((v) => {
-              const type =
-                assetType ||
-                (media?.type?.startsWith("video")
-                  ? "video"
-                  : media
-                    ? "image"
-                    : "");
-              const { blocked } = getCompatibility(
-                v.platform,
-                v.postType,
-                selectedUrls.length || (media ? 1 : 0),
-                type,
-              );
+
+            const blocking = violations.filter(v => {
+              const { blocked } = getCompatibility(v.platform, v.postType, count, mediaType, mediaMeta);
               return blocked;
             });
-            const warnings = violations.filter((v) => !blocking.includes(v));
+            const warnings = violations.filter(v => !blocking.includes(v));
+
+            // Extra Meta-specific format hints
+            const metaFormatHints: string[] = [];
+            if (mediaType === "video" && mediaMeta && !mediaMeta.isVertical) {
+              const hasInstagram = selectedAccountIds.some(id =>
+                connectedAccounts.find(a => a.id === id)?.platform === "instagram"
+              );
+              const hasFacebook = selectedAccountIds.some(id =>
+                connectedAccounts.find(a => a.id === id)?.platform === "facebook"
+              );
+              const postTypes = Object.values(platformPostTypes).flat();
+              if ((hasInstagram || hasFacebook) && (postTypes.includes("reel") || postTypes.includes("story"))) {
+                metaFormatHints.push("Reels & Stories require vertical video (9:16 ratio). Your video is landscape — it won't appear in Reels or Stories placement.");
+              }
+            }
+            if (mediaType === "video" && mediaMeta && mediaMeta.duration && mediaMeta.duration > 90) {
+              const hasInstagram = selectedAccountIds.some(id =>
+                connectedAccounts.find(a => a.id === id)?.platform === "instagram"
+              );
+              if (hasInstagram) metaFormatHints.push("Instagram Reels max duration is 90 seconds. Your video may be trimmed.");
+            }
+
             return (
               <div className="space-y-2">
                 {blocking.map((v, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-3 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl"
-                  >
+                  <div key={i} className="flex items-start gap-3 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
                     <AlertTriangle className="w-4 h-4 text-rose-400 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-bold text-rose-400 capitalize">
-                        {v.platform} — blocked
-                      </p>
-                      <p className="text-[11px] text-rose-300 mt-0.5">
-                        {v.message}
-                      </p>
+                      <p className="text-xs font-bold text-rose-400 capitalize">{v.platform} — not supported</p>
+                      <p className="text-[11px] text-rose-300 mt-0.5">{v.message}</p>
                     </div>
                   </div>
                 ))}
-                {warnings.map((v, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-3 p-3 bg-amber-500/8 border border-amber-500/20 rounded-xl"
-                  >
+                {metaFormatHints.map((hint, i) => (
+                  <div key={`hint-${i}`} className="flex items-start gap-3 p-3 bg-amber-500/8 border border-amber-500/20 rounded-xl">
                     <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-bold text-amber-400 capitalize">
-                        {v.platform}
-                      </p>
-                      <p className="text-[11px] text-amber-300 mt-0.5">
-                        {v.message}
-                      </p>
+                      <p className="text-xs font-bold text-amber-400">Meta Format Warning</p>
+                      <p className="text-[11px] text-amber-300 mt-0.5">{hint}</p>
+                    </div>
+                  </div>
+                ))}
+                {warnings.filter(v => !metaFormatHints.length).map((v, i) => (
+                  <div key={`w-${i}`} className="flex items-start gap-3 p-3 bg-amber-500/8 border border-amber-500/20 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-amber-400 capitalize">{v.platform}</p>
+                      <p className="text-[11px] text-amber-300 mt-0.5">{v.message}</p>
                     </div>
                   </div>
                 ))}
               </div>
             );
           })()}
+
+          {/* Active Campaign linking — blacked out if blocking violations exist */}
+          {(() => {
+            const mediaType = assetType || (media?.type?.startsWith("video") ? "video" : media ? "image" : "");
+            const count = selectedUrls.length || (media ? 1 : 0);
+            const violations = getPlatformViolations();
+            const hasBlocking = violations.some(v => {
+              const { blocked } = getCompatibility(v.platform, v.postType, count, mediaType, mediaMeta);
+              return blocked;
+            });
+
+            return (
+              <div className={`bg-[var(--card)] border rounded-2xl p-4 space-y-3 transition-all ${
+                hasBlocking ? "border-rose-500/30 opacity-50" : "border-[var(--border)]"
+              }`}>
+                <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
+                  <FolderKanban className="w-3.5 h-3.5 text-indigo-400" />
+                  Link to Campaign
+                  {hasBlocking && (
+                    <span className="ml-auto text-[10px] text-rose-400 font-semibold">Fix media issues first</span>
+                  )}
+                </h3>
+                {publishCampaigns.length === 0 ? (
+                  <p className="text-xs text-[var(--foreground-muted)]">No active campaigns — launch one from Campaigns first.</p>
+                ) : (
+                  <select
+                    value={selectedCampaignId}
+                    onChange={e => setSelectedCampaignId(e.target.value)}
+                    disabled={hasBlocking}
+                    title={hasBlocking ? "Fix media format errors above before linking to a campaign" : undefined}
+                    className={`w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-indigo-500 transition-colors ${
+                      hasBlocking ? "cursor-not-allowed opacity-50" : ""
+                    }`}
+                  >
+                    <option value="">None (organic post only)</option>
+                    {publishCampaigns.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                )}
+                {!hasBlocking && selectedCampaignId && (
+                  <p className="text-[11px] text-emerald-400">
+                    ✓ This post will be linked to the campaign and can be boosted as a paid ad after publishing.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Platform constraint warnings moved above campaign selector */}
 
           {/* Submit */}
           <button

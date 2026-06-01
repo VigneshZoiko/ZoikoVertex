@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Zap, CheckCircle2, Crown, Globe, Database, DollarSign,
   Loader2, Activity, FileText, Download, Rocket,
   TrendingUp, ArrowUpRight, X, Plus, Wallet,
+  Clock, AlertCircle, ArrowDownCircle, Shield, Info,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { createPortal } from "react-dom";
@@ -17,18 +19,38 @@ interface UsageSummaryItem { quantity: number; cost: number; unit: string; }
 interface WalletTransaction {
   id: string;
   amount: number;
+  net_amount?: number;
+  gross_amount?: number;
+  stripe_fee?: number;
   type: "CREDIT" | "DEBIT";
+  status?: "PROCESSING" | "AVAILABLE" | "FAILED" | "REFUNDED";
   description: string;
   campaign_name: string | null;
   created_at: string;
+  available_at?: string;
+  currency?: string;
 }
 
 interface WalletData {
   balance: number;
+  available_balance?: number;
+  processing_balance?: number;
+  total_deposited?: number;
   currency: string;
   auto_topup_enabled: boolean;
   auto_topup_threshold: number;
   auto_topup_amount: number;
+}
+
+interface FeeBreakdown {
+  net_credits: number;
+  stripe_fee: number;
+  tax_amount: number;
+  total_charge: number;
+  currency: string;
+  breakdown: { label: string; amount: number; is_total?: boolean }[];
+  non_refundable_notice: string;
+  processing_notice: string;
 }
 
 // ── Plan data ──────────────────────────────────────────────────
@@ -123,11 +145,32 @@ const PLAN_ID_TO_DB: Record<string, string> = {
 
 export default function BillingPage() {
   const { refresh: refreshRole } = useRoleContext();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"credits" | "billing">("credits");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [changingPlan, setChangingPlan] = useState<string | null>(null);
   const [planMessage, setPlanMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Deposit flow state
+  const [depositStep, setDepositStep]   = useState<"amount" | "fees" | "confirm">("amount");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [fees, setFees]                 = useState<FeeBreakdown | null>(null);
+  const [loadingFees, setLoadingFees]   = useState(false);
+  const [depositing, setDepositing]     = useState(false);
+  const [depositError, setDepositError] = useState<string | null>(null);
+  const [confirmed, setConfirmed]       = useState(false);
+  const [depositToast, setDepositToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (msg: string, type: "success" | "error" = "success") => {
+    setDepositToast({ msg, type });
+    setTimeout(() => setDepositToast(null), 5000);
+  };
+
+  const resetDeposit = () => {
+    setDepositStep("amount"); setDepositAmount(""); setFees(null);
+    setConfirmed(false); setDepositError(null);
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -189,6 +232,74 @@ export default function BillingPage() {
     };
     fetchData();
   }, []);
+
+  // Handle return from Stripe Checkout
+  useEffect(() => {
+    const deposit = searchParams?.get("deposit");
+    if (deposit === "success") {
+      showToast("Payment received! Credits are processing and will be available within 48 hours.", "success");
+      setActiveTab("credits");
+    } else if (deposit === "cancelled") {
+      showToast("Deposit cancelled — no charge was made.", "error");
+    }
+  }, [searchParams]); // eslint-disable-line
+
+  // Deposit: calculate fees
+  const handleCalculateFees = async () => {
+    const val = parseFloat(depositAmount);
+    if (!val || val <= 0)    { setDepositError("Enter a valid amount"); return; }
+    if (val < 10)            { setDepositError("Minimum deposit is $10"); return; }
+    if (val > 100_000)       { setDepositError("Maximum deposit is $100,000"); return; }
+    setLoadingFees(true); setDepositError(null);
+    try {
+      const r = await api.post("/api/v1/billing/fees", { amount: val, currency: wallet.currency || "USD" });
+      setFees(r.data);
+      setDepositStep("fees");
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setDepositError(msg || "Failed to calculate fees");
+    } finally { setLoadingFees(false); }
+  };
+
+  // Deposit: confirm and pay
+  const handleConfirmDeposit = async () => {
+    if (!fees || !confirmed) return;
+    setDepositing(true); setDepositError(null);
+    try {
+      const r = await api.post("/api/v1/billing/deposit/create", {
+        amount: fees.net_credits, currency: fees.currency,
+      });
+      if (r.data.session_url) {
+        window.location.href = r.data.session_url;
+      } else {
+        showToast("Deposit initiated", "success");
+        setShowTopUpModal(false); resetDeposit();
+        // Re-fetch wallet
+        const walletRes = await api.get('/api/v1/billing/wallet');
+        if (walletRes.success) {
+          setWallet(walletRes.data?.wallet || wallet);
+          setTransactions(walletRes.data?.transactions || []);
+        }
+      }
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      if (msg?.includes("not configured")) {
+        // Dev mode simulate
+        try {
+          await api.post("/api/v1/billing/deposit/simulate", { amount: fees.net_credits });
+          showToast(`[DEV] $${fees.net_credits} queued as Processing`, "success");
+          setShowTopUpModal(false); resetDeposit();
+          const walletRes = await api.get('/api/v1/billing/wallet');
+          if (walletRes.success) { setWallet(walletRes.data?.wallet || wallet); setTransactions(walletRes.data?.transactions || []); }
+        } catch { setDepositError("Simulation failed"); }
+      } else {
+        setDepositError(msg || "Failed to create payment session");
+      }
+    } finally { setDepositing(false); }
+  };
+
+  const fmtCurrency = (n: number, cur = "USD") =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(n);
 
   const activePlan = PLANS.find(p => p.id === (activePlanId ?? 'starter')) || PLANS[0];
   const ActiveIcon = activePlan.icon;
@@ -285,18 +396,27 @@ export default function BillingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Balance Card */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 flex flex-col justify-center">
-              <h3 className="text-sm font-medium text-zinc-400 mb-2">Available Balance</h3>
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-semibold text-white">
-                  {loadingWallet ? "—" : `$${Number(wallet.balance).toFixed(2)}`}
-                </span>
+            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 flex flex-col justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-zinc-400 mb-2">Available Balance</h3>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-semibold text-white">
+                    {loadingWallet ? "—" : fmtCurrency(wallet.available_balance ?? wallet.balance, wallet.currency)}
+                  </span>
+                </div>
+                {/* Processing credits */}
+                {(wallet.processing_balance ?? 0) > 0 && (
+                  <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-400">
+                    <Clock className="w-3 h-3" />
+                    <span>{fmtCurrency(wallet.processing_balance!, wallet.currency)} processing — available within 48h</span>
+                  </div>
+                )}
               </div>
-              <div className="mt-6">
+              <div className="mt-5">
                 <button
-                  onClick={() => setShowTopUpModal(true)}
+                  onClick={() => { setShowTopUpModal(true); resetDeposit(); }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-white text-black hover:bg-zinc-200 text-sm font-medium rounded-lg transition-colors">
-                  <Plus className="w-4 h-4" />Add Funds
+                  <Plus className="w-4 h-4" />Add Credits
                 </button>
               </div>
             </div>
@@ -388,35 +508,57 @@ export default function BillingPage() {
                     <th className="px-5 py-3 font-medium">Date</th>
                     <th className="px-5 py-3 font-medium">Description</th>
                     <th className="px-5 py-3 font-medium">Campaign</th>
-                    <th className="px-5 py-3 font-medium text-right">Amount</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3 font-medium text-right">Credits</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/50 text-zinc-300">
                   {loadingWallet ? (
                     <tr>
-                      <td colSpan={4} className="px-5 py-8 text-center text-zinc-500">
+                      <td colSpan={5} className="px-5 py-8 text-center text-zinc-500">
                         <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
                         Loading transactions...
                       </td>
                     </tr>
                   ) : transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-5 py-8 text-center text-zinc-500">
-                        No transactions found.
+                      <td colSpan={5} className="px-5 py-8 text-center text-zinc-500">
+                        No transactions yet. Add credits to get started.
                       </td>
                     </tr>
                   ) : (
                     transactions.map(tx => (
-                      <tr key={tx.id} className="hover:bg-zinc-800/30 transition-colors">
+                      <tr key={tx.id} className={`hover:bg-zinc-800/30 transition-colors ${tx.status === "PROCESSING" ? "bg-amber-500/3" : ""}`}>
                         <td className="px-5 py-3 whitespace-nowrap text-zinc-400">
-                          {new Date(tx.created_at).toLocaleDateString()}
+                          <div>{new Date(tx.created_at).toLocaleDateString()}</div>
+                          {tx.status === "PROCESSING" && tx.available_at && (
+                            <div className="text-[10px] text-amber-400">Avail. {new Date(tx.available_at).toLocaleDateString()}</div>
+                          )}
                         </td>
-                        <td className="px-5 py-3">{tx.description}</td>
-                        <td className="px-5 py-3 text-zinc-400">
-                          {tx.campaign_name ? tx.campaign_name : "—"}
+                        <td className="px-5 py-3">
+                          <div>{tx.description}</div>
+                          {tx.stripe_fee && tx.stripe_fee > 0 && (
+                            <div className="text-[10px] text-zinc-600">Fee: ${Number(tx.stripe_fee).toFixed(2)}</div>
+                          )}
+                        </td>
+                        <td className="px-5 py-3 text-zinc-400">{tx.campaign_name || "—"}</td>
+                        <td className="px-5 py-3">
+                          {tx.status === "PROCESSING" && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              <Clock className="w-2.5 h-2.5" />PROCESSING
+                            </span>
+                          )}
+                          {(tx.status === "AVAILABLE" || !tx.status) && tx.type === "CREDIT" && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <CheckCircle2 className="w-2.5 h-2.5" />AVAILABLE
+                            </span>
+                          )}
                         </td>
                         <td className={`px-5 py-3 text-right font-medium ${tx.type === 'CREDIT' ? 'text-zinc-200' : 'text-zinc-400'}`}>
-                          {tx.type === 'CREDIT' ? '+' : '-'}${Number(tx.amount).toFixed(2)}
+                          <div>{tx.type === 'CREDIT' ? '+' : '-'}{fmtCurrency(tx.net_amount ?? tx.amount, tx.currency || wallet.currency)}</div>
+                          {tx.gross_amount && tx.gross_amount !== (tx.net_amount ?? tx.amount) && (
+                            <div className="text-[10px] text-zinc-600">Charged: {fmtCurrency(tx.gross_amount, tx.currency || wallet.currency)}</div>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -580,36 +722,159 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* ── Top-Up Modal ── */}
+      {/* ── Deposit Toast ── */}
+      {depositToast && mounted && createPortal(
+        <div className={`fixed top-4 right-4 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl border text-sm font-semibold ${
+          depositToast.type === "success"
+            ? "bg-emerald-950 border-emerald-500/30 text-emerald-300"
+            : "bg-rose-950 border-rose-500/30 text-rose-300"
+        }`}>
+          {depositToast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+          <span className="max-w-sm">{depositToast.msg}</span>
+          <button onClick={() => setDepositToast(null)}><X className="w-3.5 h-3.5 opacity-60" /></button>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Add Credits Modal (3-step deposit flow) ── */}
       {showTopUpModal && mounted && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowTopUpModal(false)} />
-          <div className="relative z-10 w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-5">
-            <div className="flex items-center justify-between">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => { setShowTopUpModal(false); resetDeposit(); }} />
+          <div className="relative z-10 w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-800">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-zinc-800 rounded-xl"><Wallet className="w-4 h-4 text-zinc-300" /></div>
-                <h2 className="text-base font-semibold text-white">Add Funds</h2>
+                <div className="p-2 bg-zinc-800 rounded-xl">
+                  <ArrowDownCircle className="w-4 h-4 text-emerald-400" />
+                </div>
+                <h2 className="text-base font-semibold text-white">
+                  {depositStep === "amount"  && "Add Credits"}
+                  {depositStep === "fees"    && "Review Fees"}
+                  {depositStep === "confirm" && "Confirm Deposit"}
+                </h2>
               </div>
-              <button onClick={() => setShowTopUpModal(false)} className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
+              <button onClick={() => { setShowTopUpModal(false); resetDeposit(); }} className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-4 bg-zinc-800/50 border border-zinc-700 rounded-xl text-center space-y-2">
-              <DollarSign className="w-8 h-8 text-zinc-500 mx-auto" />
-              <p className="text-sm font-medium text-zinc-300">Stripe integration coming soon</p>
-              <p className="text-xs text-zinc-500 leading-relaxed">
-                Campaign wallet top-up via Stripe will be available in Phase 5.
-                Once enabled, funds will be drawn down automatically as campaigns accrue ad spend.
-              </p>
+
+            <div className="p-6 space-y-5">
+
+              {/* Step 1 — Amount */}
+              {depositStep === "amount" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-2">
+                      How much do you want in your wallet?
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-lg">$</span>
+                      <input
+                        type="number" min="10" max="100000" step="1"
+                        value={depositAmount}
+                        onChange={e => { setDepositAmount(e.target.value); setDepositError(null); }}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 pl-10 text-white text-lg font-bold placeholder:text-zinc-600 focus:outline-none focus:border-white/30 transition-all"
+                        placeholder="100"
+                        autoFocus
+                      />
+                    </div>
+                    <p className="text-[11px] text-zinc-600 mt-1.5">Minimum $10 · Maximum $100,000</p>
+                  </div>
+                  {/* Quick amounts */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {["50", "100", "250", "500"].map(amt => (
+                      <button key={amt} type="button"
+                        onClick={() => { setDepositAmount(amt); setDepositError(null); }}
+                        className={`py-2 text-center text-sm font-medium rounded-lg border transition-all ${
+                          depositAmount === amt
+                            ? "bg-white text-zinc-900 border-white"
+                            : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-600"
+                        }`}>
+                        ${amt}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="p-3 bg-blue-500/5 border border-blue-500/15 rounded-xl flex items-start gap-2">
+                    <Info className="w-3.5 h-3.5 text-blue-400 mt-0.5 shrink-0" />
+                    <p className="text-xs text-blue-300">Stripe processing fees (2.9% + $0.30) will be shown on the next screen.</p>
+                  </div>
+                  {depositError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
+                  <button onClick={handleCalculateFees} disabled={!depositAmount || loadingFees}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-bold rounded-xl disabled:opacity-40 transition-all">
+                    {loadingFees && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Calculate Total
+                  </button>
+                </>
+              )}
+
+              {/* Step 2 — Fee breakdown */}
+              {depositStep === "fees" && fees && (
+                <>
+                  <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl space-y-3">
+                    <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Fee Breakdown</p>
+                    {fees.breakdown.map((line, i) => (
+                      <div key={i} className={`flex items-center justify-between ${line.is_total ? "pt-3 border-t border-zinc-700" : ""}`}>
+                        <span className={`text-sm ${line.is_total ? "text-white font-bold" : "text-zinc-400"}`}>{line.label}</span>
+                        <span className={`text-sm font-bold ${line.is_total ? "text-white text-base" : "text-zinc-300"}`}>
+                          {line.is_total ? fmtCurrency(line.amount, fees.currency) : `$${line.amount.toFixed(2)}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-2">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
+                      <p className="text-xs text-amber-300 font-semibold">{fees.non_refundable_notice}</p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Clock className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
+                      <p className="text-xs text-amber-300">{fees.processing_notice}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => setDepositStep("amount")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Back</button>
+                    <button onClick={() => setDepositStep("confirm")} className="flex-1 py-2.5 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-bold rounded-xl">Proceed</button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 3 — Confirm */}
+              {depositStep === "confirm" && fees && (
+                <>
+                  <div className="p-5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-center">
+                    <p className="text-xs text-zinc-500 mb-1">Total charge to your card</p>
+                    <p className="text-4xl font-bold text-white">{fmtCurrency(fees.total_charge, fees.currency)}</p>
+                    <p className="text-sm text-emerald-400 mt-1">{fmtCurrency(fees.net_credits, fees.currency)} campaign credits</p>
+                  </div>
+                  <label className="flex items-start gap-3 p-4 bg-zinc-900 border border-zinc-800 rounded-xl cursor-pointer group"
+                    onClick={() => setConfirmed(!confirmed)}>
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${confirmed ? "bg-white border-white" : "border-zinc-600 group-hover:border-zinc-400"}`}>
+                      {confirmed && <CheckCircle2 className="w-3.5 h-3.5 text-zinc-900" />}
+                    </div>
+                    <span className="text-xs text-zinc-400 leading-relaxed">
+                      I understand this deposit of <strong className="text-white">{fmtCurrency(fees.total_charge, fees.currency)}</strong> is{" "}
+                      <strong className="text-rose-400">non-refundable</strong> and can only be used for{" "}
+                      <strong className="text-white">campaign ad spend</strong> within ZoikoVertex.
+                    </span>
+                  </label>
+                  <div className="flex items-center gap-2 p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                    <Shield className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                    <p className="text-xs text-zinc-500">Redirects to Stripe's secure checkout. Credits appear as Processing for up to 48h, then Available.</p>
+                  </div>
+                  {depositError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
+                  <div className="flex gap-3">
+                    <button onClick={() => setDepositStep("fees")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Back</button>
+                    <button onClick={handleConfirmDeposit} disabled={!confirmed || depositing}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-bold rounded-xl transition-all">
+                      {depositing ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
+                      {depositing ? "Redirecting…" : `Pay ${fmtCurrency(fees.total_charge, fees.currency)}`}
+                    </button>
+                  </div>
+                </>
+              )}
+
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              {["$25", "$50", "$100", "$250"].map(amt => (
-                <div key={amt} className="py-2 text-center text-sm font-medium text-zinc-600 bg-zinc-900 border border-zinc-800 rounded-lg">{amt}</div>
-              ))}
-            </div>
-            <button disabled className="w-full py-2.5 bg-zinc-800 text-zinc-600 text-sm font-medium rounded-lg cursor-not-allowed border border-zinc-700">
-              Top Up — Coming Soon
-            </button>
           </div>
         </div>,
         document.body

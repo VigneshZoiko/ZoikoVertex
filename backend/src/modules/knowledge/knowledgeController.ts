@@ -11,6 +11,7 @@ import { KnowledgeConflictService } from './KnowledgeConflictService';
 import { KnowledgeRetrievalService } from './KnowledgeRetrievalService';
 import { KnowledgeAccessService } from './KnowledgeAccessService';
 import { getParam, getQueryNumber, getQueryValue } from '../../shared/request';
+import { trackUsage } from '../../domains/monitoring/usageController';
 
 export class KnowledgeController {
 
@@ -145,6 +146,21 @@ export class KnowledgeController {
         .select()
         .single();
       if (error) throw error;
+
+      // Track storage usage (non-blocking)
+      if (req.file?.size && req.user?.workspace_id) {
+        const sizeMb = req.file.size / (1024 * 1024);
+        trackUsage({
+          workspaceId: req.user.workspace_id,
+          resourceType: 'STORAGE_MB',
+          quantity: sizeMb,
+          unit: 'MB',
+          referenceId: data?.id,
+          referenceType: 'knowledge_entry',
+          metadata: { filename: req.file.originalname, mime_type: req.file.mimetype },
+        });
+      }
+
       res.status(201).json({ success: true, data });
     } catch (error) {
       next(error);

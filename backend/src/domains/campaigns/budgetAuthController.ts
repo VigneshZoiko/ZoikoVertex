@@ -56,15 +56,51 @@ export const requestBudgetAuth = async (req: AuthRequest, res: Response, next: N
 
     if (error) throw error;
 
+    // ── Tier routing ──────────────────────────────────────────────
+    const amount            = campaign.budget_total as number;
+    const tier              = amount < 500 ? 'LOW' : 'HIGH';
+    const approvals_required = tier === 'LOW' ? 1 : 2;
+
+    // Persist tier on the authorization row
+    await supabaseAdmin
+      .from('budget_authorizations')
+      .update({ tier, approvals_required })
+      .eq('id', auth.id);
+
+    // ── Notify approvers ──────────────────────────────────────────
+    // LOW  → ADMIN only
+    // HIGH → ADMIN + WORKSPACE_OWNER
+    const targetRoles = tier === 'LOW'
+      ? ['ADMIN']
+      : ['ADMIN', 'WORKSPACE_OWNER'];
+
+    const { data: approvers } = await supabaseAdmin
+      .from('workspace_members')
+      .select('user_id')
+      .eq('workspace_id', workspaceId)
+      .in('role', targetRoles);
+
+    if (approvers && approvers.length > 0) {
+      const notifications = approvers.map((m: { user_id: string }) => ({
+        user_id: m.user_id,
+        title:   `Budget Authorization Required (${tier})`,
+        body:    `A ${tier === 'LOW' ? 'standard' : 'high-value'} budget of ${campaign.budget_currency || 'USD'} ${amount} requires your approval for campaign ${campaign.id}.`,
+        type:    'BUDGET_APPROVAL',
+        link:    `/campaigns/${campaign.id}?tab=budget`,
+        read:    false,
+      }));
+      await supabaseAdmin.from('notifications').insert(notifications);
+    }
+
     await logCampaignEvent(
       workspaceId, campaign.id,
       'budget.authorization.requested',
       userId, req.user?.role,
       null, null,
-      { amount: campaign.budget_total, currency: campaign.budget_currency, auth_id: auth.id },
+      { amount: campaign.budget_total, currency: campaign.budget_currency, auth_id: auth.id, tier, approvals_required },
     );
 
-    res.status(201).json({ success: true, data: auth, message: 'Budget authorization requested. The budget owner will be notified.' });
+    res.status(201).json({ success: true, data: { ...auth, tier, approvals_required }, message: `Budget authorization requested (${tier} tier, ${approvals_required} approval${approvals_required > 1 ? 's' : ''} required). Approvers have been notified.` });
   } catch (err) { next(err); }
 };
 

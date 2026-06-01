@@ -16,7 +16,7 @@ const BUDGET_THRESHOLDS = {
   INCIDENT: 1.10,
 };
 
-// ── Launch Gate: 5 conditions ────────────────────────────────
+// ── Launch Gate: 11 conditions (agency model) ────────────────
 
 interface GateCondition {
   id:     string;
@@ -26,7 +26,10 @@ interface GateCondition {
 }
 
 function evaluateLaunchGate(campaign: Record<string, unknown>, actorRole: string, budgetAuthStatus?: string | null): GateCondition[] {
-  const creative = (campaign.creative as Record<string, unknown>) || {};
+  const creative  = (campaign.creative  as Record<string, unknown>) || {};
+  const targeting = (campaign.targeting as Record<string, unknown>) || {};
+  const platforms = (campaign.platforms as string[]) || [];
+  const boostSettings = (campaign.boost_settings as Record<string, unknown>) || {};
 
   return [
     {
@@ -84,11 +87,52 @@ function evaluateLaunchGate(campaign: Record<string, unknown>, actorRole: string
       id:     '06',
       label:  'Budget authorized by budget owner',
       passed: budgetAuthStatus === 'APPROVED',
-      reason: budgetAuthStatus === 'APPROVED' ? null
-        : budgetAuthStatus === 'PENDING'  ? 'Budget authorization is pending — awaiting budget owner decision'
-        : budgetAuthStatus === 'REJECTED' ? 'Budget authorization was rejected — re-request with updated justification'
-        : budgetAuthStatus === 'EXPIRED'  ? 'Budget authorization expired — re-request required'
+      reason: budgetAuthStatus === 'APPROVED'          ? null
+        : budgetAuthStatus === 'PARTIALLY_APPROVED'    ? 'Partial approval received — a second approver is required for this HIGH budget (≥$500)'
+        : budgetAuthStatus === 'PENDING'               ? 'Budget authorization is pending — awaiting approver decision'
+        : budgetAuthStatus === 'REJECTED'              ? 'Budget authorization was rejected — re-request with updated justification'
+        : budgetAuthStatus === 'EXPIRED'               ? 'Budget authorization expired — re-request required'
         : 'Budget authorization not yet requested — submit a request on the Budget tab',
+    },
+    {
+      id:     '07',
+      label:  'At least one ad platform selected',
+      passed: platforms.length > 0,
+      reason: platforms.length === 0 ? 'Select at least one platform (Meta or Google) in the campaign settings' : null,
+    },
+    {
+      id:     '08',
+      label:  'Campaign objective set',
+      passed: !!(campaign.objective),
+      reason: !campaign.objective ? 'Campaign objective must be set before launch' : null,
+    },
+    {
+      id:     '09',
+      label:  'Ad creative has headline and copy',
+      passed: !!(creative.headline && creative.copy_text),
+      reason: !creative.headline && !creative.copy_text
+        ? 'Both headline and ad copy are required'
+        : !creative.headline ? 'Ad headline is required'
+        : !creative.copy_text ? 'Ad copy is required'
+        : null,
+    },
+    {
+      id:     '10',
+      label:  'Meta: client ad account configured',
+      // Only required if Meta is a selected platform
+      passed: !platforms.includes('Meta') || !!(boostSettings.meta_connected_account_id),
+      reason: platforms.includes('Meta') && !boostSettings.meta_connected_account_id
+        ? 'Meta platform selected but no client ad account is configured — link a Meta ad account in Step 2'
+        : null,
+    },
+    {
+      id:     '11',
+      label:  'Target audience region defined',
+      // Warn if no geography — agency should always target specific regions for clients
+      passed: Array.isArray(targeting.geography) && (targeting.geography as string[]).length > 0,
+      reason: !(Array.isArray(targeting.geography) && (targeting.geography as string[]).length > 0)
+        ? 'Target geography is empty — specify at least one target country for the client\'s campaign'
+        : null,
     },
   ];
 }
@@ -235,7 +279,7 @@ export const checkLaunchGate = async (req: AuthRequest, res: Response, next: Nex
       .select('status')
       .eq('campaign_id', campaign.id)
       .eq('workspace_id', workspaceId)
-      .in('status', ['PENDING', 'APPROVED'])
+      .in('status', ['PENDING', 'PARTIALLY_APPROVED', 'APPROVED'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -304,7 +348,7 @@ export const launchCampaign = async (req: AuthRequest, res: Response, next: Next
       .select('status')
       .eq('campaign_id', campaign.id)
       .eq('workspace_id', workspaceId)
-      .in('status', ['PENDING', 'APPROVED'])
+      .in('status', ['PENDING', 'PARTIALLY_APPROVED', 'APPROVED'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -611,12 +655,38 @@ export const updateSpend = async (req: AuthRequest, res: Response, next: NextFun
 
     if (spendRatio >= BUDGET_THRESHOLDS.INCIDENT) {
       thresholdAlert = 'OVERSPEND_INCIDENT';
-      await logCampaignEvent(workspaceId, campaign.id, 'campaign.budget.overspend', userId, req.user?.role, null, null,
+      await logCampaignEvent(workspaceId, campaign.id, 'campaign.budget.overspend', userId, req.user?.role,
+        campaign.status, campaign.status,
         { spend: parsed.data.spend_recorded, budget: budgetTotal, ratio: spendRatio, threshold: '110%' });
-    } else if (spendRatio >= BUDGET_THRESHOLDS.PAUSE) {
-      thresholdAlert = 'PAUSE_REQUESTED';
-      await logCampaignEvent(workspaceId, campaign.id, 'campaign.budget.notice', userId, req.user?.role, null, null,
-        { spend: parsed.data.spend_recorded, budget: budgetTotal, ratio: spendRatio, threshold: '100%' });
+
+    } else if (spendRatio >= BUDGET_THRESHOLDS.PAUSE && campaign.status === 'ACTIVE') {
+      // Auto-pause: campaign has consumed 100% of its budget
+      thresholdAlert = 'AUTO_PAUSED';
+      await supabaseAdmin
+        .from('campaigns')
+        .update({ status: 'PAUSING', updated_at: new Date().toISOString() })
+        .eq('id', req.params.id)
+        .eq('workspace_id', workspaceId);
+
+      // Also pause all active boosts
+      const { data: activeBoosts } = await supabaseAdmin
+        .from('campaign_boosts')
+        .select('id, platform, meta_campaign_id, google_campaign_id')
+        .eq('campaign_id', campaign.id)
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'ACTIVE');
+
+      for (const boost of activeBoosts || []) {
+        await supabaseAdmin
+          .from('campaign_boosts')
+          .update({ status: 'PAUSED', updated_at: new Date().toISOString() })
+          .eq('id', boost.id);
+      }
+
+      await logCampaignEvent(workspaceId, campaign.id, 'campaign.budget.auto_paused', userId, req.user?.role,
+        'ACTIVE', 'PAUSING',
+        { spend: parsed.data.spend_recorded, budget: budgetTotal, ratio: spendRatio, threshold: '100%', boosts_paused: (activeBoosts || []).length });
+
     } else if (spendRatio >= BUDGET_THRESHOLDS.WARNING) {
       thresholdAlert = 'PACING_WARNING';
       await logCampaignEvent(workspaceId, campaign.id, 'campaign.budget.warning', userId, req.user?.role, null, null,
@@ -633,5 +703,294 @@ export const updateSpend = async (req: AuthRequest, res: Response, next: NextFun
       spend_ratio:     Math.round(spendRatio * 100),
       threshold_alert: thresholdAlert,
     });
+  } catch (err) { next(err); }
+};
+
+// ── resumeCampaign — PAUSED → ACTIVE (requires approval role) ─
+
+const ResumeSchema = z.object({
+  reason: z.string().min(1).max(500),
+});
+
+export const resumeCampaign = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId      = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+    const actorRole   = req.user?.role ?? '';
+    if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    // Resuming restarts ad spend — requires same authority as launching
+    if (!['APPROVER', 'FINAL_APPROVER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'].includes(actorRole)) {
+      return res.status(403).json({ error: 'Resuming a campaign requires approval authority' });
+    }
+
+    const parsed = ResumeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'Resume reason is required' });
+
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('id, status, budget_total, spend_recorded')
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+    if (!['PAUSED', 'PAUSING'].includes(campaign.status)) {
+      return res.status(400).json({ error: `Cannot resume campaign in status: ${campaign.status}` });
+    }
+
+    // Block resume if budget is already exhausted
+    const spendRatio = Number(campaign.budget_total) > 0
+      ? Number(campaign.spend_recorded) / Number(campaign.budget_total)
+      : 0;
+    if (spendRatio >= BUDGET_THRESHOLDS.PAUSE) {
+      return res.status(400).json({
+        error:   'Cannot resume — budget is fully spent (≥100%). Increase budget before resuming.',
+        spend_ratio: Math.round(spendRatio * 100),
+      });
+    }
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('campaigns')
+      .update({ status: 'ACTIVE', updated_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await logCampaignEvent(
+      workspaceId, campaign.id,
+      'campaign.resumed',
+      userId, actorRole,
+      campaign.status, 'ACTIVE',
+      { reason: parsed.data.reason, resumed_by: userId },
+    );
+
+    res.json({ success: true, data: updated, message: 'Campaign resumed and is now active.' });
+  } catch (err) { next(err); }
+};
+
+// ── requestChanges — reviewer sends campaign back with notes ──
+
+const RequestChangesSchema = z.object({
+  note: z.string().min(10, 'Please provide at least 10 characters explaining what needs to change').max(1000),
+});
+
+export const requestChanges = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId      = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+    const actorRole   = req.user?.role ?? '';
+    if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    if (!['ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN', 'APPROVER', 'FINAL_APPROVER'].includes(actorRole)) {
+      return res.status(403).json({ error: 'Only reviewers can request changes' });
+    }
+
+    const parsed = RequestChangesSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid request' });
+
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('id, status, name')
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+    if (!['READY_FOR_REVIEW', 'IN_REVIEW'].includes(campaign.status)) {
+      return res.status(400).json({ error: `Cannot request changes from status: ${campaign.status}` });
+    }
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('campaigns')
+      .update({ status: 'CHANGES_REQUESTED', updated_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await logCampaignEvent(
+      workspaceId, campaign.id,
+      'campaign.changes_requested',
+      userId, actorRole,
+      campaign.status, 'CHANGES_REQUESTED',
+      { note: parsed.data.note, reviewer: userId },
+    );
+
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Campaign returned to the team for revisions.',
+    });
+  } catch (err) { next(err); }
+};
+
+// ── completeCampaign — manually mark a campaign as done ──────
+
+export const completeCampaign = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId      = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+    const actorRole   = req.user?.role ?? '';
+    if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    if (!['ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN', 'APPROVER', 'FINAL_APPROVER'].includes(actorRole)) {
+      return res.status(403).json({ error: 'Only admins can manually complete campaigns' });
+    }
+
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('id, status, name')
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    if (!['ACTIVE', 'PAUSED', 'PAUSING', 'SCHEDULED'].includes(campaign.status)) {
+      return res.status(400).json({ error: `Cannot complete campaign in status: ${campaign.status}` });
+    }
+
+    const now = new Date().toISOString();
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('campaigns')
+      .update({ status: 'COMPLETED', updated_at: now })
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Complete all active boosts
+    await supabaseAdmin
+      .from('campaign_boosts')
+      .update({ status: 'COMPLETED', updated_at: now })
+      .eq('campaign_id', campaign.id)
+      .in('status', ['ACTIVE', 'PAUSED', 'PAUSING', 'PENDING']);
+
+    await logCampaignEvent(
+      workspaceId, campaign.id,
+      'campaign.completed',
+      userId, actorRole,
+      campaign.status, 'COMPLETED',
+      { completed_by: userId, manual: true },
+    );
+
+    res.json({ success: true, data: updated, message: 'Campaign marked as completed.' });
+  } catch (err) { next(err); }
+};
+
+// ── cancelCampaign — cancel a campaign (non-recoverable) ─────
+
+const CancelSchema = z.object({
+  reason: z.string().min(5).max(500),
+});
+
+export const cancelCampaign = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId      = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+    const actorRole   = req.user?.role ?? '';
+    if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    if (!['ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'].includes(actorRole)) {
+      return res.status(403).json({ error: 'Only admins can cancel campaigns' });
+    }
+
+    const parsed = CancelSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'A cancellation reason is required (min 5 chars)' });
+
+    const { data: campaign } = await supabaseAdmin
+      .from('campaigns')
+      .select('id, status, name, budget_total, budget_currency, spend_recorded')
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    if (['COMPLETED', 'ARCHIVED', 'CANCELLED'].includes(campaign.status)) {
+      return res.status(400).json({ error: `Campaign is already ${campaign.status}` });
+    }
+
+    const now = new Date().toISOString();
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('campaigns')
+      .update({ status: 'CANCELLED', updated_at: now })
+      .eq('id', req.params.id)
+      .eq('workspace_id', workspaceId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Cancel all boosts
+    await supabaseAdmin
+      .from('campaign_boosts')
+      .update({ status: 'CANCELLED', updated_at: now })
+      .eq('campaign_id', campaign.id)
+      .in('status', ['ACTIVE', 'PAUSED', 'PAUSING', 'PENDING', 'SCHEDULED']);
+
+    // ── Refund unspent credits back to wallet ─────────────────────
+    // Only refund if budget was previously approved (credits were deducted)
+    const { data: approvedAuth } = await supabaseAdmin
+      .from('budget_authorizations')
+      .select('id, requested_amount, currency')
+      .eq('campaign_id', campaign.id)
+      .eq('workspace_id', workspaceId)
+      .eq('status', 'APPROVED')
+      .maybeSingle();
+
+    if (approvedAuth) {
+      const budgetCommitted = Number(approvedAuth.requested_amount || 0);
+      const actualSpend     = Number(campaign.spend_recorded || 0);
+      const refundAmount    = Math.max(0, budgetCommitted - actualSpend);
+
+      if (refundAmount > 0) {
+        const { data: wallet } = await supabaseAdmin
+          .from('wallets')
+          .select('id, balance')
+          .eq('workspace_id', workspaceId)
+          .maybeSingle();
+
+        if (wallet) {
+          await supabaseAdmin
+            .from('wallets')
+            .update({ balance: Number(wallet.balance) + refundAmount, updated_at: now })
+            .eq('id', wallet.id);
+
+          await supabaseAdmin
+            .from('wallet_transactions')
+            .insert({
+              wallet_id:   wallet.id,
+              campaign_id: campaign.id,
+              type:        'CREDIT',
+              status:      'AVAILABLE',
+              amount:      refundAmount,
+              net_amount:  refundAmount,
+              currency:    approvedAuth.currency || campaign.budget_currency || 'USD',
+              description: `Refund — ${campaign.name} cancelled (unspent budget returned)`,
+            });
+        }
+      }
+    }
+
+    await logCampaignEvent(
+      workspaceId, campaign.id,
+      'campaign.cancelled',
+      userId, actorRole,
+      campaign.status, 'CANCELLED',
+      { reason: parsed.data.reason, cancelled_by: userId },
+    );
+
+    res.json({ success: true, data: updated, message: 'Campaign cancelled.' });
   } catch (err) { next(err); }
 };
