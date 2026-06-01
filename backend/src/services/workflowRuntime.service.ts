@@ -3,14 +3,14 @@ import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
 const VALID_INSTANCE_TRANSITIONS: Record<string, string[]> = {
-  QUEUED: ['RUNNING', 'CANCELLED', 'BLOCKED'],
-  RUNNING: ['WAITING_REVIEW', 'COMPLETED', 'FAILED', 'BLOCKED', 'PAUSED'],
-  WAITING_REVIEW: ['RUNNING', 'FAILED'],
-  BLOCKED: ['RUNNING', 'FAILED', 'CANCELLED'],
-  PAUSED: ['RUNNING', 'CANCELLED'],
-  COMPLETED: [],
-  FAILED: [],
-  CANCELLED: [],
+  pending: ['running', 'cancelled', 'blocked'],
+  running: ['waiting_review', 'completed', 'failed', 'blocked', 'paused'],
+  waiting_review: ['running', 'failed'],
+  blocked: ['running', 'failed', 'cancelled'],
+  paused: ['running', 'cancelled'],
+  completed: [],
+  failed: [],
+  cancelled: [],
 };
 
 export interface WorkflowInstance {
@@ -75,14 +75,15 @@ export async function getStepRuns(instanceId: string) {
   return data || [];
 }
 
-export async function startInstance(workflowId: string, versionId: string, startedBy: string, triggerType?: string, triggerSource?: string, priority?: number) {
+export async function startInstance(workflowId: string, versionId: string, startedBy: string, triggerType?: string, triggerSource?: string, priority?: number, workspaceId?: string) {
   const id = uuidv4();
   const now = new Date().toISOString();
   const { error } = await supabaseAdmin.from('workflow_instances').insert({
     id,
     workflow_id: workflowId,
     version_id: versionId,
-    status: 'QUEUED',
+    workspace_id: workspaceId,
+    status: 'pending',
     trigger_type: triggerType || 'manual',
     trigger_source: triggerSource || null,
     started_by: startedBy,
@@ -104,9 +105,9 @@ export async function transitionInstance(instanceId: string, newStatus: string, 
 
   const now = new Date().toISOString();
   const updateData: any = { status: newStatus };
-  if (newStatus === 'RUNNING') { updateData.started_at = now; }
-  if (newStatus === 'PAUSED') { updateData.paused_at = now; }
-  if (['COMPLETED', 'FAILED', 'CANCELLED'].includes(newStatus)) { updateData.completed_at = now; }
+  if (newStatus === 'running') { updateData.started_at = now; }
+  if (newStatus === 'paused') { updateData.paused_at = now; }
+  if (['completed', 'failed', 'cancelled'].includes(newStatus)) { updateData.completed_at = now; }
 
   const { error } = await supabaseAdmin.from('workflow_instances').update(updateData).eq('id', instanceId);
   if (error) throw error;

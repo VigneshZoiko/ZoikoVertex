@@ -253,7 +253,7 @@ export const rollbackVersion = async (req: AuthRequest, res: Response, next: Nex
 
 export const pauseWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const id = getParam(req, 'id');
+    const id = getParam(req, 'versionId');
     const result = await versionService.pauseVersion(id);
     res.json({ success: true, data: result });
   } catch (err) {
@@ -264,7 +264,7 @@ export const pauseWorkflow = async (req: AuthRequest, res: Response, next: NextF
 
 export const retireWorkflow = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const id = getParam(req, 'id');
+    const id = getParam(req, 'versionId');
     const result = await versionService.retireVersion(id);
     res.json({ success: true, data: result });
   } catch (err) {
@@ -432,7 +432,8 @@ export const startWorkflowInstance = async (req: AuthRequest, res: Response, _ne
     }
 
     const userId = req.user?.id || 'system';
-    const result = await runtimeService.startInstance(workflow_id, version_id, userId, trigger_type, trigger_source, priority);
+    const workspaceId = req.user?.workspace_id ?? undefined;
+    const result = await runtimeService.startInstance(workflow_id, version_id, userId, trigger_type, trigger_source, priority, workspaceId);
 
     // ── NEW: kick off the executor synchronously. The executor will
     //    pause on approval gates / blocks and return; subsequent calls
@@ -547,7 +548,7 @@ export const getApprovals = async (req: AuthRequest, res: Response, next: NextFu
     const offset        = getQueryNumber(req, 'offset', 0);
     const result = await approvalService.listPendingApprovals({
       workspace_id: workspaceId,
-      required_role: required_role || '',
+      required_role: required_role || undefined,
       limit,
       offset,
     });
