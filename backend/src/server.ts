@@ -1039,26 +1039,26 @@ app.get('/api/v1/approvals-v2/items/:id/audit-log', authenticate, scopeGuard('re
 app.post('/api/v1/approvals-v2/items/:id/export', authenticate, scopeGuard('read:governance', '*'), exportApprovalRecord);
 app.post('/api/v1/approvals-v2/callbacks/:callbackId/retry', authenticate, scopeGuard('write:governance', '*'), retryCallback);
 
-app.get('/api/v1/knowledge/conflicts/:id', authenticate, KnowledgeController.getConflict);
-app.post('/api/v1/knowledge/conflicts', authenticate, KnowledgeController.createConflict);
-app.post('/api/v1/knowledge/conflicts/:id/resolve', authenticate, KnowledgeController.resolveConflict);
+app.get('/api/v1/knowledge/conflicts/:id', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getConflict);
+app.post('/api/v1/knowledge/conflicts', authenticate, scopeGuard('write:content', '*'), KnowledgeController.createConflict);
+app.post('/api/v1/knowledge/conflicts/:id/resolve', authenticate, scopeGuard('write:content', '*'), KnowledgeController.resolveConflict);
 
 // Retrieval Logs API
-app.get('/api/v1/knowledge/retrieval-logs', authenticate, KnowledgeController.listRetrievalLogs);
-app.post('/api/v1/knowledge/retrieval-logs', authenticate, KnowledgeController.logRetrievalEvent);
+app.get('/api/v1/knowledge/retrieval-logs', authenticate, scopeGuard('read:content', '*'), KnowledgeController.listRetrievalLogs);
+app.post('/api/v1/knowledge/retrieval-logs', authenticate, scopeGuard('write:content', '*'), KnowledgeController.logRetrievalEvent);
 
 // Reviews API
-app.get('/api/v1/knowledge/reviews', authenticate, KnowledgeController.listReviews);
+app.get('/api/v1/knowledge/reviews', authenticate, scopeGuard('read:content', '*'), KnowledgeController.listReviews);
 
 // Chunks API
-app.get('/api/v1/knowledge/sources/:sourceId/chunks', authenticate, KnowledgeController.listChunks);
+app.get('/api/v1/knowledge/sources/:sourceId/chunks', authenticate, scopeGuard('read:content', '*'), KnowledgeController.listChunks);
 
 // Search API
-app.get('/api/v1/knowledge/search', authenticate, KnowledgeController.searchSources);
+app.get('/api/v1/knowledge/search', authenticate, scopeGuard('read:content', '*'), KnowledgeController.searchSources);
 
 // Access Policy API
-app.get('/api/v1/knowledge/access-policy', authenticate, KnowledgeController.getAccessPolicy);
-app.post('/api/v1/knowledge/access-policy', authenticate, KnowledgeController.upsertAccessPolicy);
+app.get('/api/v1/knowledge/access-policy', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getAccessPolicy);
+app.post('/api/v1/knowledge/access-policy', authenticate, scopeGuard('write:content', '*'), KnowledgeController.upsertAccessPolicy);
 
 // ─── Prompt Governance Routes ────────────────────────────────────────────
 // Static routes (must come before parameterized :id routes)
