@@ -1,106 +1,62 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
 import Image from "next/image";
+import { ShieldCheck, Bot, FileCheck, Lock } from "lucide-react";
 
-interface AuthLayoutProps {
-  children: React.ReactNode;
-}
-
-const benefits = [
-  {
-    title: "Role-based access",
-    description: "Access aligned to your role and responsibilities.",
-  },
-  {
-    title: "Audit-grade security",
-    description: "Encryption, monitoring, and immutable audit trails.",
-  },
-  {
-    title: "SSO ready",
-    description: "Seamless SSO integration for your organization.",
-  },
-  {
-    title: "Multi-factor protection",
-    description: "MFA support to keep your account secure.",
-  },
-  {
-    title: "Enterprise governance",
-    description: "Policies, controls, and compliance built in.",
-  },
+const TRUST_BULLETS = [
+  { icon: ShieldCheck, text: "Role-based access control + immutable audit trail" },
+  { icon: Bot,         text: "AI agents operating inside your policy boundaries" },
+  { icon: FileCheck,   text: "Evidence-grade governance — not bolted on" },
+  { icon: Lock,        text: "GDPR-compatible · SOC 2 readiness in progress" },
 ];
 
-export default function AuthLayout({ children }: AuthLayoutProps) {
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen overflow-hidden bg-slate-50 text-slate-950 antialiased">
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute left-0 top-1/3 h-96 w-96 rounded-full bg-sky-400/20 blur-3xl" />
-        <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-violet-400/10 blur-3xl" />
-        <div className="absolute inset-x-0 bottom-0 h-72 bg-[radial-gradient(circle_at_bottom,_rgba(56,189,248,0.15),_transparent_60%)]" />
-      </div>
+    <div className="min-h-screen bg-[#080E1A] flex">
+      {/* Left brand panel */}
+      <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0C1422] border-r border-white/10 w-[44%] shrink-0">
+        <div className="max-w-sm">
+          {/* Logo */}
+          <Image
+            src="/images/logo-wordmark.svg"
+            alt="ZoikoVertex"
+            width={200}
+            height={38}
+            className="h-9 w-auto mb-10"
+            priority
+          />
 
-      <div className="relative z-10">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <Image
-                src="/images/logo-wordmark.svg"
-                alt="ZoikoVertex"
-                width={160}
-                height={32}
-                className="h-8 w-auto"
-              />
-            </div>
-            <div className="hidden sm:flex items-center gap-6 text-sm font-medium text-slate-600">
-              <a href="#" className="hover:text-slate-900 transition-colors">Security</a>
-              <span className="text-slate-300">|</span>
-              <a href="#" className="hover:text-slate-900 transition-colors">Help</a>
-              <span className="text-slate-300">|</span>
-              <a href="#" className="hover:text-slate-900 transition-colors">Contact Sales</a>
-            </div>
+          {/* Headline */}
+          <h1 className="text-[2.1rem] leading-[1.15] font-black text-white/90 mb-6">
+            Governed AI marketing.<br />
+            <span className="text-[#20E7F2]">Built for accountability.</span>
+          </h1>
+
+          {/* Description */}
+          <p className="text-[15px] leading-[1.75] text-white/50 mb-10">
+            Every action governed. Every decision logged.<br />
+            Every output approved before it reaches the<br />
+            outside world.
+          </p>
+
+          {/* Trust bullets */}
+          <div className="space-y-4">
+            {TRUST_BULLETS.map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-4">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[rgba(32,231,242,0.1)] border border-[rgba(32,231,242,0.18)]">
+                  <Icon className="h-4 w-4 text-[#20E7F2]" />
+                </div>
+                <span className="text-[14px] text-white/50">{text}</span>
+              </div>
+            ))}
           </div>
         </div>
+      </div>
 
-        <main className="grid min-h-[calc(100vh-96px)] place-items-center px-4 pb-12 sm:px-6 lg:px-8">
-          <div className="grid w-full gap-8 lg:grid-cols-[0.95fr_0.95fr] xl:grid-cols-[1.05fr_0.95fr]">
-            <aside className="hidden overflow-hidden rounded-[36px] border border-slate-200/70 bg-white/90 p-10 shadow-[0_40px_120px_rgba(15,23,42,0.08)] backdrop-blur-xl lg:block">
-              <div className="max-w-lg">
-                <span className="text-xs font-semibold tracking-[0.35em] text-sky-600 uppercase">
-                  Governed Autonomous
-                </span>
-                <h1 className="mt-5 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
-                  Digital Marketing Operating System
-                </h1>
-                <p className="mt-5 text-base leading-8 text-slate-600">
-                  Where Digital Execution Becomes Accountable. Secure access to your governed workspace. Built for trust. Designed for enterprise.
-                </p>
-
-                <div className="mt-10 space-y-4">
-                  {benefits.map((benefit) => (
-                    <div key={benefit.title} className="flex gap-4 rounded-3xl border border-slate-200/70 bg-slate-100/80 p-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-200/70 text-slate-700">
-                        <span className="text-base font-bold">•</span>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-950">{benefit.title}</h3>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">{benefit.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <p className="mt-10 text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
-                  © 2024 ZoikoGroup. All rights reserved.
-                </p>
-              </div>
-            </aside>
-
-            <div className="flex items-center justify-center">
-              {children}
-            </div>
-          </div>
-        </main>
+      {/* Right form panel */}
+      <div className="flex flex-1 items-center justify-center px-6 py-12">
+        {children}
       </div>
     </div>
   );

@@ -89,7 +89,7 @@
             A layered system, not a collection of AI helpers
           </h2>
           <p className="text-gray-500 max-w-lg mx-auto text-sm leading-relaxed">
-            Five intelligence layers operating in concert â€” each purpose-built,
+            Five intelligence layers operating in concert — each purpose-built,
             each governed, each working as a closed loop that connects creative,
             channel, spend, and revenue in real time.
           </p>

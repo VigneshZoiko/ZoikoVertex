@@ -2,7 +2,7 @@
   const quotes = [
     {
       quote:
-        "For the first time, I can see exactly what marketing is doing to contribution margin â€” not just impressions and clicks. ZoikoVertex made marketing a real line item I can defend to the board.",
+        "For the first time, I can see exactly what marketing is doing to contribution margin — not just impressions and clicks. ZoikoVertex made marketing a real line item I can defend to the board.",
       name: "David Warwick",
       role: "CFO, Meridian Commerce Group",
       initials: "DW",
@@ -18,7 +18,7 @@
     },
     {
       quote:
-        "The system identified a 31% CPA gap between channels and reallocated budget automatically. We saw the profit impact on a Monday morning dashboard. That's not marketing â€” that's infrastructure.",
+        "The system identified a 31% CPA gap between channels and reallocated budget automatically. We saw the profit impact on a Monday morning dashboard. That's not marketing — that's infrastructure.",
       name: "Raj Krishnamurthy",
       role: "CEO, TerraScale Retail",
       initials: "RK",
@@ -41,14 +41,14 @@
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-14">
           <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4">
-            â€” Executive Validation
+            — Executive Validation
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-white mb-5">
             What enterprise leaders say
           </h2>
           <p className="text-white/40 text-sm max-w-lg mx-auto leading-relaxed">
             From CFOs who needed financial accountability to CMOs who needed
-            scale â€” ZoikoVertex changes how leadership thinks about marketing.
+            scale — ZoikoVertex changes how leadership thinks about marketing.
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-5">

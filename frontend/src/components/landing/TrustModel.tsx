@@ -6,8 +6,8 @@ export default function TrustModel() {
       num: "01",
       label: "PHASE 01",
       title: "Insight Mode",
-      desc: "Recommendations only â€” no autonomous execution. See exactly what ZoikoVertex would do with your data. Insights appear within 24 hours of data connection.",
-      badge: "Day 1â€“7",
+      desc: "Recommendations only — no autonomous execution. See exactly what ZoikoVertex would do with your data. Insights appear within 24 hours of data connection.",
+      badge: "Day 1–7",
       timeline: "Insights in 24 hours",
     },
     {
@@ -15,7 +15,7 @@ export default function TrustModel() {
       label: "PHASE 02",
       title: "Assisted Mode",
       desc: "Human approval required before every action. The system proposes. You decide. Optimization signals and performance improvements appear within 72 hours.",
-      badge: "Week 2â€“4",
+      badge: "Week 2–4",
       timeline: "Optimization in 72 hours",
     },
     {
@@ -33,7 +33,7 @@ export default function TrustModel() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-14">
           <p className="text-indigo-500 text-xs font-bold tracking-widest uppercase mb-4">
-            â€” Safe Deployment Model
+            — Safe Deployment Model
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">
             Governed autonomy, phased trust
