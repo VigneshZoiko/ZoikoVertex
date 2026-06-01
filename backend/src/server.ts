@@ -228,7 +228,12 @@ import {
 } from './modules/knowledge/knowledgeController';
 import { PromptController } from './modules/prompts/promptController';
 import { getResourceUsage } from './domains/monitoring/usageController';
-import { getWalletData, updateAutoTopup } from './domains/billing/walletController';
+import {
+  getWalletData, updateAutoTopup, calculateFees, createDepositSession, stripeWebhook, simulateDeposit,
+  getSpendCap, updateSpendCap, getBillingSettings, updateBillingSettings,
+  createSetupIntent, createSetupCheckout, listPaymentMethods, deletePaymentMethod, setDefaultPaymentMethod,
+  getWalletBalance,
+} from './domains/billing/walletController';
 import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemetryController';
 import { performGlobalSearch } from './domains/admin/globalSearchController';
 import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
@@ -922,8 +927,23 @@ app.get('/api/v1/operations/evidence', authenticate, listEvidenceBundles);
 app.get('/api/v1/monitoring/usage', authenticate, scopeGuard('read:analytics', '*'), getResourceUsage);
 
 // Billing & Wallet
-app.get('/api/v1/billing/wallet', authenticate, getWalletData);
+app.use('/api/v1/billing/webhook', express.raw({ type: 'application/json' }));
+app.post('/api/v1/billing/webhook', stripeWebhook);
+app.get('/api/v1/billing/wallet',            authenticate, getWalletData);
+app.get('/api/v1/billing/wallet/balance',    authenticate, getWalletBalance);
 app.put('/api/v1/billing/wallet/auto-topup', authenticate, updateAutoTopup);
+app.post('/api/v1/billing/fees',             authenticate, calculateFees);
+app.post('/api/v1/billing/deposit/create',   authenticate, createDepositSession);
+app.post('/api/v1/billing/deposit/simulate', authenticate, simulateDeposit);
+app.get('/api/v1/billing/spend-cap',         authenticate, getSpendCap);
+app.patch('/api/v1/billing/spend-cap',       authenticate, updateSpendCap);
+app.get('/api/v1/billing/settings',          authenticate, getBillingSettings);
+app.patch('/api/v1/billing/settings',        authenticate, updateBillingSettings);
+app.post('/api/v1/billing/payment-methods/setup',          authenticate, createSetupIntent);
+app.post('/api/v1/billing/payment-methods/setup-checkout', authenticate, createSetupCheckout);
+app.get('/api/v1/billing/payment-methods',                 authenticate, listPaymentMethods);
+app.delete('/api/v1/billing/payment-methods/:id',          authenticate, deletePaymentMethod);
+app.post('/api/v1/billing/payment-methods/:id/default',    authenticate, setDefaultPaymentMethod);
 app.get('/api/v1/monitoring/models/performance/summary', authenticate, scopeGuard('read:analytics', '*'), getPerformanceSummary);
 app.get('/api/v1/monitoring/models/performance/trends', authenticate, scopeGuard('read:analytics', '*'), getPerformanceTrends);
 app.get('/api/v1/monitoring/models/performance/hallucinations', authenticate, scopeGuard('read:analytics', '*'), getHallucinationFlags);

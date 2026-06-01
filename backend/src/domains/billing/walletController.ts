@@ -602,6 +602,31 @@ export const createSetupIntent = async (req: AuthRequest, res: Response, _next: 
 
 // â”€â”€ GET /api/v1/billing/payment-methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+// POST /api/v1/billing/payment-methods/setup-checkout
+// Stripe Checkout in setup mode — no stripe.js required on frontend.
+export const createSetupCheckout = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
+  const stripeClient = getStripe();
+  if (!stripeClient) return res.status(503).json({ error: 'Payment processing not configured' });
+  try {
+    const ctx = await ensureStripeCustomer(workspaceId);
+    if (!ctx) return res.status(503).json({ error: 'Could not create Stripe customer' });
+    const frontendUrl = env.FRONTEND_URL || 'http://localhost:3000';
+    const session = await stripeClient.checkout.sessions.create({
+      customer:    ctx.stripeCustomerId,
+      mode:        'setup',
+      currency:    'usd',
+      success_url: `${frontendUrl}/admin/billing?card=added`,
+      cancel_url:  `${frontendUrl}/admin/billing?card=cancelled`,
+    });
+    return res.json({ success: true, data: { url: session.url } });
+  } catch (err: unknown) {
+    logger.error({ err: err instanceof Error ? err.message : err }, '[Billing] createSetupCheckout failed');
+    return res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to create card setup session' });
+  }
+};
+
 export const listPaymentMethods = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;
   if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
