@@ -1231,6 +1231,7 @@ import { initWorker } from './workers/schedulerWorker';
 import { initAuditExportWorker } from './workers/auditExportWorker';
 import { initAuditIntegrityWorker } from './workers/auditIntegrityWorker';
 import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
+import { startCampaignWorker } from './workers/campaignWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
@@ -1243,6 +1244,7 @@ try {
     initAuditIntegrityWorker();
     initVaultWorker();
     initDlpScanWorker();
+    startCampaignWorker();
   });
 
   server.on('error', (err: Error & { code?: string }) => {

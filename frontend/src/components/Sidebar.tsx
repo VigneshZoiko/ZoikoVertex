@@ -44,6 +44,7 @@ import {
   HeartPulse,
   Building2,
   CreditCard,
+  BadgeDollarSign,
   TrendingUp,
   FolderKanban,
   Inbox,
@@ -468,10 +469,15 @@ const NAV_GROUPS: NavGroup[] = [
         roles: ["ADMIN","WORKSPACE_OWNER"],
       },
       {
+        name: "Agency Ad Accounts",
+        href: "/admin/ad-accounts",
+        icon: BadgeDollarSign,
+        roles: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN"],
+      },
+      {
         name: "Billing & Usage",
         href: "/admin/billing",
         icon: CreditCard,
-        // Billing authority — workspace owner only per docs
         roles: ["WORKSPACE_OWNER"],
       },
       {

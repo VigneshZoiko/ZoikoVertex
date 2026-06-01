@@ -22,6 +22,7 @@ const SubmitIntentSchema = z.object({
   mediaUrl: z.string().optional(),
   targetAccountIds: z.array(z.string().uuid()).min(1, 'At least one target account required'),
   campaign_id: z.string().uuid().nullable().optional(),
+  boost_budget_override: z.number().positive().nullable().optional(),
 });
 
 export const submitIntent = async (
@@ -30,7 +31,7 @@ export const submitIntent = async (
   next: NextFunction,
 ) => {
   try {
-    const { content, mediaUrls, mediaUrl, targetAccountIds, campaign_id } = SubmitIntentSchema.parse(req.body);
+    const { content, mediaUrls, mediaUrl, targetAccountIds, campaign_id, boost_budget_override } = SubmitIntentSchema.parse(req.body);
     const platformPostTypes: Record<string, string | string[]> = req.body.platformPostTypes || {};
     const userId = req.user?.id;
 
@@ -85,6 +86,7 @@ export const submitIntent = async (
         status: 'PUBLISHED',
         platform: acc.platform,
         ...(campaign_id ? { campaign_id } : {}),
+        ...(boost_budget_override != null ? { boost_budget_override } : {}),
       }));
     });
 
