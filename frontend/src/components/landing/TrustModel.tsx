@@ -7,7 +7,7 @@ export default function TrustModel() {
       label: "PHASE 01",
       title: "Insight Mode",
       desc: "Recommendations only — no autonomous execution. See exactly what ZoikoVertex would do with your data. Insights appear within 24 hours of data connection.",
-      badge: "Day 1â€“7",
+      badge: "Day 1–7",
       timeline: "Insights in 24 hours",
     },
     {
@@ -15,7 +15,7 @@ export default function TrustModel() {
       label: "PHASE 02",
       title: "Assisted Mode",
       desc: "Human approval required before every action. The system proposes. You decide. Optimization signals and performance improvements appear within 72 hours.",
-      badge: "Week 2â€“4",
+      badge: "Week 2–4",
       timeline: "Optimization in 72 hours",
     },
     {
