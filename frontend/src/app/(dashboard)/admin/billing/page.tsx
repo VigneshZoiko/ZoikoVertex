@@ -242,7 +242,7 @@ export default function BillingPage() {
     } else if (deposit === "cancelled") {
       showToast("Deposit cancelled — no charge was made.", "error");
     }
-  }, [searchParams]); // eslint-disable-line
+  }, [searchParams]);
 
   // Deposit: calculate fees
   const handleCalculateFees = async () => {
@@ -270,7 +270,7 @@ export default function BillingPage() {
         amount: fees.net_credits, currency: fees.currency,
       });
       if (r.data.session_url) {
-        window.location.href = r.data.session_url;
+        window.location.assign(r.data.session_url);
       } else {
         showToast("Deposit initiated", "success");
         setShowTopUpModal(false); resetDeposit();
@@ -860,7 +860,7 @@ export default function BillingPage() {
                   </label>
                   <div className="flex items-center gap-2 p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
                     <Shield className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                    <p className="text-xs text-zinc-500">Redirects to Stripe's secure checkout. Credits appear as Processing for up to 48h, then Available.</p>
+                    <p className="text-xs text-zinc-500">Redirects to Stripe&apos;s secure checkout. Credits appear as Processing for up to 48h, then Available.</p>
                   </div>
                   {depositError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
                   <div className="flex gap-3">
