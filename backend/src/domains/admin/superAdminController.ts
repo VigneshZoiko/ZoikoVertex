@@ -476,46 +476,63 @@ export class SuperAdminController {
   }
 
   /**
-   * Delete an organization and its associated data
+   * Permanently delete an organization and all its data (irreversible).
+   * Workspaces are cascade-deleted via FK constraint.
    */
   static async deleteOrganization(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { orgId } = req.params;
+
       const { data: ws } = await supabaseAdmin
         .from('workspaces')
         .select('org_id')
         .eq('id', orgId)
         .single();
-      let deletedDomain: string | null = null;
-      if (ws?.org_id) {
-        const { data: adminMember } = await supabaseAdmin
-          .from('workspace_members')
-          .select('user_id')
-          .eq('workspace_id', orgId)
-          .eq('role', 'ADMIN')
-          .maybeSingle();
-        if (adminMember?.user_id) {
-          const { data: adminUser } = await supabaseAdmin
-            .from('users')
-            .select('email')
-            .eq('id', adminMember.user_id)
-            .single();
-          if (adminUser?.email) {
-            deletedDomain = adminUser.email.split('@')[1]?.toLowerCase() || null;
-          }
-        }
-      }
-      await supabaseAdmin
-        .from('workspaces')
-        .update({ status: 'DELETED' })
-        .eq('id', orgId);
+
       if (ws?.org_id) {
         await supabaseAdmin
           .from('organizations')
-          .update({ status: 'DELETED', deleted_domain: deletedDomain })
+          .delete()
+          .eq('id', ws.org_id);
+      } else {
+        await supabaseAdmin
+          .from('workspaces')
+          .delete()
+          .eq('id', orgId);
+      }
+
+      res.json({ success: true, message: 'Organization permanently deleted. All data has been purged.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Restore a restricted organization back to ACTIVE status.
+   */
+  static async restoreOrganization(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { orgId } = req.params;
+
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('org_id')
+        .eq('id', orgId)
+        .single();
+
+      await supabaseAdmin
+        .from('workspaces')
+        .update({ status: 'ACTIVE' })
+        .eq('id', orgId);
+
+      if (ws?.org_id) {
+        await supabaseAdmin
+          .from('organizations')
+          .update({ status: 'ACTIVE' })
           .eq('id', ws.org_id);
       }
-      res.json({ success: true, message: 'Organization permanently banned and all data purged.' });
+
+      res.json({ success: true, message: 'Organization restored and reactivated.' });
     } catch (error) {
       next(error);
     }

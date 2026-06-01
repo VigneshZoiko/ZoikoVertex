@@ -28,7 +28,7 @@ export default function PlatformAnalytics() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [tabFilter, setTabFilter] = useState<'all' | 'active' | 'paused' | 'deleted'>('all');
+  const [tabFilter, setTabFilter] = useState<'all' | 'active' | 'paused' | 'restricted' | 'deleted'>('all');
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [openMenuOrgId, setOpenMenuOrgId] = useState<string | null>(null);
   const [upgradeOrgId, setUpgradeOrgId] = useState<string | null>(null);
@@ -210,9 +210,10 @@ export default function PlatformAnalytics() {
 
   const filteredOrgs = organizations.filter(org => {
     if (tabFilter === 'active') return org.status === 'ACTIVE';
-    if (tabFilter === 'paused') return (org.status === 'SUSPENDED' || org.status === 'RESTRICTED');
+    if (tabFilter === 'paused') return org.status === 'SUSPENDED';
+    if (tabFilter === 'restricted') return org.status === 'RESTRICTED';
     if (tabFilter === 'deleted') return org.status === 'DELETED';
-    return org.status !== 'DELETED';
+    return true;
   }).filter(org => 
     org.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -286,7 +287,17 @@ export default function PlatformAnalytics() {
                     : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                 }`}
               >
-                Paused {pausedOrgs.length + restrictedOrgs.length}
+                Paused {pausedOrgs.length}
+              </button>
+              <button
+                onClick={() => setTabFilter('restricted')}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  tabFilter === 'restricted'
+                    ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
+                    : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+                }`}
+              >
+                Restricted {restrictedOrgs.length}
               </button>
               <button
                 onClick={() => setTabFilter('deleted')}
@@ -383,7 +394,16 @@ export default function PlatformAnalytics() {
                     </td>
                     <td className="px-5 py-3.5 text-right align-top">
                       <div className="flex items-center justify-end gap-1">
-                        {org.status === 'DELETED' ? (
+                        {org.status === 'ACTIVE' ? (
+                          <button 
+                            onClick={() => handlePause(org.id)}
+                            disabled={!!actionLoading}
+                            className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)] rounded transition-colors"
+                            title="Pause"
+                          >
+                            <Pause className="w-3.5 h-3.5" />
+                          </button>
+                        ) : org.status === 'RESTRICTED' ? (
                           <button 
                             onClick={() => handleRestore(org.id)}
                             disabled={!!actionLoading}
@@ -392,29 +412,16 @@ export default function PlatformAnalytics() {
                             <RotateCcw className="w-3 h-3" />
                             Restore
                           </button>
-                        ) : (
-                          <>
-                            {org.status === 'ACTIVE' ? (
-                              <button 
-                                onClick={() => handlePause(org.id)}
-                                disabled={!!actionLoading}
-                                className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)] rounded transition-colors"
-                                title="Pause"
-                              >
-                                <Pause className="w-3.5 h-3.5" />
-                              </button>
-                            ) : (
-                              <button 
-                                onClick={() => handleResume(org.id)}
-                                disabled={!!actionLoading}
-                                className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)] rounded transition-colors"
-                                title="Resume"
-                              >
-                                <Play className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </>
-                        )}
+                        ) : org.status === 'SUSPENDED' ? (
+                          <button 
+                            onClick={() => handleResume(org.id)}
+                            disabled={!!actionLoading}
+                            className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)] rounded transition-colors"
+                            title="Resume"
+                          >
+                            <Play className="w-3.5 h-3.5" />
+                          </button>
+                        ) : null}
                         {org.status !== 'DELETED' && (
                           <button
                             onClick={() => { setUpgradeOrgId(org.id); setUpgradePlanType(org.plan_type === 'ENTERPRISE' ? 'ENTERPRISE' : org.plan_type === 'GROWTH' ? 'ENTERPRISE' : 'GROWTH'); }}
@@ -425,6 +432,7 @@ export default function PlatformAnalytics() {
                             <ArrowUpCircle className="w-3.5 h-3.5" />
                           </button>
                         )}
+                        {org.status !== 'DELETED' && (
                         <div className="relative" data-dropdown-menu>
                           <button
                             onClick={(e) => {
@@ -463,6 +471,7 @@ export default function PlatformAnalytics() {
                             </div>
                           )}
                         </div>
+                      )}
                       </div>
                     </td>
                   </tr>
@@ -475,8 +484,10 @@ export default function PlatformAnalytics() {
                         ? 'No paused organizations.'
                         : tabFilter === 'active'
                           ? 'No active organizations.'
-                          : tabFilter === 'deleted'
-                            ? 'No deleted organizations.'
+                          : tabFilter === 'restricted'
+                            ? 'No restricted organizations.'
+                            : tabFilter === 'deleted'
+                              ? 'No deleted organizations.'
                             : `No results for "${searchTerm}"`
                       }
                     </p>
