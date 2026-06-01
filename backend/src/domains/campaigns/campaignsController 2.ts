@@ -357,25 +357,11 @@ export const getCampaignPosts = async (req: AuthRequest, res: Response, next: Ne
 
     const { data, error } = await supabaseAdmin
       .from('publish_intents')
-      .select('id, content, platform, status, media_urls, created_at, project_id, creator_id, platform_post_id')
+      .select('id, content, platform, status, media_urls, created_at, project_id, creator_id')
       .eq('campaign_id', req.params.id)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-
-    const { data: boosts } = await supabaseAdmin
-      .from('campaign_boosts')
-      .select('id, publish_intent_id, status')
-      .eq('campaign_id', req.params.id);
-
-    const boostMap: Record<string, { id: string; status: string }> = {};
-    if (boosts) {
-      boosts.forEach(b => {
-        if (b.publish_intent_id) {
-          boostMap[b.publish_intent_id] = { id: b.id, status: b.status };
-        }
-      });
-    }
 
     const projectIds = [...new Set((data || []).map((p: { project_id: string | null }) => p.project_id).filter(Boolean))];
     const projectMap: Record<string, string> = {};
@@ -397,24 +383,11 @@ export const getCampaignPosts = async (req: AuthRequest, res: Response, next: Ne
 
     res.json({
       success: true,
-      data: (data || []).map((p: Record<string, unknown>) => {
-        const boost = boostMap[String(p.id)];
-        let autoBoostStatus = null;
-        if (boost) {
-          if (boost.status === 'ACTIVE') autoBoostStatus = 'LIVE';
-          else if (boost.status === 'PAUSED') autoBoostStatus = 'QUEUED';
-          else if (boost.status === 'PENDING') autoBoostStatus = 'QUEUED';
-          else if (boost.status === 'FAILED') autoBoostStatus = 'FAILED';
-          else autoBoostStatus = boost.status;
-        }
-        return {
-          ...p,
-          project_name: p.project_id ? (projectMap[p.project_id as string] || null) : null,
-          creator_name: p.creator_id ? (creatorMap[p.creator_id as string] || null) : null,
-          boost_id: boost ? boost.id : null,
-          auto_boost_status: autoBoostStatus,
-        };
-      }),
+      data: (data || []).map((p: Record<string, unknown>) => ({
+        ...p,
+        project_name: p.project_id ? (projectMap[p.project_id as string] || null) : null,
+        creator_name: p.creator_id ? (creatorMap[p.creator_id as string] || null) : null,
+      })),
     });
   } catch (err) { next(err); }
 };

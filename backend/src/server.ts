@@ -1057,6 +1057,7 @@ app.post('/api/v1/knowledge/access-policy', authenticate, KnowledgeController.up
 // Static routes (must come before parameterized :id routes)
 app.get('/api/v1/prompts/stats', authenticate, PromptController.getPromptStats);
 app.get('/api/v1/prompts/approvals/stats', authenticate, PromptController.getApprovalStats);
+app.post('/api/v1/prompts/evaluate', authenticate, PromptController.evaluatePromptGovernance);
 
 // Versions sub-routes (no :id prefix)
 app.post('/api/v1/prompts/versions/:versionId/approve', authenticate, PromptController.approveVersion);

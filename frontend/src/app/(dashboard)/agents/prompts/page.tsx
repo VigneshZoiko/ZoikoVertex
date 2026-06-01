@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   MessageSquareCode,
   ShieldCheck,
@@ -36,6 +36,10 @@ import {
   Network,
   BarChart3,
   Loader2,
+  Copy,
+  Check,
+  Variable,
+  FileText,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRoleContext } from "@/lib/context/RoleContext";
@@ -132,7 +136,7 @@ interface ApprovalStats {
   };
 }
 
-type ActiveTab = "registry" | "lifecycle" | "testing" | "approvals" | "evidence" | "runtime";
+type ActiveTab = "registry" | "lifecycle" | "testing" | "approvals" | "evidence" | "runtime" | "auditor";
 type FilterStatus = "ALL" | LifecycleStatus;
 type FilterRisk = "ALL" | RiskTier;
 
@@ -865,6 +869,322 @@ function RuntimeTab({
 
 // ─── Create Prompt Modal ────────────────────────────────────────────────────────
 
+// ─── Auditor Tab ───────────────────────────────────────────────────────────────
+
+type AuditRiskTier = "Tier 1 Low" | "Tier 2 Medium" | "Tier 3 High" | "Tier 4 Critical";
+type ModelStatus = "PASS" | "WARN" | "FAIL";
+type AuditVerdict = "APPROVED" | "CONDITIONALLY APPROVED" | "BLOCKED";
+
+interface AuditModelResult {
+  id: number;
+  name: string;
+  icon: React.ElementType;
+  status: ModelStatus;
+  finding: string;
+  fix: string | null;
+}
+
+interface AuditReport {
+  score: number;
+  tier: AuditRiskTier;
+  pass: number;
+  warn: number;
+  fail: number;
+  verdict: AuditVerdict;
+  models: AuditModelResult[];
+  summary: string;
+  rebuilt: string | null;
+}
+
+function runAudit(prompt: string, tier: AuditRiskTier): AuditReport {
+  const p = prompt.toLowerCase();
+  const has = (...t: string[]) => t.some(x => p.includes(x));
+
+  const m1Pass = has("you are","act as","your role") && has("output format","respond in","json","markdown","bullet") && has("escalat","transfer to","if you cannot") && has("do not","refuse","must not","never","forbidden");
+  const m1Warn = !m1Pass && (has("you are","act as") || has("output format","json") || has("escalat") || has("refuse","do not"));
+  const m2Pass = has("do not generate","prohibited","safety block","unsafe") && has("illegal","harmful","hate","violence","explicit") && has("restricted claim","medical advice","legal advice") && has("escalat","human review","safety team");
+  const m2Warn = !m2Pass && (has("prohibited","unsafe","harmful") || has("escalat","review"));
+  const m3Pass = has("tone:","voice:","brand voice","formal","professional") && has("banned term","avoid using","never say") && has("approved vocabulary","use the term") && has("channel:","platform:","for email","for web");
+  const m3Warn = !m3Pass && (has("tone:","voice:","professional","formal") || has("banned","avoid using"));
+  const m4Pass = has("approved source","knowledge base","internal document","only use") && has("cite","citation","source:","reference:") && has("do not fabricate","no unsupported","must verify","only verified");
+  const m4Warn = !m4Pass && (has("source","knowledge") || has("cite","citation"));
+  const m5Pass = has("allowed tool","permitted tool","tool:","function:","api:") && has("only when","condition:","before calling") && has("do not fabricate","never invent","do not simulate tool");
+  const m5Warn = !m5Pass && (has("tool:","function:","api:") || has("only when","condition:"));
+  const m6Pass = has("{{","}}","[variable]","input:","parameter:") && has("valid value","allowed value","must be one of","enum:") && has("fallback","default:","if missing","if empty") && has("edge case","guardrail","max length","character limit");
+  const m6Warn = !m6Pass && (has("{{","parameter:","input:") || has("fallback","default:"));
+  const m7Pass = has("owner:","maintained by","author:","contact:") && has("version:","v1.","v2.","revision:") && has("environment:","production","staging","scope:") && has("rollback","recovery","revert","fallback version");
+  const m7Warn = !m7Pass && (has("version:","v1.","revision:") || has("owner:","author:"));
+  const m8Pass = has("prompt id:","pid-","ref:","uid:","identifier:") && has("approved by","reviewed by","sign-off","authorized by") && has("tested against","test evidence","qa pass","validated by");
+  const m8Warn = !m8Pass && (has("id:","ref:","uid:") || has("approved by","reviewed by"));
+
+  const score = (s: boolean, w: boolean) => s ? "PASS" : w ? "WARN" : "FAIL";
+  const pts = (s: ModelStatus) => s === "PASS" ? 100 : s === "WARN" ? 60 : 20;
+
+  const models: AuditModelResult[] = [
+    { id:1, name:"Instruction Adherence", icon:MessageSquareCode, status:score(m1Pass,m1Warn) as ModelStatus,
+      finding: m1Pass ? "Role, format, escalation, and refusal rules all defined." : m1Warn ? "Some elements present but incomplete." : "Role or output behavior undefined.",
+      fix: !m1Pass ? "Add role definition, output format, escalation triggers, and refusal rules." : null },
+    { id:2, name:"Safety & Policy", icon:ShieldAlert, status:score(m2Pass,m2Warn) as ModelStatus,
+      finding: m2Pass ? "Safety blocks, prohibited content, restricted claims, and escalation path all present." : m2Warn ? "Safety implied but not fully enforced." : "No safety or policy rules found.",
+      fix: !m2Pass ? "Add prohibited content list, safety blocks, restricted claim categories, and escalation path." : null },
+    { id:3, name:"Brand & Tone", icon:BookOpen, status:score(m3Pass,m3Warn) as ModelStatus,
+      finding: m3Pass ? "Brand voice, banned terms, approved vocabulary, and channel constraints defined." : m3Warn ? "Tone referenced but enforcement terms or channel constraints missing." : "No brand or tone guidance found.",
+      fix: !m3Pass ? "Define tone, list banned terms, specify approved vocabulary, add channel constraints." : null },
+    { id:4, name:"Grounding & Citations", icon:Eye, status:score(m4Pass,m4Warn) as ModelStatus,
+      finding: m4Pass ? "Approved sources, citation rules, and prohibition on unsupported claims all stated." : m4Warn ? "Grounding implied but sources unnamed or citation rules incomplete." : "No grounding rules — model can use any knowledge freely.",
+      fix: !m4Pass ? "Name approved sources, require citations for factual claims, prohibit fabrication." : null },
+    { id:5, name:"Tool-Use Governance", icon:Wrench, status:score(m5Pass,m5Warn) as ModelStatus,
+      finding: m5Pass ? "Allowed tools, trigger conditions, and anti-fabrication rule all declared." : m5Warn ? "Tool use referenced but conditions vague or fabrication not blocked." : "No tool-use rules found.",
+      fix: !m5Pass ? "List allowed tools, specify trigger conditions, explicitly prohibit fabricating tool results." : null },
+    { id:6, name:"Variables & Guardrails", icon:Variable, status:score(m6Pass,m6Warn) as ModelStatus,
+      finding: m6Pass ? "Variables named with allowed values, fallbacks, and edge-case guardrails." : m6Warn ? "Variables present but fallback or validation logic missing." : "No variables or guardrails defined.",
+      fix: !m6Pass ? "Define variables with allowed values, fallback behavior, and edge-case guardrails." : null },
+    { id:7, name:"Rollback & Lifecycle", icon:RotateCcw, status:score(m7Pass,m7Warn) as ModelStatus,
+      finding: m7Pass ? "Owner, version ID, environment, and rollback path all declared." : m7Warn ? "Some lifecycle metadata present but incomplete." : "No ownership, versioning, or lifecycle context found.",
+      fix: !m7Pass ? "Add owner, version ID, environment scope, and rollback recovery procedure." : null },
+    { id:8, name:"Evidence & Auditability", icon:FileText, status:score(m8Pass,m8Warn) as ModelStatus,
+      finding: m8Pass ? "Unique ID, approval reference, and test evidence all present." : m8Warn ? "Some audit markers present but traceability incomplete." : "No traceability — cannot prove who approved or what was tested.",
+      fix: !m8Pass ? "Add unique prompt ID, approval reference, and test evidence note." : null },
+  ];
+
+  const pass = models.filter(m => m.status === "PASS").length;
+  const warn = models.filter(m => m.status === "WARN").length;
+  const fail = models.filter(m => m.status === "FAIL").length;
+  const overall = Math.round(models.reduce((s,m) => s + pts(m.status), 0) / 8);
+  const verdict: AuditVerdict = fail > 0 || overall < 50 ? "BLOCKED" : overall < 70 || warn >= 4 ? "CONDITIONALLY APPROVED" : "APPROVED";
+
+  const passing = models.filter(m => m.status === "PASS").map(m => m.name);
+  const failing = models.filter(m => m.status !== "PASS").map(m => m.name);
+  const summary = `${pass > 0 ? `Strong compliance in ${passing.slice(0,2).join(" and ")}.` : "No models pass in current form."} ${failing.length > 0 ? `Critical gaps in ${failing.slice(0,3).join(", ")}.` : "No significant gaps."} ${verdict === "APPROVED" ? `Safe to deploy at ${tier}.` : verdict === "CONDITIONALLY APPROVED" ? `Requires remediation before deployment at ${tier}.` : `NOT safe to deploy at ${tier} — rebuild required.`}`;
+
+  const rebuilt = overall < 70 || fail > 0 ? `## GOVERNED PROMPT — PRODUCTION READY
+## Prompt ID: PID-${Math.random().toString(36).slice(2,10).toUpperCase()}
+## Version: 1.0.0
+## Owner: [TEAM NAME] — [team@organization.com]
+## Environment: Production
+## Approval: Approved by [APPROVER NAME] on [DATE] — ref: GOV-REVIEW-[ID]
+## Test Evidence: Passed QA suite v1.0 — [DATE] — verified by [QA TEAM]
+## Audit Reference: AUDIT-REF-[ID]
+
+ROLE: You are a [SPECIFY ROLE] for [ORGANIZATION]. Your sole function is [SPECIFY]. Refuse all out-of-scope requests with: "This request falls outside my authorized function."
+
+OUTPUT FORMAT: Status: [SUCCESS|PARTIAL|REFUSED] | Response: [...] | Sources: [...] | Escalation: [NONE|REQUIRED]
+
+SAFETY: Do not generate illegal, harmful, sexually explicit, hateful, or deceptive content. Never provide medical, legal, or financial advice. Escalate unsafe inputs immediately.
+
+BRAND & TONE: Voice: professional, clear, authoritative. Banned terms: [LIST]. Approved vocabulary: [LIST]. Channel: [WEB|EMAIL|SMS].
+
+GROUNDING: Only use approved sources: [LIST]. Cite all factual claims. Do not fabricate statistics, quotes, or events.
+
+TOOLS: Allowed tools: [LIST]. Only call when explicitly required. Never simulate tool results — if tool fails, say so.
+
+VARIABLES: {{user_name}} fallback: "Valued Customer". {{request_type}} must be one of [LIST]. {{context}} max 2000 chars.
+
+ROLLBACK: If behavior degrades, disable and revert to [PREV VERSION]. Notify [OWNER EMAIL]. Review quarterly.` : null;
+
+  return { score: overall, tier, pass, warn, fail, verdict, models, summary, rebuilt };
+}
+
+const AUDIT_STATUS = {
+  PASS: { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", icon: CheckCircle2 },
+  WARN: { color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", icon: AlertTriangle },
+  FAIL: { color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", icon: XCircle },
+};
+
+function AuditScoreRing({ score }: { score: number }) {
+  const r = 40, c = 2 * Math.PI * r;
+  const color = score >= 70 ? "#34d399" : score >= 50 ? "#fbbf24" : "#f87171";
+  return (
+    <div className="relative w-28 h-28 flex items-center justify-center">
+      <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 96 96">
+        <circle cx="48" cy="48" r={r} fill="none" stroke="#1e293b" strokeWidth="8" />
+        <circle cx="48" cy="48" r={r} fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={c - (score / 100) * c}
+          style={{ transition: "stroke-dashoffset 1s ease" }} />
+      </svg>
+      <div className="text-center z-10">
+        <div className="text-3xl font-black" style={{ color }}>{score}</div>
+        <div className="text-[10px] text-slate-500">/100</div>
+      </div>
+    </div>
+  );
+}
+
+function AuditorTab() {
+  const [prompt, setPrompt] = useState("");
+  const [tier, setTier] = useState<AuditRiskTier>("Tier 2 Medium");
+  const [report, setReport] = useState<AuditReport | null>(null);
+  const [running, setRunning] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  const handleAudit = () => {
+    if (!prompt.trim()) return;
+    setRunning(true); setReport(null);
+    setTimeout(() => { setReport(runAudit(prompt, tier)); setRunning(false); }, 1200);
+  };
+
+  const handleCopy = () => {
+    if (report?.rebuilt) { navigator.clipboard.writeText(report.rebuilt); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+  };
+
+  const VERDICT_STYLE = {
+    "APPROVED": { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+    "CONDITIONALLY APPROVED": { color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
+    "BLOCKED": { color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20" },
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="space-y-1">
+        <h2 className="text-sm font-black text-white uppercase tracking-widest">Prompt Governance Auditor</h2>
+        <p className="text-[11px] text-slate-500">Evaluate any prompt against all 8 ZoikoVertex governance models and get a full compliance report.</p>
+      </div>
+
+      {/* Input */}
+      <div className="bg-black border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="space-y-1 flex-1">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Risk Tier</label>
+            <select value={tier} onChange={e => setTier(e.target.value as AuditRiskTier)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all">
+              {(["Tier 1 Low","Tier 2 Medium","Tier 3 High","Tier 4 Critical"] as AuditRiskTier[]).map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Prompt to Audit</label>
+          <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={9}
+            placeholder="Paste the prompt you want to audit here..."
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-indigo-500 resize-none font-mono transition-all leading-relaxed" />
+          <div className="flex justify-between text-[10px] text-slate-600">
+            <span>{prompt.length} characters</span><span>{prompt.trim().split(/\s+/).filter(Boolean).length} words</span>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={handleAudit} disabled={!prompt.trim() || running}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+            {running ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>Running...</> : <><ShieldCheck className="w-3.5 h-3.5"/>Run Audit</>}
+          </button>
+          {report && <button onClick={() => { setReport(null); setPrompt(""); setExpanded(null); }}
+            className="px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest transition-all">Reset</button>}
+        </div>
+      </div>
+
+      {/* Report */}
+      {report && (
+        <div className="space-y-5">
+          {/* Score Summary */}
+          <div className="bg-black border border-slate-800 rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-white uppercase tracking-widest">Section 1 — Score Summary</span>
+            </div>
+            <div className="flex flex-col md:flex-row gap-6 items-center">
+              <div className="flex flex-col items-center gap-2"><AuditScoreRing score={report.score}/><span className="text-[10px] text-slate-500 font-bold">Overall Score</span></div>
+              <div className="flex-1 grid grid-cols-2 gap-3">
+                <div className={`col-span-2 flex items-center gap-3 p-3.5 rounded-xl border ${VERDICT_STYLE[report.verdict].bg} ${VERDICT_STYLE[report.verdict].border}`}>
+                  <ShieldCheck className={`w-5 h-5 ${VERDICT_STYLE[report.verdict].color}`}/>
+                  <div><div className={`text-base font-black ${VERDICT_STYLE[report.verdict].color}`}>{report.verdict}</div><div className="text-[10px] text-slate-500">Final Verdict · {report.tier}</div></div>
+                </div>
+                <div className="p-3 rounded-xl border border-slate-800 bg-slate-950 text-center"><div className="text-xl font-black text-emerald-400">{report.pass}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Pass</div></div>
+                <div className="p-3 rounded-xl border border-slate-800 bg-slate-950 grid grid-cols-2 gap-2 text-center">
+                  <div><div className="text-xl font-black text-amber-400">{report.warn}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Warn</div></div>
+                  <div><div className="text-xl font-black text-rose-400">{report.fail}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Fail</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Model Findings */}
+          <div className="bg-black border border-slate-800 rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-2 p-5 border-b border-slate-800">
+              <div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-white uppercase tracking-widest">Section 2 — Model Findings</span>
+            </div>
+            <div className="divide-y divide-slate-900">
+              {report.models.map(m => {
+                const cfg = AUDIT_STATUS[m.status];
+                const Icon = cfg.icon;
+                const MIcon = m.icon;
+                const open = expanded === m.id;
+                return (
+                  <div key={m.id} className="hover:bg-slate-950 transition-colors">
+                    <button onClick={() => setExpanded(open ? null : m.id)} className="w-full flex items-center gap-3 p-4 text-left">
+                      <div className={`w-8 h-8 rounded-xl ${cfg.bg} border ${cfg.border} flex items-center justify-center shrink-0`}>
+                        <MIcon className={`w-3.5 h-3.5 ${cfg.color}`}/>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2"><span className="text-[10px] text-slate-600">M{m.id}</span><span className="text-xs font-bold text-white">{m.name}</span></div>
+                        <p className="text-[10px] text-slate-500 truncate mt-0.5">{m.finding}</p>
+                      </div>
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black border ${cfg.bg} ${cfg.border} ${cfg.color} shrink-0`}>
+                        <Icon className="w-3 h-3"/>{m.status}
+                      </span>
+                    </button>
+                    {open && (
+                      <div className="px-4 pb-4 ml-11 border-l-2 border-slate-800 space-y-2 ml-[60px]">
+                        <div><span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Finding</span><p className="text-xs text-slate-300 mt-1 leading-relaxed">{m.finding}</p></div>
+                        {m.fix && <div><span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Fix Required</span><p className="text-xs text-slate-400 mt-1 leading-relaxed">{m.fix}</p></div>}
+                        {!m.fix && <div className="flex items-center gap-1.5 text-xs text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5"/>No fix required</div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Executive Summary */}
+          <div className="bg-black border border-slate-800 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-3"><div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-white uppercase tracking-widest">Section 3 — Executive Summary</span></div>
+            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 border border-slate-800 rounded-xl p-4">{report.summary}</p>
+          </div>
+
+          {/* Rebuilt Prompt */}
+          {report.rebuilt && (
+            <div className="bg-black border border-rose-500/20 rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between p-5 border-b border-slate-800">
+                <div className="flex items-center gap-2"><div className="w-1 h-5 rounded-full bg-rose-500"/><div><span className="text-[10px] font-black text-white uppercase tracking-widest">Section 4 — Rebuilt Prompt</span><p className="text-[10px] text-slate-500 mt-0.5">Score below 70 or a model failed — production-ready governed prompt generated.</p></div></div>
+                <button onClick={handleCopy} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-400 hover:text-white hover:border-slate-600 transition-all shrink-0">
+                  {copied ? <><Check className="w-3.5 h-3.5 text-emerald-400"/>Copied!</> : <><Copy className="w-3.5 h-3.5"/>Copy</>}
+                </button>
+              </div>
+              <div className="p-5">
+                <div className="flex items-start gap-2 mb-3 p-3 rounded-xl bg-rose-500/5 border border-rose-500/15">
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-400 mt-0.5 shrink-0"/>
+                  <p className="text-[10px] text-rose-300/80">Replace all <code className="bg-rose-500/10 px-1 rounded text-rose-400">[BRACKETED PLACEHOLDERS]</code> with your actual values before deploying.</p>
+                </div>
+                <pre className="text-[10px] text-slate-400 font-mono leading-relaxed whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-xl p-4 overflow-x-auto max-h-96 overflow-y-auto">{report.rebuilt}</pre>
+              </div>
+            </div>
+          )}
+
+          {!report.rebuilt && (
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0"/>
+              <div><p className="text-xs font-bold text-emerald-400">No Rebuild Required</p><p className="text-[10px] text-slate-500 mt-0.5">Scored {report.score}/100 with no FAIL conditions — approved for deployment at {report.tier}.</p></div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!report && !running && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
+            <ShieldCheck className="w-7 h-7 text-indigo-400"/>
+          </div>
+          <h3 className="text-sm font-bold text-white mb-2">Ready to Audit</h3>
+          <p className="text-xs text-slate-500 max-w-sm leading-relaxed">Paste any prompt above, set the risk tier, and click <strong className="text-white">Run Audit</strong> to evaluate it against all 8 governance models.</p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {["Instruction Adherence","Safety & Policy","Brand & Tone","Grounding","Tool-Use","Variables","Lifecycle","Auditability"].map(l => (
+              <span key={l} className="px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-[10px] text-slate-500">{l}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CreatePromptModal({ onClose, onCreate, creating }: {
   onClose: () => void;
   onCreate: (data: any) => void;
@@ -936,12 +1256,14 @@ function PromptDetailDrawer({
   const [versions, setVersions] = useState<any[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [versionsFetched, setVersionsFetched] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
 
   // ── FIX: reset cached drawer state when the user opens a different prompt.
   //    Without this, switching between prompts shows the previous prompt's
   //    body until the new tab is re-clicked.
   useEffect(() => {
     setPromptBody(null);
+    drawerRef.current?.scrollTo({ top: 0, behavior: "instant" });
     setBodyFetched(false);
     setVersions([]);
     setVersionsFetched(false);
@@ -989,7 +1311,7 @@ function PromptDetailDrawer({
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="w-full max-w-2xl bg-slate-950 border-l border-slate-800 overflow-y-auto flex flex-col">
+      <div ref={drawerRef} className="w-full max-w-2xl bg-slate-950 border-l border-slate-800 overflow-y-auto flex flex-col">
         {/* Drawer header */}
         <div className="p-6 border-b border-slate-800 space-y-4 sticky top-0 bg-slate-950 z-10">
           <div className="flex items-start justify-between gap-4">
@@ -1412,6 +1734,7 @@ export default function PromptsPage() {
     { id: "approvals", label: "Approvals", icon: FileCheck },
     { id: "evidence", label: "Evidence", icon: History },
     { id: "runtime", label: "Runtime", icon: Network },
+    { id: "auditor", label: "Auditor", icon: ShieldCheck },
   ];
 
   return (
@@ -1540,6 +1863,7 @@ export default function PromptsPage() {
             onLifecycleAction={handleLifecycleAction}
           />
         )}
+        {activeTab === "auditor" && <AuditorTab />}
       </div>
 
       {/* Prompt detail drawer */}

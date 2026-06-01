@@ -8,45 +8,9 @@ import { PromptTestService } from './PromptTestService';
 import { PromptApprovalService } from './PromptApprovalService';
 import { PromptDeploymentService } from './PromptDeploymentService';
 import { PromptBindingService } from './PromptBindingService';
-import { PromptGovernanceAgent } from './PromptGovernanceAgent';
 import { getParam, getQueryValue } from '../../shared/request';
 
 export class PromptController {
-  static async evaluatePromptGovernance(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const workspaceId = await PromptController.getWorkspaceId(req.user?.id);
-      
-      const { data: workspace } = await supabaseAdmin
-        .from('workspaces')
-        .select('tenant_id')
-        .eq('id', workspaceId)
-        .maybeSingle();
-      const tenantId = workspace?.tenant_id || workspaceId;
-
-      const { prompt_id, agent_id, input_payload, tools_requested, knowledge_requested, model, environment } = req.body;
-
-      if (!prompt_id || !agent_id || !input_payload) {
-        return res.status(400).json({ error: 'Missing prompt_id, agent_id, or input_payload' });
-      }
-
-      const result = await PromptGovernanceAgent.enforce({
-        workspace_id: workspaceId,
-        tenant_id: tenantId,
-        agent_id,
-        prompt_id,
-        input_payload,
-        tools_requested: tools_requested || [],
-        knowledge_requested: knowledge_requested || [],
-        model,
-        environment: environment || 'production',
-        actor_id: req.user?.id || 'system',
-      });
-
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
-  }
 
   private static async getWorkspaceId(userId: string | undefined): Promise<string> {
     if (!userId) throw new Error('Unauthorized');
