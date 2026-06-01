@@ -311,6 +311,8 @@ import {
   getRunTimeline,
   pauseRun,
   resumeRun,
+  startRun,
+  deleteRun,
   stopRun,
   retryRun,
   quarantineRun,
@@ -335,6 +337,7 @@ import {
   listEvidenceBundles,
   subscribeOperationsEvents
 } from './domains/agents/operationsController';
+import { requireOperationsAccess } from './services/operationsAuthorization.service';
 
 const upload = multer({ dest: os.tmpdir() });
 const app = express();
@@ -889,12 +892,20 @@ app.post('/api/v1/agents/:id/incidents', authenticate, scopeGuard('write:agents'
 app.patch('/api/v1/agents/:id/incidents/:incidentId/resolve', authenticate, scopeGuard('write:agents', '*'), resolveAgentIncident);
 
 // Agent Operations Routes
+// Defense in depth: requireOperationsAccess guarantees every operations route
+// requires at least base "view" permission at the route layer. Each handler
+// additionally enforces its specific action via assertOperationsPermission +
+// assertWorkspaceScope. All access uses the Supabase service role; tenant
+// isolation is enforced in the API layer.
+app.use('/api/v1/operations', authenticate, requireOperationsAccess);
 app.get('/api/v1/operations/runs', authenticate, listAgentRuns);
 app.get('/api/v1/operations/events', authenticate, subscribeOperationsEvents);
 app.get('/api/v1/operations/runs/:id', authenticate, getAgentRun);
 app.get('/api/v1/operations/runs/:id/timeline', authenticate, getRunTimeline);
 app.post('/api/v1/operations/runs/:id/pause', authenticate, pauseRun);
 app.post('/api/v1/operations/runs/:id/resume', authenticate, resumeRun);
+app.post('/api/v1/operations/runs/:id/start', authenticate, startRun);
+app.delete('/api/v1/operations/runs/:id', authenticate, deleteRun);
 app.post('/api/v1/operations/runs/:id/stop', authenticate, stopRun);
 app.post('/api/v1/operations/runs/:id/retry', authenticate, retryRun);
 app.post('/api/v1/operations/runs/:id/quarantine', authenticate, quarantineRun);

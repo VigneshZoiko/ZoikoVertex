@@ -25,7 +25,8 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'security:view', 'security:manage', 'privacy:view', 'privacy:manage',
     'notifications:view', 'notifications:manage', 'status:view', 'crisis:view', 'support:view',
   ],
-  GOVERNANCE_ADMIN: [
+  GOVERNANCE_ADMIN: 
+  [
     'dashboard:view', 'operations:view',
     'governance:view', 'governance:manage', 'policy:view', 'policy:manage',
     'risk:view', 'risk:manage', 'audit:view', 'evidence:view',
@@ -34,7 +35,8 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'agents:view', 'brand:view', 'brand-library:view', 'support:view',
   ],
   AGENT_ARCHITECT: [
-    'dashboard:view', 'agents:view', 'agents:manage',
+    'dashboard:view', 'operations:view', 'operations:manage',
+    'agents:view', 'agents:manage',
     'workflows:view', 'workflows:manage', 'prompts:view', 'prompts:manage',
     'knowledge:view', 'models:view', 'queue:view', 'governance:view', 'validation:view', 'support:view',
   ],
@@ -75,6 +77,7 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'knowledge:view', 'brand:view', 'brand-library:view',
     'governance:view', 'audit:view', 'approvals:view', 'support:view',
   ],
+  
   APPROVER: [
     'dashboard:view', 'approvals:view', 'approvals:manage',
     'validation:view', 'queue:view', 'brand:view', 'brand-library:view',

@@ -1,3 +1,4 @@
+import { Response, NextFunction } from "express";
 import { AuthRequest } from "../shared/authMiddleware";
 
 export type OperationsAction =
@@ -13,7 +14,9 @@ export type OperationsAction =
   | "restricted_mode"
   | "export_evidence"
   | "create_incident"
-  | "run_policy_check";
+  | "run_policy_check"
+  | "start"
+  | "delete_run";
 
 type Actor = NonNullable<AuthRequest["user"]>;
 
@@ -28,6 +31,7 @@ const ACTION_ROLES: Record<OperationsAction, string[]> = {
     "ADMIN",
     "WORKSPACE_OWNER",
     "SUPERADMIN",
+    "AGENT_ARCHITECT",
     "AGENT_OPERATOR",
     "GOVERNANCE_ADMIN",
     "CAMPAIGN_MANAGER",
@@ -42,18 +46,20 @@ const ACTION_ROLES: Record<OperationsAction, string[]> = {
     "SECURITY_ADMIN",
     "VIEWER",
   ],
-  manage_queue: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "REVIEWER", "VALIDATOR", "APPROVER"],
-  pause: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "SECURITY_ADMIN"],
-  resume: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_OPERATOR", "GOVERNANCE_ADMIN"],
-  stop: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "SECURITY_ADMIN"],
-  retry: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_OPERATOR", "GOVERNANCE_ADMIN"],
-  quarantine: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "GOVERNANCE_ADMIN", "BRAND_REVIEWER", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN"],
-  escalate: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "BRAND_REVIEWER", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN", "REVIEWER", "VALIDATOR", "APPROVER"],
+  manage_queue: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "REVIEWER", "VALIDATOR", "APPROVER"],
+  pause: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "SECURITY_ADMIN"],
+  resume: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "AGENT_OPERATOR", "GOVERNANCE_ADMIN"],
+  stop: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "SECURITY_ADMIN"],
+  retry: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "AGENT_OPERATOR", "GOVERNANCE_ADMIN"],
+  quarantine: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "GOVERNANCE_ADMIN", "BRAND_REVIEWER", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN"],
+  escalate: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "BRAND_REVIEWER", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN", "REVIEWER", "VALIDATOR", "APPROVER"],
   emergency_pause: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "GOVERNANCE_ADMIN", "SECURITY_ADMIN"],
   restricted_mode: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "GOVERNANCE_ADMIN", "SECURITY_ADMIN"],
   export_evidence: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "AUDITOR", "SECURITY_ADMIN"],
-  create_incident: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "BRAND_REVIEWER", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN", "REVIEWER", "VALIDATOR", "APPROVER"],
+  create_incident: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "BRAND_REVIEWER", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN", "REVIEWER", "VALIDATOR", "APPROVER"],
   run_policy_check: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN"],
+  start: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "AGENT_OPERATOR", "GOVERNANCE_ADMIN"],
+  delete_run: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT"],
 };
 
 export function assertOperationsPermission(
@@ -74,6 +80,21 @@ export function assertOperationsPermission(
       new Error(`Permission denied: ${action.replace(/_/g, " ")} is not allowed for your role`),
       { statusCode: 403, code: "OPERATIONS_PERMISSION_DENIED" },
     );
+  }
+}
+
+// Route-level defense-in-depth guard for ALL /api/v1/operations/* routes.
+// Every operations route still enforces its specific action in-handler; this
+// middleware guarantees no operations route is reachable by a caller lacking
+// even base "view" access, so a handler that ever forgets its assert is not
+// silently exposed. "view" is the common denominator every operations role
+// holds, so this adds a layer without narrowing existing access.
+export function requireOperationsAccess(req: AuthRequest, _res: Response, next: NextFunction) {
+  try {
+    assertOperationsPermission(req.user, "view");
+    next();
+  } catch (err) {
+    next(err);
   }
 }
 
@@ -130,8 +151,10 @@ export function getRuntimeActionGates(
     resume: ["PAUSED"],
     stop: ["SCHEDULED", "QUEUED", "RUNNING", "PAUSED"],
     retry: ["FAILED"],
-    quarantine: ["RUNNING", "POLICY_BLOCKED", "WAITING_HUMAN_REVIEW"],
+    quarantine: ["RUNNING", "POLICY_BLOCKED", "WAITING_HUMAN_REVIEW", "PAUSED"],
     escalate: ["FAILED", "POLICY_BLOCKED", "QUARANTINED", "WAITING_HUMAN_REVIEW", "PAUSED", "RUNNING", "QUEUED"],
+    start: ["STOPPED"],
+    delete_run: ["STOPPED", "COMPLETED", "FAILED", "CANCELLED", "QUARANTINED"],
     emergency_pause: ["RUNNING", "QUEUED"],
     restricted_mode: ["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW"],
     export_evidence: ["COMPLETED", "FAILED", "POLICY_BLOCKED", "QUARANTINED", "STOPPED", "PAUSED", "RUNNING", "QUEUED", "SCHEDULED"],
