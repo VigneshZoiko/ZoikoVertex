@@ -14,7 +14,7 @@ export default function AgentsGrid() {
     {
       layer: "Financial & Optimization Layer",
       name: "Quantitative Ad Spend Agent",
-      desc: "Analyses CPA, ROAS, and marginal return across every channel in real time. Reallocates budget within policy boundaries â€” no manual intervention required.",
+      desc: "Analyses CPA, ROAS, and marginal return across every channel in real time. Reallocates budget within policy boundaries — no manual intervention required.",
       link: "Full bid optimisation â†’",
       icon: BarChart2,
       iconColor: "#6366f1",
@@ -23,7 +23,7 @@ export default function AgentsGrid() {
     {
       layer: "Financial & Optimization Layer",
       name: "Revenue Forensic Agent",
-      desc: "Multi-touch attribution that reconciles marketing performance to actual revenue. Gives finance teams a single version of ROI truth â€” defensible, board-ready, and audit-traceable.",
+      desc: "Multi-touch attribution that reconciles marketing performance to actual revenue. Gives finance teams a single version of ROI truth — defensible, board-ready, and audit-traceable.",
       link: "Multi-touch attribution â†’",
       icon: Activity,
       iconColor: "#0891b2",
@@ -41,7 +41,7 @@ export default function AgentsGrid() {
     {
       layer: "Simulation Layer",
       name: "Synthetic Audience Engine",
-      desc: "Predicts likely audience response before spend is committed. Test creative and targeting hypotheses against synthetic audiences â€” eliminate waste before it happens.",
+      desc: "Predicts likely audience response before spend is committed. Test creative and targeting hypotheses against synthetic audiences — eliminate waste before it happens.",
       link: "Test spend before committing â†’",
       icon: Users,
       iconColor: "#0d9488",
@@ -63,7 +63,7 @@ export default function AgentsGrid() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-14">
           <p className="text-indigo-500 text-xs font-bold tracking-widest uppercase mb-3">
-            â€” The Full Agent Operating System
+            — The Full Agent Operating System
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">
             Every agent. Every capability.

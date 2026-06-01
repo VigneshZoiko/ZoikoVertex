@@ -9,7 +9,7 @@ export default function Industries() {
       cta: "See Enterprise Retail Demo â†’",
       points: [
         "Automatically pauses promotions when stock falls below defined thresholds",
-        "Budget follows margin, not just volume â€” higher-margin SKUs get prioritised spend",
+        "Budget follows margin, not just volume — higher-margin SKUs get prioritised spend",
         "System detects seasonal windows and triggers campaigns without manual scheduling",
         "Every campaign traced to contribution margin, not just revenue",
       ],
@@ -17,19 +17,19 @@ export default function Industries() {
     {
       label: "FinTech",
       title: "Compliant marketing in regulated markets",
-      desc: "ZoikoVertex applies FCA, SEC, and jurisdiction-specific compliance rules at the agent level â€” every piece of content reviewed before publication, every decision logged.",
+      desc: "ZoikoVertex applies FCA, SEC, and jurisdiction-specific compliance rules at the agent level — every piece of content reviewed before publication, every decision logged.",
       cta: "See FinTech Demo â†’",
       points: [
         "Pre-publication compliance review against FCA and sector-specific advertising rules",
-        "Full audit trail for every campaign action â€” board and regulator ready",
-        "Jurisdiction-aware targeting â€” different rules enforced per market automatically",
+        "Full audit trail for every campaign action — board and regulator ready",
+        "Jurisdiction-aware targeting — different rules enforced per market automatically",
         "Evidence vault for legal review and dispute resolution",
       ],
     },
     {
       label: "Healthcare",
       title: "Safe, evidence-based marketing at scale",
-      desc: "ZoikoVertex enforces medical advertising standards, claim verification, and patient safety rules across every agent action â€” zero tolerance for non-compliant content.",
+      desc: "ZoikoVertex enforces medical advertising standards, claim verification, and patient safety rules across every agent action — zero tolerance for non-compliant content.",
       cta: "See Healthcare Demo â†’",
       points: [
         "Claim verification against approved medical language before every publication",
@@ -41,7 +41,7 @@ export default function Industries() {
     {
       label: "B2B SaaS",
       title: "Pipeline-aligned demand generation",
-      desc: "ZoikoVertex connects marketing spend to pipeline stages, ICP fit, and revenue contribution â€” ensuring budget flows to the segments and channels that close.",
+      desc: "ZoikoVertex connects marketing spend to pipeline stages, ICP fit, and revenue contribution — ensuring budget flows to the segments and channels that close.",
       cta: "See B2B SaaS Demo â†’",
       points: [
         "Budget allocation tied to pipeline stage conversion rates, not impressions",
@@ -58,14 +58,14 @@ export default function Industries() {
       points: [
         "Campaigns automatically redirect toward high-capacity lanes and service types",
         "Seasonal demand signals trigger campaign activation without manual input",
-        "Margin-aware spend â€” budget prioritised by contribution, not volume",
+        "Margin-aware spend — budget prioritised by contribution, not volume",
         "Full audit trail for marketing decisions across complex multi-region networks",
       ],
     },
     {
       label: "Telecom",
       title: "Churn reduction and ARPU optimisation",
-      desc: "ZoikoVertex identifies at-risk segments, coordinates retention campaigns, and optimises upsell spend across channels â€” all governed and tracked to revenue impact.",
+      desc: "ZoikoVertex identifies at-risk segments, coordinates retention campaigns, and optimises upsell spend across channels — all governed and tracked to revenue impact.",
       cta: "See Telecom Demo â†’",
       points: [
         "Predictive churn signals trigger governed retention campaigns automatically",
@@ -81,14 +81,14 @@ export default function Industries() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
           <p className="text-indigo-500 text-xs font-bold tracking-widest uppercase mb-4">
-            â€” Industries & Use Cases
+            — Industries & Use Cases
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">
             Built for enterprise realities
           </h2>
           <p className="text-gray-500 text-sm max-w-xl mx-auto leading-relaxed">
             ZoikoVertex is not a generic AI tool. It is configured for the
-            commercial and regulatory realities of specific industries â€” with
+            commercial and regulatory realities of specific industries — with
             vertical-specific logic built in.
           </p>
         </div>
