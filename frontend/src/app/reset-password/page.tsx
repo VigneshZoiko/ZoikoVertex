@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Send, ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Mail } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -31,79 +31,88 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthLayout>
-      <div className="w-full max-w-[480px] rounded-[32px] border border-slate-200/70 bg-white/95 p-8 shadow-[0_30px_90px_rgba(15,23,42,0.08)]">
-        <div className="mb-8 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-700 shadow-sm">
-            <ShieldCheck className="h-7 w-7" />
-          </div>
-          <h1 className="mt-6 text-2xl font-bold text-slate-950">Reset Password</h1>
-          <p className="mt-3 text-sm text-slate-500">We’ll send password reset instructions to your work email.</p>
-        </div>
-
-        {error && (
-          <div className="mb-6 rounded-3xl border border-rose-200/80 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        )}
-
+      <div className="w-full max-w-[480px]">
         {!success ? (
-          <form onSubmit={handleReset} className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Work Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@yourcompany.com"
-                className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-3xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-950/10 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              Send Reset Instructions
-            </button>
-          </form>
-        ) : (
-          <div className="space-y-4 rounded-3xl border border-slate-200/70 bg-slate-50 p-6 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-sky-100 text-sky-700">
-              <Send className="h-6 w-6" />
-            </div>
-            <h2 className="text-xl font-semibold text-slate-950">Check your inbox</h2>
-            <p className="text-sm leading-7 text-slate-600">
-              If an account exists for this email, you’ll receive a secure reset link within a few minutes.
-            </p>
-          </div>
-        )}
-
-        <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-[0.35em] text-slate-400">
-          <span className="h-px flex-1 bg-slate-200" />
-          or
-          <span className="h-px flex-1 bg-slate-200" />
-        </div>
-
-        <Link href="/login" className="inline-flex w-full items-center justify-center gap-2 rounded-3xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-100">
-          <ArrowLeft className="h-4 w-4" /> Back to Sign In
-        </Link>
-
-        <div className="mt-8 rounded-3xl border border-slate-200/70 bg-slate-50 p-5 text-sm text-slate-600">
-          <div className="flex items-start gap-3">
-            <div className="mt-1 rounded-2xl bg-sky-100 p-2 text-sky-700">
-              <ShieldCheck className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="font-semibold text-slate-900">Security notice</p>
-              <p className="mt-2 leading-6">
-                Reset links expire after 60 minutes and can only be used once. If you use SSO to sign in, please contact your administrator to reset your password.
+          <>
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-5">
+                <div className="h-px w-5 bg-[#20E7F2]" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#20E7F2]">
+                  Password Reset
+                </span>
+              </div>
+              <h1 className="text-[1.75rem] font-black text-white/90 mb-2">Forgot your password?</h1>
+              <p className="text-[14px] text-white/45 leading-relaxed">
+                Enter your work email and we&apos;ll send you a secure reset link.
               </p>
             </div>
+
+            {error && (
+              <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleReset} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
+                  Work Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="sarah@company.com"
+                    className="w-full rounded-xl border border-[#1E2F55] bg-[#0C1529] pl-11 pr-4 py-3.5 text-sm text-white/80 placeholder-white/20 outline-none transition focus:border-[#20E7F2]/50 focus:ring-1 focus:ring-[#20E7F2]/20"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#20E7F2] py-3.5 text-sm font-bold text-[#080E1A] transition hover:bg-[#20E7F2]/90 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Send reset link
+              </button>
+
+              <Link
+                href="/login"
+                className="w-full flex items-center justify-center gap-2.5 rounded-xl border border-[#1E2F55] bg-[#0C1422] py-3.5 text-sm font-medium text-white/60 transition hover:text-white hover:bg-[#111D2E]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to sign in
+              </Link>
+            </form>
+          </>
+        ) : (
+          <div className="text-center">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-[rgba(32,231,242,0.1)] border border-[rgba(32,231,242,0.18)]">
+              <Mail className="h-7 w-7 text-[#20E7F2]" />
+            </div>
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <div className="h-px w-5 bg-[#20E7F2]" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#20E7F2]">Email sent</span>
+              <div className="h-px w-5 bg-[#20E7F2]" />
+            </div>
+            <h2 className="text-2xl font-black text-white/90 mb-3">Check your inbox</h2>
+            <p className="text-[14px] text-white/45 leading-relaxed mb-8">
+              If an account exists for <span className="text-white/70 font-medium">{email}</span>,<br />
+              you&apos;ll receive a reset link within a few minutes.
+            </p>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-8 py-3.5 text-sm font-medium text-white/60 transition hover:text-white hover:bg-[#111D2E]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to sign in
+            </Link>
           </div>
-        </div>
+        )}
       </div>
     </AuthLayout>
   );
