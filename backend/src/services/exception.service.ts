@@ -5,6 +5,7 @@ import { logger } from '../shared/logger';
 import { internalEventBus } from '../shared/internalEventBus';
 import { createValidationItem } from './validationDesk.service';
 import { createAuditItem } from './qualityAudit.service';
+import { createApprovalItem } from './approval.service';
 
 export type ExceptionStatus = 'NEW' | 'TRIAGE' | 'ASSIGNED' | 'IN_PROGRESS' | 'WAITING_ON_SOURCE' | 'WAITING_ON_VALIDATION' | 'WAITING_ON_APPROVAL' | 'ESCALATED' | 'OVERRIDE_REQUESTED' | 'OVERRIDE_APPROVED' | 'OVERRIDE_DENIED' | 'BLOCKED' | 'RESOLVED' | 'CLOSED' | 'ARCHIVED' | 'CANCELLED';
 export type ExceptionSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -466,6 +467,20 @@ export async function sendToApprovals(exceptionId: string, tenant_id: string, us
   const ec = await getExceptionCase(exceptionId, tenant_id);
   if (!ec) throw new Error('Exception case not found');
   await updateStatus(exceptionId, tenant_id, userId, 'WAITING_ON_APPROVAL');
+  try {
+    await createApprovalItem({
+      tenant_id,
+      workspace_id: ec.workspace_id,
+      source_module: ec.source_module,
+      source_entity_id: `exception-${exceptionId}`,
+      item_type: 'EXCEPTION_OUTCOME',
+      title: `Approval: ${ec.exception_title}`,
+      submitted_by: userId,
+      risk_level: (ec.risk_level as string) || 'MEDIUM',
+    });
+  } catch (err) {
+    logger.warn({ err, exceptionId }, '[Exception] Failed to create approval item');
+  }
   internalEventBus.emit('exception.sent_to_approvals', { exception_id: exceptionId, source_module: ec.source_module });
 }
 
