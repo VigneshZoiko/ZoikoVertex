@@ -40,6 +40,9 @@ import {
   Check,
   Variable,
   FileText,
+  ScrollText,
+  User,
+  Fingerprint,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRoleContext } from "@/lib/context/RoleContext";
@@ -136,7 +139,27 @@ interface ApprovalStats {
   };
 }
 
-type ActiveTab = "registry" | "lifecycle" | "testing" | "approvals" | "evidence" | "runtime" | "auditor";
+type ActiveTab = "registry" | "lifecycle" | "testing" | "approvals" | "evidence" | "audit" | "runtime" | "auditor";
+
+interface AuditRecord {
+  id: string;
+  audit_ref?: string;
+  prompt_id?: string;
+  version_id?: string | null;
+  actor_id?: string | null;
+  actor_name?: string;
+  actor_role?: string;
+  event_type: string;
+  reason?: string;
+  approval_context?: Record<string, unknown>;
+  risk_level?: string;
+  before_state?: Record<string, unknown>;
+  after_state?: Record<string, unknown>;
+  evidence_reference?: string | null;
+  source_ip?: string | null;
+  correlation_id?: string | null;
+  created_at: string;
+}
 type FilterStatus = "ALL" | LifecycleStatus;
 type FilterRisk = "ALL" | RiskTier;
 
@@ -241,7 +264,8 @@ function TestBadge({ result }: { result: TestResult | null }) {
 }
 
 function ApprovalChain({ approvals, riskTier }: { approvals: ApprovalRecord[]; riskTier: RiskTier }) {
-  const required = riskTier === "TIER_4_CRITICAL" ? 3 : riskTier === "TIER_3_HIGH" ? 2 : riskTier === "TIER_2_MEDIUM" ? 1 : 0;
+  const normalizedRiskTier = normalizeRiskTier(riskTier);
+  const required = normalizedRiskTier === "TIER_4_CRITICAL" ? 3 : normalizedRiskTier === "TIER_3_HIGH" ? 3 : normalizedRiskTier === "TIER_2_MEDIUM" ? 2 : 1;
   const completed = approvals.filter((a) => a.decision === "APPROVED").length;
   return (
     <div className="flex items-center gap-1">
@@ -969,6 +993,302 @@ function RuntimeTab({
   );
 }
 
+// ─── Tab: Audit Trail ──────────────────────────────────────────────────────────
+
+const AUDIT_EVENT_META: Record<string, { label: string; color: string }> = {
+  "prompt.created": { label: "Prompt Created", color: "text-emerald-400" },
+  "prompt.updated": { label: "Prompt Updated", color: "text-blue-400" },
+  "prompt.cloned": { label: "Prompt Cloned", color: "text-teal-400" },
+  "prompt.version.created": { label: "Version Created", color: "text-indigo-400" },
+  "prompt.test.passed": { label: "Test Passed", color: "text-emerald-400" },
+  "prompt.test.failed": { label: "Test Failed", color: "text-rose-400" },
+  "prompt.review.submitted": { label: "Submitted for Review", color: "text-amber-400" },
+  "prompt.approval.recorded": { label: "Approved", color: "text-emerald-400" },
+  "prompt.approval.rejected": { label: "Rejected", color: "text-rose-400" },
+  "prompt.production.requested": { label: "Production Requested", color: "text-indigo-400" },
+  "prompt.deployed": { label: "Deployed", color: "text-emerald-400" },
+  "prompt.rollback.completed": { label: "Rolled Back", color: "text-amber-400" },
+  "prompt.paused": { label: "Paused", color: "text-orange-400" },
+  "prompt.resumed": { label: "Resumed", color: "text-emerald-400" },
+  "prompt.restored": { label: "Restored", color: "text-emerald-400" },
+  "prompt.retired": { label: "Retired", color: "text-rose-400" },
+  "prompt.archived": { label: "Archived", color: "text-slate-400" },
+  "prompt.risk.changed": { label: "Risk Change", color: "text-orange-400" },
+  "prompt.ownership.changed": { label: "Ownership Change", color: "text-blue-400" },
+  "prompt.knowledge.binding_changed": { label: "Knowledge Binding Change", color: "text-indigo-400" },
+  "prompt.tool_permission.changed": { label: "Tool Permission Change", color: "text-amber-400" },
+  "prompt.dependency.changed": { label: "Dependency Change", color: "text-teal-400" },
+};
+
+function auditEventLabel(event: string) {
+  return AUDIT_EVENT_META[event]?.label || event;
+}
+function auditEventColor(event: string) {
+  return AUDIT_EVENT_META[event]?.color || "text-slate-300";
+}
+
+const AUDIT_RISK_COLOR: Record<string, string> = {
+  low: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  medium: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  high: "text-orange-400 bg-orange-500/10 border-orange-500/20",
+  critical: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+};
+
+function summarizeState(state?: Record<string, unknown>): string {
+  if (!state || Object.keys(state).length === 0) return "—";
+  return Object.entries(state)
+    .map(([k, v]) => `${k}: ${v === null || v === undefined ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v)}`)
+    .join(" · ");
+}
+
+const AUDIT_PAGE_SIZE = 100;
+
+function AuditTrailTab({ prompts }: { prompts: PromptRecord[] }) {
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [records, setRecords] = useState<AuditRecord[]>([]);
+  const [total, setTotal] = useState(0);
+  const [truncated, setTruncated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [view, setView] = useState<"list" | "timeline">("list");
+  const [filterEvent, setFilterEvent] = useState<string>("ALL");
+  const [filterRisk, setFilterRisk] = useState<string>("ALL");
+
+  // Default to the first prompt once the catalog loads.
+  useEffect(() => {
+    if (!selectedId && prompts.length > 0) setSelectedId(prompts[0].id);
+  }, [prompts, selectedId]);
+
+  // Bounded fetch. `offset === 0` resets the list; a higher offset appends the
+  // next page (list view only). Timeline is server-capped and never appends, so
+  // the DOM size is bounded in BOTH views — no unbounded render at 10k+ rows.
+  const fetchPage = useCallback(async (offset: number) => {
+    if (!selectedId) return;
+    if (offset === 0) setLoading(true); else setLoadingMore(true);
+    try {
+      const params = new URLSearchParams();
+      if (view === "list") {
+        if (filterEvent !== "ALL") params.set("event_type", filterEvent);
+        if (filterRisk !== "ALL") params.set("risk_level", filterRisk);
+        params.set("limit", String(AUDIT_PAGE_SIZE));
+        params.set("offset", String(offset));
+      } else {
+        params.set("limit", "500");
+      }
+      const path = view === "timeline"
+        ? `/api/v1/prompts/${selectedId}/audit/timeline?${params.toString()}`
+        : `/api/v1/prompts/${selectedId}/audit?${params.toString()}`;
+      const res = await api.get(path);
+      const rows: AuditRecord[] = res?.success && Array.isArray(res.data) ? res.data : [];
+      setTotal(res?.pagination?.total ?? rows.length);
+      setTruncated(Boolean(res?.pagination?.truncated));
+      setRecords((prev) => (offset === 0 ? rows : [...prev, ...rows]));
+    } catch {
+      if (offset === 0) { setRecords([]); setTotal(0); setTruncated(false); }
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [selectedId, filterEvent, filterRisk, view]);
+
+  // Reset to page 0 whenever the prompt, filters, or view changes. Deps are all
+  // primitives, so this cannot loop.
+  useEffect(() => {
+    fetchPage(0);
+  }, [fetchPage]);
+
+  const selectedPrompt = prompts.find((p) => p.id === selectedId);
+  const canLoadMore = view === "list" && records.length < total;
+
+  return (
+    <div className="space-y-6">
+      {/* Intro */}
+      <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/15">
+        <div className="flex items-center gap-2 mb-1.5">
+          <ScrollText className="w-4 h-4 text-indigo-400" />
+          <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Append-Only Governance Audit Trail</span>
+        </div>
+        <p className="text-[10px] text-slate-400 leading-relaxed">
+          A dedicated immutable ledger that answers <span className="text-slate-200 font-bold">who did it, when, why, and what changed</span> — independent from the Evidence Vault and system logs. Every prompt lifecycle action writes one append-only record. Records cannot be edited, deleted, or overwritten.
+        </p>
+      </div>
+
+      {/* Controls */}
+      <div className="flex flex-col md:flex-row gap-3">
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="flex-1 bg-black border border-slate-800 rounded-xl py-2.5 px-4 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition-all"
+        >
+          {prompts.length === 0 && <option value="">No prompts available</option>}
+          {prompts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <select
+          value={filterEvent}
+          onChange={(e) => setFilterEvent(e.target.value)}
+          disabled={view === "timeline"}
+          className="bg-black border border-slate-800 rounded-xl py-2.5 px-4 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition-all disabled:opacity-40"
+        >
+          <option value="ALL">All Events</option>
+          {Object.keys(AUDIT_EVENT_META).map((e) => <option key={e} value={e}>{AUDIT_EVENT_META[e].label}</option>)}
+        </select>
+        <select
+          value={filterRisk}
+          onChange={(e) => setFilterRisk(e.target.value)}
+          disabled={view === "timeline"}
+          className="bg-black border border-slate-800 rounded-xl py-2.5 px-4 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition-all disabled:opacity-40"
+        >
+          <option value="ALL">All Risk</option>
+          {["low", "medium", "high", "critical"].map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <div className="flex gap-1 bg-black border border-slate-800 rounded-xl p-1">
+          {(["list", "timeline"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${view === v ? "bg-indigo-500/20 text-indigo-400" : "text-slate-500 hover:text-white"}`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Count + truncation status — prevents silent truncation at scale */}
+      {!loading && records.length > 0 && (
+        <div className="flex items-center justify-between text-[10px] text-slate-500">
+          <span>
+            Showing <span className="text-slate-300 font-bold">{records.length}</span>
+            {total > records.length ? <> of <span className="text-slate-300 font-bold">{total}</span></> : null} records
+          </span>
+          {view === "timeline" && truncated && (
+            <span className="text-amber-400">Timeline capped at latest 500 — use list view to page through all {total}.</span>
+          )}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16 gap-2">
+          <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+          <span className="text-xs text-slate-500">Loading audit ledger…</span>
+        </div>
+      ) : records.length === 0 ? (
+        <div className="p-10 text-center text-sm text-slate-600 bg-black border border-slate-900 rounded-2xl">
+          {selectedPrompt ? "No audit records yet for this prompt. The ledger populates as governance actions are taken." : "Select a prompt to view its audit trail."}
+        </div>
+      ) : view === "timeline" ? (
+        <div className="relative pl-6 space-y-4">
+          <div className="absolute left-[9px] top-2 bottom-2 w-px bg-slate-800" />
+          {records.map((r) => (
+            <div key={r.id} className="relative">
+              <div className={`absolute -left-[18px] top-1 w-3.5 h-3.5 rounded-full border-2 border-black ${auditEventColor(r.event_type).replace("text-", "bg-")}`} />
+              <div className="bg-black border border-slate-900 rounded-xl p-4 space-y-1.5">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <span className={`text-[11px] font-black ${auditEventColor(r.event_type)}`}>{auditEventLabel(r.event_type)}</span>
+                  <span className="text-[10px] text-slate-500">{new Date(r.created_at).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                  <User className="w-3 h-3 text-slate-500" />
+                  <span className="font-bold text-slate-300">{r.actor_name || "system"}</span>
+                  <span className="text-slate-600">·</span>
+                  <span className="text-slate-500">{r.actor_role || "—"}</span>
+                </div>
+                {r.reason && <div className="text-[10px] text-slate-500 italic">&quot;{r.reason}&quot;</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {records.map((r) => (
+            <div key={r.id} className="bg-black border border-slate-900 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileCheck className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span className={`text-[11px] font-black ${auditEventColor(r.event_type)}`}>{auditEventLabel(r.event_type)}</span>
+                  {r.risk_level && (
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${AUDIT_RISK_COLOR[String(r.risk_level).toLowerCase()] || "text-slate-400 bg-slate-900 border-slate-800"}`}>
+                      {r.risk_level}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] text-slate-500 whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</span>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {[
+                  { label: "Actor", value: r.actor_name || "system" },
+                  { label: "Role", value: r.actor_role || "—" },
+                  { label: "Version", value: r.version_id ? String(r.version_id).slice(0, 8) : "—" },
+                  { label: "Audit Ref", value: r.audit_ref || String(r.id).slice(0, 8) },
+                ].map((f) => (
+                  <div key={f.label} className="p-2 bg-slate-950 border border-slate-900 rounded-lg">
+                    <div className="text-[8px] text-slate-600 uppercase tracking-widest">{f.label}</div>
+                    <div className="text-[10px] text-slate-300 font-bold mt-0.5 font-mono truncate">{f.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {r.reason && (
+                <div className="text-[10px] text-slate-400">
+                  <span className="text-slate-600 uppercase tracking-widest font-black text-[8px]">Reason</span>
+                  <div className="italic mt-0.5">&quot;{r.reason}&quot;</div>
+                </div>
+              )}
+
+              {(summarizeState(r.before_state) !== "—" || summarizeState(r.after_state) !== "—") && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="p-2.5 bg-rose-500/5 border border-rose-500/10 rounded-lg">
+                    <div className="text-[8px] text-rose-400/70 uppercase tracking-widest font-black mb-0.5">Before</div>
+                    <div className="text-[10px] text-slate-400 font-mono break-words">{summarizeState(r.before_state)}</div>
+                  </div>
+                  <div className="p-2.5 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
+                    <div className="text-[8px] text-emerald-400/70 uppercase tracking-widest font-black mb-0.5">After</div>
+                    <div className="text-[10px] text-slate-400 font-mono break-words">{summarizeState(r.after_state)}</div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4 flex-wrap pt-1 border-t border-slate-900">
+                {r.evidence_reference && (
+                  <div className="flex items-center gap-1.5 text-[9px] text-indigo-400">
+                    <Fingerprint className="w-3 h-3" />
+                    <span className="font-mono">{r.evidence_reference}</span>
+                  </div>
+                )}
+                {r.source_ip && (
+                  <div className="text-[9px] text-slate-600 font-mono">IP: {r.source_ip}</div>
+                )}
+                {r.correlation_id && (
+                  <div className="text-[9px] text-slate-600 font-mono truncate">corr: {String(r.correlation_id).slice(0, 12)}</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Load more — bounded pagination so the DOM never holds the full ledger */}
+      {canLoadMore && (
+        <div className="flex justify-center">
+          <button
+            onClick={() => fetchPage(records.length)}
+            disabled={loadingMore}
+            className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+          >
+            {loadingMore ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            Load {Math.min(AUDIT_PAGE_SIZE, total - records.length)} more
+          </button>
+        </div>
+      )}
+
+      <p className="text-[10px] text-slate-600 leading-relaxed">
+        The audit ledger is append-only and enforced at the database tier — there is no update or delete endpoint, and direct mutation attempts are rejected. Records are tenant-isolated and never cross workspace boundaries. The list pages in batches of {AUDIT_PAGE_SIZE} and the timeline is server-capped, so the view stays responsive regardless of ledger size.
+      </p>
+    </div>
+  );
+}
+
 // ─── Constraint Shadow Helper ──────────────────────────────────────────────────
 
 function constraintShadowRules(riskTier: RiskTier | string): string[] {
@@ -1362,6 +1682,223 @@ function CreatePromptModal({ onClose, onCreate, creating }: {
   );
 }
 
+// ─── Bindings Manager (Dependency Data Capture — full CRUD) ─────────────────────
+// Authoritative dependency source of truth: prompt_bindings (agent/workflow),
+// prompt_knowledge_bindings, prompt_tool_permissions — all keyed to a prompt
+// VERSION. Replaces the legacy read-only display of prompt.knowledge_sources /
+// prompt.tools_permitted. Create uses the existing POST endpoints; Update/Remove
+// use the PATCH/DELETE binding endpoints.
+
+function BindingsManager({ versionId }: { versionId?: string }) {
+  const [bindings, setBindings] = useState<any[]>([]);
+  const [knowledge, setKnowledge] = useState<any[]>([]);
+  const [tools, setTools] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  // create-form state
+  const [awType, setAwType] = useState<"agent" | "workflow">("agent");
+  const [awId, setAwId] = useState("");
+  const [awEnv, setAwEnv] = useState("production");
+  const [knId, setKnId] = useState("");
+  const [knMode, setKnMode] = useState("optional");
+  const [knCite, setKnCite] = useState(false);
+  const [toolName, setToolName] = useState("");
+  const [toolActions, setToolActions] = useState("");
+  const [toolApproval, setToolApproval] = useState(false);
+
+  // inline-edit state
+  const [editing, setEditing] = useState<{ section: string; id: string } | null>(null);
+  const [editVals, setEditVals] = useState<Record<string, any>>({});
+
+  const load = useCallback(async () => {
+    if (!versionId) return;
+    setLoading(true);
+    try {
+      const [b, k, t] = await Promise.all([
+        api.get(`/api/v1/prompts/versions/${versionId}/bindings`),
+        api.get(`/api/v1/prompts/versions/${versionId}/knowledge`),
+        api.get(`/api/v1/prompts/versions/${versionId}/tools`),
+      ]);
+      setBindings(b?.success && Array.isArray(b.data) ? b.data : []);
+      setKnowledge(k?.success && Array.isArray(k.data) ? k.data : []);
+      setTools(t?.success && Array.isArray(t.data) ? t.data : []);
+    } catch {
+      /* non-critical */
+    } finally {
+      setLoading(false);
+    }
+  }, [versionId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const run = useCallback(async (fn: () => Promise<any>) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fn();
+      if (res && res.success === false) {
+        setErr(res.error || "Action failed");
+      } else {
+        setEditing(null);
+        await load();
+      }
+    } catch (e: any) {
+      setErr(e?.message || "Action failed");
+    } finally {
+      setBusy(false);
+    }
+  }, [load]);
+
+  if (!versionId) {
+    return (
+      <div className="p-4 bg-black border border-slate-900 rounded-2xl text-[11px] text-slate-500">
+        This prompt has no version yet. Create a version before adding agent, workflow, knowledge, or tool dependencies — bindings attach to a specific prompt version.
+      </div>
+    );
+  }
+
+  const fieldCls = "bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-[11px] text-white focus:outline-none focus:border-indigo-500";
+
+  return (
+    <div className="space-y-6">
+      <div className="p-3 rounded-2xl bg-indigo-500/5 border border-indigo-500/15 text-[10px] text-slate-400 leading-relaxed">
+        Dependencies are the <span className="text-slate-200 font-bold">authoritative source of truth</span> for this prompt version, stored in the governed binding tables. Every change is audit-logged.
+      </div>
+      {err && (
+        <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-[10px] text-rose-400">
+          <ShieldAlert className="w-3.5 h-3.5 shrink-0" />{err}
+        </div>
+      )}
+      {loading ? (
+        <div className="flex items-center justify-center py-10 gap-2">
+          <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+          <span className="text-xs text-slate-500">Loading dependencies…</span>
+        </div>
+      ) : (
+        <>
+          {/* ── Agent / Workflow bindings ── */}
+          <div className="space-y-2">
+            <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Agent &amp; Workflow Bindings</div>
+            {bindings.length === 0 && <p className="text-[11px] text-slate-600 italic">No agent or workflow bindings.</p>}
+            {bindings.map((b) => (
+              <div key={b.id} className="p-3 bg-black border border-slate-900 rounded-xl">
+                {editing?.section === "binding" && editing.id === b.id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input className={fieldCls} value={editVals.target ?? ""} onChange={(e) => setEditVals((v) => ({ ...v, target: e.target.value }))} placeholder="UUID" />
+                    <select className={fieldCls} value={editVals.environment ?? "production"} onChange={(e) => setEditVals((v) => ({ ...v, environment: e.target.value }))}>
+                      {["staging", "production", "pilot"].map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    <button disabled={busy} onClick={() => run(() => api.patch(`/api/v1/prompts/bindings/${b.id}`, b.agent_id ? { agent_id: editVals.target, environment: editVals.environment } : { workflow_id: editVals.target, environment: editVals.environment }))} className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg">Save</button>
+                    <button onClick={() => setEditing(null)} className="px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg">Cancel</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                      {b.agent_id ? <><Cpu className="w-3 h-3" />Agent</> : <><GitBranch className="w-3 h-3" />Workflow</>}
+                    </span>
+                    <span className="text-[11px] text-slate-300 font-mono truncate flex-1 min-w-0">{b.agent_id || b.workflow_id || "—"}</span>
+                    <span className="text-[9px] text-slate-500 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded uppercase">{b.environment}</span>
+                    <button onClick={() => { setEditing({ section: "binding", id: b.id }); setEditVals({ target: b.agent_id || b.workflow_id || "", environment: b.environment || "production" }); }} className="text-[10px] text-slate-400 hover:text-white px-2 py-1">Edit</button>
+                    <button onClick={() => { if (window.confirm("Remove this binding?")) run(() => api.delete(`/api/v1/prompts/bindings/${b.id}`)); }} className="text-slate-500 hover:text-rose-400 p-1"><XCircle className="w-3.5 h-3.5" /></button>
+                  </div>
+                )}
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-xl">
+              <select className={fieldCls} value={awType} onChange={(e) => setAwType(e.target.value as "agent" | "workflow")}>
+                <option value="agent">Agent</option>
+                <option value="workflow">Workflow</option>
+              </select>
+              <input className={`${fieldCls} flex-1 min-w-[160px]`} value={awId} onChange={(e) => setAwId(e.target.value)} placeholder={`${awType} UUID`} />
+              <select className={fieldCls} value={awEnv} onChange={(e) => setAwEnv(e.target.value)}>
+                {["staging", "production", "pilot"].map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+              <button disabled={busy || !awId.trim()} onClick={() => run(async () => { const r = await api.post(`/api/v1/prompts/versions/${versionId}/bindings`, awType === "agent" ? { agent_id: awId.trim(), environment: awEnv } : { workflow_id: awId.trim(), environment: awEnv }); setAwId(""); return r; })} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg disabled:opacity-50"><Plus className="w-3 h-3" />Add</button>
+            </div>
+          </div>
+
+          {/* ── Knowledge bindings ── */}
+          <div className="space-y-2">
+            <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Knowledge Bindings</div>
+            {knowledge.length === 0 && <p className="text-[11px] text-slate-600 italic">No knowledge bindings.</p>}
+            {knowledge.map((k) => (
+              <div key={k.id} className="p-3 bg-black border border-slate-900 rounded-xl">
+                {editing?.section === "knowledge" && editing.id === k.id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input className={`${fieldCls} flex-1 min-w-[140px]`} value={editVals.kb_id ?? ""} onChange={(e) => setEditVals((v) => ({ ...v, kb_id: e.target.value }))} placeholder="KB UUID" />
+                    <select className={fieldCls} value={editVals.retrieval_mode ?? "optional"} onChange={(e) => setEditVals((v) => ({ ...v, retrieval_mode: e.target.value }))}>
+                      {["optional", "mandatory", "blocked", "fallback"].map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    <label className="flex items-center gap-1 text-[10px] text-slate-400"><input type="checkbox" checked={!!editVals.citation_required} onChange={(e) => setEditVals((v) => ({ ...v, citation_required: e.target.checked }))} />cite</label>
+                    <button disabled={busy} onClick={() => run(() => api.patch(`/api/v1/prompts/knowledge-bindings/${k.id}`, { kb_id: editVals.kb_id, retrieval_mode: editVals.retrieval_mode, citation_required: editVals.citation_required }))} className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg">Save</button>
+                    <button onClick={() => setEditing(null)} className="px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg">Cancel</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <BookOpen className="w-3 h-3 text-indigo-400 shrink-0" />
+                    <span className="text-[11px] text-slate-300 font-mono truncate flex-1 min-w-0">{k.kb_id || k.collection_id || "—"}</span>
+                    <span className="text-[9px] text-slate-500 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded uppercase">{k.retrieval_mode}</span>
+                    {k.citation_required && <span className="text-[9px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded uppercase">cite</span>}
+                    <button onClick={() => { setEditing({ section: "knowledge", id: k.id }); setEditVals({ kb_id: k.kb_id || "", retrieval_mode: k.retrieval_mode || "optional", citation_required: !!k.citation_required }); }} className="text-[10px] text-slate-400 hover:text-white px-2 py-1">Edit</button>
+                    <button onClick={() => { if (window.confirm("Remove this knowledge binding?")) run(() => api.delete(`/api/v1/prompts/knowledge-bindings/${k.id}`)); }} className="text-slate-500 hover:text-rose-400 p-1"><XCircle className="w-3.5 h-3.5" /></button>
+                  </div>
+                )}
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-xl">
+              <input className={`${fieldCls} flex-1 min-w-[160px]`} value={knId} onChange={(e) => setKnId(e.target.value)} placeholder="Knowledge base UUID" />
+              <select className={fieldCls} value={knMode} onChange={(e) => setKnMode(e.target.value)}>
+                {["optional", "mandatory", "blocked", "fallback"].map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+              <label className="flex items-center gap-1 text-[10px] text-slate-400"><input type="checkbox" checked={knCite} onChange={(e) => setKnCite(e.target.checked)} />cite</label>
+              <button disabled={busy || !knId.trim()} onClick={() => run(async () => { const r = await api.post(`/api/v1/prompts/versions/${versionId}/knowledge`, { kb_id: knId.trim(), retrieval_mode: knMode, citation_required: knCite }); setKnId(""); return r; })} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg disabled:opacity-50"><Plus className="w-3 h-3" />Add</button>
+            </div>
+          </div>
+
+          {/* ── Tool permissions ── */}
+          <div className="space-y-2">
+            <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Tool Permissions</div>
+            {tools.length === 0 && <p className="text-[11px] text-slate-600 italic">No tool permissions.</p>}
+            {tools.map((t) => (
+              <div key={t.id} className="p-3 bg-black border border-slate-900 rounded-xl">
+                {editing?.section === "tool" && editing.id === t.id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input className={fieldCls} value={editVals.tool_name ?? ""} onChange={(e) => setEditVals((v) => ({ ...v, tool_name: e.target.value }))} placeholder="tool name" />
+                    <input className={`${fieldCls} flex-1 min-w-[120px]`} value={editVals.allowed_actions ?? ""} onChange={(e) => setEditVals((v) => ({ ...v, allowed_actions: e.target.value }))} placeholder="read, draft, publish" />
+                    <label className="flex items-center gap-1 text-[10px] text-slate-400"><input type="checkbox" checked={!!editVals.approval_required} onChange={(e) => setEditVals((v) => ({ ...v, approval_required: e.target.checked }))} />approval</label>
+                    <button disabled={busy} onClick={() => run(() => api.patch(`/api/v1/prompts/tool-permissions/${t.id}`, { tool_name: editVals.tool_name, allowed_actions: String(editVals.allowed_actions || "").split(",").map((s: string) => s.trim()).filter(Boolean), approval_required: editVals.approval_required }))} className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg">Save</button>
+                    <button onClick={() => setEditing(null)} className="px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg">Cancel</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Wrench className="w-3 h-3 text-amber-400 shrink-0" />
+                    <span className="text-[11px] text-slate-300 font-bold">{t.tool_name}</span>
+                    {Array.isArray(t.allowed_actions) && t.allowed_actions.length > 0 && (
+                      <span className="text-[9px] text-slate-500 font-mono truncate">{t.allowed_actions.join(", ")}</span>
+                    )}
+                    {t.approval_required && <span className="text-[9px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded uppercase">approval</span>}
+                    <span className="flex-1" />
+                    <button onClick={() => { setEditing({ section: "tool", id: t.id }); setEditVals({ tool_name: t.tool_name || "", allowed_actions: (t.allowed_actions || []).join(", "), approval_required: !!t.approval_required }); }} className="text-[10px] text-slate-400 hover:text-white px-2 py-1">Edit</button>
+                    <button onClick={() => { if (window.confirm("Remove this tool permission?")) run(() => api.delete(`/api/v1/prompts/tool-permissions/${t.id}`)); }} className="text-slate-500 hover:text-rose-400 p-1"><XCircle className="w-3.5 h-3.5" /></button>
+                  </div>
+                )}
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-xl">
+              <input className={fieldCls} value={toolName} onChange={(e) => setToolName(e.target.value)} placeholder="tool name" />
+              <input className={`${fieldCls} flex-1 min-w-[120px]`} value={toolActions} onChange={(e) => setToolActions(e.target.value)} placeholder="read, draft, publish" />
+              <label className="flex items-center gap-1 text-[10px] text-slate-400"><input type="checkbox" checked={toolApproval} onChange={(e) => setToolApproval(e.target.checked)} />approval</label>
+              <button disabled={busy || !toolName.trim()} onClick={() => run(async () => { const r = await api.post(`/api/v1/prompts/versions/${versionId}/tools`, { tool_name: toolName.trim(), allowed_actions: toolActions.split(",").map((s) => s.trim()).filter(Boolean), approval_required: toolApproval }); setToolName(""); setToolActions(""); return r; })} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg disabled:opacity-50"><Plus className="w-3 h-3" />Add</button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Prompt Detail Drawer ──────────────────────────────────────────────────────
 
 function PromptDetailDrawer({
@@ -1377,13 +1914,16 @@ function PromptDetailDrawer({
   onVersionAction: (versionId: string, action: string, extra?: any) => void;
   onExportEvidence: (prompt: PromptRecord, context: string) => void;
 }) {
-  const [drawerTab, setDrawerTab] = useState<"overview" | "body" | "bindings" | "variables" | "history">("overview");
+  const [drawerTab, setDrawerTab] = useState<"overview" | "body" | "bindings" | "variables" | "history" | "evidence">("overview");
   const [promptBody, setPromptBody] = useState<string | null>(null);
   const [loadingBody, setLoadingBody] = useState(false);
   const [bodyFetched, setBodyFetched] = useState(false);
   const [versions, setVersions] = useState<any[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [versionsFetched, setVersionsFetched] = useState(false);
+  const [evidence, setEvidence] = useState<any[]>([]);
+  const [loadingEvidence, setLoadingEvidence] = useState(false);
+  const [evidenceFetched, setEvidenceFetched] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
   // ── FIX: reset cached drawer state when the user opens a different prompt.
@@ -1395,6 +1935,8 @@ function PromptDetailDrawer({
     setBodyFetched(false);
     setVersions([]);
     setVersionsFetched(false);
+    setEvidence([]);
+    setEvidenceFetched(false);
   }, [prompt.id]);
 
   // ── FIX: use a `*Fetched` boolean flag as the guard instead of comparing
@@ -1436,6 +1978,23 @@ function PromptDetailDrawer({
     }
   }, [drawerTab, prompt.id, versionsFetched, loadingVersions]);
 
+  useEffect(() => {
+    if (drawerTab === "evidence" && !evidenceFetched && !loadingEvidence) {
+      setLoadingEvidence(true);
+      api.get(`/api/v1/prompts/${prompt.id}/evidence`)
+        .then((res) => {
+          if (res?.success && Array.isArray(res.data)) {
+            setEvidence(res.data);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          setEvidenceFetched(true);
+          setLoadingEvidence(false);
+        });
+    }
+  }, [drawerTab, prompt.id, evidenceFetched, loadingEvidence]);
+
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -1456,7 +2015,7 @@ function PromptDetailDrawer({
             </button>
           </div>
           <div className="flex gap-1">
-            {(["overview", "body", "bindings", "variables", "history"] as const).map((t) => (
+            {(["overview", "body", "bindings", "variables", "history", "evidence"] as const).map((t) => (
               <button key={t} onClick={() => setDrawerTab(t)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${drawerTab === t ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "text-slate-500 hover:text-white"}`}>
                 {t}
               </button>
@@ -1519,34 +2078,7 @@ function PromptDetailDrawer({
           )}
 
           {drawerTab === "bindings" && (
-            <div className="space-y-4">
-              <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Knowledge Sources</div>
-                {prompt.knowledge_sources.length > 0 ? (
-                  <div className="space-y-1">
-                    {prompt.knowledge_sources.map((ks) => (
-                      <div key={ks} className="flex items-center gap-2 p-3 bg-black border border-slate-900 rounded-xl text-[11px] text-slate-300">
-                        <BookOpen className="w-3 h-3 text-indigo-400" />
-                        {ks}
-                      </div>
-                    ))}
-                  </div>
-                ) : <p className="text-[11px] text-slate-600 italic">No knowledge sources bound.</p>}
-              </div>
-              <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Permitted Tools</div>
-                {prompt.tools_permitted.length > 0 ? (
-                  <div className="space-y-1">
-                    {prompt.tools_permitted.map((t) => (
-                      <div key={t} className="flex items-center gap-2 p-3 bg-black border border-slate-900 rounded-xl text-[11px] text-slate-300">
-                        <Wrench className="w-3 h-3 text-amber-400" />
-                        {t}
-                      </div>
-                    ))}
-                  </div>
-                ) : <p className="text-[11px] text-slate-600 italic">No tools permitted.</p>}
-              </div>
-            </div>
+            <BindingsManager versionId={prompt.active_version_id} />
           )}
 
           {drawerTab === "variables" && (
@@ -1609,8 +2141,7 @@ function PromptDetailDrawer({
                   <span className="text-indigo-400">{"// Agent: "}</span>{prompt.linked_agent}<br />
                   <span className="text-indigo-400">{"// Workflow: "}</span>{prompt.linked_workflow}<br />
                   <span className="text-indigo-400">{"// Risk Tier: "}</span>{RISK_META[normalizeRiskTier(prompt.risk_tier)].label}<br />
-                  <span className="text-indigo-400">{"// Knowledge: "}</span>{prompt.knowledge_sources.join(", ") || "None"}<br />
-                  <span className="text-indigo-400">{"// Tools: "}</span>{prompt.tools_permitted.join(", ") || "None"}<br /><br />
+                  <span className="text-indigo-400">{"// Dependencies: "}</span>see the Bindings tab (authoritative agent / workflow / knowledge / tool bindings)<br /><br />
                   <span className="text-slate-500">Prompt body was not returned by the registry API. Export via Evidence Vault to retrieve the full body with hash verification.</span>
                 </div>
               )}
@@ -1657,6 +2188,60 @@ function PromptDetailDrawer({
               )}
             </div>
           )}
+
+          {drawerTab === "evidence" && (
+            <div className="space-y-3">
+              <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/15">
+                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5">Immutable Evidence Chain</div>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  Every governance event for this prompt — creation, modification, approval, deployment, rollback, retirement, and testing — is preserved as a content-hashed, append-only record in the Evidence Vault. Records cannot be edited or deleted.
+                </p>
+              </div>
+              {loadingEvidence ? (
+                <div className="flex items-center justify-center py-10 gap-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+                  <span className="text-xs text-slate-500">Loading evidence chain…</span>
+                </div>
+              ) : evidence.length > 0 ? (
+                evidence.map((e: any) => (
+                  <div key={e.id} className="p-4 bg-black border border-slate-900 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileCheck className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        <span className="text-[11px] font-black text-white truncate">{e.event_type}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {e.vault?.legal_hold && (
+                          <span className="text-[8px] font-black text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded uppercase tracking-widest">Legal Hold</span>
+                        )}
+                        <span className="text-[8px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded uppercase tracking-widest">{e.vault?.vault_state || "preserved"}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label: "Evidence ID", value: e.vault_item_id || "—" },
+                        { label: "Receipt Hash", value: e.evidence_hash ? `SHA-256:${String(e.evidence_hash).slice(0, 16)}…` : "—" },
+                        { label: "Risk Level", value: e.risk_level || "—" },
+                        { label: "Retention", value: e.vault?.retention_class || "—" },
+                        { label: "Actor", value: e.actor_id ? String(e.actor_id).slice(0, 8) : "system" },
+                        { label: "Captured", value: e.created_at ? new Date(e.created_at).toLocaleString() : "—" },
+                        { label: "Version", value: e.prompt_version_id ? String(e.prompt_version_id).slice(0, 8) : "—" },
+                      ].map((f) => (
+                        <div key={f.label} className="p-2 bg-slate-950 border border-slate-900 rounded-lg">
+                          <div className="text-[8px] text-slate-600 uppercase tracking-widest">{f.label}</div>
+                          <div className="text-[10px] text-slate-300 font-bold mt-0.5 font-mono truncate">{f.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 bg-black border border-slate-900 rounded-xl text-[10px] text-slate-500">
+                  No evidence records yet. The vault chain populates as governance actions (create, approve, deploy, rollback, retire) are taken on this prompt.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Deployment controls */}
@@ -1670,7 +2255,13 @@ function PromptDetailDrawer({
               <button onClick={() => onLifecycleAction(prompt.id, 'submit_review')} className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all">Submit for Review</button>
             )}
             {prompt.status === "APPROVED_STAGING" && (
-              <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'deploy_production')} className="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Request Production Approval</button>
+              <>
+                <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'deploy_staging')} className="px-4 py-2 bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-teal-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Deploy Staging</button>
+                <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'deploy_production')} className="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Request Production Approval</button>
+              </>
+            )}
+            {prompt.status === "PRODUCTION_PENDING" && (
+              <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'deploy_production')} className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Deploy Production</button>
             )}
             {prompt.status === "PRODUCTION_ACTIVE" && (
               <>
@@ -1716,8 +2307,8 @@ function mapBackendPrompt(b: any): PromptRecord {
     owner: b.owner_name || b.created_by || 'Unknown',
     linked_agent: b.linked_agent || b.agent_id || '—',
     linked_workflow: b.linked_workflow || b.workflow_id || '—',
-    risk_tier: b.risk_tier || 'TIER_2_MEDIUM',
-    status: b.status || 'DRAFT',
+    risk_tier: normalizeRiskTier(b.risk_tier),
+    status: normalizeStatus(b.status),
     active_version: b.active_version || b.current_version || 'v0.0',
     active_version_id: b.active_version_id || b.current_version_id || undefined,
     last_test: b.last_test || null,
@@ -1913,6 +2504,7 @@ export default function PromptsPage() {
     { id: "testing", label: "Testing", icon: FlaskConical },
     { id: "approvals", label: "Approvals", icon: FileCheck },
     { id: "evidence", label: "Evidence", icon: History },
+    { id: "audit", label: "Audit Trail", icon: ScrollText },
     { id: "runtime", label: "Runtime", icon: Network },
     { id: "auditor", label: "Auditor", icon: ShieldCheck },
   ];
@@ -2036,6 +2628,7 @@ export default function PromptsPage() {
             onExportPromptEvidence={handleExportPromptEvidence}
           />
         )}
+        {activeTab === "audit" && <AuditTrailTab prompts={prompts} />}
         {activeTab === "runtime" && (
           <RuntimeTab
             prompts={prompts}

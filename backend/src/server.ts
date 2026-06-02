@@ -1072,6 +1072,8 @@ app.post('/api/v1/knowledge/access-policy', authenticate, KnowledgeController.up
 // Static routes (must come before parameterized :id routes)
 app.get('/api/v1/prompts/stats', authenticate, PromptController.getPromptStats);
 app.get('/api/v1/prompts/approvals/stats', authenticate, PromptController.getApprovalStats);
+// Append-only audit trail — single record lookup (static, before :id routes)
+app.get('/api/v1/prompts/audit/:auditId', authenticate, PromptController.getAuditEntry);
 
 // Versions sub-routes (no :id prefix)
 app.post('/api/v1/prompts/versions/:versionId/approve', authenticate, PromptController.approveVersion);
@@ -1087,11 +1089,20 @@ app.get('/api/v1/prompts/versions/:versionId/knowledge', authenticate, PromptCon
 app.post('/api/v1/prompts/versions/:versionId/knowledge', authenticate, PromptController.createKnowledgeBinding);
 app.get('/api/v1/prompts/versions/:versionId/tools', authenticate, PromptController.listToolPermissions);
 app.post('/api/v1/prompts/versions/:versionId/tools', authenticate, PromptController.createToolPermission);
+app.get('/api/v1/prompts/versions/:versionId/graph', authenticate, PromptController.getPromptVersionGraph);
+// Dependency binding edits (update / delete) — addressed by binding id, tenant-scoped
+app.patch('/api/v1/prompts/bindings/:bindingId', authenticate, PromptController.updateBinding);
+app.delete('/api/v1/prompts/bindings/:bindingId', authenticate, PromptController.deleteBinding);
+app.patch('/api/v1/prompts/knowledge-bindings/:bindingId', authenticate, PromptController.updateKnowledgeBinding);
+app.delete('/api/v1/prompts/knowledge-bindings/:bindingId', authenticate, PromptController.deleteKnowledgeBinding);
+app.patch('/api/v1/prompts/tool-permissions/:permissionId', authenticate, PromptController.updateToolPermission);
+app.delete('/api/v1/prompts/tool-permissions/:permissionId', authenticate, PromptController.deleteToolPermission);
 
 // Prompt CRUD (parameterized :id routes)
 app.get('/api/v1/prompts', authenticate, PromptController.listPrompts);
 app.post('/api/v1/prompts', authenticate, PromptController.createPrompt);
 app.get('/api/v1/prompts/:id', authenticate, PromptController.getPrompt);
+app.get('/api/v1/prompts/:id/graph', authenticate, PromptController.getPromptGraph);
 app.patch('/api/v1/prompts/:id', authenticate, PromptController.updatePrompt);
 app.post('/api/v1/prompts/:id/clone', authenticate, PromptController.clonePrompt);
 
@@ -1102,6 +1113,13 @@ app.post('/api/v1/prompts/:id/archive', authenticate, PromptController.archivePr
 app.post('/api/v1/prompts/:id/retire', authenticate, PromptController.retirePrompt);
 app.post('/api/v1/prompts/:id/submit-review', authenticate, PromptController.submitForReview);
 app.post('/api/v1/prompts/:id/rollback', authenticate, PromptController.rollbackPrompt);
+
+// Evidence Vault — immutable evidence chain for a prompt
+app.get('/api/v1/prompts/:id/evidence', authenticate, PromptController.listPromptEvidence);
+
+// Append-only Audit Trail — governance ledger for a prompt (read-only)
+app.get('/api/v1/prompts/:id/audit', authenticate, PromptController.listPromptAudit);
+app.get('/api/v1/prompts/:id/audit/timeline', authenticate, PromptController.getPromptAuditTimeline);
 
 // Versions (under :id)
 app.get('/api/v1/prompts/:id/versions', authenticate, PromptController.listVersions);

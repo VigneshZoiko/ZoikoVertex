@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../../shared/supabase';
+import { PROMPT_STATUS } from './PromptService';
 
 export class PromptApprovalService {
   static async listByVersion(versionId: string) {
@@ -37,17 +38,21 @@ export class PromptApprovalService {
     return data;
   }
 
-  static async getApprovalStats() {
-    const { count: pendingGovernance, error: pgErr } = await supabaseAdmin
+  static async getApprovalStats(workspaceId?: string) {
+    let pendingGovernanceQuery = supabaseAdmin
       .from('prompts')
       .select('id', { count: 'exact', head: true })
-      .eq('status', 'REVIEW_REQUESTED');
+      .eq('status', PROMPT_STATUS.REVIEW_REQUESTED);
+    if (workspaceId) pendingGovernanceQuery = pendingGovernanceQuery.eq('workspace_id', workspaceId);
+    const { count: pendingGovernance, error: pgErr } = await pendingGovernanceQuery;
     if (pgErr) throw pgErr;
 
-    const { count: productionPending, error: ppErr } = await supabaseAdmin
+    let productionPendingQuery = supabaseAdmin
       .from('prompts')
       .select('id', { count: 'exact', head: true })
-      .eq('status', 'PRODUCTION_PENDING');
+      .eq('status', PROMPT_STATUS.PRODUCTION_PENDING);
+    if (workspaceId) productionPendingQuery = productionPendingQuery.eq('workspace_id', workspaceId);
+    const { count: productionPending, error: ppErr } = await productionPendingQuery;
     if (ppErr) throw ppErr;
 
     const totalPending = (pendingGovernance || 0) + (productionPending || 0);
