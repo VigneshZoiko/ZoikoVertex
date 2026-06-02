@@ -399,3 +399,24 @@ export const retryQaCallback = async (req: AuthRequest, res: Response, next: Nex
     next(error);
   }
 };
+
+export const exportQaFindings = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
+    const { item_ids } = req.body;
+    const items = item_ids?.length
+      ? await Promise.all((item_ids as string[]).map((id: string) => qaService.getAuditItem(id).catch(() => null)))
+      : await qaService.listAuditItems({ tenant_id, limit: 1000, page: 1 });
+    res.json({ success: true, data: { exported_at: new Date().toISOString(), count: Array.isArray(items) ? items.filter(Boolean).length : 0 } });
+  } catch (error) { next(error); }
+};
+
+export const exportQaEvidence = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { item_ids } = req.body;
+    const evidenceResults = item_ids?.length
+      ? await Promise.all((item_ids as string[]).map((id: string) => qaService.getEvidence(id).catch(() => [])))
+      : [];
+    res.json({ success: true, data: { exported_at: new Date().toISOString(), evidence_count: evidenceResults.reduce((a: number, b: any[]) => a + b.length, 0) } });
+  } catch (error) { next(error); }
+};

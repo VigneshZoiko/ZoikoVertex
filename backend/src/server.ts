@@ -209,7 +209,7 @@ import { listAccounts } from './domains/channels/accountsController';
 import { getPlatformReach } from './domains/channels/platformInsightsController';
 import { listMembers, listRequests, createRequest, updateRequest, deleteMember } from './domains/identity/teamController';
 import { listUnits, createUnit, deleteUnit } from './domains/identity/unitsController';
-import { performQualityCheck, listAuditItems, getAuditItem, getQaAuditStats, getAuditEligibility, getQaAuditTrail, startAudit, passAudit, failAudit, needsCorrection, escalateAudit, closeAudit, assignAuditorToItem, saveScorecard, overrideScorecard, addDefect, resolveDefect, addCorrectiveAction, updateCorrectiveAction, addQaNote, addQaEvidence, generateSample, retryQaCallback } from './domains/governance/qaController';
+import { performQualityCheck, listAuditItems, getAuditItem, getQaAuditStats, getAuditEligibility, getQaAuditTrail, startAudit, passAudit, failAudit, needsCorrection, escalateAudit, closeAudit, assignAuditorToItem, saveScorecard, overrideScorecard, addDefect, resolveDefect, addCorrectiveAction, updateCorrectiveAction,   addQaNote, addQaEvidence, generateSample, retryQaCallback, exportQaFindings, exportQaEvidence } from './domains/governance/qaController';
 import {
   createException, listExceptions, getException, updateException,
   getExceptionStats, assignOwner, updateSeverity, updateStatus,
@@ -219,7 +219,7 @@ import {
   resolveException as resolveExceptionV2,
   sendToValidation, sendToApprovals as sendExceptionToApprovals, sendToQualityAudit,
   getAuditTrail as getExceptionAuditTrail,
-  exportExceptionRecord, closeExceptionCase, archiveExceptionCase,
+  exportExceptionRecord, closeExceptionCase, archiveExceptionCase, bulkExceptionAction,
 } from './domains/governance/exceptionV2Controller';
 import { listItems as listReviewItems, getItem as getReviewItem, takeAction as takeReviewAction, getStats as getReviewStats, getEligibility as getReviewEligibility, getAuditLog as getReviewAuditLog, createItem as createReviewItem } from './domains/governance/reviewQueueController';
 import { createValidationItem, listValidationItems, getValidationItem, assignValidator, runValidation, revalidateItem, getValidationRunResults, requestRevision, sendToReviewQueue, sendToApprovals, escalateValidation, applyOverride, blockItem, completeManualCheck, addValidatorNote, getValidationAuditTrail, getValidationStats, getValidationEligibility, retryValidationCallback, exportValidationRecord } from './domains/governance/validationController';
@@ -291,7 +291,7 @@ import {
   getApprovalStats as getV2ApprovalStats, getApprovalEligibility,
   getApprovalPath, getApprovalDecisions, getApprovalComments, addApprovalComment,
   getApprovalEvidence, addApprovalEvidence, getApprovalAuditTrail,
-  exportApprovalRecord, retryCallback,
+  exportApprovalRecord, retryCallback, bulkApprovalAction,
 } from './domains/decisions/approvalV2Controller';
 import { authenticate, provisionGuard, scopeGuard } from './shared/authMiddleware';
 import { integrationPlanGate, blockApiKeyUsers, planRateLimit } from './shared/planLimits';
@@ -418,6 +418,7 @@ app.post('/api/v1/exceptions/cases/:id/send-to-approvals', authenticate, scopeGu
 app.post('/api/v1/exceptions/cases/:id/send-to-quality-audit', authenticate, scopeGuard('write:governance', '*'), sendToQualityAudit);
 app.get('/api/v1/exceptions/cases/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getExceptionAuditTrail);
 app.post('/api/v1/exceptions/cases/:id/export', authenticate, scopeGuard('read:governance', '*'), exportExceptionRecord);
+app.post('/api/v1/exceptions/bulk', authenticate, scopeGuard('write:governance', '*'), bulkExceptionAction);
 
 // ─── Cross-Module Automated Routing ──────────────────────────────────────────
 app.get('/api/v1/routing/chains', authenticate, scopeGuard('read:governance', '*'), listWorkflowChains);
@@ -1049,6 +1050,7 @@ app.post('/api/v1/approvals-v2/items/:id/evidence', authenticate, scopeGuard('wr
 app.get('/api/v1/approvals-v2/items/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getApprovalAuditTrail);
 app.post('/api/v1/approvals-v2/items/:id/export', authenticate, scopeGuard('read:governance', '*'), exportApprovalRecord);
 app.post('/api/v1/approvals-v2/callbacks/:callbackId/retry', authenticate, scopeGuard('write:governance', '*'), retryCallback);
+app.post('/api/v1/approvals-v2/bulk/:action', authenticate, scopeGuard('write:publish', '*'), bulkApprovalAction);
 
 app.get('/api/v1/knowledge/conflicts/:id', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getConflict);
 app.post('/api/v1/knowledge/conflicts', authenticate, scopeGuard('write:content', '*'), KnowledgeController.createConflict);
@@ -1171,6 +1173,8 @@ app.post('/api/v1/quality-audit/items/:id/evidence', authenticate, scopeGuard('w
 app.get('/api/v1/quality-audit/items/:id/eligibility', authenticate, scopeGuard('read:governance', '*'), getAuditEligibility);
 app.get('/api/v1/quality-audit/items/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getQaAuditTrail);
 app.post('/api/v1/quality-audit/callbacks/:callbackId/retry', authenticate, scopeGuard('write:governance', '*'), retryQaCallback);
+app.post('/api/v1/quality-audit/export/findings', authenticate, scopeGuard('read:governance', '*'), exportQaFindings);
+app.post('/api/v1/quality-audit/export/evidence', authenticate, scopeGuard('read:governance', '*'), exportQaEvidence);
 
 // ─── Validation Desk Routes (Accountability Layer) ───────────────────
 app.post('/api/v1/validation/items', authenticate, scopeGuard('write:governance', '*'), createValidationItem);

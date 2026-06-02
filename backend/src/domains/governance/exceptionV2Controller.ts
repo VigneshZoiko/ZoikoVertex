@@ -350,3 +350,42 @@ export const archiveExceptionCase = async (req: AuthRequest, res: Response, next
     res.json({ success: true, data: ec });
   } catch (error) { next(error); }
 };
+
+export const bulkExceptionAction = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { action, ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids array is required' });
+    }
+    const tenantId = getTenantId(req);
+    const userId = getUserId(req);
+    const results = [];
+
+    for (const id of ids) {
+      try {
+        let result;
+        switch (action) {
+          case 'resolve':
+            result = await exceptionService.resolveCase(id, tenantId, userId, { outcome: 'Resolved' });
+            break;
+          case 'close':
+            result = await exceptionService.updateStatus(id, tenantId, userId, 'CLOSED');
+            break;
+          case 'archive':
+            result = await exceptionService.updateStatus(id, tenantId, userId, 'ARCHIVED');
+            break;
+          case 'escalate':
+            result = await exceptionService.escalateCase(id, tenantId, userId, { reason: 'Bulk escalate' });
+            break;
+          default:
+            results.push({ id, success: false, error: `Unknown action: ${action}` });
+            continue;
+        }
+        results.push({ id, success: true, data: result });
+      } catch (e: any) {
+        results.push({ id, success: false, error: e.message });
+      }
+    }
+    res.json({ success: true, data: results });
+  } catch (error) { next(error); }
+};
