@@ -101,24 +101,62 @@ export function useAgentOperations() {
     openRun(selectedRunId);
   }, [selectedRunId, refreshToken, openRun]);
 
+  // Polling fallback. This is a steady backstop refresh; it must NOT mark the
+  // stream as degraded (the SSE effect owns the degraded flag based on real
+  // connection state). A 30s cadence matches the active operations page.
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setDegradedRealtime(true);
       refresh();
-    }, 15000);
+    }, 30000);
     return () => window.clearInterval(interval);
   }, [refresh]);
 
+  // Realtime SSE with reconnection + exponential backoff and typed-event
+  // processing. EventSource cannot send the Authorization header, so we stream
+  // via fetch + ReadableStream.
   useEffect(() => {
     const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
     const controller = new AbortController();
+    let stopped = false;
+    let attempt = 0;
+    let retryTimer: number | undefined;
+
+    const scheduleReconnect = () => {
+      if (stopped || controller.signal.aborted) return;
+      // Exponential backoff: 1s, 2s, 4s … capped at 30s, so a transient drop
+      // re-establishes the stream rather than relying on the polling timer.
+      const delay = Math.min(30000, 1000 * 2 ** attempt);
+      attempt += 1;
+      retryTimer = window.setTimeout(connect, delay);
+    };
+
+    // Parse SSE frames and refresh on a typed operations event. The server
+    // sends `event: operations` / `event: heartbeat` / `event: connected`.
+    let buffer = "";
+    const handleChunk = (chunk: string) => {
+      buffer += chunk;
+      const frames = buffer.split("\n\n");
+      buffer = frames.pop() ?? "";
+      for (const frame of frames) {
+        const eventLine = frame.split("\n").find((l) => l.startsWith("event:"));
+        const eventName = eventLine?.slice("event:".length).trim();
+        if (eventName === "operations") {
+          // A typed operations event (run.*, queue.*, incident.*) — pull the
+          // freshest state. (Targeted patching would require per-entity merge;
+          // a scoped refresh keeps aggregate views correct without flicker.)
+          refresh();
+        }
+      }
+    };
 
     async function connect() {
+      if (stopped || controller.signal.aborted) return;
       try {
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         if (!token) {
           setDegradedRealtime(true);
+          scheduleReconnect();
           return;
         }
         const response = await fetch(`${baseUrl}/api/v1/operations/events`, {
@@ -127,26 +165,36 @@ export function useAgentOperations() {
         });
         if (!response.ok || !response.body) {
           setDegradedRealtime(true);
+          scheduleReconnect();
           return;
         }
+        // Healthy stream: clear degraded state and reset backoff.
         setDegradedRealtime(false);
+        attempt = 0;
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         while (!controller.signal.aborted) {
           const { value, done } = await reader.read();
           if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          if (chunk.includes("event: operations")) refresh();
+          handleChunk(decoder.decode(value, { stream: true }));
+        }
+        // Stream ended (server closed/drop) — degrade and reconnect.
+        if (!controller.signal.aborted) {
+          setDegradedRealtime(true);
+          scheduleReconnect();
         }
       } catch {
         if (!controller.signal.aborted) {
           setDegradedRealtime(true);
+          scheduleReconnect();
         }
       }
     }
 
     connect();
     return () => {
+      stopped = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
       controller.abort();
     };
   }, [refresh]);

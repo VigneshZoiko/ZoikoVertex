@@ -139,6 +139,25 @@ export async function resolveIncident(incidentId: string, closedBy: string, reme
   return { id: incidentId, status: 'resolved' };
 }
 
+// Advance an incident into the "investigating" lifecycle state (used by run
+// escalation that links to an existing incident). Append-only on status; never
+// moves a resolved incident backwards.
+export async function acknowledgeIncident(incidentId: string, actorId: string, note?: string) {
+  const existing = await getIncident(incidentId);
+  if (existing.status === 'resolved') {
+    throw Object.assign(new Error('Incident already resolved'), { statusCode: 409 });
+  }
+  if (existing.status === 'investigating' || existing.status === 'in_remediation') {
+    return { id: incidentId, status: existing.status };
+  }
+  const updateData: Record<string, any> = { status: 'investigating' };
+  if (note) updateData.root_cause = existing.root_cause || note;
+  if (actorId) updateData.owner_id = existing.owner_id || actorId;
+  const { error } = await supabaseAdmin.from('incidents').update(updateData).eq('id', incidentId);
+  if (error) throw error;
+  return { id: incidentId, status: 'investigating' };
+}
+
 export async function getIncidentStats(workspaceId: string) {
   const [openIncidents, criticalIncidents, totalIncidents] = await Promise.all([
     supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).neq('status', 'resolved'),
