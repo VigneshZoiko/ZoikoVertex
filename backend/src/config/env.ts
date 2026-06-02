@@ -50,7 +50,7 @@ const envSchema = z.object({
   DEPOSIT_HOLD_HOURS: z.string().default('48'),
   // Resend for email notifications
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default('ZoikoVertex <noreply@getzoikovertex.com>'),
+  EMAIL_FROM: z.string().default('ZoikoVertex <noreply@zoikovertex.com>'),
 });
 
 const result = envSchema.safeParse(process.env);
