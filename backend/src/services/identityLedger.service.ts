@@ -349,7 +349,7 @@ async function getActorByActorId(actorId: string, workspaceId: string): Promise<
     .eq('actor_id', actorId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error && error.code !== 'PGRST116') throw error;
   return data as IdentityActor | null;
 }
 
@@ -362,7 +362,7 @@ async function getCurrentSnapshot(actorId: string, workspaceId: string): Promise
     .is('effective_until', null)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error && error.code !== 'PGRST116') throw error;
   return data as AuthoritySnapshot | null;
 }
 
