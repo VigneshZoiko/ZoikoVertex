@@ -14,11 +14,12 @@ export const setupWorkspace = async (req: AuthRequest, res: Response, next: Next
     if (!company_name?.trim()) return res.status(400).json({ error: 'Company name is required' });
     if (!workspace_name?.trim()) return res.status(400).json({ error: 'Workspace name is required' });
 
-    // Prevent duplicate onboarding — user already has a workspace
+    // Prevent duplicate onboarding — user already has a non-deleted workspace
     const { data: existing } = await supabaseAdmin
       .from('workspace_members')
-      .select('workspace_id')
+      .select('workspace_id, workspaces!inner(status)')
       .eq('user_id', userId)
+      .neq('workspaces.status', 'DELETED')
       .limit(1)
       .maybeSingle();
 

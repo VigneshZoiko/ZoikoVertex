@@ -147,10 +147,18 @@ async function deleteExpiredOrgs() {
 
       // Also mark associated workspaces as DELETED
       if (workspaces && workspaces.length > 0) {
+        const workspaceIds = workspaces.map((w) => w.id);
+
         await supabaseAdmin
           .from('workspaces')
           .update({ status: 'DELETED' })
           .eq('org_id', org.id);
+
+        // Remove workspace members so users can re-register
+        await supabaseAdmin
+          .from('workspace_members')
+          .delete()
+          .in('workspace_id', workspaceIds);
       }
 
       // Notify owners
