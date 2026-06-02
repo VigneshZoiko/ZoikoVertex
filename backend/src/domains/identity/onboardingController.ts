@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import type { AuthRequest } from '../../shared/authMiddleware';
+import { sendOrgWelcomeEmail } from '../../services/email.service';
 
 export const setupWorkspace = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -62,6 +63,8 @@ export const setupWorkspace = async (req: AuthRequest, res: Response, next: Next
       .insert({ workspace_id: ws.id, user_id: userId, role: 'WORKSPACE_OWNER' });
 
     if (memberErr) throw memberErr;
+
+    sendOrgWelcomeEmail(company_name.trim(), email || '', fullName);
 
     logger.info(`[Onboarding] Workspace created for ${email}: org=${org.id}, ws=${ws.id}`);
 

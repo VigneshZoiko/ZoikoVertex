@@ -949,6 +949,7 @@ app.post('/api/v1/superadmin/organizations/:orgId/approve', authenticate, superA
 app.post('/api/v1/superadmin/organizations/:orgId/pause', authenticate, superAdminGuard, SuperAdminController.pauseOrganization);
 app.post('/api/v1/superadmin/organizations/:orgId/resume', authenticate, superAdminGuard, SuperAdminController.resumeOrganization);
 app.post('/api/v1/superadmin/organizations/:orgId/restrict', authenticate, superAdminGuard, SuperAdminController.restrictOrganization);
+app.post('/api/v1/superadmin/organizations/:orgId/restore', authenticate, superAdminGuard, SuperAdminController.restoreOrganization);
 app.put('/api/v1/superadmin/organizations/:orgId/plan', authenticate, superAdminGuard, SuperAdminController.upgradeOrganizationPlan);
 app.delete('/api/v1/superadmin/organizations/:orgId', authenticate, superAdminGuard, SuperAdminController.deleteOrganization);
 app.get('/api/v1/superadmin/analytics', authenticate, superAdminGuard, SuperAdminController.getAnalytics);
@@ -1266,6 +1267,7 @@ import { initAuditExportWorker } from './workers/auditExportWorker';
 import { initAuditIntegrityWorker } from './workers/auditIntegrityWorker';
 import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 import { startCampaignWorker } from './workers/campaignWorker';
+import { initOrgInactivityWorker } from './workers/orgInactivityWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
@@ -1279,6 +1281,7 @@ try {
     initVaultWorker();
     initDlpScanWorker();
     startCampaignWorker();
+    initOrgInactivityWorker();
   });
 
   server.on('error', (err: Error & { code?: string }) => {
