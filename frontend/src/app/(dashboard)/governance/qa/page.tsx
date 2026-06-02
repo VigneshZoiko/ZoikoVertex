@@ -505,7 +505,7 @@ export default function QualityAuditPage() {
   const handleGenerateSample = async () => {
     setActionLoading("sample");
     try {
-      const res = await api.post("/api/v1/quality-audit/sample", { count: 10 });
+      const res = await api.post("/api/v1/quality-audit/generate-sample", { count: 10 });
       if (res.success && res.data) setItems(prev => [...res.data, ...prev]);
     } catch { /* noop */ } finally { setActionLoading(null); }
   };
