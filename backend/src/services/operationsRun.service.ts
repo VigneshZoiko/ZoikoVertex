@@ -372,22 +372,22 @@ export async function quarantineRun(runId: string, reason: string, actorId: stri
   return transitionRunState(runId, 'QUARANTINED', reason, actorId, actorName, 'quarantine', impactScope);
 }
 
-export async function emergencyPauseRun(runId: string, reason: string, actorId: string, actorName: string) {
+export async function emergencyPauseRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
   const run = await getAgentRun(runId);
   if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
   if (run.status !== 'RUNNING' && run.status !== 'QUEUED') {
     throw Object.assign(new Error('Only RUNNING or QUEUED runs can be emergency paused'), { statusCode: 409 });
   }
-  return transitionRunState(runId, 'PAUSED', `[EMERGENCY] ${reason}`, actorId, actorName, 'emergency_pause', 'selected_run');
+  return transitionRunState(runId, 'PAUSED', `[EMERGENCY] ${reason}`, actorId, actorName, 'emergency_pause', impactScope);
 }
 
-export async function restrictedModeRun(runId: string, reason: string, actorId: string, actorName: string) {
+export async function restrictedModeRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
   const run = await getAgentRun(runId);
   if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
   if (!['RUNNING', 'QUEUED', 'WAITING_HUMAN_REVIEW'].includes(run.status)) {
     throw Object.assign(new Error('Only active or review-pending runs can enter restricted mode'), { statusCode: 409 });
   }
-  return transitionRunState(runId, 'POLICY_BLOCKED', `[RESTRICTED_MODE] ${reason}`, actorId, actorName, 'restricted_mode', 'selected_run');
+  return transitionRunState(runId, 'POLICY_BLOCKED', `[RESTRICTED_MODE] ${reason}`, actorId, actorName, 'restricted_mode', impactScope);
 }
 
 export async function retryRun(runId: string, reason: string, actorId: string, actorName: string) {

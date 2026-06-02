@@ -8,7 +8,7 @@ export class KnowledgeReviewService {
     if (filters?.reviewer_id) query = query.eq('reviewer_id', filters.reviewer_id);
     if (filters?.decision) query = query.eq('decision', filters.decision);
 
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const { data, error } = await query;
     if (error) throw error;
     return data || [];
   }
@@ -19,8 +19,6 @@ export class KnowledgeReviewService {
     review_type: string;
     decision: string;
     comments?: string;
-    due_date?: string;
-    evidence_id?: string;
   }) {
     const { data, error } = await supabaseAdmin
       .from('knowledge_reviews')
@@ -30,9 +28,6 @@ export class KnowledgeReviewService {
         review_type: input.review_type,
         decision: input.decision,
         comments: input.comments || '',
-        due_date: input.due_date || null,
-        evidence_id: input.evidence_id || null,
-        completed_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -44,8 +39,7 @@ export class KnowledgeReviewService {
     const { data, error } = await supabaseAdmin
       .from('knowledge_reviews')
       .select('*')
-      .eq('source_id', sourceId)
-      .order('created_at', { ascending: false });
+      .eq('source_id', sourceId);
     if (error) throw error;
     return data || [];
   }

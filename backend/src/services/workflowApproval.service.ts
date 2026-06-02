@@ -105,8 +105,8 @@ export async function listPendingApprovals(params: {
 }) {
   let query = supabaseAdmin
     .from('approval_records')
-    .select('*, workflow_instances!inner(id, workflow_type, status)', { count: 'exact' })
-    .eq('approval_records.workspace_id', params.workspace_id)
+    .select('*, workflow_instances!inner(id, status)', { count: 'exact' })
+    .eq('workflow_instances.workspace_id', params.workspace_id)
     .eq('decision', 'PENDING')
     .order('created_at', { ascending: true })
     .range(params.offset, params.offset + params.limit - 1);

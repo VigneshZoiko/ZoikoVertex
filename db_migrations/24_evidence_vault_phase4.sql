@@ -174,6 +174,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_vault_template_versions_template_id ON pub
 CREATE INDEX IF NOT EXISTS idx_vault_template_versions_type ON public.vault_template_versions(package_type);
 CREATE INDEX IF NOT EXISTS idx_vault_template_versions_workspace ON public.vault_template_versions(workspace_id, created_at DESC);
 
+-- ─── Missing Columns on vault_chain_anchors ─────────────────────────────────────
+
+ALTER TABLE public.vault_chain_anchors ADD COLUMN IF NOT EXISTS anchor_hash VARCHAR(255);
+
 -- ─── Idempotency Keys on Existing Tables ────────────────────────────────────────
 
 ALTER TABLE public.vault_evidence_items ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(255);

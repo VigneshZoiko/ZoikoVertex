@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -8,9 +8,12 @@ import {
   Target, DollarSign, Globe, FileText,
   Rocket, Pause, CheckCircle2, Clock,
   Calendar, TrendingUp, Zap, Play,
-  Eye, BarChart2, ChevronDown,
+  Eye, BarChart2, ChevronDown, ImageIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+import { useRoles } from "@/lib/hooks/useRoles";
+import MediaVaultPicker from "@/components/MediaVaultPicker";
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -42,11 +45,18 @@ interface CampaignPost {
   auto_boost_status?: string | null; boost_id?: string | null;
 }
 interface CampaignBoost {
-  id: string; platform: string; boost_type: 'POST' | 'CAMPAIGN'; status: string;
-  objective: string; budget_total?: number; budget_daily?: number; budget_currency?: string;
+  id: string; platform: string;
+  boost_type: 'POST' | 'CAMPAIGN' | 'IMAGE_AD' | 'VIDEO_AD' | 'LEAD_AD' | 'DISPLAY_AD' | 'SEARCH_AD';
+  status: string; objective: string;
+  budget_total?: number; budget_daily?: number; budget_currency?: string;
   start_at?: string; end_at?: string;
   impressions: number; reach: number; clicks: number; spend_recorded: number;
-  created_at: string; meta_campaign_id?: string; publish_intent_id?: string;
+  created_at: string;
+  meta_campaign_id?: string; publish_intent_id?: string;
+  google_campaign_id?: string; google_adgroup_id?: string; google_customer_id?: string;
+  advertising_channel_type?: string;
+  ad_image_url?: string; ad_square_image_url?: string;
+  ad_headline?: string; ad_body?: string; lead_form_id?: string;
 }
 interface CampaignInsights {
   totals:      { impressions: number; reach: number; clicks: number; spend: number };
@@ -68,6 +78,12 @@ interface BudgetAuth {
   currency: string; justification?: string; requested_by?: string;
   budget_owner_id?: string; decision_by?: string; decision_at?: string;
   decision_note?: string; expires_at?: string; created_at: string;
+  approval_tier?: string;          // LOW | MEDIUM | HIGH
+  approvals_required?: number;     // 1 or 2
+  approvals_received?: number;     // 0, 1, or 2
+  second_approver_id?: string;
+  second_approved_at?: string;
+  second_decision_note?: string;
 }
 
 // ── Style maps ─────────────────────────────────────────────────
@@ -117,14 +133,18 @@ const OBJECTIVES = [
   { value: "BRAND_AWARENESS", label: "Brand Awareness" },
   { value: "TRAFFIC",         label: "Traffic" },
   { value: "VIDEO_VIEWS",     label: "Video Views" },
+  { value: "LEAD_GENERATION", label: "Lead Generation" },
+  { value: "CONVERSIONS",     label: "Conversions" },
 ];
 
 const COUNTRY_LIST = ["AE","SA","QA","KW","BH","OM","EG","JO","IN","GB","US","DE","FR","AU","PK","NG","ZA","CA"];
 
 function statusLabel(s: string): string {
-  if (s === "READY_FOR_REVIEW") return "PENDING APPROVAL";
-  if (s === "IN_REVIEW") return "UNDER REVIEW";
-  if (s === "CHANGES_REQUESTED") return "REVISION NEEDED";
+  if (s === "READY_FOR_REVIEW")    return "PENDING APPROVAL";
+  if (s === "IN_REVIEW")           return "UNDER REVIEW";
+  if (s === "CHANGES_REQUESTED")   return "REVISION NEEDED";
+  if (s === "PAUSING")             return "PAUSING…";
+  if (s === "PARTIALLY_APPROVED")  return "PARTIAL APPROVAL";
   return s.replace(/_/g, " ");
 }
 
@@ -136,6 +156,8 @@ const fmt = (d?: string | null) =>
 export default function CampaignDetailPage() {
   const { id }   = useParams<{ id: string }>();
   const router   = useRouter();
+  const { role: userRole, isSuperAdmin } = useRoles();
+  const canBoost = isSuperAdmin || ['ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER'].includes(userRole ?? '');
 
   const [campaign, setCampaign]   = useState<Campaign | null>(null);
   const [events, setEvents]       = useState<CampaignEvent[]>([]);
@@ -146,8 +168,14 @@ export default function CampaignDetailPage() {
   const [budgetAuth, setBudgetAuth] = useState<{ active: BudgetAuth | null; history: BudgetAuth[] } | null>(null);
   const [budgetJustification, setBudgetJustification] = useState("");
   const [budgetAuthLoading, setBudgetAuthLoading] = useState<string | null>(null);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectNote, setRejectNote] = useState("");
+  const [showRejectModal, setShowRejectModal]   = useState(false);
+  const [rejectNote, setRejectNote]             = useState("");
+  const [showChangesModal, setShowChangesModal] = useState(false);
+  const [changesNote, setChangesNote]           = useState("");
+  const [showResumeModal, setShowResumeModal]   = useState(false);
+  const [resumeReason, setResumeReason]         = useState("");
+  const [showCancelModal, setShowCancelModal]   = useState(false);
+  const [cancelReason, setCancelReason]         = useState("");
   const [loading, setLoading]         = useState(true);
   const [secondaryLoading, setSecondaryLoading] = useState(true);
   const [error, setError]             = useState<string | null>(null);
@@ -228,6 +256,10 @@ export default function CampaignDetailPage() {
   const handleRequestApproval = () => doAction("submit-review");
   const handleApprove         = () => doAction("approve");
   const handleLaunch          = () => doAction("launch");
+  const handleResume          = () => { if (resumeReason.trim()) { doAction("resume", { reason: resumeReason }); setShowResumeModal(false); setResumeReason(""); } };
+  const handleComplete        = () => doAction("complete", {});
+  const handleCancel          = () => { if (cancelReason.trim()) { doAction("cancel", { reason: cancelReason }); setShowCancelModal(false); setCancelReason(""); } };
+  const handleRequestChanges  = (note: string) => doAction("request-changes", { note });
   const handlePause           = () => {
     if (pauseReason.trim()) {
       doAction("pause", { reason: pauseReason });
@@ -237,9 +269,11 @@ export default function CampaignDetailPage() {
   };
 
   const handleBoostAction = async (boostId: string, action: "pause" | "resume" | "cancel") => {
+    const boost = boosts.find(b => b.id === boostId);
+    const base  = boost?.platform === "google" ? "/api/v1/ads/google/boosts" : "/api/v1/ads/boosts";
     try {
-      if (action === "cancel") await api.delete(`/api/v1/ads/boosts/${boostId}`);
-      else await api.post(`/api/v1/ads/boosts/${boostId}/${action}`, {});
+      if (action === "cancel") await api.delete(`${base}/${boostId}`);
+      else await api.post(`${base}/${boostId}/${action}`, {});
       await load();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
@@ -248,8 +282,10 @@ export default function CampaignDetailPage() {
   };
 
   const handleSyncBoost = async (boostId: string) => {
+    const boost = boosts.find(b => b.id === boostId);
+    const base  = boost?.platform === "google" ? "/api/v1/ads/google/boosts" : "/api/v1/ads/boosts";
     try {
-      await api.post(`/api/v1/ads/boosts/${boostId}/sync`, {});
+      await api.post(`${base}/${boostId}/sync`, {});
       await load();
     } catch {}
   };
@@ -381,6 +417,11 @@ export default function CampaignDetailPage() {
               <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-xs font-semibold">
                 <Clock className="w-3.5 h-3.5" />Pending Approval
               </div>
+              {/* Request Changes — send back to agency team with notes */}
+              <button onClick={() => setShowChangesModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl transition-all">
+                <AlertCircle className="w-4 h-4" />Request Changes
+              </button>
               <button onClick={handleApprove} disabled={actionLoading === "approve"}
                 className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all">
                 {actionLoading === "approve" ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
@@ -395,12 +436,33 @@ export default function CampaignDetailPage() {
               Launch Campaign
             </button>
           )}
+          {["PAUSED", "PAUSING"].includes(campaign.status) && (
+            <button onClick={() => setShowResumeModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all">
+              <Play className="w-4 h-4" />Resume Campaign
+            </button>
+          )}
+          {["ACTIVE", "PAUSED", "SCHEDULED"].includes(campaign.status) && (
+            <button onClick={handleComplete} disabled={actionLoading === "complete"}
+              className="flex items-center gap-2 px-4 py-2.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 text-zinc-300 text-sm font-semibold rounded-xl transition-all">
+              {actionLoading === "complete" ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              Mark Complete
+            </button>
+          )}
+          {!["COMPLETED", "CANCELLED", "ARCHIVED"].includes(campaign.status) && (
+            <button onClick={() => setShowCancelModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 hover:bg-rose-500/10 border border-zinc-800 hover:border-rose-500/30 text-zinc-500 hover:text-rose-400 text-sm font-semibold rounded-xl transition-all">
+              <X className="w-4 h-4" />Cancel
+            </button>
+          )}
           {campaign.status === "ACTIVE" && (
             <>
-              <button onClick={() => { setBoostTarget({ type: "CAMPAIGN" }); }}
-                className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold rounded-xl transition-all">
-                <Zap className="w-4 h-4" />Boost Campaign
-              </button>
+              {canBoost && (
+                <button onClick={() => { setBoostTarget({ type: "CAMPAIGN" }); }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold rounded-xl transition-all">
+                  <Zap className="w-4 h-4" />Boost Campaign
+                </button>
+              )}
               <button onClick={() => setShowPauseModal(true)}
                 className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl transition-all">
                 <Pause className="w-4 h-4" />Pause
@@ -655,47 +717,112 @@ export default function CampaignDetailPage() {
             <InfoCard title="Budget Authorization">
               {(() => {
                 const auth = budgetAuth?.active;
-                const AUTH_STYLES: Record<string, string> = {
-                  PENDING:  "text-amber-400 bg-amber-500/10 border-amber-500/20",
-                  APPROVED: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-                  REJECTED: "text-rose-400 bg-rose-500/10 border-rose-500/20",
-                  EXPIRED:  "text-zinc-400 bg-zinc-800 border-zinc-700",
-                  CANCELLED:"text-zinc-500 bg-zinc-900 border-zinc-800",
+                const tier = auth?.approval_tier;
+                const received = auth?.approvals_received ?? 0;
+                const required = auth?.approvals_required ?? 1;
+
+                const TIER_STYLES: Record<string, string> = {
+                  LOW:    "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+                  MEDIUM: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+                  HIGH:   "text-rose-400 bg-rose-500/10 border-rose-500/20",
                 };
+                const AUTH_STYLES: Record<string, string> = {
+                  PENDING:            "text-amber-400 bg-amber-500/10 border-amber-500/20",
+                  PARTIALLY_APPROVED: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+                  APPROVED:           "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+                  REJECTED:           "text-rose-400 bg-rose-500/10 border-rose-500/20",
+                  EXPIRED:            "text-zinc-400 bg-zinc-800 border-zinc-700",
+                  CANCELLED:          "text-zinc-500 bg-zinc-900 border-zinc-800",
+                };
+
+                // Tier info based on campaign budget
+                const budgetAmt = Number(campaign.budget_total) || 0;
+                const inferredTier = budgetAmt >= 500 ? "HIGH" : budgetAmt >= 200 ? "MEDIUM" : "LOW";
+                const displayTier = tier || inferredTier;
+                const tierRequired = displayTier === "HIGH" ? 2 : 1;
+
                 return (
                   <div className="space-y-4">
+                    {/* Status + tier row */}
                     <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border ${auth ? (AUTH_STYLES[auth.status] || AUTH_STYLES.PENDING) : "text-zinc-500 bg-zinc-900 border-zinc-800"}`}>
-                          {auth?.status ?? "NOT REQUESTED"}
+                          {auth?.status === "PARTIALLY_APPROVED" ? "PARTIAL APPROVAL" : (auth?.status ?? "NOT REQUESTED")}
                         </span>
+                        {/* Tier badge */}
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border ${TIER_STYLES[displayTier]}`}>
+                          {displayTier} TIER
+                        </span>
+                        {/* Approval progress for HIGH tier */}
+                        {(displayTier === "HIGH" || required > 1) && auth && (
+                          <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-800 px-2.5 py-1 rounded-lg border border-zinc-700">
+                            {received}/{tierRequired} approvals
+                          </span>
+                        )}
                         {auth && (
-                          <span className="text-xs text-zinc-500">{auth.currency} {Number(auth.requested_amount).toLocaleString()} requested</span>
+                          <span className="text-xs text-zinc-500">
+                            {auth.currency} {Number(auth.requested_amount).toLocaleString()} requested
+                          </span>
                         )}
                       </div>
-                      {auth?.expires_at && auth.status === "PENDING" && (
+                      {auth?.expires_at && ["PENDING", "PARTIALLY_APPROVED"].includes(auth.status) && (
                         <span className="text-[10px] text-zinc-600">Expires {fmt(auth.expires_at)}</span>
                       )}
                     </div>
 
+                    {/* Tier explanation */}
+                    {!auth && campaign.budget_total && (
+                      <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                        <p className="text-[11px] text-zinc-500">
+                          {displayTier === "HIGH"   && "HIGH budget (≥$500) requires 2 approvals — admin + workspace owner."}
+                          {displayTier === "MEDIUM" && "MEDIUM budget ($200–$499) requires 1 admin or workspace owner approval."}
+                          {displayTier === "LOW"    && "LOW budget (under $200) requires 1 approver."}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* APPROVED */}
                     {auth?.status === "APPROVED" && (
                       <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-1">
-                        <p className="text-xs text-emerald-400 font-semibold">Budget authorized — campaign can proceed to launch</p>
+                        <p className="text-xs text-emerald-400 font-semibold">Budget fully authorized — campaign can proceed to launch</p>
                         {auth.decision_note && <p className="text-xs text-zinc-400">{auth.decision_note}</p>}
                         <p className="text-[10px] text-zinc-600">Authorized {fmt(auth.decision_at)}</p>
                       </div>
                     )}
 
-                    {auth?.status === "REJECTED" && (
-                      <div className="p-3 bg-rose-500/5 border border-rose-500/20 rounded-xl space-y-1">
-                        <p className="text-xs text-rose-400 font-semibold">Authorization rejected</p>
-                        {auth.decision_note && <p className="text-xs text-zinc-400">{auth.decision_note}</p>}
+                    {/* PARTIALLY_APPROVED — first of two approvals done */}
+                    {auth?.status === "PARTIALLY_APPROVED" && (
+                      <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl space-y-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                          <p className="text-xs text-blue-300 font-semibold">First approval received ({received}/{tierRequired})</p>
+                        </div>
+                        <p className="text-[11px] text-zinc-500">
+                          This is a HIGH budget campaign — a second approver must approve before launch.
+                        </p>
+                        {auth.decision_note && <p className="text-xs text-zinc-400 italic">&quot;{auth.decision_note}&quot;</p>}
+                        {/* Second approval action */}
+                        <div className="flex gap-2">
+                          <button onClick={() => handleBudgetAuthDecision(auth.id, "approve")}
+                            disabled={budgetAuthLoading === "approve"}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-all">
+                            {budgetAuthLoading === "approve" ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                            Give Second Approval
+                          </button>
+                          <button onClick={() => setShowRejectModal(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 text-xs font-semibold rounded-lg transition-all">
+                            <X className="w-3 h-3" />Reject
+                          </button>
+                        </div>
                       </div>
                     )}
 
+                    {/* PENDING */}
                     {auth?.status === "PENDING" && (
                       <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-3">
-                        <p className="text-xs text-amber-300 font-semibold">Awaiting budget owner approval</p>
+                        <p className="text-xs text-amber-300 font-semibold">
+                          Awaiting approval — {tierRequired === 2 ? "2 approvals required (HIGH budget)" : "1 approval required"}
+                        </p>
                         {auth.justification && (
                           <div>
                             <p className="text-[10px] text-zinc-500 mb-1">Justification</p>
@@ -717,6 +844,15 @@ export default function CampaignDetailPage() {
                       </div>
                     )}
 
+                    {/* REJECTED */}
+                    {auth?.status === "REJECTED" && (
+                      <div className="p-3 bg-rose-500/5 border border-rose-500/20 rounded-xl space-y-1">
+                        <p className="text-xs text-rose-400 font-semibold">Authorization rejected</p>
+                        {auth.decision_note && <p className="text-xs text-zinc-400">{auth.decision_note}</p>}
+                      </div>
+                    )}
+
+                    {/* Request / re-request */}
                     {(!auth || ["REJECTED", "EXPIRED", "CANCELLED"].includes(auth.status)) && campaign.budget_total && (
                       <div className="space-y-2">
                         <p className="text-xs text-zinc-500">
@@ -848,8 +984,8 @@ export default function CampaignDetailPage() {
                         </div>
                         <p className="text-sm text-zinc-300 leading-relaxed line-clamp-2">{p.content || "—"}</p>
                       </div>
-                      {/* Boost post button — only for Meta platforms with a post ID */}
-                      {["facebook", "instagram"].includes(p.platform?.toLowerCase() || "") && (
+                      {/* Boost post button — only for Meta platforms with a post ID, admin+ only */}
+                      {canBoost && ["facebook", "instagram"].includes(p.platform?.toLowerCase() || "") && (
                         <button
                           onClick={() => setBoostTarget({ type: "POST", postId: p.id, postContent: p.content })}
                           title={p.platform_post_id ? "Boost this post on Meta" : "Post ID not available — republish via ZoikoVertex to enable boost"}
@@ -1088,13 +1224,32 @@ export default function CampaignDetailPage() {
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${BOOST_STATUS_STYLES[b.status] || BOOST_STATUS_STYLES.PENDING}`}>
                           {b.status}
                         </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-400 uppercase">{b.boost_type} BOOST</span>
+                        {/* Ad type badge */}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${
+                          b.platform === "google" ? "bg-orange-500/10 text-orange-400" : "bg-blue-500/10 text-blue-400"
+                        }`}>
+                          {b.boost_type?.replace(/_/g, " ") || "BOOST"}
+                        </span>
+                        {/* Channel type badge for Google */}
+                        {b.platform === "google" && b.advertising_channel_type && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-500/5 text-orange-300 uppercase border border-orange-500/20">
+                            {b.advertising_channel_type}
+                          </span>
+                        )}
                         <span className="text-[10px] text-zinc-500 uppercase font-semibold">{b.platform}</span>
                         <span className="text-[10px] text-zinc-600">{b.objective.replace(/_/g, " ")}</span>
+                        {/* Creative thumbnail */}
+                        {b.ad_image_url && (
+                          <img
+                            src={b.ad_image_url}
+                            alt="Creative"
+                            className="w-8 h-8 rounded-md object-cover border border-zinc-700"
+                          />
+                        )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button onClick={() => handleSyncBoost(b.id)}
-                          title="Sync metrics from Meta"
+                          title="Sync metrics"
                           className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-colors">
                           <RefreshCw className="w-3.5 h-3.5" />
                         </button>
@@ -1180,6 +1335,87 @@ export default function CampaignDetailPage() {
         </div>
       )}
 
+      {/* ── Resume Modal ── */}
+      {showResumeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-white flex items-center gap-2"><Play className="w-4 h-4 text-emerald-400" />Resume Campaign</h2>
+              <button onClick={() => setShowResumeModal(false)}><X className="w-4 h-4 text-zinc-500" /></button>
+            </div>
+            <p className="text-xs text-zinc-500">Resuming will restart ad spend on Meta and Google. Provide a reason for the audit log.</p>
+            <textarea rows={3} value={resumeReason} onChange={e => setResumeReason(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 resize-none"
+              placeholder="e.g. Client approved budget increase, issue resolved, campaign updated…" />
+            <div className="flex gap-3">
+              <button onClick={() => setShowResumeModal(false)}
+                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Cancel</button>
+              <button onClick={handleResume} disabled={!resumeReason.trim() || actionLoading === "resume"}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl">
+                {actionLoading === "resume" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                Confirm Resume
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Cancel Campaign Modal ── */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-white flex items-center gap-2"><X className="w-4 h-4 text-rose-400" />Cancel Campaign</h2>
+              <button onClick={() => setShowCancelModal(false)}><X className="w-4 h-4 text-zinc-500" /></button>
+            </div>
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400">
+              This cannot be undone. All active boosts will be cancelled and the campaign cannot be relaunched.
+            </div>
+            <textarea rows={3} value={cancelReason} onChange={e => setCancelReason(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-rose-500 resize-none"
+              placeholder="Reason for cancellation…" />
+            <div className="flex gap-3">
+              <button onClick={() => setShowCancelModal(false)}
+                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Keep Campaign</button>
+              <button onClick={handleCancel} disabled={cancelReason.trim().length < 5 || actionLoading === "cancel"}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl">
+                {actionLoading === "cancel" ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
+                Cancel Campaign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Request Changes Modal ── */}
+      {showChangesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-white flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-400" />Request Changes
+              </h2>
+              <button onClick={() => setShowChangesModal(false)}><X className="w-4 h-4 text-zinc-500" /></button>
+            </div>
+            <p className="text-xs text-zinc-500">Explain what needs to change before this campaign can be approved. The team will be notified.</p>
+            <textarea rows={4} value={changesNote} onChange={e => setChangesNote(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 resize-none"
+              placeholder="e.g. Headline needs to be updated, landing page URL returns 404, budget exceeds client's approved limit…" />
+            <div className="flex gap-3">
+              <button onClick={() => setShowChangesModal(false)}
+                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Cancel</button>
+              <button
+                onClick={() => { handleRequestChanges(changesNote); setShowChangesModal(false); setChangesNote(""); }}
+                disabled={changesNote.trim().length < 10 || actionLoading === "request-changes"}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl">
+                {actionLoading === "request-changes" ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle className="w-4 h-4" />}
+                Send Back for Revision
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Budget Reject Modal ── */}
       {showRejectModal && budgetAuth?.active && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -1222,6 +1458,44 @@ export default function CampaignDetailPage() {
 
 // ── BoostModal ────────────────────────────────────────────────
 
+// ── BoostImageUpload — inline upload for BoostModal ───────────
+function BoostImageUpload({
+  label, hint, value, slot, uploading, onUpload, onClear,
+}: {
+  label: string; hint?: string; value: string; slot: string;
+  uploading: boolean;
+  onUpload: (file: File, slot: string) => void;
+  onClear: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const labelCls = "block text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5";
+  return (
+    <div>
+      <label className={labelCls}>
+        {label}
+        {hint && <span className="normal-case font-normal text-zinc-600 ml-1">— {hint}</span>}
+      </label>
+      {value ? (
+        <div className="relative w-full h-28 rounded-xl overflow-hidden border border-zinc-700 bg-zinc-900">
+          <img src={value} alt="Creative" className="w-full h-full object-cover" />
+          <button type="button" onClick={onClear}
+            className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-white hover:bg-black">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => ref.current?.click()} disabled={uploading}
+          className="w-full h-20 border border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1.5 text-zinc-500 hover:border-zinc-500 hover:text-zinc-400 transition-all disabled:opacity-50">
+          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+          <span className="text-xs">{uploading ? "Uploading…" : "Click to upload"}</span>
+        </button>
+      )}
+      <input ref={ref} type="file" accept="image/*" className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(f, slot); }} />
+    </div>
+  );
+}
+
 function BoostModal({
   target, campaignId, campaign, onClose, onSuccess,
 }: {
@@ -1231,26 +1505,30 @@ function BoostModal({
   onClose:    () => void;
   onSuccess:  () => void;
 }) {
-  const [boostPlatform, setBoostPlatform]               = useState<'meta' | 'google'>('meta');
-
-  // Meta state
-  const [metaAccounts, setMetaAccounts]                 = useState<MetaAccount[]>([]);
-  const [selectedAccountId, setSelectedAccountId]       = useState("");
-  const [adAccounts, setAdAccounts]                     = useState<{ id: string; name: string; currency: string; account_status?: number }[]>([]);
-  const [selectedAdAccountId, setSelectedAdAccountId]   = useState("");
-  const [showAdAccountPicker, setShowAdAccountPicker]   = useState(false);
-  const [loadingAdAccounts, setLoadingAdAccounts]       = useState(false);
-
-  // Google Ads state
-  const [googleAccounts, setGoogleAccounts]             = useState<MetaAccount[]>([]);
-  const [selectedGoogleAccountId, setSelectedGoogleAccountId] = useState("");
-  const [googleCustomers, setGoogleCustomers]           = useState<{ id: string; name: string }[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId]     = useState("");
-  const [loadingCustomers, setLoadingCustomers]         = useState(false);
-  const [showCustomerPicker, setShowCustomerPicker]     = useState(false);
+  // Agency model: no account selection — backend resolves agency account automatically
+  const [boostPlatform, setBoostPlatform] = useState<'meta' | 'google'>('meta');
+  // Google creative fields
   const [headline, setHeadline]                         = useState("");
   const [adDescription, setAdDescription]              = useState("");
   const [finalUrl, setFinalUrl]                         = useState("");
+  const [googleAdType, setGoogleAdType]                 = useState<'display' | 'search'>('display');
+  const [googleImageUrl, setGoogleImageUrl]             = useState("");
+  const [googleSquareUrl, setGoogleSquareUrl]           = useState("");
+  const [rsaHeadlines, setRsaHeadlines]                 = useState(["", "", ""]);
+  const [rsaDescriptions, setRsaDescriptions]           = useState(["", ""]);
+  const [googleKeywords, setGoogleKeywords]             = useState("");
+
+  // Meta creative fields (for CAMPAIGN-type, non-POST boosts)
+  const [metaAdType, setMetaAdType]                     = useState<'post_boost' | 'image_ad' | 'video_ad' | 'lead_ad'>('post_boost');
+  const [adImageUrl, setAdImageUrl]                     = useState("");
+  const [adVideoUrl, setAdVideoUrl]                     = useState("");
+  const [adHeadline, setAdHeadline]                     = useState("");
+  const [adBody, setAdBody]                             = useState("");
+  const [adCta, setAdCta]                               = useState("LEARN_MORE");
+  const [adLandingUrl, setAdLandingUrl]                 = useState("");
+  const [leadFormId, setLeadFormId]                     = useState("");
+  const [uploadingImage, setUploadingImage]             = useState<string | null>(null);
+  const [vaultPicker,   setVaultPicker]                 = useState<{ slot: string } | null>(null);
 
   // Shared state
   const [objective, setObjective]     = useState(target.type === "POST" ? "POST_ENGAGEMENT" : "REACH");
@@ -1264,100 +1542,62 @@ function BoostModal({
   const [submitting, setSubmitting]   = useState(false);
   const [error, setError]             = useState<string | null>(null);
 
-  useEffect(() => {
-    api.get("/api/v1/accounts").then(r => {
-      const all = r.data || [];
-      const meta   = all.filter((a: MetaAccount) => ["facebook", "instagram"].includes(a.platform));
-      const google = all.filter((a: MetaAccount) => a.platform === "googleads");
-      setMetaAccounts(meta);
-      setGoogleAccounts(google);
-      if (meta.length === 1) {
-        setSelectedAccountId(meta[0].id);
-        if (meta[0].ad_account_id) setSelectedAdAccountId(meta[0].ad_account_id);
-      }
-      if (google.length === 1) {
-        setSelectedGoogleAccountId(google[0].id);
-        if (google[0].ad_account_id) setSelectedCustomerId(google[0].ad_account_id);
-      }
-    }).catch(() => {});
-  }, []);
-
-  const selectedAccount       = metaAccounts.find(a => a.id === selectedAccountId);
-  const selectedGoogleAccount = googleAccounts.find(a => a.id === selectedGoogleAccountId);
-
-  const handleFetchAdAccounts = async () => {
-    if (!selectedAccountId) return;
-    setLoadingAdAccounts(true); setError(null);
-    try {
-      const r = await api.get(`/api/v1/ads/accounts/${selectedAccountId}/ad-accounts`);
-      setAdAccounts(r.data || []);
-      setShowAdAccountPicker(true);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string; hint?: string } } })?.response?.data;
-      setError(msg?.hint || msg?.error || "Failed to fetch ad accounts");
-    } finally { setLoadingAdAccounts(false); }
-  };
-
-  const handleLinkAdAccount = async (adAccountId: string, adAccountName: string) => {
-    await api.post(`/api/v1/ads/accounts/${selectedAccountId}/link-ad-account`, {
-      ad_account_id: adAccountId, ad_account_name: adAccountName,
-    });
-    setSelectedAdAccountId(adAccountId);
-    setShowAdAccountPicker(false);
-    setMetaAccounts(prev => prev.map(a =>
-      a.id === selectedAccountId ? { ...a, ad_account_id: adAccountId, ad_account_name: adAccountName } : a
-    ));
-  };
-
-  const handleFetchGoogleCustomers = async () => {
-    if (!selectedGoogleAccountId) return;
-    setLoadingCustomers(true); setError(null);
-    try {
-      const r = await api.get(`/api/v1/ads/google/accounts/${selectedGoogleAccountId}/customers`);
-      setGoogleCustomers(r.data || []);
-      setShowCustomerPicker(true);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string; hint?: string } } })?.response?.data;
-      setError(msg?.hint || msg?.error || "Failed to fetch Google Ads customers");
-    } finally { setLoadingCustomers(false); }
-  };
-
-  const handleLinkGoogleCustomer = async (customerId: string) => {
-    try {
-      await api.post(`/api/v1/ads/google/accounts/${selectedGoogleAccountId}/link-customer`, { customer_id: customerId });
-      setSelectedCustomerId(customerId);
-      setShowCustomerPicker(false);
-      setGoogleAccounts(prev => prev.map(a =>
-        a.id === selectedGoogleAccountId ? { ...a, ad_account_id: customerId, ad_account_name: `Customer ${customerId}` } : a
-      ));
-    } catch {
-      setError("Failed to link Google Ads customer");
-    }
-  };
+  // Agency model: customer linking is handled by admins via Admin → Ad Accounts, not from this UI
+  const handleLinkGoogleCustomer = async (_customerId: string) => { void _customerId; };
 
   const toggleCountry = (c: string) => {
     setCountries(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+  };
+
+  const uploadBoostImage = async (file: File, slot: string) => {
+    if (file.size > 10 * 1024 * 1024) { setError("Max 10 MB per image"); return; }
+    setUploadingImage(slot);
+    try {
+      const ext  = file.name.split(".").pop() || "jpg";
+      const path = `boost-creatives/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("media").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from("media").getPublicUrl(path);
+      if (slot === "meta-image")         setAdImageUrl(publicUrl);
+      else if (slot === "google-land")   setGoogleImageUrl(publicUrl);
+      else if (slot === "google-square") setGoogleSquareUrl(publicUrl);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally { setUploadingImage(null); }
   };
 
   const handleSubmit = async () => {
     if (!budgetAmount || parseFloat(budgetAmount) <= 0) { setError("Enter a valid budget"); return; }
     if (!startAt || !endAt) { setError("Start and end dates are required"); return; }
 
+    // Agency model: no account validation — backend resolves agency account automatically
+
     if (boostPlatform === 'meta') {
-      if (!selectedAccountId)   { setError("Select a Meta account"); return; }
-      if (!selectedAdAccountId) { setError("Link an ad account first"); return; }
+      const boostType = target.type === "POST" ? "POST" : (
+        metaAdType === "image_ad" ? "IMAGE_AD" :
+        metaAdType === "video_ad" ? "VIDEO_AD" :
+        metaAdType === "lead_ad"  ? "LEAD_AD"  : "CAMPAIGN"
+      );
+
       setSubmitting(true); setError(null);
       try {
         await api.post("/api/v1/ads/boosts", {
-          boost_type:           target.type,
-          publish_intent_id:    target.type === "POST" ? target.postId : undefined,
-          campaign_id:          campaignId,
-          connected_account_id: selectedAccountId,
-          objective,
+          boost_type:        boostType,
+          publish_intent_id: target.type === "POST" ? target.postId : undefined,
+          campaign_id:       campaignId,
+          // No connected_account_id — backend resolves agency account
+          objective:         metaAdType === "lead_ad" ? "LEAD_GENERATION" : objective,
           [budgetType === "daily" ? "budget_daily" : "budget_total"]: parseFloat(budgetAmount),
           budget_currency: campaign.budget_currency || "USD",
           start_at: startAt, end_at: endAt,
           targeting: { countries, age_min: ageMin, age_max: ageMax },
+          ad_image_url:   adImageUrl   || undefined,
+          ad_video_url:   adVideoUrl   || undefined,
+          ad_headline:    adHeadline   || undefined,
+          ad_body:        adBody       || undefined,
+          ad_cta:         adCta        || undefined,
+          ad_landing_url: adLandingUrl || undefined,
+          lead_form_id:   leadFormId   || undefined,
         });
         onSuccess();
       } catch (err: unknown) {
@@ -1365,24 +1605,34 @@ function BoostModal({
         setError(msg || "Failed to create boost");
       } finally { setSubmitting(false); }
     } else {
-      if (!selectedGoogleAccountId) { setError("Select a Google Ads account"); return; }
-      const custId = selectedCustomerId || selectedGoogleAccount?.ad_account_id;
-      if (!custId) { setError("Link a Google Ads customer first"); return; }
+      if (googleAdType === 'search') {
+        const heads = rsaHeadlines.filter(Boolean);
+        const descs = rsaDescriptions.filter(Boolean);
+        if (heads.length < 3) { setError("Search ads need at least 3 headlines"); return; }
+        if (descs.length < 2) { setError("Search ads need at least 2 descriptions"); return; }
+        if (!finalUrl)        { setError("Landing page URL is required for Search ads"); return; }
+      }
+
       setSubmitting(true); setError(null);
       try {
         await api.post("/api/v1/ads/google/boosts", {
-          boost_type:           target.type,
-          publish_intent_id:    target.type === "POST" ? target.postId : undefined,
+          boost_type:           googleAdType === 'search' ? 'SEARCH_AD' : 'DISPLAY_AD',
+          google_campaign_type: googleAdType.toUpperCase(),
           campaign_id:          campaignId,
-          connected_account_id: selectedGoogleAccountId,
+          // No connected_account_id — backend resolves agency account
           objective,
           [budgetType === "daily" ? "budget_daily" : "budget_total"]: parseFloat(budgetAmount),
-          budget_currency: campaign.budget_currency || "USD",
+          budget_currency:     campaign.budget_currency || "USD",
           start_at: startAt, end_at: endAt,
-          targeting:   { countries, age_min: ageMin, age_max: ageMax },
-          headline:    headline    || undefined,
-          description: adDescription || undefined,
-          final_url:   finalUrl    || undefined,
+          targeting:           { countries, age_min: ageMin, age_max: ageMax },
+          ad_image_url:        googleImageUrl  || undefined,
+          ad_square_image_url: googleSquareUrl || undefined,
+          headline:            headline        || undefined,
+          description:         adDescription  || undefined,
+          final_url:           finalUrl        || undefined,
+          rsa_headlines:       rsaHeadlines.filter(Boolean),
+          rsa_descriptions:    rsaDescriptions.filter(Boolean),
+          keywords:            googleKeywords ? googleKeywords.split("\n").filter(Boolean) : [],
         });
         onSuccess();
       } catch (err: unknown) {
@@ -1438,72 +1688,119 @@ function BoostModal({
           {/* ── Meta Ads section ── */}
           {boostPlatform === 'meta' && (
             <>
-              <div>
-                <label className={labelCls}>Meta Account</label>
-                {metaAccounts.length === 0 ? (
-                  <p className="text-xs text-rose-400 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-                    No connected Facebook or Instagram accounts found. Connect a Meta account first.
-                  </p>
-                ) : (
-                  <select value={selectedAccountId}
-                    onChange={e => {
-                      setSelectedAccountId(e.target.value);
-                      const a = metaAccounts.find(x => x.id === e.target.value);
-                      setSelectedAdAccountId(a?.ad_account_id || "");
-                      setShowAdAccountPicker(false);
-                    }}
-                    className={inputCls}>
-                    <option value="">Select account…</option>
-                    {metaAccounts.map(a => (
-                      <option key={a.id} value={a.id}>{a.account_name} ({a.platform})</option>
-                    ))}
-                  </select>
-                )}
+              {/* Agency badge — no account selection needed */}
+              <div className="flex items-center gap-2 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <p className="text-xs text-emerald-300">Ads will run through the <strong>ZoikoVertex agency Meta account</strong></p>
               </div>
 
-              {selectedAccountId && (
+              {/* Meta ad type selector — only for CAMPAIGN boosts (not POST boosts) */}
+              {target.type === "CAMPAIGN" && (
                 <div>
-                  <label className={labelCls}>Ad Account</label>
-                  {selectedAccount?.ad_account_id ? (
-                    <div className="flex items-center gap-2 p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white font-semibold">{selectedAccount.ad_account_name || selectedAccount.ad_account_id}</p>
-                        <p className="text-[10px] text-zinc-500">{selectedAccount.ad_account_id}</p>
-                      </div>
-                      <button onClick={() => { setAdAccounts([]); setShowAdAccountPicker(false); handleFetchAdAccounts(); }}
-                        className="text-xs text-zinc-500 hover:text-zinc-300">Change</button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl text-xs text-amber-400">
-                        No ad account linked yet. Select one below to enable boosting.
-                      </div>
-                      {!showAdAccountPicker ? (
-                        <button onClick={handleFetchAdAccounts} disabled={loadingAdAccounts}
-                          className="flex items-center gap-2 w-full px-3 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl transition-all disabled:opacity-40">
-                          {loadingAdAccounts ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className="w-4 h-4" />}
-                          Fetch Ad Accounts
-                        </button>
-                      ) : (
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {adAccounts.length === 0 ? (
-                            <p className="text-xs text-zinc-500 p-2">No ad accounts found. Make sure your Facebook token has ads_management permission.</p>
-                          ) : adAccounts.map(a => (
-                            <button key={a.id} onClick={() => handleLinkAdAccount(a.id, a.name)}
-                              className="w-full flex items-center justify-between px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm transition-all text-left">
-                              <div>
-                                <p className="text-white font-semibold text-xs">{a.name}</p>
-                                <p className="text-[10px] text-zinc-500">{a.id} · {a.currency}{a.account_status === 1 ? ' · Active' : ''}</p>
-                              </div>
-                              <CheckCircle2 className="w-3.5 h-3.5 text-zinc-600" />
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <label className={labelCls}>Ad Type</label>
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { value: "post_boost", label: "Campaign Boost" },
+                      { value: "image_ad",   label: "Image Ad"       },
+                      { value: "video_ad",   label: "Video Ad"       },
+                      { value: "lead_ad",    label: "Lead Ad"        },
+                    ] as const).map(t => (
+                      <button key={t.value} type="button" onClick={() => setMetaAdType(t.value)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                          metaAdType === t.value
+                            ? "bg-blue-500/15 text-blue-300 border-blue-500/30"
+                            : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
+                        }`}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+              )}
+
+              {/* Image Ad creative */}
+              {target.type === "CAMPAIGN" && metaAdType === "image_ad" && (
+                <>
+                  <div>
+                    <BoostImageUpload
+                      label="Ad Image" hint="Recommended 1200×628"
+                      value={adImageUrl} slot="meta-image"
+                      uploading={uploadingImage === "meta-image"}
+                      onUpload={uploadBoostImage} onClear={() => setAdImageUrl("")}
+                    />
+                    {!adImageUrl && (
+                      <button type="button" onClick={() => setVaultPicker({ slot: "meta-image" })}
+                        className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                        or browse Media Vault →
+                      </button>
+                    )}
+                  </div>
+                  <div>
+                    <label className={labelCls}>Headline <span className="normal-case text-zinc-600 font-normal">(max 40 chars)</span></label>
+                    <input value={adHeadline} maxLength={40} onChange={e => setAdHeadline(e.target.value)} className={inputCls} placeholder="Your offer headline" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Ad Copy <span className="normal-case text-zinc-600 font-normal">(max 125 chars)</span></label>
+                    <textarea rows={2} value={adBody} maxLength={125} onChange={e => setAdBody(e.target.value)} className={`${inputCls} resize-none`} placeholder="Describe your offer…" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelCls}>CTA</label>
+                      <select value={adCta} onChange={e => setAdCta(e.target.value)} className={inputCls}>
+                        {["LEARN_MORE","SHOP_NOW","SIGN_UP","BOOK_NOW","CONTACT_US","DOWNLOAD","GET_QUOTE","SUBSCRIBE"].map(c =>
+                          <option key={c} value={c}>{c.replace(/_/g," ")}</option>
+                        )}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelCls}>Landing URL</label>
+                      <input type="url" value={adLandingUrl} onChange={e => setAdLandingUrl(e.target.value)} className={inputCls} placeholder="https://…" />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Video Ad creative */}
+              {target.type === "CAMPAIGN" && metaAdType === "video_ad" && (
+                <>
+                  <div>
+                    <label className={labelCls}>Video URL / Facebook Video ID</label>
+                    <input value={adVideoUrl} onChange={e => setAdVideoUrl(e.target.value)} className={inputCls} placeholder="Paste Facebook-hosted video URL or ID" />
+                  </div>
+                  <BoostImageUpload
+                    label="Thumbnail (optional)" hint="Shown before video plays"
+                    value={adImageUrl} slot="meta-image"
+                    uploading={uploadingImage === "meta-image"}
+                    onUpload={uploadBoostImage} onClear={() => setAdImageUrl("")}
+                  />
+                  <div>
+                    <label className={labelCls}>Headline</label>
+                    <input value={adHeadline} maxLength={40} onChange={e => setAdHeadline(e.target.value)} className={inputCls} placeholder="Video headline" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Ad Copy</label>
+                    <textarea rows={2} value={adBody} maxLength={125} onChange={e => setAdBody(e.target.value)} className={`${inputCls} resize-none`} placeholder="Describe your video…" />
+                  </div>
+                </>
+              )}
+
+              {/* Lead Ad creative */}
+              {target.type === "CAMPAIGN" && metaAdType === "lead_ad" && (
+                <>
+                  <div>
+                    <label className={labelCls}>Lead Form ID <span className="normal-case text-rose-400 font-normal">(required)</span></label>
+                    <input value={leadFormId} onChange={e => setLeadFormId(e.target.value)} className={inputCls} placeholder="Paste your Meta Lead Gen Form ID" />
+                    <p className="text-[11px] text-zinc-600 mt-1.5">Create in Meta Ads Manager → Lead Ads Forms → Copy the Form ID</p>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Headline</label>
+                    <input value={adHeadline} maxLength={40} onChange={e => setAdHeadline(e.target.value)} className={inputCls} placeholder="Sign up for exclusive access" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Ad Copy</label>
+                    <textarea rows={2} value={adBody} maxLength={125} onChange={e => setAdBody(e.target.value)} className={`${inputCls} resize-none`} placeholder="Tell people why to fill the form…" />
+                  </div>
+                </>
               )}
             </>
           )}
@@ -1511,87 +1808,123 @@ function BoostModal({
           {/* ── Google Ads section ── */}
           {boostPlatform === 'google' && (
             <>
-              <div>
-                <label className={labelCls}>Google Ads Account</label>
-                {googleAccounts.length === 0 ? (
-                  <p className="text-xs text-amber-400 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                    No Google Ads accounts connected. Go to Connected Accounts and link a Google Ads account first.
-                  </p>
-                ) : (
-                  <select value={selectedGoogleAccountId}
-                    onChange={e => {
-                      setSelectedGoogleAccountId(e.target.value);
-                      const a = googleAccounts.find(x => x.id === e.target.value);
-                      setSelectedCustomerId(a?.ad_account_id || "");
-                      setShowCustomerPicker(false);
-                    }}
-                    className={inputCls}>
-                    <option value="">Select account…</option>
-                    {googleAccounts.map(a => (
-                      <option key={a.id} value={a.id}>{a.account_name}</option>
-                    ))}
-                  </select>
-                )}
+              {/* Agency badge — no account selection needed */}
+              <div className="flex items-center gap-2 p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+                <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <p className="text-xs text-blue-300">Ads will run through the <strong>ZoikoVertex agency Google Ads account</strong></p>
               </div>
 
-              {selectedGoogleAccountId && (
-                <div>
-                  <label className={labelCls}>Customer Account</label>
-                  {(selectedCustomerId || selectedGoogleAccount?.ad_account_id) ? (
-                    <div className="flex items-center gap-2 p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white font-semibold">Customer {selectedCustomerId || selectedGoogleAccount?.ad_account_id}</p>
-                        <p className="text-[10px] text-zinc-500">ID: {selectedCustomerId || selectedGoogleAccount?.ad_account_id}</p>
-                      </div>
-                      <button onClick={() => { setGoogleCustomers([]); setShowCustomerPicker(false); handleFetchGoogleCustomers(); }}
-                        className="text-xs text-zinc-500 hover:text-zinc-300">Change</button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl text-xs text-amber-400">
-                        No customer ID linked. Fetch your accessible Google Ads customers below.
-                      </div>
-                      {!showCustomerPicker ? (
-                        <button onClick={handleFetchGoogleCustomers} disabled={loadingCustomers}
-                          className="flex items-center gap-2 w-full px-3 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl transition-all disabled:opacity-40">
-                          {loadingCustomers ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className="w-4 h-4" />}
-                          Fetch Customers
-                        </button>
-                      ) : (
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {googleCustomers.length === 0 ? (
-                            <p className="text-xs text-zinc-500 p-2">No accessible customers found. Check your Google Ads permissions.</p>
-                          ) : googleCustomers.map(c => (
-                            <button key={c.id} onClick={() => handleLinkGoogleCustomer(c.id)}
-                              className="w-full flex items-center justify-between px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm transition-all text-left">
-                              <p className="text-white font-semibold text-xs">Customer {c.id}</p>
-                              <CheckCircle2 className="w-3.5 h-3.5 text-zinc-600" />
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
+              {/* Google Ad Type selector */}
+              <div>
+                <label className={labelCls}>Ad Type</label>
+                <div className="flex gap-2">
+                  {([
+                    { value: "display", label: "Display Ad" },
+                    { value: "search",  label: "Search Ad"  },
+                  ] as const).map(t => (
+                    <button key={t.value} type="button" onClick={() => setGoogleAdType(t.value)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
+                        googleAdType === t.value
+                          ? "bg-orange-500/15 text-orange-300 border-orange-500/30"
+                          : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
+                      }`}>
+                      {t.label}
+                    </button>
+                  ))}
                 </div>
+              </div>
+
+              {/* Display Ad fields */}
+              {googleAdType === 'display' && (
+                <>
+                  <div>
+                    <BoostImageUpload
+                      label="Landscape Image (1200×628)"
+                      hint="Required for Display"
+                      value={googleImageUrl}
+                      slot="google-land"
+                      uploading={uploadingImage === "google-land"}
+                      onUpload={uploadBoostImage}
+                      onClear={() => setGoogleImageUrl("")}
+                    />
+                    {!googleImageUrl && (
+                      <button type="button" onClick={() => setVaultPicker({ slot: "google-land" })}
+                        className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                        or browse Media Vault →
+                      </button>
+                    )}
+                  </div>
+                  <div>
+                    <BoostImageUpload
+                      label="Square Image (1200×1200)"
+                      hint="Required for Display"
+                      value={googleSquareUrl}
+                      slot="google-square"
+                      uploading={uploadingImage === "google-square"}
+                      onUpload={uploadBoostImage}
+                      onClear={() => setGoogleSquareUrl("")}
+                    />
+                    {!googleSquareUrl && (
+                      <button type="button" onClick={() => setVaultPicker({ slot: "google-square" })}
+                        className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                        or browse Media Vault →
+                      </button>
+                    )}
+                  </div>
+                  <div>
+                    <label className={labelCls}>Headline <span className="normal-case text-zinc-600 font-normal">(max 30 chars)</span></label>
+                    <input type="text" value={headline} onChange={e => setHeadline(e.target.value)}
+                      maxLength={30} className={inputCls} placeholder="Discover More" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Description <span className="normal-case text-zinc-600 font-normal">(max 90 chars)</span></label>
+                    <input type="text" value={adDescription} onChange={e => setAdDescription(e.target.value)}
+                      maxLength={90} className={inputCls} placeholder="Amplified by ZoikoVertex" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Landing Page URL</label>
+                    <input type="url" value={finalUrl} onChange={e => setFinalUrl(e.target.value)}
+                      className={inputCls} placeholder="https://…" />
+                  </div>
+                </>
               )}
 
-              {/* Google creative fields */}
-              <div>
-                <label className={labelCls}>Ad Headline <span className="normal-case text-zinc-600 font-normal">(optional, max 30 chars)</span></label>
-                <input type="text" value={headline} onChange={e => setHeadline(e.target.value)}
-                  maxLength={30} className={inputCls} placeholder="Discover More" />
-              </div>
-              <div>
-                <label className={labelCls}>Ad Description <span className="normal-case text-zinc-600 font-normal">(optional, max 90 chars)</span></label>
-                <input type="text" value={adDescription} onChange={e => setAdDescription(e.target.value)}
-                  maxLength={90} className={inputCls} placeholder="Amplified by ZoikoVertex" />
-              </div>
-              <div>
-                <label className={labelCls}>Landing Page URL <span className="normal-case text-zinc-600 font-normal">(optional)</span></label>
-                <input type="url" value={finalUrl} onChange={e => setFinalUrl(e.target.value)}
-                  className={inputCls} placeholder="https://…" />
-              </div>
+              {/* Search Ad fields */}
+              {googleAdType === 'search' && (
+                <>
+                  <div>
+                    <label className={labelCls}>Headlines <span className="normal-case text-zinc-600 font-normal">(3 required, max 30 chars each)</span></label>
+                    <div className="space-y-2">
+                      {rsaHeadlines.map((h, i) => (
+                        <input key={i} type="text" value={h} maxLength={30}
+                          onChange={e => { const a = [...rsaHeadlines]; a[i] = e.target.value; setRsaHeadlines(a); }}
+                          className={inputCls} placeholder={`Headline ${i + 1}`} />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Descriptions <span className="normal-case text-zinc-600 font-normal">(2 required, max 90 chars each)</span></label>
+                    <div className="space-y-2">
+                      {rsaDescriptions.map((d, i) => (
+                        <input key={i} type="text" value={d} maxLength={90}
+                          onChange={e => { const a = [...rsaDescriptions]; a[i] = e.target.value; setRsaDescriptions(a); }}
+                          className={inputCls} placeholder={`Description ${i + 1}`} />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Keywords <span className="normal-case text-zinc-600 font-normal">(one per line)</span></label>
+                    <textarea rows={3} value={googleKeywords} onChange={e => setGoogleKeywords(e.target.value)}
+                      className={`${inputCls} resize-none font-mono text-xs`}
+                      placeholder={"running shoes\nbuy sneakers online"} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Landing Page URL <span className="normal-case text-rose-400 font-normal">(required)</span></label>
+                    <input type="url" value={finalUrl} onChange={e => setFinalUrl(e.target.value)}
+                      className={inputCls} placeholder="https://…" />
+                  </div>
+                </>
+              )}
             </>
           )}
 
@@ -1686,6 +2019,22 @@ function BoostModal({
           </button>
         </div>
       </div>
+
+      {/* Media Vault Picker */}
+      {vaultPicker && (
+        <MediaVaultPicker
+          title="Browse Media Vault"
+          hint={vaultPicker.slot.includes("square") ? "Square image (1200×1200)" : "Landscape image (1200×628)"}
+          typeFilter="image"
+          onSelect={url => {
+            if (vaultPicker.slot === "google-land")   setGoogleImageUrl(url);
+            if (vaultPicker.slot === "google-square") setGoogleSquareUrl(url);
+            if (vaultPicker.slot === "meta-image")    setAdImageUrl(url);
+            setVaultPicker(null);
+          }}
+          onClose={() => setVaultPicker(null)}
+        />
+      )}
     </div>
   );
 }

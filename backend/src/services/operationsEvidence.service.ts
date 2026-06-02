@@ -40,8 +40,6 @@ export async function exportEvidence(params: {
   exportReason: string;
   storageRef?: string;
 }) {
-  const bundle = await getRunEvidence(params.bundleId);
-
   const now = new Date().toISOString();
   // NOTE: do NOT change `status` here. The evidence_status enum has no
   // 'exported' value; the export is recorded via exported_by/exported_at/

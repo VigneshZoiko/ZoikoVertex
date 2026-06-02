@@ -458,6 +458,7 @@
         reason,
         userId,
         userName,
+        impactScope,
       );
       await logToDatabase(
         "warn",
@@ -563,6 +564,7 @@
         reason,
         userId,
         userName,
+        impactScope,
       );
       await logToDatabase(
         "warn",

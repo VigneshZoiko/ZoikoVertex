@@ -131,9 +131,11 @@ export default function AboutTeam() {
                 }}
               >
                 {member.image ? (
-                  <img
+                  <Image
                     src={member.image}
                     alt={member.name || ""}
+                    width={400}
+                    height={140}
                     className="w-full h-43 object-cover object-top"
                   />
                 ) : (

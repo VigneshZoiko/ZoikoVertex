@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logger } from '../../shared/logger';
+import { resolveAgencyAccount, resolveMetaAdAccountId, resolveMetaPageId } from './agencyAccountResolver';
 
-const META_GRAPH = 'https://graph.facebook.com/v18.0';
+const META_GRAPH = 'https://graph.facebook.com/v21.0';
 
 // ── Meta API helper ────────────────────────────────────────────
 
@@ -43,6 +44,21 @@ function resolveMetaObjective(objective: string): string {
   return META_OBJECTIVE_MAP[objective?.toUpperCase()] || 'REACH';
 }
 
+// Maps internal objective → Meta ad set optimization_goal
+const META_OPTIMIZATION_GOAL_MAP: Record<string, string> = {
+  BRAND_AWARENESS: 'REACH',
+  REACH:           'REACH',
+  TRAFFIC:         'LINK_CLICKS',
+  CONVERSIONS:     'OFFSITE_CONVERSIONS',
+  LEAD_GENERATION: 'LEAD_GENERATION',
+  POST_ENGAGEMENT: 'POST_ENGAGEMENT',
+  VIDEO_VIEWS:     'VIDEO_VIEWS',
+};
+
+function resolveOptimizationGoal(objective: string): string {
+  return META_OPTIMIZATION_GOAL_MAP[objective?.toUpperCase()] || 'REACH';
+}
+
 // ── pushCampaignToMeta — shared service function ───────────────
 // Called from launchCampaign (auto) and POST /push-to-meta (manual).
 // Returns a result object — never throws, so callers can treat it non-fatally.
@@ -53,22 +69,15 @@ export async function pushCampaignToMeta(
   userId?: string,
 ): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    const connectedAccountId = (campaign.boost_settings as Record<string, unknown> | null)?.meta_connected_account_id as string | undefined;
-    if (!connectedAccountId) {
-      return { success: false, error: 'No Meta ad account configured on this campaign. Select one in the campaign wizard.' };
+    // Agency model: resolve the agency's default Meta account automatically
+    let acct: any;
+    try {
+      acct = await resolveAgencyAccount(workspaceId, 'meta');
+    } catch (e: any) {
+      return { success: false, error: e.message };
     }
 
-    const { data: acct } = await supabaseAdmin
-      .from('connected_accounts')
-      .select('id, platform, access_token, account_name, ad_account_id')
-      .eq('id', connectedAccountId)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (!acct) return { success: false, error: 'Meta connected account not found.' };
-    if (!acct.ad_account_id) return { success: false, error: 'No Meta Ad Account linked to this account. Link one in the Accounts page.' };
-
-    const adAccountId = toAdAccountId(acct.ad_account_id);
+    const adAccountId = resolveMetaAdAccountId(acct);
     const token       = acct.access_token;
     const objective   = resolveMetaObjective(campaign.objective || '');
     const label       = `ZoikoVertex · ${campaign.name}`;
@@ -106,13 +115,14 @@ export async function pushCampaignToMeta(
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
     const adSetBody: Record<string, unknown> = {
-      name:          `${label} · Ad Set`,
-      campaign_id:   metaCampaignId,
-      billing_event: 'IMPRESSIONS',
-      start_time:    startTime,
-      end_time:      endTime,
-      targeting:     targetingSpec,
-      status:        'ACTIVE',
+      name:              `${label} · Ad Set`,
+      campaign_id:       metaCampaignId,
+      billing_event:     'IMPRESSIONS',
+      optimization_goal: resolveOptimizationGoal(campaign.objective || 'REACH'),
+      start_time:        startTime,
+      end_time:          endTime,
+      targeting:         targetingSpec,
+      status:            'ACTIVE',
     };
 
     if (budgetTotal)    adSetBody.lifetime_budget = budgetTotal;
@@ -128,15 +138,60 @@ export async function pushCampaignToMeta(
 
     const metaAdSetId = metaAdSet.id as string;
 
-    // 4. Save to campaign_boosts
+    // 4. If campaign has an image creative, create a full ad — not just a shell
+    const creative = campaign.creative || {};
+    let metaCreativeId: string | null = null;
+    let metaAdId:       string | null = null;
+    let resolvedBoostType = 'CAMPAIGN';
+
+    const pageId = creative.facebook_page_id || resolveMetaPageId(acct) || null;
+
+    if (pageId && creative.ad_image_url) {
+      // IMAGE_AD: campaign has an image set — create a deliverable ad
+      const landingUrl = creative.landing_page_url || 'https://zoikogroup.com';
+      const adCreative = await metaPost(`/${adAccountId}/adcreatives`, token, {
+        name: `${label} · Creative`,
+        object_story_spec: {
+          page_id:   pageId,
+          link_data: {
+            message:        creative.copy_text    || '',
+            link:           landingUrl,
+            picture:        creative.ad_image_url,
+            name:           creative.headline     || '',
+            call_to_action: {
+              type:  creative.cta_text?.toUpperCase().replace(/ /g, '_') || 'LEARN_MORE',
+              value: { link: landingUrl },
+            },
+          },
+        },
+      }) as any;
+
+      if (!adCreative.error) {
+        metaCreativeId  = adCreative.id as string;
+        resolvedBoostType = 'IMAGE_AD';
+
+        const adRes = await metaPost(`/${adAccountId}/ads`, token, {
+          name:     `${label} · Ad`,
+          adset_id: metaAdSetId,
+          creative: { creative_id: metaCreativeId },
+          status:   'ACTIVE',
+        }) as any;
+
+        if (!adRes.error) metaAdId = adRes.id as string;
+      } else {
+        logger.warn({ campaignId: campaign.id, err: adCreative.error }, '[Meta] Auto-launch creative creation failed — campaign shell saved');
+      }
+    }
+
+    // 5. Save to campaign_boosts
     const { data: boost, error: boostErr } = await supabaseAdmin
       .from('campaign_boosts')
       .insert({
         workspace_id:         workspaceId,
         campaign_id:          campaign.id,
-        connected_account_id: connectedAccountId,
+        connected_account_id: acct.id,
         platform:             acct.platform,
-        boost_type:           'CAMPAIGN',
+        boost_type:           resolvedBoostType,
         status:               'ACTIVE',
         budget_total:         campaign.budget_total || null,
         budget_daily:         campaign.budget_daily || null,
@@ -148,6 +203,10 @@ export async function pushCampaignToMeta(
         ad_account_id:        adAccountId,
         meta_campaign_id:     metaCampaignId,
         meta_adset_id:        metaAdSetId,
+        meta_creative_id:     metaCreativeId,
+        meta_ad_id:           metaAdId,
+        ad_image_url:         creative.ad_image_url || null,
+        ad_headline:          creative.headline     || null,
         created_by:           userId || null,
       })
       .select()
@@ -155,7 +214,7 @@ export async function pushCampaignToMeta(
 
     if (boostErr) throw boostErr;
 
-    logger.info({ campaignId: campaign.id, metaCampaignId, metaAdSetId }, '[Meta] Campaign pushed to Meta Ads');
+    logger.info({ campaignId: campaign.id, metaCampaignId, metaAdSetId, hasCreative: !!metaCreativeId }, '[Meta] Campaign pushed to Meta Ads');
     return { success: true, data: boost };
   } catch (err: any) {
     logger.warn({ err, campaignId: campaign.id }, '[Meta] pushCampaignToMeta failed');
@@ -291,22 +350,35 @@ export const linkAdAccount = async (req: AuthRequest, res: Response, next: NextF
 // ── POST /api/v1/ads/boosts — Create a boost ─────────────────
 
 const CreateBoostSchema = z.object({
-  boost_type:          z.enum(['POST', 'CAMPAIGN']),
-  publish_intent_id:   z.string().uuid().optional(),
-  campaign_id:         z.string().uuid().optional(),
+  boost_type:           z.enum(['POST', 'CAMPAIGN', 'IMAGE_AD', 'VIDEO_AD', 'LEAD_AD']),
+  publish_intent_id:    z.string().uuid().optional(),
+  campaign_id:          z.string().uuid().optional(),
   connected_account_id: z.string().uuid(),
-  objective:           z.enum(['POST_ENGAGEMENT', 'REACH', 'BRAND_AWARENESS', 'TRAFFIC', 'VIDEO_VIEWS'])
-                         .default('POST_ENGAGEMENT'),
-  budget_total:        z.number().positive().optional(),
-  budget_daily:        z.number().positive().optional(),
-  budget_currency:     z.string().default('USD'),
-  start_at:            z.string(),
-  end_at:              z.string(),
+  objective:            z.enum([
+    'POST_ENGAGEMENT', 'REACH', 'BRAND_AWARENESS',
+    'TRAFFIC', 'VIDEO_VIEWS', 'LEAD_GENERATION', 'CONVERSIONS',
+  ]).default('POST_ENGAGEMENT'),
+  budget_total:         z.number().positive().optional(),
+  budget_daily:         z.number().positive().optional(),
+  budget_currency:      z.string().default('USD'),
+  start_at:             z.string(),
+  end_at:               z.string(),
   targeting: z.object({
     countries: z.array(z.string()).default([]),
     age_min:   z.number().int().min(13).max(65).default(18),
     age_max:   z.number().int().min(13).max(65).default(65),
   }).default({ countries: [], age_min: 18, age_max: 65 }),
+  // Image / Video Ad fields
+  ad_image_url:   z.string().url().optional(),
+  ad_video_url:   z.string().url().optional(),
+  ad_headline:    z.string().max(40).optional(),
+  ad_body:        z.string().max(125).optional(),
+  ad_cta:         z.string().optional(),
+  ad_landing_url: z.string().url().optional(),
+  // Lead Ad fields
+  lead_form_id:   z.string().optional(),
+  // Facebook page (needed for IMAGE/VIDEO ad creatives)
+  facebook_page_id: z.string().optional(),
 });
 
 export const createBoost = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -323,18 +395,9 @@ export const createBoost = async (req: AuthRequest, res: Response, next: NextFun
       return res.status(400).json({ error: 'Provide either budget_daily or budget_total' });
     }
 
-    // Resolve connected account
-    const { data: acct } = await supabaseAdmin
-      .from('connected_accounts')
-      .select('id, platform, access_token, account_handle, ad_account_id, ad_account_name, account_name')
-      .eq('id', d.connected_account_id)
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (!acct)              return res.status(404).json({ error: 'Connected account not found' });
-    if (!acct.ad_account_id) return res.status(400).json({ error: 'No ad account linked. Select an ad account first.' });
-
-    const adAccountId = toAdAccountId(acct.ad_account_id);
+    // Agency model: resolve the agency's default Meta account automatically
+    const acct = await resolveAgencyAccount(workspaceId, 'meta');
+    const adAccountId = resolveMetaAdAccountId(acct);
     const token       = acct.access_token;
 
     // For POST boosts — resolve the platform post ID
@@ -361,12 +424,21 @@ export const createBoost = async (req: AuthRequest, res: Response, next: NextFun
     const dailyBudget    = d.budget_daily ? Math.round(d.budget_daily * 100) : null;
     const lifetimeBudget = d.budget_total ? Math.round(d.budget_total * 100) : null;
 
-    const label = `ZoikoVertex ${d.boost_type === 'POST' ? 'Post' : 'Campaign'} Boost · ${new Date().toISOString().slice(0, 10)}`;
+    const boostTypeLabel: Record<string, string> = {
+      POST: 'Post', CAMPAIGN: 'Campaign',
+      IMAGE_AD: 'Image Ad', VIDEO_AD: 'Video Ad', LEAD_AD: 'Lead Ad',
+    };
+    const label = `ZoikoVertex ${boostTypeLabel[d.boost_type] ?? d.boost_type} · ${new Date().toISOString().slice(0, 10)}`;
+
+    // Resolve objective for Meta API — LEAD_AD always uses OUTCOME_LEADS
+    const resolvedObjective = d.boost_type === 'LEAD_AD'
+      ? 'OUTCOME_LEADS'
+      : resolveMetaObjective(d.objective);
 
     // 1. Create Meta Campaign
     const metaCampaign = await metaPost(`/${adAccountId}/campaigns`, token, {
       name:                  label,
-      objective:             d.objective,
+      objective:             resolvedObjective,
       status:                'ACTIVE',
       special_ad_categories: [],
     }) as any;
@@ -389,15 +461,16 @@ export const createBoost = async (req: AuthRequest, res: Response, next: NextFun
       },
     };
 
-    // 3. Create Ad Set
+    // 3. Create Ad Set with optimization_goal
     const adSetBody: Record<string, unknown> = {
-      name:          `${label} · AdSet`,
-      campaign_id:   metaCampaignId,
-      billing_event: 'IMPRESSIONS',
-      start_time:    new Date(d.start_at).toISOString(),
-      end_time:      new Date(d.end_at).toISOString(),
-      targeting:     targetingSpec,
-      status:        'ACTIVE',
+      name:              `${label} · AdSet`,
+      campaign_id:       metaCampaignId,
+      billing_event:     'IMPRESSIONS',
+      optimization_goal: resolveOptimizationGoal(d.boost_type === 'LEAD_AD' ? 'LEAD_GENERATION' : d.objective),
+      start_time:        new Date(d.start_at).toISOString(),
+      end_time:          new Date(d.end_at).toISOString(),
+      targeting:         targetingSpec,
+      status:            'ACTIVE',
     };
     if (dailyBudget)    adSetBody.daily_budget    = dailyBudget;
     else                adSetBody.lifetime_budget = lifetimeBudget;
@@ -413,44 +486,137 @@ export const createBoost = async (req: AuthRequest, res: Response, next: NextFun
     let metaCreativeId: string | null = null;
     let metaAdId:       string | null = null;
 
-    // 4. Creative + Ad (for post boosts with a real post ID)
+    // 4. Build creative based on boost type
+    const pageId = d.facebook_page_id || acct.account_handle || null;
+
     if (d.boost_type === 'POST' && objectStoryId) {
+      // ── Post Boost: promote existing organic post ─────────────
       const creative = await metaPost(`/${adAccountId}/adcreatives`, token, {
         name:            `${label} · Creative`,
         object_story_id: objectStoryId,
       }) as any;
-
       if (creative.error) {
         return res.status(400).json({ error: `Meta error creating creative: ${creative.error.message}` });
       }
       metaCreativeId = creative.id as string;
 
+    } else if (d.boost_type === 'IMAGE_AD') {
+      // ── Image Ad: fresh image creative ───────────────────────
+      if (!d.ad_image_url) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return res.status(400).json({ error: 'ad_image_url is required for IMAGE_AD boost' });
+      }
+      if (!pageId) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return res.status(400).json({ error: 'facebook_page_id is required for IMAGE_AD boost' });
+      }
+      const ctaType = d.ad_cta || 'LEARN_MORE';
+      const landingUrl = d.ad_landing_url || 'https://zoikogroup.com';
+      const creative = await metaPost(`/${adAccountId}/adcreatives`, token, {
+        name: `${label} · Creative`,
+        object_story_spec: {
+          page_id:   pageId,
+          link_data: {
+            message:          d.ad_body    || '',
+            link:             landingUrl,
+            picture:          d.ad_image_url,
+            name:             d.ad_headline || '',
+            call_to_action:   { type: ctaType, value: { link: landingUrl } },
+          },
+        },
+      }) as any;
+      if (creative.error) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return res.status(400).json({ error: `Meta error creating image creative: ${creative.error.message}` });
+      }
+      metaCreativeId = creative.id as string;
+
+    } else if (d.boost_type === 'VIDEO_AD') {
+      // ── Video Ad: video creative ──────────────────────────────
+      if (!d.ad_video_url) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return res.status(400).json({ error: 'ad_video_url is required for VIDEO_AD boost' });
+      }
+      if (!pageId) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return res.status(400).json({ error: 'facebook_page_id is required for VIDEO_AD boost' });
+      }
+      const ctaType    = d.ad_cta        || 'WATCH_MORE';
+      const landingUrl = d.ad_landing_url || 'https://zoikogroup.com';
+      const creative   = await metaPost(`/${adAccountId}/adcreatives`, token, {
+        name: `${label} · Creative`,
+        object_story_spec: {
+          page_id:    pageId,
+          video_data: {
+            video_id:       d.ad_video_url,
+            message:        d.ad_body        || '',
+            title:          d.ad_headline    || '',
+            image_url:      d.ad_image_url   || undefined,
+            call_to_action: { type: ctaType, value: { link: landingUrl } },
+          },
+        },
+      }) as any;
+      if (creative.error) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return res.status(400).json({ error: `Meta error creating video creative: ${creative.error.message}` });
+      }
+      metaCreativeId = creative.id as string;
+
+    } else if (d.boost_type === 'LEAD_AD') {
+      // ── Lead Ad: instant form ─────────────────────────────────
+      if (!d.lead_form_id) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return res.status(400).json({ error: 'lead_form_id is required for LEAD_AD boost' });
+      }
+      if (!pageId) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return res.status(400).json({ error: 'facebook_page_id is required for LEAD_AD boost' });
+      }
+      const creative = await metaPost(`/${adAccountId}/adcreatives`, token, {
+        name: `${label} · Creative`,
+        object_story_spec: {
+          page_id:   pageId,
+          link_data: {
+            message:         d.ad_body     || '',
+            name:            d.ad_headline || '',
+            call_to_action:  { type: 'SIGN_UP', value: { lead_gen_form_id: d.lead_form_id } },
+          },
+        },
+      }) as any;
+      if (creative.error) {
+        await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' });
+        return res.status(400).json({ error: `Meta error creating lead creative: ${creative.error.message}` });
+      }
+      metaCreativeId = creative.id as string;
+    }
+
+    // 5. Create the Ad (for all types that produced a creative)
+    if (metaCreativeId) {
       const ad = await metaPost(`/${adAccountId}/ads`, token, {
         name:     `${label} · Ad`,
         adset_id: metaAdSetId,
         creative: { creative_id: metaCreativeId },
         status:   'ACTIVE',
       }) as any;
-
       if (ad.error) {
         return res.status(400).json({ error: `Meta error creating ad: ${ad.error.message}` });
       }
       metaAdId = ad.id as string;
     }
 
-    // 5. Save to DB
+    // 6. Save to DB
     const { data: boost, error: boostErr } = await supabaseAdmin
       .from('campaign_boosts')
       .insert({
         workspace_id:        workspaceId,
-        campaign_id:         d.campaign_id         || null,
-        publish_intent_id:   d.publish_intent_id   || null,
-        connected_account_id: d.connected_account_id,
+        campaign_id:         d.campaign_id          || null,
+        publish_intent_id:   d.publish_intent_id    || null,
+        connected_account_id: acct.id,
         platform:            acct.platform,
         boost_type:          d.boost_type,
         status:              'ACTIVE',
-        budget_total:        d.budget_total         || null,
-        budget_daily:        d.budget_daily         || null,
+        budget_total:        d.budget_total          || null,
+        budget_daily:        d.budget_daily          || null,
         budget_currency:     d.budget_currency,
         start_at:            d.start_at,
         end_at:              d.end_at,
@@ -461,6 +627,10 @@ export const createBoost = async (req: AuthRequest, res: Response, next: NextFun
         meta_adset_id:       metaAdSetId,
         meta_ad_id:          metaAdId,
         meta_creative_id:    metaCreativeId,
+        ad_image_url:        d.ad_image_url          || null,
+        ad_headline:         d.ad_headline           || null,
+        ad_body:             d.ad_body               || null,
+        lead_form_id:        d.lead_form_id          || null,
         created_by:          userId,
       })
       .select()

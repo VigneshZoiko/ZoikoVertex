@@ -16,7 +16,7 @@ import Toast from "@/components/Toast";
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 interface ConnectedAccount {
   id: string;
-  platform: "facebook" | "instagram" | "linkedin" | "twitter" | "pinterest" | "threads" | "youtube";
+  platform: "facebook" | "instagram" | "linkedin" | "twitter" | "pinterest" | "threads" | "youtube" | "googleads";
   account_name: string;
   account_handle?: string;
   avatar_url?: string;
@@ -135,6 +135,25 @@ const PLATFORMS = [
     Icon: () => (
       <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
         <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+      </svg>
+    ),
+  },
+  {
+    id: "googleads",
+    name: "Google Ads",
+    description: "Search, Display & Performance Max",
+    color: "#4285F4",
+    lightBg: "bg-blue-500/10",
+    border: "border-blue-500/20",
+    text: "text-blue-400",
+    oauth: true,
+    comingSoon: false,
+    Icon: () => (
+      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+        <path d="M22.3 11.7c0-.6-.1-1.3-.2-1.9H12v3.6h5.8c-.3 1.3-1 2.4-2.1 3.1v2.6h3.4c2-1.8 3.2-4.5 3.2-7.4z" fill="#4285F4"/>
+        <path d="M12 23c2.9 0 5.3-1 7-2.6l-3.4-2.6c-.9.6-2.1 1-3.6 1-2.8 0-5.1-1.9-5.9-4.4H2.6v2.7C4.4 20.5 8 23 12 23z" fill="#34A853"/>
+        <path d="M6.1 14.4c-.2-.6-.4-1.3-.4-2s.1-1.4.4-2V7.7H2.6C1.6 9.3 1 11.1 1 13s.6 3.7 1.6 5.3l3.5-3.9z" fill="#FBBC05"/>
+        <path d="M12 5.6c1.6 0 3 .5 4.1 1.6l3-3C17.3 2.5 14.8 1 12 1 8 1 4.4 3.5 2.6 7.1l3.5 2.7c.8-2.5 3.1-4.2 5.9-4.2z" fill="#EA4335"/>
       </svg>
     ),
   },
@@ -288,11 +307,15 @@ export default function AccountsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User session not found.");
       
-      let workspaceId = '00000000-0000-0000-0000-000000000000'; // Default Dev Workspace
       const { data: member } = await supabase
         .from("workspace_members").select("workspace_id").eq("user_id", user.id).maybeSingle();
-      
-      if (member) workspaceId = member.workspace_id;
+
+      if (!member?.workspace_id) {
+        setError("Workspace not found. Please reload the page or contact support.");
+        setIsSubmitting(null);
+        return;
+      }
+      const workspaceId = member.workspace_id;
 
       const backendUrl =
         process.env.NEXT_PUBLIC_OAUTH_BACKEND_URL ||
@@ -300,7 +323,12 @@ export default function AccountsPage() {
         "http://localhost:5006";
 
       if (platformId === "facebook" || platformId === "instagram") {
-        const appId = process.env.NEXT_PUBLIC_META_APP_ID || "989391590153112";
+        const appId = process.env.NEXT_PUBLIC_META_APP_ID || "";
+        if (!appId) {
+          setError("Meta integration is not configured. Add NEXT_PUBLIC_META_APP_ID to your .env.");
+          setIsSubmitting(null);
+          return;
+        }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/facebook/callback`);
         const scope = ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","pages_read_user_content","pages_manage_engagement","read_insights","instagram_basic","instagram_content_publish","instagram_manage_comments","instagram_manage_insights","business_management"].join(",");
         const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: platformId }));
@@ -338,12 +366,35 @@ export default function AccountsPage() {
         const state = encodeURIComponent(JSON.stringify({ workspaceId }));
         window.location.assign(`https://threads.net/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&scope=threads_basic,threads_content_publish,threads_manage_replies,threads_read_replies,threads_manage_insights&state=${state}&response_type=code`);
       } else if (platformId === "twitter") {
-        const clientId = process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "ZGtmZHMxdUJWU3BMUS15VXpjVXk6MTpjaQ";
+        const clientId = process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "";
+        if (!clientId) {
+          setError("Twitter/X integration is not configured. Add NEXT_PUBLIC_TWITTER_CLIENT_ID to your .env.");
+          setIsSubmitting(null);
+          return;
+        }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/twitter/callback`);
-        const codeChallenge = "zoikovertex_twitter_oauth2_pkce_plain_challenge_string";
+        // Generate a cryptographically random PKCE challenge for each auth attempt
+        const randomBytes = new Uint8Array(32);
+        window.crypto.getRandomValues(randomBytes);
+        const codeChallenge = Array.from(randomBytes).map(b => b.toString(16).padStart(2, "0")).join("");
         const state = encodeURIComponent(workspaceId);
         const scope = encodeURIComponent("tweet.read tweet.write dm.read dm.write users.read media.write offline.access");
         window.location.assign(`https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=plain`);
+      } else if (platformId === "googleads") {
+        // Google Ads uses the same OAuth client as YouTube (Google Cloud project)
+        const clientId = process.env.NEXT_PUBLIC_GOOGLE_ADS_CLIENT_ID || process.env.NEXT_PUBLIC_YOUTUBE_CLIENT_ID || "";
+        if (!clientId) {
+          setError("Google Ads is not yet configured. Add NEXT_PUBLIC_GOOGLE_ADS_CLIENT_ID to your frontend .env.");
+          setIsSubmitting(null);
+          return;
+        }
+        const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/googleads/callback`);
+        const state       = encodeURIComponent(workspaceId);
+        // Requires Google Ads API scope — must also have GOOGLE_ADS_DEVELOPER_TOKEN on the backend
+        const scope = encodeURIComponent("https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile");
+        window.location.assign(
+          `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`
+        );
       } else if (platformId === "youtube") {
         const clientId = process.env.NEXT_PUBLIC_YOUTUBE_CLIENT_ID || "";
         if (!clientId) {
@@ -507,7 +558,7 @@ export default function AccountsPage() {
                   <p className="text-xs text-[var(--foreground-muted)] mt-0.5">{platform.description}</p>
                 </div>
 
-                {!platform.comingSoon && (userRole !== "CREATOR" || isSuperAdmin) && (
+                {!platform.comingSoon && !isLoading && canManageAccounts && (
                   <div className="flex items-center gap-2 shrink-0">
                     {platform.id === "linkedin" && (
                       <button

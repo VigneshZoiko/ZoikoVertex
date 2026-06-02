@@ -1,6 +1,8 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as validationService from '../../services/validationDesk.service';
+import { createReviewItem } from '../../services/reviewQueue.service';
+import { createApprovalItem } from '../../services/approval.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
 
 function getParamId(req: AuthRequest): string {
@@ -14,6 +16,49 @@ function getParam(req: AuthRequest, name: string): string {
 }
 
 // ─── Items ───────────────────────────────────────────────────────────────
+
+export const createValidationItem = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const body = req.body as {
+      source_module: string;
+      source_entity_id: string;
+      item_type: string;
+      title: string;
+      campaign_id?: string;
+      platform?: string;
+      content_snapshot?: Record<string, unknown>;
+      risk_level?: string;
+      due_at?: string;
+    };
+
+    if (!body.source_module || !body.source_entity_id || !body.item_type || !body.title) {
+      return res.status(400).json({ error: 'source_module, source_entity_id, item_type, and title are required' });
+    }
+
+    const item = await validationService.createValidationItem({
+      tenant_id,
+      workspace_id: tenant_id,
+      source_module: body.source_module,
+      source_entity_id: body.source_entity_id,
+      item_type: body.item_type as any,
+      title: body.title,
+      campaign_id: body.campaign_id,
+      platform: body.platform,
+      content_snapshot: body.content_snapshot,
+      submitted_by: userId,
+      risk_level: body.risk_level as any,
+      due_at: body.due_at,
+    });
+
+    res.status(201).json({ success: true, data: item });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const listValidationItems = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -164,6 +209,17 @@ export const sendToReviewQueue = async (req: AuthRequest, res: Response, next: N
       return res.status(400).json({ success: false, message: `Cannot send to Review Queue: ${eligibility.state}` });
     }
 
+    await createReviewItem({
+      tenant_id,
+      workspace_id: tenant_id,
+      source_module: 'validation_desk',
+      source_entity_id: getParamId(req),
+      item_type: 'validation_failed',
+      title: `Review: ${item.title || 'Validation Item'}`,
+      submitted_by: performed_by,
+      risk_level: (item.risk_level as any) || 'LOW',
+    });
+
     await validationService.updateValidationStatus(getParamId(req), 'COMPLETED', performed_by, tenant_id);
     res.json({ success: true, message: 'Sent to Review Queue' });
   } catch (error) {
@@ -188,6 +244,17 @@ export const sendToApprovals = async (req: AuthRequest, res: Response, next: Nex
     if (!eligibility.send_to_approvals_allowed) {
       return res.status(400).json({ success: false, message: `Cannot send to Approvals: ${eligibility.state}` });
     }
+
+    await createApprovalItem({
+      tenant_id,
+      workspace_id: tenant_id,
+      source_module: 'validation_desk',
+      source_entity_id: getParamId(req),
+      item_type: 'VALIDATION_OVERRIDE',
+      title: `Approval: ${item.title || 'Validation Item'}`,
+      submitted_by: performed_by,
+      risk_level: (item.risk_level as string) || 'LOW',
+    });
 
     await validationService.updateValidationStatus(getParamId(req), 'COMPLETED', performed_by, tenant_id);
     res.json({ success: true, message: 'Sent to Approvals' });
