@@ -381,7 +381,7 @@ export default function ValidationDeskPage() {
         api.get(`/api/v1/validation/items/${itemId}/runs`),
         api.get(`/api/v1/validation/items/${itemId}/grounding`),
         api.get(`/api/v1/validation/items/${itemId}/notes`),
-        api.get(`/api/v1/validation/items/${itemId}/audit-trail`),
+        api.get(`/api/v1/validation/items/${itemId}/audit-log`),
         api.get(`/api/v1/validation/items/${itemId}/manual-check`),
         api.get(`/api/v1/validation/items/${itemId}/approval-readiness`),
       ]);
@@ -420,13 +420,13 @@ export default function ValidationDeskPage() {
       let result;
       switch (action) {
         case "run_validation":
-          result = await api.post(`/api/v1/validation/items/${itemId}/run-validation`, {});
+          result = await api.post(`/api/v1/validation/items/${itemId}/run`, {});
           break;
         case "revalidate":
           result = await api.post(`/api/v1/validation/items/${itemId}/revalidate`, {});
           break;
         case "send_to_review":
-          result = await api.post(`/api/v1/validation/items/${itemId}/send-to-review`, {});
+          result = await api.post(`/api/v1/validation/items/${itemId}/send-to-review-queue`, {});
           break;
         case "send_to_approvals":
           result = await api.post(`/api/v1/validation/items/${itemId}/send-to-approvals`, {});
@@ -447,7 +447,7 @@ export default function ValidationDeskPage() {
           });
           break;
         case "export":
-          result = await api.post(`/api/v1/validation/export`, { item_id: itemId });
+          result = await api.get(`/api/v1/validation/items/${itemId}/export`);
           break;
         default:
           return;

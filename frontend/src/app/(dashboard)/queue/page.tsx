@@ -425,7 +425,7 @@ export default function ReviewQueuePage() {
         api.get(`/api/v1/review-queue/items/${itemId}`),
         api.get(`/api/v1/review-queue/items/${itemId}/validation`),
         api.get(`/api/v1/review-queue/items/${itemId}/policy-flags`),
-        api.get(`/api/v1/review-queue/items/${itemId}/audit-trail`),
+        api.get(`/api/v1/review-queue/items/${itemId}/audit-log`),
         api.get(`/api/v1/review-queue/items/${itemId}/notes`),
         api.get(`/api/v1/review-queue/items/${itemId}/eligibility`),
         api.get(`/api/v1/review-queue/items/${itemId}/revision-history`),

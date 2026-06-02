@@ -494,7 +494,7 @@ export default function QualityAuditPage() {
     if (!selectedItem) return;
     setActionLoading("assign");
     try {
-      const res = await api.patch(`/api/v1/quality-audit/items/${selectedItem.id}/assign`, { auditor_id: "current_user" });
+      const res = await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/assign`, { auditor_id: "current_user" });
       if (res.success) {
         setSelectedItem({ ...selectedItem, assigned_auditor: "current_user" });
         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, assigned_auditor: "current_user" } : i));
@@ -591,7 +591,7 @@ export default function QualityAuditPage() {
   const handleScoreOverride = async () => {
     if (!selectedItem || !overrideReason.trim()) return;
     setActionLoading("override");
-    try { await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/score-override`, { overall_score: overallScore, reason: overrideReason }); setShowOverrideModal(false); setOverrideReason(""); } catch { /* noop */ } finally { setActionLoading(null); }
+    try { await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/scorecard/override`, { overall_score: overallScore, reason: overrideReason }); setShowOverrideModal(false); setOverrideReason(""); } catch { /* noop */ } finally { setActionLoading(null); }
   };
 
   // ─── Alerts ────────────────────────────────────────────────────────────────

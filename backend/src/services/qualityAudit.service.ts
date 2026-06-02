@@ -708,6 +708,39 @@ export async function getAuditLog(audit_item_id: string): Promise<Record<string,
   return data || [];
 }
 
+export async function getDefects(audit_item_id: string): Promise<Record<string, unknown>[]> {
+  const { data, error } = await supabaseAdmin
+    .from('quality_audit_defects')
+    .select('*')
+    .eq('audit_item_id', audit_item_id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getCorrectiveActions(audit_item_id: string): Promise<Record<string, unknown>[]> {
+  const { data, error } = await supabaseAdmin
+    .from('quality_audit_corrective_actions')
+    .select('*')
+    .eq('audit_item_id', audit_item_id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getAuditNotes(audit_item_id: string): Promise<Record<string, unknown>[]> {
+  const { data, error } = await supabaseAdmin
+    .from('quality_audit_notes')
+    .select('*')
+    .eq('audit_item_id', audit_item_id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
 // ─── Callbacks ────────────────────────────────────────────────────────────
 
 export async function processPendingCallbacks(tenant_id: string, limit: number = 10): Promise<{ processed: number; failed: number }> {
@@ -795,6 +828,18 @@ export async function createCallback(input: {
 
   if (error) throw error;
   return data;
+}
+
+export async function findAndRetryCallback(audit_item_id: string, performed_by: string, tenant_id: string): Promise<Record<string, unknown> | null> {
+  const { data: callbacks } = await supabaseAdmin
+    .from('quality_audit_callbacks')
+    .select('*')
+    .eq('audit_item_id', audit_item_id)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (!callbacks || callbacks.length === 0) return null;
+  return retryCallback(callbacks[0].id, performed_by, tenant_id);
 }
 
 export async function retryCallback(callback_id: string, performed_by: string, tenant_id: string): Promise<Record<string, unknown>> {
