@@ -1,6 +1,8 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as validationService from '../../services/validationDesk.service';
+import { createReviewItem } from '../../services/reviewQueue.service';
+import { createApprovalItem } from '../../services/approval.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
 
 function getParamId(req: AuthRequest): string {
@@ -207,6 +209,17 @@ export const sendToReviewQueue = async (req: AuthRequest, res: Response, next: N
       return res.status(400).json({ success: false, message: `Cannot send to Review Queue: ${eligibility.state}` });
     }
 
+    await createReviewItem({
+      tenant_id,
+      workspace_id: tenant_id,
+      source_module: 'validation_desk',
+      source_entity_id: getParamId(req),
+      item_type: 'validation_failed',
+      title: `Review: ${item.title || 'Validation Item'}`,
+      submitted_by: performed_by,
+      risk_level: (item.risk_level as any) || 'LOW',
+    });
+
     await validationService.updateValidationStatus(getParamId(req), 'COMPLETED', performed_by, tenant_id);
     res.json({ success: true, message: 'Sent to Review Queue' });
   } catch (error) {
@@ -231,6 +244,17 @@ export const sendToApprovals = async (req: AuthRequest, res: Response, next: Nex
     if (!eligibility.send_to_approvals_allowed) {
       return res.status(400).json({ success: false, message: `Cannot send to Approvals: ${eligibility.state}` });
     }
+
+    await createApprovalItem({
+      tenant_id,
+      workspace_id: tenant_id,
+      source_module: 'validation_desk',
+      source_entity_id: getParamId(req),
+      item_type: 'VALIDATION_OVERRIDE',
+      title: `Approval: ${item.title || 'Validation Item'}`,
+      submitted_by: performed_by,
+      risk_level: (item.risk_level as string) || 'LOW',
+    });
 
     await validationService.updateValidationStatus(getParamId(req), 'COMPLETED', performed_by, tenant_id);
     res.json({ success: true, message: 'Sent to Approvals' });

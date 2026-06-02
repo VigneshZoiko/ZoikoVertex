@@ -220,6 +220,14 @@ export const api = {
     return this.post(`/api/v1/operations/runs/${id}/resume`, { reason });
   },
 
+  async startRun(id: string, reason?: string) {
+    return this.post(`/api/v1/operations/runs/${id}/start`, { reason });
+  },
+
+  async deleteRun(id: string) {
+    return this.delete(`/api/v1/operations/runs/${id}`);
+  },
+
   async stopRun(id: string, reason?: string) {
     return this.post(`/api/v1/operations/runs/${id}/stop`, { reason });
   },
@@ -327,6 +335,22 @@ export const api = {
 
   async escalateRun(id: string, reason?: string) {
     return this.post(`/api/v1/operations/runs/${id}/escalate`, { reason });
+  },
+
+  async restrictedMode(id: string, reason?: string) {
+    return this.post(`/api/v1/operations/runs/${id}/restricted-mode`, { reason });
+  },
+
+  async runPolicyCheck(id: string) {
+    return this.post(`/api/v1/operations/runs/${id}/policy-check`, {});
+  },
+
+  async getPolicyResults(id: string) {
+    return this.get(`/api/v1/operations/runs/${id}/policy-results`);
+  },
+
+  async getRuntimeControlLog(id: string) {
+    return this.get(`/api/v1/operations/runs/${id}/control-log`);
   },
 
   // ─── AGENTS API CLIENT ───

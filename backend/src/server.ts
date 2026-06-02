@@ -209,7 +209,7 @@ import { listAccounts } from './domains/channels/accountsController';
 import { getPlatformReach } from './domains/channels/platformInsightsController';
 import { listMembers, listRequests, createRequest, updateRequest, deleteMember } from './domains/identity/teamController';
 import { listUnits, createUnit, deleteUnit } from './domains/identity/unitsController';
-import { performQualityCheck, listAuditItems, getAuditItem, getQaAuditStats, getAuditEligibility, getQaAuditTrail, startAudit, passAudit, failAudit, needsCorrection, escalateAudit, closeAudit, assignAuditorToItem, saveScorecard, overrideScorecard, addDefect, resolveDefect, addCorrectiveAction, updateCorrectiveAction, addQaNote, addQaEvidence, generateSample } from './domains/governance/qaController';
+import { performQualityCheck, listAuditItems, getAuditItem, getQaAuditStats, getAuditEligibility, getQaAuditTrail, startAudit, passAudit, failAudit, needsCorrection, escalateAudit, closeAudit, assignAuditorToItem, saveScorecard, overrideScorecard, addDefect, resolveDefect, addCorrectiveAction, updateCorrectiveAction, addQaNote, addQaEvidence, generateSample, retryQaCallback } from './domains/governance/qaController';
 import {
   createException, listExceptions, getException, updateException,
   getExceptionStats, assignOwner, updateSeverity, updateStatus,
@@ -311,6 +311,8 @@ import {
   getRunTimeline,
   pauseRun,
   resumeRun,
+  startRun,
+  deleteRun,
   stopRun,
   retryRun,
   quarantineRun,
@@ -335,6 +337,7 @@ import {
   listEvidenceBundles,
   subscribeOperationsEvents
 } from './domains/agents/operationsController';
+import { requireOperationsAccess } from './services/operationsAuthorization.service';
 
 const upload = multer({ dest: os.tmpdir() });
 const app = express();
@@ -889,12 +892,20 @@ app.post('/api/v1/agents/:id/incidents', authenticate, scopeGuard('write:agents'
 app.patch('/api/v1/agents/:id/incidents/:incidentId/resolve', authenticate, scopeGuard('write:agents', '*'), resolveAgentIncident);
 
 // Agent Operations Routes
+// Defense in depth: requireOperationsAccess guarantees every operations route
+// requires at least base "view" permission at the route layer. Each handler
+// additionally enforces its specific action via assertOperationsPermission +
+// assertWorkspaceScope. All access uses the Supabase service role; tenant
+// isolation is enforced in the API layer.
+app.use('/api/v1/operations', authenticate, requireOperationsAccess);
 app.get('/api/v1/operations/runs', authenticate, listAgentRuns);
 app.get('/api/v1/operations/events', authenticate, subscribeOperationsEvents);
 app.get('/api/v1/operations/runs/:id', authenticate, getAgentRun);
 app.get('/api/v1/operations/runs/:id/timeline', authenticate, getRunTimeline);
 app.post('/api/v1/operations/runs/:id/pause', authenticate, pauseRun);
 app.post('/api/v1/operations/runs/:id/resume', authenticate, resumeRun);
+app.post('/api/v1/operations/runs/:id/start', authenticate, startRun);
+app.delete('/api/v1/operations/runs/:id', authenticate, deleteRun);
 app.post('/api/v1/operations/runs/:id/stop', authenticate, stopRun);
 app.post('/api/v1/operations/runs/:id/retry', authenticate, retryRun);
 app.post('/api/v1/operations/runs/:id/quarantine', authenticate, quarantineRun);
@@ -1040,26 +1051,26 @@ app.get('/api/v1/approvals-v2/items/:id/audit-log', authenticate, scopeGuard('re
 app.post('/api/v1/approvals-v2/items/:id/export', authenticate, scopeGuard('read:governance', '*'), exportApprovalRecord);
 app.post('/api/v1/approvals-v2/callbacks/:callbackId/retry', authenticate, scopeGuard('write:governance', '*'), retryCallback);
 
-app.get('/api/v1/knowledge/conflicts/:id', authenticate, KnowledgeController.getConflict);
-app.post('/api/v1/knowledge/conflicts', authenticate, KnowledgeController.createConflict);
-app.post('/api/v1/knowledge/conflicts/:id/resolve', authenticate, KnowledgeController.resolveConflict);
+app.get('/api/v1/knowledge/conflicts/:id', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getConflict);
+app.post('/api/v1/knowledge/conflicts', authenticate, scopeGuard('write:content', '*'), KnowledgeController.createConflict);
+app.post('/api/v1/knowledge/conflicts/:id/resolve', authenticate, scopeGuard('write:content', '*'), KnowledgeController.resolveConflict);
 
 // Retrieval Logs API
-app.get('/api/v1/knowledge/retrieval-logs', authenticate, KnowledgeController.listRetrievalLogs);
-app.post('/api/v1/knowledge/retrieval-logs', authenticate, KnowledgeController.logRetrievalEvent);
+app.get('/api/v1/knowledge/retrieval-logs', authenticate, scopeGuard('read:content', '*'), KnowledgeController.listRetrievalLogs);
+app.post('/api/v1/knowledge/retrieval-logs', authenticate, scopeGuard('write:content', '*'), KnowledgeController.logRetrievalEvent);
 
 // Reviews API
-app.get('/api/v1/knowledge/reviews', authenticate, KnowledgeController.listReviews);
+app.get('/api/v1/knowledge/reviews', authenticate, scopeGuard('read:content', '*'), KnowledgeController.listReviews);
 
 // Chunks API
-app.get('/api/v1/knowledge/sources/:sourceId/chunks', authenticate, KnowledgeController.listChunks);
+app.get('/api/v1/knowledge/sources/:sourceId/chunks', authenticate, scopeGuard('read:content', '*'), KnowledgeController.listChunks);
 
 // Search API
-app.get('/api/v1/knowledge/search', authenticate, KnowledgeController.searchSources);
+app.get('/api/v1/knowledge/search', authenticate, scopeGuard('read:content', '*'), KnowledgeController.searchSources);
 
 // Access Policy API
-app.get('/api/v1/knowledge/access-policy', authenticate, KnowledgeController.getAccessPolicy);
-app.post('/api/v1/knowledge/access-policy', authenticate, KnowledgeController.upsertAccessPolicy);
+app.get('/api/v1/knowledge/access-policy', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getAccessPolicy);
+app.post('/api/v1/knowledge/access-policy', authenticate, scopeGuard('write:content', '*'), KnowledgeController.upsertAccessPolicy);
 
 // ─── Prompt Governance Routes ────────────────────────────────────────────
 // Static routes (must come before parameterized :id routes)
@@ -1160,6 +1171,7 @@ app.post('/api/v1/quality-audit/items/:id/notes', authenticate, scopeGuard('writ
 app.post('/api/v1/quality-audit/items/:id/evidence', authenticate, scopeGuard('write:governance', '*'), addQaEvidence);
 app.get('/api/v1/quality-audit/items/:id/eligibility', authenticate, scopeGuard('read:governance', '*'), getAuditEligibility);
 app.get('/api/v1/quality-audit/items/:id/audit-log', authenticate, scopeGuard('read:governance', '*'), getQaAuditTrail);
+app.post('/api/v1/quality-audit/callbacks/:callbackId/retry', authenticate, scopeGuard('write:governance', '*'), retryQaCallback);
 
 // ─── Validation Desk Routes (Accountability Layer) ───────────────────
 app.post('/api/v1/validation/items', authenticate, scopeGuard('write:governance', '*'), createValidationItem);

@@ -124,13 +124,9 @@ const NAV_GROUPS: NavGroup[] = [
         icon: LayoutDashboard,
         roles: [...ALL_ROLES],
       },
-      {
-        name: "Operations Feed",
-        href: "/operations",
-        icon: Activity,
-        // Live agent/content/publishing event stream — operators & managers
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_OPERATOR","CAMPAIGN_MANAGER","PUBLISHER"],
-      },
+      // "Operations Feed" (/operations) was a duplicate of the Agent Operations
+      // control room (see "Agent Operations" entry -> /agents/operations).
+      // Consolidated to a single canonical page; /operations now redirects there.
       {
         name: "Insights & ROI",
         href: "/analytics",

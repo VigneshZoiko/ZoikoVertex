@@ -444,8 +444,13 @@ function ActionModal({ action, run, evidenceBundle, onClose, onComplete }: { act
           </div>
         ) : null}
         <label className="mt-4 block text-sm text-[var(--foreground-muted)]">
-          Required reason
-          <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={4} className="mt-1 w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)]" placeholder="Record the operational reason, expected impact, and any reviewer handoff." />
+          Required reason <span className="text-[var(--foreground-muted)]">(minimum 8 characters)</span>
+          <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={4} className={`mt-1 w-full rounded-xl border bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60" : "border-[var(--border)]"}`} placeholder="Record the operational reason, expected impact, and any reviewer handoff (at least 8 characters)." />
+          <span className={`mt-1 block text-xs ${reason.trim().length < 8 ? "text-amber-400" : "text-emerald-400"}`}>
+            {reason.trim().length < 8
+              ? `At least 8 characters required — ${8 - reason.trim().length} more to go (${reason.trim().length}/8).`
+              : `Reason looks good (${reason.trim().length} characters).`}
+          </span>
         </label>
         {error ? <p className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{error}</p> : null}
         <div className="mt-5 flex justify-end gap-2">
