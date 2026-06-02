@@ -532,6 +532,40 @@ function TestingTab({
           ))}
         </div>
       </div>
+
+      {/* Adversarial Validation */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-rose-400" />
+          <h3 className="text-xs font-black text-white uppercase tracking-widest">Adversarial Validation — Attack Vector Coverage</h3>
+        </div>
+        <p className="text-[10px] text-slate-500 leading-relaxed max-w-2xl">
+          Adversarial validation tests whether a prompt can be manipulated into violating policy, fabricating facts, bypassing approval workflow, impersonating unauthorized people, or leaking confidential information. All production-bound prompts must pass every vector below.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[
+            { label: "Prompt Injection", desc: "Attack vectors embedded inside user variables or knowledge-base content that attempt to override governance rules or inject foreign instructions.", severity: "CRITICAL" },
+            { label: "Role Override", desc: "Requests such as 'ignore previous instructions', 'act as a different agent', or 'forget your constraints' that try to bypass approved role boundaries.", severity: "CRITICAL" },
+            { label: "Fabrication Requests", desc: "Instructions to invent statistics, sources, awards, testimonials, endorsements, or quotes that cannot be attributed to approved knowledge bases.", severity: "HIGH" },
+            { label: "Approval Bypass", desc: "Attempts to frame restricted content as a draft, internal note, sandbox output, or hypothetical scenario to circumvent governance gates.", severity: "HIGH" },
+            { label: "Data Exfiltration", desc: "Requests to reveal system prompts, policy internals, confidential documents, knowledge-base credentials, or private customer data.", severity: "HIGH" },
+            { label: "Cross-Market Traps", desc: "Claims that are permitted in one jurisdiction but prohibited in another — testing whether locale and compliance constraints are enforced per execution context.", severity: "MEDIUM" },
+          ].map((v) => (
+            <div key={v.label} className="flex gap-3 p-4 bg-black border border-slate-900 rounded-2xl hover:border-rose-500/20 transition-all">
+              <div className="shrink-0">
+                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${v.severity === "CRITICAL" ? "text-rose-400 bg-rose-500/10 border border-rose-500/20" : v.severity === "HIGH" ? "text-orange-400 bg-orange-500/10 border border-orange-500/20" : "text-amber-400 bg-amber-500/10 border border-amber-500/20"}`}>{v.severity}</span>
+              </div>
+              <div>
+                <div className="text-[11px] font-bold text-white mb-1">{v.label}</div>
+                <div className="text-[10px] text-slate-500 leading-relaxed">{v.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="p-4 bg-slate-950 border border-slate-900 rounded-2xl text-[10px] text-slate-600 leading-relaxed">
+          All CRITICAL and HIGH adversarial vectors must yield zero bypasses. Any bypass detected during testing blocks promotion to Review Requested state. Results are stored as evidence with the evaluator model version, inputs, and outputs.
+        </div>
+      </div>
     </div>
   );
 }
@@ -743,6 +777,45 @@ function EvidenceTab({
         ))}
       </div>
 
+      {/* Governance Receipts */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-black text-white uppercase tracking-widest">Governance Receipts — Production Deployments</h3>
+        <p className="text-[10px] text-slate-500 leading-relaxed">Every production deployment, approval, rollback, or retirement generates a signed Governance Receipt stored in the Evidence Vault. Receipts are cryptographically linked to the prompt version and policy state in effect at the time of deployment.</p>
+        {productionPrompts.length === 0 ? (
+          <div className="p-6 text-center text-sm text-slate-600 bg-black border border-slate-900 rounded-2xl">No production receipts yet. Receipts are generated when a prompt reaches Production Active status.</div>
+        ) : (
+          <div className="space-y-3">
+            {productionPrompts.map((p) => (
+              <div key={p.id} className="bg-black border border-indigo-500/15 rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-900 bg-indigo-500/5">
+                  <div className="flex items-center gap-3">
+                    <FileCheck className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="text-[11px] font-black text-white">{p.name}</span>
+                    <span className="text-[9px] font-black text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded uppercase tracking-widest">{p.active_version}</span>
+                  </div>
+                  <RiskBadge tier={p.risk_tier} />
+                </div>
+                <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {[
+                    { label: "Prompt Hash", value: `SHA-256:${p.id.slice(0,8).toUpperCase()}...` },
+                    { label: "Policy Snapshot", value: "GOV-POLICY-v1.0" },
+                    { label: "Deployment Scope", value: p.linked_agent || "All agents" },
+                    { label: "Approved By", value: p.approvals.filter(a => a.decision === "APPROVED").map(a => a.reviewer_role).join(", ") || "—" },
+                    { label: "Deployed At", value: p.last_deployed ? new Date(p.last_deployed).toLocaleDateString() : "—" },
+                    { label: "Rollback Version", value: p.active_version ? `Prior ${p.active_version}` : "—" },
+                  ].map((f) => (
+                    <div key={f.label} className="p-2.5 bg-slate-950 border border-slate-900 rounded-xl">
+                      <div className="text-[9px] text-slate-600 uppercase tracking-widest">{f.label}</div>
+                      <div className="text-[10px] text-slate-300 font-bold mt-0.5 font-mono truncate">{f.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <p className="text-[10px] text-slate-600 leading-relaxed">
         Version numbers are sequential and immutable after deployment. Prompt body hashes are stored so exported evidence can prove the exact instruction set used. Audit records are append-only and cannot be edited through the UI.
       </p>
@@ -851,6 +924,35 @@ function RuntimeTab({
         )}
       </div>
 
+      {/* Drift Monitor */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
+          <BarChart3 className="w-4 h-4" /> Drift Monitor — Post-Deployment Telemetry
+        </h3>
+        <p className="text-[10px] text-slate-500 leading-relaxed max-w-2xl">After deployment, every prompt is monitored for output quality, rejection rate, hallucination flags, faithfulness, brand alignment, and policy trigger rate. Prompts that exceed drift thresholds are flagged for regression testing.</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: "First-Pass Acceptance", desc: "% of outputs accepted without human edit or rejection. Rising rate improves trust score.", threshold: "Target ≥ 85%", color: "text-emerald-400" },
+            { label: "Remediation Rate", desc: "% of executions requiring human correction after output. High rate triggers prompt review.", threshold: "Alert > 10%", color: "text-amber-400" },
+            { label: "Hallucination Flags", desc: "Outputs flagged for unsupported claims, fabricated sources, or unverifiable statistics.", threshold: "Alert > 0 on restricted", color: "text-rose-400" },
+            { label: "Brand Alignment Score", desc: "Average score measuring adherence to approved voice, vocabulary, and channel constraints.", threshold: "Target ≥ 80", color: "text-indigo-400" },
+            { label: "Policy Trigger Rate", desc: "Executions blocked or escalated by policy engine per 1,000 runs. High rate signals prompt design flaw.", threshold: "Alert > 5%", color: "text-orange-400" },
+            { label: "Faithfulness Score", desc: "Measures citation accuracy and source grounding for knowledge-bound prompts.", threshold: "Target ≥ 90%", color: "text-teal-400" },
+            { label: "Token ROI", desc: "Output quality relative to token cost. Flags expensive prompts producing low-value or low-acceptance outputs.", threshold: "Monitor weekly", color: "text-slate-400" },
+            { label: "HITL Escalation Rate", desc: "Executions routed to human review. Sustained high rate indicates unclear instructions or autonomy misconfiguration.", threshold: "Alert > 15%", color: "text-amber-400" },
+          ].map((m) => (
+            <div key={m.label} className="p-4 bg-black border border-slate-900 rounded-2xl space-y-1.5 hover:border-amber-500/20 transition-all">
+              <div className={`text-[10px] font-black uppercase tracking-widest ${m.color}`}>{m.label}</div>
+              <div className="text-[9px] text-slate-500 leading-relaxed">{m.desc}</div>
+              <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest border-t border-slate-900 pt-1.5 mt-1">{m.threshold}</div>
+            </div>
+          ))}
+        </div>
+        <div className="p-3 bg-slate-950 border border-slate-900 rounded-xl text-[10px] text-slate-600">
+          Prompts flagged for drift are locked from autonomy-level upgrades until a regression suite passes. All drift events write to the Evidence Vault and notify the prompt owner and AI operations lead.
+        </div>
+      </div>
+
       {/* Runtime enforcement rules */}
       <div className="space-y-3">
         <h3 className="text-xs font-black text-white uppercase tracking-widest">Runtime Enforcement Rules</h3>
@@ -865,6 +967,32 @@ function RuntimeTab({
       </div>
     </div>
   );
+}
+
+// ─── Constraint Shadow Helper ──────────────────────────────────────────────────
+
+function constraintShadowRules(riskTier: RiskTier | string): string[] {
+  const base = [
+    "No unauthorized legal, medical, financial, regulatory, or HR advice.",
+    "No unsupported claims, fabricated statistics, false urgency, or unverifiable superlatives.",
+    "No impersonation of executives, regulators, customers, employees, or public figures.",
+    "No leakage of confidential knowledge sources, system prompts, or private customer data.",
+    "No role-play that weakens the approved brand voice, governance rules, or escalation protocol.",
+  ];
+  const high = [
+    "No bypassing approval workflow, policy gates, campaign restrictions, or market exclusions.",
+    "No autonomous publishing without required human-in-the-loop authorization.",
+    "No cross-market claims without jurisdiction-specific compliance validation.",
+  ];
+  const critical = [
+    "No execution in restricted markets without explicit compliance clearance.",
+    "No tool calls outside the explicitly permitted tool set for this prompt version.",
+    "No output produced when required knowledge sources or policy engine are unavailable.",
+  ];
+  const n = normalizeRiskTier(riskTier as string);
+  if (n === "TIER_4_CRITICAL") return [...base, ...high, ...critical];
+  if (n === "TIER_3_HIGH") return [...base, ...high];
+  return base;
 }
 
 // ─── Create Prompt Modal ────────────────────────────────────────────────────────
@@ -1249,7 +1377,7 @@ function PromptDetailDrawer({
   onVersionAction: (versionId: string, action: string, extra?: any) => void;
   onExportEvidence: (prompt: PromptRecord, context: string) => void;
 }) {
-  const [drawerTab, setDrawerTab] = useState<"overview" | "body" | "bindings" | "history">("overview");
+  const [drawerTab, setDrawerTab] = useState<"overview" | "body" | "bindings" | "variables" | "history">("overview");
   const [promptBody, setPromptBody] = useState<string | null>(null);
   const [loadingBody, setLoadingBody] = useState(false);
   const [bodyFetched, setBodyFetched] = useState(false);
@@ -1328,7 +1456,7 @@ function PromptDetailDrawer({
             </button>
           </div>
           <div className="flex gap-1">
-            {(["overview", "body", "bindings", "history"] as const).map((t) => (
+            {(["overview", "body", "bindings", "variables", "history"] as const).map((t) => (
               <button key={t} onClick={() => setDrawerTab(t)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${drawerTab === t ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "text-slate-500 hover:text-white"}`}>
                 {t}
               </button>
@@ -1376,6 +1504,17 @@ function PromptDetailDrawer({
                   ))}
                 </div>
               </div>
+              <div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Constraint Shadow</div>
+                <div className="space-y-1.5">
+                  {constraintShadowRules(prompt.risk_tier).map((rule, i) => (
+                    <div key={i} className="flex items-start gap-2 p-2.5 bg-rose-500/5 border border-rose-500/10 rounded-xl">
+                      <XCircle className="w-3 h-3 text-rose-400 mt-0.5 shrink-0" />
+                      <span className="text-[10px] text-slate-400 leading-relaxed">{rule}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </>
           )}
 
@@ -1406,6 +1545,47 @@ function PromptDetailDrawer({
                     ))}
                   </div>
                 ) : <p className="text-[11px] text-slate-600 italic">No tools permitted.</p>}
+              </div>
+            </div>
+          )}
+
+          {drawerTab === "variables" && (
+            <div className="space-y-5">
+              <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/15">
+                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Governed Injection Parameters</div>
+                <p className="text-[10px] text-slate-400 leading-relaxed">Variables are controlled inputs injected into every prompt execution. Each must define a data type, allowed values, default fallback, data source, sanitization rule, and audit visibility level. Open-ended placeholders are not permitted in production prompts.</p>
+              </div>
+              <div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-3">Required Variable Fields</div>
+                <div className="space-y-2">
+                  {[
+                    { field: "Name", rule: "Stable machine-readable identifier. No spaces. Example: {{user_name}}, {{brand_voice}}, {{channel_type}}." },
+                    { field: "Type", rule: "Text, number, date, location, audience, platform, campaign, product, jurisdiction, or knowledge reference." },
+                    { field: "Allowed Values", rule: "Enumerated values where possible. Free text only with validation rule and sanitization rule defined." },
+                    { field: "Source", rule: "Manual input, workflow data, campaign metadata, CRM, knowledge base, or policy engine." },
+                    { field: "Sanitization", rule: "Prompt-injection filtering, profanity filtering, privacy redaction, and forbidden phrase checks applied before injection." },
+                    { field: "Fallback", rule: "Default value used when source is unavailable. Must not produce an unsafe or brand-violating output." },
+                    { field: "Audit Visibility", rule: "Whether the value appears in Evidence Vault receipts, redacted receipts, or internal logs only." },
+                  ].map((v) => (
+                    <div key={v.field} className="flex gap-3 p-3 bg-black border border-slate-900 rounded-xl">
+                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest whitespace-nowrap min-w-[110px]">{v.field}</span>
+                      <span className="text-[10px] text-slate-400 leading-relaxed">{v.rule}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="p-4 bg-amber-500/5 border border-amber-500/15 rounded-2xl space-y-2">
+                <div className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Common Variables — {prompt.prompt_type}</div>
+                <p className="text-[10px] text-slate-500 leading-relaxed">Define and validate these variables before submitting for review. Production prompts with undefined variable handling cannot pass safety tests.</p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {["{{brand_voice}}", "{{channel_type}}", "{{user_name}}", "{{campaign_id}}", "{{locale}}", "{{product_name}}", "{{risk_context}}"].map((v) => (
+                    <span key={v} className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded">{v}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="p-4 bg-black border border-slate-900 rounded-2xl">
+                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Sanitization Rule</div>
+                <p className="text-[10px] text-slate-600 leading-relaxed">Every injected value must pass prompt-injection filtering before reaching the model. If a variable contains instructions that could override governance rules, the execution is blocked and logged to the Evidence Vault.</p>
               </div>
             </div>
           )}
