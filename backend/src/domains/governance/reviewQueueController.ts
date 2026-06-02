@@ -350,14 +350,12 @@ export async function getAuditLog(req: AuthRequest, res: Response, next: NextFun
 
 export async function getReviewValidation(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const params = req.params as { id: string };
     res.json({ success: true, data: [] });
   } catch (error) { next(error); }
 }
 
 export async function getReviewPolicyFlags(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const params = req.params as { id: string };
     res.json({ success: true, data: [] });
   } catch (error) { next(error); }
 }
@@ -372,7 +370,6 @@ export async function getReviewNotesHandler(req: AuthRequest, res: Response, nex
 
 export async function getReviewRevisionHistory(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const tenantId = await getTenantId(req);
     const params = req.params as { id: string };
     const decisions = await reviewQueueService.listReviewDecisions(params.id);
     res.json({ success: true, data: decisions });
@@ -392,7 +389,6 @@ export async function assignReviewItemHandler(req: AuthRequest, res: Response, n
 
 export async function addReviewNoteHandler(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const tenantId = await getTenantId(req);
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     const params = req.params as { id: string };
