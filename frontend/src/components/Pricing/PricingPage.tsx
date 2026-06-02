@@ -333,6 +333,16 @@ export default function PricingSection() {
           ))}
         </div>
 
+        {/* Compare all plans */}
+        <div className={`text-center mt-10 transition-all duration-700 ease-out ${visible ? "opacity-100" : "opacity-0"}`} style={{ transitionDelay: "400ms" }}>
+          <p className="text-white/30 text-sm">
+            Need help choosing?{" "}
+            <a href="#comparison" className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors">
+              Compare all plans →
+            </a>
+          </p>
+        </div>
+
       </div>
     </section>
   );

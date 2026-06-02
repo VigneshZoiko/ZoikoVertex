@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { supabaseAdmin } from '../shared/supabase';
 import { getPermissionsForRole } from '../shared/rolePermissions';
+import { internalEventBus } from '../shared/internalEventBus';
 
 const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 const REDACTED_MARKER = 'REDACTED_BY_ACCESS_POLICY';
@@ -329,6 +330,17 @@ function buildLedgerEntryHash(input: {
   return computeHash(input);
 }
 
+async function getPreviousLedgerHash(workspaceId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from('identity_ledger_entries')
+    .select('hash')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.hash || null;
+}
+
 async function getActorByActorId(actorId: string, workspaceId: string): Promise<IdentityActor | null> {
   const { data, error } = await supabaseAdmin
     .from('identity_actors')
@@ -337,7 +349,7 @@ async function getActorByActorId(actorId: string, workspaceId: string): Promise<
     .eq('actor_id', actorId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error && error.code !== 'PGRST116') throw error;
   return data as IdentityActor | null;
 }
 
@@ -350,7 +362,7 @@ async function getCurrentSnapshot(actorId: string, workspaceId: string): Promise
     .is('effective_until', null)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error && error.code !== 'PGRST116') throw error;
   return data as AuthoritySnapshot | null;
 }
 
@@ -1296,6 +1308,15 @@ export async function createDelegation(params: {
     .single();
 
   if (error) throw error;
+  try {
+    internalEventBus.emit('identity.authority_changed', {
+      workspace_id: params.tenant_id,
+      tenant_id: params.tenant_id,
+      actor_id: params.delegator_id,
+      entry_id: (data as { id: string }).id,
+      change_type: 'delegation.created',
+    });
+  } catch { /* non-blocking */ }
   return data;
 }
 
@@ -1447,17 +1468,72 @@ export async function releaseLegalHold(params: { workspace_id: string; ledger_en
   return data;
 }
 
-export async function preserveToVault(params: { workspace_id: string; ledger_entry_id: string; reason: string }) {
+export async function preserveToVault(params: {
+  workspace_id: string;
+  ledger_entry_id: string;
+  reason: string;
+  tenant_id?: string;
+  preserved_by?: string;
+}) {
+  const { data: entry, error: fetchError } = await supabaseAdmin
+    .from('identity_ledger_entries')
+    .select('*')
+    .eq('workspace_id', params.workspace_id)
+    .eq('ledger_entry_id', params.ledger_entry_id)
+    .single();
+
+  if (fetchError) throw fetchError;
+  if (!entry) throw new Error('Ledger entry not found');
+
+  const now = new Date().toISOString();
+  const payload = JSON.stringify(entry);
+  const contentHash = computeHash(payload);
+  const metadataHash = computeHash(JSON.stringify({
+    source_type: 'identity_ledger', source_id: entry.ledger_entry_id,
+    source_system: 'identity_ledger', evidence_type: 'identity_entry',
+  }));
+  const itemId = `EVI-${now.substring(0, 10).replace(/-/g, '')}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+  const preservationInput = `${itemId}:${contentHash}:${metadataHash}:${now}`;
+  const preservationReceiptHash = computeHash(preservationInput);
+
+  const { data: vaultItem, error: vaultError } = await supabaseAdmin
+    .from('vault_evidence_items')
+    .insert({
+      item_id: itemId, schema_version: '1.0',
+      tenant_id: params.tenant_id || entry.tenant_id || 'default',
+      workspace_id: params.workspace_id,
+      data_residency: entry.data_residency || 'auto',
+      source_type: 'identity_ledger', source_id: entry.ledger_entry_id,
+      source_system: 'identity_ledger',
+      source_timestamp_utc: entry.timestamp_utc || entry.created_at,
+      evidence_type: 'identity_entry', risk_level: 'medium',
+      sensitivity: 'internal',
+      original_content_hash: contentHash,
+      normalized_content_hash: contentHash,
+      metadata_hash: metadataHash,
+      preservation_receipt_hash: preservationReceiptHash,
+      hash_algorithm: 'SHA-256',
+      preserved_by_actor_id: params.preserved_by || 'system',
+      preservation_reason: params.reason,
+      retention_class: 'regulated',
+      vault_state: 'preserved',
+      captured_at: now,
+    })
+    .select('item_id')
+    .single();
+
+  if (vaultError) throw vaultError;
+
   const { data, error } = await supabaseAdmin
     .from('identity_ledger_entries')
-    .update({ retention: { class: 'EVIDENCE_VAULT', preserved: true, reason: params.reason } })
+    .update({ retention: { class: 'EVIDENCE_VAULT', preserved: true, reason: params.reason, vault_item_id: vaultItem.item_id } })
     .eq('workspace_id', params.workspace_id)
     .eq('ledger_entry_id', params.ledger_entry_id)
     .select()
     .single();
 
   if (error) throw error;
-  return data;
+  return { ...data, vault_item_id: vaultItem.item_id };
 }
 
 export async function reconstructIdentityChain(params: { workspace_id: string; actor_id: string; case_id: string }) {
@@ -1538,6 +1614,21 @@ export async function registerServiceAccount(
 
   if (error) throw error;
 
+  const now = new Date().toISOString();
+  const prevHash = await getPreviousLedgerHash(params.workspace_id);
+  const hash = buildLedgerEntryHash({
+    tenant_id: params.tenant_id, workspace_id: params.workspace_id,
+    data_residency: 'auto', schema_version: '1.0',
+    entry_type: 'actor.registered', entry_category: 'actor_lifecycle',
+    timestamp_utc: now, actor_id: params.created_by, actor_type: 'human_user',
+    source: { source_system: params.source_system, action: 'register_service_account' },
+    authority_change: { change: 'created', service_account_id: params.actor_id },
+    session_context: {}, approvals: [],
+    linked_authority_snapshot_id: null,
+    risk: { risk_level: 'low' }, retention: { class: 'STANDARD' },
+    prev_hash: prevHash,
+  });
+
   await supabaseAdmin.from('identity_ledger_entries').insert({
     ledger_entry_id: generateOpaqueId('IDL'),
     tenant_id: params.tenant_id,
@@ -1546,7 +1637,7 @@ export async function registerServiceAccount(
     schema_version: '1.0',
     entry_type: 'actor.registered',
     entry_category: 'actor_lifecycle',
-    timestamp_utc: new Date().toISOString(),
+    timestamp_utc: now,
     actor_id: params.created_by,
     actor_type: 'human_user',
     source: { source_system: params.source_system, action: 'register_service_account' },
@@ -1556,8 +1647,8 @@ export async function registerServiceAccount(
     linked_authority_snapshot_id: null,
     risk: { risk_level: 'low' },
     retention: { class: 'STANDARD' },
-    hash: 'audit-no-chain',
-    prev_hash: null,
+    hash,
+    prev_hash: prevHash,
   });
 
   return data;
@@ -1613,6 +1704,21 @@ export async function revokeServiceAccount(
 
   if (error) throw error;
 
+  const now = new Date().toISOString();
+  const prevHash = await getPreviousLedgerHash(workspaceId);
+  const hash = buildLedgerEntryHash({
+    tenant_id: actor.tenant_id, workspace_id: workspaceId,
+    data_residency: 'auto', schema_version: '1.0',
+    entry_type: 'actor.revoked', entry_category: 'actor_lifecycle',
+    timestamp_utc: now, actor_id: revokedBy, actor_type: 'human_user',
+    source: { source_system: 'identity_ledger', action: 'revoke_service_account', reason: reason || '' },
+    authority_change: { change: 'revoked', previous_state: actor.state, service_account_id: actorId },
+    session_context: {}, approvals: [],
+    linked_authority_snapshot_id: null,
+    risk: { risk_level: 'high' }, retention: { class: 'EXTENDED' },
+    prev_hash: prevHash,
+  });
+
   await supabaseAdmin.from('identity_ledger_entries').insert({
     ledger_entry_id: generateOpaqueId('IDL'),
     tenant_id: actor.tenant_id,
@@ -1621,7 +1727,7 @@ export async function revokeServiceAccount(
     schema_version: '1.0',
     entry_type: 'actor.revoked',
     entry_category: 'actor_lifecycle',
-    timestamp_utc: new Date().toISOString(),
+    timestamp_utc: now,
     actor_id: revokedBy,
     actor_type: 'human_user',
     source: { source_system: 'identity_ledger', action: 'revoke_service_account', reason: reason || '' },
@@ -1631,8 +1737,8 @@ export async function revokeServiceAccount(
     linked_authority_snapshot_id: null,
     risk: { risk_level: 'high' },
     retention: { class: 'EXTENDED' },
-    hash: 'audit-no-chain',
-    prev_hash: null,
+    hash,
+    prev_hash: prevHash,
   });
 
   return data;
@@ -1886,6 +1992,22 @@ export async function setActorRiskFlags(params: {
 
   if (error) throw error;
 
+  const now = new Date().toISOString();
+  const prevHash = await getPreviousLedgerHash(params.workspace_id);
+  const hash = buildLedgerEntryHash({
+    tenant_id: actor.tenant_id, workspace_id: params.workspace_id,
+    data_residency: 'auto', schema_version: '1.0',
+    entry_type: 'actor.risk_flags_updated', entry_category: 'authority_change',
+    timestamp_utc: now, actor_id: params.set_by, actor_type: 'human_user',
+    source: { source_system: 'identity_ledger', action: 'set_risk_flags' },
+    authority_change: { risk_flags_previous: actor.risk_flags, risk_flags_new: params.risk_flags, reason: params.reason || '' },
+    session_context: {}, approvals: [],
+    linked_authority_snapshot_id: null,
+    risk: { risk_level: params.risk_level || actor.risk_level },
+    retention: { class: 'EXTENDED' },
+    prev_hash: prevHash,
+  });
+
   await supabaseAdmin.from('identity_ledger_entries').insert({
     ledger_entry_id: generateOpaqueId('IDL'),
     tenant_id: actor.tenant_id,
@@ -1894,7 +2016,7 @@ export async function setActorRiskFlags(params: {
     schema_version: '1.0',
     entry_type: 'actor.risk_flags_updated',
     entry_category: 'authority_change',
-    timestamp_utc: new Date().toISOString(),
+    timestamp_utc: now,
     actor_id: params.set_by,
     actor_type: 'human_user',
     source: { source_system: 'identity_ledger', action: 'set_risk_flags' },
@@ -1908,8 +2030,8 @@ export async function setActorRiskFlags(params: {
     linked_authority_snapshot_id: null,
     risk: { risk_level: params.risk_level || actor.risk_level },
     retention: { class: 'EXTENDED' },
-    hash: 'audit-no-chain',
-    prev_hash: null,
+    hash,
+    prev_hash: prevHash,
   });
 
   return data;

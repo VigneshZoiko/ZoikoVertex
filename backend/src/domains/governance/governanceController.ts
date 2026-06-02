@@ -9,6 +9,7 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { evaluateIntent } from '../decisions/decisionEngine';
 import { ApprovalEngine } from '../decisions/approvalEngine';
 import { logAuditEvent } from './evidenceController';
+import { recordPublishIntentRun } from '../../services/operationsRunRecorder.service';
 
 const SubmitIntentSchema = z.object({
   content: z.object({
@@ -22,6 +23,7 @@ const SubmitIntentSchema = z.object({
   mediaUrl: z.string().optional(),
   targetAccountIds: z.array(z.string().uuid()).min(1, 'At least one target account required'),
   campaign_id: z.string().uuid().nullable().optional(),
+  boost_budget_override: z.number().positive().nullable().optional(),
 });
 
 export const submitIntent = async (
@@ -30,7 +32,7 @@ export const submitIntent = async (
   next: NextFunction,
 ) => {
   try {
-    const { content, mediaUrls, mediaUrl, targetAccountIds, campaign_id } = SubmitIntentSchema.parse(req.body);
+    const { content, mediaUrls, mediaUrl, targetAccountIds, campaign_id, boost_budget_override } = SubmitIntentSchema.parse(req.body);
     const platformPostTypes: Record<string, string | string[]> = req.body.platformPostTypes || {};
     const userId = req.user?.id;
 
@@ -85,6 +87,7 @@ export const submitIntent = async (
         status: 'PUBLISHED',
         platform: acc.platform,
         ...(campaign_id ? { campaign_id } : {}),
+        ...(boost_budget_override != null ? { boost_budget_override } : {}),
       }));
     });
 
@@ -105,6 +108,15 @@ export const submitIntent = async (
     // Fire execution immediately for all intents
     for (const intent of data) {
       internalEventBus.emit('execution.requested', { intentId: intent.id });
+    }
+
+    // Mirror each post into Agent Operations and run the policy checks against
+    // its caption. Non-blocking: recordPublishIntentRun swallows its own errors,
+    // so a recording/policy failure can never break publishing.
+    try {
+      await Promise.all(data.map((intent: any) => recordPublishIntentRun(intent)));
+    } catch (err) {
+      logger.warn({ err }, '[Governance] operations mirror failed (non-blocking)');
     }
 
     try {

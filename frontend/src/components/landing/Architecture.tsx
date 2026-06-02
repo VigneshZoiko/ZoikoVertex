@@ -1,99 +1,91 @@
-export default function Architecture() {
+﻿export default function Architecture() {
   const layers = [
     {
       label: "STRATEGY",
       name: "LAYER 1 — STRATEGIC CONTROL",
-      bg: "#eeeeff",
-      labelColor: "#6366f1",
-      nameColor: "#a5b4fc",
+
+      bg: "bg-gradient-to-r from-[#6366F1]/20 to-[#00C8F0]/10",
+      border: "#A5B4FC",
+      labelColor: "#6366F1",
+      nameColor: "#6366F1",
+      cardBorder: "#C7D2FE",
       components: [
-        { title: "Chief Strategy Agent", desc: "Revenue & EBITDA alignment" },
-        {
-          title: "Business Context Engine",
-          desc: "ERP, inventory, pricing, margin",
-        },
-        {
-          title: "Commercial Priority Layer",
-          desc: "Queueing & priority scheduling",
-        },
+        { title: "Chief Strategy Agent",      desc: "Revenue & EBITDA alignment" },
+        { title: "Business Context Engine",   desc: "ERP, inventory, pricing, margin" },
+        { title: "Commercial Priority Layer", desc: "Seasonal & strategic weighting" },
       ],
     },
     {
       label: "EXECUTION",
       name: "LAYER 2 — EXECUTION INTELLIGENCE",
-      bg: "#ede9fe",
-      labelColor: "#7c3aed",
-      nameColor: "#c4b5fd",
+      bg: "bg-gradient-to-r from-[#4C52E8]/15 to-[#818CF8]/10",
+      border: "#818CF8",
+      labelColor: "#6366F1",
+      nameColor: "#6366F1",
+      cardBorder: "#e8e3f7",
       components: [
-        {
-          title: "Creative Intelligence Lab",
-          desc: "Platform-native content & copy",
-        },
-        { title: "Execution Agent", desc: "Deploy, pace, sequence campaigns" },
-        { title: "Engagement Agent", desc: "Interactions & knowledge capture" },
-        { title: "Channel Orchestrator", desc: "Cross-platform sequencing" },
+        { title: "Creative Intelligence Lab", desc: "Platform-native content & copy" },
+        { title: "Execution Agent",           desc: "Deploy, pace, sequence campaigns" },
+        { title: "Engagement Agent",          desc: "Interactions & conversion signals" },
+        { title: "Channel Orchestrator",      desc: "Cross-platform sequencing" },
       ],
     },
     {
       label: "FINANCIAL",
       name: "LAYER 3 — FINANCIAL & OPTIMIZATION",
-      bg: "#ccfbf1",
-      labelColor: "#0d9488",
-      nameColor: "#5eead4",
+      bg: "bg-[linear-gradient(90deg,rgba(0,200,240,0.15)_0%,rgba(99,102,241,0.08)_100%)]",
+      border: "#67E8F9",
+      labelColor: "#0097B5",
+      nameColor: "#0097B5",
+      cardBorder: "#c8eeea",
       components: [
-        { title: "Quant Ad Spend Agent", desc: "CPA / ROAS / marginal return" },
-        { title: "Revenue Forensic Agent", desc: "Multi-touch attribution" },
-        {
-          title: "Growth Optimisation Agent",
-          desc: "True winners, kill waste",
-        },
-        { title: "LTV Correlation Engine", desc: "Scale winners, LTV maps" },
+        { title: "Quant Ad Spend Agent",      desc: "CPA / ROAS / marginal return" },
+        { title: "Revenue Forensic Agent",    desc: "Multi-touch attribution" },
+        { title: "Growth Optimization Agent", desc: "Scale winners, kill waste" },
+        { title: "LTV Correlation Engine",    desc: "Lifetime value mapping" },
       ],
     },
     {
       label: "GOVERNED",
       name: "LAYER 4 — GOVERNANCE & RISK",
-      bg: "#ddd6fe",
-      labelColor: "#5b21b6",
-      nameColor: "#a78bfa",
+      bg: "bg-[linear-gradient(90deg,rgba(30,50,128,0.25)_0%,rgba(55,48,163,0.15)_100%)]",
+      border: "#818CF8",
+      labelColor: "#A5B4FC",
+      nameColor: "#0E7490",
+      cardBorder: "#818CF8",
       components: [
-        { title: "Compliance Sentry", desc: "Brand + legal + sector rules" },
-        { title: "Governance Engine", desc: "Confidence scoring + approvals" },
-        { title: "Audit Log System", desc: "Full decision traceability" },
-        {
-          title: "Override & Intervention",
-          desc: "Freeze/de-prioritise control",
-        },
+        { title: "Compliance Sentry",       desc: "Brand + legal + sector rules" },
+        { title: "Governance Engine",       desc: "Confidence scoring + approvals" },
+        { title: "Audit Log System",        desc: "Full decision traceability" },
+        { title: "Override & Intervention", desc: "Human-in-command controls" },
       ],
     },
     {
       label: "SIMULATE",
       name: "LAYER 5 — SIMULATION",
-      bg: "#d1fae5",
+      bg: "bg-[linear-gradient(90deg,rgba(16,185,129,0.15)_0%,rgba(99,102,241,0.08)_100%)]",
+      border: "#6EE7B7",
       labelColor: "#059669",
-      nameColor: "#6ee7b7",
+      nameColor: "#059669",
+      cardBorder: "#6EE7B7",
       components: [
-        {
-          title: "Synthetic Audience Engine",
-          desc: "Predict response before spend",
-        },
-        {
-          title: "Creative Scenario Modelling",
-          desc: "Test before budget is committed",
-        },
-        { title: "Pre-Spend Waste Reduction", desc: "Eliminate cost upstream" },
+        { title: "Synthetic Audience Engine",   desc: "Predict response before spend" },
+        { title: "Creative Scenario Modelling", desc: "Test before budget is committed" },
+        { title: "Pre-Spend Waste Reduction",   desc: "Eliminate cost upstream" },
       ],
     },
   ];
 
   return (
-    <section className="py-24 px-6" style={{ background: "#f8f8fc" }}>
+    <section className="py-24 px-6" style={{ background: "#F8FAFC" }}>
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-14">
-          <p className="text-indigo-500 text-xs font-bold tracking-widest uppercase mb-3">
-            — Agentic Intelligence Architecture
+        {/* Header */}
+        <div className="text-center mb-16">
+          <p className="inline-flex items-center gap-2 text-indigo-500 text-xs font-bold tracking-widest uppercase mb-4">
+            <span className="w-4 h-px bg-indigo-400 inline-block" />
+            Agentic Intelligence Architecture
           </p>
-          <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">
+          <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-5 leading-tight">
             A layered system, not a collection of AI helpers
           </h2>
           <p className="text-gray-500 max-w-lg mx-auto text-sm leading-relaxed">
@@ -102,50 +94,95 @@ export default function Architecture() {
             channel, spend, and revenue in real time.
           </p>
         </div>
-        <div className="space-y-3">
-          {layers.map((layer) => (
-            <div key={layer.label} className="flex items-stretch gap-4">
-              <div className="w-6 flex items-center justify-center flex-shrink-0">
-                <span
-                  className="text-[9px] font-black tracking-widest uppercase whitespace-nowrap"
+
+        {/* Layers */}
+        <div className="flex flex-col gap-0">
+          {layers.map((layer, li) => (
+            <div key={layer.label}>
+
+              {/* Dotted connector */}
+              {li > 0 && (
+                <div className="flex items-center" style={{ paddingLeft: 32 }}>
+                  <div style={{ width: 32, flexShrink: 0 }} />
+                  <div className="flex-1 flex justify-center py-1">
+                    <div style={{ width: 1, height: 18, borderLeft: `2px dashed ${layer.border}` }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Row */}
+              <div className="flex items-stretch">
+
+                {/* Vertical label — sits outside the tinted box */}
+                <div
+                  className="flex items-center justify-center flex-shrink-0"
+                  style={{ width: 32 }}
+                >
+                  <span
+                    className="text-[8px] font-black tracking-widest uppercase whitespace-nowrap select-none"
+                    style={{
+                      writingMode: "vertical-rl",
+                      transform: "rotate(180deg)",
+                      color: layer.labelColor,
+                      letterSpacing: "0.2em",
+                    }}
+                  >
+                    {layer.label}
+                  </span>
+                </div>
+
+                {/* Tinted layer box */}
+                <div
+                  className="flex-1 rounded-2xl"
                   style={{
-                    writingMode: "vertical-rl",
-                    transform: "rotate(180deg)",
-                    color: layer.labelColor,
+                    background: layer.bg,
+                    border: `1px solid ${layer.border}`,
+                    padding: "14px 16px",
                   }}
                 >
-                  {layer.label}
-                </span>
-              </div>
-              <div
-                className="flex-1 rounded-2xl px-5 py-4"
-                style={{ background: layer.bg }}
-              >
-                <p
-                  className="text-[10px] font-bold tracking-widest uppercase mb-3"
-                  style={{ color: layer.nameColor }}
-                >
-                  {layer.name}
-                </p>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {layer.components.map((c) => (
-                    <div
-                      key={c.title}
-                      className="bg-white rounded-xl px-4 py-3 shadow-sm"
-                    >
-                      <p className="text-gray-900 font-bold text-xs mb-1">
-                        {c.title}
-                      </p>
-                      <p className="text-gray-400 text-[11px] leading-snug">
-                        {c.desc}
+                  {/* Inner row: layer name LEFT | cards RIGHT */}
+                  <div className="flex items-center gap-4">
+
+                    {/* Layer name — fixed width left column */}
+                    <div style={{ width: 210, flexShrink: 0 }}>
+                      <p
+                        className="text-[9px] font-bold tracking-widest uppercase leading-tight"
+                        style={{ color: layer.nameColor, letterSpacing: "0.12em" }}
+                      >
+                        {layer.name}
                       </p>
                     </div>
-                  ))}
+
+                    {/* Cards — fill remaining space */}
+                    <div className="flex flex-1 gap-2.5">
+                      {layer.components.map((c) => (
+                        <div
+                          key={c.title}
+                          className="flex-1 bg-white rounded-xl px-3.5 py-3"
+                          style={{
+                            border: `1px solid ${layer.cardBorder}`,
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                            minWidth: 0,
+                          }}
+                        >
+                          <p className=" font-bold text-[12px] mb-1 leading-snug" style={{ color: layer.nameColor  }}>
+                            {c.title}
+                          </p>
+                          <p className="text-[11px] leading-snug" style={{ color: layer.nameColor  }}>
+                            {c.desc}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                  </div>
                 </div>
+
               </div>
             </div>
           ))}
         </div>
+
       </div>
     </section>
   );

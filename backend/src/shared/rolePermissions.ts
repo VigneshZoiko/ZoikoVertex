@@ -34,7 +34,8 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'agents:view', 'brand:view', 'brand-library:view', 'support:view',
   ],
   AGENT_ARCHITECT: [
-    'dashboard:view', 'agents:view', 'agents:manage',
+    'dashboard:view', 'operations:view', 'operations:manage',
+    'agents:view', 'agents:manage',
     'workflows:view', 'workflows:manage', 'prompts:view', 'prompts:manage',
     'knowledge:view', 'models:view', 'queue:view', 'governance:view', 'validation:view', 'support:view',
   ],

@@ -1,4 +1,4 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import { Clock, Zap, CheckSquare } from "lucide-react";
 
 export default function FeatureBlock() {
@@ -69,7 +69,7 @@ export default function FeatureBlock() {
         <div className="relative">
           <div className="rounded-2xl overflow-hidden">
             <Image
-              src="/images/category-photo.png"
+              src="/images/home-category.webp"
               alt="Category"
               width={600}
               height={400}

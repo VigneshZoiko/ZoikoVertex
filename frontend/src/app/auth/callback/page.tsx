@@ -24,5 +24,10 @@ export default function AuthCallbackPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  return <div className="min-h-screen bg-[#09090b]" />;
+  return (
+    <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center gap-4">
+      <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-cyan-400 animate-spin" />
+      <p className="text-white/40 text-sm">Signing you in&hellip;</p>
+    </div>
+  );
 }

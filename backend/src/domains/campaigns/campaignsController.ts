@@ -219,6 +219,27 @@ export const createCampaign = async (req: AuthRequest, res: Response, next: Next
       .from('workspaces').select('org_id').eq('id', workspaceId).single();
     if (!ws?.org_id) return res.status(400).json({ error: 'Organization not found' });
 
+    // ── Wallet credits validation ────────────────────────────────
+    const { data: wallet } = await supabaseAdmin
+      .from('wallets')
+      .select('balance, processing_balance')
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    let walletWarning: string | undefined;
+
+    if (!wallet || (wallet.balance <= 0 && wallet.processing_balance <= 0)) {
+      return res.status(402).json({
+        error: 'Insufficient credits. Please deposit funds to your wallet before creating a campaign.',
+        code: 'NO_CREDITS',
+      });
+    }
+
+    if (wallet.balance <= 0 && wallet.processing_balance > 0) {
+      walletWarning = 'Your deposit is still processing. Campaign saved as draft — you can launch once credits are available.';
+    }
+    // ────────────────────────────────────────────────────────────
+
     const { data, error } = await supabaseAdmin
       .from('campaigns')
       .insert({
@@ -241,7 +262,7 @@ export const createCampaign = async (req: AuthRequest, res: Response, next: Next
       { name: data.name, campaign_type: data.campaign_type },
     );
 
-    res.status(201).json({ success: true, data });
+    res.status(201).json({ success: true, data, ...(walletWarning ? { warning: walletWarning } : {}) });
   } catch (err) { next(err); }
 };
 

@@ -1,11 +1,10 @@
 import { z } from 'zod';
-import { supabaseAdmin } from '../shared/supabase';
-import { logToDatabase } from '../shared/databaseLogger';
-import { randomUUID, createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import PDFDocument from 'pdfkit';
-import * as archiverLib from 'archiver';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const { ZipArchive } = archiverLib as any;
+import archiver from 'archiver';
+import { supabaseAdmin } from '../shared/supabase';
+import { internalEventBus } from '../shared/internalEventBus';
+import { logToDatabase } from '../shared/databaseLogger';
 import { DEFAULT_WORKSPACE_ID } from '../shared/constants';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -239,6 +238,15 @@ export async function createLegalHold(params: {
     action: `Legal Hold applied on ${params.object_type} ${params.object_id}`,
     metadata: { hold_id: hold.id, matter_ref: params.matter_ref, risk_level: 'HIGH' },
   });
+
+  try {
+    internalEventBus.emit('gov_evidence.hold_applied', {
+      workspace_id: params.workspaceId,
+      actor_id: params.userId,
+      hold_id: hold.id,
+      object_id: params.object_id,
+    });
+  } catch { /* non-blocking */ }
 
   return hold;
 }
@@ -725,7 +733,7 @@ function generateEvidenceZIP(
   pdfBuffer: Buffer
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const archive = new ZipArchive({ zlib: { level: 9 } });
+    const archive = archiver('zip', { zlib: { level: 9 } });
     const chunks: Buffer[] = [];
 
     archive.on('data', (chunk: Buffer) => chunks.push(chunk));

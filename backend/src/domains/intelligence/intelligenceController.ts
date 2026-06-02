@@ -11,6 +11,7 @@ import { logAgentRun } from './agentRunLogger';
 import { KnowledgeController } from '../../modules/knowledge/knowledgeController';
 import { supabaseAdmin } from '../../shared/supabase';
 import { evaluatePayloadAgainstPolicies } from '../governance/policyController';
+import { trackUsage } from '../monitoring/usageController';
 
 const STYLE_RULES: Record<string, string> = {
   "MrBeast": "High-energy hooks and curiosity-driven viral pacing.",
@@ -248,6 +249,20 @@ ${blocks.join('\n\n')}
     });
 
     await logAgentRun('agent-content-gen-v1', 'content_generation', userId, 'SUCCESS', { topic, platforms });
+
+    // Track AI token usage (non-blocking)
+    const tokens = completion.usage?.total_tokens ?? 0;
+    if (tokens > 0 && workspaceId && workspaceId !== '00000000-0000-0000-0000-000000000000') {
+      trackUsage({
+        workspaceId,
+        resourceType: 'AI_TOKENS',
+        quantity: tokens,
+        costUsd: tokens * 0.0000001, // ~$0.0001 per 1k tokens (Groq llama-3.3-70b)
+        unit: 'tokens',
+        referenceType: 'content_generation',
+        metadata: { model: 'llama-3.3-70b-versatile', topic },
+      });
+    }
   } catch (error) {
     const userId = (req as AuthRequest).user?.id ?? 'unknown';
     await logAgentRun('agent-content-gen-v1', 'content_generation', userId, 'FAILURE', { error: String(error) });

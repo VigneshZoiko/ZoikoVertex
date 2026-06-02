@@ -284,3 +284,43 @@ export const retryCallback = async (req: AuthRequest, res: Response, next: NextF
     res.json({ success: true });
   } catch (error) { next(error); }
 };
+
+export const bulkApprovalAction = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const action = paramStr(req, 'action');
+    const { ids, reason, note, condition_text, condition_owner, condition_due_at, target_role } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids array is required' });
+    }
+    const tenantId = getTenantId(req);
+    const userId = getUserId(req);
+    const role = getRole(req);
+    const isSuper = isSuperAdmin(req);
+
+    const results = [];
+    for (const id of ids) {
+      try {
+        const item = await approvalService.getApprovalItem(id, tenantId);
+        if (!item) { results.push({ id, success: false, error: 'Item not found' }); continue; }
+        const eligibility = approvalService.calculateEligibility(item, userId, role, isSuper);
+        if (eligibility !== 'APPROVAL_ELIGIBLE' && action !== 'cancel') {
+          results.push({ id, success: false, error: `Action not allowed: ${eligibility}` }); continue;
+        }
+        let result;
+        switch (action) {
+          case 'approve': result = await approvalService.approveItem(id, tenantId, userId, reason, note); break;
+          case 'reject': result = await approvalService.rejectItem(id, tenantId, userId, reason || 'Bulk rejection', note); break;
+          case 'request_changes': result = await approvalService.requestChanges(id, tenantId, userId, reason || 'Bulk changes requested', condition_owner, condition_due_at, note); break;
+          case 'conditional_approval': result = await approvalService.approveWithConditions(id, tenantId, userId, condition_text, condition_owner, condition_due_at, note); break;
+          case 'escalate': result = await approvalService.escalateItem(id, tenantId, userId, target_role, reason, note); break;
+          case 'cancel': result = await approvalService.cancelApproval(id, tenantId, userId); break;
+          default: results.push({ id, success: false, error: 'Invalid action' }); continue;
+        }
+        results.push({ id, success: true, data: result });
+      } catch (e: any) {
+        results.push({ id, success: false, error: e.message });
+      }
+    }
+    res.json({ success: true, data: results });
+  } catch (error) { next(error); }
+};

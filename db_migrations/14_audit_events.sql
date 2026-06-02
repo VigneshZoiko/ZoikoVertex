@@ -435,6 +435,9 @@ CREATE TABLE IF NOT EXISTS public.audit_export_jobs (
 
 CREATE INDEX IF NOT EXISTS idx_audit_export_jobs_ws ON public.audit_export_jobs(workspace_id, created_at DESC);
 
+-- Add file_url column for worker compatibility (worker writes file_url, migration had result_url)
+ALTER TABLE public.audit_export_jobs ADD COLUMN IF NOT EXISTS file_url TEXT;
+
 -- 14. Create event_type_registry table to enforce canonical event types (Appendix A)
 CREATE TABLE IF NOT EXISTS public.event_type_registry (
   event_type TEXT PRIMARY KEY,

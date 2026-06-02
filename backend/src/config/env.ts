@@ -32,15 +32,22 @@ const envSchema = z.object({
   YOUTUBE_CLIENT_ID: z.string().optional(),
   YOUTUBE_CLIENT_SECRET: z.string().optional(),
   YOUTUBE_REDIRECT_URI: z.string().optional(),
-  GOOGLE_ADS_DEVELOPER_TOKEN: z.string().optional(),
-  GOOGLE_ADS_CLIENT_ID: z.string().optional(),
-  GOOGLE_ADS_CLIENT_SECRET: z.string().optional(),
-  GOOGLE_ADS_REDIRECT_URI: z.string().optional(),
+  GOOGLE_ADS_DEVELOPER_TOKEN:    z.string().optional(),
+  GOOGLE_ADS_CLIENT_ID:          z.string().optional(),
+  GOOGLE_ADS_CLIENT_SECRET:      z.string().optional(),
+  GOOGLE_ADS_REDIRECT_URI:       z.string().optional(),
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID:  z.string().optional(), // Agency MCC customer ID (10-digit, no dashes)
   REDIS_URL: z.string().optional(),
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   // Required for internal service-to-service calls to /api/v1/users/provision
   INTERNAL_SERVICE_SECRET: z.string().min(32).optional(),
+  // Stripe billing
+  STRIPE_SECRET_KEY:      z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET:  z.string().optional(),
+  // Deposit hold window in hours (default 48 = 2 days)
+  DEPOSIT_HOLD_HOURS: z.string().default('48'),
 });
 
 const result = envSchema.safeParse(process.env);
