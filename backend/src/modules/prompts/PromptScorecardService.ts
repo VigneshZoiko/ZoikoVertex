@@ -137,7 +137,7 @@ export class PromptScorecardService {
       lifecycle_status: lifecycleCat,
     };
 
-    const { overall, severity, actionItems } = computeWeightedTotal(categories);
+    const { overall, actionItems } = computeWeightedTotal(categories);
 
     // Deployment readiness modifier
     let deploymentReady = true;
@@ -353,7 +353,7 @@ export class PromptScorecardService {
     return { score: 100, severity: 'healthy' };
   }
 
-  private static async computeApprovalScore(prompt: any, workspaceId: string): Promise<CategoryScore> {
+  private static async computeApprovalScore(prompt: any, _workspaceId: string): Promise<CategoryScore> {
     const versionId = prompt.current_version_id;
     if (!versionId) {
       return { score: 0, severity: 'critical', label: 'Approval Completeness', details: { reason: 'No current version' } };

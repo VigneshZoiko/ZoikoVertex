@@ -14,7 +14,7 @@ import { PromptAuditService } from '../../modules/prompts/PromptAuditService';
 import { PromptEvidenceService } from '../../modules/prompts/PromptEvidenceService';
 import { PromptService } from '../../modules/prompts/PromptService';
 import { PromptBindingPolicyService } from '../../modules/prompts/PromptBindingPolicyService';
-import { supabaseAdmin, setFixtures, resetFixtures } from '../helpers/supabaseMock';
+import { setFixtures, resetFixtures } from '../helpers/supabaseMock';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -250,7 +250,6 @@ describe('Phase 5G — Final Integration Validation', () => {
     });
 
     it('6.2 — deploy_ready_count does not count adversarial-failing prompts', async () => {
-      const metrics = await GovernanceMetricsService.compute(WS_A);
       // p-critical has adversarial FAIL → not deploy-ready
       const criticalCard = await PromptScorecardService.getScorecard('p-critical', WS_A);
       expect(criticalCard.deployment_ready).toBe(false);

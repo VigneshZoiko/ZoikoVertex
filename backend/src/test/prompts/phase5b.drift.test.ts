@@ -62,10 +62,6 @@ function findFinding(findings: any[], category: string) {
   return findings.find((f: any) => f.category === category);
 }
 
-function expectHasCategory(findings: any[], category: string) {
-  expect(findings.some((f: any) => f.category === category)).toBe(true);
-}
-
 function expectNotHasCategory(findings: any[], category: string) {
   expect(findings.some((f: any) => f.category === category)).toBe(false);
 }

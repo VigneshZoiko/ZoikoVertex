@@ -28,10 +28,10 @@ import { PolicySimulationService } from './PolicySimulationService';
 import { PromptScorecardService } from './PromptScorecardService';
 import { GovernanceMetricsService } from './services/GovernanceMetricsService';
 import { createAdversarialScenarioSchema, updateAdversarialScenarioSchema, runAdversarialTestSchema } from './schemas/adversarial.schema';
-import { runPolicySimulationSchema, promptRunPolicySimulationSchema } from './schemas/policySimulation.schema';
+import { runPolicySimulationSchema } from './schemas/policySimulation.schema';
 import { getParam, getQueryValue, getQueryNumber } from '../../shared/request';
 import { logToDatabase } from '../../shared/databaseLogger';
-import { PROMPT_STATUS, normalizePromptStatus } from './PromptService';
+import { PROMPT_STATUS } from './PromptService';
 
 const PROMPT_AUDIT_SERVICE = 'prompt-governance';
 

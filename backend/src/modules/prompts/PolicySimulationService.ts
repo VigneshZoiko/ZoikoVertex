@@ -215,8 +215,8 @@ export class PolicySimulationService {
   private static async evaluateRiskTierThreshold(
     prompt: any,
     parameters: Record<string, unknown>,
-    workspaceId: string,
-    warnings: string[],
+    _workspaceId: string,
+    _warnings: string[],
   ): Promise<PromptImpactAssessment> {
     const newRiskTier = String(parameters.new_risk_tier || prompt.risk_tier || 'tier_1_low').toLowerCase();
     const currentTier = String(prompt.risk_tier || 'tier_1_low').toLowerCase();
@@ -268,7 +268,7 @@ export class PolicySimulationService {
       }
     }
 
-    let severity: PromptImpactAssessment['severity'] = blockingIssues.length > 0 ? 'high' : 'low';
+    const severity: PromptImpactAssessment['severity'] = blockingIssues.length > 0 ? 'high' : 'low';
 
     return {
       prompt_id: promptId,
@@ -291,7 +291,7 @@ export class PolicySimulationService {
     prompt: any,
     parameters: Record<string, unknown>,
     workspaceId: string,
-    warnings: string[],
+    _warnings: string[],
   ): Promise<PromptImpactAssessment> {
     const promptId = prompt.id;
 
@@ -348,8 +348,8 @@ export class PolicySimulationService {
   private static async evaluateAdversarialPolicy(
     prompt: any,
     parameters: Record<string, unknown>,
-    workspaceId: string,
-    warnings: string[],
+    _workspaceId: string,
+    _warnings: string[],
   ): Promise<PromptImpactAssessment> {
     const promptId = prompt.id;
     const riskTier = String(prompt.risk_tier || 'tier_1_low').toLowerCase();
@@ -420,7 +420,7 @@ export class PolicySimulationService {
     prompt: any,
     parameters: Record<string, unknown>,
     workspaceId: string,
-    warnings: string[],
+    _warnings: string[],
   ): Promise<PromptImpactAssessment> {
     const promptId = prompt.id;
 
@@ -471,8 +471,8 @@ export class PolicySimulationService {
   private static async evaluateBindingPolicy(
     prompt: any,
     parameters: Record<string, unknown>,
-    workspaceId: string,
-    warnings: string[],
+    _workspaceId: string,
+    _warnings: string[],
   ): Promise<PromptImpactAssessment> {
     const promptId = prompt.id;
     const riskTier = String(prompt.risk_tier || 'tier_1_low').toLowerCase();

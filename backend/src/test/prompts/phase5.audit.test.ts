@@ -63,11 +63,6 @@ function failAudit() {
   vi.spyOn(PromptAuditService, 'record').mockResolvedValue(null);
 }
 
-function failBoth() {
-  vi.spyOn(PromptEvidenceService, 'record').mockResolvedValue(null);
-  vi.spyOn(PromptAuditService, 'record').mockResolvedValue(null);
-}
-
 // Restore original implementations between tests
 function restoreServices() {
   vi.restoreAllMocks();

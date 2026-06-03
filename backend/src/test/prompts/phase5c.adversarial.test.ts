@@ -6,7 +6,7 @@ vi.mock('../../shared/databaseLogger', () => ({ logToDatabase: vi.fn() }));
 import { AdversarialScenarioService } from '../../modules/prompts/AdversarialScenarioService';
 import { AdversarialTestService } from '../../modules/prompts/AdversarialTestService';
 import { PromptTestService } from '../../modules/prompts/PromptTestService';
-import { PromptAuditService, PROMPT_AUDIT_EVENTS } from '../../modules/prompts/PromptAuditService';
+import { PROMPT_AUDIT_EVENTS } from '../../modules/prompts/PromptAuditService';
 import { setFixtures, resetFixtures } from '../helpers/supabaseMock';
 
 beforeEach(() => {

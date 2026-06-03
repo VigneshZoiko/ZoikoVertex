@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '../../shared/supabase';
 import { PromptEvidenceService } from './PromptEvidenceService';
-import { AdversarialScenarioService, type AdversarialScenario } from './AdversarialScenarioService';
+import { AdversarialScenarioService } from './AdversarialScenarioService';
 
 export interface AdversarialScenarioResult {
   scenario_id: string;
@@ -42,7 +42,7 @@ export function compileProbe(probeTemplate: string, _evalConfig: Record<string, 
   }
 }
 
-function evaluateSingleScenario(pattern: RegExp, promptBody: string, severity: string): {
+function evaluateSingleScenario(pattern: RegExp, promptBody: string, _severity: string): {
   score: number;
   result: 'pass' | 'warning' | 'fail';
   bypass_detected: boolean;

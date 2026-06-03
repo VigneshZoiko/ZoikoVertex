@@ -9,7 +9,6 @@ import { PolicySimulationService } from '../../modules/prompts/PolicySimulationS
 import { PromptBindingPolicyService } from '../../modules/prompts/PromptBindingPolicyService';
 import { AdversarialTestService } from '../../modules/prompts/AdversarialTestService';
 import { GovernanceDriftService } from '../../modules/prompts/services/GovernanceDriftService';
-import { PromptAuditService, PROMPT_AUDIT_EVENTS } from '../../modules/prompts/PromptAuditService';
 import { setFixtures, resetFixtures } from '../helpers/supabaseMock';
 
 beforeEach(() => {

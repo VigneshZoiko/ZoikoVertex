@@ -56,7 +56,6 @@ export class DeploymentGateService {
 
     const promptObj = prompt;
     const riskTier = options?.riskTier || String(promptObj?.risk_tier || '').toLowerCase();
-    const environment = options?.environment || 'staging';
     const overrides = options?.overrides || {};
 
     // Gate 1: current-version match (only if prompt loaded)

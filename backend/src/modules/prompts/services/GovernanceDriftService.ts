@@ -18,7 +18,7 @@ export interface DriftFinding {
   detected_at: string;
 }
 
-const { randomUUID } = require('crypto');
+import { randomUUID } from 'crypto';
 
 const normalizedRole = (r: string): string => PromptApprovalPolicyService.normalizeReviewerRole(r);
 const requiredApprovalRoles = PromptApprovalPolicyService.requiredApprovalRoles;
@@ -64,7 +64,6 @@ export class GovernanceDriftService {
     if (!prompt) return [];
 
     const findings: DriftFinding[] = [];
-    const name = prompt.name || promptId;
     const opts = overrides || {};
 
     findings.push(...await this.detectVersionDrift(prompt));

@@ -4,8 +4,6 @@ vi.mock('../../shared/supabase', () => import('../helpers/supabaseMock'));
 vi.mock('../../shared/databaseLogger', () => ({ logToDatabase: vi.fn() }));
 
 import { PromptScorecardService } from '../../modules/prompts/PromptScorecardService';
-import { PromptApprovalPolicyService } from '../../modules/prompts/PromptApprovalPolicyService';
-import { PromptBindingPolicyService } from '../../modules/prompts/PromptBindingPolicyService';
 import { promptScorecardResponseSchema } from '../../modules/prompts/schemas/scorecard.schema';
 import { setFixtures, resetFixtures } from '../helpers/supabaseMock';
 
@@ -272,7 +270,7 @@ describe('Phase 5E — Prompt Scorecards', () => {
     it('each category has score, severity, label, and details', async () => {
       const result = await PromptScorecardService.listScorecards('ws-a');
       for (const s of result.data) {
-        for (const [key, cat] of Object.entries(s.categories)) {
+        for (const [, cat] of Object.entries(s.categories)) {
           expect(cat).toHaveProperty('score');
           expect(cat).toHaveProperty('severity');
           expect(cat).toHaveProperty('label');
