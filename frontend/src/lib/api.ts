@@ -180,26 +180,24 @@ export const api = {
 
   async listAgentRuns(params?: {
     status?: string;
+    severity?: string;
+    environment?: string;
     brand?: string;
     brand_id?: string;
-    environment?: string;
-    severity?: string;
     search?: string;
     sort_by?: string;
-    sort_order?: "asc" | "desc";
     sort_dir?: string;
     limit?: number;
     offset?: number;
   }) {
     const query = new URLSearchParams();
     if (params?.status) query.set("status", params.status);
+    if (params?.severity) query.set("severity", params.severity);
+    if (params?.environment) query.set("environment", params.environment);
     if (params?.brand) query.set("brand", params.brand);
     if (params?.brand_id) query.set("brand_id", params.brand_id);
-    if (params?.environment) query.set("environment", params.environment);
-    if (params?.severity) query.set("severity", params.severity);
     if (params?.search) query.set("search", params.search);
     if (params?.sort_by) query.set("sort_by", params.sort_by);
-    if (params?.sort_order) query.set("sort_order", params.sort_order);
     if (params?.sort_dir) query.set("sort_dir", params.sort_dir);
     if (params?.limit) query.set("limit", String(params.limit));
     if (params?.offset) query.set("offset", String(params.offset));
@@ -226,36 +224,29 @@ export const api = {
     return this.post(`/api/v1/operations/runs/${id}/start`, { reason });
   },
 
+  async deleteRun(id: string) {
+    return this.delete(`/api/v1/operations/runs/${id}`);
+  },
+
   async stopRun(id: string, reason?: string) {
     return this.post(`/api/v1/operations/runs/${id}/stop`, { reason });
   },
 
-  async retryRun(id: string, reasonOrScope?: string, scope?: string) {
-    const body = scope === undefined ? { scope: reasonOrScope } : { reason: reasonOrScope, scope };
-    return this.post(`/api/v1/operations/runs/${id}/retry`, body);
+  async retryRun(id: string, reason?: string, scope?: string) {
+    return this.post(`/api/v1/operations/runs/${id}/retry`, { reason, scope });
   },
 
   async quarantineRun(id: string, reason?: string) {
     return this.post(`/api/v1/operations/runs/${id}/quarantine`, { reason });
   },
 
-  async listQueues(params?: {
-    queue_type?: string;
-    status?: string;
-    environment?: string;
-    brand?: string;
-    brand_id?: string;
-    limit?: number;
-    offset?: number;
-  }) {
+  async listQueues(params?: { queue_type?: string; status?: string; environment?: string; brand?: string; brand_id?: string }) {
     const query = new URLSearchParams();
     if (params?.queue_type) query.set("queue_type", params.queue_type);
     if (params?.status) query.set("status", params.status);
     if (params?.environment) query.set("environment", params.environment);
     if (params?.brand) query.set("brand", params.brand);
     if (params?.brand_id) query.set("brand_id", params.brand_id);
-    if (params?.limit) query.set("limit", String(params.limit));
-    if (params?.offset) query.set("offset", String(params.offset));
     return this.get(`/api/v1/operations/queues?${query.toString()}`);
   },
 
@@ -266,8 +257,8 @@ export const api = {
     });
   },
 
-  async resolveQueueItem(id: string, resolution_notes?: string) {
-    return this.post(`/api/v1/operations/queues/${id}/resolve`, { resolution_notes });
+  async resolveQueueItem(id: string) {
+    return this.post(`/api/v1/operations/queues/${id}/resolve`, {});
   },
 
   async createIncident(data: {
@@ -281,13 +272,7 @@ export const api = {
     return this.post("/api/v1/operations/incidents", data);
   },
 
-  async listIncidents(params?: {
-    severity?: string;
-    status?: string;
-    environment?: string;
-    brand?: string;
-    brand_id?: string;
-  }) {
+  async listIncidents(params?: { severity?: string; status?: string; environment?: string; brand?: string; brand_id?: string }) {
     const query = new URLSearchParams();
     if (params?.severity) query.set("severity", params.severity);
     if (params?.status) query.set("status", params.status);
@@ -321,11 +306,25 @@ export const api = {
   async getOperationsAnalytics(params?: {
     time_range?: string;
     metric?: string;
+    environment?: string;
+    brand?: string;
+    brand_id?: string;
   }) {
     const query = new URLSearchParams();
     if (params?.time_range) query.set("time_range", params.time_range);
     if (params?.metric) query.set("metric", params.metric);
+    if (params?.environment) query.set("environment", params.environment);
+    if (params?.brand) query.set("brand", params.brand);
+    if (params?.brand_id) query.set("brand_id", params.brand_id);
     return this.get(`/api/v1/operations/analytics?${query.toString()}`);
+  },
+
+  async getOperationsStatsScoped(params?: { environment?: string; brand?: string; brand_id?: string }) {
+    const query = new URLSearchParams();
+    if (params?.environment) query.set("environment", params.environment);
+    if (params?.brand) query.set("brand", params.brand);
+    if (params?.brand_id) query.set("brand_id", params.brand_id);
+    return this.get(`/api/v1/operations/stats?${query.toString()}`);
   },
 
   async emergencyPause(id: string, reason?: string) {
@@ -336,6 +335,22 @@ export const api = {
 
   async escalateRun(id: string, reason?: string) {
     return this.post(`/api/v1/operations/runs/${id}/escalate`, { reason });
+  },
+
+  async restrictedMode(id: string, reason?: string) {
+    return this.post(`/api/v1/operations/runs/${id}/restricted-mode`, { reason });
+  },
+
+  async runPolicyCheck(id: string) {
+    return this.post(`/api/v1/operations/runs/${id}/policy-check`, {});
+  },
+
+  async getPolicyResults(id: string) {
+    return this.get(`/api/v1/operations/runs/${id}/policy-results`);
+  },
+
+  async getRuntimeControlLog(id: string) {
+    return this.get(`/api/v1/operations/runs/${id}/control-log`);
   },
 
   // ─── AGENTS API CLIENT ───

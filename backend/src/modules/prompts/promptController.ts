@@ -69,6 +69,7 @@ async function auditPromptEvent(
   action: string,
   payload: Record<string, unknown>,
   req?: AuthRequest,
+  options?: { critical?: boolean },
 ): Promise<string | null> {
   await logToDatabase('info', PROMPT_AUDIT_SERVICE, action, {
     ...payload,
@@ -86,9 +87,13 @@ async function auditPromptEvent(
     payload,
   });
 
+  if (options?.critical && !receipt) {
+    throw new Error(`Critical audit/evidence write failed for ${action}: evidence preservation returned no receipt`);
+  }
+
   // Append-only governance audit trail (independent of system_logs / vault).
   const correlationId = receipt?.vault_item_uuid || (payload.correlation_id as string | undefined) || null;
-  await PromptAuditService.record({
+  const auditRecord = await PromptAuditService.record({
     event_type: action,
     workspace_id: payload.workspace_id as string | undefined,
     prompt_id: payload.prompt_id as string | undefined,
@@ -110,6 +115,10 @@ async function auditPromptEvent(
     source_ip: clientIp(req),
     correlation_id: correlationId,
   });
+
+  if (options?.critical && !auditRecord) {
+    throw new Error(`Critical audit/evidence write failed for ${action}: audit ledger record returned no data`);
+  }
 
   return receipt?.vault_item_uuid || null;
 }
@@ -772,8 +781,9 @@ export class PromptController {
       if (![PROMPT_STATUS.PRODUCTION_ACTIVE, PROMPT_STATUS.PAUSED].includes(prompt.status)) {
         return res.status(409).json({ error: 'Only production-active prompts can be paused.' });
       }
-      const data = await PromptService.updateStatus(getParam(req, 'id'), 'PAUSED', workspaceId);
-      await auditPromptEvent('prompt.paused', { prompt_id: data.id, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || '', before_state: { status: prompt.status }, after_state: { status: data.status } }, req);
+      const promptId = getParam(req, 'id');
+      await auditPromptEvent('prompt.paused', { prompt_id: promptId, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || '', before_state: { status: prompt.status }, after_state: { status: PROMPT_STATUS.PAUSED } }, req, { critical: true });
+      const data = await PromptService.updateStatus(promptId, 'PAUSED', workspaceId);
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -787,11 +797,10 @@ export class PromptController {
       if (prompt.status !== PROMPT_STATUS.PAUSED) {
         return res.status(409).json({ error: 'Only paused prompts can be resumed.' });
       }
-      const data = await PromptService.updateStatus(getParam(req, 'id'), 'PRODUCTION_ACTIVE', workspaceId);
-      // Resuming a paused prompt restores it to production-active. Record both
-      // the resume action and the restore semantics in the audit ledger.
-      await auditPromptEvent('prompt.resumed', { prompt_id: data.id, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || '', before_state: { status: prompt.status }, after_state: { status: data.status } }, req);
-      await auditPromptEvent('prompt.restored', { prompt_id: data.id, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || 'Restored from paused state', before_state: { status: prompt.status }, after_state: { status: data.status } }, req);
+      const promptId = getParam(req, 'id');
+      await auditPromptEvent('prompt.resumed', { prompt_id: promptId, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || '', before_state: { status: prompt.status }, after_state: { status: PROMPT_STATUS.PRODUCTION_ACTIVE } }, req, { critical: true });
+      await auditPromptEvent('prompt.restored', { prompt_id: promptId, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || 'Restored from paused state', before_state: { status: prompt.status }, after_state: { status: PROMPT_STATUS.PRODUCTION_ACTIVE } }, req, { critical: true });
+      const data = await PromptService.updateStatus(promptId, 'PRODUCTION_ACTIVE', workspaceId);
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -805,8 +814,9 @@ export class PromptController {
       if (prompt.status === PROMPT_STATUS.PRODUCTION_ACTIVE) {
         return res.status(409).json({ error: 'Production-active prompts must be retired or paused before archive.' });
       }
-      const data = await PromptService.updateStatus(getParam(req, 'id'), 'ARCHIVED', workspaceId);
-      await auditPromptEvent('prompt.archived', { prompt_id: data.id, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || '', before_state: { status: prompt.status }, after_state: { status: data.status } }, req);
+      const promptId = getParam(req, 'id');
+      await auditPromptEvent('prompt.archived', { prompt_id: promptId, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || '', before_state: { status: prompt.status }, after_state: { status: PROMPT_STATUS.ARCHIVED } }, req, { critical: true });
+      const data = await PromptService.updateStatus(promptId, 'ARCHIVED', workspaceId);
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -817,8 +827,9 @@ export class PromptController {
     try {
       const workspaceId = await PromptController.resolveWorkspaceId(req);
       const prompt = await PromptService.requireById(getParam(req, 'id'), workspaceId);
-      const data = await PromptService.updateStatus(getParam(req, 'id'), 'RETIRED', workspaceId);
-      await auditPromptEvent('prompt.retired', { prompt_id: data.id, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || '', before_state: { status: prompt.status }, after_state: { status: data.status } }, req);
+      const promptId = getParam(req, 'id');
+      await auditPromptEvent('prompt.retired', { prompt_id: promptId, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || '', before_state: { status: prompt.status }, after_state: { status: PROMPT_STATUS.RETIRED } }, req, { critical: true });
+      const data = await PromptService.updateStatus(promptId, 'RETIRED', workspaceId);
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -896,7 +907,6 @@ export class PromptController {
       if (!latestRun || latestRun.pass_fail !== 'PASS') {
         return res.status(409).json({ error: 'Prompt must pass required tests before review submission.' });
       }
-      await PromptService.updateStatus(promptId, 'REVIEW_REQUESTED', workspaceId);
       await auditPromptEvent('prompt.review.submitted', {
         prompt_id: promptId,
         prompt_version_id: prompt.current_version_id,
@@ -905,7 +915,8 @@ export class PromptController {
         risk_tier: prompt.risk_tier,
         before_state: { status: prompt.status },
         after_state: { status: 'review_requested' },
-      }, req);
+      }, req, { critical: true });
+      await PromptService.updateStatus(promptId, 'REVIEW_REQUESTED', workspaceId);
       const data = await PromptService.getById(promptId, workspaceId);
       res.json({ success: true, data });
     } catch (error) {
@@ -959,13 +970,9 @@ export class PromptController {
           .map((approval: any) => normalizeReviewerRole(approval.reviewer_role)),
       );
       const complete = requiredRoles.every((requiredRole) => Array.from(refreshedRoles).some((role) => canRoleSatisfy(requiredRole, role)));
-      if (complete) {
-        await PromptService.updateStatus(version.prompt_id, 'APPROVED_STAGING', workspaceId);
-        // Re-approval is the recovery path for an invalidated approval: a
-        // completed approval chain clears the invalidation flag so the version
-        // can deploy again.
-        await ApprovalInvalidationService.clear(versionId);
-      }
+
+      // Audit BEFORE irreversible status changes. If audit fails, delete the
+      // approval record (reversible) and abort.
       const approvalEvidenceId = await auditPromptEvent('prompt.approval.recorded', {
         prompt_id: version.prompt_id,
         prompt_version_id: versionId,
@@ -976,7 +983,12 @@ export class PromptController {
         approval_complete: complete,
         reason: req.body.comments || '',
         after_state: { decision: 'APPROVED', approval_complete: complete },
-      }, req);
+      }, req, { critical: true });
+
+      if (complete) {
+        await PromptService.updateStatus(version.prompt_id, 'APPROVED_STAGING', workspaceId);
+        await ApprovalInvalidationService.clear(versionId);
+      }
       if (approvalEvidenceId && approvalRecord?.id) {
         await supabaseAdmin.from('prompt_approvals').update({ evidence_id: approvalEvidenceId }).eq('id', approvalRecord.id);
       }
@@ -1001,15 +1013,6 @@ export class PromptController {
         return res.status(400).json({ error: 'Rejections require actionable notes or a reason category.' });
       }
 
-      await PromptApprovalService.create({
-        prompt_version_id: versionId,
-        reviewer_id: req.user?.id,
-        reviewer_role: reviewerRole,
-        decision: 'REJECTED',
-        decision_reason: req.body.comments || req.body.reason || '',
-      });
-
-      await PromptService.updateStatus(version.prompt_id, 'DRAFT', workspaceId);
       await auditPromptEvent('prompt.approval.rejected', {
         prompt_id: prompt.id,
         prompt_version_id: versionId,
@@ -1019,7 +1022,17 @@ export class PromptController {
         reviewer_role: reviewerRole,
         reason: req.body.comments || req.body.reason,
         after_state: { decision: 'REJECTED', status: 'draft' },
-      }, req);
+      }, req, { critical: true });
+
+      await PromptApprovalService.create({
+        prompt_version_id: versionId,
+        reviewer_id: req.user?.id,
+        reviewer_role: reviewerRole,
+        decision: 'REJECTED',
+        decision_reason: req.body.comments || req.body.reason || '',
+      });
+
+      await PromptService.updateStatus(version.prompt_id, 'DRAFT', workspaceId);
 
       res.json({ success: true, message: 'Version rejected' });
     } catch (error) {
@@ -1078,7 +1091,6 @@ export class PromptController {
         return res.status(409).json({ error: 'Required approval chain is incomplete.' });
       }
       if (normalizedEnvironment === 'production' && prompt.status !== PROMPT_STATUS.PRODUCTION_PENDING) {
-        await PromptService.updateStatus(version.prompt_id, 'PRODUCTION_PENDING', workspaceId);
         await auditPromptEvent('prompt.production.requested', {
           prompt_id: version.prompt_id,
           prompt_version_id: versionId,
@@ -1088,7 +1100,8 @@ export class PromptController {
           environment: 'production',
           before_state: { status: prompt.status },
           after_state: { status: 'production_pending' },
-        }, req);
+        }, req, { critical: true });
+        await PromptService.updateStatus(version.prompt_id, 'PRODUCTION_PENDING', workspaceId);
         return res.json({ success: true, message: 'Production deployment requested; final production approval is now pending.' });
       }
 
@@ -1100,6 +1113,7 @@ export class PromptController {
         .order('created_at', { ascending: false })
         .limit(1);
 
+      // Create deployment record (reversible INSERT — no production impact yet).
       const deploymentRecord = await PromptDeploymentService.create({
         prompt_version_id: versionId,
         environment: normalizedEnvironment,
@@ -1109,12 +1123,7 @@ export class PromptController {
         rollback_to_version_id: previousProduction?.[0]?.prompt_version_id || null,
       });
 
-      if (normalizedEnvironment === 'production') {
-        await PromptService.updateStatus(version.prompt_id, 'PRODUCTION_ACTIVE', workspaceId);
-        await PromptVersionService.markImmutable(versionId);
-      } else if (normalizedEnvironment === 'staging') {
-        await PromptService.updateStatus(version.prompt_id, 'APPROVED_STAGING', workspaceId);
-      }
+      // Audit with critical BEFORE irreversible status changes.
       const deploymentEvidenceId = await auditPromptEvent('prompt.deployed', {
         prompt_id: version.prompt_id,
         prompt_version_id: versionId,
@@ -1125,7 +1134,15 @@ export class PromptController {
         reason: req.body.release_note || '',
         rollback_to_version_id: previousProduction?.[0]?.prompt_version_id || null,
         after_state: { environment: normalizedEnvironment, status: normalizedEnvironment === 'production' ? 'production_active' : 'approved_for_staging' },
-      }, req);
+      }, req, { critical: true });
+
+      // Audit succeeded — proceed with irreversible status changes.
+      if (normalizedEnvironment === 'production') {
+        await PromptService.updateStatus(version.prompt_id, 'PRODUCTION_ACTIVE', workspaceId);
+        await PromptVersionService.markImmutable(versionId);
+      } else if (normalizedEnvironment === 'staging') {
+        await PromptService.updateStatus(version.prompt_id, 'APPROVED_STAGING', workspaceId);
+      }
       if (deploymentEvidenceId && deploymentRecord?.id) {
         await supabaseAdmin.from('prompt_deployments').update({ evidence_id: deploymentEvidenceId }).eq('id', deploymentRecord.id);
       }
@@ -1163,8 +1180,10 @@ export class PromptController {
       if (!deployments?.[0]) return res.status(400).json({ error: 'No production deployments to rollback from' });
 
       const result = await PromptDeploymentService.rollback(deployments[0].id, req.user?.id);
-      await PromptService.updateCurrentVersion(promptId, result.prompt_version_id, workspaceId);
-      await PromptService.updateStatus(promptId, 'PRODUCTION_ACTIVE', workspaceId);
+
+      // Audit with critical BEFORE irreversible status changes. The rollback
+      // deployment record itself is a reversible INSERT; the status + version
+      // update below is the actual production impact.
       await auditPromptEvent('prompt.rollback.completed', {
         prompt_id: promptId,
         prompt_version_id: result.prompt_version_id,
@@ -1175,7 +1194,10 @@ export class PromptController {
         deployment_id: result.id,
         before_state: { current_version_id: prompt.current_version_id, status: prompt.status },
         after_state: { current_version_id: result.prompt_version_id, status: 'production_active' },
-      }, req);
+      }, req, { critical: true });
+
+      await PromptService.updateCurrentVersion(promptId, result.prompt_version_id, workspaceId);
+      await PromptService.updateStatus(promptId, 'PRODUCTION_ACTIVE', workspaceId);
 
       res.json({ success: true, data: result });
     } catch (error) {

@@ -216,14 +216,14 @@ export default function QualityAuditPage() {
         api.get(`/api/v1/quality-audit/items/${id}/corrective-actions`),
         api.get(`/api/v1/quality-audit/items/${id}/notes`),
         api.get(`/api/v1/quality-audit/items/${id}/evidence`),
-        api.get(`/api/v1/quality-audit/items/${id}/audit-trail`),
+        api.get(`/api/v1/quality-audit/items/${id}/audit-log`),
       ]);
       if (defRes.success) setDefects((defRes.data || []) as DefectEntry[]);
       if (caRes.success) setCorrectiveActions((caRes.data || []) as CorrectiveAction[]);
       if (noteRes.success) setNotes((noteRes.data || []) as NoteEntry[]);
       if (evRes.success) setEvidence((evRes.data || []) as EvidenceEntry[]);
       if (tlRes.success) setTimeline((tlRes.data || []) as TimelineEntry[]);
-    } catch { /* silent */ }
+    } catch (e: any) { console.warn("Failed to fetch details:", e?.message); }
   }, []);
 
   const handleSelect = (item: AuditItem) => {
@@ -236,7 +236,9 @@ export default function QualityAuditPage() {
   const handleAction = async (action: string, id: string) => {
     setActionLoading(action); setMessage(null);
     try {
-      const result = await api.post(`/api/v1/quality-audit/items/${id}/${action}`, { reason: feedbackText || undefined });
+      const actionMap: Record<string, string> = { "start-audit": "start", "pass-audit": "pass", "fail-audit": "fail", "escalate-audit": "escalate" };
+      const mappedAction = actionMap[action] || action;
+      const result = await api.post(`/api/v1/quality-audit/items/${id}/${mappedAction}`, { reason: feedbackText || undefined });
       if (result.success) {
         setMessage({ type: "success", text: `${action.replace(/_/g, " ")} successful.` });
         setFeedbackText("");
@@ -374,14 +376,28 @@ export default function QualityAuditPage() {
           </TooltipBtn>
           <TooltipBtn disabled={!selectedItem || actionLoading !== null} tooltip="Select an audit item first">
             <button disabled={!selectedItem || actionLoading !== null}
-              onClick={() => selectedItem && handleAction("export-findings", selectedItem.id)}
+              onClick={async () => {
+                if (!selectedItem) return;
+                setActionLoading("export-findings");
+                const res = await api.post("/api/v1/quality-audit/export/findings", { item_ids: [selectedItem.id] });
+                if (res.success) setMessage({ type: "success", text: "Findings exported." });
+                else setMessage({ type: "error", text: res.error || "Export failed." });
+                setActionLoading(null);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--card)] border border-[var(--border)] text-[#aaa] hover:text-white rounded-lg text-[10px] font-bold transition-all disabled:opacity-40">
               <Download className="w-3 h-3" />Export Findings
             </button>
           </TooltipBtn>
           <TooltipBtn disabled={!selectedItem || actionLoading !== null} tooltip="Select an audit item first">
             <button disabled={!selectedItem || actionLoading !== null}
-              onClick={() => selectedItem && handleAction("export-evidence", selectedItem.id)}
+              onClick={async () => {
+                if (!selectedItem) return;
+                setActionLoading("export-evidence");
+                const res = await api.post("/api/v1/quality-audit/export/evidence", { item_ids: [selectedItem.id] });
+                if (res.success) setMessage({ type: "success", text: "Evidence exported." });
+                else setMessage({ type: "error", text: res.error || "Export failed." });
+                setActionLoading(null);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--card)] border border-[var(--border)] text-[#aaa] hover:text-white rounded-lg text-[10px] font-bold transition-all disabled:opacity-40">
               <Eye className="w-3 h-3" />Export Evidence
             </button>

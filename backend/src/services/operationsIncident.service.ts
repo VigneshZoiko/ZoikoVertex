@@ -26,9 +26,27 @@ export async function listIncidents(params: {
   status?: string;
   severity?: string;
   category?: string;
+  environment?: string;
+  brand_id?: string;
+  brand_name?: string;
   limit: number;
   offset: number;
 }) {
+  let scopedRunIds: string[] | null = null;
+  if (params.environment || params.brand_id || params.brand_name) {
+    let runScope = supabaseAdmin
+      .from('agent_runs')
+      .select('id')
+      .eq('workspace_id', params.workspace_id);
+    if (params.environment) runScope = runScope.eq('environment', params.environment);
+    if (params.brand_id) runScope = runScope.eq('brand_id', params.brand_id);
+    if (params.brand_name) runScope = runScope.ilike('brand_name', params.brand_name);
+    const { data: runs, error: runScopeError } = await runScope;
+    if (runScopeError) throw runScopeError;
+    scopedRunIds = (runs || []).map((run) => run.id);
+    if (scopedRunIds.length === 0) return { incidents: [], total: 0 };
+  }
+
   let query = supabaseAdmin
     .from('incidents')
     .select('*', { count: 'exact' })
@@ -39,6 +57,7 @@ export async function listIncidents(params: {
   if (params.status) query = query.eq('status', params.status);
   if (params.severity) query = query.eq('severity', params.severity);
   if (params.category) query = query.eq('category', params.category);
+  if (scopedRunIds) query = query.in('run_id', scopedRunIds);
 
   const { data, error, count } = await query;
   if (error) throw error;
@@ -83,7 +102,7 @@ export async function createIncident(params: {
     category: params.category,
     owner_id: params.owner_id || null,
     owner_name: params.owner_name || null,
-    status: 'OPEN',
+    status: 'open',
     created_by: params.created_by,
     created_by_name: params.created_by_name || null,
     due_at: params.due_at || null,
@@ -94,19 +113,22 @@ export async function createIncident(params: {
   return { id };
 }
 
-export async function resolveIncident(incidentId: string, closedBy: string, remediation?: string) {
-  const { data: existing, error: fetchError } = await supabaseAdmin
+export async function getIncident(incidentId: string) {
+  const { data, error } = await supabaseAdmin
     .from('incidents')
     .select('*')
     .eq('id', incidentId)
     .single();
-  if (fetchError || !existing) throw Object.assign(new Error('Incident not found'), { statusCode: 404 });
-  if (String(existing.status).toUpperCase() === 'RESOLVED') {
-    throw Object.assign(new Error('Incident already resolved'), { statusCode: 409 });
-  }
+  if (error || !data) throw Object.assign(new Error('Incident not found'), { statusCode: 404 });
+  return data as Incident;
+}
+
+export async function resolveIncident(incidentId: string, closedBy: string, remediation?: string) {
+  const existing = await getIncident(incidentId);
+  if (existing.status === 'resolved') throw Object.assign(new Error('Incident already resolved'), { statusCode: 409 });
 
   const updateData: Record<string, any> = {
-    status: 'RESOLVED',
+    status: 'resolved',
     closed_by: closedBy,
     closed_at: new Date().toISOString(),
   };
@@ -114,13 +136,32 @@ export async function resolveIncident(incidentId: string, closedBy: string, reme
 
   const { error } = await supabaseAdmin.from('incidents').update(updateData).eq('id', incidentId);
   if (error) throw error;
-  return { id: incidentId, status: 'RESOLVED' };
+  return { id: incidentId, status: 'resolved' };
+}
+
+// Advance an incident into the "investigating" lifecycle state (used by run
+// escalation that links to an existing incident). Append-only on status; never
+// moves a resolved incident backwards.
+export async function acknowledgeIncident(incidentId: string, actorId: string, note?: string) {
+  const existing = await getIncident(incidentId);
+  if (existing.status === 'resolved') {
+    throw Object.assign(new Error('Incident already resolved'), { statusCode: 409 });
+  }
+  if (existing.status === 'investigating' || existing.status === 'in_remediation') {
+    return { id: incidentId, status: existing.status };
+  }
+  const updateData: Record<string, any> = { status: 'investigating' };
+  if (note) updateData.root_cause = existing.root_cause || note;
+  if (actorId) updateData.owner_id = existing.owner_id || actorId;
+  const { error } = await supabaseAdmin.from('incidents').update(updateData).eq('id', incidentId);
+  if (error) throw error;
+  return { id: incidentId, status: 'investigating' };
 }
 
 export async function getIncidentStats(workspaceId: string) {
   const [openIncidents, criticalIncidents, totalIncidents] = await Promise.all([
-    supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).neq('status', 'RESOLVED'),
-    supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('severity', 'critical').neq('status', 'RESOLVED'),
+    supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).neq('status', 'resolved'),
+    supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('severity', 'critical').neq('status', 'resolved'),
     supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
   ]);
 

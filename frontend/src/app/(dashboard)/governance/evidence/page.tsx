@@ -20,7 +20,8 @@ import {
   ChevronRight,
   AlertOctagon,
   Gavel,
-  BarChart3
+  BarChart3,
+  X
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ export default function EvidenceVaultPage() {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [packs, setPacks] = useState<EvidencePack[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"artifacts" | "packs" | "holds">("artifacts");
 
@@ -115,8 +117,8 @@ export default function EvidenceVaultPage() {
       if (statsRes.status === "fulfilled" && statsRes.value?.success) setStats(statsRes.value.data);
       if (artRes.status === "fulfilled" && artRes.value?.success) setArtifacts(artRes.value.data);
       if (packRes.status === "fulfilled" && packRes.value?.success) setPacks(packRes.value.data);
-    } catch (err) {
-      console.error("[Evidence Vault] fetchAll error:", err);
+    } catch (err: any) {
+      setError(err?.message || "Failed to load evidence data");
     } finally {
       setLoading(false);
     }
@@ -137,7 +139,7 @@ export default function EvidenceVaultPage() {
         setBuildResult(res.data.pack);
         fetchAll();
       }
-    } catch (err) { console.error(err); }
+    } catch (err: any) { setError(err?.message || "Failed to build pack"); }
     finally { setBuilding(false); }
   };
 
@@ -153,7 +155,7 @@ export default function EvidenceVaultPage() {
       });
       setHoldObjectId(""); setHoldMatter(""); setHoldReason("");
       fetchAll();
-    } catch (err) { console.error(err); }
+    } catch (err: any) { setError(err?.message || "Failed to apply hold"); }
     finally { setApplyingHold(false); }
   };
 
@@ -179,6 +181,14 @@ export default function EvidenceVaultPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#ddd] p-6 font-sans selection:bg-blue-500/30">
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-xs text-red-400">{error}</p>
+          <button onClick={() => setError(null)} className="ml-auto text-red-400/60 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex justify-between items-start mb-8">

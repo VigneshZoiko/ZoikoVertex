@@ -311,32 +311,16 @@ export default function StudioPage() {
     if (workspaceId || isSuperadmin) fetchAgents(workspaceId);
   }, [workspaceId, isSuperadmin, statusFilter, riskFilter, fetchAgents]);
 
-  // ── Prune stale dismissed-agent IDs so localStorage doesn't grow unbounded
-  //    as agents are deleted/recreated. Only prune against an unfiltered list
-  //    (no status filter), where every live agent — including RETIRED ones — is
-  //    present; otherwise a filtered-out retired agent would be wrongly dropped.
-  useEffect(() => {
-    if (statusFilter || agents.length === 0 || dismissedIds.length === 0) return;
-    const liveIds = new Set(agents.map((a) => a.id));
-    const pruned = dismissedIds.filter((id) => liveIds.has(id));
-    if (pruned.length !== dismissedIds.length) {
-      setDismissedIds(pruned);
-      persistDismissed(pruned);
-    }
-  }, [agents, statusFilter, dismissedIds, persistDismissed]);
-
   const getAutonomyStyle = useCallback((level: string) => {
     const color = AUTONOMY_COLOR[level] || AUTONOMY_COLOR.L0;
     return `${color.text} ${color.bg} ${color.border}`;
   }, []);
 
-  // Production readiness checklist. Required governance criteria are mandatory
-  // for production readiness; recommended operational criteria (e.g. a backup
-  // owner) improve the score but are weighted lighter so a missing backup_dri
-  // does not block readiness the same way a missing owner does.
+  // Production readiness checklist — 10 mandatory gates
   const getReadiness = useCallback((agent: Agent) => {
-    const required = [
+    const checks = [
       Boolean(agent.primary_dri),
+      Boolean(agent.backup_dri),
       Boolean(agent.assigned_brand),
       Boolean(agent.linked_prompts?.length),
       Boolean(agent.linked_workflows?.length),
@@ -346,15 +330,7 @@ export default function StudioPage() {
       (agent.faithfulness_score || 0) >= 0.85,
       agent.status !== "RETIRED" && agent.status !== "DRAFT",
     ];
-    const recommended = [
-      Boolean(agent.backup_dri), // recommended, not mandatory
-    ];
-    const RECOMMENDED_WEIGHT = 0.5;
-    const score =
-      required.filter(Boolean).length +
-      recommended.filter(Boolean).length * RECOMMENDED_WEIGHT;
-    const maxScore = required.length + recommended.length * RECOMMENDED_WEIGHT;
-    return Math.round((score / maxScore) * 100);
+    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
   }, []);
 
   // Next action per lifecycle state (spec Section 5 + 6.1)
@@ -498,49 +474,26 @@ export default function StudioPage() {
         return;
       }
       if (gatesRes?.data) {
-        // Backend shape: { gates: GateStatus[], all_passed, blockers }.
-        // A blocking failure is a gate with status "failed" AND blocking=true.
-        const gateList = Array.isArray(gatesRes.data.gates)
-          ? (gatesRes.data.gates as {
-              gate_type: string;
-              status: string;
-              blocking: boolean;
-            }[])
-          : [];
-        const blockingFailed = gateList.filter(
-          (g) => g.status === "failed" && g.blocking,
+        const gates = gatesRes.data;
+        const blockingFailed = (gates.failed_gates || []).filter(
+          (g: { blocking: boolean }) => g.blocking,
         );
         if (blockingFailed.length > 0) {
-          const gateNames = blockingFailed.map((g) => g.gate_type).join(", ");
+          const gateNames = blockingFailed
+            .map((g: { name: string }) => g.name)
+            .join(", ");
           setError(
             `Deploy blocked: ${blockingFailed.length} governance gate(s) failed — ${gateNames}. Resolve before deploying.`,
           );
           return;
         }
       }
-      // Step 2: Proceed with deploy. Deployment target comes from the agent's
-      // runtime policy — never the catalog environment filter (a view-only
-      // control) — so filtering the catalog can't silently retarget a deploy.
-      const env = agent.runtime_controls?.environment || "production";
-      const deployRes = await api.post(`/api/v1/agents/${agent.id}/deploy`, {
-        environment: env,
-      });
-      // The backend is the source of truth and may block the deploy (e.g. 422
-      // when governance gates fail). Surface its reasons instead of falsely
-      // reporting success when the deploy did not happen.
-      if (!deployRes?.success) {
-        const blockers = Array.isArray(deployRes?.data?.blockers)
-          ? (deployRes.data.blockers as string[])
-          : [];
-        setError(
-          blockers.length > 0
-            ? `Deploy blocked: ${blockers.join("; ")}`
-            : typeof deployRes?.error === "string"
-              ? deployRes.error
-              : `Deploy failed for "${agent.name}".`,
-        );
-        return;
-      }
+      // Step 2: Proceed with deploy
+      const env =
+        environmentFilter ||
+        agent.runtime_controls?.environment ||
+        "production";
+      await api.post(`/api/v1/agents/${agent.id}/deploy`, { environment: env });
       setSuccessMsg(`"${agent.name}" deployed to ${env} successfully.`);
       setTimeout(() => setSuccessMsg(null), 5000);
       await fetchAgents(workspaceId, { silent: true });
@@ -597,8 +550,10 @@ export default function StudioPage() {
         });
       } else if (action === "deploy") {
         result = await api.post(`/api/v1/agents/${agent.id}/deploy`, {
-          // Runtime policy is the deployment target, not the catalog filter.
-          environment: agent.runtime_controls?.environment || "production",
+          environment:
+            environmentFilter ||
+            agent.runtime_controls?.environment ||
+            "production",
         });
       } else if (action === "pause") {
         result = await api.post(`/api/v1/agents/${agent.id}/pause`, {
@@ -1394,15 +1349,9 @@ export default function StudioPage() {
                       <td className="px-5 py-5">
                         <div className="space-y-2">
                           <StatusBadge status={agent.status} />
-                          {agent.risk_level ? (
-                            <div className="inline-flex rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">
-                              {agent.risk_level.toUpperCase()} risk
-                            </div>
-                          ) : (
-                            <div className="inline-flex rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-rose-500">
-                              Risk: Not Set
-                            </div>
-                          )}
+                          <div className="inline-flex rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">
+                            {(agent.risk_level || "medium").toUpperCase()} risk
+                          </div>
 
                           {/* Readiness bar */}
                           <div className="space-y-1">
@@ -1437,9 +1386,9 @@ export default function StudioPage() {
                               <div className="h-1.5 w-20 overflow-hidden rounded-full bg-[var(--background)]">
                                 <div
                                   className={`h-full rounded-full ${
-                                    (agent.trust_score || 0) >= 0.8
+                                    agent.trust_score >= 0.8
                                       ? "bg-emerald-500"
-                                      : (agent.trust_score || 0) >= 0.6
+                                      : agent.trust_score >= 0.6
                                         ? "bg-amber-500"
                                         : "bg-rose-500"
                                   }`}
@@ -1461,7 +1410,7 @@ export default function StudioPage() {
                               <div className="h-1.5 w-20 overflow-hidden rounded-full bg-[var(--background)]">
                                 <div
                                   className={`h-full rounded-full ${
-                                    (agent.faithfulness_score || 0) >= 0.85
+                                    agent.faithfulness_score >= 0.85
                                       ? "bg-emerald-500"
                                       : "bg-amber-500"
                                   }`}
@@ -1748,15 +1697,9 @@ export default function StudioPage() {
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <StatusBadge status={agent.status} />
-                  {agent.risk_level ? (
-                    <span className="inline-flex rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">
-                      {agent.risk_level.toUpperCase()}
-                    </span>
-                  ) : (
-                    <span className="inline-flex rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-rose-500">
-                      Risk: Not Set
-                    </span>
-                  )}
+                  <span className="inline-flex rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">
+                    {(agent.risk_level || "medium").toUpperCase()}
+                  </span>
                 </div>
 
                 <div className="mt-4 space-y-1.5 text-sm text-[var(--foreground-muted)]">

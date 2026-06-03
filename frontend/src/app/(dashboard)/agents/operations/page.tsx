@@ -24,6 +24,7 @@ import {
   Ticket,
   Ban,
   ShieldX,
+  Trash2,
   Search,
   ChevronDown,
   Download,
@@ -56,6 +57,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,6 +91,8 @@ interface AgentRun {
   next_action?: string;
   error_code?: string;
   retry_count?: number;
+  permitted_actions?: RuntimeActionType[];
+  action_gates?: Array<{ action: RuntimeActionType; allowed: boolean; reason?: string }>;
 }
 
 interface RunEvent {
@@ -110,10 +114,11 @@ interface PolicyResult {
   outcome: string;
   severity: string;
   failed_rule?: string;
-  failed_category?: string;
-  platform_impact?: string;
+  check_category?: string;
+  remediation_path?: string;
+  platform?: string;
+  notes?: string;
   remediation_required: boolean;
-  source_policy?: string;
   created_at: string;
 }
 
@@ -153,7 +158,6 @@ interface QueueItem {
   claimed_at?: string | null;
   resolved_at?: string | null;
   sla_breached?: boolean;
-  resolution_notes?: string | null;
 }
 
 interface Incident {
@@ -180,39 +184,27 @@ interface OperationsStats {
   open_incidents: number;
   policy_blocks: number;
   avg_trust_score: number;
+  operations_health_score?: number;
+  total_runs?: number;
+  quarantined_runs?: number;
   sla_breaches?: number;
   escalations?: number;
-  restricted_operations?: number;
 }
+
+type NumericMetric = number | Record<string, number | undefined> | null | undefined;
+type RuntimeActionType = "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "restricted_mode" | "export_evidence";
 
 interface AnalyticsMetrics {
-  throughput?: number;
-  backlog?: number;
-  failure_rate?: number;
-  retry_success_rate?: number;
-  policy_block_rate?: number;
-  approval_time?: number;
-  productivity?: number;
-  rework_rate?: number;
-  escalation_trends?: number;
-  sla_breach_rate?: number;
-  evidence_completeness?: number;
-  avg_review_time_minutes?: number;
-  incident_closure_time_hours?: number;
-  evidence_completeness_pct?: number;
-  throughput_per_day?: number;
-}
-
-interface SavedView {
-  id: string;
-  name: string;
-  statusFilter: string;
-  brandFilter: string;
-  envFilter: string;
-  queueTypeFilter: string;
-  sortBy: string;
-  sortOrder: "asc" | "desc";
-  viewMode: "list" | "card";
+  failure_rate?: NumericMetric;
+  retry_success_rate?: NumericMetric;
+  policy_block_rate?: NumericMetric;
+  avg_review_time_minutes?: NumericMetric;
+  sla_breach_rate?: NumericMetric;
+  incident_closure_time_hours?: NumericMetric;
+  evidence_completeness_pct?: NumericMetric;
+  evidence_completeness?: NumericMetric;
+  throughput_per_day?: NumericMetric;
+  throughput?: NumericMetric;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -282,7 +274,39 @@ function shortId(id: string): string {
   return id.slice(0, 8).toUpperCase();
 }
 
+function metricNumber(metric: NumericMetric, period = "30d"): number | null {
+  if (typeof metric === "number") {
+    return Number.isFinite(metric) ? metric : null;
+  }
+  if (metric && typeof metric === "object") {
+    const value = metric[period] ?? metric["7d"] ?? metric["24h"];
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return null;
+}
+
+function formatPercentMetric(metric: NumericMetric, period = "30d"): string {
+  const value = metricNumber(metric, period);
+  if (value === null) return "—";
+  const percent = Math.abs(value) <= 1 ? value * 100 : value;
+  return `${percent.toFixed(1)}%`;
+}
+
+function formatUnitMetric(metric: NumericMetric, suffix = "", period = "30d"): string {
+  const value = metricNumber(metric, period);
+  if (value === null) return "—";
+  return `${value}${suffix}`;
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function actionGate(run: AgentRun, action: RuntimeActionType) {
+  return run.action_gates?.find((gate) => gate.action === action) || {
+    action,
+    allowed: Boolean(run.permitted_actions?.includes(action)),
+    reason: "Action is not currently permitted",
+  };
+}
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -308,7 +332,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function PolicyBadge({ result }: { result: string }) {
-  const cfg = POLICY_CONFIG[result] || POLICY_CONFIG.NOT_APPLICABLE;
+  const cfg = POLICY_CONFIG[String(result || "").toUpperCase()] || POLICY_CONFIG.NOT_APPLICABLE;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${cfg.bg} ${cfg.color}`}>
       <Shield className="w-2.5 h-2.5" />
@@ -343,9 +367,28 @@ interface ConfirmModalProps {
 
 function ConfirmModal({ title, description, impactPreview, requireReason = true, confirmLabel, confirmClass = "bg-rose-500 hover:bg-rose-600", onConfirm, onCancel, loading }: ConfirmModalProps) {
   const [reason, setReason] = useState("");
+  const cardRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Bring the dialog into view automatically so the user never has to scroll
+  // to find it (a transformed ancestor can otherwise offset a fixed overlay).
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Move focus into the dialog for keyboard users.
+      (textareaRef.current ?? cardRef.current)?.focus();
+    }, 30);
+    return () => window.clearTimeout(id);
+  }, []);
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-full max-w-md shadow-2xl">
+    <div
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onKeyDown={(e) => { if (e.key === "Escape" && !loading) onCancel(); }}
+      onClick={(e) => { if (e.target === e.currentTarget && !loading) onCancel(); }}
+    >
+      <div ref={cardRef} tabIndex={-1} className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
         <div className="p-5 border-b border-[#2a2a2a]">
           <h3 className="text-base font-bold text-white">{title}</h3>
           <p className="text-sm text-[#888] mt-1">{description}</p>
@@ -359,13 +402,19 @@ function ConfirmModal({ title, description, impactPreview, requireReason = true,
           )}
           {requireReason && (
             <div>
-              <label className="block text-xs text-[#666] mb-1.5">Reason <span className="text-rose-400">*</span></label>
+              <label className="block text-xs text-[#666] mb-1.5">Reason <span className="text-rose-400">*</span> <span className="text-[#555]">(minimum 8 characters)</span></label>
               <textarea
+                ref={textareaRef}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-white h-20 resize-none focus:outline-none focus:border-[#444] placeholder-[#444]"
-                placeholder="Describe reason for this action..."
+                className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-white h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-[#2a2a2a] focus:border-[#444]"}`}
+                placeholder="Describe reason for this action (at least 8 characters)..."
               />
+              <p className={`mt-1 text-xs ${reason.trim().length < 8 ? "text-amber-400" : "text-emerald-400"}`}>
+                {reason.trim().length < 8
+                  ? `At least 8 characters required — ${8 - reason.trim().length} more to go (${reason.trim().length}/8).`
+                  : `Reason looks good (${reason.trim().length} characters).`}
+              </p>
             </div>
           )}
         </div>
@@ -375,7 +424,7 @@ function ConfirmModal({ title, description, impactPreview, requireReason = true,
           </button>
           <button
             onClick={() => onConfirm(reason)}
-            disabled={(requireReason && !reason.trim()) || loading}
+            disabled={(requireReason && reason.trim().length < 8) || loading}
             className={`px-4 py-1.5 text-white rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2 ${confirmClass}`}
           >
             {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
@@ -391,9 +440,25 @@ function ConfirmModal({ title, description, impactPreview, requireReason = true,
 
 function EvidenceExportModal({ bundleId, onConfirm, onCancel, loading }: { bundleId: string; onConfirm: (reason: string) => void; onCancel: () => void; loading?: boolean }) {
   const [reason, setReason] = useState("");
+  const cardRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      (textareaRef.current ?? cardRef.current)?.focus();
+    }, 30);
+    return () => window.clearTimeout(id);
+  }, []);
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-full max-w-md shadow-2xl">
+    <div
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Export Evidence Bundle"
+      onKeyDown={(e) => { if (e.key === "Escape" && !loading) onCancel(); }}
+      onClick={(e) => { if (e.target === e.currentTarget && !loading) onCancel(); }}
+    >
+      <div ref={cardRef} tabIndex={-1} className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
         <div className="p-5 border-b border-[#2a2a2a]">
           <h3 className="text-base font-bold text-white flex items-center gap-2"><Download className="w-4 h-4 text-indigo-400" /> Export Evidence Bundle</h3>
           <p className="text-xs text-[#888] mt-1 font-mono">Bundle: {shortId(bundleId)}</p>
@@ -405,6 +470,7 @@ function EvidenceExportModal({ bundleId, onConfirm, onCancel, loading }: { bundl
           <div>
             <label className="block text-xs text-[#666] mb-1.5">Export Reason <span className="text-rose-400">*</span></label>
             <textarea
+              ref={textareaRef}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-white h-20 resize-none focus:outline-none focus:border-[#444] placeholder-[#444]"
@@ -447,6 +513,8 @@ interface RunDetailDrawerProps {
   onRequestOutputChanges: (run: AgentRun) => void;
   onExportSnapshot: (run: AgentRun, detail: RunDetail) => void;
   onEscalateForReview: (runId: string, reason: string) => Promise<void>;
+  onRunPolicyCheck: (runId: string) => void;
+  policyCheckLoading: boolean;
 }
 
 function RunDetailDrawer({
@@ -464,9 +532,18 @@ function RunDetailDrawer({
   onRequestOutputChanges,
   onExportSnapshot,
   onEscalateForReview,
+  onRunPolicyCheck,
+  policyCheckLoading,
 }: RunDetailDrawerProps) {
   const [activeTab, setActiveTab] = useState<DrawerTab>("overview");
   const [flagStaleLoading, setFlagStaleLoading] = useState<string | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 30);
+    return () => window.clearTimeout(id);
+  }, []);
   const tabs: { id: DrawerTab; label: string; icon: React.ReactNode }[] = [
     { id: "overview",  label: "Overview",  icon: <Info className="w-3.5 h-3.5" />       },
     { id: "timeline",  label: "Timeline",  icon: <Clock className="w-3.5 h-3.5" />      },
@@ -481,8 +558,15 @@ function RunDetailDrawer({
   const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-[#888]", bg: "bg-white/5", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-end z-50 p-4">
-      <div className="bg-[#131313] border border-[#2a2a2a] rounded-2xl w-full max-w-2xl h-[calc(100vh-2rem)] flex flex-col shadow-2xl">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-end z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Run detail: ${run.agent_name || run.id}`}
+      onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div ref={cardRef} tabIndex={-1} className="bg-[#131313] border border-[#2a2a2a] rounded-2xl w-full max-w-2xl h-[calc(100vh-2rem)] flex flex-col shadow-2xl focus:outline-none">
         {/* Drawer header */}
         <div className="flex items-start justify-between p-5 border-b border-[#2a2a2a] shrink-0">
           <div className="flex-1 min-w-0">
@@ -704,15 +788,27 @@ function RunDetailDrawer({
           {/* ── POLICY ── */}
           {activeTab === "policy" && (
             <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-[#555]">Policy & platform-safety checks</p>
+                <button
+                  onClick={() => onRunPolicyCheck(run.id)}
+                  disabled={policyCheckLoading}
+                  className="px-2.5 py-1 text-[11px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-lg hover:bg-indigo-500/20 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                >
+                  {policyCheckLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                  Run Policy Check
+                </button>
+              </div>
               {loadingDetail ? (
                 <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
                   <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
                 </div>
               ) : detail?.policy_results?.length ? (
                 detail.policy_results.map((pr) => {
-                  const polCfg = POLICY_CONFIG[pr.outcome] || POLICY_CONFIG.NOT_APPLICABLE;
+                  const outcomeKey = String(pr.outcome || "").toUpperCase();
+                  const polCfg = POLICY_CONFIG[outcomeKey] || POLICY_CONFIG.NOT_APPLICABLE;
                   return (
-                    <div key={pr.id} className={`bg-[#1a1a1a] border rounded-xl p-4 ${pr.outcome === "BLOCKED" ? "border-rose-500/30" : pr.outcome === "WARNING" ? "border-amber-500/30" : "border-[#2a2a2a]"}`}>
+                    <div key={pr.id} className={`bg-[#1a1a1a] border rounded-xl p-4 ${outcomeKey === "BLOCKED" ? "border-rose-500/30" : outcomeKey === "WARNING" ? "border-amber-500/30" : "border-[#2a2a2a]"}`}>
                       <div className="flex items-center justify-between mb-2">
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded ${polCfg.bg} ${polCfg.color}`}>{polCfg.label}</span>
                         <span className="text-[10px] text-[#555]">{new Date(pr.created_at).toLocaleString()}</span>
@@ -720,19 +816,22 @@ function RunDetailDrawer({
                       {pr.failed_rule && (
                         <p className="text-xs text-white mb-1"><span className="text-[#555]">Failed rule:</span> {pr.failed_rule}</p>
                       )}
-                      {pr.failed_category && (
-                        <p className="text-xs text-white mb-1"><span className="text-[#555]">Category:</span> {pr.failed_category}</p>
+                      {pr.check_category && (
+                        <p className="text-xs text-white mb-1"><span className="text-[#555]">Category:</span> {pr.check_category}</p>
                       )}
-                      {pr.platform_impact && (
-                        <p className="text-xs text-amber-300 mb-1"><span className="text-[#555]">Platform impact:</span> {pr.platform_impact}</p>
+                      {pr.platform && (
+                        <p className="text-xs text-white mb-1"><span className="text-[#555]">Platform:</span> {pr.platform}</p>
                       )}
-                      {pr.source_policy && (
-                        <p className="text-[10px] text-[#555]">Source policy: {pr.source_policy} {pr.policy_version && `v${pr.policy_version}`}</p>
+                      {pr.remediation_path && (
+                        <p className="text-xs text-amber-300 mb-1"><span className="text-[#555]">Remediation:</span> {pr.remediation_path}</p>
+                      )}
+                      {(pr.notes || pr.policy_version) && (
+                        <p className="text-[10px] text-[#555]">Source policy: {pr.notes || "policy"} {pr.policy_version && `v${pr.policy_version}`}</p>
                       )}
                       {pr.remediation_required && (
                         <div className="mt-2 flex items-center gap-2">
                           <button
-                            onClick={() => onEscalateForReview(run.id, `Policy violation sent to reviewer: ${pr.failed_category || pr.failed_rule || 'policy check'}`)}
+                            onClick={() => onEscalateForReview(run.id, `Policy violation sent to reviewer: ${pr.check_category || pr.failed_rule || 'policy check'}`)}
                             className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1"
                           >
                             <ArrowRight className="w-3 h-3" />Send to reviewer
@@ -905,6 +1004,13 @@ export default function AgentOperationsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashNotice = useCallback((message: string) => {
+    setNotice(message);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(null), 4000);
+  }, []);
   const initialLoad = useRef(true);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [realtimeDegraded, setRealtimeDegraded] = useState(false);
@@ -913,17 +1019,53 @@ export default function AgentOperationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [envFilter, setEnvFilter] = useState("");
-  const [queueTypeFilter, setQueueTypeFilter] = useState("");
-  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
 
   // ── Tabs and filters ──
   const [activeTab, setActiveTab] = useState<"runs" | "queues" | "incidents" | "analytics">("runs");
   const [statusFilter, setStatusFilter] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
-  const [sortBy, setSortBy] = useState("last_event_at");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
+
+  // ── Pagination + sorting (server-side; bounds rendered rows) ──
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(0);
+  const [totalRuns, setTotalRuns] = useState(0);
+  const [sortBy, setSortBy] = useState<"created_at" | "last_event_at" | "due_at" | "priority" | "severity" | "status">("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // ── Saved operational views (persisted filter sets) ──
+  type SavedView = { name: string; status: string; brand: string; env: string; search: string; sortBy: string; sortDir: "asc" | "desc"; dateFrom: string; dateTo: string };
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  useEffect(() => {
+    try { const raw = localStorage.getItem("ops_saved_views"); if (raw) setSavedViews(JSON.parse(raw)); } catch { /* ignore */ }
+  }, []);
+  const persistViews = useCallback((views: SavedView[]) => {
+    setSavedViews(views);
+    try { localStorage.setItem("ops_saved_views", JSON.stringify(views)); } catch { /* ignore */ }
+  }, []);
+  const applySavedView = (name: string) => {
+    const v = savedViews.find((x) => x.name === name);
+    if (!v) return;
+    setStatusFilter(v.status);
+    setBrandFilter(v.brand);
+    setEnvFilter(v.env);
+    setSearchQuery(v.search);
+    setSortBy(v.sortBy as typeof sortBy);
+    setSortDir(v.sortDir);
+    setDateFrom(v.dateFrom);
+    setDateTo(v.dateTo);
+  };
+  const saveCurrentView = () => {
+    const name = window.prompt("Save current filters as a named view:");
+    if (!name || !name.trim()) return;
+    const view: SavedView = {
+      name: name.trim(), status: statusFilter, brand: brandFilter, env: envFilter,
+      search: searchQuery, sortBy, sortDir, dateFrom, dateTo,
+    };
+    persistViews([...savedViews.filter((x) => x.name !== view.name), view]);
+    flashNotice(`Saved view "${view.name}".`);
+  };
 
   // ── Run detail state ──
   const [selectedRun, setSelectedRun] = useState<AgentRun | null>(null);
@@ -934,13 +1076,14 @@ export default function AgentOperationsPage() {
 
   // ── Action modals ──
   const [confirmAction, setConfirmAction] = useState<{
-    type: "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "assign";
+    type: "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "restricted_mode" | "assign" | "start" | "remove";
     runId: string;
     label: string;
     description: string;
     impactPreview?: string;
     confirmLabel: string;
     confirmClass?: string;
+    requireReason?: boolean;
   } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -950,8 +1093,20 @@ export default function AgentOperationsPage() {
 
   // ── Incident modal ──
   const [showIncidentModal, setShowIncidentModal] = useState(false);
-  const [incidentForm, setIncidentForm] = useState({ severity: "medium", category: "runtime_error", root_cause: "", remediation: "" });
+  const [incidentForm, setIncidentForm] = useState({ severity: "medium", category: "critical_failure", root_cause: "", remediation: "" });
   const [incidentLoading, setIncidentLoading] = useState(false);
+  const incidentModalRef = useRef<HTMLDivElement>(null);
+  // Auto-scroll the Create Incident dialog into view when it opens.
+  useEffect(() => {
+    if (!showIncidentModal) return;
+    const id = window.setTimeout(() => {
+      incidentModalRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 30);
+    return () => window.clearTimeout(id);
+  }, [showIncidentModal]);
+
+  // ── Policy check ──
+  const [policyCheckLoading, setPolicyCheckLoading] = useState(false);
 
   // ── Stale state check ──
   const staleCheckRef = useRef<Record<string, string>>({});
@@ -961,23 +1116,32 @@ export default function AgentOperationsPage() {
     if (initialLoad.current) setLoading(true);
     setError(null);
     try {
+      const scopedParams: Record<string, string> = {};
+      if (brandFilter) scopedParams.brand = brandFilter;
+      if (envFilter) scopedParams.environment = envFilter;
+      const params: Record<string, string> = {
+        ...scopedParams,
+        limit: String(PAGE_SIZE),
+        offset: String(page * PAGE_SIZE),
+        sort_by: sortBy,
+        sort_dir: sortDir,
+      };
+      if (statusFilter) params.status = statusFilter;
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+      if (dateFrom) params.date_from = new Date(dateFrom).toISOString();
+      if (dateTo) {
+        // include the whole "to" day
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        params.date_to = end.toISOString();
+      }
+
       const [statsRes, runsRes, queuesRes, incidentsRes, analyticsRes] = await Promise.allSettled([
-        api.getOperationsStats().catch(() => null),
-        api.listAgentRuns({
-          limit: 100,
-          status: statusFilter || undefined,
-          brand: brandFilter || undefined,
-          environment: envFilter || undefined,
-          search: searchQuery || undefined,
-          sort_by: sortBy,
-          sort_order: sortOrder,
-        }).catch(() => null),
-        api.listQueues({
-          queue_type: queueTypeFilter || undefined,
-          limit: 100,
-        }).catch(() => null),
-        api.listIncidents().catch(() => null),
-        api.getOperationsAnalytics().catch(() => null),
+        api.getOperationsStatsScoped(scopedParams).catch(() => null),
+        api.listAgentRuns(params).catch(() => null),
+        api.listQueues(scopedParams).catch(() => null),
+        api.listIncidents(scopedParams).catch(() => null),
+        api.getOperationsAnalytics(scopedParams).catch(() => null),
       ]);
 
       if (statsRes.status === "fulfilled" && statsRes.value) setStats(statsRes.value);
@@ -989,6 +1153,7 @@ export default function AgentOperationsPage() {
         if (changed) setRealtimeDegraded(false);
         staleCheckRef.current = Object.fromEntries(runsRes.value.runs.map((r: AgentRun) => [r.id, r.status]));
         setRuns(runsRes.value.runs);
+        if (typeof runsRes.value.total === "number") setTotalRuns(runsRes.value.total);
       }
       if (queuesRes.status === "fulfilled" && queuesRes.value?.items) setQueues(queuesRes.value.items);
       if (incidentsRes.status === "fulfilled" && incidentsRes.value?.incidents) setIncidents(incidentsRes.value.incidents);
@@ -1004,7 +1169,13 @@ export default function AgentOperationsPage() {
         initialLoad.current = false;
       }
     }
-  }, [statusFilter, brandFilter, envFilter, queueTypeFilter, searchQuery, sortBy, sortOrder]);
+  }, [statusFilter, brandFilter, envFilter, searchQuery, page, sortBy, sortDir, dateFrom, dateTo]);
+
+  // Reset to the first page whenever a filter, search, sort, or date range
+  // changes so the user never lands on an out-of-range offset.
+  useEffect(() => {
+    setPage(0);
+  }, [statusFilter, brandFilter, envFilter, searchQuery, sortBy, sortDir, dateFrom, dateTo]);
 
   useEffect(() => {
     setLoading(true);
@@ -1014,57 +1185,81 @@ export default function AgentOperationsPage() {
   }, [fetchData]);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem("zv-operations-saved-views");
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as SavedView[];
-      if (Array.isArray(parsed)) setSavedViews(parsed);
-    } catch {
-      // ignore malformed saved views
-    }
-  }, []);
+    const controller = new AbortController();
+    let closed = false;
+    let attempt = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let buffer = "";
 
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery, statusFilter, brandFilter, envFilter, queueTypeFilter, sortBy, sortOrder]);
-
-  const persistSavedViews = useCallback((views: SavedView[]) => {
-    setSavedViews(views);
-    try {
-      window.localStorage.setItem("zv-operations-saved-views", JSON.stringify(views));
-    } catch {
-      // ignore persistence failure
-    }
-  }, []);
-
-  const handleSaveCurrentView = useCallback(() => {
-    const name = window.prompt("Save this operational view as:", `Ops view ${savedViews.length + 1}`);
-    if (!name?.trim()) return;
-    const nextView: SavedView = {
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      statusFilter,
-      brandFilter,
-      envFilter,
-      queueTypeFilter,
-      sortBy,
-      sortOrder,
-      viewMode,
+    const scheduleReconnect = () => {
+      if (closed || controller.signal.aborted) return;
+      // Exponential backoff (1s,2s,4s… capped 30s) so a transient drop
+      // re-establishes the stream instead of waiting on the 30s poll.
+      const delay = Math.min(30000, 1000 * 2 ** attempt);
+      attempt += 1;
+      retryTimer = setTimeout(connectOperationsStream, delay);
     };
-    persistSavedViews([nextView, ...savedViews].slice(0, 8));
-  }, [brandFilter, envFilter, persistSavedViews, queueTypeFilter, savedViews, sortBy, sortOrder, statusFilter, viewMode]);
 
-  const handleApplySavedView = useCallback((viewId: string) => {
-    const view = savedViews.find((item) => item.id === viewId);
-    if (!view) return;
-    setStatusFilter(view.statusFilter);
-    setBrandFilter(view.brandFilter);
-    setEnvFilter(view.envFilter);
-    setQueueTypeFilter(view.queueTypeFilter);
-    setSortBy(view.sortBy);
-    setSortOrder(view.sortOrder);
-    setViewMode(view.viewMode);
-  }, [savedViews]);
+    // Parse SSE frames; refresh only on a typed `operations` event (ignore
+    // heartbeat/connected control frames).
+    const handleChunk = (chunk: string) => {
+      buffer += chunk;
+      const frames = buffer.split("\n\n");
+      buffer = frames.pop() ?? "";
+      for (const frame of frames) {
+        const eventLine = frame.split("\n").find((l) => l.startsWith("event:"));
+        const eventName = eventLine?.slice("event:".length).trim();
+        if (eventName === "operations") void fetchData();
+      }
+    };
+
+    async function connectOperationsStream() {
+      if (closed || controller.signal.aborted) return;
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) {
+          setRealtimeDegraded(true);
+          scheduleReconnect();
+          return;
+        }
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || ""}/api/v1/operations/events`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body) {
+          setRealtimeDegraded(true);
+          scheduleReconnect();
+          return;
+        }
+        setRealtimeDegraded(false);
+        attempt = 0;
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        while (!closed && !controller.signal.aborted) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          handleChunk(decoder.decode(value, { stream: true }));
+        }
+        if (!closed && !controller.signal.aborted) {
+          setRealtimeDegraded(true);
+          scheduleReconnect();
+        }
+      } catch {
+        if (!closed && !controller.signal.aborted) {
+          setRealtimeDegraded(true);
+          scheduleReconnect();
+        }
+      }
+    }
+
+    connectOperationsStream();
+    return () => {
+      closed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      controller.abort();
+    };
+  }, [fetchData]);
 
   // ── Open run drawer ──
   const handleViewRun = async (run: AgentRun) => {
@@ -1085,6 +1280,26 @@ export default function AgentOperationsPage() {
     } finally {
       setLoadingDetail(false);
       setLoadingTimeline(false);
+    }
+  };
+
+  // ── Run an on-demand policy check, then refresh the run detail (§8) ──
+  const handleRunPolicyCheck = async (runId: string) => {
+    setPolicyCheckLoading(true);
+    try {
+      const res = await api.runPolicyCheck(runId);
+      const summary = (res as any)?.summary
+        ? String((res as any).summary).replace(/_/g, " ")
+        : "completed";
+      // Refresh the drawer (policy results + run state may have changed).
+      const fresh = await api.getRunDetail(runId).catch(() => null);
+      if (fresh) setRunDetail(fresh);
+      await fetchData();
+      flashNotice(`Policy check ${summary}.`);
+    } catch (err: any) {
+      setError(err?.message || "Policy check failed.");
+    } finally {
+      setPolicyCheckLoading(false);
     }
   };
 
@@ -1110,13 +1325,20 @@ export default function AgentOperationsPage() {
         case "pause":         await api.pauseRun(confirmAction.runId, reason); break;
         case "resume":        await api.resumeRun(confirmAction.runId, reason); break;
         case "stop":          await api.stopRun(confirmAction.runId, reason); break;
-        case "retry":         await api.retryRun(confirmAction.runId); break;
+        case "retry":         await api.retryRun(confirmAction.runId, reason); break;
         case "quarantine":    await api.quarantineRun(confirmAction.runId, reason); break;
         case "escalate":      await api.escalateRun(confirmAction.runId, reason); break;
         case "emergency_pause": await api.emergencyPause(confirmAction.runId, reason); break;
+        case "restricted_mode": await api.restrictedMode(confirmAction.runId, reason); break;
+        case "start":         await api.startRun(confirmAction.runId, reason); break;
+        case "remove":        await api.deleteRun(confirmAction.runId); break;
       }
+      const wasRemoved = confirmAction.type === "remove";
+      const actionLabel = confirmAction.type.replace(/_/g, " ");
       setConfirmAction(null);
+      if (wasRemoved) setRunDetail(null);
       await fetchData();
+      flashNotice(wasRemoved ? "Run archived; history and evidence preserved." : `Action "${actionLabel}" applied successfully.`);
     } catch {
       setError(`Failed to ${confirmAction.type} run. Please try again.`);
     } finally {
@@ -1132,6 +1354,7 @@ export default function AgentOperationsPage() {
       await api.exportEvidence(evidenceExportBundleId, reason);
       setEvidenceExportBundleId(null);
       setError(null);
+      flashNotice("Evidence bundle export recorded.");
     } catch {
       setError("Evidence export failed. Check your permissions.");
     } finally {
@@ -1155,6 +1378,7 @@ export default function AgentOperationsPage() {
       const res = await api.assignQueueItem(item.id);
       if (!res?.success) throw new Error(res?.error || "Assign failed");
       await fetchData();
+      flashNotice("Queue item assigned.");
     } catch (err: any) {
       setError(err?.message || "Failed to assign queue item.");
     }
@@ -1179,15 +1403,19 @@ export default function AgentOperationsPage() {
       setError("This queue item is not linked to a runnable task.");
       return;
     }
-    const reason = window.prompt("Enter escalation reason:", "Escalated from task queue");
-    if (reason === null) return;
-    try {
-      const res = await api.escalateRun(item.run_id, reason || "Escalated from task queue");
-      if (!res?.success) throw new Error(res?.error || "Escalation failed");
-      await fetchData();
-    } catch (err: any) {
-      setError(err?.message || "Failed to escalate queue item.");
-    }
+    // Route through the governed reason-capture modal (same path as run-level
+    // escalation) instead of window.prompt, so escalation captures a reason,
+    // shows impact, and creates a linked incident server-side.
+    setConfirmAction({
+      type: "escalate",
+      runId: item.run_id,
+      label: "Escalate Queue Item",
+      description: "Escalate the linked run and open a tracked incident?",
+      impactPreview: "Creates a linked incident, records an immutable control action, and notifies operator surfaces in real time.",
+      requireReason: true,
+      confirmLabel: "Escalate",
+      confirmClass: "bg-rose-500 hover:bg-rose-600",
+    } as typeof confirmAction);
   };
 
   const handleQueueCancel = async (item: QueueItem) => {
@@ -1271,7 +1499,7 @@ export default function AgentOperationsPage() {
         run_id: selectedRun?.id,
       });
       setShowIncidentModal(false);
-      setIncidentForm({ severity: "medium", category: "runtime_error", root_cause: "", remediation: "" });
+      setIncidentForm({ severity: "medium", category: "critical_failure", root_cause: "", remediation: "" });
       await fetchData();
     } catch {
       setError("Failed to create incident.");
@@ -1281,32 +1509,11 @@ export default function AgentOperationsPage() {
   };
 
   // ── Filtered runs ──
-  const filteredRuns = runs.filter((r) => {
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return r.agent_name.toLowerCase().includes(q) || r.task_objective?.toLowerCase().includes(q) || r.id.toLowerCase().includes(q);
-    }
-    return true;
-  });
-  const paginatedRuns = filteredRuns.slice((page - 1) * pageSize, page * pageSize);
-  const totalPages = Math.max(1, Math.ceil(filteredRuns.length / pageSize));
-  const currentWorkspace = runs.find((run) => run.workspace_name)?.workspace_name || "Current Workspace";
-  const queueTypeOptions = [...new Set(queues.map((item) => item.queue_type).filter(Boolean))].sort();
-  const activeRunsExportPayload = filteredRuns.map((run) => ({
-    run_id: run.id,
-    agent_name: run.agent_name,
-    status: run.status,
-    severity: run.severity,
-    owner: run.owner_name,
-    policy_result: run.policy_result,
-    evidence_status: run.evidence_status,
-    next_action: run.next_action,
-    due_at: run.due_at,
-    last_event_at: run.last_event_at,
-    environment: run.environment,
-    brand: run.brand_name,
-    workspace: run.workspace_name,
-  }));
+  // Filtering, search, and sorting are performed server-side (and paginated),
+  // so the current page of runs is rendered as-is. Kept as `filteredRuns` to
+  // preserve the existing render bindings.
+  const filteredRuns = runs;
+  const totalPages = Math.max(1, Math.ceil(totalRuns / PAGE_SIZE));
 
   const criticalCount = runs.filter((r) => r.severity === "critical" || ["FAILED", "POLICY_BLOCKED", "QUARANTINED", "ESCALATED"].includes(r.status)).length;
 
@@ -1338,12 +1545,6 @@ export default function AgentOperationsPage() {
           {/* Context selectors */}
           <div className="relative">
             <Building2 className="w-3.5 h-3.5 text-[#555] absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <select value={currentWorkspace} disabled className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-7 pr-3 py-1.5 text-xs text-[#666] appearance-none cursor-not-allowed">
-              <option value={currentWorkspace}>{currentWorkspace}</option>
-            </select>
-          </div>
-          <div className="relative">
-            <Building2 className="w-3.5 h-3.5 text-[#555] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-7 pr-3 py-1.5 text-xs text-[#aaa] appearance-none focus:outline-none focus:border-[#444]">
               <option value="">All Brands</option>
               {[...new Set(runs.map((r) => r.brand_name).filter(Boolean))].sort().map((b) => (
@@ -1360,29 +1561,6 @@ export default function AgentOperationsPage() {
               <option value="development">Development</option>
             </select>
           </div>
-          <div className="relative">
-            <ChevronDown className="w-3.5 h-3.5 text-[#555] absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <select
-              value=""
-              onChange={(e) => {
-                if (!e.target.value) return;
-                handleApplySavedView(e.target.value);
-                e.target.value = "";
-              }}
-              className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-7 pr-3 py-1.5 text-xs text-[#aaa] appearance-none focus:outline-none focus:border-[#444]"
-            >
-              <option value="">Saved Views</option>
-              {savedViews.map((view) => (
-                <option key={view.id} value={view.id}>{view.name}</option>
-              ))}
-            </select>
-          </div>
-          <button
-            onClick={handleSaveCurrentView}
-            className="px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#888] rounded-xl text-xs hover:text-white hover:border-[#444] transition-colors"
-          >
-            Save View
-          </button>
           {/* Incident shortcut */}
           <button
             onClick={() => setShowIncidentModal(true)}
@@ -1390,9 +1568,6 @@ export default function AgentOperationsPage() {
           >
             <Siren className="w-3.5 h-3.5" /> New Incident
           </button>
-          <div className="px-2.5 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-[10px] text-[#666]">
-            Last refresh {lastRefreshed.toLocaleTimeString()}
-          </div>
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10px] text-emerald-400">
             <Radio className="w-3 h-3" />
             <span className="hidden sm:inline">Auto-refresh 30s</span>
@@ -1428,6 +1603,17 @@ export default function AgentOperationsPage() {
         </div>
       )}
 
+      {/* ── Success Notice ── */}
+      {notice && (
+        <div role="status" aria-live="polite" className="mb-4 p-3.5 rounded-xl flex items-center justify-between gap-3 text-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            {notice}
+          </div>
+          <button onClick={() => setNotice(null)} className="text-emerald-400/60 hover:text-emerald-400" aria-label="Dismiss"><XCircle className="w-4 h-4" /></button>
+        </div>
+      )}
+
       {/* ── Operational Health Strip ── */}
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-6">
@@ -1439,7 +1625,7 @@ export default function AgentOperationsPage() {
             { label: "Open Incidents", val: stats.open_incidents, icon: <Ticket className="w-3.5 h-3.5" />,  color: "text-orange-400",   bg: "bg-orange-500/10" },
             { label: "Escalations",    val: stats.escalations ?? 0, icon: <ArrowUpRight className="w-3.5 h-3.5" />, color: "text-purple-400", bg: "bg-purple-500/10" },
             { label: "SLA Breaches",   val: stats.sla_breaches ?? 0, icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "text-rose-400", bg: "bg-rose-500/10" },
-            { label: "Avg Trust",      val: `${stats.avg_trust_score}%`, icon: <ShieldCheck className="w-3.5 h-3.5" />, color: stats.avg_trust_score >= 80 ? "text-emerald-400" : "text-amber-400", bg: stats.avg_trust_score >= 80 ? "bg-emerald-500/10" : "bg-amber-500/10" },
+            { label: "Ops Health",     val: `${stats.operations_health_score ?? stats.avg_trust_score ?? 0}%`, icon: <ShieldCheck className="w-3.5 h-3.5" />, color: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "text-emerald-400" : "text-amber-400", bg: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "bg-emerald-500/10" : "bg-amber-500/10" },
           ].map((card) => (
             <div key={card.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3 flex items-center gap-2.5">
               <div className={`w-7 h-7 ${card.bg} rounded-lg flex items-center justify-center shrink-0 ${card.color}`}>
@@ -1514,30 +1700,67 @@ export default function AgentOperationsPage() {
               </select>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                aria-label="Sort runs by"
                 className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-1.5 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
               >
-                <option value="last_event_at">Sort: Last Event</option>
-                <option value="created_at">Sort: Created</option>
-                <option value="due_at">Sort: SLA Due</option>
-                <option value="priority">Sort: Priority</option>
-                <option value="severity">Sort: Severity</option>
+                <option value="created_at">Created</option>
+                <option value="last_event_at">Last event</option>
+                <option value="due_at">Due</option>
+                <option value="priority">Priority</option>
+                <option value="severity">Severity</option>
+                <option value="status">Status</option>
               </select>
               <button
-                onClick={() => setSortOrder((current) => current === "desc" ? "asc" : "desc")}
-                className="px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-xs text-[#888] hover:text-white hover:border-[#444] transition-colors"
+                onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                aria-label={`Sort direction: ${sortDir === "asc" ? "ascending" : "descending"}`}
+                title={sortDir === "asc" ? "Ascending" : "Descending"}
+                className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-2.5 py-1.5 text-xs text-[#aaa] hover:text-white hover:border-[#444] transition-colors"
               >
-                {sortOrder === "desc" ? "Newest first" : "Oldest first"}
+                {sortDir === "asc" ? "↑" : "↓"}
+              </button>
+              <div className="flex items-center gap-1.5 text-[10px] text-[#555]">
+                <CalendarRange className="w-3.5 h-3.5" />
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  aria-label="Created from date"
+                  className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-2 py-1 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
+                />
+                <span>–</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  aria-label="Created to date"
+                  className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-2 py-1 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
+                />
+                {(dateFrom || dateTo) && (
+                  <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-[#666] hover:text-white" aria-label="Clear date range" title="Clear dates">✕</button>
+                )}
+              </div>
+              {/* Saved operational views */}
+              <select
+                value=""
+                onChange={(e) => { if (e.target.value) applySavedView(e.target.value); }}
+                aria-label="Apply saved view"
+                className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-1.5 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
+              >
+                <option value="">Saved views…</option>
+                {savedViews.map((v) => (
+                  <option key={v.name} value={v.name}>{v.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={saveCurrentView}
+                title="Save current filters as a view"
+                className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-2.5 py-1.5 text-xs text-[#aaa] hover:text-white hover:border-[#444] transition-colors"
+              >
+                Save view
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => downloadSnapshot(`operations-runs-${new Date().toISOString().split("T")[0]}.json`, JSON.stringify(activeRunsExportPayload, null, 2))}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-xs text-[#888] hover:text-white hover:border-[#444] transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Export Runs
-              </button>
               <div className="flex items-center gap-1 text-[10px] text-[#555]">
                 <SeverityDot severity="critical" /><span>Critical</span>
                 <span className="mx-1.5" />
@@ -1572,21 +1795,20 @@ export default function AgentOperationsPage() {
             /* ── List View ── */
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 border-b border-[#2a2a2a] text-[10px] font-semibold text-[#444] uppercase tracking-wider">
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 border-b border-[#2a2a2a] text-[10px] font-semibold text-[#444] uppercase tracking-wider">
                 <span>Run</span>
                 <span>Status</span>
                 <span>Policy</span>
                 <span>Evidence</span>
                 <span>SLA</span>
-                <span>Next Action</span>
                 <span>Actions</span>
               </div>
               <div className="divide-y divide-[#1f1f1f]">
-                {paginatedRuns.map((run) => {
+                {filteredRuns.map((run) => {
                   const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-[#888]", bg: "bg-white/5", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
                   const sla = formatTimeRemaining(run.due_at);
                   return (
-                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
+                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
                       {/* Run info */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
@@ -1617,9 +1839,6 @@ export default function AgentOperationsPage() {
                           </span>
                         ) : <span className="text-[#333]">—</span>}
                       </div>
-                      <div>
-                        <span className="text-xs text-[#888]">{run.next_action || "Inspect run"}</span>
-                      </div>
                       {/* Actions */}
                       <div className="flex items-center gap-0.5">
                         <button onClick={() => handleViewRun(run)} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors" title="View Run Detail"><Eye className="w-3.5 h-3.5" /></button>
@@ -1640,49 +1859,44 @@ export default function AgentOperationsPage() {
                         )}
                         {run.status === "FAILED" && (
                           <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "retry", runId: run.id, label: "Retry Run", description: `Retry "${run.agent_name}"? Original failure evidence is preserved. A new linked attempt will be created.`, confirmLabel: "Retry Run", confirmClass: "bg-blue-500 hover:bg-blue-600", requireReason: false } as typeof confirmAction)}
+                            onClick={() => checkStaleAndAct(run.id, { type: "retry", runId: run.id, label: "Retry Run", description: `Retry "${run.agent_name}"? Original failure evidence is preserved. A new linked attempt will be created. For external channels, state how duplicate delivery will be prevented.`, confirmLabel: "Retry Run", confirmClass: "bg-blue-500 hover:bg-blue-600", requireReason: true } as typeof confirmAction)}
                             className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-400 hover:text-blue-300 transition-colors" title="Retry"><RotateCcw className="w-3.5 h-3.5" /></button>
                         )}
-                        {["RUNNING", "COMPLETED", "FAILED"].includes(run.status) && (
+                        {["RUNNING", "WAITING_HUMAN_REVIEW", "PAUSED", "POLICY_BLOCKED"].includes(run.status) && (
                           <button
                             onClick={() => checkStaleAndAct(run.id, { type: "quarantine", runId: run.id, label: "Quarantine Output", description: `Quarantine "${run.agent_name}" output?`, impactPreview: "Output locked. Publishing blocked. Visibility restricted. Evidence event created.", confirmLabel: "Quarantine", confirmClass: "bg-rose-600 hover:bg-rose-700" })}
                             className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors" title="Quarantine"><ShieldX className="w-3.5 h-3.5" /></button>
                         )}
-                        <button
-                          onClick={() => checkStaleAndAct(run.id, { type: "escalate", runId: run.id, label: "Escalate", description: `Escalate "${run.agent_name}"? An escalation record with severity and notification routing will be created.`, confirmLabel: "Escalate", confirmClass: "bg-orange-500 hover:bg-orange-600" })}
-                          className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400 hover:text-orange-300 transition-colors" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
+                        {run.status !== "STOPPED" && (
+                          <button
+                            onClick={() => checkStaleAndAct(run.id, { type: "escalate", runId: run.id, label: "Escalate", description: `Escalate "${run.agent_name}"? An escalation record with severity and notification routing will be created.`, confirmLabel: "Escalate", confirmClass: "bg-orange-500 hover:bg-orange-600" })}
+                            className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400 hover:text-orange-300 transition-colors" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
+                        )}
+                        {["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW"].includes(run.status) && (
+                          <button
+                            onClick={() => checkStaleAndAct(run.id, { type: "restricted_mode", runId: run.id, label: "Restricted Operations Mode", description: `Place "${run.agent_name}" in restricted mode?`, impactPreview: "Blocks new autonomous external actions; review, remediation, and approval remain available until cleared.", confirmLabel: "Activate Restricted Mode", confirmClass: "bg-amber-600 hover:bg-amber-700", requireReason: true } as typeof confirmAction)}
+                            className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 hover:text-amber-300 transition-colors" title="Restricted Mode"><ShieldAlert className="w-3.5 h-3.5" /></button>
+                        )}
+                        {run.status === "STOPPED" && (
+                          <button
+                            onClick={() => checkStaleAndAct(run.id, { type: "start", runId: run.id, label: "Start Run", description: `Start "${run.agent_name}"? The stopped run will be moved back to running.`, impactPreview: "The run resumes active execution from a stopped state.", confirmLabel: "Start Run", confirmClass: "bg-emerald-500 hover:bg-emerald-600", requireReason: true } as typeof confirmAction)}
+                            className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors" title="Start"><Play className="w-3.5 h-3.5" /></button>
+                        )}
+                        {["STOPPED", "COMPLETED", "FAILED", "CANCELLED", "QUARANTINED"].includes(run.status) && (
+                          <button
+                            onClick={() => checkStaleAndAct(run.id, { type: "remove", runId: run.id, label: "Archive Run", description: `Archive "${run.agent_name}"? The run is removed from the active list but its full history (timeline, policy results, incidents, evidence) is preserved permanently for audit.`, impactPreview: "Non-destructive: the run is archived and hidden from active views. Audit history and evidence are retained.", confirmLabel: "Archive Run", confirmClass: "bg-rose-600 hover:bg-rose-700", requireReason: false } as typeof confirmAction)}
+                            className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors" title="Archive"><Trash2 className="w-3.5 h-3.5" /></button>
+                        )}
                       </div>
                     </div>
                   );
                 })}
               </div>
-              <div className="flex items-center justify-between px-4 py-3 border-t border-[#2a2a2a]">
-                <p className="text-[10px] text-[#555]">
-                  Showing {filteredRuns.length === 0 ? 0 : (page - 1) * pageSize + 1}-{Math.min(page * pageSize, filteredRuns.length)} of {filteredRuns.length}
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setPage((current) => Math.max(1, current - 1))}
-                    disabled={page === 1}
-                    className="px-2.5 py-1 text-[10px] rounded-lg border border-[#2a2a2a] text-[#888] hover:text-white hover:border-[#444] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Previous
-                  </button>
-                  <span className="text-[10px] text-[#666]">Page {page} of {totalPages}</span>
-                  <button
-                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                    disabled={page >= totalPages}
-                    className="px-2.5 py-1 text-[10px] rounded-lg border border-[#2a2a2a] text-[#888] hover:text-white hover:border-[#444] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
             </div>
           ) : (
             /* ── Card View ── */
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {paginatedRuns.map((run) => {
+              {filteredRuns.map((run) => {
                 const sla = formatTimeRemaining(run.due_at);
                 return (
                   <div key={run.id} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-4 hover:border-[#333] transition-colors">
@@ -1711,10 +1925,35 @@ export default function AgentOperationsPage() {
                         <Eye className="w-3.5 h-3.5" /> View
                       </button>
                     </div>
-                    <p className="text-[10px] text-[#666] mt-2">Next action: {run.next_action || "Inspect run"}</p>
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && totalRuns > 0 && (
+            <div className="flex items-center justify-between mt-4 text-xs text-[#777]">
+              <span>
+                {totalRuns === 0 ? "No runs" : `Showing ${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, totalRuns)} of ${totalRuns}`}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-xs text-[#aaa] hover:text-white hover:border-[#444] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <span className="text-[#555]">Page {page + 1} of {totalPages}</span>
+                <button
+                  onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+                  disabled={page + 1 >= totalPages}
+                  className="px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-xs text-[#aaa] hover:text-white hover:border-[#444] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1727,16 +1966,6 @@ export default function AgentOperationsPage() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-[#555]">{queues.length} item{queues.length !== 1 ? "s" : ""} in queue</p>
-            <select
-              value={queueTypeFilter}
-              onChange={(e) => setQueueTypeFilter(e.target.value)}
-              className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-1.5 text-xs text-[#aaa] focus:outline-none focus:border-[#444]"
-            >
-              <option value="">All Queues</option>
-              {queueTypeOptions.map((queueType) => (
-                <option key={queueType} value={queueType}>{queueType.replace(/_/g, " ")}</option>
-              ))}
-            </select>
           </div>
           {queues.length === 0 ? (
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">
@@ -1760,7 +1989,7 @@ export default function AgentOperationsPage() {
                     <div key={item.id} className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${item.sla_breached ? "border-l-2 border-l-rose-500/50" : ""}`}>
                       <div>
                         <p className="text-sm font-medium text-white">{item.queue_type.replace(/_/g, " ")}</p>
-                        <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${item.status === "PENDING" ? "bg-amber-500/10 text-amber-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+                        <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${["resolved", "cancelled"].includes(item.status) ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
                           {item.status}
                         </span>
                       </div>
@@ -1856,14 +2085,14 @@ export default function AgentOperationsPage() {
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: "Failure Rate",           val: analytics.failure_rate !== undefined ? `${(analytics.failure_rate * 100).toFixed(1)}%` : "—",           icon: <XCircle className="w-4 h-4" />,        color: "text-red-400",    bg: "bg-red-500/10",    trend: "down"    },
-                  { label: "Retry Success Rate",     val: analytics.retry_success_rate !== undefined ? `${(analytics.retry_success_rate * 100).toFixed(1)}%` : "—", icon: <RotateCcw className="w-4 h-4" />,    color: "text-blue-400",   bg: "bg-blue-500/10",   trend: "up"      },
-                  { label: "Policy Block Rate",      val: analytics.policy_block_rate !== undefined ? `${(analytics.policy_block_rate * 100).toFixed(1)}%` : "—",   icon: <Ban className="w-4 h-4" />,          color: "text-rose-400",   bg: "bg-rose-500/10",   trend: "down"    },
-                  { label: "Avg Review Time",        val: analytics.avg_review_time_minutes !== undefined ? `${analytics.avg_review_time_minutes}m` : "—",           icon: <Clock className="w-4 h-4" />,        color: "text-amber-400",  bg: "bg-amber-500/10",  trend: "down"    },
-                  { label: "SLA Breach Rate",        val: analytics.sla_breach_rate !== undefined ? `${(analytics.sla_breach_rate * 100).toFixed(1)}%` : "—",       icon: <AlertTriangle className="w-4 h-4" />, color: "text-orange-400", bg: "bg-orange-500/10", trend: "down"    },
-                  { label: "Incident Closure Time",  val: analytics.incident_closure_time_hours !== undefined ? `${analytics.incident_closure_time_hours}h` : "—",   icon: <Ticket className="w-4 h-4" />,       color: "text-purple-400", bg: "bg-purple-500/10", trend: "down"    },
-                  { label: "Evidence Completeness",  val: analytics.evidence_completeness_pct !== undefined ? `${analytics.evidence_completeness_pct}%` : "—",       icon: <Lock className="w-4 h-4" />,         color: "text-indigo-400", bg: "bg-indigo-500/10", trend: "up"      },
-                  { label: "Throughput / Day",       val: analytics.throughput_per_day !== undefined ? String(analytics.throughput_per_day) : "—",                   icon: <Activity className="w-4 h-4" />,     color: "text-emerald-400",bg: "bg-emerald-500/10",trend: "up"      },
+                  { label: "Failure Rate",           val: formatPercentMetric(analytics.failure_rate),                                       icon: <XCircle className="w-4 h-4" />,        color: "text-red-400",    bg: "bg-red-500/10",    trend: "down"    },
+                  { label: "Retry Success Rate",     val: formatPercentMetric(analytics.retry_success_rate),                                 icon: <RotateCcw className="w-4 h-4" />,    color: "text-blue-400",   bg: "bg-blue-500/10",   trend: "up"      },
+                  { label: "Policy Block Rate",      val: formatPercentMetric(analytics.policy_block_rate),                                  icon: <Ban className="w-4 h-4" />,          color: "text-rose-400",   bg: "bg-rose-500/10",   trend: "down"    },
+                  { label: "Avg Review Time",        val: formatUnitMetric(analytics.avg_review_time_minutes, "m"),                          icon: <Clock className="w-4 h-4" />,        color: "text-amber-400",  bg: "bg-amber-500/10",  trend: "down"    },
+                  { label: "SLA Breach Rate",        val: formatPercentMetric(analytics.sla_breach_rate),                                    icon: <AlertTriangle className="w-4 h-4" />, color: "text-orange-400", bg: "bg-orange-500/10", trend: "down"    },
+                  { label: "Incident Closure Time",  val: formatUnitMetric(analytics.incident_closure_time_hours, "h"),                      icon: <Ticket className="w-4 h-4" />,       color: "text-purple-400", bg: "bg-purple-500/10", trend: "down"    },
+                  { label: "Evidence Completeness",  val: formatPercentMetric(analytics.evidence_completeness_pct ?? analytics.evidence_completeness), icon: <Lock className="w-4 h-4" />,         color: "text-indigo-400", bg: "bg-indigo-500/10", trend: "up"      },
+                  { label: "Throughput / Day",       val: formatUnitMetric(analytics.throughput_per_day ?? analytics.throughput, ""),         icon: <Activity className="w-4 h-4" />,     color: "text-emerald-400",bg: "bg-emerald-500/10",trend: "up"      },
                 ].map((m) => (
                   <div key={m.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
@@ -1923,6 +2152,8 @@ export default function AgentOperationsPage() {
           onRequestOutputChanges={handleRequestOutputChanges}
           onExportSnapshot={handleExportSnapshot}
           onEscalateForReview={handleEscalateForReview}
+          onRunPolicyCheck={handleRunPolicyCheck}
+          policyCheckLoading={policyCheckLoading}
         />
       )}
 
@@ -1934,7 +2165,7 @@ export default function AgentOperationsPage() {
           title={confirmAction.label}
           description={confirmAction.description}
           impactPreview={confirmAction.impactPreview}
-          requireReason={confirmAction.type !== "retry"}
+          requireReason={confirmAction.requireReason ?? true}
           confirmLabel={confirmAction.confirmLabel}
           confirmClass={confirmAction.confirmClass}
           onConfirm={handleConfirmedAction}
@@ -1959,8 +2190,15 @@ export default function AgentOperationsPage() {
           CREATE INCIDENT MODAL
       ══════════════════════════════════════════════════════════════════════ */}
       {showIncidentModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl w-full max-w-md shadow-2xl">
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Create Incident"
+          onKeyDown={(e) => { if (e.key === "Escape") setShowIncidentModal(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowIncidentModal(false); }}
+        >
+          <div ref={incidentModalRef} tabIndex={-1} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
             <div className="p-5 border-b border-[#2a2a2a]">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <Siren className="w-4 h-4 text-rose-400" /> Create Incident
@@ -1988,16 +2226,14 @@ export default function AgentOperationsPage() {
                   onChange={(e) => setIncidentForm({ ...incidentForm, category: e.target.value })}
                   className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#444]"
                 >
-                  <option value="runtime_error">Runtime Error</option>
-                  <option value="policy_violation">Policy Violation</option>
-                  <option value="platform_breach">Platform Breach</option>
-                  <option value="hallucination">Suspected Hallucination</option>
+                  <option value="critical_failure">Critical Failure</option>
+                  <option value="platform_rule_breach">Platform Rule Breach</option>
+                  <option value="suspected_hallucination">Suspected Hallucination</option>
                   <option value="brand_violation">Brand Violation</option>
-                  <option value="integration_failure">Integration Failure</option>
                   <option value="unauthorized_action">Unauthorized Action</option>
-                  <option value="unsafe_content">Unsafe Content Risk</option>
-                  <option value="autonomy_breach">Autonomy Boundary Breach</option>
-                  <option value="knowledge_grounding">Knowledge Grounding Failure</option>
+                  <option value="integration_failure">Integration Failure</option>
+                  <option value="unsafe_content_risk">Unsafe Content Risk</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
               <div>

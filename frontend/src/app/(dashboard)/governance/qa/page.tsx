@@ -340,6 +340,7 @@ export default function QualityAuditPage() {
   const [lockedError, setLockedError] = useState<string | null>(null);
   const [callbackFailed, setCallbackFailed] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState<Set<string>>(new Set());
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Score override
   const [showOverrideModal, setShowOverrideModal] = useState(false);
@@ -494,12 +495,12 @@ export default function QualityAuditPage() {
     if (!selectedItem) return;
     setActionLoading("assign");
     try {
-      const res = await api.patch(`/api/v1/quality-audit/items/${selectedItem.id}/assign`, { auditor_id: "current_user" });
+      const res = await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/assign`, { auditor_id: "current_user" });
       if (res.success) {
         setSelectedItem({ ...selectedItem, assigned_auditor: "current_user" });
         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, assigned_auditor: "current_user" } : i));
       }
-    } catch { /* noop */ } finally { setActionLoading(null); }
+    } catch { setMessage({ type: "error", text: "Failed to assign auditor." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
   };
 
   const handleGenerateSample = async () => {
@@ -507,23 +508,23 @@ export default function QualityAuditPage() {
     try {
       const res = await api.post("/api/v1/quality-audit/generate-sample", { count: 10 });
       if (res.success && res.data) setItems(prev => [...res.data, ...prev]);
-    } catch { /* noop */ } finally { setActionLoading(null); }
+    } catch { setMessage({ type: "error", text: "Failed to generate sample." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
   };
 
   const handleExportFindings = async () => {
     setActionLoading("export");
-    try { await api.post("/api/v1/quality-audit/export/findings", { item_ids: items.map(i => i.id) }); } catch { /* noop */ } finally { setActionLoading(null); }
+    try { await api.post("/api/v1/quality-audit/export/findings", { item_ids: items.map(i => i.id) }); } catch { setMessage({ type: "error", text: "Failed to export findings." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
   };
 
   const handleExportEvidence = async () => {
     setActionLoading("export-evidence");
-    try { await api.post("/api/v1/quality-audit/export/evidence", { item_ids: selectedItem ? [selectedItem.id] : items.map(i => i.id) }); } catch { /* noop */ } finally { setActionLoading(null); }
+    try { await api.post("/api/v1/quality-audit/export/evidence", { item_ids: selectedItem ? [selectedItem.id] : items.map(i => i.id) }); } catch { setMessage({ type: "error", text: "Failed to export evidence." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
   };
 
   const handleRetryCallback = async () => {
     if (!selectedItem) return;
     setActionLoading("retry");
-    try { await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/retry-callback`, {}); setCallbackFailed(false); } catch { /* noop */ } finally { setActionLoading(null); }
+    try { await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/retry-callback`, {}); setCallbackFailed(false); } catch { setMessage({ type: "error", text: "Failed to retry callback." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
   };
 
   // ─── Scorecard change ──────────────────────────────────────────────────────
@@ -554,8 +555,11 @@ export default function QualityAuditPage() {
         setDefects(prev => [...prev, res.data]);
         setShowDefectModal(false);
         setNewDefect({ defect_category: "accuracy_issue", defect_severity: "minor", defect_description: "", evidence_reference: "", responsible_source: "", corrective_action_required: false, owner: "", due_at: "" });
+      } else {
+        setMessage({ type: "error", text: res.error || "Failed to create defect." });
+        setTimeout(() => setMessage(null), 5000);
       }
-    } catch { /* noop */ } finally { setActionLoading(null); }
+    } catch { setMessage({ type: "error", text: "Failed to create defect." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
   };
 
   const [newCorrective, setNewCorrective] = useState<Partial<CorrectiveAction>>({
@@ -573,8 +577,11 @@ export default function QualityAuditPage() {
         setCorrectiveActions(prev => [...prev, res.data]);
         setShowCorrectiveModal(false);
         setNewCorrective({ title: "", owner: "", priority: "medium", required_action: "", due_at: "", status: "open" });
+      } else {
+        setMessage({ type: "error", text: res.error || "Failed to create corrective action." });
+        setTimeout(() => setMessage(null), 5000);
       }
-    } catch { /* noop */ } finally { setActionLoading(null); }
+    } catch { setMessage({ type: "error", text: "Failed to create corrective action." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
   };
 
   const [noteText, setNoteText] = useState("");
@@ -584,14 +591,17 @@ export default function QualityAuditPage() {
     setActionLoading("add-note");
     try {
       const res = await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/notes`, { note_body: noteText, visibility: "internal" });
-      if (res.success) { setNotes(prev => [...prev, res.data]); setNoteText(""); setShowNoteModal(false); }
-    } catch { /* noop */ } finally { setActionLoading(null); }
+      if (res.success) { setNotes(prev => [...prev, res.data]); setNoteText(""); setShowNoteModal(false); } else {
+        setMessage({ type: "error", text: res.error || "Failed to add note." });
+        setTimeout(() => setMessage(null), 5000);
+      }
+    } catch { setMessage({ type: "error", text: "Failed to add note." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
   };
 
   const handleScoreOverride = async () => {
     if (!selectedItem || !overrideReason.trim()) return;
     setActionLoading("override");
-    try { await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/score-override`, { overall_score: overallScore, reason: overrideReason }); setShowOverrideModal(false); setOverrideReason(""); } catch { /* noop */ } finally { setActionLoading(null); }
+    try { await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/scorecard/override`, { overall_score: overallScore, reason: overrideReason }); setShowOverrideModal(false); setOverrideReason(""); } catch { setMessage({ type: "error", text: "Failed to override score." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
   };
 
   // ─── Alerts ────────────────────────────────────────────────────────────────
@@ -752,6 +762,16 @@ export default function QualityAuditPage() {
             {actionLoading === "retry" ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
             Retry
           </button>
+        </div>
+      )}
+
+      {/* ─── Message Toast ───────────────────────────────────────────────── */}
+      {message && (
+        <div className={`mx-4 mt-2 p-2.5 rounded-lg flex items-center gap-2 text-xs shrink-0 ${
+          message.type === "success" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border border-rose-500/20 text-rose-400"
+        }`}>
+          {message.type === "success" ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
+          {message.text}
         </div>
       )}
 

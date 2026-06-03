@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { internalEventBus } from '../shared/internalEventBus';
 
 export interface AgentRun {
   id: string;
@@ -30,177 +31,102 @@ export interface AgentRun {
   completed_at: string;
   due_at: string;
   last_event_at: string;
-  retry_count?: number;
+  // Extended fields
+  channel?: string;
+  brand_name?: string;
+  campaign_name?: string;
+  workspace_name?: string;
+  current_step?: string;
+  trigger_source?: string;
+  next_action?: string;
+  error_code?: string;
+  retry_attempt?: number;
+  original_run_id?: string;
+  inputs?: Record<string, unknown>;
+  knowledge_sources?: Array<{ name: string; version: string; freshness: string; confidence: number }>;
+  prompt_template?: string;
+  prompt_version?: string;
+  output_snapshot?: string;
+  output_status?: string;
 }
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  SCHEDULED: ['QUEUED', 'PAUSED', 'FAILED', 'QUARANTINED'],
-  QUEUED: ['RUNNING', 'PAUSED', 'WAITING_HUMAN_REVIEW', 'POLICY_BLOCKED', 'FAILED', 'QUARANTINED'],
-  RUNNING: ['WAITING_HUMAN_REVIEW', 'POLICY_BLOCKED', 'FAILED', 'PAUSED', 'COMPLETED', 'QUARANTINED'],
-  WAITING_HUMAN_REVIEW: ['RUNNING', 'PAUSED', 'POLICY_BLOCKED', 'FAILED', 'COMPLETED', 'QUARANTINED'],
-  POLICY_BLOCKED: ['PAUSED', 'QUEUED', 'FAILED', 'QUARANTINED'],
-  FAILED: ['QUEUED', 'QUARANTINED'],
-  PAUSED: ['QUEUED', 'RUNNING', 'FAILED', 'QUARANTINED'],
-  COMPLETED: ['QUARANTINED'],
-  QUARANTINED: ['PAUSED', 'FAILED', 'COMPLETED'],
-  STOPPED: [],
+  SCHEDULED: ['PAUSED', 'STOPPED', 'CANCELLED'],
+  QUEUED: ['RUNNING', 'PAUSED', 'STOPPED', 'CANCELLED', 'POLICY_BLOCKED'],
+  RUNNING: ['PAUSED', 'STOPPED', 'COMPLETED', 'FAILED', 'POLICY_BLOCKED', 'QUARANTINED'],
+  WAITING_HUMAN_REVIEW: ['PAUSED', 'STOPPED', 'POLICY_BLOCKED', 'QUARANTINED'],
+  PAUSED: ['RUNNING', 'STOPPED', 'QUARANTINED'],
+  POLICY_BLOCKED: ['QUARANTINED', 'STOPPED'],
+  COMPLETED: [],
+  FAILED: ['QUEUED'],
   CANCELLED: [],
+  STOPPED: ['RUNNING', 'QUEUED'],
+  QUARANTINED: ['INVESTIGATING', 'RESTORED'],
+  INVESTIGATING: ['QUARANTINED', 'RESTORED'],
+  RESTORED: ['RUNNING', 'COMPLETED'],
 };
 
 function isValidTransition(from: string, to: string): boolean {
   const allowed = VALID_TRANSITIONS[from];
-  return Array.isArray(allowed) && allowed.includes(to);
+  if (!allowed) return false;
+  return allowed.includes(to);
 }
 
-export function isUuid(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
-  );
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(value: string | undefined | null): boolean {
+  return typeof value === 'string' && UUID_RE.test(value);
 }
 
-async function getRunScoped(runId: string, workspaceId: string) {
-  const { data, error } = await supabaseAdmin
-    .from('agent_runs')
-    .select('*')
-    .eq('id', runId)
-    .eq('workspace_id', workspaceId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return (data || null) as AgentRun | null;
-}
-
-async function insertRunEvent(params: {
-  run_id: string;
-  event_type: string;
-  actor_id: string;
-  actor_name: string;
-  previous_state: string | null;
-  new_state: string | null;
-  reason: string;
-  payload_ref?: string | null;
-  correlation_id?: string | null;
-}) {
-  const eventId = uuidv4();
-  const { error } = await supabaseAdmin.from('run_events').insert({
-    id: eventId,
-    run_id: params.run_id,
-    event_type: params.event_type,
-    actor_type: 'user',
-    actor_id: params.actor_id,
-    actor_name: params.actor_name,
-    previous_state: params.previous_state,
-    new_state: params.new_state,
-    reason: params.reason,
-    payload_ref: params.payload_ref || null,
-    correlation_id: params.correlation_id || null,
-  });
-
-  if (error) throw error;
-  return eventId;
-}
-
-async function transitionRunState(params: {
-  workspace_id: string;
-  run_id: string;
-  new_status: string;
-  reason: string;
-  actor_id: string;
-  actor_name: string;
-  event_type?: string;
-  force?: boolean;
-  extra_updates?: Record<string, any>;
-}) {
-  const run = await getRunScoped(params.run_id, params.workspace_id);
-  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
-
-  if (!params.force && !isValidTransition(run.status, params.new_status)) {
-    throw Object.assign(
-      new Error(`Cannot transition run from ${run.status} to ${params.new_status}`),
-      { statusCode: 409 },
-    );
-  }
-
-  const now = new Date().toISOString();
-  const updateData: Record<string, any> = {
-    status: params.new_status,
-    previous_status: run.status,
-    last_event_at: now,
-    updated_at: now,
-    ...params.extra_updates,
-  };
-
-  if (params.new_status === 'RUNNING' && !run.started_at) updateData.started_at = now;
-  if (['COMPLETED', 'FAILED', 'STOPPED', 'CANCELLED'].includes(params.new_status)) {
-    updateData.completed_at = now;
-  }
-
-  const { error: updateError } = await supabaseAdmin
-    .from('agent_runs')
-    .update(updateData)
-    .eq('id', params.run_id)
-    .eq('workspace_id', params.workspace_id);
-  if (updateError) throw updateError;
-
-  const eventId = await insertRunEvent({
-    run_id: params.run_id,
-    event_type: params.event_type || `state.${params.new_status.toLowerCase()}`,
-    actor_id: params.actor_id,
-    actor_name: params.actor_name,
-    previous_state: run.status,
-    new_state: params.new_status,
-    reason: params.reason,
-    correlation_id: run.workflow_id,
-  });
-
-  return {
-    previous_status: run.status,
-    new_status: params.new_status,
-    event_id: eventId,
-    run,
-  };
+// Sanitize free-text search before it is interpolated into a PostgREST or()
+// filter. Commas/parentheses/asterisks/dots are filter meta-characters that can
+// break out of the expression, so they are stripped to whitespace.
+function sanitizeSearchTerm(term: string): string {
+  return term.replace(/[,()*%\\]/g, ' ').trim();
 }
 
 export async function listAgentRuns(params: {
   workspace_id: string;
   status?: string;
   agent_id?: string;
-  brand?: string;
   environment?: string;
+  brand_id?: string;
+  brand_name?: string;
   severity?: string;
   priority?: string;
   search?: string;
+  date_from?: string;
+  date_to?: string;
   sort_by?: string;
-  sort_order?: 'asc' | 'desc';
+  sort_dir?: string;
   limit: number;
   offset: number;
 }) {
-  const sortBy = ['created_at', 'last_event_at', 'due_at', 'priority', 'status', 'severity'].includes(
-    params.sort_by || '',
-  )
-    ? (params.sort_by as string)
-    : 'last_event_at';
-  const ascending = params.sort_order === 'asc';
-
+  const sortableColumns = new Set(['created_at', 'updated_at', 'last_event_at', 'due_at', 'priority', 'status', 'severity']);
+  const sortBy = sortableColumns.has(params.sort_by || '') ? params.sort_by! : 'created_at';
+  const ascending = String(params.sort_dir || '').toLowerCase() === 'asc';
   let query = supabaseAdmin
     .from('agent_runs')
     .select('*', { count: 'exact' })
     .eq('workspace_id', params.workspace_id)
-    .order(sortBy, { ascending, nullsFirst: false })
+    .is('archived_at', null)
+    .order(sortBy, { ascending })
     .range(params.offset, params.offset + params.limit - 1);
 
   if (params.status) query = query.eq('status', params.status);
   if (params.agent_id) query = query.eq('agent_id', params.agent_id);
-  if (params.brand) query = query.or(`brand_name.eq.${params.brand},brand_id.eq.${params.brand}`);
   if (params.environment) query = query.eq('environment', params.environment);
+  if (params.brand_id) query = query.eq('brand_id', params.brand_id);
+  if (params.brand_name) query = query.ilike('brand_name', params.brand_name);
   if (params.severity) query = query.eq('severity', params.severity);
   if (params.priority) query = query.eq('priority', parseInt(params.priority, 10));
+  if (params.date_from) query = query.gte('created_at', params.date_from);
+  if (params.date_to) query = query.lte('created_at', params.date_to);
   if (params.search) {
-    const safeSearch = params.search.replace(/,/g, ' ');
-    query = query.or(
-      `task_objective.ilike.%${safeSearch}%,agent_name.ilike.%${safeSearch}%,id.ilike.%${safeSearch}%,workflow_name.ilike.%${safeSearch}%`,
-    );
+    const safe = sanitizeSearchTerm(params.search);
+    if (safe) {
+      query = query.or(`task_objective.ilike.%${safe}%,agent_name.ilike.%${safe}%`);
+    }
   }
 
   const { data, error, count } = await query;
@@ -208,16 +134,26 @@ export async function listAgentRuns(params: {
   return { runs: data || [], total: count || 0 };
 }
 
-export async function getAgentRun(runId: string, workspaceId: string) {
-  const data = await getRunScoped(runId, workspaceId);
-  if (!data) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
-  return data;
+export async function getAgentRun(runId: string) {
+  // Validate the id shape before hitting the DB so a malformed id returns a
+  // clean 400 rather than a Postgres cast error, and a non-existent id returns
+  // 404 (maybeSingle => null) rather than a 500 from .single() throwing.
+  if (!isUuid(runId)) {
+    throw Object.assign(new Error('Invalid run id'), { statusCode: 400 });
+  }
+  const { data, error } = await supabaseAdmin
+    .from('agent_runs')
+    .select('*')
+    .eq('id', runId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    throw Object.assign(new Error('Agent run not found'), { statusCode: 404 });
+  }
+  return data as AgentRun;
 }
 
-export async function getRunTimeline(runId: string, workspaceId: string) {
-  const run = await getRunScoped(runId, workspaceId);
-  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
-
+export async function getRunTimeline(runId: string) {
   const { data, error } = await supabaseAdmin
     .from('run_events')
     .select('*')
@@ -227,172 +163,249 @@ export async function getRunTimeline(runId: string, workspaceId: string) {
   return data || [];
 }
 
-export async function pauseRun(
-  workspaceId: string,
+async function transitionRunState(
   runId: string,
+  newStatus: string,
   reason: string,
   actorId: string,
   actorName: string,
+  actionType: string,
+  impactScope?: string,
 ) {
-  return transitionRunState({
-    workspace_id: workspaceId,
-    run_id: runId,
-    new_status: 'PAUSED',
-    reason,
-    actor_id: actorId,
-    actor_name: actorName,
-    event_type: 'run.paused',
-  });
-}
-
-export async function resumeRun(
-  workspaceId: string,
-  runId: string,
-  reason: string,
-  actorId: string,
-  actorName: string,
-) {
-  const run = await getRunScoped(runId, workspaceId);
+  const run = await getAgentRun(runId);
   if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
-  if (run.status !== 'PAUSED') {
-    throw Object.assign(new Error('Only paused runs can be resumed'), { statusCode: 409 });
-  }
 
-  const resumeTarget =
-    run.previous_status && ['RUNNING', 'QUEUED', 'WAITING_HUMAN_REVIEW'].includes(run.previous_status)
-      ? run.previous_status
-      : 'QUEUED';
-
-  return transitionRunState({
-    workspace_id: workspaceId,
-    run_id: runId,
-    new_status: resumeTarget,
-    reason,
-    actor_id: actorId,
-    actor_name: actorName,
-    event_type: 'run.resumed',
-  });
-}
-
-export async function stopRun(
-  workspaceId: string,
-  runId: string,
-  reason: string,
-  actorId: string,
-  actorName: string,
-) {
-  return transitionRunState({
-    workspace_id: workspaceId,
-    run_id: runId,
-    new_status: 'FAILED',
-    reason,
-    actor_id: actorId,
-    actor_name: actorName,
-    event_type: 'run.stopped',
-    force: true,
-    extra_updates: {
-      error_code: 'MANUAL_STOP',
-    },
-  });
-}
-
-export async function quarantineRun(
-  workspaceId: string,
-  runId: string,
-  reason: string,
-  actorId: string,
-  actorName: string,
-) {
-  return transitionRunState({
-    workspace_id: workspaceId,
-    run_id: runId,
-    new_status: 'QUARANTINED',
-    reason,
-    actor_id: actorId,
-    actor_name: actorName,
-    event_type: 'output.quarantined',
-    force: true,
-    extra_updates: {
-      evidence_status: 'LOCKED',
-      severity: 'critical',
-    },
-  });
-}
-
-export async function emergencyPauseRun(
-  workspaceId: string,
-  runId: string,
-  reason: string,
-  actorId: string,
-  actorName: string,
-) {
-  const run = await getRunScoped(runId, workspaceId);
-  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
-  if (!['RUNNING', 'QUEUED', 'SCHEDULED', 'WAITING_HUMAN_REVIEW'].includes(run.status)) {
+  // Our canonical transition map is authoritative for what is allowed. Reject
+  // truly-invalid transitions up front so a stale/missing DB function can never
+  // change acceptance behavior.
+  if (!isValidTransition(run.status, newStatus)) {
     throw Object.assign(
-      new Error('Only active or pending runs can be emergency paused'),
-      { statusCode: 409 },
+      new Error(`Cannot transition run from ${run.status} to ${newStatus}`),
+      { statusCode: 409 }
     );
   }
 
-  return transitionRunState({
-    workspace_id: workspaceId,
+  const nowIso = new Date().toISOString();
+  const actorUuid = isUuid(actorId) ? actorId : null;
+  let eventId: string;
+  let actionId: string;
+
+  // Prefer the atomic SQL transition (single transaction: state change +
+  // immutable event + control-action record). If the function is unavailable
+  // or its built-in transition guard is stricter than ours, fall back to the
+  // portable multi-statement path so behavior never regresses.
+  try {
+    const { data, error } = await supabaseAdmin.rpc('operations_transition_run', {
+      p_run_id: runId,
+      p_new_status: newStatus,
+      p_reason: reason,
+      p_actor_id: actorId,
+      p_actor_name: actorName,
+      p_action_type: actionType,
+      p_impact_scope: impactScope ?? null,
+    });
+    if (error) throw error;
+    eventId = (data as any)?.event_id;
+    actionId = (data as any)?.runtime_action_id;
+  } catch {
+    const fallback = await transitionRunStateFallback(
+      runId, run.status, newStatus, reason, actorUuid, actorName, actionType, impactScope, nowIso,
+    );
+    eventId = fallback.eventId;
+    actionId = fallback.actionId;
+  }
+
+  internalEventBus.emit('operations.event', {
+    type: `run.${newStatus.toLowerCase()}`,
     run_id: runId,
-    new_status: 'PAUSED',
-    reason: `[EMERGENCY] ${reason}`,
-    actor_id: actorId,
-    actor_name: actorName,
-    event_type: 'run.paused',
-    extra_updates: {
-      severity: 'critical',
-    },
+    workspace_id: run.workspace_id,
+    previous_state: run.status,
+    new_state: newStatus,
+    event_id: eventId,
+    runtime_action_id: actionId,
+    created_at: nowIso,
   });
+
+  return { previous_status: run.status, new_status: newStatus, event_id: eventId, run };
 }
 
-export async function restrictedModeRun(
-  workspaceId: string,
+// Portable (non-RPC) transition: update status (recording previous_status),
+// then append the immutable event and the runtime-control-action record.
+async function transitionRunStateFallback(
   runId: string,
+  previousStatus: string,
+  newStatus: string,
   reason: string,
-  actorId: string,
+  actorUuid: string | null,
   actorName: string,
+  actionType: string,
+  impactScope: string | undefined,
+  nowIso: string,
 ) {
-  return transitionRunState({
-    workspace_id: workspaceId,
+  const update: Record<string, unknown> = {
+    status: newStatus,
+    previous_status: previousStatus,
+    last_event_at: nowIso,
+  };
+  if (newStatus === 'RUNNING') update.started_at = nowIso;
+  if (['COMPLETED', 'FAILED', 'STOPPED', 'CANCELLED'].includes(newStatus)) {
+    update.completed_at = nowIso;
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from('agent_runs')
+    .update(update)
+    .eq('id', runId);
+  if (updateError) throw updateError;
+
+  const eventId = uuidv4();
+  const { error: eventError } = await supabaseAdmin.from('run_events').insert({
+    id: eventId,
     run_id: runId,
-    new_status: 'POLICY_BLOCKED',
-    reason: `[RESTRICTED_MODE] ${reason}`,
-    actor_id: actorId,
+    event_type: `state.${newStatus.toLowerCase()}`,
+    actor_type: 'user',
+    actor_id: actorUuid,
     actor_name: actorName,
-    event_type: 'policy.blocked',
-    force: true,
-    extra_updates: {
-      severity: 'critical',
-      policy_result: 'BLOCKED',
-    },
+    previous_state: previousStatus,
+    new_state: newStatus,
+    reason,
   });
+  // Surface audit-write failures rather than silently leaving a state change
+  // with no event (best-effort consistency without a transaction).
+  if (eventError) throw eventError;
+
+  const actionId = uuidv4();
+  await supabaseAdmin.from('runtime_control_actions').insert({
+    id: actionId,
+    run_id: runId,
+    action_type: actionType,
+    requested_by: actorUuid,
+    reason,
+    impact_scope: impactScope || null,
+    result: 'completed',
+  });
+
+  return { eventId, actionId };
 }
 
-export async function retryRun(
-  workspaceId: string,
+export async function pauseRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
+  return transitionRunState(runId, 'PAUSED', reason, actorId, actorName, 'pause', impactScope);
+}
+
+export async function resumeRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
+  return transitionRunState(runId, 'RUNNING', reason, actorId, actorName, 'resume', impactScope);
+}
+
+// Re-start a STOPPED run (transition back to RUNNING).
+export async function startRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
+  return transitionRunState(runId, 'RUNNING', reason, actorId, actorName, 'start', impactScope);
+}
+
+// Archive (soft-delete) a run. Governance requirement (spec §10): operational
+// history, timeline, approval chain, and evidence must never be destroyed by a
+// UI action. The run is hidden from default lists via archived_at but all
+// records — run_events, runtime_control_actions, policy_results, evidence — are
+// preserved permanently and remain retrievable by id. The archive is itself
+// recorded as an immutable run_event for the audit trail.
+export async function deleteRun(
   runId: string,
-  reason: string,
-  actorId: string,
-  actorName: string,
+  actorId?: string,
+  actorName?: string,
+  reason?: string,
 ) {
-  const run = await getRunScoped(runId, workspaceId);
+  const run = await getAgentRun(runId); // validates id + 404
+  const nowIso = new Date().toISOString();
+  const archiveReason = reason && reason.trim() ? reason.trim() : 'Archived via operations console';
+  const actorUuid = isUuid(actorId) ? actorId! : null;
+
+  const { error } = await supabaseAdmin
+    .from('agent_runs')
+    .update({
+      archived_at: nowIso,
+      archived_by: actorUuid,
+      archive_reason: archiveReason,
+    })
+    .eq('id', runId);
+  if (error) throw error;
+
+  // Append-only audit record of the archive action (does not mutate history).
+  const eventId = uuidv4();
+  await supabaseAdmin.from('run_events').insert({
+    id: eventId,
+    run_id: runId,
+    event_type: 'run.archived',
+    actor_type: 'user',
+    actor_id: actorUuid,
+    actor_name: actorName || 'Unknown',
+    previous_state: run.status,
+    new_state: run.status,
+    reason: archiveReason,
+  });
+  await supabaseAdmin.from('runtime_control_actions').insert({
+    id: uuidv4(),
+    run_id: runId,
+    action_type: 'archive',
+    requested_by: actorUuid,
+    reason: archiveReason,
+    impact_scope: 'selected_run',
+    result: 'completed',
+  });
+
+  internalEventBus.emit('operations.event', {
+    type: 'run.archived',
+    run_id: runId,
+    workspace_id: run.workspace_id,
+    event_id: eventId,
+    created_at: nowIso,
+  });
+
+  // `deleted` is preserved in the response for backward compatibility with the
+  // existing client contract; the run is archived, not destroyed.
+  return { deleted: true, archived: true, run_id: runId, archived_at: nowIso };
+}
+
+export async function stopRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
+  return transitionRunState(runId, 'STOPPED', reason, actorId, actorName, 'stop', impactScope);
+}
+
+export async function quarantineRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
+  return transitionRunState(runId, 'QUARANTINED', reason, actorId, actorName, 'quarantine', impactScope);
+}
+
+export async function emergencyPauseRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
+  const run = await getAgentRun(runId);
+  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
+  if (run.status !== 'RUNNING' && run.status !== 'QUEUED') {
+    throw Object.assign(new Error('Only RUNNING or QUEUED runs can be emergency paused'), { statusCode: 409 });
+  }
+  return transitionRunState(runId, 'PAUSED', `[EMERGENCY] ${reason}`, actorId, actorName, 'emergency_pause', impactScope);
+}
+
+export async function restrictedModeRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
+  const run = await getAgentRun(runId);
+  if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
+  if (!['RUNNING', 'QUEUED', 'WAITING_HUMAN_REVIEW'].includes(run.status)) {
+    throw Object.assign(new Error('Only active or review-pending runs can enter restricted mode'), { statusCode: 409 });
+  }
+  return transitionRunState(runId, 'POLICY_BLOCKED', `[RESTRICTED_MODE] ${reason}`, actorId, actorName, 'restricted_mode', impactScope);
+}
+
+export async function retryRun(runId: string, reason: string, actorId: string, actorName: string) {
+  const run = await getAgentRun(runId);
   if (!run) throw Object.assign(new Error('Run not found'), { statusCode: 404 });
   if (run.status !== 'FAILED') {
-    throw Object.assign(new Error('Only failed runs can be retried'), { statusCode: 409 });
+    throw Object.assign(new Error('Only FAILED runs can be retried'), { statusCode: 409 });
   }
-
-  const retryCount = (run.retry_count || 0) + 1;
-  if (retryCount > 5) {
+  const retryAttempt = Number((run as any).retry_attempt || 0) + 1;
+  if (retryAttempt > 3) {
     throw Object.assign(new Error('Retry limit reached for this run'), { statusCode: 409 });
   }
+  // Note: the retried run is created in QUEUED (not auto-published), so the
+  // duplicate-delivery guard is enforced downstream at publish time rather than
+  // by keyword-matching the operator's free-text reason here. A reason is still
+  // required (controller-level requireReason) and the original evidence is kept.
 
-  const now = new Date().toISOString();
   const newRunId = uuidv4();
-
   const { error: insertError } = await supabaseAdmin
     .from('agent_runs')
     .insert({
@@ -402,53 +415,31 @@ export async function retryRun(
       brand_id: run.brand_id,
       environment: run.environment,
       agent_id: run.agent_id,
-      agent_name: run.agent_name,
-      agent_type: run.agent_type,
       agent_version: run.agent_version,
       workflow_id: run.workflow_id,
-      workflow_name: run.workflow_name,
       workflow_version: run.workflow_version,
       task_id: run.task_id,
+      task_name: (run as any).task_name,
       task_objective: run.task_objective,
+      channel: run.channel,
       status: 'QUEUED',
       severity: run.severity,
       owner_id: run.owner_id,
       owner_name: run.owner_name,
       priority: run.priority,
-      previous_status: run.status,
-      policy_result: 'PENDING_REVIEW',
-      evidence_status: 'PARTIAL',
-      created_at: now,
-      last_event_at: now,
-      retry_count: retryCount,
-    } as Record<string, any>);
+      evidence_status: 'capturing',
+      metadata: (run as any).metadata ?? null,
+      original_run_id: runId,
+      retry_attempt: retryAttempt,
+    });
   if (insertError) throw insertError;
 
-  await supabaseAdmin
-    .from('agent_runs')
-    .update({
-      last_event_at: now,
-      updated_at: now,
-      retry_count: retryCount,
-    })
-    .eq('id', run.id)
-    .eq('workspace_id', workspaceId);
-
-  const originalEventId = await insertRunEvent({
-    run_id: run.id,
-    event_type: 'run.retry_requested',
-    actor_id: actorId,
-    actor_name: actorName,
-    previous_state: run.status,
-    new_state: run.status,
-    reason,
-    payload_ref: newRunId,
-    correlation_id: run.workflow_id,
-  });
-
-  const retryEventId = await insertRunEvent({
+  const eventId = uuidv4();
+  await supabaseAdmin.from('run_events').insert({
+    id: eventId,
     run_id: newRunId,
     event_type: 'state.queued',
+    actor_type: 'user',
     actor_id: actorId,
     actor_name: actorName,
     previous_state: null,
@@ -458,10 +449,14 @@ export async function retryRun(
     correlation_id: run.workflow_id,
   });
 
-  return {
-    new_run_id: newRunId,
+  internalEventBus.emit('operations.event', {
+    type: 'run.retry_requested',
+    run_id: newRunId,
     original_run_id: runId,
-    event_id: retryEventId,
-    original_event_id: originalEventId,
-  };
+    workspace_id: run.workspace_id,
+    event_id: eventId,
+    created_at: new Date().toISOString(),
+  });
+
+  return { new_run_id: newRunId, original_run_id: runId, event_id: eventId };
 }

@@ -22,7 +22,7 @@ export default function PlatformLoginPage() {
       if (session) {
         const result = await api.get("/api/v1/user/context");
         if (result?.success && result.data?.is_superadmin) {
-          router.replace("/superadmin");
+          router.replace("/superadmin/analytics");
           return;
         }
         await supabase.auth.signOut();
@@ -50,7 +50,7 @@ export default function PlatformLoginPage() {
       }
 
       document.cookie = "zv_auth=1; path=/; SameSite=Strict; max-age=3600";
-      router.replace("/superadmin");
+      router.replace("/superadmin/analytics");
     } catch (err: any) {
       setError(err.message || "Authentication failed.");
       setLoading(false);

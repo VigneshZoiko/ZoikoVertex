@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   RefreshCcw, ShieldCheck, AlertCircle, Clock, FileCheck2, AlertTriangle,
   ArrowUpRight, MessageSquare, XCircle, CheckCircle2, Ban, Gavel, Search,
@@ -346,6 +346,8 @@ export default function ValidationDeskPage() {
   const [override, setOverride] = useState<ValidationOverride | null>(null);
   const [approvalReadiness, setApprovalReadiness] = useState<ApprovalReadiness | null>(null);
 
+  const initialSelectDone = useRef(false);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -357,7 +359,8 @@ export default function ValidationDeskPage() {
       if (itemsRes.success) {
         const validationItems = (itemsRes.data || []) as ValidationItem[];
         setItems(validationItems);
-        if (validationItems.length > 0 && !selectedItem) {
+        if (validationItems.length > 0 && !initialSelectDone.current) {
+          initialSelectDone.current = true;
           setSelectedItem(validationItems[0]);
         } else if (validationItems.length === 0) {
           setSelectedItem(null);
@@ -369,7 +372,7 @@ export default function ValidationDeskPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedItem]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -381,7 +384,7 @@ export default function ValidationDeskPage() {
         api.get(`/api/v1/validation/items/${itemId}/runs`),
         api.get(`/api/v1/validation/items/${itemId}/grounding`),
         api.get(`/api/v1/validation/items/${itemId}/notes`),
-        api.get(`/api/v1/validation/items/${itemId}/audit-trail`),
+        api.get(`/api/v1/validation/items/${itemId}/audit-log`),
         api.get(`/api/v1/validation/items/${itemId}/manual-check`),
         api.get(`/api/v1/validation/items/${itemId}/approval-readiness`),
       ]);
@@ -401,8 +404,8 @@ export default function ValidationDeskPage() {
       if (timelineRes.success) setTimeline((timelineRes.data || []) as TimelineEntry[]);
       if (manualChecksRes.success) setManualChecks((manualChecksRes.data || []) as ManualCheck[]);
       if (approvalRes.success) setApprovalReadiness(approvalRes.data as ApprovalReadiness);
-    } catch {
-      // silent fail for details
+    } catch (err) {
+      console.warn("Failed to load item details:", err);
     }
   }, []);
 
@@ -420,13 +423,13 @@ export default function ValidationDeskPage() {
       let result;
       switch (action) {
         case "run_validation":
-          result = await api.post(`/api/v1/validation/items/${itemId}/run-validation`, {});
+          result = await api.post(`/api/v1/validation/items/${itemId}/run`, {});
           break;
         case "revalidate":
           result = await api.post(`/api/v1/validation/items/${itemId}/revalidate`, {});
           break;
         case "send_to_review":
-          result = await api.post(`/api/v1/validation/items/${itemId}/send-to-review`, {});
+          result = await api.post(`/api/v1/validation/items/${itemId}/send-to-review-queue`, {});
           break;
         case "send_to_approvals":
           result = await api.post(`/api/v1/validation/items/${itemId}/send-to-approvals`, {});
@@ -447,7 +450,7 @@ export default function ValidationDeskPage() {
           });
           break;
         case "export":
-          result = await api.post(`/api/v1/validation/export`, { item_id: itemId });
+          result = await api.get(`/api/v1/validation/items/${itemId}/export`);
           break;
         default:
           return;

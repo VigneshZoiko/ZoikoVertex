@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
+import { sendOrgWelcomeEmail } from '../../services/email.service';
 
 export const enterpriseSignup = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -54,6 +55,8 @@ export const enterpriseSignup = async (req: Request, res: Response, next: NextFu
       user_id: userId,
       role: 'ADMIN'
     });
+
+    sendOrgWelcomeEmail(companyName, workEmail, fullName);
 
     res.status(201).json({
       success: true,

@@ -1,158 +1,195 @@
 import { supabaseAdmin } from '../shared/supabase';
 
-function ratio(numerator: number, denominator: number) {
-  if (!denominator) return 0;
-  return Number(((numerator / denominator) * 100).toFixed(1));
+export type OperationsScopeFilters = {
+  environment?: string;
+  brand_id?: string;
+  brand_name?: string;
+};
+
+// Real DB enum values (lowercase):
+//   queue_items.status : open | claimed | assigned | on_hold | resolved | cancelled | escalated
+//   incidents.status   : open | investigating | in_remediation | resolved | closed
+//   policy_outcome      : pass | warning | blocked | pending_review | not_applicable
+const QUEUE_CLOSED = '(resolved,cancelled)';        // queue items no longer in backlog
+const INCIDENT_CLOSED = '(resolved,closed)';        // incidents no longer open
+
+function applyRunScope(query: any, workspaceId: string, filters: OperationsScopeFilters = {}) {
+  let scoped = query.eq('workspace_id', workspaceId);
+  if (filters.environment) scoped = scoped.eq('environment', filters.environment);
+  if (filters.brand_id) scoped = scoped.eq('brand_id', filters.brand_id);
+  if (filters.brand_name) scoped = scoped.ilike('brand_name', filters.brand_name);
+  return scoped;
 }
 
-function fraction(numerator: number, denominator: number) {
-  if (!denominator) return 0;
-  return Number((numerator / denominator).toFixed(4));
+// All run ids in scope (always resolved — needed to scope child tables such as
+// runtime_control_actions which have no workspace_id column of their own).
+async function getAllWorkspaceRunIds(workspaceId: string, filters: OperationsScopeFilters = {}): Promise<string[]> {
+  const { data, error } = await applyRunScope(
+    supabaseAdmin.from('agent_runs').select('id'),
+    workspaceId,
+    filters,
+  );
+  if (error) throw error;
+  return (data || []).map((run: { id: string }) => run.id);
 }
 
-export async function getOperationsStats(workspaceId: string) {
+function applyQueueIncidentScope(query: any, workspaceId: string, runIds: string[] | null) {
+  let scoped = query.eq('workspace_id', workspaceId);
+  if (runIds) scoped = runIds.length > 0 ? scoped.in('run_id', runIds) : scoped.eq('run_id', '00000000-0000-0000-0000-000000000000');
+  return scoped;
+}
+
+export async function getOperationsStats(workspaceId: string, filters: OperationsScopeFilters = {}) {
+  const hasFilters = Boolean(filters.environment || filters.brand_id || filters.brand_name);
+  const runIds = await getAllWorkspaceRunIds(workspaceId, filters);
+  const scopedRunIds = hasFilters ? runIds : null;
+  const nowIso = new Date().toISOString();
+
   const [
-    activeRuns,
-    queuedRuns,
-    failedRuns,
-    policyBlockedRuns,
-    totalRuns,
-    openIncidents,
-    escalatedRuns,
-    restrictedRuns,
-    slaBreachedRuns,
-    trustRows,
+    activeRuns, queueDepth, failedRuns, policyBlockedRuns, totalRuns,
+    pendingQueues, openIncidents, slaBreaches, escalations, quarantinedRuns,
   ] = await Promise.all([
-    supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'RUNNING'),
-    supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'QUEUED'),
-    supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'FAILED'),
-    supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'POLICY_BLOCKED'),
-    supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
-    supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'OPEN'),
-    supabaseAdmin.from('runtime_control_actions').select('id', { count: 'exact', head: true }).eq('action_type', 'escalate'),
-    supabaseAdmin.from('run_events').select('id', { count: 'exact', head: true }).eq('event_type', 'policy.blocked'),
-    supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).not('due_at', 'is', null).lt('due_at', new Date().toISOString()).in('status', ['QUEUED', 'RUNNING', 'WAITING_HUMAN_REVIEW', 'PAUSED', 'FAILED', 'POLICY_BLOCKED']),
-    supabaseAdmin.from('agents').select('trust_score').eq('workspace_id', workspaceId),
+    applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters).eq('status', 'RUNNING'),
+    // Queue backlog = every queue item that is not yet resolved/cancelled.
+    applyQueueIncidentScope(supabaseAdmin.from('queue_items').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds).not('status', 'in', QUEUE_CLOSED),
+    applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters).eq('status', 'FAILED'),
+    // Policy blocked = currently blocked OR evaluated as blocked.
+    applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters).or('status.eq.POLICY_BLOCKED,policy_result.eq.blocked'),
+    applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters),
+    applyQueueIncidentScope(supabaseAdmin.from('queue_items').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds).not('status', 'in', QUEUE_CLOSED),
+    applyQueueIncidentScope(supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds).not('status', 'in', INCIDENT_CLOSED),
+    applyQueueIncidentScope(supabaseAdmin.from('queue_items').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds).not('status', 'in', QUEUE_CLOSED).lt('due_at', nowIso),
+    // Escalations are runtime control actions, scoped via run ids.
+    runIds.length
+      ? supabaseAdmin.from('runtime_control_actions').select('id', { count: 'exact', head: true }).eq('action_type', 'escalate').in('run_id', runIds)
+      : Promise.resolve({ count: 0 }),
+    applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters).eq('status', 'QUARANTINED'),
   ]);
 
-  const trustScoreRows = trustRows.data || [];
-  const avgTrustScore = trustScoreRows.length
-    ? Math.round(
-        trustScoreRows.reduce((sum, row) => sum + Number((row as { trust_score?: number }).trust_score || 0), 0) /
-          trustScoreRows.length,
-      )
-    : 0;
+  const total = totalRuns.count || 0;
+  const failed = failedRuns.count || 0;
+  const policyBlocked = policyBlockedRuns.count || 0;
+  const quarantined = quarantinedRuns.count || 0;
 
+  // Operations health = share of ALL operations NOT in a problem state
+  // (failed / policy-blocked / quarantined), as a real percentage across the
+  // current scope. Replaces the previous static agent trust average.
+  const problemRuns = failed + policyBlocked + quarantined;
+  const operationsHealthScore =
+    total > 0 ? Math.max(0, Math.round(((total - problemRuns) / total) * 100)) : 100;
+
+  const denom = total || 1;
   return {
     active_runs: activeRuns.count || 0,
-    queued_tasks: queuedRuns.count || 0,
-    failed_runs: failedRuns.count || 0,
+    queue_depth: queueDepth.count || 0,
+    queued_tasks: queueDepth.count || 0,
+    pending_queues: pendingQueues.count || 0,
+    failure_rate: Math.round((failed / denom) * 100),
+    failed_runs: failed,
+    total_runs: total,
+    policy_block_rate: Math.round((policyBlocked / denom) * 100),
+    policy_blocked_runs: policyBlocked,
+    policy_blocks: policyBlocked,
+    quarantined_runs: quarantined,
     open_incidents: openIncidents.count || 0,
-    policy_blocks: policyBlockedRuns.count || 0,
-    escalations: escalatedRuns.count || 0,
-    restricted_operations: restrictedRuns.count || 0,
-    sla_breaches: slaBreachedRuns.count || 0,
-    avg_trust_score: avgTrustScore,
-    total_runs: totalRuns.count || 0,
+    escalations: escalations.count || 0,
+    sla_breaches: slaBreaches.count || 0,
+    // Operations-derived health score across all runs in scope. avg_trust_score
+    // is kept as an alias for backward compatibility with existing clients.
+    operations_health_score: operationsHealthScore,
+    avg_trust_score: operationsHealthScore,
   };
 }
 
-export async function getAnalyticsMetrics(workspaceId: string) {
+export async function getAnalyticsMetrics(workspaceId: string, filters: OperationsScopeFilters = {}) {
   const now = new Date();
+  const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [
-    allRuns,
-    failedRuns,
-    policyBlockedRuns,
-    reviewQueueRows,
-    retryRequestedEvents,
-    retryRecoveredRuns,
-    escalatedEvents,
-    dueRuns,
-    breachedRuns,
-    evidenceBundles,
-    lockedEvidenceBundles,
-    openQueues,
-    resolvedQueues,
-    incidents,
-    resolvedIncidents,
-  ] = await Promise.all([
-    supabaseAdmin.from('agent_runs').select('id, created_at', { count: 'exact' }).eq('workspace_id', workspaceId).gte('created_at', last30d),
-    supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'FAILED').gte('created_at', last30d),
-    supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'POLICY_BLOCKED').gte('created_at', last30d),
-    supabaseAdmin.from('queue_items').select('created_at, resolved_at, queue_type').eq('workspace_id', workspaceId),
-    supabaseAdmin.from('run_events').select('id', { count: 'exact', head: true }).eq('event_type', 'run.retry_requested').gte('created_at', last30d),
-    supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'COMPLETED').gt('retry_count', 0).gte('created_at', last30d),
-    supabaseAdmin.from('runtime_control_actions').select('id', { count: 'exact', head: true }).eq('action_type', 'escalate').gte('created_at', last30d),
-    supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).not('due_at', 'is', null).gte('created_at', last30d),
-    supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).not('due_at', 'is', null).lt('due_at', new Date().toISOString()).in('status', ['QUEUED', 'RUNNING', 'WAITING_HUMAN_REVIEW', 'PAUSED', 'FAILED', 'POLICY_BLOCKED']),
-    supabaseAdmin.from('evidence_bundles').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
-    supabaseAdmin.from('evidence_bundles').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'LOCKED'),
-    supabaseAdmin.from('queue_items').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).neq('status', 'RESOLVED'),
-    supabaseAdmin.from('queue_items').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'RESOLVED'),
-    supabaseAdmin.from('incidents').select('created_at, closed_at').eq('workspace_id', workspaceId).gte('created_at', last30d),
-    supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'RESOLVED').gte('created_at', last30d),
+  const hasFilters = Boolean(filters.environment || filters.brand_id || filters.brand_name);
+  const runIds = await getAllWorkspaceRunIds(workspaceId, filters);
+  const scopedRunIds = hasFilters ? runIds : null;
+
+  const runScope = () => applyRunScope(supabaseAdmin.from('agent_runs').select('id', { count: 'exact', head: true }), workspaceId, filters);
+  const incidentScope = () => applyQueueIncidentScope(supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds);
+  const evidenceScope = () => applyQueueIncidentScope(supabaseAdmin.from('evidence_bundles').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds);
+  // Policy-blocked filter shared across periods.
+  const policyBlockedScope = () => runScope().or('status.eq.POLICY_BLOCKED,policy_result.eq.blocked');
+
+  const results = await Promise.all([
+    runScope().eq('status', 'RUNNING'),                                                   // 0 activeRuns
+    runScope().eq('status', 'RUNNING').gte('created_at', last24h),                         // 1 activeRuns24h
+    applyQueueIncidentScope(supabaseAdmin.from('queue_items').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds).not('status', 'in', QUEUE_CLOSED), // 2 queueDepth
+    runScope().gte('created_at', last24h),                                                 // 3 runs24
+    runScope().gte('created_at', last7d),                                                  // 4 runs7d
+    runScope().gte('created_at', last30d),                                                 // 5 runs30d
+    runScope().eq('status', 'FAILED').gte('created_at', last24h),                          // 6 failed24
+    runScope().eq('status', 'FAILED').gte('created_at', last7d),                           // 7 failed7d
+    runScope().eq('status', 'FAILED').gte('created_at', last30d),                          // 8 failed30d
+    policyBlockedScope().gte('created_at', last24h),                                       // 9 policyBlocked24
+    policyBlockedScope().gte('created_at', last7d),                                        // 10 policyBlocked7d
+    policyBlockedScope().gte('created_at', last30d),                                       // 11 policyBlocked30d
+    incidentScope().gte('created_at', last24h),                                            // 12 incidents24
+    incidentScope().gte('created_at', last7d),                                             // 13 incidents7d
+    incidentScope().gte('created_at', last30d),                                            // 14 incidents30d
+    incidentScope().eq('status', 'resolved').gte('created_at', last24h),                   // 15 incidentsResolved24
+    incidentScope().eq('status', 'resolved').gte('created_at', last7d),                    // 16 incidentsResolved7d
+    incidentScope().eq('status', 'resolved'),                                              // 17 incidentsResolvedAll
+    // Retry attempts (linked retries) + their successes, per period.
+    runScope().not('original_run_id', 'is', null).gte('created_at', last24h),              // 18 retryAttempts24
+    runScope().not('original_run_id', 'is', null).eq('status', 'COMPLETED').gte('created_at', last24h), // 19 retrySuccess24
+    runScope().not('original_run_id', 'is', null).gte('created_at', last7d),               // 20 retryAttempts7d
+    runScope().not('original_run_id', 'is', null).eq('status', 'COMPLETED').gte('created_at', last7d),  // 21 retrySuccess7d
+    runScope().not('original_run_id', 'is', null).gte('created_at', last30d),              // 22 retryAttempts30d
+    runScope().not('original_run_id', 'is', null).eq('status', 'COMPLETED').gte('created_at', last30d), // 23 retrySuccess30d
+    // Queue SLA breach (unresolved + past due).
+    applyQueueIncidentScope(supabaseAdmin.from('queue_items').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds).not('status', 'in', QUEUE_CLOSED).lt('due_at', now.toISOString()), // 24 slaBreached
+    applyQueueIncidentScope(supabaseAdmin.from('queue_items').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds).not('due_at', 'is', null), // 25 slaTotal (items with a due time)
+    evidenceScope(),                                                                       // 26 evidenceBundles
+    evidenceScope().in('status', ['captured', 'export_ready', 'locked']),                  // 27 evidenceComplete
   ]);
 
-  const runRows = allRuns.data || [];
-  const queueRows = reviewQueueRows.data || [];
-  const incidentRows = incidents.data || [];
-  const totalRuns = allRuns.count || runRows.length || 0;
+  const c = results.map((r: any) => r.count || 0);
+  const [
+    activeRuns, activeRuns24h, queueDepth,
+    runs24, runs7d, runs30d,
+    failed24, failed7d, failed30d,
+    policyBlocked24, policyBlocked7d, policyBlocked30d,
+    incidents24, incidents7d, incidents30d,
+    incidentsResolved24, incidentsResolved7d, incidentsResolvedAll,
+    retryAttempts24, retrySuccess24, retryAttempts7d, retrySuccess7d, retryAttempts30d, retrySuccess30d,
+    slaBreached, slaTotal,
+    evidenceBundles, evidenceComplete,
+  ] = c;
 
-  const reviewDurations = queueRows
-    .filter((row) => ['APPROVAL', 'HUMAN_REVIEW', 'REVIEW', 'INCIDENT'].includes(String((row as { queue_type?: string }).queue_type || '').toUpperCase()))
-    .filter((row) => (row as { resolved_at?: string | null }).resolved_at)
-    .map((row) => {
-      const createdAt = new Date((row as { created_at: string }).created_at).getTime();
-      const resolvedAt = new Date((row as { resolved_at: string }).resolved_at).getTime();
-      return Math.max(0, resolvedAt - createdAt) / 60000;
-    });
-
-  const incidentClosureDurations = incidentRows
-    .filter((row) => (row as { closed_at?: string | null }).closed_at)
-    .map((row) => {
-      const createdAt = new Date((row as { created_at: string }).created_at).getTime();
-      const closedAt = new Date((row as { closed_at: string }).closed_at).getTime();
-      return Math.max(0, closedAt - createdAt) / 3600000;
-    });
-
-  const runsPerDay = Number((totalRuns / 30).toFixed(1));
-  const failureRatePct = ratio(failedRuns.count || 0, totalRuns);
-  const retrySuccessPct = ratio(retryRecoveredRuns.count || 0, retryRequestedEvents.count || 0);
-  const policyBlockPct = ratio(policyBlockedRuns.count || 0, totalRuns);
-  const reworkPct = ratio(retryRequestedEvents.count || 0, totalRuns);
-  const slaBreachPct = ratio(breachedRuns.count || 0, dueRuns.count || 0);
-  const evidenceCompletenessPct = ratio(lockedEvidenceBundles.count || 0, evidenceBundles.count || 0);
+  const pct = (num: number, den: number) => (den > 0 ? Math.round((num / den) * 100) : 0);
 
   return {
-    throughput: totalRuns,
-    backlog: openQueues.count || 0,
-    failure_rate: fraction(failedRuns.count || 0, totalRuns),
-    retry_success_rate: fraction(retryRecoveredRuns.count || 0, retryRequestedEvents.count || 0),
-    policy_block_rate: fraction(policyBlockedRuns.count || 0, totalRuns),
-    approval_time: reviewDurations.length
-      ? Number((reviewDurations.reduce((sum, duration) => sum + duration, 0) / reviewDurations.length).toFixed(1))
-      : 0,
-    productivity: runsPerDay,
-    rework_rate: reworkPct,
-    escalation_trends: escalatedEvents.count || 0,
-    sla_breach_rate: fraction(breachedRuns.count || 0, dueRuns.count || 0),
-    evidence_completeness: evidenceCompletenessPct,
-    avg_review_time_minutes: reviewDurations.length
-      ? Number((reviewDurations.reduce((sum, duration) => sum + duration, 0) / reviewDurations.length).toFixed(1))
-      : 0,
-    incident_closure_time_hours: incidentClosureDurations.length
-      ? Number((incidentClosureDurations.reduce((sum, duration) => sum + duration, 0) / incidentClosureDurations.length).toFixed(1))
-      : 0,
-    queue_depth: openQueues.count || 0,
-    resolved_queue_items: resolvedQueues.count || 0,
-    resolved_incidents: resolvedIncidents.count || 0,
-    failure_rate_pct: failureRatePct,
-    retry_success_rate_pct: retrySuccessPct,
-    policy_block_rate_pct: policyBlockPct,
-    sla_breach_rate_pct: slaBreachPct,
-    evidence_completeness_pct: evidenceCompletenessPct,
-    throughput_per_day: runsPerDay,
+    active_runs: { value: activeRuns, unit: 'count', period: 'current', trend: activeRuns24h > activeRuns * 0.5 ? 'up' : 'down' },
+    queue_depth: { value: queueDepth, unit: 'items', period: 'current', trend: queueDepth > 10 ? 'up' : 'stable' },
+    throughput: { '24h': runs24, '7d': runs7d, '30d': runs30d },
+    failure_rate: {
+      '24h': pct(failed24, runs24),
+      '7d': pct(failed7d, runs7d),
+      '30d': pct(failed30d, runs30d),
+    },
+    retry_success_rate: {
+      '24h': pct(retrySuccess24, retryAttempts24),
+      '7d': pct(retrySuccess7d, retryAttempts7d),
+      '30d': pct(retrySuccess30d, retryAttempts30d),
+    },
+    policy_block_rate: {
+      '24h': pct(policyBlocked24, runs24),
+      '7d': pct(policyBlocked7d, runs7d),
+      '30d': pct(policyBlocked30d, runs30d),
+    },
+    incidents: {
+      '24h': { created: incidents24, resolved: incidentsResolved24 },
+      '7d': { created: incidents7d, resolved: incidentsResolved7d },
+      '30d': { created: incidents30d, resolved: incidentsResolvedAll },
+    },
+    sla_breach_rate: pct(slaBreached, slaTotal),
+    evidence_completeness: pct(evidenceComplete, evidenceBundles),
   };
 }

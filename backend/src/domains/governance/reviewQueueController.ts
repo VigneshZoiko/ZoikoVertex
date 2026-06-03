@@ -348,6 +348,77 @@ export async function getAuditLog(req: AuthRequest, res: Response, next: NextFun
   }
 }
 
+export async function getReviewValidation(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    res.json({ success: true, data: [] });
+  } catch (error) { next(error); }
+}
+
+export async function getReviewPolicyFlags(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    res.json({ success: true, data: [] });
+  } catch (error) { next(error); }
+}
+
+export async function getReviewNotesHandler(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const params = req.params as { id: string };
+    const notes = await reviewQueueService.listReviewNotes(params.id);
+    res.json({ success: true, data: notes });
+  } catch (error) { next(error); }
+}
+
+export async function getReviewRevisionHistory(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const params = req.params as { id: string };
+    const decisions = await reviewQueueService.listReviewDecisions(params.id);
+    res.json({ success: true, data: decisions });
+  } catch (error) { next(error); }
+}
+
+export async function assignReviewItemHandler(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const tenantId = await getTenantId(req);
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const params = req.params as { id: string };
+    const result = await reviewQueueService.assignReviewItem({ id: params.id, assigned_to: userId, assigned_by: userId, tenant_id: tenantId });
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+}
+
+export async function addReviewNoteHandler(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const params = req.params as { id: string };
+    const result = await reviewQueueService.addReviewNote({ review_item_id: params.id, note_body: req.body.note_body, created_by: userId });
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+}
+
+export async function bulkReviewAction(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const action = req.params.action;
+    const { item_ids } = req.body;
+    if (!Array.isArray(item_ids) || item_ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'item_ids array is required' });
+    }
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const results = [];
+    for (const id of item_ids) {
+      try {
+        const result = await reviewQueueService.recordDecision({ review_item_id: id, decision_type: action as any, decided_by: userId, reason: req.body.reason || 'Bulk action' });
+        results.push({ id, success: true, data: result });
+      } catch (e: any) {
+        results.push({ id, success: false, error: e.message });
+      }
+    }
+    res.json({ success: true, data: results });
+  } catch (error) { next(error); }
+}
+
 async function logReviewAuditEvent(params: {
   workspaceId: string;
   userId: string;

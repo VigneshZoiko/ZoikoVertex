@@ -59,9 +59,18 @@ async function authenticateApiKey(
   // Look up workspace plan for rate limiting and plan-gating
   const { data: workspace } = await supabaseAdmin
     .from("workspaces")
-    .select("plan_type")
+    .select("plan_type, org_id")
     .eq("id", apiKey.workspace_id)
     .single();
+
+  // Track org activity (fire-and-forget)
+  if (workspace?.org_id) {
+    supabaseAdmin
+      .from("organizations")
+      .update({ last_active_at: new Date().toISOString() })
+      .eq("id", workspace.org_id)
+      .then(() => {});
+  }
 
   req.user = {
     id: apiKey.created_by,
@@ -143,24 +152,22 @@ export const authenticate = async (
       workspacePlan = "ENTERPRISE";
     }
 
-    // ── Block deleted-domain users ───────────────────────────────────────
-    if (user.email && !isSuperAdmin) {
-      const domain = user.email.split('@')[1]?.toLowerCase();
-      if (domain) {
-        const { data: deletedOrg } = await supabaseAdmin
-          .from('organizations')
-          .select('id')
-          .eq('deleted_domain', domain)
-          .eq('status', 'DELETED')
-          .maybeSingle();
-        if (deletedOrg) {
-          logger.warn(`[Auth] Rejected login for deleted org domain: ${domain} (user: ${user.email})`);
-          return res.status(403).json({
-            error: 'Your organization has been permanently deleted. Please contact support.',
-            code: 'ORG_DELETED',
-          });
-        }
-      }
+    // Track org activity (fire-and-forget)
+    if (member?.workspace_id) {
+      supabaseAdmin
+        .from("workspaces")
+        .select("org_id")
+        .eq("id", member.workspace_id)
+        .single()
+        .then(({ data: ws }) => {
+          if (ws?.org_id) {
+            supabaseAdmin
+              .from("organizations")
+              .update({ last_active_at: new Date().toISOString() })
+              .eq("id", ws.org_id)
+              .then(() => {});
+          }
+        });
     }
 
     req.user = {

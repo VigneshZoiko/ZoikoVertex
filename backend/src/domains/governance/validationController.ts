@@ -417,3 +417,27 @@ export const exportValidationRecord = async (req: AuthRequest, res: Response, ne
     next(error);
   }
 };
+
+export const getValidationRuns = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try { const runs = await validationService.getValidationRuns(getParamId(req)); res.json({ success: true, data: runs }); } catch (error) { next(error); }
+};
+
+export const getValidationGrounding = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try { const data = await validationService.getGroundingResults(getParamId(req)); res.json({ success: true, data }); } catch (error) { next(error); }
+};
+
+export const getValidationNotesList = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try { const notes = await validationService.getValidationNotes(getParamId(req)); res.json({ success: true, data: notes }); } catch (error) { next(error); }
+};
+
+export const getValidationManualChecks = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try { const checks = await validationService.getManualChecks(getParamId(req)); res.json({ success: true, data: checks }); } catch (error) { next(error); }
+};
+
+export const getValidationApprovalReadiness = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try { const data = await validationService.getApprovalReadiness(getParamId(req)); res.json({ success: true, data }); } catch (error) { next(error); }
+};
+
+export const getValidationRuleHistory = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try { const data = await validationService.getRuleHistory(getParamId(req)); res.json({ success: true, data }); } catch (error) { next(error); }
+};

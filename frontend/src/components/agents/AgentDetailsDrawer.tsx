@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   X, Shield, Activity, History, TrendingUp, AlertTriangle,
   CheckCircle, FileText, User, ExternalLink, Pause, Play,
@@ -29,7 +29,6 @@ interface Agent {
   linked_prompts?: string[];
   linked_workflows?: string[];
   linked_knowledge_sources?: string[];
-  runtime_controls?: { environment?: string } | null;
   created_at: string;
 }
 
@@ -107,20 +106,6 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const drawerRef = useRef<HTMLDivElement>(null);
-
-  // When the drawer opens, smooth-scroll it into view. Mirrors the
-  // CertificationSandbox pattern: a transformed ancestor can make this
-  // position:fixed drawer resolve relative to that ancestor (so it can land
-  // off-screen) — the user no longer has to scroll to find the opened details.
-  useEffect(() => {
-    if (!isOpen) return;
-    const raf = requestAnimationFrame(() => {
-      drawerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [isOpen]);
-
   // ── FIX: depend on agent.id (primitive) instead of the agent object reference.
   //    Parent state updates that re-render the page can produce a fresh agent
   //    object with identical contents, which would re-fire all 4 fetches.
@@ -153,8 +138,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
       },
       deploy: {
         url: `/api/v1/agents/${agent.id}/deploy`,
-        // Deployment target follows the agent's runtime policy, not any view filter.
-        body: { environment: agent.runtime_controls?.environment || 'production' },
+        body: { environment: 'production' },
       },
       pause: {
         url: `/api/v1/agents/${agent.id}/pause`,
@@ -177,22 +161,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
     try {
       setActionError(null);
       setActionBusy(action);
-      const result = await api.post(commandMap[action].url, commandMap[action].body);
-      // api.post resolves (does not throw) on non-2xx, so check the envelope —
-      // the backend can block an action (e.g. 422 when governance gates fail).
-      if (!result?.success) {
-        const blockers = Array.isArray(result?.data?.blockers)
-          ? (result.data.blockers as string[])
-          : [];
-        setActionError(
-          blockers.length > 0
-            ? `Deploy blocked: ${blockers.join('; ')}`
-            : typeof result?.error === 'string'
-              ? result.error
-              : `Unable to ${action} agent.`,
-        );
-        return;
-      }
+      await api.post(commandMap[action].url, commandMap[action].body);
       onUpdate();
       if (action === 'clone') {
         onClose();
@@ -230,7 +199,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
   ];
 
   return (
-    <div ref={drawerRef} className={`fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-[var(--card)] border-l border-[var(--card-border)] shadow-2xl transform transition-transform duration-500 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+    <div className={`fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-[var(--card)] border-l border-[var(--card-border)] shadow-2xl transform transition-transform duration-500 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
       <div className="flex flex-col h-full">
         <div className="p-6 border-b border-[var(--card-border)] bg-[var(--surface)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
@@ -341,7 +310,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                     { label: 'Primary DRI', value: agent.primary_dri?.full_name || 'Unassigned', icon: User },
                     { label: 'Autonomy Level', value: agent.autonomy_level, icon: Shield },
                     { label: 'Assigned Brand', value: agent.assigned_brand || 'Global System', icon: Globe },
-                    { label: 'Risk Level', value: agent.risk_level || 'Not Set', icon: AlertTriangle },
+                    { label: 'Risk Level', value: agent.risk_level || 'medium', icon: AlertTriangle },
                   ].map(row => (
                     <div key={row.label}>
                       <div className="text-[9px] font-black text-[var(--foreground-muted)] uppercase mb-0.5">{row.label}</div>
@@ -592,19 +561,17 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                   <div className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                     <div className="text-[10px] font-black uppercase text-[var(--foreground-muted)]">Risk Tier</div>
                     <div className={`text-sm font-bold capitalize mt-1 ${
-                      !agent.risk_level ? 'text-rose-500' :
-                      agent.risk_level === 'low' ? 'text-emerald-500' :
-                      agent.risk_level === 'high' || agent.risk_level === 'critical' ? 'text-rose-500' :
+                      (agent.risk_level || 'medium') === 'low' ? 'text-emerald-500' :
+                      (agent.risk_level || 'medium') === 'high' || (agent.risk_level || 'medium') === 'critical' ? 'text-rose-500' :
                       'text-amber-500'
-                    }`}>{agent.risk_level || 'Not Set'}</div>
+                    }`}>{agent.risk_level || 'medium'}</div>
                   </div>
                   <div className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                     <div className="text-[10px] font-black uppercase text-[var(--foreground-muted)]">Approval Path</div>
-                    <div className={`text-sm font-bold capitalize mt-1 ${!agent.risk_level ? 'text-rose-500' : 'text-[var(--foreground)]'}`}>
-                      {!agent.risk_level ? 'Set risk tier first' :
-                       agent.risk_level === 'low' ? 'Campaign Owner' :
-                       agent.risk_level === 'medium' ? 'Campaign Owner + AI Gov' :
-                       agent.risk_level === 'high' ? 'Campaign Owner + AI Gov + Brand' :
+                    <div className="text-sm font-bold capitalize mt-1 text-[var(--foreground)]">
+                      {(agent.risk_level || 'medium') === 'low' ? 'Campaign Owner' :
+                       (agent.risk_level || 'medium') === 'medium' ? 'Campaign Owner + AI Gov' :
+                       (agent.risk_level || 'medium') === 'high' ? 'Campaign Owner + AI Gov + Brand' :
                        'Full Chain + Compliance'}
                     </div>
                   </div>
