@@ -26,7 +26,7 @@ function buildHtml(body: string): string {
         <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
           <tr>
             <td style="padding:32px 32px 0 32px;text-align:center;">
-              <img src="${env.FRONTEND_URL.replace(/\/+$/, '')}/images/zoikovertex_favicon.png" alt="ZoikoVertex" style="height:40px;width:40px;border-radius:8px;opacity:0.9;" />
+              <img src="${env.FRONTEND_URL.replace(/\/+$/, '')}/images/zoikovertexlogo.png" alt="ZoikoVertex" style="height:32px;width:auto;opacity:0.9;" />
             </td>
           </tr>
           <tr>
