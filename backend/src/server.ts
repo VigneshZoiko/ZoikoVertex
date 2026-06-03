@@ -1074,6 +1074,12 @@ app.get('/api/v1/prompts/stats', authenticate, PromptController.getPromptStats);
 app.get('/api/v1/prompts/approvals/stats', authenticate, PromptController.getApprovalStats);
 // Append-only audit trail — single record lookup (static, before :id routes)
 app.get('/api/v1/prompts/audit/:auditId', authenticate, PromptController.getAuditEntry);
+// Reverse dependency traversal (static, MUST precede /prompts/:id to avoid shadowing)
+app.get('/api/v1/prompts/dependents', authenticate, PromptController.getPromptDependents);
+// Dependency notification plan (static, MUST precede /prompts/:id to avoid shadowing)
+app.get('/api/v1/prompts/dependency-notifications/plan', authenticate, PromptController.getDependencyNotificationPlan);
+// Governance dashboard rollup (static, MUST precede /prompts/:id to avoid shadowing)
+app.get('/api/v1/prompts/governance-dashboard', authenticate, PromptController.getGovernanceDashboard);
 
 // Versions sub-routes (no :id prefix)
 app.post('/api/v1/prompts/versions/:versionId/approve', authenticate, PromptController.approveVersion);
@@ -1090,6 +1096,8 @@ app.post('/api/v1/prompts/versions/:versionId/knowledge', authenticate, PromptCo
 app.get('/api/v1/prompts/versions/:versionId/tools', authenticate, PromptController.listToolPermissions);
 app.post('/api/v1/prompts/versions/:versionId/tools', authenticate, PromptController.createToolPermission);
 app.get('/api/v1/prompts/versions/:versionId/graph', authenticate, PromptController.getPromptVersionGraph);
+app.get('/api/v1/prompts/versions/:versionId/dependency-health', authenticate, PromptController.getPromptVersionDependencyHealth);
+app.get('/api/v1/prompts/versions/:versionId/impact', authenticate, PromptController.getPromptVersionImpact);
 // Dependency binding edits (update / delete) — addressed by binding id, tenant-scoped
 app.patch('/api/v1/prompts/bindings/:bindingId', authenticate, PromptController.updateBinding);
 app.delete('/api/v1/prompts/bindings/:bindingId', authenticate, PromptController.deleteBinding);
@@ -1103,6 +1111,9 @@ app.get('/api/v1/prompts', authenticate, PromptController.listPrompts);
 app.post('/api/v1/prompts', authenticate, PromptController.createPrompt);
 app.get('/api/v1/prompts/:id', authenticate, PromptController.getPrompt);
 app.get('/api/v1/prompts/:id/graph', authenticate, PromptController.getPromptGraph);
+app.get('/api/v1/prompts/:id/dependency-health', authenticate, PromptController.getPromptDependencyHealth);
+app.get('/api/v1/prompts/:id/impact', authenticate, PromptController.getPromptImpact);
+app.get('/api/v1/prompts/:id/governance-snapshot', authenticate, PromptController.getPromptGovernanceSnapshot);
 app.patch('/api/v1/prompts/:id', authenticate, PromptController.updatePrompt);
 app.post('/api/v1/prompts/:id/clone', authenticate, PromptController.clonePrompt);
 

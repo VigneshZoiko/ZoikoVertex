@@ -76,7 +76,7 @@ export class PromptDependencyService {
       const { data, error } = await supabaseAdmin.from(table).select(columns).in('id', unique);
       if (error) return { available: false, map: new Map() };
       const map = new Map<string, any>();
-      for (const row of data || []) map.set(row.id, row);
+      for (const row of ((data as any[]) || [])) map.set(row.id, row);
       return { available: true, map };
     } catch {
       return { available: false, map: new Map() };

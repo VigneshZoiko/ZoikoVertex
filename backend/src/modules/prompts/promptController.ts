@@ -12,6 +12,10 @@ import { PromptEvidenceService } from './PromptEvidenceService';
 import { PromptAuditService } from './PromptAuditService';
 import { ApprovalInvalidationService } from './ApprovalInvalidationService';
 import { PromptDependencyService } from './PromptDependencyService';
+import { DependencyImpactService } from './services/DependencyImpactService';
+import { ReverseDependencyService, ReverseTargetType } from './services/ReverseDependencyService';
+import { DependencyNotificationPlanner } from './services/DependencyNotificationPlanner';
+import { GovernanceDashboardService } from './services/GovernanceDashboardService';
 import { getParam, getQueryValue, getQueryNumber } from '../../shared/request';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { PROMPT_STATUS, normalizePromptStatus } from './PromptService';
@@ -1270,6 +1274,267 @@ export class PromptController {
         referenceTime,
       });
       res.json({ success: true, data: graph });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Dependency Health (Batch 3B.8) ──────────────────────────────────────
+  // Read-only projections of the forward dependency graph's HEALTH view. They
+  // reuse PromptDependencyService.getGraph() as the single source of truth — the
+  // graph already classifies each edge through DependencyHealthService and rolls
+  // up a summary, so these endpoints never recompute health or call the health
+  // service directly. No mutations, no audit emission, no deploy/runtime impact.
+
+  static async getPromptDependencyHealth(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      // Tenant isolation: prompts.workspace_id — a prompt from another workspace 404s here.
+      await PromptService.requireById(promptId, workspaceId);
+      const referenceTime = getQueryValue(req, 'referenceTime') || undefined;
+      const graph = await PromptDependencyService.getGraph(promptId, workspaceId, { referenceTime });
+      res.json({
+        success: true,
+        data: {
+          found: graph.found,
+          prompt_id: graph.prompt_id,
+          workspace_id: graph.workspace_id,
+          summary: graph.summary,
+          health: graph.edges
+            .filter((e) => e.health)
+            .map((e) => ({
+              source: e.source,
+              target: e.target,
+              dependency_type: e.dependency_type,
+              environment: e.environment,
+              ...e.health,
+            })),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getPromptVersionDependencyHealth(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      // Version isolation: prompt_versions → prompts → workspace_id.
+      const version = await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      const referenceTime = getQueryValue(req, 'referenceTime') || undefined;
+      const graph = await PromptDependencyService.getGraph(version.prompt_id, workspaceId, {
+        versionId: version.id,
+        referenceTime,
+      });
+      res.json({
+        success: true,
+        data: {
+          found: graph.found,
+          prompt_id: graph.prompt_id,
+          workspace_id: graph.workspace_id,
+          summary: graph.summary,
+          health: graph.edges
+            .filter((e) => e.health)
+            .map((e) => ({
+              source: e.source,
+              target: e.target,
+              dependency_type: e.dependency_type,
+              environment: e.environment,
+              ...e.health,
+            })),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Dependency Impact (Batch 3B.9) ──────────────────────────────────────
+  // Read-only governance impact previews. Reuse DependencyImpactService (which
+  // sources everything from PromptDependencyService.getGraph()). NO mutations,
+  // NO audit emission, NO deployment-gate change — the live deploy gate in
+  // deployVersion is the enforcement path; these endpoints are advisory only.
+
+  static async getPromptImpact(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      // Tenant isolation: a prompt from another workspace 404s here.
+      await PromptService.requireById(promptId, workspaceId);
+
+      const action = getQueryValue(req, 'action');
+      const referenceTime = getQueryValue(req, 'referenceTime') || undefined;
+
+      let result;
+      switch (action) {
+        case 'deploy':
+          result = await DependencyImpactService.analyzeDeploymentImpact(promptId, workspaceId, { referenceTime });
+          break;
+        case 'archive':
+          result = await DependencyImpactService.analyzeArchiveImpact(promptId, workspaceId, { referenceTime });
+          break;
+        case 'retire':
+          result = await DependencyImpactService.analyzeRetireImpact(promptId, workspaceId, { referenceTime });
+          break;
+        case 'rollback': {
+          const targetVersionId = getQueryValue(req, 'targetVersionId');
+          if (!targetVersionId) {
+            return res.status(400).json({ error: 'targetVersionId is required for a prompt-level rollback impact request.' });
+          }
+          result = await DependencyImpactService.analyzeRollbackImpact(promptId, workspaceId, targetVersionId, { referenceTime });
+          break;
+        }
+        default:
+          return res.status(400).json({ error: "Invalid action. Allowed values: 'deploy', 'rollback', 'archive', 'retire'." });
+      }
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getPromptVersionImpact(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      // Version isolation: prompt_versions → prompts → workspace_id.
+      const version = await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+
+      const action = getQueryValue(req, 'action');
+      const referenceTime = getQueryValue(req, 'referenceTime') || undefined;
+
+      let result;
+      switch (action) {
+        case 'deploy':
+          result = await DependencyImpactService.analyzeDeploymentImpact(version.prompt_id, workspaceId, { versionId: version.id, referenceTime });
+          break;
+        case 'archive':
+          result = await DependencyImpactService.analyzeArchiveImpact(version.prompt_id, workspaceId, { referenceTime });
+          break;
+        case 'retire':
+          result = await DependencyImpactService.analyzeRetireImpact(version.prompt_id, workspaceId, { referenceTime });
+          break;
+        case 'rollback':
+          // The requested version IS the rollback target — no extra param required.
+          result = await DependencyImpactService.analyzeRollbackImpact(version.prompt_id, workspaceId, version.id, { referenceTime });
+          break;
+        default:
+          return res.status(400).json({ error: "Invalid action. Allowed values: 'deploy', 'rollback', 'archive', 'retire'." });
+      }
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Reverse Dependency Traversal (Batch 3B.11) ──────────────────────────
+  // GET /api/v1/prompts/dependents?targetType=&targetId= — "which prompts depend
+  // on this target?". Read-only; tenant isolation is delegated to
+  // ReverseDependencyService (workspace gate via prompt_versions → prompts →
+  // workspace_id), so a foreign targetId cannot leak cross-tenant prompts. No
+  // mutations, no audit emission, no deploy/runtime impact.
+
+  static async getPromptDependents(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+
+      const ALLOWED_TARGET_TYPES: ReverseTargetType[] = [
+        'agent', 'workflow', 'workflow_node', 'knowledge', 'collection', 'tool', 'channel', 'brand', 'policy',
+      ];
+      const targetType = getQueryValue(req, 'targetType');
+      const targetId = getQueryValue(req, 'targetId');
+
+      if (!targetType || !ALLOWED_TARGET_TYPES.includes(targetType as ReverseTargetType)) {
+        return res.status(400).json({
+          error: `Invalid or missing targetType. Allowed values: ${ALLOWED_TARGET_TYPES.join(', ')}.`,
+        });
+      }
+      if (!targetId) {
+        return res.status(400).json({ error: 'targetId is required.' });
+      }
+
+      const result = await ReverseDependencyService.getDependents(
+        targetType as ReverseTargetType,
+        targetId,
+        workspaceId,
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Dependency Notification Plan (Batch 3B.13) ──────────────────────────
+  // GET /api/v1/prompts/dependency-notifications/plan?targetType=&targetId=&status=
+  // Returns a notification PLAN only (who/why/what/severity/recommended action).
+  // Read-only; NEVER sends. Tenant isolation is delegated to
+  // DependencyNotificationPlanner (reverse-traversal workspace gate + prompt
+  // re-filter). No mutations, no audit/evidence emission, no deploy/runtime impact.
+
+  static async getDependencyNotificationPlan(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+
+      const ALLOWED_TARGET_TYPES: ReverseTargetType[] = [
+        'agent', 'workflow', 'workflow_node', 'knowledge', 'collection', 'tool', 'channel', 'brand', 'policy',
+      ];
+      const targetType = getQueryValue(req, 'targetType');
+      const targetId = getQueryValue(req, 'targetId');
+      // status is passed straight through to the planner — intentionally NOT validated.
+      const status = getQueryValue(req, 'status');
+
+      if (!targetType || !ALLOWED_TARGET_TYPES.includes(targetType as ReverseTargetType)) {
+        return res.status(400).json({
+          error: `Invalid or missing targetType. Allowed values: ${ALLOWED_TARGET_TYPES.join(', ')}.`,
+        });
+      }
+      if (!targetId) {
+        return res.status(400).json({ error: 'targetId is required.' });
+      }
+
+      const result = await DependencyNotificationPlanner.planNotifications({
+        targetType: targetType as ReverseTargetType,
+        targetId,
+        workspaceId,
+        status,
+      });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Governance Dashboard (Batch 3B.15) ──────────────────────────────────
+  // Read-only aggregation endpoints over GovernanceDashboardService. No
+  // mutations, no audit/evidence emission, no deploy/runtime impact. Workspace
+  // isolation via resolveWorkspaceId (+ requireById on the snapshot).
+
+  static async getGovernanceDashboard(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const limit = getQueryNumber(req, 'limit', 100);
+      const data = await GovernanceDashboardService.getWorkspaceDashboard(workspaceId, { limit });
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getPromptGovernanceSnapshot(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      // Tenant isolation: a prompt from another workspace 404s here.
+      await PromptService.requireById(promptId, workspaceId);
+      const referenceTime = getQueryValue(req, 'referenceTime') || undefined;
+      const data = await GovernanceDashboardService.getPromptGovernanceSnapshot(promptId, workspaceId, { referenceTime });
+      res.json({ success: true, data });
     } catch (error) {
       next(error);
     }
