@@ -1080,6 +1080,14 @@ app.get('/api/v1/prompts/dependents', authenticate, PromptController.getPromptDe
 app.get('/api/v1/prompts/dependency-notifications/plan', authenticate, PromptController.getDependencyNotificationPlan);
 // Governance dashboard rollup (static, MUST precede /prompts/:id to avoid shadowing)
 app.get('/api/v1/prompts/governance-dashboard', authenticate, PromptController.getGovernanceDashboard);
+// Runtime trace ingestion (static, MUST precede /prompts/:id). Service-authenticated
+// via API key scope; JWT users are role-gated inside the handler.
+app.post('/api/v1/prompts/runtime-traces', authenticate, scopeGuard('write:prompt_runtime_trace'), PromptController.ingestRuntimeTrace);
+// Incident detail/update/close (static incidents/:incidentId, MUST precede /prompts/:id).
+// Create/update/close are governance-role-gated inside the handlers.
+app.get('/api/v1/prompts/incidents/:incidentId', authenticate, PromptController.getIncident);
+app.patch('/api/v1/prompts/incidents/:incidentId', authenticate, PromptController.updateIncident);
+app.post('/api/v1/prompts/incidents/:incidentId/close', authenticate, PromptController.closeIncident);
 
 // Versions sub-routes (no :id prefix)
 app.post('/api/v1/prompts/versions/:versionId/approve', authenticate, PromptController.approveVersion);
@@ -1098,6 +1106,7 @@ app.post('/api/v1/prompts/versions/:versionId/tools', authenticate, PromptContro
 app.get('/api/v1/prompts/versions/:versionId/graph', authenticate, PromptController.getPromptVersionGraph);
 app.get('/api/v1/prompts/versions/:versionId/dependency-health', authenticate, PromptController.getPromptVersionDependencyHealth);
 app.get('/api/v1/prompts/versions/:versionId/impact', authenticate, PromptController.getPromptVersionImpact);
+app.get('/api/v1/prompts/versions/:versionId/runtime-traces', authenticate, PromptController.listVersionRuntimeTraces);
 // Dependency binding edits (update / delete) — addressed by binding id, tenant-scoped
 app.patch('/api/v1/prompts/bindings/:bindingId', authenticate, PromptController.updateBinding);
 app.delete('/api/v1/prompts/bindings/:bindingId', authenticate, PromptController.deleteBinding);
@@ -1127,6 +1136,17 @@ app.post('/api/v1/prompts/:id/rollback', authenticate, PromptController.rollback
 
 // Evidence Vault — immutable evidence chain for a prompt
 app.get('/api/v1/prompts/:id/evidence', authenticate, PromptController.listPromptEvidence);
+
+// Evidence Export — sealed, reason-stamped export package (permission-gated)
+app.post('/api/v1/prompts/:id/evidence/export', authenticate, PromptController.createPromptEvidenceExport);
+app.get('/api/v1/prompts/:id/evidence/export/:exportId', authenticate, PromptController.getPromptEvidenceExport);
+
+// Runtime Evidence — runtime traces for a prompt (read-only, workspace-scoped)
+app.get('/api/v1/prompts/:id/runtime-traces', authenticate, PromptController.listPromptRuntimeTraces);
+
+// Prompt Incidents — open (governance roles) + list (workspace-scoped)
+app.post('/api/v1/prompts/:id/incidents', authenticate, PromptController.createIncident);
+app.get('/api/v1/prompts/:id/incidents', authenticate, PromptController.listPromptIncidents);
 
 // Append-only Audit Trail — governance ledger for a prompt (read-only)
 app.get('/api/v1/prompts/:id/audit', authenticate, PromptController.listPromptAudit);

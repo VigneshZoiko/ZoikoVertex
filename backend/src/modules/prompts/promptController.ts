@@ -12,10 +12,13 @@ import { PromptEvidenceService } from './PromptEvidenceService';
 import { PromptAuditService } from './PromptAuditService';
 import { ApprovalInvalidationService } from './ApprovalInvalidationService';
 import { PromptDependencyService } from './PromptDependencyService';
+import { PromptRuntimeTraceService } from './PromptRuntimeTraceService';
 import { DependencyImpactService } from './services/DependencyImpactService';
 import { ReverseDependencyService, ReverseTargetType } from './services/ReverseDependencyService';
 import { DependencyNotificationPlanner } from './services/DependencyNotificationPlanner';
 import { GovernanceDashboardService } from './services/GovernanceDashboardService';
+import { PromptIncidentService } from './services/PromptIncidentService';
+import { PromptEvidenceExportService } from './services/PromptEvidenceExportService';
 import { getParam, getQueryValue, getQueryNumber } from '../../shared/request';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { PROMPT_STATUS, normalizePromptStatus } from './PromptService';
@@ -239,6 +242,343 @@ export class PromptController {
         data: result.records,
         pagination: { total: result.total, limit: result.limit, offset: result.offset },
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Runtime Evidence (Phase 4 / Batch 4.3) ───────────────────────────────
+  // Ingestion-only surface for runtime traces. The Runtime Engine remains the
+  // source of truth; these endpoints record and read traces. They never enforce
+  // runtime behavior and never mutate the Runtime Engine.
+
+  /**
+   * Ingest a runtime trace. Service-authenticated OR strongly role-gated:
+   *   - API key  : scopeGuard('write:prompt_runtime_trace') already enforced the
+   *                scope at the route (JWT users bypass scopeGuard, so they are
+   *                checked here).
+   *   - JWT user : must be superadmin / GOVERNANCE_ADMIN / ADMIN / WORKSPACE_OWNER.
+   * workspace_id is taken from the authenticated token, never from the body.
+   */
+  static async ingestRuntimeTrace(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const user = req.user;
+      const isServiceKey = !!user?.api_key_id; // scope already validated by scopeGuard
+      const role = String(user?.role || '').toUpperCase();
+      const strongRole =
+        !!user?.is_superadmin || ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER'].includes(role);
+      if (!isServiceKey && !strongRole) {
+        return res.status(403).json({
+          error: 'Forbidden: runtime trace ingestion requires a scoped service key or a governance admin role',
+        });
+      }
+
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const body = (req.body || {}) as Record<string, unknown>;
+
+      const result = await PromptRuntimeTraceService.ingestRuntimeTrace({
+        workspace_id: workspaceId,
+        prompt_version_id: String(body.prompt_version_id || ''),
+        execution_id: body.execution_id as string | undefined,
+        environment: body.environment as string | undefined,
+        model_id: body.model_id as string | undefined,
+        input_hash: body.input_hash as string | undefined,
+        output_hash: body.output_hash as string | undefined,
+        policy_result: body.policy_result as string | undefined,
+        policy_result_json: body.policy_result_json as Record<string, unknown> | undefined,
+        tool_calls: body.tool_calls as unknown[] | undefined,
+        kb_sources: body.kb_sources as unknown[] | undefined,
+        runtime_policy_id: body.runtime_policy_id as string | undefined,
+        violation: body.violation === true,
+        violation_reason: body.violation_reason as string | undefined,
+        deployment_id: body.deployment_id as string | undefined,
+        actor_id: user?.id,
+        source_ip: clientIp(req) || undefined,
+        correlation_id: body.correlation_id as string | undefined,
+      });
+
+      if (!result.ok) {
+        const status = result.code === 'MISSING_WORKSPACE' ? 400 : result.code === 'VERSION_NOT_FOUND' ? 404 : 403;
+        return res.status(status).json({ error: result.code });
+      }
+
+      return res.status(201).json({ success: true, data: result.trace });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** List runtime traces for a prompt (workspace-scoped). */
+  static async listPromptRuntimeTraces(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      // Tenant + existence check: a prompt from another workspace 404s here.
+      await PromptService.requireById(promptId, workspaceId);
+      const result = await PromptRuntimeTraceService.listByPrompt(promptId, workspaceId, {
+        version_id: getQueryValue(req, 'version_id'),
+        violation_only: getQueryValue(req, 'violation_only') === 'true',
+        limit: getQueryNumber(req, 'limit', 50),
+        offset: getQueryNumber(req, 'offset', 0),
+      });
+      res.json({
+        success: true,
+        data: result.records,
+        pagination: { total: result.total, limit: result.limit, offset: result.offset },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** List runtime traces for a single prompt version (workspace-scoped). */
+  static async listVersionRuntimeTraces(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      const version = await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      const result = await PromptRuntimeTraceService.listByVersion(versionId, workspaceId, {
+        violation_only: getQueryValue(req, 'violation_only') === 'true',
+        limit: getQueryNumber(req, 'limit', 50),
+        offset: getQueryNumber(req, 'offset', 0),
+      });
+      res.json({
+        success: true,
+        data: result.records,
+        pagination: { total: result.total, limit: result.limit, offset: result.offset },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Prompt Incidents (Phase 4 / Batch 4.4) ───────────────────────────────
+  // Prompt-Governance incident lifecycle. Reads are available to authenticated
+  // workspace users; create/update/close require a governance role.
+
+  /** True when the caller holds a governance role permitted to mutate incidents. */
+  private static isGovernanceRole(req: AuthRequest): boolean {
+    const user = req.user;
+    const role = String(user?.role || '').toUpperCase();
+    return !!user?.is_superadmin || ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER'].includes(role);
+  }
+
+  private static incidentErrorStatus(code: string): number {
+    if (code === 'MISSING_WORKSPACE') return 400;
+    if (code === 'TENANT_MISMATCH') return 403;
+    if (code === 'INVALID_TRANSITION' || code === 'ALREADY_CLOSED') return 409;
+    return 404; // PROMPT_NOT_FOUND / VERSION_NOT_FOUND / TRACE_NOT_FOUND / INCIDENT_NOT_FOUND
+  }
+
+  /** Open an incident for a prompt (governance roles only). */
+  static async createIncident(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!PromptController.isGovernanceRole(req)) {
+        return res.status(403).json({ error: 'Forbidden: incident management requires a governance role' });
+      }
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      const body = (req.body || {}) as Record<string, unknown>;
+
+      const result = await PromptIncidentService.openIncident({
+        workspace_id: workspaceId,
+        prompt_id: promptId,
+        prompt_version_id: body.prompt_version_id as string | undefined,
+        runtime_trace_id: body.runtime_trace_id as string | undefined,
+        deployment_id: body.deployment_id as string | undefined,
+        rollback_deployment_id: body.rollback_deployment_id as string | undefined,
+        rollback_to_version_id: body.rollback_to_version_id as string | undefined,
+        severity: body.severity as string | undefined,
+        category: body.category as string | undefined,
+        trigger: body.trigger as string | undefined,
+        runtime_policy_id: body.runtime_policy_id as string | undefined,
+        detected_by: body.detected_by as string | undefined,
+        owner_id: body.owner_id as string | undefined,
+        remediation: body.remediation as string | undefined,
+        affected_scope: body.affected_scope as Record<string, unknown> | undefined,
+        actor_id: req.user?.id,
+        actor_role: req.user?.role || undefined,
+        source_ip: clientIp(req) || undefined,
+      });
+
+      if (!result.ok) {
+        return res.status(PromptController.incidentErrorStatus(result.code)).json({ error: result.code });
+      }
+      return res.status(201).json({ success: true, data: result.incident });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** List incidents for a prompt (workspace-scoped). */
+  static async listPromptIncidents(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      await PromptService.requireById(promptId, workspaceId);
+      const result = await PromptIncidentService.listByPrompt(promptId, workspaceId, {
+        status: getQueryValue(req, 'status'),
+        severity: getQueryValue(req, 'severity'),
+        limit: getQueryNumber(req, 'limit', 50),
+        offset: getQueryNumber(req, 'offset', 0),
+      });
+      res.json({
+        success: true,
+        data: result.records,
+        pagination: { total: result.total, limit: result.limit, offset: result.offset },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** Fetch a single incident (workspace-scoped). */
+  static async getIncident(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const incident = await PromptIncidentService.getIncident(getParam(req, 'incidentId'), workspaceId);
+      if (!incident) return res.status(404).json({ error: 'Incident not found' });
+      res.json({ success: true, data: incident });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** Update an incident — status transitions + fields (governance roles only). */
+  static async updateIncident(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!PromptController.isGovernanceRole(req)) {
+        return res.status(403).json({ error: 'Forbidden: incident management requires a governance role' });
+      }
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const body = (req.body || {}) as Record<string, unknown>;
+
+      const result = await PromptIncidentService.updateIncident(getParam(req, 'incidentId'), workspaceId, {
+        status: body.status as string | undefined,
+        severity: body.severity as string | undefined,
+        category: body.category as string | undefined,
+        owner_id: body.owner_id as string | undefined,
+        remediation: body.remediation as string | undefined,
+        post_incident_note: body.post_incident_note as string | undefined,
+        affected_scope: body.affected_scope as Record<string, unknown> | undefined,
+        actor_id: req.user?.id,
+        actor_role: req.user?.role || undefined,
+        source_ip: clientIp(req) || undefined,
+      });
+
+      if (!result.ok) {
+        return res.status(PromptController.incidentErrorStatus(result.code)).json({ error: result.code });
+      }
+      res.json({ success: true, data: result.incident });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** Close an incident (governance roles only). */
+  static async closeIncident(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!PromptController.isGovernanceRole(req)) {
+        return res.status(403).json({ error: 'Forbidden: incident management requires a governance role' });
+      }
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const body = (req.body || {}) as Record<string, unknown>;
+
+      const result = await PromptIncidentService.closeIncident(getParam(req, 'incidentId'), workspaceId, {
+        closed_by: req.user?.id,
+        post_incident_note: body.post_incident_note as string | undefined,
+        remediation: body.remediation as string | undefined,
+        actor_id: req.user?.id,
+        actor_role: req.user?.role || undefined,
+        source_ip: clientIp(req) || undefined,
+      });
+
+      if (!result.ok) {
+        return res.status(PromptController.incidentErrorStatus(result.code)).json({ error: result.code });
+      }
+      res.json({ success: true, data: result.incident });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Evidence Export (Phase 4 / Batch 4.5) ────────────────────────────────
+  // Permission-gated, reason-stamped evidence export. Reuses the Evidence Vault
+  // package/seal/export primitives; creates no new tables or export ledger.
+
+  /**
+   * True when the caller may export prompt evidence:
+   *   - API key with scope `prompt.export.evidence` or `*`, OR
+   *   - JWT superadmin / GOVERNANCE_ADMIN / ADMIN / WORKSPACE_OWNER /
+   *     COMPLIANCE_REVIEWER / AUDITOR.
+   */
+  private static canExportEvidence(req: AuthRequest): boolean {
+    const user = req.user;
+    if (user?.api_key_id) {
+      const scopes = user.api_key_scopes || [];
+      return scopes.includes('*') || scopes.includes('prompt.export.evidence');
+    }
+    const role = String(user?.role || '').toUpperCase();
+    return (
+      !!user?.is_superadmin ||
+      ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'AUDITOR'].includes(role)
+    );
+  }
+
+  private static exportErrorStatus(code: string): number {
+    if (code === 'MISSING_WORKSPACE' || code === 'MISSING_REASON') return 400;
+    if (code === 'TENANT_MISMATCH') return 403;
+    if (code === 'NO_EVIDENCE') return 409;
+    return 404; // PROMPT_NOT_FOUND / EXPORT_NOT_FOUND
+  }
+
+  /** Create a sealed evidence export package for a prompt. Reason is mandatory. */
+  static async createPromptEvidenceExport(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!PromptController.canExportEvidence(req)) {
+        return res.status(403).json({ error: 'Forbidden: evidence export requires the prompt.export.evidence permission or a governance/audit role' });
+      }
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const body = (req.body || {}) as Record<string, unknown>;
+
+      const result = await PromptEvidenceExportService.createPromptEvidenceExport({
+        workspace_id: workspaceId,
+        prompt_id: getParam(req, 'id'),
+        reason: String(body.reason || ''),
+        disclosure_mode: body.disclosure_mode as string | undefined,
+        delivery_method: body.delivery_method as string | undefined,
+        expires_at: body.expires_at as string | undefined,
+        actor_id: req.user?.id,
+        actor_role: req.user?.role || undefined,
+        source_ip: clientIp(req) || undefined,
+      });
+
+      if (!result.ok) {
+        return res.status(PromptController.exportErrorStatus(result.code)).json({ error: result.code });
+      }
+      return res.status(201).json({ success: true, data: result.data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** Fetch an evidence export receipt + manifest (workspace + prompt scoped). */
+  static async getPromptEvidenceExport(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!PromptController.canExportEvidence(req)) {
+        return res.status(403).json({ error: 'Forbidden: evidence export requires the prompt.export.evidence permission or a governance/audit role' });
+      }
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const result = await PromptEvidenceExportService.getPromptEvidenceExport(
+        getParam(req, 'exportId'),
+        getParam(req, 'id'),
+        workspaceId,
+      );
+      if (!result.ok) {
+        return res.status(PromptController.exportErrorStatus(result.code)).json({ error: result.code });
+      }
+      res.json({ success: true, data: result.data });
     } catch (error) {
       next(error);
     }

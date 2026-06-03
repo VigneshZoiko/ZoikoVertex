@@ -1,11 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // ─────────────────────────────────────────────────────────────────────────────
-// In-memory Supabase mock for Prompt Governance dependency tests (Phase 3B.C).
+// In-memory Supabase mock for Prompt Governance tests.
 //
-// Provides a chainable query builder backed by per-table fixtures, supporting the
-// exact operations the dependency services use: select / eq / in / is / or /
-// order / limit / maybeSingle / single / await (thenable). Validation-only — no
-// real DB, no network. Set fixtures per test via setFixtures().
+// Chainable query builder backed by per-table fixtures. Supports the operations
+// the prompt-governance services use:
+//   select(cols, {count, head}) / eq / neq / in / is / not / or / order / limit /
+//   range / maybeSingle / single / insert / update / await (thenable).
+//
+// Phase 4 additions (backward-compatible): insert(), update(), range(), not(),
+// and count/head support on select(). Validation-only — no real DB, no network.
+// Set fixtures per test via setFixtures().
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface Fixtures {
@@ -20,6 +24,12 @@ export function setFixtures(fixtures: Fixtures): void {
 
 export function resetFixtures(): void {
   mockState.fixtures = {};
+}
+
+let __idCounter = 0;
+function genId(table: string): string {
+  __idCounter += 1;
+  return `${table}-mock-${__idCounter}`;
 }
 
 type Pred = (row: any) => boolean;
@@ -64,24 +74,51 @@ function parseOr(expr: string): Pred {
   return (r: any) => groups.some((p) => p(r));
 }
 
+type Mode = 'select' | 'insert' | 'update';
+
 class QueryBuilder {
   private preds: Pred[] = [];
   private _order?: { col: string; asc: boolean };
   private _limit?: number;
+  private _from?: number;
+  private _to?: number;
+  private _count = false;
+  private _head = false;
+  private _mode: Mode = 'select';
+  private _payload: any;
 
-  constructor(private getRows: () => any[]) {}
+  constructor(private table: string) {}
 
-  select(_cols?: string) { return this; }
+  private get store(): any[] {
+    if (!mockState.fixtures[this.table]) mockState.fixtures[this.table] = [];
+    return mockState.fixtures[this.table];
+  }
+
+  select(_cols?: string, opts?: { count?: string; head?: boolean }) {
+    if (opts?.count) this._count = true;
+    if (opts?.head) this._head = true;
+    return this;
+  }
+  insert(payload: any) { this._mode = 'insert'; this._payload = payload; return this; }
+  update(patch: any) { this._mode = 'update'; this._payload = patch; return this; }
+
   eq(col: string, val: any) { this.preds.push((r) => r[col] === val); return this; }
   neq(col: string, val: any) { this.preds.push((r) => r[col] !== val); return this; }
   in(col: string, vals: any[]) { const set = new Set(vals); this.preds.push((r) => set.has(r[col])); return this; }
   is(col: string, val: any) { this.preds.push((r) => (val === null ? r[col] == null : r[col] === val)); return this; }
+  not(col: string, op: string, val: any) {
+    if (op === 'is' && val === null) this.preds.push((r) => r[col] != null);
+    else if (op === 'eq') this.preds.push((r) => r[col] !== val);
+    return this;
+  }
   or(expr: string) { this.preds.push(parseOr(expr)); return this; }
   order(col: string, opts?: { ascending?: boolean }) { this._order = { col, asc: opts?.ascending !== false }; return this; }
   limit(n: number) { this._limit = n; return this; }
+  range(from: number, to: number) { this._from = from; this._to = to; return this; }
 
-  private rows(): any[] {
-    let rows = (this.getRows() || []).filter((r) => this.preds.every((p) => p(r)));
+  /** Filtered + ordered, BEFORE range/limit slicing (count basis). */
+  private filtered(): any[] {
+    let rows = this.store.filter((r) => this.preds.every((p) => p(r)));
     if (this._order) {
       const { col, asc } = this._order;
       rows = [...rows].sort((a, b) => {
@@ -90,24 +127,69 @@ class QueryBuilder {
         return 0;
       });
     }
-    if (this._limit != null) rows = rows.slice(0, this._limit);
     return rows;
   }
 
-  async maybeSingle() { const r = this.rows(); return { data: r[0] ?? null, error: null }; }
-  async single() {
-    const r = this.rows();
-    return r.length ? { data: r[0], error: null } : { data: null, error: { message: 'no rows' } };
+  /** Apply range (preferred) or limit slicing. */
+  private sliced(rows: any[]): any[] {
+    if (this._from != null) return rows.slice(this._from, (this._to ?? rows.length - 1) + 1);
+    if (this._limit != null) return rows.slice(0, this._limit);
+    return rows;
   }
-  // Thenable: `await builder` resolves to { data: rows, error }.
+
+  private applyInsert(): any[] {
+    const rowsIn = Array.isArray(this._payload) ? this._payload : [this._payload];
+    const inserted = rowsIn.map((r) => ({ ...r, id: r.id ?? genId(this.table) }));
+    this.store.push(...inserted);
+    return inserted;
+  }
+
+  private applyUpdate(): any[] {
+    const matches = this.store.filter((r) => this.preds.every((p) => p(r)));
+    for (const row of matches) Object.assign(row, this._payload);
+    return matches;
+  }
+
+  async maybeSingle() {
+    const rows = this.sliced(this.filtered());
+    return { data: rows[0] ?? null, error: null };
+  }
+
+  async single() {
+    if (this._mode === 'insert') {
+      const inserted = this.applyInsert();
+      return { data: inserted[0], error: null };
+    }
+    if (this._mode === 'update') {
+      const updated = this.applyUpdate();
+      return updated.length ? { data: updated[0], error: null } : { data: null, error: { message: 'no rows' } };
+    }
+    const rows = this.sliced(this.filtered());
+    return rows.length ? { data: rows[0], error: null } : { data: null, error: { message: 'no rows' } };
+  }
+
+  // Thenable: `await builder` resolves with mode-appropriate result.
   then(onFulfilled?: any, onRejected?: any) {
-    return Promise.resolve({ data: this.rows(), error: null }).then(onFulfilled, onRejected);
+    let result: any;
+    if (this._mode === 'insert') {
+      result = { data: this.applyInsert(), error: null };
+    } else if (this._mode === 'update') {
+      result = { data: this.applyUpdate(), error: null };
+    } else {
+      const all = this.filtered();
+      result = {
+        data: this._head ? null : this.sliced(all),
+        error: null,
+        ...(this._count ? { count: all.length } : {}),
+      };
+    }
+    return Promise.resolve(result).then(onFulfilled, onRejected);
   }
 }
 
 export const supabaseAdmin = {
   from(table: string) {
-    return new QueryBuilder(() => mockState.fixtures[table] || []);
+    return new QueryBuilder(table);
   },
 };
 

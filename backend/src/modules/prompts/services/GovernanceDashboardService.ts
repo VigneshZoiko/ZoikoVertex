@@ -61,6 +61,27 @@ export interface WorkspaceDashboardOptions {
   limit?: number;
 }
 
+// Hard cap on the evidence-link scan used to compute distinct prompts-with-evidence.
+const EVIDENCE_COMPLETENESS_SCAN_CAP = 20000;
+
+export interface WorkspaceRuntimeRollup {
+  runtime_trace_count: number;
+  runtime_violation_count: number;
+  open_incident_count: number;
+  evidence_link_count: number;
+  evidence_completeness_score: number;
+  export_ready_prompt_count: number;
+  completeness_basis_truncated: boolean;
+}
+
+export interface PromptRuntimeSummary {
+  runtime_traces: { total: number };
+  violations: { total: number };
+  incidents: { total: number; open: number };
+  evidence: { link_count: number };
+  export_readiness: { export_ready: boolean; evidence_link_count: number };
+}
+
 export interface WorkspacePromptRow {
   prompt_id: string;
   name: string;
@@ -80,6 +101,7 @@ export interface GovernanceDashboard {
   deployment: { blocked_count: number; ready_count: number };
   prompts: WorkspacePromptRow[];
   truncated: boolean;
+  runtime: WorkspaceRuntimeRollup;
   summary: {
     prompt_count: number;
     considered_count: number;
@@ -106,9 +128,89 @@ export interface PromptGovernanceSnapshot {
   deployment_impact: ImpactAnalysisResult | null;
   approval_validity: ApprovalValidity;
   degraded_dependencies: DegradedDependency[];
+  runtime: PromptRuntimeSummary;
 }
 
 export class GovernanceDashboardService {
+  /** Tenant-scoped exact count (head:true — no rows fetched). */
+  private static async countScoped(
+    table: string,
+    apply: (q: any) => any,
+  ): Promise<number> {
+    const { count, error } = await apply(
+      supabaseAdmin.from(table).select('id', { count: 'exact', head: true }),
+    );
+    if (error) throw error;
+    return count || 0;
+  }
+
+  /**
+   * Read-only workspace runtime rollup. Four exact counts + one capped distinct
+   * scan over prompt_evidence_links for export-ready prompts. No side effects.
+   */
+  private static async computeWorkspaceRuntimeRollup(
+    workspaceId: string,
+    totalPrompts: number,
+  ): Promise<WorkspaceRuntimeRollup> {
+    const [runtime_trace_count, runtime_violation_count, open_incident_count, evidence_link_count] =
+      await Promise.all([
+        this.countScoped('prompt_runtime_traces', (q) => q.eq('workspace_id', workspaceId)),
+        this.countScoped('prompt_runtime_traces', (q) => q.eq('workspace_id', workspaceId).eq('violation', true)),
+        this.countScoped('prompt_incidents', (q) => q.eq('workspace_id', workspaceId).neq('status', 'closed')),
+        this.countScoped('prompt_evidence_links', (q) => q.eq('workspace_id', workspaceId)),
+      ]);
+
+    // Distinct prompts with >=1 evidence link — capped scan (no silent cap).
+    const { data: linkRows, error: linkErr } = await supabaseAdmin
+      .from('prompt_evidence_links')
+      .select('prompt_id')
+      .eq('workspace_id', workspaceId)
+      .not('prompt_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .range(0, EVIDENCE_COMPLETENESS_SCAN_CAP - 1);
+    if (linkErr) throw linkErr;
+    const rows = linkRows || [];
+    const completeness_basis_truncated = rows.length >= EVIDENCE_COMPLETENESS_SCAN_CAP;
+    const distinctPrompts = new Set<string>();
+    for (const r of rows) if (r.prompt_id) distinctPrompts.add(r.prompt_id as string);
+    const export_ready_prompt_count = distinctPrompts.size;
+
+    const evidence_completeness_score =
+      totalPrompts > 0 ? Math.round((100 * export_ready_prompt_count) / totalPrompts) : 0;
+
+    return {
+      runtime_trace_count,
+      runtime_violation_count,
+      open_incident_count,
+      evidence_link_count,
+      evidence_completeness_score,
+      export_ready_prompt_count,
+      completeness_basis_truncated,
+    };
+  }
+
+  /** Read-only per-prompt runtime summary. Workspace + prompt scoped. */
+  private static async computePromptRuntimeSummary(
+    promptId: string,
+    workspaceId: string,
+  ): Promise<PromptRuntimeSummary> {
+    const [traceTotal, violationTotal, incidentTotal, incidentOpen, linkCount] = await Promise.all([
+      this.countScoped('prompt_runtime_traces', (q) => q.eq('workspace_id', workspaceId).eq('prompt_id', promptId)),
+      this.countScoped('prompt_runtime_traces', (q) => q.eq('workspace_id', workspaceId).eq('prompt_id', promptId).eq('violation', true)),
+      this.countScoped('prompt_incidents', (q) => q.eq('workspace_id', workspaceId).eq('prompt_id', promptId)),
+      this.countScoped('prompt_incidents', (q) => q.eq('workspace_id', workspaceId).eq('prompt_id', promptId).neq('status', 'closed')),
+      this.countScoped('prompt_evidence_links', (q) => q.eq('workspace_id', workspaceId).eq('prompt_id', promptId)),
+    ]);
+
+    return {
+      runtime_traces: { total: traceTotal },
+      violations: { total: violationTotal },
+      incidents: { total: incidentTotal, open: incidentOpen },
+      evidence: { link_count: linkCount },
+      export_readiness: { export_ready: linkCount > 0, evidence_link_count: linkCount },
+    };
+  }
+
   /**
    * Workspace-level governance rollup. One prompts query for totals; per-prompt
    * graph fan-out is bounded by opts.limit (default 100) with a `truncated` flag.
@@ -179,6 +281,8 @@ export class GovernanceDashboardService {
       });
     }
 
+    const runtime = await this.computeWorkspaceRuntimeRollup(workspaceId, all.length);
+
     return {
       workspace_id: workspaceId,
       generated_for: 'workspace',
@@ -192,6 +296,7 @@ export class GovernanceDashboardService {
       deployment: { blocked_count, ready_count: considered.length - blocked_count },
       prompts: rows,
       truncated,
+      runtime,
       summary: {
         prompt_count: all.length,
         considered_count: considered.length,
@@ -225,6 +330,7 @@ export class GovernanceDashboardService {
         deployment_impact: null,
         approval_validity: { valid: true, invalidated: false },
         degraded_dependencies: [],
+        runtime: await this.computePromptRuntimeSummary(promptId, workspaceId),
       };
     }
 
@@ -279,6 +385,8 @@ export class GovernanceDashboardService {
       }),
     );
 
+    const runtime = await this.computePromptRuntimeSummary(promptId, workspaceId);
+
     return {
       prompt_id: promptId,
       workspace_id: workspaceId,
@@ -287,6 +395,7 @@ export class GovernanceDashboardService {
       deployment_impact,
       approval_validity,
       degraded_dependencies,
+      runtime,
     };
   }
 }
