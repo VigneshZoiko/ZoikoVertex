@@ -14,7 +14,8 @@ import { logger } from "../../shared/logger";
 import type { MatchResult, SafetyCategory, Severity } from "./types";
 import { SAFETY_CATEGORIES } from "./types";
 
-const MODEL_ID = "gemini-2.5-flash";
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+const MODEL_ID = GEMINI_MODELS[0]; // primary, falls back in callGemini
 
 // What we ask Gemini to return. Kept very narrow on purpose —
 // every additional field is one more parse path that can break.
@@ -134,12 +135,25 @@ export async function runGeminiModeration(
 
   try {
     const client = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    const model = client.getGenerativeModel({
-      model: MODEL_ID,
-      generationConfig: { temperature: 0, maxOutputTokens: 256 },
-    });
-    const resp = await model.generateContent(buildPrompt(content));
-    const text = resp.response.text();
+    let text = '';
+    let usedModel = MODEL_ID;
+    for (const modelId of GEMINI_MODELS) {
+      try {
+        const model = client.getGenerativeModel({ model: modelId, generationConfig: { temperature: 0, maxOutputTokens: 256 } });
+        const resp = await model.generateContent(buildPrompt(content));
+        text = resp.response.text();
+        usedModel = modelId;
+        break;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
+          logger.warn(`[safety] ${modelId} unavailable, trying next model`);
+          continue;
+        }
+        throw e;
+      }
+    }
+    if (!text) return null; // All models unavailable — skip moderation gracefully
     const verdict = parseStrict(text);
     if (!verdict) {
       logger.warn({ rawSnippet: text.slice(0, 120) }, "[safety] Gemini returned unparseable JSON");
@@ -148,7 +162,7 @@ export async function runGeminiModeration(
     return {
       matches: toMatches(verdict),
       raw: verdict,
-      modelUsed: MODEL_ID,
+      modelUsed: usedModel,
     };
   } catch (err) {
     logger.warn({ err }, "[safety] Gemini moderation failed; falling back to local-only");

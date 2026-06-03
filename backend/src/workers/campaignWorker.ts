@@ -21,6 +21,116 @@ import {
   resolveMetaAdAccountId,
 } from '../domains/campaigns/agencyAccountResolver';
 
+// ── Spend cap check ───────────────────────────────────────────────────────────
+// Returns true if the deduction is allowed (under cap or cap disabled).
+
+async function checkSpendCap(workspaceId: string, amount: number): Promise<{ allowed: boolean; reason?: string }> {
+  try {
+    const { data: wallet } = await supabaseAdmin
+      .from('wallets')
+      .select('id, spend_cap_enabled, spend_cap_amount')
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!wallet?.spend_cap_enabled || !wallet.spend_cap_amount) {
+      return { allowed: true }; // No cap set
+    }
+
+    // Sum all DEBIT transactions this calendar month
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const { data: txns } = await supabaseAdmin
+      .from('wallet_transactions')
+      .select('amount')
+      .eq('wallet_id', wallet.id)
+      .eq('type', 'DEBIT')
+      .gte('created_at', monthStart.toISOString());
+
+    const monthlySpend = (txns || []).reduce((sum: number, tx: any) => sum + Number(tx.amount), 0);
+
+    if (monthlySpend + amount > wallet.spend_cap_amount) {
+      return {
+        allowed: false,
+        reason: `Monthly spend cap of $${wallet.spend_cap_amount} reached (spent $${monthlySpend.toFixed(2)} this month)`,
+      };
+    }
+
+    return { allowed: true };
+  } catch {
+    return { allowed: true }; // Non-fatal — allow if check fails
+  }
+}
+
+// ── Auto top-up trigger ───────────────────────────────────────────────────────
+// Called after a successful wallet deduction. If balance drops below threshold
+// and auto top-up is enabled, charge the default card immediately.
+
+async function triggerAutoTopUp(workspaceId: string): Promise<void> {
+  try {
+    const { data: wallet } = await supabaseAdmin
+      .from('wallets')
+      .select('id, balance, auto_topup_enabled, auto_topup_threshold, auto_topup_amount, stripe_customer_id, default_payment_method_id')
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!wallet?.auto_topup_enabled) return;
+    if (!wallet.stripe_customer_id || !wallet.default_payment_method_id) return;
+    if (Number(wallet.balance) >= Number(wallet.auto_topup_threshold)) return;
+
+    const topUpAmount  = Number(wallet.auto_topup_amount) || 100;
+    const amountCents  = Math.round(topUpAmount * 100);
+
+    // Dynamically import Stripe only when needed
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Stripe     = require('stripe');
+    const stripeKey  = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) return;
+
+    const stripe     = new Stripe(stripeKey, { apiVersion: '2024-06-20' });
+    const holdHours  = parseInt(process.env.DEPOSIT_HOLD_HOURS || '48');
+    const availableAt = new Date(Date.now() + holdHours * 60 * 60 * 1000).toISOString();
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount:               amountCents,
+      currency:             'usd',
+      customer:             wallet.stripe_customer_id,
+      payment_method:       wallet.default_payment_method_id,
+      confirm:              true,
+      off_session:          true,
+      description:          `Auto top-up: $${topUpAmount} campaign credits`,
+    }) as any;
+
+    if (paymentIntent.status === 'succeeded') {
+      // Record as PROCESSING transaction (settlement worker will move to balance)
+      await supabaseAdmin.from('wallet_transactions').insert({
+        wallet_id:    wallet.id,
+        type:         'CREDIT',
+        status:       'PROCESSING',
+        amount:       topUpAmount,
+        net_amount:   topUpAmount,
+        currency:     'USD',
+        description:  `Auto top-up: $${topUpAmount}`,
+        stripe_payment_intent_id: paymentIntent.id,
+        available_at: availableAt,
+        created_at:   new Date().toISOString(),
+      });
+
+      // Add to processing_balance immediately
+      await supabaseAdmin.from('wallets').update({
+        processing_balance: Number(wallet.balance) + topUpAmount,
+        total_deposited:    Number(wallet.balance) + topUpAmount,
+        updated_at:         new Date().toISOString(),
+      }).eq('id', wallet.id);
+
+      logger.info({ workspaceId, topUpAmount, paymentIntentId: paymentIntent.id }, '[CampaignWorker] Auto top-up triggered successfully');
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message, workspaceId }, '[CampaignWorker] Auto top-up failed (non-fatal)');
+  }
+}
+
 // How often the worker polls
 const POLL_INTERVAL_MS    = 2  * 60 * 1000; // 2 minutes — boost processing
 const SETTLE_INTERVAL_MS  = 15 * 60 * 1000; // 15 minutes — deposit settlement
@@ -68,6 +178,18 @@ async function processBoost(boost: any): Promise<void> {
   const workspaceId  = boost.workspace_id as string;
   const campaignId   = boost.campaign_id  as string;
   const intentId     = boost.publish_intent_id as string | null;
+
+  // 0. Spend cap check before doing any work
+  const capCheck = await checkSpendCap(workspaceId, 10); // min $10 estimate
+  if (!capCheck.allowed) {
+    await supabaseAdmin.from('campaign_boosts').update({
+      status:        'FAILED',
+      error_message: capCheck.reason,
+      updated_at:    new Date().toISOString(),
+    }).eq('id', boostId);
+    logger.warn({ boostId, workspaceId, reason: capCheck.reason }, '[CampaignWorker] Boost blocked by spend cap');
+    return;
+  }
 
   // 1. Mark as BOOSTING so a concurrent run does not double-pick it
   await supabaseAdmin
@@ -233,6 +355,20 @@ async function processBoost(boost: any): Promise<void> {
     '[CampaignWorker] Boost activated on Meta'
   );
 
+  // ── Spend cap check with actual budget ───────────────────────────────────────
+  const actualCapCheck = await checkSpendCap(workspaceId, rawBudget);
+  if (!actualCapCheck.allowed) {
+    await supabaseAdmin.from('campaign_boosts').update({
+      status:        'FAILED',
+      error_message: actualCapCheck.reason,
+      updated_at:    new Date().toISOString(),
+    }).eq('id', boostId);
+    // Pause the orphaned Meta campaign
+    try { await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' }); } catch { /* non-fatal */ }
+    logger.warn({ boostId, rawBudget, reason: actualCapCheck.reason }, '[CampaignWorker] Boost paused by spend cap after creation');
+    return;
+  }
+
   // ── Deduct from wallet ────────────────────────────────────────────────────
 
   const { error: walletErr } = await supabaseAdmin.rpc('deduct_wallet_balance', {
@@ -243,8 +379,10 @@ async function processBoost(boost: any): Promise<void> {
   });
 
   if (walletErr) {
-    // Non-fatal: boost is already live — just log the billing miss
     logger.warn({ boostId, campaignId, err: walletErr.message }, '[CampaignWorker] Wallet deduction failed (boost still live)');
+  } else {
+    // Trigger auto top-up if balance dropped below threshold
+    await triggerAutoTopUp(workspaceId);
   }
 }
 

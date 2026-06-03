@@ -16,13 +16,16 @@ import Toast from "@/components/Toast";
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 interface ConnectedAccount {
   id: string;
-  platform: "facebook" | "instagram" | "linkedin" | "twitter" | "pinterest" | "threads" | "youtube" | "googleads";
+  platform: "facebook" | "instagram" | "linkedin" | "twitter" | "pinterest" | "threads" | "youtube";
   account_name: string;
   account_handle?: string;
   avatar_url?: string;
+  ad_account_id?: string | null;
   status: string;
   expires_at?: string;
 }
+
+interface MetaAdAcct { id: string; name: string; currency: string; amount_spent: string; }
 
 /* ─── Platform Config ────────────────────────────────────────────────────── */
 const PLATFORMS = [
@@ -138,25 +141,6 @@ const PLATFORMS = [
       </svg>
     ),
   },
-  {
-    id: "googleads",
-    name: "Google Ads",
-    description: "Search, Display & Performance Max",
-    color: "#4285F4",
-    lightBg: "bg-blue-500/10",
-    border: "border-blue-500/20",
-    text: "text-blue-400",
-    oauth: true,
-    comingSoon: false,
-    Icon: () => (
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-        <path d="M22.3 11.7c0-.6-.1-1.3-.2-1.9H12v3.6h5.8c-.3 1.3-1 2.4-2.1 3.1v2.6h3.4c2-1.8 3.2-4.5 3.2-7.4z" fill="#4285F4"/>
-        <path d="M12 23c2.9 0 5.3-1 7-2.6l-3.4-2.6c-.9.6-2.1 1-3.6 1-2.8 0-5.1-1.9-5.9-4.4H2.6v2.7C4.4 20.5 8 23 12 23z" fill="#34A853"/>
-        <path d="M6.1 14.4c-.2-.6-.4-1.3-.4-2s.1-1.4.4-2V7.7H2.6C1.6 9.3 1 11.1 1 13s.6 3.7 1.6 5.3l3.5-3.9z" fill="#FBBC05"/>
-        <path d="M12 5.6c1.6 0 3 .5 4.1 1.6l3-3C17.3 2.5 14.8 1 12 1 8 1 4.4 3.5 2.6 7.1l3.5 2.7c.8-2.5 3.1-4.2 5.9-4.2z" fill="#EA4335"/>
-      </svg>
-    ),
-  },
 ];
 
 /* ─── Accounts cache (sessionStorage) ──────────────────────────────────── */
@@ -193,6 +177,44 @@ export default function AccountsPage() {
   const [savingPages, setSavingPages]                   = useState(false);
   const [expandedPlatforms, setExpandedPlatforms]       = useState<Record<string, boolean>>({});
   const hasCachedData = useRef(readAccountsCache().length > 0);
+
+  // Meta ad account linking (for Facebook accounts)
+  const [adFetchLoading,  setAdFetchLoading]  = useState<string | null>(null);
+  const [adFetchList,     setAdFetchList]     = useState<Record<string, MetaAdAcct[]>>({});
+  const [adFetchErr,      setAdFetchErr]      = useState<string | null>(null);
+
+  const fetchMetaAdAccounts = async (accountId: string) => {
+    setAdFetchLoading(accountId); setAdFetchErr(null);
+    try {
+      const r = await api.post(`/api/v1/campaigns/meta/accounts/${accountId}/fetch-ad-accounts`, {});
+      if (r.success) setAdFetchList(prev => ({ ...prev, [accountId]: r.data?.ad_accounts || [] }));
+      else setAdFetchErr(r.error || "Failed to fetch ad accounts from Meta");
+    } catch { setAdFetchErr("Could not reach Meta — check token"); }
+    finally { setAdFetchLoading(null); }
+  };
+
+  const [adLinkSaving, setAdLinkSaving] = useState<string | null>(null);
+
+  const linkMetaAdAccount = async (connectedId: string, adId: string, adName: string) => {
+    setAdLinkSaving(adId); setAdFetchErr(null);
+    try {
+      const r = await api.post(`/api/v1/campaigns/meta/accounts/${connectedId}/set-ad-account`, {
+        ad_account_id:   adId,
+        ad_account_name: adName,
+      });
+      if (!r.success) {
+        setAdFetchErr(r.error || "Failed to link ad account");
+        return;
+      }
+      // Close the picker and refresh accounts list
+      setAdFetchList(prev => { const n = { ...prev }; delete n[connectedId]; return n; });
+      await fetchAccounts();
+    } catch {
+      setAdFetchErr("Failed to link ad account — please try again");
+    } finally {
+      setAdLinkSaving(null);
+    }
+  };
 
   const togglePlatform = (platformId: string) => {
     setExpandedPlatforms((prev) => ({
@@ -330,7 +352,19 @@ export default function AccountsPage() {
           return;
         }
         const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/facebook/callback`);
-        const scope = ["public_profile","email","pages_show_list","pages_read_engagement","pages_manage_posts","pages_read_user_content","pages_manage_engagement","read_insights","instagram_basic","instagram_content_publish","instagram_manage_comments","instagram_manage_insights","business_management"].join(",");
+        const scope = [
+          "public_profile","email",
+          // Pages
+          "pages_show_list","pages_read_engagement","pages_manage_posts",
+          "pages_read_user_content","pages_manage_engagement","read_insights",
+          // Instagram
+          "instagram_basic","instagram_content_publish",
+          "instagram_manage_comments","instagram_manage_insights",
+          // Ads — required for campaign creation and ad account access
+          "ads_management","ads_read",
+          // Business
+          "business_management",
+        ].join(",");
         const state = encodeURIComponent(JSON.stringify({ workspaceId, platform: platformId }));
         window.location.assign(`https://www.facebook.com/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&response_type=code`);
       } else if (platformId === "linkedin") {
@@ -380,21 +414,6 @@ export default function AccountsPage() {
         const state = encodeURIComponent(workspaceId);
         const scope = encodeURIComponent("tweet.read tweet.write dm.read dm.write users.read media.write offline.access");
         window.location.assign(`https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=plain`);
-      } else if (platformId === "googleads") {
-        // Google Ads uses the same OAuth client as YouTube (Google Cloud project)
-        const clientId = process.env.NEXT_PUBLIC_GOOGLE_ADS_CLIENT_ID || process.env.NEXT_PUBLIC_YOUTUBE_CLIENT_ID || "";
-        if (!clientId) {
-          setError("Google Ads is not yet configured. Add NEXT_PUBLIC_GOOGLE_ADS_CLIENT_ID to your frontend .env.");
-          setIsSubmitting(null);
-          return;
-        }
-        const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/googleads/callback`);
-        const state       = encodeURIComponent(workspaceId);
-        // Requires Google Ads API scope — must also have GOOGLE_ADS_DEVELOPER_TOKEN on the backend
-        const scope = encodeURIComponent("https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile");
-        window.location.assign(
-          `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent&state=${state}`
-        );
       } else if (platformId === "youtube") {
         const clientId = process.env.NEXT_PUBLIC_YOUTUBE_CLIENT_ID || "";
         if (!clientId) {
@@ -621,7 +640,7 @@ export default function AccountsPage() {
                           </div>
                         )}
 
-                        {/* Name */}
+                        {/* Name + ad account (for Facebook) */}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-[var(--foreground)] truncate">
                             {account.account_name}
@@ -631,6 +650,69 @@ export default function AccountsPage() {
                               ? `@${account.account_handle.replace(/^@/, "")}`
                               : `ID: ${account.id.substring(0, 12)}…`}
                           </p>
+
+                          {/* Meta ad account linking — Facebook only */}
+                          {account.platform === "facebook" && (
+                            <div className="mt-1.5">
+                              {account.ad_account_id ? (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                                    <CheckCircle2 className="w-3 h-3" /> Ad account: {account.ad_account_id}
+                                  </span>
+                                  {canManageAccounts && (
+                                    <button onClick={() => fetchMetaAdAccounts(account.id)}
+                                      disabled={adFetchLoading === account.id}
+                                      className="text-[10px] text-zinc-500 hover:text-zinc-300 underline transition-colors">
+                                      {adFetchLoading === account.id ? "Loading…" : "Change"}
+                                    </button>
+                                  )}
+                                </div>
+                              ) : canManageAccounts ? (
+                                <button onClick={() => fetchMetaAdAccounts(account.id)}
+                                  disabled={adFetchLoading === account.id}
+                                  className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                                  {adFetchLoading === account.id
+                                    ? <RefreshCw className="w-3 h-3 animate-spin" />
+                                    : <Link2 className="w-3 h-3" />}
+                                  Link ad account
+                                </button>
+                              ) : null}
+
+                              {/* Ad account picker dropdown */}
+                              {adFetchList[account.id]?.length > 0 && (
+                                <div className="mt-2 border border-zinc-800 rounded-xl overflow-hidden divide-y divide-zinc-800/60 max-w-xs">
+                                  <p className="px-3 py-1.5 text-[9px] font-bold text-zinc-500 uppercase tracking-widest bg-zinc-950">
+                                    Select an ad account
+                                  </p>
+                                  {adFetchList[account.id].map(ad => (
+                                    <button key={ad.id} type="button"
+                                      disabled={adLinkSaving === ad.id}
+                                      onClick={() => linkMetaAdAccount(account.id, ad.id, ad.name)}
+                                      className="w-full flex items-center justify-between px-3 py-3 text-left bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 transition-colors disabled:opacity-60">
+                                      <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-white truncate">{ad.name}</p>
+                                        <p className="text-[11px] text-zinc-500 mt-0.5">{ad.id} · {ad.currency}</p>
+                                      </div>
+                                      <div className="shrink-0 ml-3 flex items-center gap-2">
+                                        <span className="text-[10px] text-zinc-400">${ad.amount_spent} spent</span>
+                                        {adLinkSaving === ad.id && (
+                                          <RefreshCw className="w-3 h-3 text-zinc-400 animate-spin" />
+                                        )}
+                                      </div>
+                                    </button>
+                                  ))}
+                                  <button type="button"
+                                    onClick={() => { setAdFetchList(prev => { const n = {...prev}; delete n[account.id]; return n; }); setAdFetchErr(null); }}
+                                    className="w-full px-3 py-2 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors text-left">
+                                    Cancel
+                                  </button>
+                                </div>
+                              )}
+                              {adFetchErr && (
+                                <p className="text-[11px] text-rose-400 mt-1">{adFetchErr}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Status + disconnect */}

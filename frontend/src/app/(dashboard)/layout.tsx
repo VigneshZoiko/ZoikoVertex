@@ -146,7 +146,11 @@ export default function DashboardLayout({
               ) : (
                 <div
                   key={pathname}
-                  className={`page-enter flex-1 ${pathname === '/inbox' ? 'overflow-hidden' : 'overflow-y-auto p-8'}`}
+                  className={`page-enter flex-1 ${
+                    pathname === '/inbox' || pathname?.startsWith('/campaigns') || pathname?.startsWith('/campaigns/')
+                      ? 'overflow-hidden'
+                      : 'overflow-y-auto p-8'
+                  }`}
                 >
                   {children}
                 </div>

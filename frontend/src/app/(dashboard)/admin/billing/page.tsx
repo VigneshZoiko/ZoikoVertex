@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Zap, CheckCircle2, Crown, Globe, Database, DollarSign,
   Loader2, Activity, FileText, Download, Rocket,
@@ -13,7 +13,7 @@ import { api } from "@/lib/api";
 import { createPortal } from "react-dom";
 import { useRoleContext } from "@/lib/context/RoleContext";
 
-// ── Types ────────────────────────────────────────────────────────
+// â"€â"€ Types â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 interface UsageSummaryItem { quantity: number; cost: number; unit: string; }
 
@@ -24,12 +24,13 @@ interface WalletTransaction {
   gross_amount?: number;
   stripe_fee?: number;
   type: "CREDIT" | "DEBIT";
-  status?: "PROCESSING" | "AVAILABLE" | "FAILED" | "REFUNDED";
+  status?: "PROCESSING" | "AVAILABLE" | "COMPLETED" | "FAILED" | "REFUNDED";
   description: string;
   campaign_name: string | null;
   created_at: string;
   available_at?: string;
   currency?: string;
+  stripe_charge_id?: string;
 }
 
 interface WalletData {
@@ -63,7 +64,7 @@ interface PaymentMethod {
   is_default: boolean;
 }
 
-// ── Plan data ──────────────────────────────────────────────────
+// â"€â"€ Plan data â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 const PLANS = [
   {
@@ -135,7 +136,7 @@ const PLANS = [
   },
 ];
 
-// ── Plan stat map (avoids fragile feature-string splitting) ────
+// â"€â"€ Plan stat map (avoids fragile feature-string splitting) â"€â"€â"€â"€
 const PLAN_STATS: Record<string, { users: string; profiles: string; brands: string; agents: string }> = {
   starter:   { users: "2",      profiles: "2",      brands: "1",        agents: "Preview" },
   growth:    { users: "7",      profiles: "8",      brands: "1",        agents: "5" },
@@ -143,9 +144,9 @@ const PLAN_STATS: Record<string, { users: string; profiles: string; brands: stri
   corporate: { users: "Custom", profiles: "Custom", brands: "Custom",   agents: "5 (Custom)" },
 };
 
-// ── Main Component ─────────────────────────────────────────────
+// â"€â"€ Main Component â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
-// Maps billing page plan IDs → DB plan_type values sent to the API
+// Maps billing page plan IDs â†' DB plan_type values sent to the API
 const PLAN_ID_TO_DB: Record<string, string> = {
   starter:   'STARTER',
   growth:    'GROWTH',
@@ -156,6 +157,7 @@ const PLAN_ID_TO_DB: Record<string, string> = {
 export default function BillingPage() {
   const { refresh: refreshRole } = useRoleContext();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"credits" | "billing">("credits");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -213,6 +215,17 @@ export default function BillingPage() {
   // Plan renewal date (from billing settings)
   const [planRenewalDate, setPlanRenewalDate] = useState<string | null>(null);
 
+  // Subscription
+  const [subscription, setSubscription] = useState<{ status: string; cancel_at_period_end: boolean; current_period_end: string } | null>(null);
+  // Invoices
+  const [invoices, setInvoices] = useState<{ id: string; created: number; status: string; amount_paid: number; currency: string; description: string | null; invoice_pdf: string | null; hosted_url: string | null }[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribeError, setSubscribeError] = useState<string | null>(null);
+  // Upgrade confirmation modal
+  const [upgradeConfirm, setUpgradeConfirm] = useState<{ planId: string; planName: string; price: number } | null>(null);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+
   // Load Data
   useEffect(() => {
     const fetchData = async () => {
@@ -231,12 +244,13 @@ export default function BillingPage() {
             setActivePlanId('starter');
           }
 
-          const [usageRes, walletRes, spendCapRes, cardsRes, settingsRes] = await Promise.allSettled([
+          const [usageRes, walletRes, spendCapRes, cardsRes, settingsRes, subRes] = await Promise.allSettled([
             api.get(`/api/v1/monitoring/usage?workspaceId=${ctx.data.workspace_id}`),
             api.get('/api/v1/billing/wallet'),
             api.get('/api/v1/billing/spend-cap'),
             api.get('/api/v1/billing/payment-methods'),
             api.get('/api/v1/billing/settings'),
+            api.get('/api/v1/billing/subscription'),
           ]);
 
           if (usageRes.status === 'fulfilled' && usageRes.value?.success)
@@ -244,6 +258,9 @@ export default function BillingPage() {
 
           if (spendCapRes.status === 'fulfilled' && spendCapRes.value?.success) {
             setSpendCapEnabled(spendCapRes.value.data?.spend_cap_enabled ?? false);
+            if (spendCapRes.value.data?.spend_cap_amount != null) {
+              setSpendCapAmount(String(spendCapRes.value.data.spend_cap_amount));
+            }
           }
 
           if (cardsRes.status === 'fulfilled' && cardsRes.value?.success) {
@@ -252,6 +269,14 @@ export default function BillingPage() {
 
           if (settingsRes.status === 'fulfilled' && settingsRes.value?.success) {
             setPlanRenewalDate(settingsRes.value.data?.next_renewal_date || null);
+          }
+
+          if (subRes.status === 'fulfilled' && subRes.value?.success) {
+            const sub = subRes.value.data?.subscription;
+            if (sub) {
+              setSubscription(sub);
+              setPlanRenewalDate(sub.current_period_end);
+            }
           }
 
           if (walletRes.status === 'fulfilled' && walletRes.value?.success) {
@@ -275,23 +300,69 @@ export default function BillingPage() {
   // Handle return from Stripe Checkout
   useEffect(() => {
     const deposit = searchParams?.get("deposit");
-    if (deposit === "success") {
-      showToast("Payment received! Credits are processing and will be available within 48 hours.", "success");
-      setActiveTab("credits");
-    } else if (deposit === "cancelled") {
-      showToast("Deposit cancelled — no charge was made.", "error");
+    const card    = searchParams?.get("card");
+    const sessionId = searchParams?.get("session_id");
+
+    // Clear Stripe return params from URL so refresh doesn't retrigger
+    if (deposit || card) {
+      router.replace('/admin/billing', { scroll: false });
     }
-    const card = searchParams?.get("card");
+
+    if (deposit === "success") {
+      setActiveTab("credits");
+      const sessionId = searchParams?.get("session_id");
+      if (sessionId) {
+        // Sync the session to record the deposit (works without webhook secret)
+        api.post('/api/v1/billing/deposit/sync-session', { session_id: sessionId })
+          .then(r => {
+            if (r.success && r.data?.credited) {
+              showToast(`Payment received! $${r.data.amount} is processing and will be available within 48 hours.`, "success");
+              if (r.data?.receipt_url) {
+                window.open(r.data.receipt_url, '_blank', 'noopener');
+              }
+            } else {
+              showToast("Payment received — credits will appear shortly.", "success");
+            }
+            // Refresh wallet + transactions
+            return api.get('/api/v1/billing/wallet');
+          })
+          .then(walletRes => {
+            if (walletRes?.success) {
+              setWallet(walletRes.data?.wallet || wallet);
+              setTransactions(walletRes.data?.transactions || []);
+            }
+          })
+          .catch(() => showToast("Payment received — refresh to see your balance.", "success"));
+      } else {
+        showToast("Payment received! Credits are processing and will be available within 48 hours.", "success");
+      }
+    } else if (deposit === "cancelled") {
+      showToast("Deposit cancelled -- no charge was made.", "error");
+    }
+
     if (card === "added") {
-      showToast("Card saved successfully!", "success");
       setActiveTab("billing");
-      api.get('/api/v1/billing/payment-methods').then(r => {
-        if (r.success) setCards(r.data?.payment_methods || []);
-      }).catch(() => {});
+      // Sync the Stripe session to save customer ID and set default card
+      const syncAndRefresh = async () => {
+        if (sessionId) {
+          try {
+            await api.post('/api/v1/billing/payment-methods/sync-session', { session_id: sessionId });
+          } catch {
+            showToast("Card added but could not sync — refresh the page if card doesn't appear.", "error");
+            return;
+          }
+        }
+        try {
+          const r = await api.get('/api/v1/billing/payment-methods');
+          if (r.success) setCards(r.data?.payment_methods || []);
+        } catch { /* non-fatal — cards will show on next load */ }
+      };
+      syncAndRefresh();
+      showToast("Card saved successfully!", "success");
     } else if (card === "cancelled") {
       showToast("Card setup cancelled.", "error");
     }
-  }, [searchParams]);
+  }, [searchParams, router, wallet]);  
 
   // Deposit: calculate fees
   const handleCalculateFees = async () => {
@@ -318,32 +389,34 @@ export default function BillingPage() {
       const r = await api.post("/api/v1/billing/deposit/create", {
         amount: fees.net_credits, currency: fees.currency,
       });
-      if (r.data.session_url) {
-        window.location.assign(r.data.session_url);
-      } else {
-        showToast("Deposit initiated", "success");
-        setShowTopUpModal(false); resetDeposit();
-        // Re-fetch wallet
-        const walletRes = await api.get('/api/v1/billing/wallet');
-        if (walletRes.success) {
-          setWallet(walletRes.data?.wallet || wallet);
-          setTransactions(walletRes.data?.transactions || []);
-        }
+
+      // Backend returns { success, session_url, session_id, fees } at top level
+      const sessionUrl = r?.session_url || r?.data?.session_url;
+      const errMsg     = r?.error      || r?.data?.error;
+
+      if (sessionUrl) {
+        window.location.assign(sessionUrl);
+        return;
       }
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      if (msg?.includes("not configured")) {
-        // Dev mode simulate
-        try {
+
+      if (errMsg) {
+        // Dev mode: Stripe not configured
+        if (errMsg.includes("not configured") || errMsg.includes("STRIPE_SECRET_KEY")) {
           await api.post("/api/v1/billing/deposit/simulate", { amount: fees.net_credits });
-          showToast(`[DEV] $${fees.net_credits} queued as Processing`, "success");
+          showToast(`Credits added (dev mode) — $${fees.net_credits} queued as Processing`, "success");
           setShowTopUpModal(false); resetDeposit();
           const walletRes = await api.get('/api/v1/billing/wallet');
           if (walletRes.success) { setWallet(walletRes.data?.wallet || wallet); setTransactions(walletRes.data?.transactions || []); }
-        } catch { setDepositError("Simulation failed"); }
-      } else {
-        setDepositError(msg || "Failed to create payment session");
+        } else {
+          setDepositError(errMsg);
+        }
+        return;
       }
+
+      // Fallback: no session URL and no error (shouldn't happen)
+      setDepositError("Could not start payment session. Please try again.");
+    } catch (e: unknown) {
+      setDepositError(e instanceof Error ? e.message : "Failed to create payment session");
     } finally { setDepositing(false); }
   };
 
@@ -399,6 +472,15 @@ export default function BillingPage() {
   };
 
   const handleDeleteCard = async (pmId: string) => {
+    const card = cards.find(c => c.id === pmId);
+    if (cards.length === 1) {
+      showToast("You must have at least one card on file.", "error");
+      return;
+    }
+    if (card?.is_default) {
+      showToast("Set another card as default before removing this one.", "error");
+      return;
+    }
     try {
       await api.delete(`/api/v1/billing/payment-methods/${pmId}`);
       setCards(prev => prev.filter(c => c.id !== pmId));
@@ -412,6 +494,67 @@ export default function BillingPage() {
       setCards(prev => prev.map(c => ({ ...c, is_default: c.id === pmId })));
       showToast("Default card updated", "success");
     } catch { showToast("Failed to update default card", "error"); }
+  };
+
+  const handleSubscribe = async (planId: string) => {
+    // Corporate — contact sales, no Stripe
+    if (planId === 'corporate') return;
+
+    // Starter/Free downgrade — just update DB, no Stripe
+    if (planId === 'starter') {
+      setChangingPlan('starter');
+      try {
+        await api.patch('/api/v1/admin/plan', { plan_type: 'STARTER' });
+        setActivePlanId('starter');
+        setShowUpgradeModal(false);
+        showToast('Downgraded to Starter plan.', 'success');
+      } catch { showToast('Failed to change plan.', 'error'); }
+      finally { setChangingPlan(null); }
+      return;
+    }
+
+    // Growth / Scale — show confirmation modal first (don't charge yet)
+    const plan = PLANS.find(p => p.id === planId);
+    if (!plan || !plan.price) return;
+    setSubscribeError(null);
+    setSelectedCardId(cards.find(c => c.is_default)?.id || cards[0]?.id || null);
+    setUpgradeConfirm({ planId, planName: plan.name, price: plan.price });
+  };
+
+  const confirmSubscribe = async () => {
+    if (!upgradeConfirm) return;
+    const planMap: Record<string, string> = { growth: 'GROWTH', scale: 'SCALE' };
+    const stripePlan = planMap[upgradeConfirm.planId];
+    if (!stripePlan) return;
+
+    setSubscribing(true); setSubscribeError(null);
+    try {
+      const r = await api.post('/api/v1/billing/subscribe', { plan: stripePlan, payment_method_id: selectedCardId });
+      if (r.success) {
+        setActivePlanId(upgradeConfirm.planId);
+        setSubscription(r.data);
+        setPlanRenewalDate(r.data?.renewal_date || null);
+        setUpgradeConfirm(null);
+        setShowUpgradeModal(false);
+        showToast(`Upgraded to ${upgradeConfirm.planName}! Your card has been charged.`, 'success');
+      } else {
+        setSubscribeError(r.error || 'Subscription failed. Please try again.');
+      }
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setSubscribeError(msg || 'Subscription failed. Please try again.');
+    } finally { setSubscribing(false); }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!confirm('Cancel subscription? Your plan stays active until the renewal date.')) return;
+    try {
+      const r = await api.post('/api/v1/billing/cancel-subscription', {});
+      if (r.success) {
+        setSubscription(prev => prev ? { ...prev, cancel_at_period_end: true } : null);
+        showToast(`Subscription cancelled -- active until ${new Date(r.data?.cancels_at).toLocaleDateString()}`, "success");
+      }
+    } catch { showToast("Failed to cancel subscription", "error"); }
   };
 
   const handleChangePlan = async (planId: string) => {
@@ -454,15 +597,15 @@ export default function BillingPage() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 pb-24">
-      {/* ── Header ── */}
+      {/* â"€â"€ Header â"€â"€ */}
       <div className="space-y-1">
         <h1 className="text-3xl font-semibold text-white tracking-tight">Billing & Administration</h1>
         <p className="text-sm text-zinc-400">Manage your workspace plan, platform usage, and credits.</p>
       </div>
 
-      {/* ── Tabs ── */}
+      {/* â"€â"€ Tabs â"€â"€ */}
       <div className="flex items-center gap-6 border-b border-zinc-800">
-        <button 
+        <button type="button"
           onClick={() => setActiveTab("credits")}
           className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
             activeTab === "credits" ? "border-white text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
@@ -471,7 +614,15 @@ export default function BillingPage() {
           Credits
         </button>
         <button 
-          onClick={() => setActiveTab("billing")}
+          onClick={() => {
+            setActiveTab("billing");
+            if (invoices.length === 0) {
+              setLoadingInvoices(true);
+              api.get('/api/v1/billing/invoices').then(r => {
+                if (r.success) setInvoices(r.data?.invoices || []);
+              }).catch(() => {}).finally(() => setLoadingInvoices(false));
+            }
+          }}
           className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
             activeTab === "billing" ? "border-white text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
           }`}
@@ -480,7 +631,7 @@ export default function BillingPage() {
         </button>
       </div>
 
-      {/* ── Tab Content: Credits ── */}
+      {/* â"€â"€ Tab Content: Credits â"€â"€ */}
       {activeTab === "credits" && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -491,19 +642,19 @@ export default function BillingPage() {
                 <h3 className="text-sm font-medium text-zinc-400 mb-2">Available Balance</h3>
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-semibold text-white">
-                    {loadingWallet ? "—" : fmtCurrency(wallet.available_balance ?? wallet.balance, wallet.currency)}
+                    {loadingWallet ? "--" : fmtCurrency(wallet.available_balance ?? wallet.balance, wallet.currency)}
                   </span>
                 </div>
                 {/* Processing credits */}
                 {(wallet.processing_balance ?? 0) > 0 && (
                   <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-400">
                     <Clock className="w-3 h-3" />
-                    <span>{fmtCurrency(wallet.processing_balance!, wallet.currency)} processing — available within 48h</span>
+                    <span>{fmtCurrency(wallet.processing_balance!, wallet.currency)} processing -- available within 48h</span>
                   </div>
                 )}
               </div>
               <div className="mt-5">
-                <button
+                <button type="button"
                   onClick={() => { setShowTopUpModal(true); resetDeposit(); }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-white text-black hover:bg-zinc-200 text-sm font-medium rounded-lg transition-colors">
                   <Plus className="w-4 h-4" />Add Credits
@@ -585,7 +736,7 @@ export default function BillingPage() {
                 <h3 className="text-sm font-medium text-white">Spend Cap</h3>
                 <p className="text-xs text-zinc-500 mt-0.5">Limit total ad spend charged to your credits per month.</p>
               </div>
-              <button onClick={() => { setSpendCapEnabled(!spendCapEnabled); }}
+              <button type="button" onClick={() => { setSpendCapEnabled(!spendCapEnabled); }}
                 className={`relative w-11 h-6 rounded-full transition-colors ${spendCapEnabled ? "bg-white" : "bg-zinc-700"}`}>
                 <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-zinc-900 shadow transition-transform ${spendCapEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
@@ -593,7 +744,7 @@ export default function BillingPage() {
             {spendCapEnabled && (
               <div className="flex gap-3 items-end">
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Monthly cap amount (USD)</label>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Monthly cap amount ({wallet.currency || 'USD'})</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">$</span>
                     <input type="number" min="1" value={spendCapAmount}
@@ -602,7 +753,7 @@ export default function BillingPage() {
                       placeholder="500" />
                   </div>
                 </div>
-                <button onClick={handleSpendCapSave} disabled={spendCapLoading}
+                <button type="button" onClick={handleSpendCapSave} disabled={spendCapLoading}
                   className="px-4 py-2 bg-white text-zinc-900 text-sm font-semibold rounded-lg hover:bg-zinc-100 disabled:opacity-40 transition-colors flex items-center gap-2">
                   {spendCapLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Save
@@ -610,7 +761,7 @@ export default function BillingPage() {
               </div>
             )}
             {!spendCapEnabled && (
-              <button onClick={handleSpendCapSave} disabled={spendCapLoading}
+              <button type="button" onClick={handleSpendCapSave} disabled={spendCapLoading}
                 className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1.5">
                 {spendCapLoading && <Loader2 className="w-3 h-3 animate-spin" />}
                 Save (disabled)
@@ -622,7 +773,7 @@ export default function BillingPage() {
           <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
             <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
               <h3 className="text-sm font-medium text-white">Transaction History</h3>
-              <button
+              <button type="button"
                 onClick={handleDownloadCSV}
                 disabled={transactions.length === 0}
                 className="text-xs font-medium text-zinc-400 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -640,19 +791,20 @@ export default function BillingPage() {
                     <th className="px-5 py-3 font-medium">Campaign</th>
                     <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 font-medium text-right">Credits</th>
+                    <th className="px-5 py-3 font-medium text-right">Receipt</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/50 text-zinc-300">
                   {loadingWallet ? (
                     <tr>
-                      <td colSpan={5} className="px-5 py-8 text-center text-zinc-500">
+                      <td colSpan={6} className="px-5 py-8 text-center text-zinc-500">
                         <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
                         Loading transactions...
                       </td>
                     </tr>
                   ) : transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-5 py-8 text-center text-zinc-500">
+                      <td colSpan={6} className="px-5 py-8 text-center text-zinc-500">
                         No transactions yet. Add credits to get started.
                       </td>
                     </tr>
@@ -671,16 +823,21 @@ export default function BillingPage() {
                             <div className="text-[10px] text-zinc-600">Fee: ${Number(tx.stripe_fee).toFixed(2)}</div>
                           )}
                         </td>
-                        <td className="px-5 py-3 text-zinc-400">{tx.campaign_name || "—"}</td>
+                        <td className="px-5 py-3 text-zinc-400">{tx.campaign_name || "--"}</td>
                         <td className="px-5 py-3">
                           {tx.status === "PROCESSING" && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
                               <Clock className="w-2.5 h-2.5" />PROCESSING
                             </span>
                           )}
-                          {(tx.status === "AVAILABLE" || !tx.status) && tx.type === "CREDIT" && (
+                          {(tx.status === "AVAILABLE" || tx.status === "COMPLETED" || !tx.status) && tx.type === "CREDIT" && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                               <CheckCircle2 className="w-2.5 h-2.5" />AVAILABLE
+                            </span>
+                          )}
+                          {tx.type === "DEBIT" && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                              SPENT
                             </span>
                           )}
                         </td>
@@ -688,6 +845,19 @@ export default function BillingPage() {
                           <div>{tx.type === 'CREDIT' ? '+' : '-'}{fmtCurrency(tx.net_amount ?? tx.amount, tx.currency || wallet.currency)}</div>
                           {tx.gross_amount && tx.gross_amount !== (tx.net_amount ?? tx.amount) && (
                             <div className="text-[10px] text-zinc-600">Charged: {fmtCurrency(tx.gross_amount, tx.currency || wallet.currency)}</div>
+                          )}
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          {tx.stripe_charge_id && tx.type === 'CREDIT' && (
+                            <a
+                              href={`https://dashboard.stripe.com/test/payments/${tx.stripe_charge_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition-colors"
+                              title="View receipt"
+                            >
+                              <FileText className="w-3 h-3" /> Receipt
+                            </a>
                           )}
                         </td>
                       </tr>
@@ -700,7 +870,7 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* ── Tab Content: Billing & Usage ── */}
+      {/* â"€â"€ Tab Content: Billing & Usage â"€â"€ */}
       {activeTab === "billing" && (
         <div className="space-y-6">
           
@@ -745,10 +915,10 @@ export default function BillingPage() {
                   {/* Stat chips */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
                     {[
-                      { label: "Included Users",    value: PLAN_STATS[activePlan.id]?.users    ?? "—" },
-                      { label: "Social Profiles",   value: PLAN_STATS[activePlan.id]?.profiles ?? "—" },
-                      { label: "Brands/Workspaces", value: PLAN_STATS[activePlan.id]?.brands   ?? "—" },
-                      { label: "AI Agents",         value: PLAN_STATS[activePlan.id]?.agents   ?? "—" },
+                      { label: "Included Users",    value: PLAN_STATS[activePlan.id]?.users    ?? "--" },
+                      { label: "Social Profiles",   value: PLAN_STATS[activePlan.id]?.profiles ?? "--" },
+                      { label: "Brands/Workspaces", value: PLAN_STATS[activePlan.id]?.brands   ?? "--" },
+                      { label: "AI Agents",         value: PLAN_STATS[activePlan.id]?.agents   ?? "--" },
                     ].map(stat => (
                       <div key={stat.label} className="bg-zinc-800/50 rounded-lg px-3 py-2.5 border border-zinc-800">
                         <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">{stat.label}</p>
@@ -786,6 +956,20 @@ export default function BillingPage() {
                     {activePlan.id === 'corporate' ? 'Manage Plan' : 'Upgrade Plan'}
                     <ArrowUpRight className="w-4 h-4" />
                   </button>
+                  {subscription && !subscription.cancel_at_period_end && activePlan.id !== 'starter' && (
+                    <button type="button" onClick={handleCancelSubscription}
+                      className="text-xs text-zinc-500 hover:text-rose-400 transition-colors w-full text-center">
+                      Cancel subscription
+                    </button>
+                  )}
+                  {subscription?.cancel_at_period_end && (
+                    <p className="text-xs text-amber-400 text-center">
+                      Cancels {new Date(subscription.current_period_end).toLocaleDateString()}
+                    </p>
+                  )}
+                  {subscribeError && (
+                    <p className="text-xs text-rose-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{subscribeError}</p>
+                  )}
                 </div>
 
               </div>
@@ -800,59 +984,93 @@ export default function BillingPage() {
               {loadingUsage && <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin ml-2" />}
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Intelligence */}
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4 text-zinc-400" />
-                  <span className="text-sm font-medium text-zinc-300">Intelligence</span>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {[
+                { key: "AI_TOKENS",       icon: Zap,      label: "AI Intelligence",   unit: "tokens",   fmt: (v: number) => v.toLocaleString() },
+                { key: "SOCIAL_API_CALLS",icon: Globe,    label: "Social API Calls",  unit: "calls",    fmt: (v: number) => v.toLocaleString() },
+                { key: "STORAGE_MB",      icon: Database, label: "Knowledge Storage", unit: "MB",       fmt: (v: number) => v.toFixed(1) },
+                { key: "CONTENT_POSTS",   icon: FileText, label: "Content Published", unit: "posts",    fmt: (v: number) => v.toLocaleString() },
+                { key: "AGENT_RUNS",      icon: Activity, label: "Agent Runs",        unit: "runs",     fmt: (v: number) => v.toLocaleString() },
+              ].map(({ key, icon: Icon, label, unit, fmt }) => (
+                <div key={key} className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Icon className="w-4 h-4 text-zinc-400" />
+                    <span className="text-sm font-medium text-zinc-300">{label}</span>
+                  </div>
+                  <p className="text-2xl font-semibold text-white">
+                    {loadingUsage ? "--" : fmt(summary[key]?.quantity || 0)}
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-1">{unit} this period</p>
+                  {summary[key]?.cost > 0 && (
+                    <p className="text-[11px] text-zinc-600 mt-0.5">${summary[key].cost.toFixed(4)} cost</p>
+                  )}
                 </div>
-                <p className="text-2xl font-semibold text-white">
-                  {loadingUsage ? "—" : (summary["AI_TOKENS"]?.quantity?.toLocaleString() || "0")}
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">AI Tokens processed</p>
-              </div>
-
-              {/* Execution */}
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Globe className="w-4 h-4 text-zinc-400" />
-                  <span className="text-sm font-medium text-zinc-300">Execution</span>
-                </div>
-                <p className="text-2xl font-semibold text-white">
-                  {loadingUsage ? "—" : (summary["SOCIAL_API_CALLS"]?.quantity?.toLocaleString() || "0")}
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">Social API Calls</p>
-              </div>
-
-              {/* Storage */}
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Database className="w-4 h-4 text-zinc-400" />
-                  <span className="text-sm font-medium text-zinc-300">Storage</span>
-                </div>
-                <p className="text-2xl font-semibold text-white">
-                  {loadingUsage ? "—" : (summary["STORAGE_MB"]?.quantity?.toFixed(1) || "0.0")}
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">MB of Knowledge Data</p>
-              </div>
+              ))}
             </div>
           </div>
 
           {/* Payment History */}
           <div className="space-y-4 pt-4 border-t border-zinc-800/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-zinc-400" />
-                <h3 className="text-sm font-medium text-white">Payment History</h3>
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-zinc-400" />
+              <h3 className="text-sm font-medium text-white">Payment History</h3>
+              {loadingInvoices && <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
+            </div>
+
+            {invoices.length === 0 && !loadingInvoices ? (
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-8 text-center">
+                <FileText className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
+                <p className="text-sm font-medium text-zinc-400">No invoices yet</p>
+                <p className="text-xs text-zinc-600 mt-1">Plan subscription invoices will appear here after your first billing cycle.</p>
               </div>
-            </div>
-            
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-8 text-center">
-              <FileText className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
-              <p className="text-sm font-medium text-zinc-400">No invoices yet</p>
-              <p className="text-xs text-zinc-600 mt-1">Invoices will appear here once Stripe billing is connected.</p>
-            </div>
+            ) : (
+              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-800">
+                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Date</th>
+                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Description</th>
+                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
+                      <th className="px-5 py-3 text-right text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-5 py-3 text-right text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Invoice</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/50">
+                    {invoices.map(inv => (
+                      <tr key={inv.id} className="hover:bg-zinc-800/20 transition-colors">
+                        <td className="px-5 py-3 text-zinc-400 whitespace-nowrap">
+                          {new Date(inv.created * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </td>
+                        <td className="px-5 py-3 text-zinc-300">
+                          {inv.description || 'Subscription'}
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border ${
+                            inv.status === 'paid'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          }`}>
+                            {inv.status === 'paid' ? <CheckCircle2 className="w-2.5 h-2.5" /> : <Clock className="w-2.5 h-2.5" />}
+                            {inv.status?.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-right font-medium text-zinc-200">
+                          ${(inv.amount_paid / 100).toFixed(2)} {inv.currency?.toUpperCase()}
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          {inv.hosted_url && (
+                            <a href={inv.hosted_url} target="_blank" rel="noopener noreferrer"
+                              className="text-xs text-zinc-400 hover:text-white transition-colors flex items-center gap-1 justify-end">
+                              <Download className="w-3 h-3" /> View
+                            </a>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Payment Methods */}
@@ -863,7 +1081,7 @@ export default function BillingPage() {
                 <h3 className="text-sm font-medium text-white">Payment Methods</h3>
                 {cardsLoading && <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
               </div>
-              <button onClick={handleAddCard} disabled={addingCard}
+              <button type="button" onClick={handleAddCard} disabled={addingCard}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition-colors disabled:opacity-40">
                 {addingCard ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                 Add Card
@@ -878,34 +1096,44 @@ export default function BillingPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {cards.map(card => (
-                  <div key={card.id} className="flex items-center justify-between p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-6 bg-zinc-800 rounded flex items-center justify-center">
-                        <CreditCard className="w-4 h-4 text-zinc-400" />
+                {cards.map(card => {
+                  const canDelete = !card.is_default && cards.length > 1;
+                  return (
+                    <div key={card.id} className={`flex items-center justify-between p-4 border rounded-xl transition-all ${
+                      card.is_default
+                        ? 'bg-zinc-900 border-zinc-700 ring-1 ring-white/10'
+                        : 'bg-zinc-900/50 border-zinc-800'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-6 rounded flex items-center justify-center ${card.is_default ? 'bg-white/10' : 'bg-zinc-800'}`}>
+                          <CreditCard className={`w-4 h-4 ${card.is_default ? 'text-white' : 'text-zinc-400'}`} />
+                        </div>
+                        <div>
+                          <p className="text-sm text-white font-medium capitalize">{card.brand} &bull;&bull;&bull;&bull; {card.last4}</p>
+                          <p className="text-xs text-zinc-500">Expires {card.exp_month}/{card.exp_year}</p>
+                        </div>
+                        {card.is_default && (
+                          <span className="text-[10px] px-2 py-0.5 bg-white/10 text-white border border-white/20 rounded uppercase tracking-wider font-semibold">Default</span>
+                        )}
                       </div>
-                      <div>
-                        <p className="text-sm text-white font-medium capitalize">{card.brand} ···· {card.last4}</p>
-                        <p className="text-xs text-zinc-500">Expires {card.exp_month}/{card.exp_year}</p>
-                      </div>
-                      {card.is_default && (
-                        <span className="text-[10px] px-2 py-0.5 bg-zinc-800 text-zinc-400 border border-zinc-700 rounded uppercase tracking-wider">Default</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!card.is_default && (
-                        <button onClick={() => handleSetDefaultCard(card.id)}
-                          className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors" title="Set as default">
-                          <Star className="w-3.5 h-3.5" />
+                      <div className="flex items-center gap-1">
+                        {!card.is_default && (
+                          <button type="button" onClick={() => handleSetDefaultCard(card.id)}
+                            className="p-1.5 text-zinc-500 hover:text-amber-400 transition-colors" title="Set as default">
+                            <Star className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteCard(card.id)}
+                          disabled={!canDelete}
+                          className={`p-1.5 transition-colors ${canDelete ? 'text-zinc-500 hover:text-rose-400' : 'text-zinc-700 cursor-not-allowed'}`}
+                          title={!canDelete ? (card.is_default ? 'Set another card as default first' : 'Must keep at least one card') : 'Remove card'}>
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                      <button onClick={() => handleDeleteCard(card.id)}
-                        className="p-1.5 text-zinc-500 hover:text-rose-400 transition-colors" title="Remove card">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -913,7 +1141,79 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* ── Deposit Toast ── */}
+      {/* â"€â"€ Deposit Toast â"€â"€ */}
+      {/* Upgrade Confirmation Modal */}
+      {upgradeConfirm && mounted && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => { setUpgradeConfirm(null); setSubscribeError(null); }} />
+          <div className="relative z-10 w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-white">Confirm Upgrade</h3>
+              <button type="button" onClick={() => { setUpgradeConfirm(null); setSubscribeError(null); }} className="p-1.5 text-zinc-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+            </div>
+
+            {/* Plan summary */}
+            <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl space-y-1">
+              <p className="text-sm font-semibold text-white">{upgradeConfirm.planName}</p>
+              <p className="text-2xl font-bold text-white">${upgradeConfirm.price}<span className="text-sm font-normal text-zinc-500"> / month</span></p>
+              <p className="text-xs text-zinc-500">Billed monthly, cancel anytime</p>
+            </div>
+
+            {/* Payment method */}
+            <div>
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-2">Payment Method</p>
+              {cards.length > 0 ? (
+                <div className="space-y-2">
+                  {cards.map(card => (
+                    <div key={card.id}
+                      onClick={() => setSelectedCardId(card.id)}
+                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedCardId === card.id ? 'border-white/40 bg-zinc-800 ring-1 ring-white/20' : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-600'}`}>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedCardId === card.id ? 'border-white' : 'border-zinc-600'}`}>
+                        {selectedCardId === card.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+                      <CreditCard className="w-4 h-4 text-zinc-400 shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm text-white capitalize">{card.brand} &bull;&bull;&bull;&bull; {card.last4}</p>
+                        <p className="text-xs text-zinc-500">Expires {card.exp_month}/{card.exp_year}</p>
+                      </div>
+                      {card.is_default && <span className="text-[10px] text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">Default</span>}
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => { setUpgradeConfirm(null); handleAddCard(); }}
+                    className="w-full py-2 text-xs text-zinc-400 hover:text-white border border-dashed border-zinc-700 hover:border-zinc-500 rounded-xl transition-colors flex items-center justify-center gap-1.5">
+                    <Plus className="w-3 h-3" /> Use a different card
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-400 flex items-start gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    No card on file. Add a card to continue.
+                  </div>
+                  <button type="button" onClick={() => { setUpgradeConfirm(null); handleAddCard(); }}
+                    className="w-full py-2.5 bg-white text-zinc-900 text-sm font-semibold rounded-xl hover:bg-zinc-100 flex items-center justify-center gap-2">
+                    <Plus className="w-4 h-4" /> Add Payment Card
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {subscribeError && (
+              <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{subscribeError}</p>
+            )}
+
+            {cards.length > 0 && (
+              <button type="button" onClick={confirmSubscribe} disabled={subscribing}
+                className="w-full py-3 bg-white hover:bg-zinc-100 disabled:opacity-40 text-zinc-900 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2">
+                {subscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
+                {subscribing ? 'Processing...' : `Confirm & Pay $${upgradeConfirm.price}/mo`}
+              </button>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
       {depositToast && mounted && createPortal(
         <div className={`fixed top-4 right-4 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl border text-sm font-semibold ${
           depositToast.type === "success"
@@ -922,12 +1222,12 @@ export default function BillingPage() {
         }`}>
           {depositToast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           <span className="max-w-sm">{depositToast.msg}</span>
-          <button onClick={() => setDepositToast(null)}><X className="w-3.5 h-3.5 opacity-60" /></button>
+          <button type="button" onClick={() => setDepositToast(null)}><X className="w-3.5 h-3.5 opacity-60" /></button>
         </div>,
         document.body
       )}
 
-      {/* ── Add Credits Modal (3-step deposit flow) ── */}
+      {/* â"€â"€ Add Credits Modal (3-step deposit flow) â"€â"€ */}
       {showTopUpModal && mounted && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => { setShowTopUpModal(false); resetDeposit(); }} />
@@ -945,14 +1245,14 @@ export default function BillingPage() {
                   {depositStep === "confirm" && "Confirm Deposit"}
                 </h2>
               </div>
-              <button onClick={() => { setShowTopUpModal(false); resetDeposit(); }} className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
+              <button type="button" onClick={() => { setShowTopUpModal(false); resetDeposit(); }} className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="p-6 space-y-5">
 
-              {/* Step 1 — Amount */}
+              {/* Step 1 -- Amount */}
               {depositStep === "amount" && (
                 <>
                   <div>
@@ -970,7 +1270,7 @@ export default function BillingPage() {
                         autoFocus
                       />
                     </div>
-                    <p className="text-[11px] text-zinc-600 mt-1.5">Minimum $10 · Maximum $100,000</p>
+                    <p className="text-[11px] text-zinc-600 mt-1.5">Minimum $10 Â· Maximum $100,000</p>
                   </div>
                   {/* Quick amounts */}
                   <div className="grid grid-cols-4 gap-2">
@@ -991,7 +1291,7 @@ export default function BillingPage() {
                     <p className="text-xs text-blue-300">Stripe processing fees (2.9% + $0.30) will be shown on the next screen.</p>
                   </div>
                   {depositError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
-                  <button onClick={handleCalculateFees} disabled={!depositAmount || loadingFees}
+                  <button type="button" onClick={handleCalculateFees} disabled={!depositAmount || loadingFees}
                     className="w-full flex items-center justify-center gap-2 py-3 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-bold rounded-xl disabled:opacity-40 transition-all">
                     {loadingFees && <Loader2 className="w-4 h-4 animate-spin" />}
                     Calculate Total
@@ -999,7 +1299,7 @@ export default function BillingPage() {
                 </>
               )}
 
-              {/* Step 2 — Fee breakdown */}
+              {/* Step 2 -- Fee breakdown */}
               {depositStep === "fees" && fees && (
                 <>
                   <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl space-y-3">
@@ -1024,13 +1324,13 @@ export default function BillingPage() {
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    <button onClick={() => setDepositStep("amount")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Back</button>
-                    <button onClick={() => setDepositStep("confirm")} className="flex-1 py-2.5 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-bold rounded-xl">Proceed</button>
+                    <button type="button" onClick={() => setDepositStep("amount")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Back</button>
+                    <button type="button" onClick={() => setDepositStep("confirm")} className="flex-1 py-2.5 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-bold rounded-xl">Proceed</button>
                   </div>
                 </>
               )}
 
-              {/* Step 3 — Confirm */}
+              {/* Step 3 -- Confirm */}
               {depositStep === "confirm" && fees && (
                 <>
                   <div className="p-5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-center">
@@ -1055,11 +1355,11 @@ export default function BillingPage() {
                   </div>
                   {depositError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
                   <div className="flex gap-3">
-                    <button onClick={() => setDepositStep("fees")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Back</button>
-                    <button onClick={handleConfirmDeposit} disabled={!confirmed || depositing}
+                    <button type="button" onClick={() => setDepositStep("fees")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Back</button>
+                    <button type="button" onClick={handleConfirmDeposit} disabled={!confirmed || depositing}
                       className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-bold rounded-xl transition-all">
                       {depositing ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
-                      {depositing ? "Redirecting…" : `Pay ${fmtCurrency(fees.total_charge, fees.currency)}`}
+                      {depositing ? "Redirecting..." : `Pay ${fmtCurrency(fees.total_charge, fees.currency)}`}
                     </button>
                   </div>
                 </>
@@ -1071,7 +1371,7 @@ export default function BillingPage() {
         document.body
       )}
 
-      {/* ── Upgrade Modal ── */}
+      {/* â"€â"€ Upgrade Modal â"€â"€ */}
       {showUpgradeModal && mounted && createPortal(
         <div className="fixed inset-0 z-[9999] flex justify-end">
           <div 
@@ -1088,6 +1388,11 @@ export default function BillingPage() {
               </button>
             </div>
             
+            {subscribeError && (
+              <div className="mx-6 mt-4 p-3 rounded-lg text-sm font-medium text-center bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />{subscribeError}
+              </div>
+            )}
             {planMessage && (
               <div className={`mx-6 mt-4 p-3 rounded-lg text-sm font-medium text-center ${
                 planMessage.type === 'success'
@@ -1125,7 +1430,7 @@ export default function BillingPage() {
                     </ul>
 
                     {isActive ? (
-                      <button disabled className="w-full py-2.5 rounded-lg text-sm font-medium bg-zinc-800 text-zinc-500 cursor-not-allowed">
+                      <button type="button" disabled className="w-full py-2.5 rounded-lg text-sm font-medium bg-zinc-800 text-zinc-500 cursor-not-allowed">
                         Current Plan
                       </button>
                     ) : plan.id === 'corporate' ? (
@@ -1134,14 +1439,23 @@ export default function BillingPage() {
                         Contact Sales <ArrowUpRight className="w-3.5 h-3.5" />
                       </a>
                     ) : (
-                      <button
-                        onClick={() => handleChangePlan(plan.id)}
-                        disabled={!!changingPlan}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium bg-white text-black hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isChanging ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                        {isChanging ? 'Switching…' : (activePlanId && PLANS.findIndex(p=>p.id===plan.id) < PLANS.findIndex(p=>p.id===activePlanId) ? 'Downgrade' : 'Upgrade')}
-                      </button>
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSubscribe(plan.id)}
+                          disabled={subscribing || !!changingPlan}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium bg-white text-black hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {(subscribing && !isChanging) || isChanging ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                          {isChanging ? 'Switching...' : subscribing ? 'Processing...' : (activePlanId && PLANS.findIndex(p=>p.id===plan.id) < PLANS.findIndex(p=>p.id===activePlanId) ? 'Downgrade' : 'Upgrade')}
+                        </button>
+                        {plan.id !== 'starter' && cards.length === 0 && (
+                          <p className="text-[10px] text-amber-400 text-center">Add a card first to subscribe</p>
+                        )}
+                        {plan.id !== 'starter' && cards.length > 0 && (
+                          <p className="text-[10px] text-zinc-600 text-center">Charged to your default card</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 );

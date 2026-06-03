@@ -16,14 +16,12 @@ interface AdAccount {
   ad_account_name?: string;
   agency_ad_account_id?: string;
   agency_page_id?: string;
-  google_ads_customer_id?: string;
   is_agency_default: boolean;
   status: string;
 }
 
 interface AdAccountsData {
-  meta:   AdAccount[];
-  google: AdAccount[];
+  meta: AdAccount[];
 }
 
 const inp = "w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/30 transition-all";
@@ -35,11 +33,9 @@ export default function AdminAdAccountsPage() {
   const [error,   setError]   = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Edit state per account
-  const [editingId,          setEditingId]          = useState<string | null>(null);
-  const [editAdAccountId,    setEditAdAccountId]    = useState("");
-  const [editPageId,         setEditPageId]         = useState("");
-  const [editCustomerId,     setEditCustomerId]     = useState("");
+  const [editingId,       setEditingId]       = useState<string | null>(null);
+  const [editAdAccountId, setEditAdAccountId] = useState("");
+  const [editPageId,      setEditPageId]      = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,9 +53,8 @@ export default function AdminAdAccountsPage() {
     try {
       const body: Record<string, string> = {};
       if (editingId === account.id) {
-        if (editAdAccountId)  body.agency_ad_account_id  = editAdAccountId;
-        if (editPageId)        body.agency_page_id         = editPageId;
-        if (editCustomerId)    body.google_ads_customer_id = editCustomerId;
+        if (editAdAccountId) body.agency_ad_account_id = editAdAccountId;
+        if (editPageId)      body.agency_page_id       = editPageId;
       }
       const r = await api.post(`/api/v1/admin/ad-accounts/${account.id}/set-default`, body);
       if (r.success) {
@@ -84,7 +79,6 @@ export default function AdminAdAccountsPage() {
     setEditingId(account.id);
     setEditAdAccountId(account.agency_ad_account_id || account.ad_account_id || "");
     setEditPageId(account.agency_page_id || "");
-    setEditCustomerId(account.google_ads_customer_id || "");
   };
 
   const labelCls = "block text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5";
@@ -95,19 +89,16 @@ export default function AdminAdAccountsPage() {
     </div>
   );
 
-  const renderAccountCard = (account: AdAccount, isGoogle = false) => {
-    const isDefault  = account.is_agency_default;
-    const isEditing  = editingId === account.id;
+  const renderAccountCard = (account: AdAccount) => {
+    const isDefault    = account.is_agency_default;
+    const isEditing    = editingId === account.id;
     const isSavingThis = saving === account.id;
 
     return (
       <div key={account.id}
         className={`p-5 rounded-2xl border transition-all ${
-          isDefault
-            ? "bg-emerald-500/5 border-emerald-500/30"
-            : "bg-zinc-900/40 border-zinc-800"
+          isDefault ? "bg-emerald-500/5 border-emerald-500/30" : "bg-zinc-900/40 border-zinc-800"
         }`}>
-        {/* Header */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             {isDefault && <Star className="w-4 h-4 text-emerald-400 fill-emerald-400" />}
@@ -116,11 +107,9 @@ export default function AdminAdAccountsPage() {
               <p className="text-[11px] text-zinc-500">{account.account_handle || account.id}</p>
             </div>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${
-              account.platform === 'googleads'
-                ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                : account.platform === 'facebook'
-                  ? "bg-blue-600/10 text-blue-300 border border-blue-600/20"
-                  : "bg-pink-500/10 text-pink-400 border border-pink-500/20"
+              account.platform === "facebook"
+                ? "bg-blue-600/10 text-blue-300 border border-blue-600/20"
+                : "bg-pink-500/10 text-pink-400 border border-pink-500/20"
             }`}>
               {account.platform}
             </span>
@@ -156,47 +145,27 @@ export default function AdminAdAccountsPage() {
           </div>
         </div>
 
-        {/* Current config summary */}
         {!isEditing && (
           <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-zinc-500">
-            {!isGoogle && (
-              <>
-                <span>Ad Account: <span className="text-zinc-300">{account.agency_ad_account_id || account.ad_account_id || "Not set"}</span></span>
-                <span>Page ID: <span className="text-zinc-300">{account.agency_page_id || "Not set"}</span></span>
-              </>
-            )}
-            {isGoogle && (
-              <span>Customer ID: <span className="text-zinc-300">{account.google_ads_customer_id || "Not set"}</span></span>
-            )}
+            <span>Ad Account: <span className="text-zinc-300">{account.agency_ad_account_id || account.ad_account_id || "Not set"}</span></span>
+            <span>Page ID: <span className="text-zinc-300">{account.agency_page_id || "Not set"}</span></span>
           </div>
         )}
 
-        {/* Editable config */}
         {isEditing && (
           <div className="mt-4 pt-4 border-t border-zinc-800 space-y-3">
-            {!isGoogle ? (
-              <>
-                <div>
-                  <label className={labelCls}>Meta Ad Account ID <span className="normal-case text-zinc-600 font-normal">(act_xxx format)</span></label>
-                  <input value={editAdAccountId} onChange={e => setEditAdAccountId(e.target.value)}
-                    className={inp} placeholder="act_123456789" />
-                  <p className="text-[11px] text-zinc-600 mt-1">Find in Meta Business Manager → Ad Accounts</p>
-                </div>
-                <div>
-                  <label className={labelCls}>Facebook Page ID <span className="normal-case text-zinc-600 font-normal">(for ad creatives)</span></label>
-                  <input value={editPageId} onChange={e => setEditPageId(e.target.value)}
-                    className={inp} placeholder="123456789012345" />
-                  <p className="text-[11px] text-zinc-600 mt-1">Find in Meta Business Suite → Pages → About</p>
-                </div>
-              </>
-            ) : (
-              <div>
-                <label className={labelCls}>Google Ads Customer ID <span className="normal-case text-zinc-600 font-normal">(10-digit, no dashes)</span></label>
-                <input value={editCustomerId} onChange={e => setEditCustomerId(e.target.value)}
-                  className={inp} placeholder="1234567890" />
-                <p className="text-[11px] text-zinc-600 mt-1">Find in Google Ads → Account ID shown at top right</p>
-              </div>
-            )}
+            <div>
+              <label className={labelCls}>Meta Ad Account ID <span className="normal-case text-zinc-600 font-normal">(act_xxx format)</span></label>
+              <input value={editAdAccountId} onChange={e => setEditAdAccountId(e.target.value)}
+                className={inp} placeholder="act_123456789" />
+              <p className="text-[11px] text-zinc-600 mt-1">Find in Meta Business Manager → Ad Accounts</p>
+            </div>
+            <div>
+              <label className={labelCls}>Facebook Page ID <span className="normal-case text-zinc-600 font-normal">(for ad creatives)</span></label>
+              <input value={editPageId} onChange={e => setEditPageId(e.target.value)}
+                className={inp} placeholder="123456789012345" />
+              <p className="text-[11px] text-zinc-600 mt-1">Find in Meta Business Suite → Pages → About</p>
+            </div>
           </div>
         )}
       </div>
@@ -205,12 +174,11 @@ export default function AdminAdAccountsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Agency Ad Accounts</h1>
           <p className="text-sm text-zinc-500 mt-1">
-            Set one Meta and one Google Ads account as the agency default. All client campaigns will run through these accounts.
+            Set a Meta account as the agency default. All client campaigns will run through this account.
           </p>
         </div>
         <button onClick={load} className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-500 hover:text-zinc-300 transition-all">
@@ -218,17 +186,15 @@ export default function AdminAdAccountsPage() {
         </button>
       </div>
 
-      {/* Info banner */}
       <div className="flex items-start gap-3 p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
         <Shield className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
         <div className="text-xs text-blue-300 space-y-1">
           <p className="font-semibold">Agency Model — Clients Never See This</p>
-          <p className="text-blue-400">The accounts you set here are used automatically when any client creates a boost. Clients only see campaign options — no ad account selection, no platform credentials.</p>
-          <p className="text-blue-400">Make sure your agency Meta Business Manager has the ad account funded and your Google Ads MCC customer ID is set in the backend <code className="bg-blue-500/10 px-1 rounded">.env</code> as <code className="bg-blue-500/10 px-1 rounded">GOOGLE_ADS_LOGIN_CUSTOMER_ID</code>.</p>
+          <p className="text-blue-400">The account you set here is used automatically when any client creates a boost. Clients only see campaign options — no ad account selection, no platform credentials.</p>
+          <p className="text-blue-400">Make sure your agency Meta Business Manager has the ad account funded before running campaigns.</p>
         </div>
       </div>
 
-      {/* Error / Success */}
       {error && (
         <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />{error}
@@ -242,49 +208,16 @@ export default function AdminAdAccountsPage() {
         </div>
       )}
 
-      {/* Meta section */}
       <div className="space-y-3">
         <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Meta (Facebook & Instagram)</h2>
         {data?.meta && data.meta.length > 0 ? (
-          data.meta.map(a => renderAccountCard(a, false))
+          data.meta.map(a => renderAccountCard(a))
         ) : (
           <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-2xl text-center">
             <p className="text-zinc-500 text-sm">No Meta accounts connected.</p>
-            <p className="text-zinc-600 text-xs mt-1">Go to <strong className="text-zinc-400">Connected Accounts</strong> and connect a Facebook account first.</p>
+            <p className="text-zinc-600 text-xs mt-1">Go to <strong className="text-zinc-400">Platform Accounts</strong> and connect a Facebook account first.</p>
           </div>
         )}
-      </div>
-
-      {/* Google Ads section */}
-      <div className="space-y-3">
-        <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Google Ads</h2>
-        {data?.google && data.google.length > 0 ? (
-          data.google.map(a => renderAccountCard(a, true))
-        ) : (
-          <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-2xl text-center">
-            <p className="text-zinc-500 text-sm">No Google Ads accounts connected.</p>
-            <p className="text-zinc-600 text-xs mt-1">Go to <strong className="text-zinc-400">Connected Accounts</strong> and connect a Google Ads account first.</p>
-          </div>
-        )}
-      </div>
-
-      {/* MCC reminder */}
-      <div className="p-4 bg-zinc-900/40 border border-zinc-800 rounded-2xl">
-        <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">Google Ads MCC Setup Checklist</p>
-        <div className="space-y-2">
-          {[
-            { done: true,  text: "Google Ads Manager Account (MCC) created" },
-            { done: false, text: "GOOGLE_ADS_LOGIN_CUSTOMER_ID set in backend .env (your MCC customer ID, no dashes)" },
-            { done: false, text: "GOOGLE_ADS_DEVELOPER_TOKEN set in backend .env (from API Center in your MCC)" },
-            { done: false, text: "Client accounts linked under your MCC in Google Ads Manager" },
-            { done: false, text: "Google Ads account connected above with client customer ID filled in" },
-          ].map((item, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs">
-              <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${item.done ? "text-emerald-400" : "text-zinc-700"}`} />
-              <span className={item.done ? "text-zinc-400" : "text-zinc-600"}>{item.text}</span>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

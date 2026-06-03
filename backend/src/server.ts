@@ -229,10 +229,10 @@ import {
 import { PromptController } from './modules/prompts/promptController';
 import { getResourceUsage } from './domains/monitoring/usageController';
 import {
-  getWalletData, updateAutoTopup, calculateFees, createDepositSession, stripeWebhook, simulateDeposit,
+  getWalletData, updateAutoTopup, calculateFees, createDepositSession, stripeWebhook, simulateDeposit, syncDepositSession,
   getSpendCap, updateSpendCap, getBillingSettings, updateBillingSettings,
-  createSetupIntent, createSetupCheckout, listPaymentMethods, deletePaymentMethod, setDefaultPaymentMethod,
-  getWalletBalance,
+  createSetupIntent, createSetupCheckout, syncCardSession, listPaymentMethods, deletePaymentMethod, setDefaultPaymentMethod,
+  getWalletBalance, createSubscription, cancelSubscription, getSubscription, listInvoices,
 } from './domains/billing/walletController';
 import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemetryController';
 import { performGlobalSearch } from './domains/admin/globalSearchController';
@@ -723,6 +723,29 @@ app.get('/api/v1/campaigns/:id/events',           authenticate, campaignGuard,  
 app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGuard,   updateSpend);
 app.post('/api/v1/campaigns/:id/push-to-meta',   authenticate, campaignLaunchGuard,  pushCampaignToMetaHandler);
 
+// Client Meta Account routes (bring-your-own-account model)
+import { listClientCampaignAccounts, fetchMetaAdAccounts, setAdAccount, fetchMetaPages } from './domains/campaigns/metaAccountController';
+import { publishToMeta, toggleMetaStatus, deleteFromMeta, syncFromMeta, getAdAccountDetails } from './domains/campaigns/metaPublishController';
+import { searchLocations, searchInterests, getReachEstimate } from './domains/campaigns/metaTargetingSearch';
+
+// Client Meta account management
+app.get('/api/v1/campaigns/meta/accounts',                        authenticate, campaignGuard, listClientCampaignAccounts);
+app.post('/api/v1/campaigns/meta/accounts/:id/fetch-ad-accounts', authenticate, campaignGuard, fetchMetaAdAccounts);
+app.post('/api/v1/campaigns/meta/accounts/:id/set-ad-account',    authenticate, campaignWriteGuard, setAdAccount);
+app.get('/api/v1/campaigns/meta/pages',                           authenticate, campaignGuard, fetchMetaPages);
+
+// Meta campaign publish / sync
+app.post('/api/v1/campaigns/:id/publish-to-meta',    authenticate, campaignWriteGuard,  publishToMeta);
+app.post('/api/v1/campaigns/:id/toggle-meta-status', authenticate, campaignWriteGuard, toggleMetaStatus);
+app.delete('/api/v1/campaigns/:id/meta',             authenticate, campaignWriteGuard, deleteFromMeta);
+app.post('/api/v1/campaigns/meta/sync',              authenticate, campaignGuard,        syncFromMeta);
+app.get('/api/v1/campaigns/meta/ad-account-details', authenticate, campaignGuard,        getAdAccountDetails);
+
+// Meta targeting search (locations + interests from Meta API)
+app.get('/api/v1/campaigns/meta/search/locations',    authenticate, campaignGuard, searchLocations);
+app.get('/api/v1/campaigns/meta/search/interests',    authenticate, campaignGuard, searchInterests);
+app.post('/api/v1/campaigns/meta/reach-estimate',     authenticate, campaignGuard, getReachEstimate);
+
 // Budget Authorization routes (Phase 4)
 app.post('/api/v1/campaigns/:id/budget-auth/request', authenticate, campaignWriteGuard,    requestBudgetAuth);
 app.get('/api/v1/campaigns/:id/budget-auth',          authenticate, campaignGuard,         getBudgetAuthForCampaign);
@@ -945,17 +968,23 @@ app.get('/api/v1/billing/wallet',            authenticate, getWalletData);
 app.get('/api/v1/billing/wallet/balance',    authenticate, getWalletBalance);
 app.put('/api/v1/billing/wallet/auto-topup', authenticate, updateAutoTopup);
 app.post('/api/v1/billing/fees',             authenticate, calculateFees);
-app.post('/api/v1/billing/deposit/create',   authenticate, createDepositSession);
-app.post('/api/v1/billing/deposit/simulate', authenticate, simulateDeposit);
+app.post('/api/v1/billing/deposit/create',        authenticate, createDepositSession);
+app.post('/api/v1/billing/deposit/simulate',      authenticate, simulateDeposit);
+app.post('/api/v1/billing/deposit/sync-session',  authenticate, syncDepositSession);
 app.get('/api/v1/billing/spend-cap',         authenticate, getSpendCap);
 app.patch('/api/v1/billing/spend-cap',       authenticate, updateSpendCap);
 app.get('/api/v1/billing/settings',          authenticate, getBillingSettings);
 app.patch('/api/v1/billing/settings',        authenticate, updateBillingSettings);
 app.post('/api/v1/billing/payment-methods/setup',          authenticate, createSetupIntent);
 app.post('/api/v1/billing/payment-methods/setup-checkout', authenticate, createSetupCheckout);
+app.post('/api/v1/billing/payment-methods/sync-session',   authenticate, syncCardSession);
 app.get('/api/v1/billing/payment-methods',                 authenticate, listPaymentMethods);
 app.delete('/api/v1/billing/payment-methods/:id',          authenticate, deletePaymentMethod);
 app.post('/api/v1/billing/payment-methods/:id/default',    authenticate, setDefaultPaymentMethod);
+app.post('/api/v1/billing/subscribe',          authenticate, createSubscription);
+app.post('/api/v1/billing/cancel-subscription', authenticate, cancelSubscription);
+app.get('/api/v1/billing/subscription',        authenticate, getSubscription);
+app.get('/api/v1/billing/invoices',            authenticate, listInvoices);
 app.get('/api/v1/monitoring/models/performance/summary', authenticate, scopeGuard('read:analytics', '*'), getPerformanceSummary);
 app.get('/api/v1/monitoring/models/performance/trends', authenticate, scopeGuard('read:analytics', '*'), getPerformanceTrends);
 app.get('/api/v1/monitoring/models/performance/hallucinations', authenticate, scopeGuard('read:analytics', '*'), getHallucinationFlags);

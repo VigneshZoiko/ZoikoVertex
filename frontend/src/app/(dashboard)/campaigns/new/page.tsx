@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, ArrowRight, CheckCircle2, Loader2, AlertCircle,
@@ -800,7 +801,7 @@ function WizardImageUpload({ label, hint, value, onChange }: {
       <label className={lbl}>{label}{hint && <span className="normal-case font-normal text-zinc-600 ml-1">— {hint}</span>}</label>
       {value ? (
         <div className="relative w-full h-28 rounded-xl overflow-hidden border border-zinc-700 bg-zinc-900">
-          <img src={value} alt="" className="w-full h-full object-cover" />
+          <Image src={value} alt="" fill className="object-cover" unoptimized />
           <button type="button" onClick={() => onChange("")}
             className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-white hover:bg-black">
             <X className="w-3 h-3" />
