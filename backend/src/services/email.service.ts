@@ -8,14 +8,13 @@ let client: Resend | null = null;
 
 let logoBase64: string | null = null;
 try {
-  const logoPath = join(__dirname, '..', '..', '..', 'frontend', 'public', 'images', 'logo.jpeg');
-  const extPath = join(__dirname, '..', '..', '..', '..', 'frontend', 'public', 'images', 'logo.jpeg');
+  const logoPath = join(__dirname, '..', '..', '..', 'frontend', 'public', 'images', 'zoikovertexlogo.png');
   logoBase64 = readFileSync(logoPath, 'base64');
 } catch {
   try {
-    logoBase64 = readFileSync(join(__dirname, '..', '..', '..', '..', 'frontend', 'public', 'images', 'logo.jpeg'), 'base64');
+    logoBase64 = readFileSync(join(__dirname, '..', '..', '..', '..', 'frontend', 'public', 'images', 'zoikovertexlogo.png'), 'base64');
   } catch {
-    logger.warn('[email] Could not load logo.jpeg — using text fallback');
+    logger.warn('[email] Could not load zoikovertexlogo.png — using text fallback');
   }
 }
 
@@ -31,7 +30,7 @@ function getClient(): Resend | null {
 
 function buildHtml(body: string): string {
   const logoImg = logoBase64
-    ? `<img src="data:image/jpeg;base64,${logoBase64}" alt="ZoikoVertex" style="height:32px;width:auto;opacity:0.9;" />`
+    ? `<img src="data:image/png;base64,${logoBase64}" alt="ZoikoVertex" style="height:32px;width:auto;opacity:0.9;" />`
     : `<span style="font-size:20px;font-weight:600;color:#18181b;">ZoikoVertex</span>`;
   return `
 <!DOCTYPE html>
