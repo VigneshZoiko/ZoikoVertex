@@ -65,7 +65,12 @@ export async function createRule(input: ApprovalRuleInput): Promise<ApprovalRule
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    if (isMissingTable(error)) {
+      throw Object.assign(new Error('Approval rules table not found. Run the 29_approval_rules.sql migration.'), { statusCode: 503, code: 'MIGRATION_REQUIRED' });
+    }
+    throw error;
+  }
 
   await createAuditLog({
     tenant_id: input.tenant_id,
@@ -107,18 +112,36 @@ export async function listRules(params: {
   if (limit > 0) query = query.range(offset, offset + limit - 1);
 
   const { data, error, count } = await query;
-  if (error) throw error;
+  if (error) {
+    const code = (error as { code?: string }).code;
+    if (code === '42P01' || code === '42703') {
+      return { rules: [], total: 0 };
+    }
+    throw error;
+  }
   return { rules: data as unknown as ApprovalRule[], total: count || 0 };
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function validUUID(s: string): boolean { return UUID_RE.test(s); }
+
+function isMissingTable(error: unknown): boolean {
+  const code = (error as { code?: string }).code;
+  return code === '42P01' || code === '42703';
+}
+
 export async function getRule(id: string, tenant_id: string): Promise<ApprovalRule | null> {
+  if (!validUUID(id)) return null;
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .select('*')
     .eq('id', id)
     .eq('tenant_id', tenant_id)
     .maybeSingle();
-  if (error) throw error;
+  if (error) {
+    if (isMissingTable(error)) return null;
+    throw error;
+  }
   return data as unknown as ApprovalRule | null;
 }
 
@@ -345,6 +368,7 @@ export async function cloneRule(id: string, tenant_id: string, workspace_id: str
 }
 
 export async function getRuleScope(approval_rule_id: string) {
+  if (!validUUID(approval_rule_id)) return null;
   const { data, error } = await supabaseAdmin
     .from('approval_rule_scopes')
     .select('*')
@@ -373,6 +397,7 @@ export async function upsertRuleScope(params: {
   workflow_id?: string;
   restricted_mode_status?: string;
 }) {
+  if (!validUUID(params.approval_rule_id)) throw new Error('Rule not found');
   const existing = await getRuleScope(params.approval_rule_id);
   if (existing) {
     const { data, error } = await supabaseAdmin
@@ -428,6 +453,7 @@ export async function upsertRuleScope(params: {
 }
 
 export async function getRulePath(approval_rule_id: string) {
+  if (!validUUID(approval_rule_id)) return null;
   const { data, error } = await supabaseAdmin
     .from('approval_rule_paths')
     .select('*')
@@ -447,6 +473,7 @@ export async function upsertRulePath(params: {
   allow_delegation?: boolean;
   emergency_route_enabled?: boolean;
 }) {
+  if (!validUUID(params.approval_rule_id)) throw new Error('Rule not found');
   const existing = await getRulePath(params.approval_rule_id);
   if (existing) {
     const { data, error } = await supabaseAdmin
@@ -496,6 +523,7 @@ export async function getRuleStages(approval_rule_path_id: string) {
 }
 
 export async function getRuleDetails(approval_rule_id: string) {
+  if (!validUUID(approval_rule_id)) return null;
   const rule = await supabaseAdmin
     .from('approval_rules')
     .select('*')
@@ -547,6 +575,7 @@ export async function getRuleStats(tenant_id: string) {
 }
 
 export async function getRuleVersions(approval_rule_id: string) {
+  if (!validUUID(approval_rule_id)) return [];
   const { data, error } = await supabaseAdmin
     .from('approval_rule_versions')
     .select('*')
@@ -557,6 +586,7 @@ export async function getRuleVersions(approval_rule_id: string) {
 }
 
 export async function getRuleAuditLog(approval_rule_id: string) {
+  if (!validUUID(approval_rule_id)) return [];
   const { data, error } = await supabaseAdmin
     .from('approval_rule_audit_logs')
     .select('*')
@@ -567,6 +597,7 @@ export async function getRuleAuditLog(approval_rule_id: string) {
 }
 
 export async function getRuleConflicts(approval_rule_id: string) {
+  if (!validUUID(approval_rule_id)) return [];
   const { data, error } = await supabaseAdmin
     .from('approval_rule_conflicts')
     .select('*')
@@ -708,6 +739,7 @@ export async function runSimulation(params: {
   simulated_by: string;
   simulation_input: Record<string, unknown>;
 }) {
+  if (!validUUID(params.approval_rule_id)) throw new Error('Rule not found');
   const { data: rule } = await supabaseAdmin
     .from('approval_rules')
     .select('*')

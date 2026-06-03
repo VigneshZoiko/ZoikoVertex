@@ -8,7 +8,7 @@ function getTenantId(req: AuthRequest): string {
 }
 
 function getUserId(req: AuthRequest): string {
-  return req.user?.id || '';
+  return req.user?.id || DEFAULT_TENANT_ID;
 }
 
 export const listRules = async (req: AuthRequest, res: Response, next: NextFunction) => {
