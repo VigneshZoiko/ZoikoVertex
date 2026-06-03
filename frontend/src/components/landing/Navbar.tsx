@@ -3,12 +3,12 @@ import Link from "next/link";
 
 export default function Navbar() {
   const navItems = [
-    { label: "Platform", hasDropdown: false },
+    { label: "Platform", hasDropdown: true },
     { label: "AI Agents", hasDropdown: true },
     { label: "Solutions", hasDropdown: true },
+    { label: "Governance", hasDropdown: false },
     { label: "Resources", hasDropdown: true },
     { label: "About Us", hasDropdown: false },
-    { label: "Pricing", hasDropdown: false },
   ];
 
   return (
