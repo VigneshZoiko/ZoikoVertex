@@ -38,7 +38,6 @@ export const getCollusionMetrics = async (req: AuthRequest, res: Response, next:
     let rubberStampCount = 0;
     let segregationViolations = 0;
     let warningOverrides = 0;
-    const monopolizedApprovals = 0;
 
     const incidentList: CollusionIncident[] = [];
 
@@ -107,7 +106,6 @@ export const getCollusionMetrics = async (req: AuthRequest, res: Response, next:
         rubber_stamps: rubberStampCount,
         segregation_violations: segregationViolations,
         warning_overrides: warningOverrides,
-        monopolized_approvals: monopolizedApprovals,
         incidents: incidentList.slice(0, 10), // return top 10 incidents
       }
     });

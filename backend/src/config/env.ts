@@ -48,6 +48,9 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET:  z.string().optional(),
   // Deposit hold window in hours (default 48 = 2 days)
   DEPOSIT_HOLD_HOURS: z.string().default('48'),
+  // Resend for email notifications
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default('ZoikoVertex <noreply@zoikovertex.com>'),
 });
 
 const result = envSchema.safeParse(process.env);

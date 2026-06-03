@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import type { AuthRequest } from '../../shared/authMiddleware';
+import { sendOrgWelcomeEmail } from '../../services/email.service';
 
 export const setupWorkspace = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -13,11 +14,12 @@ export const setupWorkspace = async (req: AuthRequest, res: Response, next: Next
     if (!company_name?.trim()) return res.status(400).json({ error: 'Company name is required' });
     if (!workspace_name?.trim()) return res.status(400).json({ error: 'Workspace name is required' });
 
-    // Prevent duplicate onboarding — user already has a workspace
+    // Prevent duplicate onboarding — user already has a non-deleted workspace
     const { data: existing } = await supabaseAdmin
       .from('workspace_members')
-      .select('workspace_id')
+      .select('workspace_id, workspaces!inner(status)')
       .eq('user_id', userId)
+      .neq('workspaces.status', 'DELETED')
       .limit(1)
       .maybeSingle();
 
@@ -62,6 +64,8 @@ export const setupWorkspace = async (req: AuthRequest, res: Response, next: Next
       .insert({ workspace_id: ws.id, user_id: userId, role: 'WORKSPACE_OWNER' });
 
     if (memberErr) throw memberErr;
+
+    sendOrgWelcomeEmail(company_name.trim(), email || '', fullName);
 
     logger.info(`[Onboarding] Workspace created for ${email}: org=${org.id}, ws=${ws.id}`);
 

@@ -196,7 +196,8 @@ export class SuperAdminController {
 
       const { data: workspaces, error } = await supabaseAdmin
         .from('workspaces')
-        .select('*, workspace_members(count)');
+        .select('*, workspace_members(count), organizations!inner(id)')
+        .neq('organizations.status', 'DELETED');
 
       if (error) throw error;
 
@@ -338,7 +339,8 @@ export class SuperAdminController {
       const [orgResult, statsResult] = await Promise.all([
         supabaseAdmin
           .from('workspaces')
-          .select('id, name, status, type, org_id, workspace_members(count), organizations(plan_type, status, premium_paid_until)'),
+          .select('id, name, status, type, org_id, workspace_members(count), organizations!inner(plan_type, status, premium_paid_until)')
+          .neq('organizations.status', 'DELETED'),
         (async () => {
           const [
             { count: orgCount },
@@ -347,7 +349,7 @@ export class SuperAdminController {
             { count: assetCount },
             { count: accountCount }
           ] = await Promise.all([
-            supabaseAdmin.from('workspaces').select('id', { count: 'estimated', head: true }),
+            supabaseAdmin.from('organizations').select('id', { count: 'exact', head: true }).neq('status', 'DELETED'),
             supabaseAdmin.from('users').select('id', { count: 'estimated', head: true }),
             supabaseAdmin.from('scheduled_posts').select('id', { count: 'estimated', head: true }),
             supabaseAdmin.from('media_library').select('id', { count: 'estimated', head: true }),
@@ -476,46 +478,63 @@ export class SuperAdminController {
   }
 
   /**
-   * Delete an organization and its associated data
+   * Permanently delete an organization and all its data (irreversible).
+   * Workspaces are cascade-deleted via FK constraint.
    */
   static async deleteOrganization(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { orgId } = req.params;
+
       const { data: ws } = await supabaseAdmin
         .from('workspaces')
         .select('org_id')
         .eq('id', orgId)
         .single();
-      let deletedDomain: string | null = null;
-      if (ws?.org_id) {
-        const { data: adminMember } = await supabaseAdmin
-          .from('workspace_members')
-          .select('user_id')
-          .eq('workspace_id', orgId)
-          .eq('role', 'ADMIN')
-          .maybeSingle();
-        if (adminMember?.user_id) {
-          const { data: adminUser } = await supabaseAdmin
-            .from('users')
-            .select('email')
-            .eq('id', adminMember.user_id)
-            .single();
-          if (adminUser?.email) {
-            deletedDomain = adminUser.email.split('@')[1]?.toLowerCase() || null;
-          }
-        }
-      }
-      await supabaseAdmin
-        .from('workspaces')
-        .update({ status: 'DELETED' })
-        .eq('id', orgId);
+
       if (ws?.org_id) {
         await supabaseAdmin
           .from('organizations')
-          .update({ status: 'DELETED', deleted_domain: deletedDomain })
+          .delete()
+          .eq('id', ws.org_id);
+      } else {
+        await supabaseAdmin
+          .from('workspaces')
+          .delete()
+          .eq('id', orgId);
+      }
+
+      res.json({ success: true, message: 'Organization permanently deleted. All data has been purged.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Restore a restricted organization back to ACTIVE status.
+   */
+  static async restoreOrganization(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { orgId } = req.params;
+
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('org_id')
+        .eq('id', orgId)
+        .single();
+
+      await supabaseAdmin
+        .from('workspaces')
+        .update({ status: 'ACTIVE' })
+        .eq('id', orgId);
+
+      if (ws?.org_id) {
+        await supabaseAdmin
+          .from('organizations')
+          .update({ status: 'ACTIVE' })
           .eq('id', ws.org_id);
       }
-      res.json({ success: true, message: 'Organization permanently banned and all data purged.' });
+
+      res.json({ success: true, message: 'Organization restored and reactivated.' });
     } catch (error) {
       next(error);
     }
@@ -572,7 +591,7 @@ export class SuperAdminController {
         return res.status(403).json({ error: 'Access denied' });
       }
 
-      // Aggregate counts across all organizations
+      // Aggregate counts across all organizations (excluding DELETED)
       const [
         { count: orgCount },
         { count: userCount },
@@ -580,7 +599,7 @@ export class SuperAdminController {
         { count: assetCount },
         { count: accountCount }
       ] = await Promise.all([
-        supabaseAdmin.from('workspaces').select('*', { count: 'exact', head: true }),
+        supabaseAdmin.from('organizations').select('*', { count: 'exact', head: true }).neq('status', 'DELETED'),
         supabaseAdmin.from('users').select('*', { count: 'exact', head: true }),
         supabaseAdmin.from('scheduled_posts').select('*', { count: 'exact', head: true }),
         supabaseAdmin.from('media_library').select('*', { count: 'exact', head: true }),

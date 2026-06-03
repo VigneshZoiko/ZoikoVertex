@@ -1,13 +1,18 @@
 import { Response, NextFunction } from 'express';
 import OpenAI from 'openai';
 import { env } from '../../config/env';
-import { logger } from '../../shared/logger';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as qaService from '../../services/qualityAudit.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
+import { logger } from '../../shared/logger';
 
 function getParamId(req: AuthRequest): string {
   const v = req.params.id;
+  return Array.isArray(v) ? v[0] : v;
+}
+
+function getParam(req: AuthRequest, name: string): string {
+  const v = req.params[name];
   return Array.isArray(v) ? v[0] : v;
 }
 
@@ -382,4 +387,80 @@ export const generateSample = async (req: AuthRequest, res: Response, next: Next
   } catch (error) {
     next(error);
   }
+};
+
+export const retryQaCallback = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
+    const performed_by = req.user?.id || '';
+    const cb = await qaService.retryCallback(getParam(req, 'callbackId'), performed_by, tenant_id);
+    res.json({ success: true, data: cb });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const retryQaCallbackByItem = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
+    const performed_by = req.user?.id || '';
+    const cb = await qaService.findAndRetryCallback(getParamId(req), performed_by, tenant_id);
+    if (!cb) return res.status(404).json({ success: false, error: 'No callback found for this item' });
+    res.json({ success: true, data: cb });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const exportQaFindings = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
+    const { item_ids } = req.body;
+    const items = item_ids?.length
+      ? await Promise.all((item_ids as string[]).map((id: string) => qaService.getAuditItem(id).catch(() => null)))
+      : await qaService.listAuditItems({ tenant_id, limit: 1000, page: 1 });
+    res.json({ success: true, data: { exported_at: new Date().toISOString(), count: Array.isArray(items) ? items.filter(Boolean).length : 0 } });
+  } catch (error) { next(error); }
+};
+
+export const exportQaEvidence = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { item_ids } = req.body;
+    const evidenceResults = item_ids?.length
+      ? await Promise.all((item_ids as string[]).map((id: string) => qaService.getEvidence(id).catch(() => [])))
+      : [];
+    res.json({ success: true, data: { exported_at: new Date().toISOString(), evidence_count: evidenceResults.reduce((a: number, b: any[]) => a + b.length, 0) } });
+  } catch (error) { next(error); }
+};
+
+export const getAuditDefects = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParamId(req);
+    const defects = await qaService.getDefects(id);
+    res.json({ success: true, data: defects });
+  } catch (error) { next(error); }
+};
+
+export const getAuditCorrectiveActions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParamId(req);
+    const actions = await qaService.getCorrectiveActions(id);
+    res.json({ success: true, data: actions });
+  } catch (error) { next(error); }
+};
+
+export const getAuditNotes = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParamId(req);
+    const notes = await qaService.getAuditNotes(id);
+    res.json({ success: true, data: notes });
+  } catch (error) { next(error); }
+};
+
+export const getAuditEvidence = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = getParamId(req);
+    const evidence = await qaService.getEvidence(id);
+    res.json({ success: true, data: evidence });
+  } catch (error) { next(error); }
 };

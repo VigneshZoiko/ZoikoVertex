@@ -15,7 +15,17 @@ import { trackUsage } from '../../domains/monitoring/usageController';
 
 export class KnowledgeController {
 
-  private static async getUserOrgId(userId: string | undefined): Promise<string> {
+  private static async getUserOrgId(userId: string | undefined, workspaceId?: string | null): Promise<string> {
+    // API key auth path — resolve org from workspace_id
+    if (workspaceId) {
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('org_id')
+        .eq('id', workspaceId)
+        .single();
+      if (ws?.org_id) return ws.org_id;
+    }
+    // JWT auth path — look up from workspace_members
     if (!userId) {
       throw new Error('Unauthorized: User ID is missing');
     }
@@ -29,7 +39,10 @@ export class KnowledgeController {
     return (member.workspaces as any)?.org_id;
   }
 
-  private static async getWorkspaceId(userId: string | undefined): Promise<string> {
+  private static async getWorkspaceId(userId: string | undefined, workspaceIdFromAuth?: string | null): Promise<string> {
+    // API key auth path — workspace_id is already populated
+    if (workspaceIdFromAuth) return workspaceIdFromAuth;
+    // JWT auth path — look up from workspace_members
     if (!userId) throw new Error('Unauthorized');
     const { data: member } = await supabaseAdmin
       .from('workspace_members')
@@ -45,7 +58,7 @@ export class KnowledgeController {
 
   static async listBases(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id, req.user?.workspace_id);
       const { data, error } = await supabaseAdmin
         .from('knowledge_bases')
         .select('*')
@@ -60,7 +73,7 @@ export class KnowledgeController {
 
   static async createBase(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id, req.user?.workspace_id);
       const { name, description, type } = req.body;
       const { data, error } = await supabaseAdmin
         .from('knowledge_bases')
@@ -77,7 +90,7 @@ export class KnowledgeController {
   static async listEntries(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const baseId = getParam(req, 'baseId');
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id, req.user?.workspace_id);
       const { data: base } = await supabaseAdmin
         .from('knowledge_bases')
         .select('id')
@@ -102,7 +115,7 @@ export class KnowledgeController {
       const baseId = getParam(req, 'baseId');
       const { title, source_url, metadata } = req.body;
       let { content } = req.body;
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id, req.user?.workspace_id);
 
       // ── FIX: the frontend creates collections via POST /knowledge/collections
       //    which writes to `knowledge_collections`. Legacy entries endpoint
@@ -170,7 +183,7 @@ export class KnowledgeController {
   static async deleteBase(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const baseId = getParam(req, 'baseId');
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id, req.user?.workspace_id);
       const { error } = await supabaseAdmin
         .from('knowledge_bases')
         .delete()
@@ -186,7 +199,7 @@ export class KnowledgeController {
   static async deleteEntry(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const entryId = getParam(req, 'entryId');
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id, req.user?.workspace_id);
       const { data: entry } = await supabaseAdmin
         .from('knowledge_entries')
         .select('id, knowledge_bases!inner(org_id)')
@@ -209,7 +222,7 @@ export class KnowledgeController {
     try {
       const { entryId } = req.params;
       const { title, content, source_url } = req.body;
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id, req.user?.workspace_id);
 
       const { data: entry } = await supabaseAdmin
         .from('knowledge_entries')
@@ -237,7 +250,7 @@ export class KnowledgeController {
 
   static async getAIContext(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const orgId = await KnowledgeController.getUserOrgId(req.user?.id);
+      const orgId = await KnowledgeController.getUserOrgId(req.user?.id, req.user?.workspace_id);
       const typesValue = getQueryValue(req, 'types');
       const requestedTypes = typesValue
         ? typesValue.split(',') as ('BRAND_GUIDELINES' | 'SOP' | 'AI_LIBRARY')[]
@@ -370,7 +383,7 @@ export class KnowledgeController {
   // Collections
   static async listCollections(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id);
+      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id, req.user?.workspace_id);
       const collections = await KnowledgeCollectionService.list(workspaceId);
       res.json({ success: true, data: collections });
     } catch (error) {
@@ -390,7 +403,7 @@ export class KnowledgeController {
 
   static async createCollection(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id);
+      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id, req.user?.workspace_id);
       const data = await KnowledgeCollectionService.create({
         ...req.body,
         workspace_id: workspaceId,
@@ -425,7 +438,7 @@ export class KnowledgeController {
   // Sources
   static async listSources(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id);
+      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id, req.user?.workspace_id);
       const data = await KnowledgeSourceService.listAll(workspaceId);
       res.json({ success: true, data });
     } catch (error) {
@@ -445,7 +458,7 @@ export class KnowledgeController {
 
   static async createSource(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id);
+      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id, req.user?.workspace_id);
       let content = req.body.content || '';
       let metadata = req.body.metadata ? (typeof req.body.metadata === 'string' ? JSON.parse(req.body.metadata) : req.body.metadata) : {};
 
@@ -603,7 +616,7 @@ export class KnowledgeController {
   // Stats
   static async getStats(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id);
+      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id, req.user?.workspace_id);
       const stats = await KnowledgeCollectionService.getStats(workspaceId);
 
       const conflictCount = await KnowledgeConflictService.getCount();

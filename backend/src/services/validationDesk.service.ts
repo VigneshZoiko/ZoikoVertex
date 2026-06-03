@@ -708,3 +708,71 @@ export function calculateEligibility(params: {
 
   return { proceed_allowed: false, send_to_review_queue_allowed: false, send_to_approvals_allowed: false, revision_allowed: false, escalate_allowed: false, block_allowed: false, override_allowed: false, revalidation_allowed: false, state: 'PENDING' };
 }
+
+export async function getValidationRuns(validation_item_id: string): Promise<Record<string, unknown>[]> {
+  const { data } = await supabaseAdmin
+    .from('validation_runs')
+    .select('*')
+    .eq('validation_item_id', validation_item_id)
+    .order('created_at', { ascending: false });
+  return data || [];
+}
+
+export async function getGroundingResults(validation_item_id: string): Promise<Record<string, unknown>[]> {
+  const { data: runs } = await supabaseAdmin
+    .from('validation_runs')
+    .select('id')
+    .eq('validation_item_id', validation_item_id)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (!runs || runs.length === 0) return [];
+  const { data } = await supabaseAdmin
+    .from('validation_source_grounding')
+    .select('*')
+    .eq('validation_run_id', runs[0].id)
+    .order('created_at');
+  return data || [];
+}
+
+export async function getValidationNotes(validation_item_id: string): Promise<Record<string, unknown>[]> {
+  const { data } = await supabaseAdmin
+    .from('validation_notes')
+    .select('*')
+    .eq('validation_item_id', validation_item_id)
+    .order('created_at', { ascending: false });
+  return data || [];
+}
+
+export async function getManualChecks(validation_item_id: string): Promise<Record<string, unknown>[]> {
+  const { data } = await supabaseAdmin
+    .from('validation_manual_checks')
+    .select('*')
+    .eq('validation_item_id', validation_item_id)
+    .order('completed_at', { ascending: false });
+  return data || [];
+}
+
+export async function getApprovalReadiness(validation_item_id: string): Promise<Record<string, unknown> | null> {
+  const { data } = await supabaseAdmin
+    .from('validation_items')
+    .select('validation_status, approval_readiness_status, platform_readiness_status, risk_level, validation_score')
+    .eq('id', validation_item_id)
+    .single();
+  return data || null;
+}
+
+export async function getRuleHistory(validation_item_id: string): Promise<Record<string, unknown>[]> {
+  const { data: runs } = await supabaseAdmin
+    .from('validation_runs')
+    .select('id')
+    .eq('validation_item_id', validation_item_id)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (!runs || runs.length === 0) return [];
+  const { data } = await supabaseAdmin
+    .from('validation_rule_results')
+    .select('*')
+    .eq('validation_run_id', runs[0].id)
+    .order('created_at');
+  return data || [];
+}

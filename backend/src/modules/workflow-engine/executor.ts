@@ -19,6 +19,10 @@
 import { supabaseAdmin } from "../../shared/supabase";
 import { logger } from "../../shared/logger";
 import { dispatch } from "./handlers";
+import {
+  recordWorkflowRunStart,
+  recordWorkflowRunFinish,
+} from "../../services/operationsRunRecorder.service";
 import type {
   ContextBag,
   ExecutionContext,
@@ -188,6 +192,16 @@ export async function executeInstance(
     current_step_id: steps[0].id,
   });
 
+  // Mirror this execution into Agent Operations (non-blocking, idempotent).
+  await recordWorkflowRunStart({
+    instanceId,
+    workspaceId,
+    workflowId: instance.workflow_id,
+    versionId: instance.version_id,
+    ownerId: instance.started_by,
+    triggerSource: instance.trigger_source,
+  });
+
   const bag: ContextBag = { triggerInput };
   let stepsRun = 0;
   let stepsCompleted = 0;
@@ -255,6 +269,9 @@ export async function executeInstance(
   await setInstanceStatus(instanceId, finalStatus, {
     completed_at: finalStatus === "completed" ? new Date().toISOString() : null,
   });
+
+  // Mirror the terminal/paused outcome into Agent Operations (non-blocking).
+  await recordWorkflowRunFinish(instanceId, finalStatus);
 
   return {
     instanceId,

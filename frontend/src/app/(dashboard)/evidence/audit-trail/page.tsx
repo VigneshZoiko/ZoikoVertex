@@ -175,7 +175,7 @@ export default function AuditTrailPage() {
           lastVerified: new Date().toISOString(),
         });
       }
-    } catch { /* ignore */ }
+    } catch (e: any) { setChainStatus({ intact: false, lastVerified: null }); }
     setVerifying(false);
   };
 
@@ -282,6 +282,8 @@ function EventsTab() {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [stats, setStats] = useState<AuditStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedRisk, setSelectedRisk] = useState("");
@@ -356,8 +358,8 @@ function EventsTab() {
         setTotal(data.total);
       }
       if (statsRes.success) setStats(statsRes.data);
-    } catch (err) {
-      console.error("Failed to fetch audit events:", err);
+    } catch (err: any) {
+      setError(err?.message || "Failed to fetch audit events");
     } finally {
       setLoading(false);
     }
@@ -396,7 +398,7 @@ function EventsTab() {
       const res = await api.get(`/api/audit-events/${event.id}/related`);
       if (res.success) setRelatedEvents(res.data.related || []);
     } catch {
-      // Related events are optional
+      // Related events are optional — silently ignore
     }
   };
 
@@ -413,6 +415,13 @@ function EventsTab() {
     <div className="flex gap-6">
       {/* Main Content */}
       <div className="flex-1 min-w-0">
+        {message && (
+          <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-xs ${message.type === "error" ? "bg-red-500/10 border border-red-500/30 text-red-400" : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"}`}>
+            {message.type === "error" ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
+            {message.text}
+            <button onClick={() => setMessage(null)} className="ml-auto opacity-60 hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        )}
         {/* Risk Summary Strip */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3 mb-4">
@@ -725,7 +734,7 @@ function EventsTab() {
                     try {
                       await api.post('/api/audit-events/preserve', { event_ids: Array.from(selectedIds), reason, retention_class: 'EXTENDED' });
                       setSelectedIds(new Set());
-                    } catch { alert('Failed to preserve events'); }
+                    } catch { setMessage({ type: "error", text: "Failed to preserve events" }); }
                   }}
                   className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg text-xs hover:bg-blue-500/20 flex items-center gap-1.5"
                 >
@@ -740,7 +749,7 @@ function EventsTab() {
                     try {
                       await api.post('/api/audit-events/export', { reason, format, event_ids: Array.from(selectedIds) });
                       setSelectedIds(new Set());
-                    } catch { alert('Failed to create export'); }
+                    } catch { setMessage({ type: "error", text: "Failed to create export" }); }
                   }}
                   className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs hover:bg-emerald-500/20 flex items-center gap-1.5"
                 >
@@ -760,7 +769,7 @@ function EventsTab() {
                         window.open(res.data.case_url, '_blank');
                       }
                       setSelectedIds(new Set());
-                    } catch { alert('Failed to create investigation'); }
+                    } catch { setMessage({ type: "error", text: "Failed to create investigation" }); }
                   }}
                   className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-lg text-xs hover:bg-purple-500/20 flex items-center gap-1.5"
                 >
@@ -778,7 +787,7 @@ function EventsTab() {
                         reason,
                       });
                       setSelectedIds(new Set());
-                    } catch { alert('Failed to apply legal hold'); }
+                    } catch { setMessage({ type: "error", text: "Failed to apply legal hold" }); }
                   }}
                   className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg text-xs hover:bg-rose-500/20 flex items-center gap-1.5"
                 >
@@ -996,7 +1005,7 @@ function EventsTab() {
                   if (!reason) return;
                   try {
                     await api.post('/api/audit-events/preserve', { event_ids: [selectedEvent.id], reason, retention_class: 'EXTENDED' });
-                  } catch { alert('Failed to preserve event'); }
+                  } catch { setMessage({ type: "error", text: "Failed to preserve event" }); }
                 }}
                 className="flex-1 px-3 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 flex items-center justify-center gap-1.5"
               >
@@ -1010,7 +1019,7 @@ function EventsTab() {
                   if (!reason) return;
                   try {
                     await api.post('/api/audit-events/export', { reason, format, event_ids: [selectedEvent.id] });
-                  } catch { alert('Failed to create export'); }
+                  } catch { setMessage({ type: "error", text: "Failed to create export" }); }
                 }}
                 className="flex-1 px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs hover:bg-emerald-500/20 flex items-center justify-center gap-1.5"
               >
@@ -1041,7 +1050,7 @@ function SavedViewsTab() {
     try {
       const stored = localStorage.getItem("audit-saved-views");
       if (stored) setViews(JSON.parse(stored));
-    } catch { /* ignore */ }
+    } catch { /* invalid stored data — ignore */ }
   }, []);
 
   const saveViews = (newViews: typeof views) => {
@@ -1135,12 +1144,13 @@ function SavedViewsTab() {
 function ExportsTab() {
   const [exports, setExports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchExports = async () => {
     try {
       const res = await api.get("/api/audit-events/exports");
       if (res.success) setExports(res.data);
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Failed to fetch exports"); }
     setLoading(false);
   };
 
@@ -1227,14 +1237,16 @@ function ExportsTab() {
 function IntegrityTab() {
   const [verifyResult, setVerifyResult] = useState<any>(null);
   const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleVerify = async () => {
     setVerifying(true);
+    setError(null);
     try {
       const res = await api.get("/api/audit-events/chain/verify");
       if (res.success) setVerifyResult(res.data);
-    } catch (err) {
-      console.error("Verification failed:", err);
+    } catch (err: any) {
+      setError(err?.message || "Verification failed");
     } finally {
       setVerifying(false);
     }
@@ -1315,11 +1327,12 @@ function RetentionTab() {
   const [sealResult, setSealResult] = useState<{ sealed_count: number } | null>(null);
   const [legalHolds, setLegalHolds] = useState<any[]>([]);
   const [loadingHolds, setLoadingHolds] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api.get('/api/evidence-vault/holds')
       .then(res => { if (res.success) setLegalHolds(res.data); })
-      .catch(() => {})
+      .catch(() => setError("Failed to load legal holds"))
       .finally(() => setLoadingHolds(false));
   }, []);
 
@@ -1328,7 +1341,7 @@ function RetentionTab() {
     try {
       const res = await api.post('/api/audit-events/seal-expired', {});
       if (res.success) setSealResult(res.data);
-    } catch { alert('Failed to seal expired records'); }
+    } catch { setError('Failed to seal expired records'); }
     setSealing(false);
   };
 
@@ -1433,11 +1446,12 @@ function StreamingTab() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", endpoint_url: "", event_filters: "" });
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api.get("/api/audit-events/subscriptions")
       .then(res => { if (res.success) setSubs(res.data); })
-      .catch(() => {})
+      .catch(() => setError("Failed to load subscriptions"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -1452,14 +1466,14 @@ function StreamingTab() {
         setShowForm(false);
         setForm({ name: "", endpoint_url: "", event_filters: "" });
       }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Failed to create subscription"); }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await api.delete(`/api/audit-events/subscriptions/${id}`);
       setSubs(prev => prev.filter(s => s.id !== id));
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Failed to delete subscription"); }
   };
 
   return (
