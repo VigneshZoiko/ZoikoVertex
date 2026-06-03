@@ -1257,7 +1257,7 @@ export default function ApprovalRulesPage() {
                       { key: "routeCompletionToValidation", label: "Route Completion to Validation Desk" },
                     ].map(({ key, label }) => (
                       <label key={key} className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                        <input type="checkbox" defaultChecked={false} className="rounded border-[#2d2d2d] bg-black/60 text-indigo-500 focus:ring-indigo-500/30" />
+                        <input type="checkbox" checked={false} readOnly className="rounded border-[#2d2d2d] bg-black/60 text-indigo-500 focus:ring-indigo-500/30" />
                         <span>{label}</span>
                       </label>
                     ))}

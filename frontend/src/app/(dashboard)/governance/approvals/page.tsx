@@ -733,10 +733,10 @@ export default function ApprovalsPage() {
                     <button onClick={() => selectedId && handleAction("reject", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-rose-500/15 text-rose-300 rounded-lg text-xs font-medium hover:bg-rose-500/25 transition-colors">
                       <XCircle className="w-3.5 h-3.5" /> Reject
                     </button>
-                    <button onClick={() => selectedId && handleAction("request-changes", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-orange-500/15 text-orange-300 rounded-lg text-xs font-medium hover:bg-orange-500/25 transition-colors">
+                    <button onClick={() => selectedId && handleAction("request_changes", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-orange-500/15 text-orange-300 rounded-lg text-xs font-medium hover:bg-orange-500/25 transition-colors">
                       <MessageCircle className="w-3.5 h-3.5" /> Request Changes
                     </button>
-                    <button onClick={() => selectedId && handleAction("conditional-approve", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/15 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-500/25 transition-colors">
+                    <button onClick={() => selectedId && handleAction("conditional_approval", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/15 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-500/25 transition-colors">
                       <Flag className="w-3.5 h-3.5" /> Approve with Conditions
                     </button>
                     <button onClick={() => selectedId && handleAction("escalate", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-red-500/15 text-red-300 rounded-lg text-xs font-medium hover:bg-red-500/25 transition-colors">

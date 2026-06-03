@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   RefreshCcw, ShieldCheck, AlertCircle, Clock, FileCheck2, AlertTriangle,
   ArrowUpRight, MessageSquare, XCircle, CheckCircle2, Ban, Gavel, Search,
@@ -346,6 +346,8 @@ export default function ValidationDeskPage() {
   const [override, setOverride] = useState<ValidationOverride | null>(null);
   const [approvalReadiness, setApprovalReadiness] = useState<ApprovalReadiness | null>(null);
 
+  const initialSelectDone = useRef(false);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -357,7 +359,8 @@ export default function ValidationDeskPage() {
       if (itemsRes.success) {
         const validationItems = (itemsRes.data || []) as ValidationItem[];
         setItems(validationItems);
-        if (validationItems.length > 0 && !selectedItem) {
+        if (validationItems.length > 0 && !initialSelectDone.current) {
+          initialSelectDone.current = true;
           setSelectedItem(validationItems[0]);
         } else if (validationItems.length === 0) {
           setSelectedItem(null);
@@ -369,7 +372,7 @@ export default function ValidationDeskPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedItem]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -401,8 +404,8 @@ export default function ValidationDeskPage() {
       if (timelineRes.success) setTimeline((timelineRes.data || []) as TimelineEntry[]);
       if (manualChecksRes.success) setManualChecks((manualChecksRes.data || []) as ManualCheck[]);
       if (approvalRes.success) setApprovalReadiness(approvalRes.data as ApprovalReadiness);
-    } catch {
-      // silent fail for details
+    } catch (err) {
+      console.warn("Failed to load item details:", err);
     }
   }, []);
 

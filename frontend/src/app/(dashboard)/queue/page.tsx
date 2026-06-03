@@ -390,6 +390,8 @@ export default function ReviewQueuePage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [comparisonTab, setComparisonTab] = useState("submitted");
   const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [noteDialogItemId, setNoteDialogItemId] = useState<string | null>(null);
+  const [noteDialogText, setNoteDialogText] = useState("");
 
   const selectedItem = items.find(i => i.id === selectedId) || null;
 
@@ -486,7 +488,7 @@ export default function ReviewQueuePage() {
     setActionLoading("assign");
     try {
       const result = await api.patch(`/api/v1/review-queue/items/${selectedId}/assign`, {
-        assign_to_current_user: true,
+        approver_id: "me",
       });
       if (result.success) {
         setMessage({ type: "success", text: "Assigned to you." });
@@ -1138,7 +1140,7 @@ export default function ReviewQueuePage() {
                         <UserPlus className="w-2.5 h-2.5" /> Assign
                       </button>
                       <button
-                        onClick={e => { e.stopPropagation(); const note = prompt("Enter note:"); if (note) handleAction("add-note", item.id); }}
+                        onClick={e => { e.stopPropagation(); setNoteDialogItemId(item.id); }}
                         className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-white/5 text-[#888] hover:bg-white/10 transition-all"
                       >
                         <Pen className="w-2.5 h-2.5" /> Note
@@ -1493,6 +1495,22 @@ export default function ReviewQueuePage() {
           )}
         </div>
       </div>
+
+      {/* ─── Note Dialog ─────────────────────────────────────────────────── */}
+      {noteDialogItemId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setNoteDialogItemId(null); setNoteDialogText(""); }}>
+          <div className="bg-[#0a0a0a] border border-[#2d2d2d] rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-white mb-4">Add Note</h3>
+            <textarea value={noteDialogText} onChange={e => setNoteDialogText(e.target.value)}
+              rows={4} className="w-full p-3 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40 resize-none"
+              placeholder="Enter your note..." />
+            <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-[#2d2d2d]">
+              <button onClick={() => { setNoteDialogItemId(null); setNoteDialogText(""); }} className="px-4 py-2 bg-[#161616] hover:bg-[#1a1a1a] text-[#888] rounded-lg text-xs font-medium">Cancel</button>
+              <button onClick={() => { if (noteDialogText.trim() && noteDialogItemId) { handleAction("add-note", noteDialogItemId); setNoteDialogItemId(null); setNoteDialogText(""); } }} disabled={!noteDialogText.trim() || actionLoading === "add-note"} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded-lg text-xs font-medium">Add Note</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

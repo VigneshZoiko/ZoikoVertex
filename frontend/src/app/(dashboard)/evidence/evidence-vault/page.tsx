@@ -114,12 +114,12 @@ const SCAN_STATUS_COLORS: Record<string, string> = {
 
 function fmt(ts: string) {
   try { return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
-  catch { return ts; }
+  catch { return "Invalid date"; }
 }
 
 function fmtDate(ts: string) {
   try { return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
-  catch { return ts; }
+  catch { return "Invalid date"; }
 }
 
 function StatCard({ label, value, color, onClick }: { label: string; value: number; color: string; onClick?: () => void }) {
@@ -191,7 +191,7 @@ export default function EvidenceVaultPage() {
     try {
       const res = await api.get("/api/evidence-vault/health");
       if (res.success) setHealth(res.data);
-    } catch { /* non-critical */ }
+    } catch (e: any) { console.warn("Health check failed:", e?.message); }
   }, []);
 
   const fetchPackages = useCallback(async () => {
