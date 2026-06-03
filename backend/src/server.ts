@@ -1223,6 +1223,31 @@ app.get('/api/v1/prompts/:id/versions/:versionId', authenticate, govView, Prompt
 app.get('/api/v1/prompts/:id/tests/suites', authenticate, govView, PromptController.listTestSuites);
 app.post('/api/v1/prompts/:id/tests/suites', authenticate, govEdit, PromptController.createTestSuite);
 
+// Drift Monitoring (Phase 5B) — on-demand governance compliance analysis
+app.post('/api/v1/prompts/:id/drift/scan', authenticate, govView, PromptController.scanPromptDrift);
+app.get('/api/v1/prompts/drift/summary', authenticate, govView, PromptController.getDriftSummary);
+app.post('/api/v1/prompts/drift/resolve', authenticate, govLifecycle, PromptController.resolveDrift);
+
+// Adversarial Testing (Phase 5C) — deterministic attack-surface analysis
+app.get('/api/v1/prompts/:id/tests/suites/:suiteId/adversarial/scenarios', authenticate, govView, PromptController.listAdversarialScenarios);
+app.post('/api/v1/prompts/:id/tests/suites/:suiteId/adversarial/scenarios', authenticate, govEdit, PromptController.createAdversarialScenario);
+app.put('/api/v1/prompts/:id/tests/suites/:suiteId/adversarial/scenarios/:scenarioId', authenticate, govEdit, PromptController.updateAdversarialScenario);
+app.delete('/api/v1/prompts/:id/tests/suites/:suiteId/adversarial/scenarios/:scenarioId', authenticate, govEdit, PromptController.deleteAdversarialScenario);
+app.post('/api/v1/prompts/:id/tests/suites/:suiteId/adversarial/scenarios/seed', authenticate, govEdit, PromptController.seedDefaultAdversarialScenarios);
+app.post('/api/v1/prompts/versions/:versionId/tests/adversarial/run', authenticate, govEdit, PromptController.runAdversarialTests);
+app.get('/api/v1/prompts/versions/:versionId/tests/adversarial/runs', authenticate, govView, PromptController.listAdversarialResults);
+app.get('/api/v1/prompts/versions/:versionId/tests/adversarial/runs/:runId', authenticate, govView, PromptController.getAdversarialResultDetail);
+
+// Policy Simulation (Phase 5D) — read-only what-if analysis
+app.post('/api/v1/prompts/simulate', authenticate, govView, PromptController.runPolicySimulation);
+app.post('/api/v1/prompts/:id/simulate', authenticate, govView, PromptController.runPromptPolicySimulation);
+
+// Prompt Scorecards (Phase 5E) — structured health scores
+app.get('/api/v1/prompts/scorecards', authenticate, govView, PromptController.listPromptScorecards);
+app.get('/api/v1/prompts/:id/scorecard', authenticate, govView, PromptController.getPromptScorecard);
+
+// Governance Metrics Dashboard (Phase 5F) — lean live-computed pipeline
+app.get('/api/v1/prompts/metrics/dashboard', authenticate, govView, PromptController.getGovernanceMetrics);
 
 // ─── Approval Rules Routes ───────────────────────────────────────────
 app.get('/api/v1/governance/rules', authenticate, scopeGuard('read:governance', '*'), listRules);
