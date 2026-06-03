@@ -79,7 +79,7 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
 
 function fmt(ts: string) {
   try { return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
-  catch { return ts; }
+  catch { return "Invalid date"; }
 }
 
 export default function CaseDetailPage() {
@@ -87,6 +87,7 @@ export default function CaseDetailPage() {
   const router = useRouter();
   const [caseData, setCaseData] = useState<ForensicCase | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const [error, setError] = useState<string | null>(null);
 
   // Sub-resources
   const [evidence, setEvidence] = useState<EvidenceItem[]>([]);
@@ -148,7 +149,7 @@ export default function CaseDetailPage() {
     try {
       const res = await api.get(`/api/forensic/cases/${id}`);
       if (res.success) setCaseData(res.data);
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const fetchAll = async () => {
@@ -175,7 +176,7 @@ export default function CaseDetailPage() {
         setShowExportForm(false);
         setExportForm({ package_type: "internal_investigation", format: "json", redaction_profile: "standard", reason: "" });
       }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const handleGenerateExport = async (exportId: string) => {
@@ -185,7 +186,7 @@ export default function CaseDetailPage() {
       if (res.success) {
         setExports(prev => prev.map(e => e.id === exportId ? res.data : e));
       }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
     setGeneratingId(null);
   };
 
@@ -195,7 +196,7 @@ export default function CaseDetailPage() {
       if (res.success) {
         setExports(prev => prev.map(e => e.id === exportId ? res.data : e));
       }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   // Phase 3: Graph
@@ -204,7 +205,7 @@ export default function CaseDetailPage() {
     try {
       const res = await api.get(`/api/forensic/cases/${id}/graph`);
       if (res.success) setGraphData(res.data);
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
     setGraphLoading(false);
   };
 
@@ -216,7 +217,7 @@ export default function CaseDetailPage() {
       if (res.success) {
         setAiSummaries(prev => [res.data, ...prev]);
       }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
     setGeneratingSummary(false);
   };
 
@@ -226,7 +227,7 @@ export default function CaseDetailPage() {
       if (res.success) {
         setAiSummaries(prev => prev.map(s => s.id === summaryId ? res.data : s));
       }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const handleRejectSummary = async (summaryId: string) => {
@@ -237,7 +238,7 @@ export default function CaseDetailPage() {
       if (res.success) {
         setAiSummaries(prev => prev.map(s => s.id === summaryId ? res.data : s));
       }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const handleGenerateExplanation = async () => {
@@ -245,7 +246,7 @@ export default function CaseDetailPage() {
     try {
       const res = await api.post(`/api/forensic/cases/${id}/ai/timeline-explanation`, {});
       if (res.success) setTimelineExplanation(res.data.explanation);
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
     setGeneratingExplanation(false);
   };
 
@@ -254,7 +255,7 @@ export default function CaseDetailPage() {
     try {
       const res = await api.post(`/api/forensic/cases/${id}/ai/anomalies`, {});
       if (res.success) setAnomalies(prev => [...res.data, ...prev]);
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
     setGeneratingAnomalies(false);
   };
 
@@ -263,7 +264,7 @@ export default function CaseDetailPage() {
     try {
       const res = await api.post(`/api/forensic/cases/${id}/ai/recommendations`, {});
       if (res.success) setRecommendations(res.data);
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
     setGeneratingRecommendations(false);
   };
 
@@ -272,7 +273,7 @@ export default function CaseDetailPage() {
     try {
       const res = await api.get(`/api/forensic/cases/${id}/ai/summaries`);
       if (res.success) setAiSummaries(res.data);
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchAiSummaries(); }, [id]);
@@ -286,7 +287,7 @@ export default function CaseDetailPage() {
       await api.post(`/api/forensic/cases/${id}/notes`, { note_class: noteClass, content: noteContent });
       setNoteContent("");
       api.get(`/api/forensic/cases/${id}/notes`).then(r => { if (r.success) setNotes(r.data); });
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const handleAddEvidence = async () => {
@@ -296,7 +297,7 @@ export default function CaseDetailPage() {
       setEvidenceForm({ source_type: "audit_event", source_id: "", added_reason: "" });
       setShowEvidenceForm(false);
       api.get(`/api/forensic/cases/${id}/evidence`).then(r => { if (r.success) setEvidence(r.data); });
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const handleAddTask = async () => {
@@ -306,7 +307,7 @@ export default function CaseDetailPage() {
       setTaskForm({ title: "", description: "", owner_id: "" });
       setShowTaskForm(false);
       api.get(`/api/forensic/cases/${id}/tasks`).then(r => { if (r.success) setTasks(r.data); });
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const handleStatusUpdate = async () => {
@@ -314,7 +315,7 @@ export default function CaseDetailPage() {
     try {
       const res = await api.patch(`/api/forensic/cases/${id}`, { status: newStatus, reason: updateReason });
       if (res.success) { setCaseData(res.data); setNewStatus(""); setUpdateReason(""); fetchCase(); }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const handleClose = async () => {
@@ -322,7 +323,7 @@ export default function CaseDetailPage() {
     try {
       const res = await api.post(`/api/forensic/cases/${id}/close`, closeForm);
       if (res.success) { setCaseData(res.data); fetchCase(); }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const handleReopen = async () => {
@@ -331,7 +332,7 @@ export default function CaseDetailPage() {
     try {
       const res = await api.post(`/api/forensic/cases/${id}/reopen`, { reason });
       if (res.success) { setCaseData(res.data); fetchCase(); }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const handlePinEvidence = async (evidenceId: string) => {
@@ -340,7 +341,7 @@ export default function CaseDetailPage() {
     try {
       await api.post(`/api/forensic/cases/${id}/evidence/${evidenceId}/pin`, { reason });
       api.get(`/api/forensic/cases/${id}/evidence`).then(r => { if (r.success) setEvidence(r.data); });
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   // Phase 2: Vault preserve
@@ -359,7 +360,7 @@ export default function CaseDetailPage() {
         setSelectedEvidence(new Set());
         api.get(`/api/forensic/cases/${id}/evidence`).then(r => { if (r.success) setEvidence(r.data); });
       }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
     setPreserving(false);
   };
 
@@ -369,7 +370,7 @@ export default function CaseDetailPage() {
     try {
       const res = await api.post(`/api/forensic/cases/${id}/legal-hold`, { reason: legalHoldReason });
       if (res.success) { setCaseData(res.data); setLegalHoldReason(""); setShowLegalHold(false); fetchCase(); }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const handleReleaseLegalHold = async () => {
@@ -378,7 +379,7 @@ export default function CaseDetailPage() {
     try {
       const res = await api.post(`/api/forensic/cases/${id}/legal-hold/release`, { reason });
       if (res.success) { setCaseData(res.data); fetchCase(); }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Operation failed"); }
   };
 
   const toggleEvidenceSelection = (id: string) => {
@@ -397,6 +398,13 @@ export default function CaseDetailPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-xs text-red-400">{error}</p>
+          <button onClick={() => setError(null)} className="ml-auto text-red-400/60 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
       {/* Back */}
       <button onClick={() => router.push("/evidence/forensic-hub")} className="flex items-center gap-1.5 text-xs text-[#888] hover:text-white mb-4">
         <ArrowLeft className="w-3.5 h-3.5" /> Back to Forensic Hub

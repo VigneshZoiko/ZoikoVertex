@@ -223,7 +223,7 @@ export default function QualityAuditPage() {
       if (noteRes.success) setNotes((noteRes.data || []) as NoteEntry[]);
       if (evRes.success) setEvidence((evRes.data || []) as EvidenceEntry[]);
       if (tlRes.success) setTimeline((tlRes.data || []) as TimelineEntry[]);
-    } catch { /* silent */ }
+    } catch (e: any) { console.warn("Failed to fetch details:", e?.message); }
   }, []);
 
   const handleSelect = (item: AuditItem) => {

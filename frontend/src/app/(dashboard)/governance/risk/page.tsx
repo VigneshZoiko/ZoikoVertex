@@ -54,9 +54,11 @@ export default function RiskCommandCenterPage() {
       if (res.success) {
         setPauseMsg(res.message);
         setPulse((prev: any) => ({ ...prev, restricted_operations: true }));
+      } else {
+        setPauseMsg(res.error || "Emergency pause failed");
       }
     } catch (err) {
-      console.error("Pause failed", err);
+      setPauseMsg("Emergency pause failed — network error");
     } finally {
       setPausing(false);
     }

@@ -28,7 +28,7 @@ interface VaultHold {
 
 function fmt(ts: string) {
   try { return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); }
-  catch { return ts; }
+  catch { return "Invalid date"; }
 }
 
 export default function VaultHoldsPage() {
@@ -36,6 +36,7 @@ export default function VaultHoldsPage() {
   const [holds, setHolds] = useState<VaultHold[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [releasedFilter, setReleasedFilter] = useState("");
   const [showApply, setShowApply] = useState(false);
 
@@ -46,7 +47,7 @@ export default function VaultHoldsPage() {
       if (releasedFilter) params.set("released", releasedFilter);
       const res = await api.get(`/api/evidence-vault/holds?${params.toString()}`);
       if (res.success) { setHolds(res.data || []); setTotal(res.total || 0); }
-    } catch { /* */ }
+    } catch (e: any) { setError(e?.message || "Failed to fetch holds"); }
     finally { setLoading(false); }
   }, [releasedFilter]);
 
@@ -54,6 +55,12 @@ export default function VaultHoldsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2">
+          <p className="text-xs text-red-400">{error}</p>
+          <button onClick={() => setError(null)} className="ml-auto text-red-400/60 hover:text-red-400">✕</button>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <div>
           <button onClick={() => router.push('/evidence/evidence-vault')} className="flex items-center gap-1 text-xs text-[#888] hover:text-white mb-2">

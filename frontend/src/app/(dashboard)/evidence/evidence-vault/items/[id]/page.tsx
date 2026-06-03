@@ -68,7 +68,7 @@ interface EvidenceItemDetail {
 
 function fmt(ts: string) {
   try { return new Date(ts).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
-  catch { return ts; }
+  catch { return "Invalid date"; }
 }
 
 function Badge({ label, color }: { label: string; color: string }) {

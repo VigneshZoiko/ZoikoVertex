@@ -62,7 +62,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 function fmt(ts: string) {
   try { return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
-  catch { return ts; }
+  catch { return "Invalid date"; }
 }
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
@@ -81,6 +81,7 @@ export default function ForensicHubPage() {
   const [cases, setCases] = useState<ForensicCase[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterSeverity, setFilterSeverity] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -97,7 +98,7 @@ export default function ForensicHubPage() {
       ]);
       if (statsRes.success) setStats(statsRes.data);
       if (casesRes.success) { setCases(casesRes.data); setTotal(casesRes.total); }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Failed to fetch cases"); }
     setLoading(false);
   };
 
@@ -113,7 +114,7 @@ export default function ForensicHubPage() {
       }).filter(([_, v]) => v))
     ).toString()}`)
       .then(res => { if (res.success) { setCases(res.data); setTotal(res.total); } })
-      .catch(() => {});
+      .catch((e: any) => setError(e?.message || "Search failed"));
   }, [search, filterSeverity, filterStatus, filterType]);
 
   const handleCreate = async () => {
@@ -125,7 +126,7 @@ export default function ForensicHubPage() {
         setCreateForm({ case_type: "", title: "", summary: "", severity: "medium" });
         fetchData();
       }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e?.message || "Failed to create case"); }
   };
 
   if (rolesLoading) return <div className="p-8 text-[#888]">Loading...</div>;
@@ -143,6 +144,13 @@ export default function ForensicHubPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-xs text-red-400">{error}</p>
+          <button onClick={() => setError(null)} className="ml-auto text-red-400/60 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
