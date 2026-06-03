@@ -1123,49 +1123,105 @@ app.get('/api/v1/knowledge/search', authenticate, scopeGuard('read:content', '*'
 app.get('/api/v1/knowledge/access-policy', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getAccessPolicy);
 app.post('/api/v1/knowledge/access-policy', authenticate, scopeGuard('write:content', '*'), KnowledgeController.upsertAccessPolicy);
 
+// ─── Prompt Governance RBAC Guards ───────────────────────────────────────
+// govView  — read-only governance operations
+const govView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'COMPLIANCE_REVIEWER', 'AUDITOR');
+// govEdit  — create/edit prompt configurations
+const govEdit = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT');
+// govLifecycle — sensitive lifecycle operations (deploy, approve, pause, etc.)
+const govLifecycle = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'COMPLIANCE_REVIEWER');
+
 // ─── Prompt Governance Routes ────────────────────────────────────────────
 // Static routes (must come before parameterized :id routes)
-app.get('/api/v1/prompts/stats', authenticate, PromptController.getPromptStats);
-app.get('/api/v1/prompts/approvals/stats', authenticate, PromptController.getApprovalStats);
+app.get('/api/v1/prompts/stats', authenticate, govView, PromptController.getPromptStats);
+app.get('/api/v1/prompts/approvals/stats', authenticate, govView, PromptController.getApprovalStats);
+// Append-only audit trail — single record lookup (static, before :id routes)
+app.get('/api/v1/prompts/audit/:auditId', authenticate, govView, PromptController.getAuditEntry);
+// Reverse dependency traversal (static, MUST precede /prompts/:id to avoid shadowing)
+app.get('/api/v1/prompts/dependents', authenticate, govView, PromptController.getPromptDependents);
+// Dependency notification plan (static, MUST precede /prompts/:id to avoid shadowing)
+app.get('/api/v1/prompts/dependency-notifications/plan', authenticate, govView, PromptController.getDependencyNotificationPlan);
+// Governance dashboard rollup (static, MUST precede /prompts/:id to avoid shadowing)
+app.get('/api/v1/prompts/governance-dashboard', authenticate, govView, PromptController.getGovernanceDashboard);
+// Runtime trace ingestion (static, MUST precede /prompts/:id). Service-authenticated
+// via API key scope; JWT users are role-gated inside the handler.
+app.post('/api/v1/prompts/runtime-traces', authenticate, govEdit, scopeGuard('write:prompt_runtime_trace'), PromptController.ingestRuntimeTrace);
+// Incident detail/update/close (static incidents/:incidentId, MUST precede /prompts/:id).
+app.get('/api/v1/prompts/incidents/:incidentId', authenticate, govView, PromptController.getIncident);
+app.patch('/api/v1/prompts/incidents/:incidentId', authenticate, govLifecycle, PromptController.updateIncident);
+app.post('/api/v1/prompts/incidents/:incidentId/close', authenticate, govLifecycle, PromptController.closeIncident);
 
 // Versions sub-routes (no :id prefix)
-app.post('/api/v1/prompts/versions/:versionId/approve', authenticate, PromptController.approveVersion);
-app.post('/api/v1/prompts/versions/:versionId/reject', authenticate, PromptController.rejectVersion);
-app.post('/api/v1/prompts/versions/:versionId/deploy', authenticate, PromptController.deployVersion);
-app.get('/api/v1/prompts/versions/:versionId/tests/runs', authenticate, PromptController.listTestRuns);
-app.post('/api/v1/prompts/versions/:versionId/tests/run', authenticate, PromptController.runTests);
-app.get('/api/v1/prompts/versions/:versionId/approvals', authenticate, PromptController.listApprovals);
-app.get('/api/v1/prompts/versions/:versionId/deployments', authenticate, PromptController.listDeployments);
-app.get('/api/v1/prompts/versions/:versionId/bindings', authenticate, PromptController.listBindings);
-app.post('/api/v1/prompts/versions/:versionId/bindings', authenticate, PromptController.createBinding);
-app.get('/api/v1/prompts/versions/:versionId/knowledge', authenticate, PromptController.listKnowledgeBindings);
-app.post('/api/v1/prompts/versions/:versionId/knowledge', authenticate, PromptController.createKnowledgeBinding);
-app.get('/api/v1/prompts/versions/:versionId/tools', authenticate, PromptController.listToolPermissions);
-app.post('/api/v1/prompts/versions/:versionId/tools', authenticate, PromptController.createToolPermission);
+app.post('/api/v1/prompts/versions/:versionId/approve', authenticate, govLifecycle, PromptController.approveVersion);
+app.post('/api/v1/prompts/versions/:versionId/reject', authenticate, govLifecycle, PromptController.rejectVersion);
+app.post('/api/v1/prompts/versions/:versionId/deploy', authenticate, govLifecycle, PromptController.deployVersion);
+app.get('/api/v1/prompts/versions/:versionId/tests/runs', authenticate, govView, PromptController.listTestRuns);
+app.post('/api/v1/prompts/versions/:versionId/tests/run', authenticate, govEdit, PromptController.runTests);
+app.get('/api/v1/prompts/versions/:versionId/approvals', authenticate, govView, PromptController.listApprovals);
+app.get('/api/v1/prompts/versions/:versionId/deployments', authenticate, govView, PromptController.listDeployments);
+app.get('/api/v1/prompts/versions/:versionId/bindings', authenticate, govEdit, PromptController.listBindings);
+app.post('/api/v1/prompts/versions/:versionId/bindings', authenticate, govEdit, PromptController.createBinding);
+app.get('/api/v1/prompts/versions/:versionId/knowledge', authenticate, govEdit, PromptController.listKnowledgeBindings);
+app.post('/api/v1/prompts/versions/:versionId/knowledge', authenticate, govEdit, PromptController.createKnowledgeBinding);
+app.get('/api/v1/prompts/versions/:versionId/tools', authenticate, govEdit, PromptController.listToolPermissions);
+app.post('/api/v1/prompts/versions/:versionId/tools', authenticate, govEdit, PromptController.createToolPermission);
+app.get('/api/v1/prompts/versions/:versionId/graph', authenticate, govView, PromptController.getPromptVersionGraph);
+app.get('/api/v1/prompts/versions/:versionId/dependency-health', authenticate, govView, PromptController.getPromptVersionDependencyHealth);
+app.get('/api/v1/prompts/versions/:versionId/impact', authenticate, govView, PromptController.getPromptVersionImpact);
+app.get('/api/v1/prompts/versions/:versionId/runtime-traces', authenticate, govView, PromptController.listVersionRuntimeTraces);
+// Dependency binding edits (update / delete) — addressed by binding id, tenant-scoped
+app.patch('/api/v1/prompts/bindings/:bindingId', authenticate, govEdit, PromptController.updateBinding);
+app.delete('/api/v1/prompts/bindings/:bindingId', authenticate, govEdit, PromptController.deleteBinding);
+app.patch('/api/v1/prompts/knowledge-bindings/:bindingId', authenticate, govEdit, PromptController.updateKnowledgeBinding);
+app.delete('/api/v1/prompts/knowledge-bindings/:bindingId', authenticate, govEdit, PromptController.deleteKnowledgeBinding);
+app.patch('/api/v1/prompts/tool-permissions/:permissionId', authenticate, govEdit, PromptController.updateToolPermission);
+app.delete('/api/v1/prompts/tool-permissions/:permissionId', authenticate, govEdit, PromptController.deleteToolPermission);
 
 // Prompt CRUD (parameterized :id routes)
-app.get('/api/v1/prompts', authenticate, PromptController.listPrompts);
-app.post('/api/v1/prompts', authenticate, PromptController.createPrompt);
-app.get('/api/v1/prompts/:id', authenticate, PromptController.getPrompt);
-app.patch('/api/v1/prompts/:id', authenticate, PromptController.updatePrompt);
-app.post('/api/v1/prompts/:id/clone', authenticate, PromptController.clonePrompt);
+app.get('/api/v1/prompts', authenticate, govView, PromptController.listPrompts);
+app.post('/api/v1/prompts', authenticate, govEdit, PromptController.createPrompt);
+app.get('/api/v1/prompts/:id', authenticate, govView, PromptController.getPrompt);
+app.get('/api/v1/prompts/:id/graph', authenticate, govView, PromptController.getPromptGraph);
+app.get('/api/v1/prompts/:id/dependency-health', authenticate, govView, PromptController.getPromptDependencyHealth);
+app.get('/api/v1/prompts/:id/impact', authenticate, govView, PromptController.getPromptImpact);
+app.get('/api/v1/prompts/:id/governance-snapshot', authenticate, govView, PromptController.getPromptGovernanceSnapshot);
+app.patch('/api/v1/prompts/:id', authenticate, govEdit, PromptController.updatePrompt);
+app.post('/api/v1/prompts/:id/clone', authenticate, govEdit, PromptController.clonePrompt);
 
 // Lifecycle actions
-app.post('/api/v1/prompts/:id/pause', authenticate, PromptController.pausePrompt);
-app.post('/api/v1/prompts/:id/resume', authenticate, PromptController.resumePrompt);
-app.post('/api/v1/prompts/:id/archive', authenticate, PromptController.archivePrompt);
-app.post('/api/v1/prompts/:id/retire', authenticate, PromptController.retirePrompt);
-app.post('/api/v1/prompts/:id/submit-review', authenticate, PromptController.submitForReview);
-app.post('/api/v1/prompts/:id/rollback', authenticate, PromptController.rollbackPrompt);
+app.post('/api/v1/prompts/:id/pause', authenticate, govLifecycle, PromptController.pausePrompt);
+app.post('/api/v1/prompts/:id/resume', authenticate, govLifecycle, PromptController.resumePrompt);
+app.post('/api/v1/prompts/:id/archive', authenticate, govLifecycle, PromptController.archivePrompt);
+app.post('/api/v1/prompts/:id/retire', authenticate, govLifecycle, PromptController.retirePrompt);
+app.post('/api/v1/prompts/:id/submit-review', authenticate, govLifecycle, PromptController.submitForReview);
+app.post('/api/v1/prompts/:id/rollback', authenticate, govLifecycle, PromptController.rollbackPrompt);
+
+// Evidence Vault — immutable evidence chain for a prompt
+app.get('/api/v1/prompts/:id/evidence', authenticate, govView, PromptController.listPromptEvidence);
+
+// Evidence Export — sealed, reason-stamped export package (permission-gated)
+app.post('/api/v1/prompts/:id/evidence/export', authenticate, govView, PromptController.createPromptEvidenceExport);
+app.get('/api/v1/prompts/:id/evidence/export/:exportId', authenticate, govView, PromptController.getPromptEvidenceExport);
+
+// Runtime Evidence — runtime traces for a prompt (read-only, workspace-scoped)
+app.get('/api/v1/prompts/:id/runtime-traces', authenticate, govView, PromptController.listPromptRuntimeTraces);
+
+// Prompt Incidents — open (governance roles) + list (workspace-scoped)
+app.post('/api/v1/prompts/:id/incidents', authenticate, govLifecycle, PromptController.createIncident);
+app.get('/api/v1/prompts/:id/incidents', authenticate, govView, PromptController.listPromptIncidents);
+
+// Append-only Audit Trail — governance ledger for a prompt (read-only)
+app.get('/api/v1/prompts/:id/audit', authenticate, govView, PromptController.listPromptAudit);
+app.get('/api/v1/prompts/:id/audit/timeline', authenticate, govView, PromptController.getPromptAuditTimeline);
 
 // Versions (under :id)
-app.get('/api/v1/prompts/:id/versions', authenticate, PromptController.listVersions);
-app.post('/api/v1/prompts/:id/versions', authenticate, PromptController.createVersion);
-app.get('/api/v1/prompts/:id/versions/:versionId', authenticate, PromptController.getVersion);
+app.get('/api/v1/prompts/:id/versions', authenticate, govView, PromptController.listVersions);
+app.post('/api/v1/prompts/:id/versions', authenticate, govEdit, PromptController.createVersion);
+app.get('/api/v1/prompts/:id/versions/:versionId', authenticate, govView, PromptController.getVersion);
 
 // Tests (under :id)
-app.get('/api/v1/prompts/:id/tests/suites', authenticate, PromptController.listTestSuites);
-app.post('/api/v1/prompts/:id/tests/suites', authenticate, PromptController.createTestSuite);
+app.get('/api/v1/prompts/:id/tests/suites', authenticate, govView, PromptController.listTestSuites);
+app.post('/api/v1/prompts/:id/tests/suites', authenticate, govEdit, PromptController.createTestSuite);
 
 
 // ─── Approval Rules Routes ───────────────────────────────────────────

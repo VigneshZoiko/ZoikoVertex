@@ -1,6 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabaseAdmin } from '../../shared/supabase';
 
+export const PROMPT_STATUS = {
+  DRAFT: 'draft',
+  INTERNAL_TEST: 'internal_test',
+  REVIEW_REQUESTED: 'review_requested',
+  APPROVED_STAGING: 'approved_for_staging',
+  PRODUCTION_PENDING: 'production_pending',
+  PRODUCTION_ACTIVE: 'production_active',
+  PAUSED: 'paused',
+  RETIRED: 'retired',
+  ARCHIVED: 'archived',
+} as const;
+
+export const PROMPT_RISK_TIER = {
+  TIER_1_LOW: 'tier_1_low',
+  TIER_2_MEDIUM: 'tier_2_medium',
+  TIER_3_HIGH: 'tier_3_high',
+  TIER_4_CRITICAL: 'tier_4_critical',
+} as const;
+
 interface CreatePromptInput {
   workspace_id?: string;
   name: string;
@@ -42,12 +61,24 @@ function normalizePromptType(raw: string | undefined): string {
   return PROMPT_TYPE_MAP[v] || 'system_prompt';
 }
 
+export function normalizePromptStatus(raw: string | undefined): string {
+  if (!raw) return PROMPT_STATUS.DRAFT;
+  const key = raw.toUpperCase() as keyof typeof PROMPT_STATUS;
+  return PROMPT_STATUS[key] || raw.toLowerCase();
+}
+
+export function normalizePromptRiskTier(raw: string | undefined): string {
+  if (!raw) return PROMPT_RISK_TIER.TIER_2_MEDIUM;
+  const key = raw.toUpperCase() as keyof typeof PROMPT_RISK_TIER;
+  return PROMPT_RISK_TIER[key] || raw.toLowerCase();
+}
+
 export class PromptService {
   static async list(workspaceId: string, filters?: { status?: string; risk_tier?: string; prompt_type?: string }) {
     let query = supabaseAdmin.from('prompts').select('*').eq('workspace_id', workspaceId);
-    if (filters?.status) query = query.eq('status', filters.status);
-    if (filters?.risk_tier) query = query.eq('risk_tier', filters.risk_tier);
-    if (filters?.prompt_type) query = query.eq('prompt_type', filters.prompt_type);
+    if (filters?.status) query = query.eq('status', normalizePromptStatus(filters.status));
+    if (filters?.risk_tier) query = query.eq('risk_tier', normalizePromptRiskTier(filters.risk_tier));
+    if (filters?.prompt_type) query = query.eq('prompt_type', normalizePromptType(filters.prompt_type));
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) throw error;
 
@@ -105,11 +136,23 @@ export class PromptService {
     return enriched;
   }
 
-  static async getById(id: string) {
+  static async getById(id: string, workspaceId?: string) {
+    let query = supabaseAdmin
+      .from('prompts')
+      .select('*')
+      .eq('id', id);
+    if (workspaceId) query = query.eq('workspace_id', workspaceId);
+    const { data, error } = await query.maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  static async requireById(id: string, workspaceId: string) {
     const { data, error } = await supabaseAdmin
       .from('prompts')
       .select('*')
       .eq('id', id)
+      .eq('workspace_id', workspaceId)
       .single();
     if (error) throw error;
     return data;
@@ -131,8 +174,8 @@ export class PromptService {
         prompt_type: normalizePromptType(input.prompt_type),
         owner_id: input.owner_id,
         owner_name: input.owner_name || '',
-        risk_tier: (input.risk_tier || 'tier_2_medium').toLowerCase(),
-        status: 'draft',                        // enum is lowercase
+        risk_tier: normalizePromptRiskTier(input.risk_tier),
+        status: PROMPT_STATUS.DRAFT,             // enum is lowercase
         linked_agent: input.linked_agent || '',
         linked_agent_id: input.linked_agent_id || null,
         linked_workflow: input.linked_workflow || '',
@@ -147,35 +190,40 @@ export class PromptService {
     return data;
   }
 
-  static async update(id: string, input: Partial<CreatePromptInput & { status?: string }>) {
-    const { data, error } = await supabaseAdmin
+  static async update(id: string, input: Partial<CreatePromptInput & { status?: string }>, workspaceId?: string) {
+    const update: Record<string, unknown> = { ...input, updated_at: new Date().toISOString() };
+    if (input.status) update.status = normalizePromptStatus(input.status);
+    if (input.risk_tier) update.risk_tier = normalizePromptRiskTier(input.risk_tier);
+    if (input.prompt_type) update.prompt_type = normalizePromptType(input.prompt_type);
+
+    let query = supabaseAdmin
       .from('prompts')
-      .update({ ...input, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
+      .update(update)
+      .eq('id', id);
+    if (workspaceId) query = query.eq('workspace_id', workspaceId);
+    const { data, error } = await query.select().single();
     if (error) throw error;
     return data;
   }
 
-  static async updateStatus(id: string, status: string) {
-    const { data, error } = await supabaseAdmin
+  static async updateStatus(id: string, status: string, workspaceId?: string) {
+    let query = supabaseAdmin
       .from('prompts')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
+      .update({ status: normalizePromptStatus(status), updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (workspaceId) query = query.eq('workspace_id', workspaceId);
+    const { data, error } = await query.select().single();
     if (error) throw error;
     return data;
   }
 
-  static async updateCurrentVersion(id: string, versionId: string) {
-    const { data, error } = await supabaseAdmin
+  static async updateCurrentVersion(id: string, versionId: string, workspaceId?: string) {
+    let query = supabaseAdmin
       .from('prompts')
       .update({ current_version_id: versionId, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
+    if (workspaceId) query = query.eq('workspace_id', workspaceId);
+    const { data, error } = await query.select().single();
     if (error) throw error;
     return data;
   }
@@ -188,20 +236,21 @@ export class PromptService {
     if (error) throw error;
 
     const total = all?.length || 0;
-    const productionActive = all?.filter(p => p.status === 'PRODUCTION_ACTIVE').length || 0;
-    const draftsPending = all?.filter(p => p.status === 'DRAFT' || p.status === 'REVIEW_REQUESTED').length || 0;
-    const paused = all?.filter(p => p.status === 'PAUSED').length || 0;
+    const productionActive = all?.filter(p => p.status === PROMPT_STATUS.PRODUCTION_ACTIVE).length || 0;
+    const draftsPending = all?.filter(p => p.status === PROMPT_STATUS.DRAFT || p.status === PROMPT_STATUS.REVIEW_REQUESTED).length || 0;
+    const paused = all?.filter(p => p.status === PROMPT_STATUS.PAUSED).length || 0;
 
     return { total, production_active: productionActive, drafts_pending: draftsPending, paused };
   }
 
-  static async clone(id: string, createdBy?: string) {
-    const original = await this.getById(id);
+  static async clone(id: string, createdBy?: string, workspaceId?: string) {
+    const original = workspaceId ? await this.requireById(id, workspaceId) : await this.getById(id);
     if (!original) throw new Error('Prompt not found');
 
     const { data, error } = await supabaseAdmin
       .from('prompts')
       .insert({
+        tenant_id: original.tenant_id || original.workspace_id,
         workspace_id: original.workspace_id,
         name: `${original.name} (Clone)`,
         description: `Clone of ${original.name}. Created from version ${original.current_version_id || '—'}`,
@@ -209,7 +258,7 @@ export class PromptService {
         owner_id: createdBy,
         owner_name: '',
         risk_tier: original.risk_tier,
-        status: 'DRAFT',
+        status: PROMPT_STATUS.DRAFT,
         linked_agent: original.linked_agent,
         linked_agent_id: original.linked_agent_id,
         linked_workflow: original.linked_workflow,
