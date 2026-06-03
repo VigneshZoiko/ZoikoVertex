@@ -28,7 +28,7 @@ export default function PlatformAnalytics() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [tabFilter, setTabFilter] = useState<'all' | 'active' | 'paused' | 'restricted' | 'deleted'>('all');
+  const [tabFilter, setTabFilter] = useState<'all' | 'active' | 'paused' | 'restricted'>('all');
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [openMenuOrgId, setOpenMenuOrgId] = useState<string | null>(null);
   const [upgradeOrgId, setUpgradeOrgId] = useState<string | null>(null);
@@ -205,15 +205,13 @@ export default function PlatformAnalytics() {
 
   const activeOrgs = organizations.filter(o => o.status === 'ACTIVE');
   const pausedOrgs = organizations.filter(o => o.status === 'SUSPENDED');
-  const deletedOrgs = organizations.filter(o => o.status === 'DELETED');
   const restrictedOrgs = organizations.filter(o => o.status === 'RESTRICTED');
 
   const filteredOrgs = organizations.filter(org => {
     if (tabFilter === 'active') return org.status === 'ACTIVE';
     if (tabFilter === 'paused') return org.status === 'SUSPENDED';
     if (tabFilter === 'restricted') return org.status === 'RESTRICTED';
-    if (tabFilter === 'deleted') return org.status === 'DELETED';
-    return true;
+    return org.status !== 'DELETED';
   }).filter(org => 
     org.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -236,7 +234,7 @@ export default function PlatformAnalytics() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3.5">
             <div className="text-xs text-[var(--foreground-muted)] mb-0.5">Organizations</div>
-            <div className="text-xl font-semibold text-[var(--foreground)]">{organizations.length}</div>
+            <div className="text-xl font-semibold text-[var(--foreground)]">{organizations.filter(o => o.status !== 'DELETED').length}</div>
           </div>
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3.5">
             <div className="text-xs text-[var(--foreground-muted)] mb-0.5">Users</div>
@@ -298,16 +296,6 @@ export default function PlatformAnalytics() {
                 }`}
               >
                 Restricted {restrictedOrgs.length}
-              </button>
-              <button
-                onClick={() => setTabFilter('deleted')}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  tabFilter === 'deleted'
-                    ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
-                    : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
-                }`}
-              >
-                Deleted {deletedOrgs.length}
               </button>
             </div>
           </div>
@@ -486,8 +474,6 @@ export default function PlatformAnalytics() {
                           ? 'No active organizations.'
                           : tabFilter === 'restricted'
                             ? 'No restricted organizations.'
-                            : tabFilter === 'deleted'
-                              ? 'No deleted organizations.'
                             : `No results for "${searchTerm}"`
                       }
                     </p>
