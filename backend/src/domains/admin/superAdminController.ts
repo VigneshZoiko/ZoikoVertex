@@ -196,7 +196,8 @@ export class SuperAdminController {
 
       const { data: workspaces, error } = await supabaseAdmin
         .from('workspaces')
-        .select('*, workspace_members(count)');
+        .select('*, workspace_members(count), organizations!inner(id)')
+        .neq('organizations.status', 'DELETED');
 
       if (error) throw error;
 
@@ -338,7 +339,8 @@ export class SuperAdminController {
       const [orgResult, statsResult] = await Promise.all([
         supabaseAdmin
           .from('workspaces')
-          .select('id, name, status, type, org_id, workspace_members(count), organizations(plan_type, status, premium_paid_until)'),
+          .select('id, name, status, type, org_id, workspace_members(count), organizations!inner(plan_type, status, premium_paid_until)')
+          .neq('organizations.status', 'DELETED'),
         (async () => {
           const [
             { count: orgCount },
@@ -347,7 +349,7 @@ export class SuperAdminController {
             { count: assetCount },
             { count: accountCount }
           ] = await Promise.all([
-            supabaseAdmin.from('workspaces').select('id', { count: 'estimated', head: true }),
+            supabaseAdmin.from('organizations').select('id', { count: 'exact', head: true }).neq('status', 'DELETED'),
             supabaseAdmin.from('users').select('id', { count: 'estimated', head: true }),
             supabaseAdmin.from('scheduled_posts').select('id', { count: 'estimated', head: true }),
             supabaseAdmin.from('media_library').select('id', { count: 'estimated', head: true }),
@@ -589,7 +591,7 @@ export class SuperAdminController {
         return res.status(403).json({ error: 'Access denied' });
       }
 
-      // Aggregate counts across all organizations
+      // Aggregate counts across all organizations (excluding DELETED)
       const [
         { count: orgCount },
         { count: userCount },
@@ -597,7 +599,7 @@ export class SuperAdminController {
         { count: assetCount },
         { count: accountCount }
       ] = await Promise.all([
-        supabaseAdmin.from('workspaces').select('*', { count: 'exact', head: true }),
+        supabaseAdmin.from('organizations').select('*', { count: 'exact', head: true }).neq('status', 'DELETED'),
         supabaseAdmin.from('users').select('*', { count: 'exact', head: true }),
         supabaseAdmin.from('scheduled_posts').select('*', { count: 'exact', head: true }),
         supabaseAdmin.from('media_library').select('*', { count: 'exact', head: true }),
