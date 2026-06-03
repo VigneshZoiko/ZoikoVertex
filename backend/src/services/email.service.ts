@@ -6,15 +6,25 @@ import { join } from 'path';
 
 let client: Resend | null = null;
 
-let logoBase64: string | null = null;
+const LOGO_CID = 'zoikovertex-logo';
+let logoAttachment: { filename: string; content: string; cid: string } | null = null;
 try {
   const logoPath = join(__dirname, '..', '..', '..', 'frontend', 'public', 'images', 'zoikovertexlogo.png');
-  logoBase64 = readFileSync(logoPath, 'base64');
+  logoAttachment = {
+    filename: 'zoikovertexlogo.png',
+    content: readFileSync(logoPath, 'base64'),
+    cid: LOGO_CID,
+  };
 } catch {
   try {
-    logoBase64 = readFileSync(join(__dirname, '..', '..', '..', '..', 'frontend', 'public', 'images', 'zoikovertexlogo.png'), 'base64');
+    const logoPath = join(__dirname, '..', '..', '..', '..', 'frontend', 'public', 'images', 'zoikovertexlogo.png');
+    logoAttachment = {
+      filename: 'zoikovertexlogo.png',
+      content: readFileSync(logoPath, 'base64'),
+      cid: LOGO_CID,
+    };
   } catch {
-    logger.warn('[email] Could not load zoikovertexlogo.png — using text fallback');
+    logger.warn('[email] Could not load zoikovertexlogo.png');
   }
 }
 
@@ -29,8 +39,8 @@ function getClient(): Resend | null {
 }
 
 function buildHtml(body: string): string {
-  const logoImg = logoBase64
-    ? `<img src="data:image/png;base64,${logoBase64}" alt="ZoikoVertex" style="height:32px;width:auto;opacity:0.9;" />`
+  const logoImg = logoAttachment
+    ? `<img src="cid:${LOGO_CID}" alt="ZoikoVertex" style="height:32px;width:auto;opacity:0.9;" />`
     : `<span style="font-size:20px;font-weight:600;color:#18181b;">ZoikoVertex</span>`;
   return `
 <!DOCTYPE html>
@@ -91,6 +101,7 @@ export async function sendEmail(options: {
       subject: options.subject,
       text: options.text,
       html: options.html || buildHtml(textToHtml(options.text)),
+      attachments: logoAttachment ? [logoAttachment] : undefined,
     });
     logger.info({ to: options.to, subject: options.subject }, '[email] Sent via Resend');
   } catch (err) {
