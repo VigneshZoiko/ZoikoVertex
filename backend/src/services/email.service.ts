@@ -1,32 +1,8 @@
 import { Resend } from 'resend';
 import { env } from '../config/env';
 import { logger } from '../shared/logger';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 
 let client: Resend | null = null;
-
-const LOGO_CID = 'zoikovertex-logo';
-let logoAttachment: { filename: string; content: string; cid: string } | null = null;
-try {
-  const logoPath = join(__dirname, '..', '..', '..', 'frontend', 'public', 'images', 'zoikovertexlogo.png');
-  logoAttachment = {
-    filename: 'zoikovertexlogo.png',
-    content: readFileSync(logoPath, 'base64'),
-    cid: LOGO_CID,
-  };
-} catch {
-  try {
-    const logoPath = join(__dirname, '..', '..', '..', '..', 'frontend', 'public', 'images', 'zoikovertexlogo.png');
-    logoAttachment = {
-      filename: 'zoikovertexlogo.png',
-      content: readFileSync(logoPath, 'base64'),
-      cid: LOGO_CID,
-    };
-  } catch {
-    logger.warn('[email] Could not load zoikovertexlogo.png');
-  }
-}
 
 function getClient(): Resend | null {
   if (client) return client;
@@ -38,10 +14,9 @@ function getClient(): Resend | null {
   return client;
 }
 
+const LOGO_URL = `${env.FRONTEND_URL.replace(/\/+$/, '')}/images/zoikovertexlogo.png`;
+
 function buildHtml(body: string): string {
-  const logoImg = logoAttachment
-    ? `<img src="cid:${LOGO_CID}" alt="ZoikoVertex" style="height:32px;width:auto;opacity:0.9;" />`
-    : `<span style="font-size:20px;font-weight:600;color:#18181b;">ZoikoVertex</span>`;
   return `
 <!DOCTYPE html>
 <html>
@@ -53,7 +28,7 @@ function buildHtml(body: string): string {
         <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
           <tr>
             <td style="padding:32px 32px 0 32px;text-align:center;">
-              ${logoImg}
+              <img src="${LOGO_URL}" alt="ZoikoVertex" style="height:32px;width:auto;opacity:0.9;" />
             </td>
           </tr>
           <tr>
@@ -101,7 +76,6 @@ export async function sendEmail(options: {
       subject: options.subject,
       text: options.text,
       html: options.html || buildHtml(textToHtml(options.text)),
-      attachments: logoAttachment ? [logoAttachment] : undefined,
     });
     logger.info({ to: options.to, subject: options.subject }, '[email] Sent via Resend');
   } catch (err) {
