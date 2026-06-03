@@ -17,31 +17,27 @@ import { DependencyImpactService } from './services/DependencyImpactService';
 import { ReverseDependencyService, ReverseTargetType } from './services/ReverseDependencyService';
 import { DependencyNotificationPlanner } from './services/DependencyNotificationPlanner';
 import { GovernanceDashboardService } from './services/GovernanceDashboardService';
+import { GovernanceDriftService } from './services/GovernanceDriftService';
 import { PromptIncidentService } from './services/PromptIncidentService';
 import { PromptEvidenceExportService } from './services/PromptEvidenceExportService';
+import { AdversarialScenarioService } from './AdversarialScenarioService';
+import { AdversarialTestService } from './AdversarialTestService';
+import { DeploymentGateService } from './DeploymentGateService';
+import { PromptApprovalPolicyService } from './PromptApprovalPolicyService';
+import { PolicySimulationService } from './PolicySimulationService';
+import { PromptScorecardService } from './PromptScorecardService';
+import { GovernanceMetricsService } from './services/GovernanceMetricsService';
+import { createAdversarialScenarioSchema, updateAdversarialScenarioSchema, runAdversarialTestSchema } from './schemas/adversarial.schema';
+import { runPolicySimulationSchema } from './schemas/policySimulation.schema';
 import { getParam, getQueryValue, getQueryNumber } from '../../shared/request';
 import { logToDatabase } from '../../shared/databaseLogger';
-import { PROMPT_STATUS, normalizePromptStatus } from './PromptService';
+import { PROMPT_STATUS } from './PromptService';
 
 const PROMPT_AUDIT_SERVICE = 'prompt-governance';
 
-function requiredApprovalRoles(riskTier: string): string[] {
-  const risk = String(riskTier || '').toLowerCase();
-  if (risk === 'tier_4_critical') return ['PROMPT_OWNER', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN'];
-  if (risk === 'tier_3_high') return ['PROMPT_OWNER', 'BRAND_REVIEWER', 'COMPLIANCE_REVIEWER'];
-  if (risk === 'tier_2_medium') return ['PROMPT_OWNER', 'BRAND_REVIEWER'];
-  return ['PROMPT_OWNER'];
-}
-
-function normalizeReviewerRole(role: string | null | undefined) {
-  return String(role || 'PROMPT_OWNER').toUpperCase().replace(/\s+/g, '_');
-}
-
-function canRoleSatisfy(requiredRole: string, reviewerRole: string) {
-  if (reviewerRole === 'SUPERADMIN' || reviewerRole === 'ADMIN' || reviewerRole === 'WORKSPACE_OWNER') return true;
-  if (requiredRole === 'PROMPT_OWNER') return true;
-  return reviewerRole === requiredRole || (requiredRole === 'BRAND_REVIEWER' && reviewerRole === 'GOVERNANCE_ADMIN');
-}
+const normalizeReviewerRole = PromptApprovalPolicyService.normalizeReviewerRole;
+const requiredApprovalRoles = PromptApprovalPolicyService.requiredApprovalRoles;
+const canRoleSatisfy = PromptApprovalPolicyService.canRoleSatisfy;
 
 function clientIp(req?: AuthRequest): string | null {
   if (!req) return null;
@@ -902,11 +898,22 @@ export class PromptController {
       if (!prompt.current_version_id) {
         return res.status(409).json({ error: 'Prompt requires a draft version before review.' });
       }
-      const testRuns = await PromptTestService.listRuns(prompt.current_version_id);
-      const latestRun = testRuns[0];
-      if (!latestRun || latestRun.pass_fail !== 'PASS') {
-        return res.status(409).json({ error: 'Prompt must pass required tests before review submission.' });
+
+      const gateResult = await DeploymentGateService.check(prompt.current_version_id, {
+        prompt,
+        workspaceId,
+        overrides: { requireAdversarialPass: true },
+      });
+      const blockingIssue = gateResult.blockingIssues.find((i) => i.blocking);
+      if (blockingIssue) {
+        return res.status(409).json({ error: blockingIssue.detail });
       }
+      for (const w of gateResult.warnings) {
+        if (w.type === 'adversarial_warning') {
+          res.set('X-Adversarial-Warning', w.detail);
+        }
+      }
+
       await auditPromptEvent('prompt.review.submitted', {
         prompt_id: promptId,
         prompt_version_id: prompt.current_version_id,
@@ -1051,44 +1058,32 @@ export class PromptController {
         return res.status(409).json({ error: 'Only the current prompt version can be deployed.' });
       }
 
-      // ── Governance gate (Doc 3 §7): block deployment when the approval has
-      //    been invalidated by a post-approval dependency change. Checks the
-      //    persisted flag first, then recomputes from current timestamps so a
-      //    fresh change is caught even if the flag was not yet written.
-      const persistedValidity = await ApprovalInvalidationService.getValidity(versionId);
-      const deployValidity = persistedValidity.invalidated
-        ? persistedValidity
-        : await ApprovalInvalidationService.evaluate(versionId);
-      if (deployValidity.invalidated) {
+      const environment = req.body.environment || 'staging';
+      const normalizedEnvironment = String(environment).toLowerCase();
+
+      const gateResult = await DeploymentGateService.check(versionId, {
+        prompt,
+        riskTier: prompt.risk_tier,
+        environment,
+        workspaceId,
+      });
+      const blockingIssue = gateResult.blockingIssues.find((i) => i.blocking);
+      if (blockingIssue) {
         await auditPromptEvent('prompt.deployment.blocked', {
           prompt_id: version.prompt_id,
           prompt_version_id: versionId,
           workspace_id: workspaceId,
           actor_id: req.user?.id,
           risk_tier: prompt.risk_tier,
-          reason: 'approval_invalidated',
-          after_state: { blocked: true, invalidated_at: deployValidity.invalidatedAt || null, invalidation_reason: deployValidity.reason || null },
+          reason: blockingIssue.type,
+          after_state: { blocked: true, type: blockingIssue.type, detail: blockingIssue.detail },
         }, req);
-        return res.status(409).json({ error: 'Approval has been invalidated due to dependency changes. Re-approval is required before deployment.' });
+        return res.status(409).json({ error: blockingIssue.detail });
       }
-
-      const environment = req.body.environment || 'staging';
-      const normalizedEnvironment = String(environment).toLowerCase();
-      const latestTests = await PromptTestService.listRuns(versionId);
-      const latestTest = latestTests[0];
-      if (!latestTest || latestTest.pass_fail !== 'PASS') {
-        return res.status(409).json({ error: 'Prompt version must pass required tests before deployment.' });
-      }
-      const approvals = await PromptApprovalService.listByVersion(versionId);
-      const approvedRoles = new Set(
-        approvals
-          .filter((approval: any) => approval.decision === 'APPROVED')
-          .map((approval: any) => normalizeReviewerRole(approval.reviewer_role)),
-      );
-      const requiredRoles = requiredApprovalRoles(prompt.risk_tier);
-      const complete = requiredRoles.every((requiredRole) => Array.from(approvedRoles).some((role) => canRoleSatisfy(requiredRole, role)));
-      if (!complete) {
-        return res.status(409).json({ error: 'Required approval chain is incomplete.' });
+      for (const w of gateResult.warnings) {
+        if (w.type === 'adversarial_warning') {
+          res.set('X-Adversarial-Warning', w.detail);
+        }
       }
       if (normalizedEnvironment === 'production' && prompt.status !== PROMPT_STATUS.PRODUCTION_PENDING) {
         await auditPromptEvent('prompt.production.requested', {
@@ -1897,6 +1892,394 @@ export class PromptController {
       const referenceTime = getQueryValue(req, 'referenceTime') || undefined;
       const data = await GovernanceDashboardService.getPromptGovernanceSnapshot(promptId, workspaceId, { referenceTime });
       res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 5B — Drift Monitoring ────────────────────────────────────────────
+
+  static async scanPromptDrift(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      await PromptService.requireById(promptId, workspaceId);
+      const findings = await GovernanceDriftService.detectPromptDrift(promptId, workspaceId);
+      res.json({ success: true, data: findings });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getDriftSummary(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const findings = await GovernanceDriftService.detectWorkspaceDrift(workspaceId);
+      const bySeverity: Record<string, number> = {};
+      const byCategory: Record<string, number> = {};
+      for (const f of findings) {
+        bySeverity[f.severity] = (bySeverity[f.severity] || 0) + 1;
+        byCategory[f.category] = (byCategory[f.category] || 0) + 1;
+      }
+      res.json({
+        success: true,
+        data: {
+          total_findings: findings.length,
+          by_severity: bySeverity,
+          by_category: byCategory,
+          findings,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async resolveDrift(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = (req.body as any)?.prompt_id as string | undefined;
+      const category = (req.body as any)?.category as string | undefined;
+      const resolution = (req.body as any)?.resolution as string | undefined;
+      const note = (req.body as any)?.note as string | undefined;
+
+      if (!promptId || !category || !resolution) {
+        return res.status(400).json({ error: 'prompt_id, category, and resolution are required' });
+      }
+
+      await PromptService.requireById(promptId, workspaceId);
+
+      await auditPromptEvent('prompt.drift.resolved', {
+        prompt_id: promptId,
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        drift_category: category,
+        resolution,
+        note: note || '',
+      }, req);
+
+      res.json({ success: true, message: `Drift ${category} resolved as ${resolution}` });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // Phase 5E — Prompt Scorecards
+  // ═════════════════════════════════════════════════════════════════════════
+
+  static async getPromptScorecard(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      await PromptService.requireById(promptId, workspaceId);
+      const data = await PromptScorecardService.getScorecard(promptId, workspaceId);
+      await auditPromptEvent('prompt.scorecard.generated', {
+        prompt_id: promptId,
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        overall_score: data.overall_score,
+        overall_severity: data.overall_severity,
+        after_state: { overall_score: data.overall_score, overall_severity: data.overall_severity, version_id: data.version_id },
+      }, req);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async listPromptScorecards(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const limit = getQueryNumber(req, 'limit', 50);
+      const offset = getQueryNumber(req, 'offset', 0);
+      const result = await PromptScorecardService.listScorecards(workspaceId, { limit, offset });
+      await auditPromptEvent('prompt.scorecard.generated', {
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        scorecard_count: result.data.length,
+        average_score: result.summary.average_score,
+        after_state: { count: result.data.length, average_score: result.summary.average_score },
+      }, req);
+      res.json({
+        success: true,
+        data: result.data,
+        summary: result.summary,
+        pagination: result.pagination,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // Phase 5F — Governance Metrics Dashboard
+  // ═════════════════════════════════════════════════════════════════════════
+
+  static async getGovernanceMetrics(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const metrics = await GovernanceMetricsService.compute(workspaceId);
+      await auditPromptEvent('prompt.metrics.viewed', {
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        total_prompts: metrics.total_prompts,
+        average_score: metrics.average_score,
+        after_state: { total_prompts: metrics.total_prompts, average_score: metrics.average_score },
+      }, req);
+      res.json({
+        success: true,
+        data: metrics,
+        generated_at: new Date().toISOString(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // Phase 5C — Adversarial Testing
+  // ═════════════════════════════════════════════════════════════════════════
+
+  static async listAdversarialScenarios(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      const suiteId = getParam(req, 'suiteId');
+      await PromptService.requireById(promptId, workspaceId);
+      const scenarios = await AdversarialScenarioService.listScenarios(suiteId);
+      res.json({ success: true, data: scenarios });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createAdversarialScenario(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      const suiteId = getParam(req, 'suiteId');
+      await PromptService.requireById(promptId, workspaceId);
+      const parsed = createAdversarialScenarioSchema.parse(req.body);
+      const scenario = await AdversarialScenarioService.createScenario({
+        suite_id: suiteId,
+        ...parsed,
+      });
+      res.status(201).json({ success: true, data: scenario });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateAdversarialScenario(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      const scenarioId = getParam(req, 'scenarioId');
+      await PromptService.requireById(promptId, workspaceId);
+      const parsed = updateAdversarialScenarioSchema.parse(req.body);
+      const scenario = await AdversarialScenarioService.updateScenario(scenarioId, parsed);
+      res.json({ success: true, data: scenario });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteAdversarialScenario(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      const scenarioId = getParam(req, 'scenarioId');
+      await PromptService.requireById(promptId, workspaceId);
+      await AdversarialScenarioService.deleteScenario(scenarioId);
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async seedDefaultAdversarialScenarios(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      const suiteId = getParam(req, 'suiteId');
+      await PromptService.requireById(promptId, workspaceId);
+      const scenarios = await AdversarialScenarioService.seedDefaults(suiteId);
+      res.json({ success: true, data: scenarios });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async runAdversarialTests(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      const { data: version } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('prompt_id')
+        .eq('id', versionId)
+        .single();
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      const prompt = await PromptService.requireById(version.prompt_id, workspaceId);
+      const parsed = runAdversarialTestSchema.parse(req.body);
+
+      await auditPromptEvent('prompt.test.adversarial.started', {
+        prompt_version_id: versionId,
+        suite_id: parsed.suite_id,
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        risk_tier: prompt.risk_tier,
+      }, req);
+
+      const report = await AdversarialTestService.evaluatePromptVersion(
+        versionId,
+        parsed.suite_id,
+        prompt.risk_tier,
+      );
+
+      const run = await PromptTestService.createAdversarialRun({
+        prompt_version_id: versionId,
+        suite_id: parsed.suite_id,
+        pass_fail: report.summary.overall_result === 'PASS' ? 'PASS' : 'FAIL',
+        score_summary: {
+          score: report.summary.overall_score,
+          adversarial: true,
+          category_scores: report.summary.category_scores,
+        },
+        run_metadata: {
+          adversarial: true,
+          scenario_results: report.scenario_results,
+          summary: report.summary,
+          evidence_refs: report.evidence_refs,
+        },
+        created_by: req.user?.id,
+      });
+
+      const auditEvent = report.summary.overall_result === 'PASS'
+        ? 'prompt.test.adversarial.passed'
+        : report.summary.overall_result === 'WARN'
+          ? 'prompt.test.adversarial.warning'
+          : 'prompt.test.adversarial.failed';
+
+      await auditPromptEvent(auditEvent, {
+        prompt_version_id: versionId,
+        prompt_id: version.prompt_id,
+        suite_id: parsed.suite_id,
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        risk_tier: prompt.risk_tier,
+        run_id: run.id,
+        after_state: {
+          pass_fail: run.pass_fail,
+          overall_score: report.summary.overall_score,
+          total_scenarios: report.summary.total,
+          passed: report.summary.passed,
+          warnings: report.summary.warnings,
+          failed: report.summary.failed,
+          critical_failures: report.summary.critical_failures,
+        },
+      }, req);
+
+      res.status(201).json({
+        success: true,
+        data: {
+          run_id: run.id,
+          pass_fail: run.pass_fail,
+          overall_score: report.summary.overall_score,
+          overall_result: report.summary.overall_result,
+          category_scores: report.summary.category_scores,
+          total_scenarios: report.summary.total,
+          passed: report.summary.passed,
+          warnings: report.summary.warnings,
+          failed: report.summary.failed,
+          critical_failures: report.summary.critical_failures,
+          evidence_refs: report.evidence_refs,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async listAdversarialResults(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      const { data: version } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('prompt_id')
+        .eq('id', versionId)
+        .single();
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      await PromptService.requireById(version.prompt_id, workspaceId);
+      const runs = await PromptTestService.listAdversarialRuns(versionId);
+      res.json({ success: true, data: runs });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getAdversarialResultDetail(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      const runId = getParam(req, 'runId');
+      const { data: version } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('prompt_id')
+        .eq('id', versionId)
+        .single();
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      await PromptService.requireById(version.prompt_id, workspaceId);
+      const { data: run } = await supabaseAdmin
+        .from('prompt_test_runs')
+        .select('*')
+        .eq('id', runId)
+        .eq('prompt_version_id', versionId)
+        .single();
+      if (!run) return res.status(404).json({ error: 'Run not found' });
+      res.json({ success: true, data: run });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 5D — Policy Simulation ──────────────────────────────────────
+
+  static async runPolicySimulation(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const parsed = runPolicySimulationSchema.parse(req.body);
+      const report = await PolicySimulationService.simulate({
+        workspace_id: workspaceId,
+        simulation_type: parsed.simulation_type,
+        parameters: parsed.parameters,
+        actor_id: req.user?.id ?? undefined,
+        actor_role: req.user?.role ?? undefined,
+      });
+      res.json({ success: true, data: report });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async runPromptPolicySimulation(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const promptId = getParam(req, 'id');
+      const prompt = await PromptService.requireById(promptId, workspaceId);
+      if (!prompt) return res.status(404).json({ error: 'Prompt not found' });
+      const parsed = runPolicySimulationSchema.parse(req.body);
+      const report = await PolicySimulationService.simulate({
+        workspace_id: workspaceId,
+        simulation_type: parsed.simulation_type,
+        parameters: parsed.parameters,
+        prompt_id: promptId,
+        actor_id: req.user?.id ?? undefined,
+        actor_role: req.user?.role ?? undefined,
+      });
+      res.json({ success: true, data: report });
     } catch (error) {
       next(error);
     }

@@ -101,6 +101,7 @@ class QueryBuilder {
   }
   insert(payload: any) { this._mode = 'insert'; this._payload = payload; return this; }
   update(patch: any) { this._mode = 'update'; this._payload = patch; return this; }
+  delete() { this._mode = 'delete'; return this; }
 
   eq(col: string, val: any) { this.preds.push((r) => r[col] === val); return this; }
   neq(col: string, val: any) { this.preds.push((r) => r[col] !== val); return this; }
@@ -150,6 +151,22 @@ class QueryBuilder {
     return matches;
   }
 
+  private applyDelete(): any[] {
+    const store = this.store;
+    const keep: any[] = [];
+    const deleted: any[] = [];
+    for (const r of store) {
+      if (this.preds.every((p) => p(r))) {
+        deleted.push(r);
+      } else {
+        keep.push(r);
+      }
+    }
+    store.length = 0;
+    for (const r of keep) store.push(r);
+    return deleted;
+  }
+
   async maybeSingle() {
     const rows = this.sliced(this.filtered());
     return { data: rows[0] ?? null, error: null };
@@ -164,6 +181,10 @@ class QueryBuilder {
       const updated = this.applyUpdate();
       return updated.length ? { data: updated[0], error: null } : { data: null, error: { message: 'no rows' } };
     }
+    if (this._mode === 'delete') {
+      const deleted = this.applyDelete();
+      return { data: deleted[0] ?? null, error: null };
+    }
     const rows = this.sliced(this.filtered());
     return rows.length ? { data: rows[0], error: null } : { data: null, error: { message: 'no rows' } };
   }
@@ -175,6 +196,8 @@ class QueryBuilder {
       result = { data: this.applyInsert(), error: null };
     } else if (this._mode === 'update') {
       result = { data: this.applyUpdate(), error: null };
+    } else if (this._mode === 'delete') {
+      result = { data: this.applyDelete(), error: null };
     } else {
       const all = this.filtered();
       result = {

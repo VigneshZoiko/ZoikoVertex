@@ -143,7 +143,6 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
     const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
     let model = genAI.getGenerativeModel({ model: GEMINI_MODELS[0] });
     // Model selection happens at generateContent — use retry wrapper below
-    let _modelIndex = 0;
 
     const dayName = getDayName(resolvedDate);
 
@@ -187,7 +186,6 @@ RESPONSE (strict JSON, no markdown, no backticks):
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
-          _modelIndex++;
           continue;
         }
         throw e;

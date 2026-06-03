@@ -255,8 +255,6 @@ export async function publishCampaignToMeta(
 
   const metaObjective  = OBJECTIVE_MAP[campaign.objective] || 'OUTCOME_TRAFFIC';
   const optimizationGoal = OPTIMIZATION_MAP[campaign.boost_settings?.optimize || 'LANDING_PAGE_VIEWS'] || 'LANDING_PAGE_VIEWS';
-  const budgetCents    = Math.round((campaign.budget_daily || campaign.budget_total || 10) * 100);
-  const currency       = (campaign.budget_currency || 'USD').toLowerCase();
 
   // Targeting spec
   const genderRaw = targeting.gender || 'ALL';
@@ -270,7 +268,7 @@ export async function publishCampaignToMeta(
     // Legacy: try to parse as JSON, fall back to comma-split country codes
     try {
       const parsed = JSON.parse(rawGeo);
-      rawGeo.length && buildGeoSpec(parsed, geoLocSpec);
+      if (rawGeo.length) buildGeoSpec(parsed, geoLocSpec);
     } catch {
       geoLocSpec = { countries: rawGeo.split(',').map((g: string) => g.trim().slice(0, 2).toUpperCase()).filter(Boolean) };
     }
