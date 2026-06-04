@@ -381,7 +381,7 @@ const NAV_GROUPS: NavGroup[] = [
       },
       {
         name: "Identity Ledger",
-        href: "/integrations/identity-ledger",
+        href: "/evidence/identity-ledger",
         icon: Fingerprint,
         // Identity audit chain — developers (technical view), auditors (read)
         roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER","AUDITOR"],
