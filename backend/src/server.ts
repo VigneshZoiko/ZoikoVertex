@@ -1395,6 +1395,7 @@ app.use(errorHandler);
 import { initWorker } from './workers/schedulerWorker';
 import { initAuditExportWorker } from './workers/auditExportWorker';
 import { initAuditIntegrityWorker } from './workers/auditIntegrityWorker';
+import { initAuditStreamingWorker } from './workers/auditStreamingWorker';
 import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 import { startCampaignWorker } from './workers/campaignWorker';
 import { initOrgInactivityWorker } from './workers/orgInactivityWorker';
@@ -1408,6 +1409,7 @@ try {
     initWorker();
     initAuditExportWorker();
     initAuditIntegrityWorker();
+    initAuditStreamingWorker();
     initVaultWorker();
     initDlpScanWorker();
     startCampaignWorker();

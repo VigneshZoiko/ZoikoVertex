@@ -1020,10 +1020,19 @@ async function updateHoldOnItems(scopeType: string, scopeId: string | undefined,
   }
 }
 
-export async function releaseHold(holdId: string, releasedBy: string, reason: string): Promise<VaultHold | null> {
+export async function releaseHold(holdId: string, releasedBy: string, reason: string, authorizedBy?: string): Promise<VaultHold | null> {
   const hold = await getHold(holdId);
   if (!hold) throw new Error('Hold not found');
   if (hold.released) throw new Error('Hold already released');
+
+  // Dual-authorization: the person releasing must differ from the original approver
+  if (hold.approver_id && releasedBy === hold.approver_id) {
+    throw new Error('Legal hold release requires dual-authorization: the releasing user must be different from the hold\'s original approver');
+  }
+  // If authorizedBy is provided, it must differ from releasedBy
+  if (authorizedBy && releasedBy === authorizedBy) {
+    throw new Error('Legal hold release requires dual-authorization: the releasing user must be different from the authorizing user');
+  }
 
   const now = new Date().toISOString();
   const { data, error } = await supabaseAdmin.from('vault_holds').update({
@@ -1031,6 +1040,7 @@ export async function releaseHold(holdId: string, releasedBy: string, reason: st
     released_at: now,
     released_reason: reason,
     released_by: releasedBy,
+    authorized_by: authorizedBy || null,
   }).eq('id', holdId).select().single();
 
   if (error) throw error;
@@ -1336,7 +1346,7 @@ export async function logShareAccess(shareId: string, access: {
 
   // Increment view count
   const { data: share } = await supabaseAdmin.from('vault_shares')
-    .select('current_views').eq('id', shareId).single();
+    .select('current_views, workspace_id').eq('id', shareId).single();
   if (share) {
     await supabaseAdmin.from('vault_shares').update({
       current_views: (share.current_views || 0) + 1,
@@ -1344,13 +1354,13 @@ export async function logShareAccess(shareId: string, access: {
     }).eq('id', shareId);
   }
 
+  const workspaceId = share?.workspace_id || 'unknown';
   await emitVaultAuditEvent(
-    'evidence.share_viewed', 'WRK-001', 'external_viewer',
+    'evidence.share_viewed', workspaceId, 'external_viewer',
     `Share Viewed: ${shareId}`,
     `External share ${shareId} accessed. Section: ${access.package_section || 'overview'}.`,
     { object_type: 'vault_share', object_id: shareId },
   );
-  // Note: share_viewed uses hardcoded workspace — tenant_id omitted intentionally (external viewer lacks context)
 }
 
 export async function getShareAccessLogs(shareId: string): Promise<VaultShareAccessLog[]> {

@@ -782,6 +782,58 @@ async function hydrateSeedFromSources(input: ResolveAuthorityBindingInput): Prom
       .maybeSingle();
 
     if (apiKey) seed = buildApiKeySeed(input.workspace_id, tenantId, apiKey as Record<string, unknown>);
+  } else if (actorType === 'system') {
+    seed = {
+      actor_id: input.actor.actor_id,
+      workspace_id: input.workspace_id,
+      tenant_id: tenantId,
+      actor_type: 'system',
+      display_name: input.actor.actor_name || `System:${input.actor.actor_id}`,
+      email: null,
+      state: 'active',
+      external_identity_id: input.actor.actor_id,
+      source_system: 'platform',
+      source_ref_id: input.actor.actor_id,
+      authority_class: 'system',
+      risk_level: 'low',
+      risk_flags: [],
+      current_roles: ['SYSTEM'],
+      current_permissions: ['system.*'],
+      last_activity_at: input.timestamp_utc || new Date().toISOString(),
+      profile: { seeded_from: 'hydrate_seed', actor_category: 'system_actor' },
+      policy_constraints: { workspace_id: input.workspace_id },
+      agent_context: null,
+      source_lineage: [{ source_type: 'system_registry', source_event_id: input.actor.actor_id }],
+      entry_type: 'identity.created',
+      entry_category: 'identity_assertion',
+      effective_from: input.timestamp_utc || new Date().toISOString(),
+    };
+  } else if (actorType === 'external_reviewer') {
+    seed = {
+      actor_id: input.actor.actor_id,
+      workspace_id: input.workspace_id,
+      tenant_id: tenantId,
+      actor_type: 'external_reviewer',
+      display_name: input.actor.actor_name || `External:${input.actor.actor_id}`,
+      email: null,
+      state: 'restricted',
+      external_identity_id: input.actor.actor_id,
+      source_system: 'external_portal',
+      source_ref_id: input.actor.actor_id,
+      authority_class: 'scoped',
+      risk_level: 'medium',
+      risk_flags: [],
+      current_roles: ['EXTERNAL_REVIEWER'],
+      current_permissions: ['evidence.review', 'evidence.comment'],
+      last_activity_at: input.timestamp_utc || new Date().toISOString(),
+      profile: { seeded_from: 'hydrate_seed', actor_category: 'external_reviewer' },
+      policy_constraints: { workspace_id: input.workspace_id },
+      agent_context: null,
+      source_lineage: [{ source_type: 'external_invitation', source_event_id: input.actor.actor_id }],
+      entry_type: 'identity.created',
+      entry_category: 'identity_assertion',
+      effective_from: input.timestamp_utc || new Date().toISOString(),
+    };
   }
 
   if (!seed) {
@@ -1308,7 +1360,8 @@ export async function requestBreakGlass(params: { tenant_id: string; actor_id: s
       actor_id: params.actor_id,
       tenant_id: params.tenant_id,
       reason: params.reason,
-      status: 'ACTIVE',
+      status: 'PENDING',
+      review_status: 'AWAITING_REVIEW',
       elevated_roles: params.elevated_roles || ['SUPERADMIN'],
     })
     .select()
@@ -1319,6 +1372,17 @@ export async function requestBreakGlass(params: { tenant_id: string; actor_id: s
 }
 
 export async function activateBreakGlass(params: { id: string }) {
+  const { data: session } = await supabaseAdmin
+    .from('identity_break_glass_sessions')
+    .select('review_status')
+    .eq('id', params.id)
+    .single();
+
+  if (!session) throw new Error('Break-glass session not found');
+  if (session.review_status !== 'APPROVED') {
+    throw new Error('Break-glass session must be reviewed and approved before activation');
+  }
+
   const { data, error } = await supabaseAdmin
     .from('identity_break_glass_sessions')
     .update({ status: 'ACTIVE' })
