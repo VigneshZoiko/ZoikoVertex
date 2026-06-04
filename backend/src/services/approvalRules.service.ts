@@ -653,7 +653,6 @@ export async function detectRuleConflicts(approval_rule_id: string, tenant_id: s
     .in('rule_status', ['ACTIVE', 'ACTIVE_WITH_DRAFT_CHANGES', 'DRAFT', 'NEEDS_REVIEW', 'CONFLICT_DETECTED']);
 
   const allRuleIds = (allRules || []).map(r => r.id);
-  const ruleIdsSet = new Set(allRuleIds);
 
   const { data: allScopes } = await supabaseAdmin
     .from('approval_rule_scopes')
