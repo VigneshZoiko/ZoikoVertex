@@ -7,6 +7,7 @@ import { logger } from '../../shared/logger';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logToDatabase } from '../../shared/databaseLogger';
+import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
 
 import { getQueue } from '../../workers/schedulerWorker';
 
@@ -176,20 +177,51 @@ RESPONSE (strict JSON, no markdown, no backticks):
   ]
 }`;
 
-    let text = '';
-    for (const modelId of GEMINI_MODELS) {
-      try {
-        model = genAI.getGenerativeModel({ model: modelId });
-        const result = await model.generateContent(prompt);
-        text = (await result.response).text();
-        break;
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
-          continue;
+    const workspaceId = req.user?.workspace_id as string | undefined;
+    const callModel = async (p: string): Promise<string> => {
+      let t = '';
+      for (const modelId of GEMINI_MODELS) {
+        try {
+          model = genAI.getGenerativeModel({ model: modelId });
+          const result = await model.generateContent(p);
+          t = (await result.response).text();
+          break;
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
+            continue;
+          }
+          throw e;
         }
-        throw e;
       }
+      return t;
+    };
+
+    // Phase 4.D — prefer the governed 'scheduler_recommendation' prompt; on
+    // governance block, audited fallback (fail-closed in production when
+    // PROMPT_GOVERNANCE_ENFORCED) to the inline prompt so behavior is unchanged
+    // while the flag is off.
+    let text = '';
+    const governed = await GovernedModelGate.execute({
+      useCaseKey: 'scheduler_recommendation',
+      workspaceId: workspaceId || '',
+      variables: {
+        platform, niche,
+        audience_region: audienceRegion,
+        audience_timezone: audienceTimezone,
+        audience_age_group: audienceAgeGroup,
+        target_date: resolvedDate,
+        day_name: dayName,
+      },
+      modelProvider: 'gemini',
+      actorId: req.user?.id,
+      invoke: callModel,
+    });
+    if (governed.ok) {
+      text = governed.output || '';
+    } else {
+      await GovernedModelGate.legacyInlineFallback('scheduler_recommendation', workspaceId, `governed prompt unavailable: ${governed.code}`);
+      text = await callModel(prompt);
     }
     if (!text) throw new Error('All Gemini models unavailable — please try again shortly');
     

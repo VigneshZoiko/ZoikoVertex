@@ -8,8 +8,9 @@ export class PromptApprovalPolicyService {
   }
 
   static canRoleSatisfy(requiredRole: string, reviewerRole: string): boolean {
-    if (reviewerRole === 'SUPERADMIN' || reviewerRole === 'ADMIN' || reviewerRole === 'WORKSPACE_OWNER') return true;
+    // PROMPT_OWNER is always satisfied by the prompt owner's approval
     if (requiredRole === 'PROMPT_OWNER') return true;
+    // Exact match or GOVERNANCE_ADMIN can satisfy BRAND_REVIEWER
     return reviewerRole === requiredRole || (requiredRole === 'BRAND_REVIEWER' && reviewerRole === 'GOVERNANCE_ADMIN');
   }
 

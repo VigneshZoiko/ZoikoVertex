@@ -93,6 +93,7 @@ export async function listAgentRuns(params: {
   brand_id?: string;
   brand_name?: string;
   severity?: string;
+  policy_result?: string;
   priority?: string;
   search?: string;
   date_from?: string;
@@ -119,6 +120,7 @@ export async function listAgentRuns(params: {
   if (params.brand_id) query = query.eq('brand_id', params.brand_id);
   if (params.brand_name) query = query.ilike('brand_name', params.brand_name);
   if (params.severity) query = query.eq('severity', params.severity);
+  if (params.policy_result) query = query.eq('policy_result', params.policy_result);
   if (params.priority) query = query.eq('priority', parseInt(params.priority, 10));
   if (params.date_from) query = query.gte('created_at', params.date_from);
   if (params.date_to) query = query.lte('created_at', params.date_to);
@@ -370,6 +372,14 @@ export async function stopRun(runId: string, reason: string, actorId: string, ac
 
 export async function quarantineRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
   return transitionRunState(runId, 'QUARANTINED', reason, actorId, actorName, 'quarantine', impactScope);
+}
+
+export async function holdRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
+  return transitionRunState(runId, 'PAUSED', reason, actorId, actorName, 'hold', impactScope);
+}
+
+export async function releaseHoldRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {
+  return transitionRunState(runId, 'RUNNING', reason, actorId, actorName, 'release_hold', impactScope);
 }
 
 export async function emergencyPauseRun(runId: string, reason: string, actorId: string, actorName: string, impactScope?: string) {

@@ -53,6 +53,11 @@ const envSchema = z.object({
   // Resend for email notifications
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default('ZoikoVertex <noreply@zoikovertex.com>'),
+  // Phase 4 — Governed Prompt Execution. When 'true' AND NODE_ENV=production,
+  // a model call site that still uses an inline prompt (no governed prompt
+  // resolved) FAILS CLOSED. Default 'false' so rollout is deliberate and the
+  // product is not broken before governed prompts are seeded per use-case.
+  PROMPT_GOVERNANCE_ENFORCED: z.string().default('false'),
 });
 
 const result = envSchema.safeParse(process.env);

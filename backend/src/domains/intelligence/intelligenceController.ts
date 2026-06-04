@@ -7,6 +7,7 @@ import { logger } from '../../shared/logger';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { validateAgentCanAct } from './agentRegistry';
+import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
 import { logAgentRun } from './agentRunLogger';
 import { KnowledgeController } from '../../modules/knowledge/knowledgeController';
 import { supabaseAdmin } from '../../shared/supabase';
@@ -40,32 +41,52 @@ export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFu
 
     const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
     const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
-    const prompt = [
-      "Extract text and summarize this image for a social media story. Focus on key themes and mood. Keep it concise.",
-      { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }
-    ];
-
-    // Try models in order — fall back if 503/overloaded
+    const INLINE_VISION_PROMPT = "Extract text and summarize this image for a social media story. Focus on key themes and mood. Keep it concise.";
     const VISION_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-    let analysis = '';
-    let lastErr: unknown;
-    for (const modelId of VISION_MODELS) {
-      try {
-        const visionModel = genAI.getGenerativeModel({ model: modelId });
-        const result = await visionModel.generateContent(prompt as any);
-        analysis = (await result.response).text();
-        break;
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
-          logger.warn(`[Intelligence] ${modelId} unavailable, trying next model`);
-          lastErr = e;
-          continue;
+
+    // Runs the (governed or inline) TEXT prompt with the image part appended —
+    // the multimodal payload is preserved regardless of which prompt is used.
+    const callVision = async (textPrompt: string): Promise<string> => {
+      let out = '';
+      let lastErr: unknown;
+      for (const modelId of VISION_MODELS) {
+        try {
+          const visionModel = genAI.getGenerativeModel({ model: modelId });
+          const result = await visionModel.generateContent([textPrompt, { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }] as any);
+          out = (await result.response).text();
+          break;
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
+            logger.warn(`[Intelligence] ${modelId} unavailable, trying next model`);
+            lastErr = e;
+            continue;
+          }
+          throw e; // Non-503 error — propagate immediately
         }
-        throw e; // Non-503 error — propagate immediately
       }
+      if (!out) throw lastErr || new Error('All vision models unavailable');
+      return out;
+    };
+
+    // Phase 4.E — prefer the governed 'vision_image_summary' prompt; on governance
+    // block, audited fallback (fail-closed in production when PROMPT_GOVERNANCE_ENFORCED).
+    let analysis: string;
+    const governedVision = await GovernedModelGate.execute({
+      useCaseKey: 'vision_image_summary',
+      workspaceId: (req.user?.workspace_id as string) || '',
+      variables: {},
+      modelProvider: 'gemini',
+      actorId: userId,
+      invoke: callVision,
+    });
+    if (governedVision.ok) {
+      analysis = governedVision.output || '';
+    } else {
+      await GovernedModelGate.legacyInlineFallback('vision_image_summary', req.user?.workspace_id as string | undefined, `governed prompt unavailable: ${governedVision.code}`);
+      analysis = await callVision(INLINE_VISION_PROMPT);
     }
-    if (!analysis) throw lastErr;
+    if (!analysis) throw new Error('Vision analysis returned empty');
     await logToDatabase('info', 'AI', `Vision analysis completed for user ${userId}`, { userId, agent_id: 'agent-content-gen-v1', agent_contract_version: 'v1' });
 
     res.status(200).json({ success: true, analysis });
@@ -93,26 +114,42 @@ export const generateContent = async (req: AuthRequest, res: Response, next: Nex
       try {
         const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
         const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
-        const visionPrompt = [
-          "Analyze this image for storytelling context. Extract meaningful text if present, otherwise describe the mood, scene, and emotional depth. Be concise and story-ready.",
-          { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }
-        ];
+        const INLINE_STORY_PROMPT = "Analyze this image for storytelling context. Extract meaningful text if present, otherwise describe the mood, scene, and emotional depth. Be concise and story-ready.";
         const VISION_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-        for (const modelId of VISION_MODELS) {
-          try {
-            const visionModel = genAI.getGenerativeModel({ model: modelId });
-            const result = await visionModel.generateContent(visionPrompt as any);
-            imageAnalysis = (await result.response).text();
-            logger.info(`[Intelligence] Image analysis completed with ${modelId}`);
-            break;
-          } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : String(e);
-            if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
-              logger.warn(`[Intelligence] ${modelId} unavailable for vision, trying next`);
-              continue;
+        const callVision = async (textPrompt: string): Promise<string> => {
+          let out = '';
+          for (const modelId of VISION_MODELS) {
+            try {
+              const visionModel = genAI.getGenerativeModel({ model: modelId });
+              const result = await visionModel.generateContent([textPrompt, { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }] as any);
+              out = (await result.response).text();
+              logger.info(`[Intelligence] Image analysis completed with ${modelId}`);
+              break;
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : String(e);
+              if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
+                logger.warn(`[Intelligence] ${modelId} unavailable for vision, trying next`);
+                continue;
+              }
+              throw e;
             }
-            throw e;
           }
+          return out;
+        };
+        // Phase 4.E — prefer the governed 'vision_story_context' prompt; image payload preserved.
+        const governedStory = await GovernedModelGate.execute({
+          useCaseKey: 'vision_story_context',
+          workspaceId: (req.user?.workspace_id as string) || '',
+          variables: {},
+          modelProvider: 'gemini',
+          actorId: userId,
+          invoke: callVision,
+        });
+        if (governedStory.ok) {
+          imageAnalysis = governedStory.output || '';
+        } else {
+          await GovernedModelGate.legacyInlineFallback('vision_story_context', req.user?.workspace_id as string | undefined, `governed prompt unavailable: ${governedStory.code}`);
+          imageAnalysis = await callVision(INLINE_STORY_PROMPT);
         }
       } catch (err) {
         logger.warn({ err }, '[Intelligence] Vision analysis failed — continuing without image context');
@@ -236,14 +273,50 @@ ${blocks.join('\n\n')}
     logger.info({ topic, length, tone, styleMode }, '[Intelligence] Generating content via Groq');
     await logToDatabase('info', 'AI', `Generating post via Groq for topic: ${topic}`, { topic, platforms, tone, styleMode, userId, agent_id: 'agent-content-gen-v1', agent_contract_version: 'v1' });
 
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.8,
-    });
+    const captionWsId = req.user?.workspace_id as string | undefined;
+    const captionCap: { tokens: number } = { tokens: 0 };
+    const callCaptionModel = async (p: string): Promise<string> => {
+      const c = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: p }],
+        response_format: { type: "json_object" },
+        temperature: 0.8,
+      });
+      captionCap.tokens = c.usage?.total_tokens ?? 0;
+      return c.choices[0]?.message?.content || "";
+    };
 
-    const text = completion.choices[0].message.content;
+    // Phase 4.E — prefer the governed 'social_caption_generation' prompt (its
+    // knowledge_context + image_context + style are passed as variables so the
+    // 6-platform JSON contract is preserved). On governance block, audited
+    // fallback (fail-closed in production when PROMPT_GOVERNANCE_ENFORCED) to the
+    // inline prompt. Model is not called unless the resolver succeeds first.
+    let text: string;
+    const governedCaption = await GovernedModelGate.execute({
+      useCaseKey: 'social_caption_generation',
+      workspaceId: captionWsId || '',
+      variables: {
+        topic,
+        content_category: contentType,
+        tone,
+        length,
+        audience: (req.body.audience as string) || '',
+        style: selectedStyleRules,
+        emojis: useEmojis ? 'Enabled' : 'Disabled',
+        platforms: Array.isArray(platforms) ? platforms.join(', ') : String(platforms ?? ''),
+        knowledge_context: knowledgeContextBlock,
+        image_context: imageAnalysis || 'None',
+      },
+      modelProvider: 'groq',
+      actorId: userId,
+      invoke: callCaptionModel,
+    });
+    if (governedCaption.ok) {
+      text = governedCaption.output || '';
+    } else {
+      await GovernedModelGate.legacyInlineFallback('social_caption_generation', captionWsId, `governed prompt unavailable: ${governedCaption.code}`);
+      text = await callCaptionModel(prompt);
+    }
     if (!text) throw new Error('AI response was empty');
 
     const parsed = JSON.parse(text);
@@ -282,7 +355,7 @@ ${blocks.join('\n\n')}
     await logAgentRun('agent-content-gen-v1', 'content_generation', userId, 'SUCCESS', { topic, platforms });
 
     // Track AI token usage (non-blocking)
-    const tokens = completion.usage?.total_tokens ?? 0;
+    const tokens = captionCap.tokens;
     if (tokens > 0 && workspaceId && workspaceId !== '00000000-0000-0000-0000-000000000000') {
       trackUsage({
         workspaceId,

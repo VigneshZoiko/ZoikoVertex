@@ -317,12 +317,12 @@ export const takeApprovalAction = async (req: AuthRequest, res: Response, next: 
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const [{ data: userCtx }, { data: member }] = await Promise.all([
-      supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single(),
-      supabaseAdmin.from('workspace_members').select('role').eq('user_id', userId).maybeSingle(),
-    ]);
+    const { data: member } = await supabaseAdmin
+      .from('workspace_members')
+      .select('role')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    const isSuperAdmin = userCtx?.is_superadmin || false;
     const role = (member?.role || '').toUpperCase();
 
     const { data: intent, error: fetchErr } = await supabaseAdmin
@@ -343,11 +343,7 @@ export const takeApprovalAction = async (req: AuthRequest, res: Response, next: 
       case 'approve':
       case 'validate':
       case 'authorize': {
-        if (isSuperAdmin || ['ADMIN', 'WORKSPACE_OWNER'].includes(role)) {
-          nextStatus = 'APPROVED';
-        } else {
-          nextStatus = getNextStatus(intent.status, riskLevel);
-        }
+        nextStatus = getNextStatus(intent.status, riskLevel);
         break;
       }
       default: return res.status(400).json({ error: 'Invalid action' });

@@ -15,6 +15,7 @@ import { PromptEvidenceService } from '../../modules/prompts/PromptEvidenceServi
 import { PromptService } from '../../modules/prompts/PromptService';
 import { PromptBindingPolicyService } from '../../modules/prompts/PromptBindingPolicyService';
 import { setFixtures, resetFixtures } from '../helpers/supabaseMock';
+import { lockedShadowFixture } from '../helpers/constraintShadowFixture';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -86,6 +87,13 @@ const BASELINE_EMPTY_TABLES = {
   workspace_members: [{ user_id: 'u1', workspace_id: 'ws-a', role: 'ADMIN' }],
 };
 
+const BASELINE_CONSTRAINT_SHADOWS = [
+  lockedShadowFixture({ versionId: 'v-healthy', promptId: 'p-healthy', workspaceId: 'ws-a', riskTier: 'tier_2_medium' }),
+  lockedShadowFixture({ versionId: 'v-warning', promptId: 'p-warning', workspaceId: 'ws-a', riskTier: 'tier_3_high' }),
+  lockedShadowFixture({ versionId: 'v-critical', promptId: 'p-critical', workspaceId: 'ws-a', riskTier: 'tier_4_critical' }),
+  lockedShadowFixture({ versionId: 'v-drift', promptId: 'p-drift', workspaceId: 'ws-a', riskTier: 'tier_2_medium' }),
+];
+
 function baselineFixtures() {
   return {
     prompts: BASELINE_PROMPTS,
@@ -96,6 +104,7 @@ function baselineFixtures() {
     prompt_bindings: BASELINE_BINDINGS,
     prompt_audit_ledger: BASELINE_AUDIT,
     prompt_evidence_links: BASELINE_EVIDENCE,
+    prompt_constraint_shadows: BASELINE_CONSTRAINT_SHADOWS,
     ...BASELINE_EMPTY_TABLES,
   };
 }

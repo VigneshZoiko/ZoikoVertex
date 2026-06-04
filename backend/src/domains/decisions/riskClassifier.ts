@@ -9,6 +9,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { nksStore } from '../agents/autonomyController';
 import OpenAI from 'openai';
 import { env } from '../../config/env';
+import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
 
 export interface RiskAssessment {
   level: "LOW" | "STANDARD" | "ELEVATED" | "HIGH" | "RESTRICTED";
@@ -413,14 +414,32 @@ export class RiskClassifier {
         
         Text to analyze: "${content}"`;
 
-        const completion = await groq.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
-          messages: [{ role: "user", content: prompt }],
-          response_format: { type: "json_object" },
-          temperature: 0.1,
+        const callModel = async (p: string): Promise<string> => {
+          const c = await groq.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages: [{ role: "user", content: p }],
+            response_format: { type: "json_object" },
+            temperature: 0.1,
+          });
+          return c.choices[0]?.message?.content || "";
+        };
+        // Phase 4.B — prefer the governed prompt; on governance block, record an
+        // audited fallback (fail-closed in production when PROMPT_GOVERNANCE_ENFORCED)
+        // and fall back to the inline prompt so behavior is unchanged while the flag is off.
+        const governed = await GovernedModelGate.execute({
+          useCaseKey: "risk_semantic_classifier",
+          workspaceId,
+          variables: { content, platform },
+          modelProvider: "groq",
+          invoke: callModel,
         });
-
-        const responseText = completion.choices[0].message.content;
+        let responseText: string | null;
+        if (governed.ok) {
+          responseText = governed.output ?? null;
+        } else {
+          await GovernedModelGate.legacyInlineFallback("risk_semantic_classifier", workspaceId, `governed prompt unavailable: ${governed.code}`);
+          responseText = await callModel(prompt);
+        }
         if (responseText) {
           const parsed = JSON.parse(responseText);
           if (parsed.jailbreak_detected) {

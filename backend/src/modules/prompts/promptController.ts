@@ -27,6 +27,21 @@ import { PromptApprovalPolicyService } from './PromptApprovalPolicyService';
 import { PolicySimulationService } from './PolicySimulationService';
 import { PromptScorecardService } from './PromptScorecardService';
 import { GovernanceMetricsService } from './services/GovernanceMetricsService';
+import { PromptEvaluationService } from './PromptEvaluationService';
+import { ConstraintShadowService } from './ConstraintShadowService';
+import { PromptVariableService } from './PromptVariableService';
+import { ParameterPolicyService } from './ParameterPolicyService';
+import { RuntimeVariableGovernanceService } from './RuntimeVariableGovernanceService';
+import { PromptDefensibilityIndexService } from './PromptDefensibilityIndex';
+import { CrossModelComparisonService } from './CrossModelComparisonService';
+import { GovernanceReceiptService } from './GovernanceReceiptService';
+import { CommissioningService } from './CommissioningService';
+import { FailClosedGuard } from './FailClosedGuard';
+import { ThreeKeyService } from './ThreeKeyService';
+import { SeparationOfDutiesService } from './SeparationOfDutiesService';
+import { DelegationService } from './DelegationService';
+import { EscalationService } from './EscalationService';
+import { LifecycleGateService } from './LifecycleGateService';
 import { createAdversarialScenarioSchema, updateAdversarialScenarioSchema, runAdversarialTestSchema } from './schemas/adversarial.schema';
 import { runPolicySimulationSchema } from './schemas/policySimulation.schema';
 import { getParam, getQueryValue, getQueryNumber } from '../../shared/request';
@@ -824,6 +839,21 @@ export class PromptController {
       const workspaceId = await PromptController.resolveWorkspaceId(req);
       const prompt = await PromptService.requireById(getParam(req, 'id'), workspaceId);
       const promptId = getParam(req, 'id');
+
+      // Lifecycle gate: validate transition to RETIRED
+      const transitionCheck = await LifecycleGateService.enforceTransition(promptId, PROMPT_STATUS.RETIRED, workspaceId, req.user?.id);
+      if (!transitionCheck.allowed) {
+        await auditPromptEvent('prompt.lifecycle.transition.denied', {
+          prompt_id: promptId,
+          workspace_id: workspaceId,
+          actor_id: req.user?.id,
+          risk_tier: prompt.risk_tier,
+          reason: transitionCheck.reason,
+          after_state: { current_status: prompt.status, target_status: PROMPT_STATUS.RETIRED },
+        }, req);
+        return res.status(409).json({ error: transitionCheck.reason });
+      }
+
       await auditPromptEvent('prompt.retired', { prompt_id: promptId, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || '', before_state: { status: prompt.status }, after_state: { status: PROMPT_STATUS.RETIRED } }, req, { critical: true });
       const data = await PromptService.updateStatus(promptId, 'RETIRED', workspaceId);
       res.json({ success: true, data });
@@ -899,6 +929,20 @@ export class PromptController {
         return res.status(409).json({ error: 'Prompt requires a draft version before review.' });
       }
 
+      // Lifecycle gate: LOCKED, SUPERSEDED, RETIRED, ARCHIVED cannot be submitted for review
+      if (LifecycleGateService.isLocked(prompt.status) || LifecycleGateService.isImmutable(prompt.status)) {
+        await auditPromptEvent('prompt.review.blocked', {
+          prompt_id: promptId,
+          prompt_version_id: prompt.current_version_id,
+          workspace_id: workspaceId,
+          actor_id: req.user?.id,
+          risk_tier: prompt.risk_tier,
+          reason: 'lifecycle_locked',
+          after_state: { blocked: true, status: prompt.status },
+        }, req);
+        return res.status(409).json({ error: `Cannot submit for review: prompt is in '${prompt.status}' status.` });
+      }
+
       const gateResult = await DeploymentGateService.check(prompt.current_version_id, {
         prompt,
         workspaceId,
@@ -942,7 +986,21 @@ export class PromptController {
         return res.status(409).json({ error: 'Only the current prompt version can be approved.' });
       }
 
-      // Derive reviewer_role from authenticated user first, then body fallback, then default
+      // Lifecycle gate: LOCKED, SUPERSEDED, RETIRED, ARCHIVED cannot be approved
+      if (LifecycleGateService.isLocked(prompt.status) || LifecycleGateService.isImmutable(prompt.status)) {
+        await auditPromptEvent('prompt.approval.denied', {
+          prompt_id: version.prompt_id,
+          prompt_version_id: versionId,
+          workspace_id: workspaceId,
+          actor_id: req.user?.id,
+          risk_tier: prompt.risk_tier,
+          reason: 'lifecycle_locked',
+          after_state: { blocked: true, status: prompt.status },
+        }, req);
+        return res.status(409).json({ error: `Cannot approve: prompt is in '${prompt.status}' status.` });
+      }
+
+      const userId = req.user?.id as string;
       const reviewerRole = normalizeReviewerRole(req.user?.role || req.body.reviewer_role);
       const requiredRoles = requiredApprovalRoles(prompt.risk_tier);
       const approvals = await PromptApprovalService.listByVersion(versionId);
@@ -956,15 +1014,83 @@ export class PromptController {
         return res.status(409).json({ error: 'All required approvals are already complete.' });
       }
       if (!canRoleSatisfy(nextRequiredRole, reviewerRole)) {
+        await auditPromptEvent('prompt.approval.denied', {
+          prompt_id: version.prompt_id,
+          prompt_version_id: versionId,
+          workspace_id: workspaceId,
+          actor_id: userId,
+          risk_tier: prompt.risk_tier,
+          reviewer_role: reviewerRole,
+          reason: 'role_mismatch',
+          after_state: { blocked: true, required_role: nextRequiredRole },
+        }, req);
         return res.status(403).json({ error: `Next approval requires ${nextRequiredRole}.` });
       }
-      if (prompt.owner_id === req.user?.id && nextRequiredRole !== 'PROMPT_OWNER') {
-        return res.status(403).json({ error: 'Independent review is required; prompt owners cannot satisfy this approval stage.' });
+      // Separation of Duties: self-approval check (uses version.created_by, not prompt.owner_id)
+      const selfApprovalCheck = await SeparationOfDutiesService.checkSelfApproval(versionId, userId);
+      if (!selfApprovalCheck.allowed) {
+        await auditPromptEvent('prompt.approval.denied', {
+          prompt_id: version.prompt_id,
+          prompt_version_id: versionId,
+          workspace_id: workspaceId,
+          actor_id: userId,
+          risk_tier: prompt.risk_tier,
+          reviewer_role: reviewerRole,
+          reason: 'self_approval',
+          after_state: { blocked: true, detail: selfApprovalCheck.reason },
+        }, req);
+        return res.status(403).json({ error: selfApprovalCheck.reason });
       }
+      // Separation of Duties: role conflict check
+      const conflictCheck = await SeparationOfDutiesService.checkRoleConflict(versionId, reviewerRole, userId);
+      if (!conflictCheck.allowed) {
+        await auditPromptEvent('prompt.approval.denied', {
+          prompt_id: version.prompt_id,
+          prompt_version_id: versionId,
+          workspace_id: workspaceId,
+          actor_id: userId,
+          risk_tier: prompt.risk_tier,
+          reviewer_role: reviewerRole,
+          reason: 'role_conflict',
+          after_state: { blocked: true, detail: conflictCheck.reason, existing_role: conflictCheck.existingRole },
+        }, req);
+        return res.status(403).json({ error: conflictCheck.reason });
+      }
+      // Separation of Duties: stage order check
+      const stageOrderCheck = await SeparationOfDutiesService.checkStageOrder(versionId, reviewerRole);
+      if (!stageOrderCheck.allowed) {
+        await auditPromptEvent('prompt.approval.denied', {
+          prompt_id: version.prompt_id,
+          prompt_version_id: versionId,
+          workspace_id: workspaceId,
+          actor_id: userId,
+          risk_tier: prompt.risk_tier,
+          reviewer_role: reviewerRole,
+          reason: 'stage_order_violation',
+          after_state: { blocked: true, detail: stageOrderCheck.reason },
+        }, req);
+        return res.status(403).json({ error: stageOrderCheck.reason });
+      }
+
+      // Fail-closed guard: evidence + audit write enforcement before recording approval
+      await FailClosedGuard.guardApproval({
+        operation: 'prompt.approve',
+        eventType: 'prompt.approval.before_record',
+        workspaceId,
+        promptId: version.prompt_id,
+        promptVersionId: versionId,
+        actorId: userId,
+        payload: {
+          reason: req.body.comments || 'Approval recorded',
+          reviewer_role: reviewerRole,
+          risk_level: prompt.risk_tier,
+        },
+        criticality: 'high',
+      });
 
       const approvalRecord = await PromptApprovalService.create({
         prompt_version_id: versionId,
-        reviewer_id: req.user?.id,
+        reviewer_id: userId,
         reviewer_role: reviewerRole,
         decision: 'APPROVED',
         decision_reason: req.body.comments || '',
@@ -993,6 +1119,7 @@ export class PromptController {
       }, req, { critical: true });
 
       if (complete) {
+        await GovernanceReceiptService.generate(version.prompt_id, versionId, workspaceId, req.user?.id);
         await PromptService.updateStatus(version.prompt_id, 'APPROVED_STAGING', workspaceId);
         await ApprovalInvalidationService.clear(versionId);
       }
@@ -1058,8 +1185,39 @@ export class PromptController {
         return res.status(409).json({ error: 'Only the current prompt version can be deployed.' });
       }
 
+      // Lifecycle gate: LOCKED, RETIRED, ARCHIVED, SUPERSEDED cannot be deployed
+      if (LifecycleGateService.isLocked(prompt.status) || LifecycleGateService.isImmutable(prompt.status)) {
+        await auditPromptEvent('prompt.deployment.blocked', {
+          prompt_id: version.prompt_id,
+          prompt_version_id: versionId,
+          workspace_id: workspaceId,
+          actor_id: req.user?.id,
+          risk_tier: prompt.risk_tier,
+          reason: 'lifecycle_locked',
+          after_state: { blocked: true, status: prompt.status, detail: `Cannot deploy in status '${prompt.status}'` },
+        }, req);
+        return res.status(409).json({ error: `Cannot deploy: prompt is in '${prompt.status}' status.` });
+      }
+
       const environment = req.body.environment || 'staging';
       const normalizedEnvironment = String(environment).toLowerCase();
+
+      // Constraint shadow lock check before deployment
+      const csLocked = await ConstraintShadowService.isLocked(versionId);
+      const csHash = await ConstraintShadowService.getCurrentHash(versionId);
+      if (!csHash || !csLocked) {
+        const reason = !csHash ? 'Constraint shadow not compiled for this version' : 'Constraint shadow is not locked';
+        await auditPromptEvent('prompt.deployment.blocked', {
+          prompt_id: version.prompt_id,
+          prompt_version_id: versionId,
+          workspace_id: workspaceId,
+          actor_id: req.user?.id,
+          risk_tier: prompt.risk_tier,
+          reason: 'constraint_shadow_' + (!csHash ? 'missing' : 'unlocked'),
+          after_state: { blocked: true, has_shadow: !!csHash, locked: csLocked },
+        }, req);
+        return res.status(409).json({ error: reason });
+      }
 
       const gateResult = await DeploymentGateService.check(versionId, {
         prompt,
@@ -1100,6 +1258,39 @@ export class PromptController {
         return res.json({ success: true, message: 'Production deployment requested; final production approval is now pending.' });
       }
 
+      // ACTIVE state must only be reachable from COMMISSIONED
+      if (normalizedEnvironment === 'production' && prompt.status !== PROMPT_STATUS.COMMISSIONED) {
+        await auditPromptEvent('prompt.deployment.blocked', {
+          prompt_id: version.prompt_id,
+          prompt_version_id: versionId,
+          workspace_id: workspaceId,
+          actor_id: req.user?.id,
+          risk_tier: prompt.risk_tier,
+          reason: 'not_commissioned',
+          after_state: { blocked: true, status: prompt.status, detail: 'Production activation requires COMMISSIONED status.' },
+        }, req);
+        return res.status(409).json({ error: 'Production activation requires COMMISSIONED status. Run commission() first.' });
+      }
+
+      // Governance receipt generated before deployment record
+      await GovernanceReceiptService.generate(version.prompt_id, versionId, workspaceId, req.user?.id);
+
+      // Fail-closed guard: evidence + audit write enforcement before deployment
+      await FailClosedGuard.guardDeployment({
+        operation: 'prompt.deploy',
+        eventType: 'prompt.deployment.before_record',
+        workspaceId,
+        promptId: version.prompt_id,
+        promptVersionId: versionId,
+        actorId: req.user?.id,
+        payload: {
+          reason: req.body.release_note || 'Deployment',
+          environment: normalizedEnvironment,
+          risk_level: prompt.risk_tier,
+        },
+        criticality: 'critical',
+      });
+
       const { data: previousProduction } = await supabaseAdmin
         .from('prompt_deployments')
         .select('prompt_version_id')
@@ -1133,6 +1324,8 @@ export class PromptController {
 
       // Audit succeeded — proceed with irreversible status changes.
       if (normalizedEnvironment === 'production') {
+        // SUPERSEDED: prior ACTIVE versions are automatically invalidated
+        await LifecycleGateService.supersedePriorActive(version.prompt_id, versionId, workspaceId, req.user?.id);
         await PromptService.updateStatus(version.prompt_id, 'PRODUCTION_ACTIVE', workspaceId);
         await PromptVersionService.markImmutable(versionId);
       } else if (normalizedEnvironment === 'staging') {
@@ -1175,6 +1368,28 @@ export class PromptController {
       if (!deployments?.[0]) return res.status(400).json({ error: 'No production deployments to rollback from' });
 
       const result = await PromptDeploymentService.rollback(deployments[0].id, req.user?.id);
+
+      // Governance receipt generated before rollback record
+      await GovernanceReceiptService.generate(promptId, result.prompt_version_id, workspaceId, req.user?.id);
+
+      // Fail-closed guard: evidence + audit write enforcement before rollback
+      await FailClosedGuard.guardDeployment({
+        operation: 'prompt.rollback',
+        eventType: 'prompt.rollback.before_record',
+        workspaceId,
+        promptId,
+        promptVersionId: result.prompt_version_id,
+        actorId: req.user?.id,
+        payload: {
+          reason: req.body.reason || 'Rollback requested from Prompt Governance',
+          deployment_id: result.id,
+          risk_level: prompt.risk_tier,
+        },
+        criticality: 'critical',
+      });
+
+      // SUPERSEDED: rollback creates a new active version, superseding the current one
+      await LifecycleGateService.supersedePriorActive(promptId, result.prompt_version_id, workspaceId, req.user?.id);
 
       // Audit with critical BEFORE irreversible status changes. The rollback
       // deployment record itself is a reversible INSERT; the status + version
@@ -2280,6 +2495,422 @@ export class PromptController {
         actor_role: req.user?.role ?? undefined,
       });
       res.json({ success: true, data: report });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 1 — Prompt Evaluation ────────────────────────────────────────
+
+  static async evaluatePromptVersion(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      const version = await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      const result = await PromptEvaluationService.evaluatePromptVersion(versionId, workspaceId, req.user?.id);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 2 — Constraint Shadow ────────────────────────────────────────
+
+  static async getConstraintShadow(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const prompt = await PromptService.requireById(getParam(req, 'id'), workspaceId);
+      const versionId = prompt.current_version_id || getQueryValue(req, 'version_id') || '';
+      const shadow = await ConstraintShadowService.compile(versionId, prompt.risk_tier || 'tier_2_medium', workspaceId, req.user?.id, prompt.id);
+      res.json({ success: true, data: shadow });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async lockConstraintShadow(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const prompt = await PromptService.requireById(getParam(req, 'id'), workspaceId);
+      const versionId = prompt.current_version_id || getQueryValue(req, 'version_id') || '';
+      const locked = await ConstraintShadowService.lock(versionId, workspaceId, req.user?.id);
+      if (!locked) {
+        return res.status(409).json({ error: 'Cannot lock constraint shadow: no compiled shadow found for this version' });
+      }
+      await auditPromptEvent('prompt.constraint_shadow.locked', {
+        prompt_id: prompt.id,
+        prompt_version_id: versionId,
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        risk_tier: prompt.risk_tier,
+        after_state: { locked: true, version_id: versionId },
+      }, req);
+      res.json({ success: true, message: 'Constraint shadow locked' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 2 — Variable Management ────────────────────────────────────────
+
+  static async getPromptVariables(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const variables = await PromptVariableService.getVariables(versionId);
+      res.json({ success: true, data: variables });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updatePromptVariables(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      await PromptVariableService.storeVariableDefinitions(versionId, req.body.variables || {});
+      res.json({ success: true, data: { updated: true } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async validatePromptVariables(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const result = await PromptVariableService.validateVariables(versionId, req.body.values || {});
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 2 — Parameter Policy ────────────────────────────────────────────
+
+  static async evaluateParameterPolicy(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const prompt = await PromptService.requireById(getParam(req, 'id'), workspaceId);
+      const result = await ParameterPolicyService.evaluateParameters(
+        req.body.parameters || {},
+        prompt.risk_tier || 'tier_2_medium',
+        getQueryValue(req, 'version_id') || undefined,
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 2 — Runtime Variable Governance ─────────────────────────────────
+
+  static async enforceRuntimeGovernance(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      const version = await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      const prompt = await PromptService.getById(version.prompt_id, workspaceId);
+      const result = await RuntimeVariableGovernanceService.enforce({
+        promptVersionId: versionId,
+        parameters: req.body.parameters || {},
+        riskTier: prompt?.risk_tier || 'tier_2_medium',
+        workspaceId,
+        executionId: req.body.execution_id as string | undefined,
+      });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 3 — PDI ────────────────────────────────────────────────────────
+
+  static async computePDI(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const prompt = await PromptService.requireById(getParam(req, 'id'), workspaceId);
+      const versionId = prompt.current_version_id || getQueryValue(req, 'version_id') || '';
+      if (!versionId) return res.status(400).json({ error: 'No version ID available' });
+      const result = await PromptDefensibilityIndexService.compute(prompt.id, versionId, workspaceId);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 3 — Cross-Model Comparison ─────────────────────────────────────
+
+  static async compareCrossModel(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const { data: version } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('prompt_id')
+        .eq('id', versionId)
+        .single();
+      const result = await CrossModelComparisonService.compare(versionId, version?.prompt_id || '', workspaceId);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async runCrossModelParityCheck(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const { data: version } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('prompt_id')
+        .eq('id', versionId)
+        .single();
+      const result = await CrossModelComparisonService.runParityCheck(versionId, version?.prompt_id || '', workspaceId);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 4 — Governance Receipt ──────────────────────────────────────────
+
+  static async generateGovernanceReceipt(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const prompt = await PromptService.requireById(getParam(req, 'id'), workspaceId);
+      const versionId = prompt.current_version_id || (req.body.version_id as string) || '';
+      if (!versionId) return res.status(400).json({ error: 'No version ID available' });
+      const receipt = await GovernanceReceiptService.generate(prompt.id, versionId, workspaceId, req.user?.id);
+      res.status(201).json({ success: true, data: receipt });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 5 — Commissioning ─────────────────────────────────────────────
+
+  static async runCommissionPreflight(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const prompt = await PromptService.requireById(getParam(req, 'id'), workspaceId);
+      const versionId = prompt.current_version_id || (req.body.version_id as string) || '';
+      if (!versionId) return res.status(400).json({ error: 'No version ID available' });
+      const result = await CommissioningService.runPreflight(prompt.id, versionId, workspaceId, req.user?.id);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async commissionPrompt(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const prompt = await PromptService.requireById(getParam(req, 'id'), workspaceId);
+      const versionId = prompt.current_version_id || (req.body.version_id as string) || '';
+      if (!versionId) return res.status(400).json({ error: 'No version ID available' });
+
+      // Lifecycle gate: LOCKED, SUPERSEDED, RETIRED, ARCHIVED cannot be commissioned
+      if (LifecycleGateService.isLocked(prompt.status) || LifecycleGateService.isImmutable(prompt.status)) {
+        await auditPromptEvent('prompt.commissioning.blocked', {
+          prompt_id: prompt.id,
+          prompt_version_id: versionId,
+          workspace_id: workspaceId,
+          actor_id: req.user?.id,
+          risk_tier: prompt.risk_tier,
+          reason: 'lifecycle_locked',
+          after_state: { blocked: true, status: prompt.status, detail: `Cannot commission in status '${prompt.status}'` },
+        }, req);
+        return res.status(409).json({ error: `Cannot commission: prompt is in '${prompt.status}' status.` });
+      }
+
+      const result = await CommissioningService.commission(prompt.id, versionId, workspaceId, req.user?.id, req.body.notes as string | undefined);
+      res.status(201).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 7 — SoD Check ──────────────────────────────────────────────────
+
+  static async checkSeparationOfDuties(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const result = await SeparationOfDutiesService.checkAll(
+        versionId,
+        req.body.role || req.user?.role || '',
+        req.user?.id || '',
+        workspaceId,
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async delegateApproval(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const body = req.body as { to_user_id: string; to_role: string; reason: string; duration_hours?: number };
+      const result = await DelegationService.create(
+        req.user?.id || '',
+        req.user?.role || '',
+        body.to_user_id,
+        body.to_role,
+        versionId,
+        body.reason,
+        workspaceId,
+        body.duration_hours,
+      );
+      res.status(201).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async escalateApproval(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const body = req.body as { reason: string; target_role?: string };
+      const result = await EscalationService.escalate(
+        versionId,
+        req.user?.id || '',
+        req.user?.role || '',
+        body.reason,
+        workspaceId,
+        body.target_role,
+      );
+      res.status(201).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Phase 7 — Three-Key ──────────────────────────────────────────────────
+
+  static async initializeThreeKey(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const result = await ThreeKeyService.initialize(versionId, workspaceId);
+      res.status(201).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async submitThreeKey(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const body = req.body as { role: string; decision: 'approved' | 'rejected'; reason: string };
+      const result = await ThreeKeyService.submitKey(
+        '',
+        versionId,
+        body.role || req.user?.role || '',
+        req.user?.id || '',
+        req.user?.email || '',
+        body.decision,
+        body.reason,
+        workspaceId,
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getThreeKeyStatus(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const result = await ThreeKeyService.getStatus(versionId);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Per-version sealed hash history (read-only, Phase 5.C) ───────────────
+  // Audit-grade sealed metadata for ONE version so the Diff Viewer can compare
+  // governance artifacts across versions. Pure reads; workspace-scoped via
+  // requireVersionInWorkspace (cross-workspace prompt → throws, no leakage).
+  // Missing optional artifacts return null / empty — never fabricated.
+  static async getVersionSealedHistory(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      const version = await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      const promptId = version.prompt_id;
+      const prompt = await PromptService.getById(promptId, workspaceId).catch(() => null);
+
+      const [shadowRes, evidenceRes, deployRes, auditRes, testRes] = await Promise.all([
+        supabaseAdmin.from('prompt_constraint_shadows').select('shadow_hash, status, locked_at, locked_by').eq('version_id', versionId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabaseAdmin.from('prompt_evidence_links').select('event_type, evidence_hash, metadata, actor_id, created_at').eq('prompt_version_id', versionId).order('created_at', { ascending: false }),
+        supabaseAdmin.from('prompt_deployments').select('environment, deployed_by, created_at').eq('prompt_version_id', versionId).order('created_at', { ascending: false }).limit(1),
+        supabaseAdmin.from('prompt_audit_ledger').select('event_type, after_state, actor_id, created_at').eq('version_id', versionId).order('created_at', { ascending: true }),
+        supabaseAdmin.from('prompt_test_runs').select('pass_fail, score_summary, created_at').eq('prompt_version_id', versionId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      ]);
+
+      const shadow = (shadowRes as any)?.data || null;
+      const evidence: any[] = Array.isArray((evidenceRes as any)?.data) ? (evidenceRes as any).data : [];
+      const deployments: any[] = Array.isArray((deployRes as any)?.data) ? (deployRes as any).data : [];
+      const audit: any[] = Array.isArray((auditRes as any)?.data) ? (auditRes as any).data : [];
+      const test = (testRes as any)?.data || null;
+
+      const receipt = evidence.find((e) => String(e.event_type || '').includes('governance_receipt'));
+      const exported = evidence.some((e) => String(e.event_type || '').includes('export'));
+      const pdiEvent = [...audit].reverse().find((e) => e.event_type === 'prompt.defensibility_index.computed');
+      const commissionedEvent = audit.find((e) => e.event_type === 'prompt.commissioning.completed');
+      const dep = deployments[0] || null;
+      const score = test?.score_summary || {};
+      const actors = Array.from(new Set([
+        ...(version.created_by ? [version.created_by] : []),
+        ...evidence.map((e) => e.actor_id),
+        ...audit.map((e) => e.actor_id),
+        ...(shadow?.locked_by ? [shadow.locked_by] : []),
+      ].filter(Boolean)));
+
+      res.json({
+        success: true,
+        data: {
+          prompt_id: promptId,
+          version_id: versionId,
+          version_status: prompt?.status ?? null,
+          body_hash: version.body_hash ?? null,
+          governance_receipt_hash: receipt?.evidence_hash ?? null,
+          constraint_shadow_hash: shadow?.shadow_hash ?? receipt?.metadata?.constraint_shadow_hash ?? null,
+          evaluation_hash: score.hash ?? null,
+          evaluation_score: score.overall_score ?? score.score ?? null,
+          pdi_score: (pdiEvent?.after_state as any)?.pdi_score ?? null,
+          deployment_status: dep ? 'deployed' : null,
+          deployment_environment: dep?.environment ?? null,
+          deployment_at: dep?.created_at ?? null,
+          commissioned_at: commissionedEvent?.created_at ?? null,
+          locked_at: shadow?.locked_at ?? null,
+          actors,
+          evidence_links: evidence.map((e) => ({ event_type: e.event_type, evidence_hash: e.evidence_hash ?? null, created_at: e.created_at ?? null })),
+          evidence_exported: exported,
+          audit_events: { count: audit.length, recent: audit.slice(-10).map((e) => ({ event_type: e.event_type, created_at: e.created_at })) },
+        },
+      });
     } catch (error) {
       next(error);
     }

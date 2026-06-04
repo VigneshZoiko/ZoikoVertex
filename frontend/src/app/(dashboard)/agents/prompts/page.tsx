@@ -1662,6 +1662,12 @@ function PromptDetailDrawer({
         {/* Deployment controls */}
         <div className="p-6 border-t border-slate-800 space-y-3 sticky bottom-0 bg-slate-950">
           <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Deployment Controls</div>
+          <a
+            href={`/agents/prompt-governance?promptId=${prompt.id}${prompt.active_version_id ? `&versionId=${prompt.active_version_id}` : ''}`}
+            className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300"
+          >
+            Open in Governance Center →
+          </a>
           <div className="flex flex-wrap gap-2">
             {prompt.status === "DRAFT" && (
               <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'run_tests')} className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Run Tests</button>

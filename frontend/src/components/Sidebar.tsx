@@ -290,6 +290,15 @@ const NAV_GROUPS: NavGroup[] = [
         plan: "agents" as Feature,
       },
       {
+        name: "Prompt Governance Center",
+        href: "/agents/prompt-governance",
+        icon: MessageSquareCode,
+        // Prompt-as-Code, diffs, receipts, commissioning, audit reconstruction —
+        // same visibility as Prompt Governance.
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"],
+        plan: "agents" as Feature,
+      },
+      {
         name: "Knowledge Base",
         href: "/agents/knowledge",
         icon: BookOpen,

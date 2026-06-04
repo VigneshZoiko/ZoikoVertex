@@ -333,10 +333,14 @@ import {
   emergencyPause,
   escalateRun,
   restrictedMode,
+  holdRun,
+  releaseHoldRun,
   runPolicyCheck,
   getPolicyResults,
   getRuntimeControlLog,
   getAnalyticsMetrics,
+  exportAnalyticsCSV,
+  exportOutputSnapshot,
   createEvidenceBundle,
   lockEvidenceBundle,
   listEvidenceBundles,
@@ -948,12 +952,16 @@ app.get('/api/v1/operations/stats', authenticate, getOperationsStats);
 app.get('/api/v1/operations/evidence/:bundleId', authenticate, getRunEvidence);
 app.post('/api/v1/operations/evidence/:bundleId/export', authenticate, exportEvidence);
 app.post('/api/v1/operations/runs/:id/emergency-pause', authenticate, emergencyPause);
+app.post('/api/v1/operations/runs/:id/hold', authenticate, holdRun);
+app.post('/api/v1/operations/runs/:id/release-hold', authenticate, releaseHoldRun);
 app.post('/api/v1/operations/runs/:id/escalate', authenticate, escalateRun);
 app.post('/api/v1/operations/runs/:id/restricted-mode', authenticate, restrictedMode);
 app.post('/api/v1/operations/runs/:id/policy-check', authenticate, runPolicyCheck);
 app.get('/api/v1/operations/runs/:id/policy-results', authenticate, getPolicyResults);
 app.get('/api/v1/operations/runs/:id/control-log', authenticate, getRuntimeControlLog);
 app.get('/api/v1/operations/analytics', authenticate, getAnalyticsMetrics);
+app.post('/api/v1/operations/analytics/export', authenticate, exportAnalyticsCSV);
+app.post('/api/v1/operations/runs/:id/export-output', authenticate, exportOutputSnapshot);
 app.post('/api/v1/operations/evidence', authenticate, createEvidenceBundle);
 app.post('/api/v1/operations/evidence/:bundleId/lock', authenticate, lockEvidenceBundle);
 app.get('/api/v1/operations/evidence', authenticate, listEvidenceBundles);
@@ -1248,6 +1256,55 @@ app.get('/api/v1/prompts/:id/scorecard', authenticate, govView, PromptController
 
 // Governance Metrics Dashboard (Phase 5F) — lean live-computed pipeline
 app.get('/api/v1/prompts/metrics/dashboard', authenticate, govView, PromptController.getGovernanceMetrics);
+
+// ─── Prompt Evaluation (Phase 1) ─────────────────────────────────────
+app.post('/api/v1/prompts/versions/:versionId/evaluate', authenticate, govLifecycle, PromptController.evaluatePromptVersion);
+
+// ─── Constraint Shadow (Phase 2) ─────────────────────────────────────
+app.get('/api/v1/prompts/:id/constraint-shadow', authenticate, govView, PromptController.getConstraintShadow);
+app.post('/api/v1/prompts/:id/constraint-shadow/lock', authenticate, govLifecycle, PromptController.lockConstraintShadow);
+
+// ─── Variable Management (Phase 2) ───────────────────────────────────
+app.get('/api/v1/prompts/versions/:versionId/variables', authenticate, govView, PromptController.getPromptVariables);
+app.put('/api/v1/prompts/versions/:versionId/variables', authenticate, govEdit, PromptController.updatePromptVariables);
+app.post('/api/v1/prompts/versions/:versionId/variables/validate', authenticate, govView, PromptController.validatePromptVariables);
+
+// ─── Parameter Policy (Phase 2) ──────────────────────────────────────
+app.post('/api/v1/prompts/:id/parameter-policy/evaluate', authenticate, govView, PromptController.evaluateParameterPolicy);
+
+// ─── Runtime Variable Governance (Phase 2) ───────────────────────────
+app.post('/api/v1/prompts/versions/:versionId/runtime-governance', authenticate, govEdit, PromptController.enforceRuntimeGovernance);
+
+// ─── Prompt Defensibility Index / PDI (Phase 3) ──────────────────────
+app.get('/api/v1/prompts/:id/pdi', authenticate, govView, PromptController.computePDI);
+
+// ─── Cross-Model Comparison (Phase 3) ────────────────────────────────
+app.post('/api/v1/prompts/versions/:versionId/cross-model/compare', authenticate, govView, PromptController.compareCrossModel);
+app.post('/api/v1/prompts/versions/:versionId/cross-model/parity-check', authenticate, govView, PromptController.runCrossModelParityCheck);
+
+// ─── Governance Receipt (Phase 4) ────────────────────────────────────
+app.post('/api/v1/prompts/:id/receipt', authenticate, govLifecycle, PromptController.generateGovernanceReceipt);
+
+// ─── Commissioning (Phase 5) ─────────────────────────────────────────
+app.post('/api/v1/prompts/:id/commission/preflight', authenticate, govLifecycle, PromptController.runCommissionPreflight);
+app.post('/api/v1/prompts/:id/commission', authenticate, govLifecycle, PromptController.commissionPrompt);
+
+// ─── Separation of Duties (Phase 7) ──────────────────────────────────
+app.post('/api/v1/prompts/versions/:versionId/sod/check', authenticate, govView, PromptController.checkSeparationOfDuties);
+
+// ─── Delegation (Phase 7) ────────────────────────────────────────────
+app.post('/api/v1/prompts/versions/:versionId/delegate', authenticate, govEdit, PromptController.delegateApproval);
+
+// ─── Escalation (Phase 7) ────────────────────────────────────────────
+app.post('/api/v1/prompts/versions/:versionId/escalate', authenticate, govEdit, PromptController.escalateApproval);
+
+// ─── Three-Key Approval (Phase 7) ────────────────────────────────────
+app.post('/api/v1/prompts/versions/:versionId/three-key/initialize', authenticate, govLifecycle, PromptController.initializeThreeKey);
+app.post('/api/v1/prompts/versions/:versionId/three-key/submit', authenticate, govLifecycle, PromptController.submitThreeKey);
+app.get('/api/v1/prompts/versions/:versionId/three-key/status', authenticate, govView, PromptController.getThreeKeyStatus);
+
+// ─── Per-version sealed hash history (read-only, Phase 5.C) ──────────────
+app.get('/api/v1/prompts/versions/:versionId/sealed-history', authenticate, govView, PromptController.getVersionSealedHistory);
 
 // ─── Approval Rules Routes ───────────────────────────────────────────
 app.get('/api/v1/governance/rules', authenticate, scopeGuard('read:governance', '*'), listRules);
