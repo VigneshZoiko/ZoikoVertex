@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useRoleContext } from "@/lib/context/RoleContext";
 import CampaignCreatorModal from "@/components/campaigns/CampaignCreatorModal";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 // Types
 
@@ -348,6 +349,7 @@ export default function CampaignsPage() {
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
   const [menu,       setMenu]       = useState<string | null>(null);
+  const [deleteCampaignId, setDeleteCampaignId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -392,11 +394,16 @@ export default function CampaignsPage() {
   };
 
   const deleteCampaign = async (id: string) => {
-    if (!confirm("Delete this campaign?")) return;
+    setDeleteCampaignId(id);
+  };
+
+  const confirmDeleteCampaign = async () => {
+    if (!deleteCampaignId) return;
     try {
-      await api.delete(`/api/v1/campaigns/${id}`);
-      setCampaigns(prev => prev.filter(c => c.id !== id));
+      await api.delete(`/api/v1/campaigns/${deleteCampaignId}`);
+      setCampaigns(prev => prev.filter(c => c.id !== deleteCampaignId));
     } catch { /* silent */ }
+    finally { setDeleteCampaignId(null); }
   };
 
   const isOn = (s: string) => ["ACTIVE","SCHEDULED"].includes(s);
@@ -933,6 +940,15 @@ export default function CampaignsPage() {
         onCreated={() => { setShowCreator(false); setEditCampaignId(null); load(); }}
       />
     )}
+    <ConfirmActionModal
+      open={!!deleteCampaignId}
+      variant="danger"
+      title="Delete campaign?"
+      message="This will permanently delete this campaign."
+      confirmLabel="Delete"
+      onConfirm={confirmDeleteCampaign}
+      onCancel={() => setDeleteCampaignId(null)}
+    />
     </>
   );
 }

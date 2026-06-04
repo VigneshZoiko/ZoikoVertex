@@ -816,7 +816,8 @@ export default function SafetyOverviewPage() {
               </button>
               <button
                 onClick={() => {
-                  alert(`Downstream component deep dive route (/governance/doc-0${selectedComponent.index}) is locked until sequencing is approved.`);
+                  setInfoMessage(`Downstream component deep dive route (/governance/doc-0${selectedComponent.index}) is locked until sequencing is approved.`);
+                  setTimeout(() => setInfoMessage(null), 5000);
                 }}
                 className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black rounded-xl text-xs font-extrabold transition-all"
               >

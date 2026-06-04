@@ -30,6 +30,7 @@ import {
   Share2,
   Lock
 } from "lucide-react";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 interface SafetySignal {
   id: string;
@@ -119,9 +120,15 @@ export default function SignalsPage() {
 
   // Notification & dialog state
   const [notification, setNotification] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [promptModal, setPromptModal] = useState<{ title: string; callback: (value: string) => void } | null>(null);
-  const [promptValue, setPromptValue] = useState("");
-  const [confirmModal, setConfirmModal] = useState<{ title: string; message: string; callback: () => void } | null>(null);
+  const [actionModal, setActionModal] = useState<{
+    mode: 'confirm' | 'prompt';
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    requireReason?: boolean;
+    reasonPlaceholder?: string;
+    onConfirm: (value?: string) => void;
+  } | null>(null);
 
   const showNotification = (text: string, type: "success" | "error" = "success") => {
     setNotification({ type, text });
@@ -277,10 +284,15 @@ export default function SignalsPage() {
   // Submit Signal Route Action
   const handleRouteSignal = async (dest: string) => {
     if (!selectedSignal) return;
-    setPromptModal({
-      title: "Enter justification for routing this signal (minimum 10 chars):",
-      callback: async (reason) => {
-        setPromptModal(null);
+    setActionModal({
+      mode: 'confirm',
+      title: "Route Signal",
+      message: "Enter justification for routing this signal (minimum 10 characters).",
+      confirmLabel: "Route",
+      requireReason: true,
+      reasonPlaceholder: "Enter justification...",
+      onConfirm: async (reason) => {
+        setActionModal(null);
         if (!reason || reason.trim().length < 10) {
           showNotification("Valid routing justification is mandatory.", "error");
           return;
@@ -306,10 +318,15 @@ export default function SignalsPage() {
   // Submit Close Signal Action
   const handleCloseSignal = async () => {
     if (!selectedSignal) return;
-    setPromptModal({
-      title: "Enter mandatory resolution justification to CLOSE this signal (minimum 10 chars):",
-      callback: async (reason) => {
-        setPromptModal(null);
+    setActionModal({
+      mode: 'confirm',
+      title: "Close Signal",
+      message: "Enter mandatory resolution justification to CLOSE this signal (minimum 10 characters).",
+      confirmLabel: "Close",
+      requireReason: true,
+      reasonPlaceholder: "Enter resolution justification...",
+      onConfirm: async (reason) => {
+        setActionModal(null);
         if (!reason || reason.trim().length < 10) {
           showNotification("Closing justification is mandatory.", "error");
           return;
@@ -365,11 +382,13 @@ export default function SignalsPage() {
 
   // Bulk classify mock
   const handleBulkClassify = () => {
-    setConfirmModal({
+    setActionModal({
+      mode: 'confirm',
       title: "Bulk Auto-Classification",
       message: "Execute auto-classification for all Low/Medium signals with AI confidence >= 0.85?",
-      callback: () => {
-        setConfirmModal(null);
+      confirmLabel: "Execute",
+      onConfirm: () => {
+        setActionModal(null);
         showNotification("Bulk auto-routing successfully processed. 2 Low-severity signals routed.", "success");
         fetchTriageData();
       }
@@ -429,38 +448,19 @@ export default function SignalsPage() {
         </div>
       )}
 
-      {/* Prompt Modal */}
-      {promptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="bg-[#111] border border-[#222] w-full max-w-md rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-sm font-bold text-white mb-4">{promptModal.title}</h3>
-            <textarea
-              autoFocus
-              value={promptValue}
-              onChange={(e) => setPromptValue(e.target.value)}
-              className="w-full h-24 bg-black border border-[#333] focus:border-[#555] rounded-xl p-3 text-xs text-white focus:outline-none resize-none"
-              placeholder="Enter reason..."
-            />
-            <div className="flex gap-3 justify-end mt-4">
-              <button onClick={() => { setPromptModal(null); setPromptValue(""); }} className="px-4 py-2 bg-neutral-900 border border-[#333] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold">Cancel</button>
-              <button onClick={() => { const val = promptValue; setPromptValue(""); promptModal.callback(val); }} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black rounded-xl text-xs font-extrabold">Submit</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Modal */}
-      {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="bg-[#111] border border-[#222] w-full max-w-md rounded-2xl p-6 shadow-2xl">
-            <h3 className="text-sm font-bold text-white mb-2">{confirmModal.title}</h3>
-            <p className="text-xs text-[#888]">{confirmModal.message}</p>
-            <div className="flex gap-3 justify-end mt-6">
-              <button onClick={() => setConfirmModal(null)} className="px-4 py-2 bg-neutral-900 border border-[#333] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold">Cancel</button>
-              <button onClick={confirmModal.callback} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black rounded-xl text-xs font-extrabold">Confirm</button>
-            </div>
-          </div>
-        </div>
+      {actionModal && (
+        <ConfirmActionModal
+          open={!!actionModal}
+          mode={actionModal.mode}
+          variant="warning"
+          title={actionModal.title}
+          message={actionModal.message}
+          confirmLabel={actionModal.confirmLabel}
+          requireReason={actionModal.requireReason}
+          reasonPlaceholder={actionModal.reasonPlaceholder}
+          onConfirm={actionModal.onConfirm}
+          onCancel={() => setActionModal(null)}
+        />
       )}
 
       {/* Main Workspace Frame */}

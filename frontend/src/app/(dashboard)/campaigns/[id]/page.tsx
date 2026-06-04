@@ -8,6 +8,7 @@ import {
   ExternalLink, RefreshCw, ChevronRight,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ export default function CampaignDetailPage() {
   const [error,     setError]     = useState<string | null>(null);
   const [menu,      setMenu]      = useState(false);
   const [toggling,  setToggling]  = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -93,11 +95,15 @@ export default function CampaignDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm("Delete this campaign? This cannot be undone.")) return;
+    setConfirmDelete(true);
+  };
+
+  const confirmDeleteCampaign = async () => {
     try {
       await api.delete(`/api/v1/campaigns/${id}`);
       router.push("/campaigns");
     } catch { /* silent */ }
+    finally { setConfirmDelete(false); }
   };
 
   if (loading) return (
@@ -574,6 +580,15 @@ export default function CampaignDetailPage() {
       </div>
 
       {menu && <div className="fixed inset-0 z-40" onClick={() => setMenu(false)} />}
+      <ConfirmActionModal
+        open={confirmDelete}
+        variant="danger"
+        title="Delete campaign?"
+        message="This will permanently delete this campaign."
+        confirmLabel="Delete"
+        onConfirm={confirmDeleteCampaign}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

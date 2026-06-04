@@ -86,35 +86,15 @@ export default function PlatformAnalytics() {
     }
   };
 
-  const handleDelete = async (orgId: string) => {
+  const handleDelete = (orgId: string) => {
     const org = organizations.find(o => o.id === orgId);
     setConfirmDialog({ type: 'delete', orgId, orgName: org?.name || 'Unknown' });
-    setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'DELETED' } : o));
-    try {
-      await api.delete(`/api/v1/superadmin/organizations/${orgId}`);
-      setSuccess("Organization permanently banned and all data purged.");
-    } catch (err) {
-      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
-      setError("Deletion failed. Organization may have active dependencies.");
-    } finally {
-      setActionLoading(null);
-    }
   };
 
-  const handleRestrict = async (orgId: string) => {
+  const handleRestrict = (orgId: string) => {
     const org = organizations.find(o => o.id === orgId);
     setOpenMenuOrgId(null);
     setConfirmDialog({ type: 'restrict', orgId, orgName: org?.name || 'Unknown' });
-    setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'RESTRICTED' } : o));
-    try {
-      await api.post(`/api/v1/superadmin/organizations/${orgId}/restrict`, {});
-      setSuccess("Organization temporarily banned.");
-    } catch {
-      setOrganizations(current => current.map(o => o.id === orgId ? { ...o, status: 'ACTIVE' } : o));
-      setError("Failed to restrict organization.");
-    } finally {
-      setActionLoading(null);
-    }
   };
 
   const handleUpgradePlan = async () => {
@@ -252,7 +232,7 @@ export default function PlatformAnalytics() {
       )}
 
       {/* Organization Table */}
-      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg">
         <div className="px-5 py-3 border-b border-[var(--border)] flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-semibold text-[var(--foreground)]">Organizations</h2>
@@ -311,7 +291,7 @@ export default function PlatformAnalytics() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-visible relative z-10">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-[var(--border)]">

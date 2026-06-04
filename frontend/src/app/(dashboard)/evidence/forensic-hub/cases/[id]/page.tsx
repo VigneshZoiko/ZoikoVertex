@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 import { api } from "@/lib/api";
 import {
   ArrowLeft, Clock, AlertTriangle, CheckCircle2, Shield, Lock, Unlock,
@@ -145,6 +146,11 @@ export default function CaseDetailPage() {
   const [generatingAnomalies, setGeneratingAnomalies] = useState(false);
   const [generatingRecommendations, setGeneratingRecommendations] = useState(false);
 
+  const [promptModal, setPromptModal] = useState<{
+    type: 'reject' | 'reopen' | 'pin' | 'releaseHold';
+    extra?: string;
+  } | null>(null);
+
   const fetchCase = async () => {
     try {
       const res = await api.get(`/api/forensic/cases/${id}`);
@@ -231,14 +237,7 @@ export default function CaseDetailPage() {
   };
 
   const handleRejectSummary = async (summaryId: string) => {
-    const reason = prompt("Rejection reason:");
-    if (!reason) return;
-    try {
-      const res = await api.post(`/api/forensic/cases/${id}/ai/summaries/${summaryId}/reject`, { reason });
-      if (res.success) {
-        setAiSummaries(prev => prev.map(s => s.id === summaryId ? res.data : s));
-      }
-    } catch (e: any) { setError(e?.message || "Operation failed"); }
+    setPromptModal({ type: 'reject', extra: summaryId });
   };
 
   const handleGenerateExplanation = async () => {
@@ -327,21 +326,11 @@ export default function CaseDetailPage() {
   };
 
   const handleReopen = async () => {
-    const reason = prompt("Reason for reopening:");
-    if (!reason) return;
-    try {
-      const res = await api.post(`/api/forensic/cases/${id}/reopen`, { reason });
-      if (res.success) { setCaseData(res.data); fetchCase(); }
-    } catch (e: any) { setError(e?.message || "Operation failed"); }
+    setPromptModal({ type: 'reopen' });
   };
 
   const handlePinEvidence = async (evidenceId: string) => {
-    const reason = prompt("Pin reason:");
-    if (!reason) return;
-    try {
-      await api.post(`/api/forensic/cases/${id}/evidence/${evidenceId}/pin`, { reason });
-      api.get(`/api/forensic/cases/${id}/evidence`).then(r => { if (r.success) setEvidence(r.data); });
-    } catch (e: any) { setError(e?.message || "Operation failed"); }
+    setPromptModal({ type: 'pin', extra: evidenceId });
   };
 
   // Phase 2: Vault preserve
@@ -374,12 +363,37 @@ export default function CaseDetailPage() {
   };
 
   const handleReleaseLegalHold = async () => {
-    const reason = prompt("Reason to release legal hold:");
-    if (!reason) return;
+    setPromptModal({ type: 'releaseHold' });
+  };
+
+  const handleModalConfirm = async (value?: string) => {
+    if (!promptModal) return;
+    const v = value || '';
     try {
-      const res = await api.post(`/api/forensic/cases/${id}/legal-hold/release`, { reason });
-      if (res.success) { setCaseData(res.data); fetchCase(); }
+      switch (promptModal.type) {
+        case 'reject': {
+          const res = await api.post(`/api/forensic/cases/${id}/ai/summaries/${promptModal.extra}/reject`, { reason: v });
+          if (res.success) setAiSummaries(prev => prev.map(s => s.id === promptModal.extra ? res.data : s));
+          break;
+        }
+        case 'reopen': {
+          const res = await api.post(`/api/forensic/cases/${id}/reopen`, { reason: v });
+          if (res.success) { setCaseData(res.data); fetchCase(); }
+          break;
+        }
+        case 'pin': {
+          await api.post(`/api/forensic/cases/${id}/evidence/${promptModal.extra}/pin`, { reason: v });
+          api.get(`/api/forensic/cases/${id}/evidence`).then(r => { if (r.success) setEvidence(r.data); });
+          break;
+        }
+        case 'releaseHold': {
+          const res = await api.post(`/api/forensic/cases/${id}/legal-hold/release`, { reason: v });
+          if (res.success) { setCaseData(res.data); fetchCase(); }
+          break;
+        }
+      }
     } catch (e: any) { setError(e?.message || "Operation failed"); }
+    setPromptModal(null);
   };
 
   const toggleEvidenceSelection = (id: string) => {
@@ -1312,6 +1326,32 @@ export default function CaseDetailPage() {
             </>
           )}
         </div>
+      )}
+
+      {promptModal && (
+        <ConfirmActionModal
+          open={true}
+          mode="prompt"
+          variant="info"
+          title={
+            promptModal.type === 'reject' ? 'Reject Summary' :
+            promptModal.type === 'reopen' ? 'Reopen Case' :
+            promptModal.type === 'pin' ? 'Pin Evidence' :
+            'Release Legal Hold'
+          }
+          message={
+            promptModal.type === 'reject' ? 'Enter rejection reason:' :
+            promptModal.type === 'reopen' ? 'Reason for reopening:' :
+            promptModal.type === 'pin' ? 'Pin reason:' :
+            'Reason to release legal hold:'
+          }
+          promptPlaceholder={
+            promptModal.type === 'reject' ? 'Enter rejection reason...' :
+            'Enter reason...'
+          }
+          onConfirm={handleModalConfirm}
+          onCancel={() => setPromptModal(null)}
+        />
       )}
     </div>
   );

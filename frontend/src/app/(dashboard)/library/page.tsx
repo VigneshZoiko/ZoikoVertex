@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime } from "@/lib/utils";
 import { api } from "@/lib/api";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 interface LibraryAsset {
   id: string;
@@ -35,6 +36,7 @@ export default function MediaLibraryPage() {
   const [filter, setFilter] = useState("all");
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [deleteAsset, setDeleteAsset] = useState<{id: string, title: string} | null>(null);
 
   useEffect(() => {
     const fetchUserContext = async () => {
@@ -105,16 +107,18 @@ export default function MediaLibraryPage() {
   };
 
   const handleDeleteAsset = async (id: string, title: string) => {
-    if (!confirm(`Are you sure you want to delete "${title}"? This cannot be undone.`)) return;
+    setDeleteAsset({ id, title });
+  };
 
+  const confirmDeleteAsset = async () => {
+    if (!deleteAsset) return;
     try {
-      await api.delete(`/api/v1/library/${id}`);
-
-      // Optimistic update
-      setAssets(prev => prev.filter(a => a.id !== id));
+      await api.delete(`/api/v1/library/${deleteAsset.id}`);
+      setAssets(prev => prev.filter(a => a.id !== deleteAsset.id));
     } catch (err: any) {
       setError('Failed to delete asset. Please try again.');
     }
+    finally { setDeleteAsset(null); }
   };
 
   return (
@@ -262,6 +266,15 @@ export default function MediaLibraryPage() {
           <p className="text-[var(--foreground-muted)] max-w-sm mx-auto">Try adjusting your search or ask Creators to upload new content.</p>
         </div>
       )}
+      <ConfirmActionModal
+        open={!!deleteAsset}
+        variant="danger"
+        title="Delete asset?"
+        message={deleteAsset ? `Are you sure you want to delete "${deleteAsset.title}"? This cannot be undone.` : ""}
+        confirmLabel="Delete"
+        onConfirm={confirmDeleteAsset}
+        onCancel={() => setDeleteAsset(null)}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 import { useRoles } from "@/lib/hooks/useRoles";
 import {
   FileSearch, Clock, AlertTriangle, CheckCircle2, Search, Filter,
@@ -310,6 +311,14 @@ function EventsTab() {
   const [total, setTotal] = useState(0);
   const [chainIntegrity, setChainIntegrity] = useState("");
 
+  const [actionModal, setActionModal] = useState<{
+    step: 'preserve' | 'exportFormat' | 'exportReason' | 'investigationTitle' | 'investigationSeverity' | 'investigationReason' | 'legalHold';
+    eventIds: string[];
+    format?: string;
+    title?: string;
+    severity?: string;
+  } | null>(null);
+
   const fetchEvents = useCallback(async (cursor?: string) => {
     try {
       setLoading(true);
@@ -409,6 +418,54 @@ function EventsTab() {
     medium: { color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20" },
     high:   { color: "text-orange-400", bg: "bg-orange-400/10", border: "border-orange-400/20" },
     critical: { color: "text-red-400", bg: "bg-red-400/10", border: "border-red-400/20" },
+  };
+
+  const handleActionModalConfirm = async (value?: string) => {
+    if (!actionModal) return;
+    const v = value || '';
+    switch (actionModal.step) {
+      case 'preserve':
+        try {
+          await api.post('/api/audit-events/preserve', { event_ids: actionModal.eventIds, reason: v, retention_class: 'EXTENDED' });
+          setSelectedIds(new Set());
+        } catch { setMessage({ type: "error", text: "Failed to preserve events" }); }
+        setActionModal(null);
+        break;
+      case 'exportFormat':
+        if (!v || !['csv', 'json', 'pdf'].includes(v)) { setActionModal(null); break; }
+        setActionModal({ ...actionModal, step: 'exportReason', format: v });
+        break;
+      case 'exportReason':
+        try {
+          await api.post('/api/audit-events/export', { reason: v, format: actionModal.format, event_ids: actionModal.eventIds });
+          setSelectedIds(new Set());
+        } catch { setMessage({ type: "error", text: "Failed to create export" }); }
+        setActionModal(null);
+        break;
+      case 'investigationTitle':
+        if (!v) { setActionModal(null); break; }
+        setActionModal({ ...actionModal, step: 'investigationSeverity', title: v });
+        break;
+      case 'investigationSeverity':
+        if (!v || !['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(v)) { setActionModal(null); break; }
+        setActionModal({ ...actionModal, step: 'investigationReason', severity: v });
+        break;
+      case 'investigationReason':
+        try {
+          const res = await api.post('/api/audit-events/create-investigation', { event_ids: actionModal.eventIds, title: actionModal.title, severity: actionModal.severity, reason: v });
+          if (res.success) { window.open(res.data.case_url, '_blank'); }
+          setSelectedIds(new Set());
+        } catch { setMessage({ type: "error", text: "Failed to create investigation" }); }
+        setActionModal(null);
+        break;
+      case 'legalHold':
+        try {
+          await api.post('/api/evidence-vault/holds', { object_ids: actionModal.eventIds, object_type: 'audit_event', matter_ref: `LH-${Date.now()}`, reason: v });
+          setSelectedIds(new Set());
+        } catch { setMessage({ type: "error", text: "Failed to apply legal hold" }); }
+        setActionModal(null);
+        break;
+    }
   };
 
   return (
@@ -728,67 +785,25 @@ function EventsTab() {
               <span className="text-sm text-[#ccc]">{selectedIds.size} event{selectedIds.size > 1 ? "s" : ""} selected</span>
               <div className="flex gap-2 flex-wrap">
                 <button
-                  onClick={async () => {
-                    const reason = prompt('Reason for preservation:');
-                    if (!reason) return;
-                    try {
-                      await api.post('/api/audit-events/preserve', { event_ids: Array.from(selectedIds), reason, retention_class: 'EXTENDED' });
-                      setSelectedIds(new Set());
-                    } catch { setMessage({ type: "error", text: "Failed to preserve events" }); }
-                  }}
+                  onClick={() => setActionModal({ step: 'preserve', eventIds: Array.from(selectedIds) })}
                   className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg text-xs hover:bg-blue-500/20 flex items-center gap-1.5"
                 >
                   <Lock className="w-3.5 h-3.5" /> Preserve
                 </button>
                 <button
-                  onClick={async () => {
-                    const format = prompt('Export format (csv/json/pdf):', 'csv');
-                    if (!format || !['csv', 'json', 'pdf'].includes(format)) return;
-                    const reason = prompt('Reason for export:');
-                    if (!reason) return;
-                    try {
-                      await api.post('/api/audit-events/export', { reason, format, event_ids: Array.from(selectedIds) });
-                      setSelectedIds(new Set());
-                    } catch { setMessage({ type: "error", text: "Failed to create export" }); }
-                  }}
+                  onClick={() => setActionModal({ step: 'exportFormat', eventIds: Array.from(selectedIds) })}
                   className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs hover:bg-emerald-500/20 flex items-center gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5" /> Export
                 </button>
                 <button
-                  onClick={async () => {
-                    const title = prompt('Investigation title:');
-                    if (!title) return;
-                    const severity = prompt('Severity (LOW/MEDIUM/HIGH/CRITICAL):', 'MEDIUM');
-                    if (!severity || !['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(severity)) return;
-                    const reason = prompt('Reason for investigation:');
-                    if (!reason) return;
-                    try {
-                      const res = await api.post('/api/audit-events/create-investigation', { event_ids: Array.from(selectedIds), title, severity, reason });
-                      if (res.success) {
-                        window.open(res.data.case_url, '_blank');
-                      }
-                      setSelectedIds(new Set());
-                    } catch { setMessage({ type: "error", text: "Failed to create investigation" }); }
-                  }}
+                  onClick={() => setActionModal({ step: 'investigationTitle', eventIds: Array.from(selectedIds) })}
                   className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-lg text-xs hover:bg-purple-500/20 flex items-center gap-1.5"
                 >
                   <Shield className="w-3.5 h-3.5" /> Investigate
                 </button>
                 <button
-                  onClick={async () => {
-                    const reason = prompt('Legal hold reason:');
-                    if (!reason) return;
-                    try {
-                      await api.post('/api/evidence-vault/holds', {
-                        object_ids: Array.from(selectedIds),
-                        object_type: 'audit_event',
-                        matter_ref: `LH-${Date.now()}`,
-                        reason,
-                      });
-                      setSelectedIds(new Set());
-                    } catch { setMessage({ type: "error", text: "Failed to apply legal hold" }); }
-                  }}
+                  onClick={() => setActionModal({ step: 'legalHold', eventIds: Array.from(selectedIds) })}
                   className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg text-xs hover:bg-rose-500/20 flex items-center gap-1.5"
                 >
                   <Gavel className="w-3.5 h-3.5" /> Legal Hold
@@ -1000,27 +1015,13 @@ function EventsTab() {
             {/* Actions */}
             <div className="flex gap-2 pt-2">
               <button
-                onClick={async () => {
-                  const reason = prompt('Reason for preservation:');
-                  if (!reason) return;
-                  try {
-                    await api.post('/api/audit-events/preserve', { event_ids: [selectedEvent.id], reason, retention_class: 'EXTENDED' });
-                  } catch { setMessage({ type: "error", text: "Failed to preserve event" }); }
-                }}
+                onClick={() => setActionModal({ step: 'preserve', eventIds: [selectedEvent.id] })}
                 className="flex-1 px-3 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 flex items-center justify-center gap-1.5"
               >
                 <Lock className="w-3.5 h-3.5" /> Preserve
               </button>
               <button
-                onClick={async () => {
-                  const format = prompt('Export format (csv/json/pdf):', 'csv');
-                  if (!format || !['csv', 'json', 'pdf'].includes(format)) return;
-                  const reason = prompt('Reason for export:');
-                  if (!reason) return;
-                  try {
-                    await api.post('/api/audit-events/export', { reason, format, event_ids: [selectedEvent.id] });
-                  } catch { setMessage({ type: "error", text: "Failed to create export" }); }
-                }}
+                onClick={() => setActionModal({ step: 'exportFormat', eventIds: [selectedEvent.id] })}
                 className="flex-1 px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs hover:bg-emerald-500/20 flex items-center justify-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" /> Export
@@ -1034,6 +1035,41 @@ function EventsTab() {
             </a>
           </div>
         </div>
+      )}
+
+      {actionModal && (
+        <ConfirmActionModal
+          open={true}
+          mode="prompt"
+          variant="info"
+          title={
+            actionModal.step === 'preserve' ? 'Preserve Events' :
+            actionModal.step === 'exportFormat' || actionModal.step === 'exportReason' ? 'Export Events' :
+            actionModal.step === 'legalHold' ? 'Legal Hold' :
+            'Create Investigation'
+          }
+          message={
+            actionModal.step === 'preserve' ? 'Reason for preservation:' :
+            actionModal.step === 'exportFormat' ? 'Export format (csv/json/pdf):' :
+            actionModal.step === 'exportReason' ? 'Reason for export:' :
+            actionModal.step === 'investigationTitle' ? 'Investigation title:' :
+            actionModal.step === 'investigationSeverity' ? 'Severity (LOW/MEDIUM/HIGH/CRITICAL):' :
+            actionModal.step === 'investigationReason' ? 'Reason for investigation:' :
+            'Legal hold reason:'
+          }
+          promptPlaceholder={
+            actionModal.step === 'exportFormat' ? 'csv, json, or pdf' :
+            actionModal.step === 'investigationSeverity' ? 'LOW, MEDIUM, HIGH, or CRITICAL' :
+            'Enter reason...'
+          }
+          promptDefault={
+            actionModal.step === 'exportFormat' ? 'csv' :
+            actionModal.step === 'investigationSeverity' ? 'MEDIUM' :
+            undefined
+          }
+          onConfirm={handleActionModalConfirm}
+          onCancel={() => setActionModal(null)}
+        />
       )}
     </div>
   );
