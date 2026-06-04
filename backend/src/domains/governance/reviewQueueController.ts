@@ -1,7 +1,9 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { createAuditEvent } from '../../services/auditTrail.service';
+import { supabaseAdmin } from '../../shared/supabase';
 import * as reviewQueueService from '../../services/reviewQueue.service';
+import * as validationService from '../../services/validationDesk.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
 
 async function getTenantId(req: AuthRequest): Promise<string> {
@@ -350,13 +352,50 @@ export async function getAuditLog(req: AuthRequest, res: Response, next: NextFun
 
 export async function getReviewValidation(req: AuthRequest, res: Response, next: NextFunction) {
   try {
+    const tenantId = await getTenantId(req);
+    const itemId = req.params.id as string;
+    const item = await reviewQueueService.getReviewItem(itemId, tenantId);
+    if (!item) return res.json({ success: true, data: [] });
+
+    // Link via source_entity_id from review item to validation_items.source_entity_id
+    const sourceEntityId = item.source_entity_id;
+    const { data: validationItems } = await supabaseAdmin
+      .from('validation_items')
+      .select('id')
+      .eq('source_entity_id', sourceEntityId)
+      .limit(1);
+
+    if (validationItems && validationItems.length > 0) {
+      const validationItemId = validationItems[0].id;
+      const runs = await validationService.getValidationRuns(validationItemId);
+      if (runs && runs.length > 0) {
+        const results = await Promise.all(
+          runs.map(r => validationService.getValidationRunResults((r as { id: string }).id).catch(() => null))
+        );
+        return res.json({ success: true, data: results.filter(Boolean) });
+      }
+    }
+
     res.json({ success: true, data: [] });
   } catch (error) { next(error); }
 }
 
 export async function getReviewPolicyFlags(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    res.json({ success: true, data: [] });
+    const tenantId = await getTenantId(req);
+    const itemId = req.params.id as string;
+    const item = await reviewQueueService.getReviewItem(itemId, tenantId);
+    if (!item) return res.json({ success: true, data: [] });
+
+    // Query for policy flags from approval_rule_conflicts
+    const sourceEntityId = item.source_entity_id;
+    const { data: conflicts } = await supabaseAdmin
+      .from('approval_rule_conflicts')
+      .select('*')
+      .or(`related_rule_id.eq.${sourceEntityId},approval_rule_id.eq.${sourceEntityId}`)
+      .limit(10);
+
+    res.json({ success: true, data: conflicts || [] });
   } catch (error) { next(error); }
 }
 

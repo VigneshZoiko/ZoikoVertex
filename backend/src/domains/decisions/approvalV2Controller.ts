@@ -218,6 +218,20 @@ export const getApprovalPath = async (req: AuthRequest, res: Response, next: Nex
   } catch (error) { next(error); }
 };
 
+export const createApprovalPathHandler = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const id = paramStr(req, 'id');
+    const { path_type, total_stages, required_roles, required_users, quorum_required, fallback_approver, escalation_target, sla_due_at } = req.body;
+    if (!path_type || !total_stages) {
+      return res.status(400).json({ success: false, error: 'path_type and total_stages are required' });
+    }
+    const path = await approvalService.createApprovalPath(id, {
+      path_type, total_stages, required_roles, required_users, quorum_required, fallback_approver, escalation_target, sla_due_at,
+    });
+    res.status(201).json({ success: true, data: path });
+  } catch (error) { next(error); }
+};
+
 export const getApprovalDecisions = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = paramStr(req, 'id');
