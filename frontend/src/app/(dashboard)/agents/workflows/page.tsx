@@ -1268,9 +1268,11 @@ export default function WorkflowsPage() {
   }, []);
 
   useEffect(() => {
-    fetchAll();
-    const interval = setInterval(fetchAll, 20000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const safeFetch = () => { if (!cancelled && document.visibilityState === 'visible') fetchAll(); };
+    safeFetch();
+    const interval = setInterval(safeFetch, 20000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [fetchAll]);
 
   const handleEmergencyPause = () => setEmergencyPauseModal(true);

@@ -19,6 +19,39 @@ export interface AuthRequest extends Request {
   file?: Express.Multer.File;
 }
 
+// ─── Auth cache — avoids repeated Supabase DB calls for the same token ────────
+// Multiple parallel requests from a single page load all share the same JWT;
+// without this, each fires 3-4 Supabase queries. With it, only the first does.
+interface AuthCacheEntry {
+  user: AuthRequest["user"];
+  expiresAt: number;
+}
+const _authCache = new Map<string, AuthCacheEntry>();
+const AUTH_CACHE_TTL_MS = 30_000; // 30 seconds
+
+// Purge stale entries every minute to prevent unbounded growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of _authCache) {
+    if (entry.expiresAt < now) _authCache.delete(key);
+  }
+}, 60_000).unref();
+
+function getCachedAuth(tokenHash: string): AuthRequest["user"] | null {
+  const entry = _authCache.get(tokenHash);
+  if (!entry) return null;
+  if (entry.expiresAt < Date.now()) { _authCache.delete(tokenHash); return null; }
+  return entry.user;
+}
+
+function setCachedAuth(tokenHash: string, user: AuthRequest["user"]): void {
+  _authCache.set(tokenHash, { user, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+}
+
+export function invalidateCachedAuth(tokenHash: string): void {
+  _authCache.delete(tokenHash);
+}
+
 // Authenticate via a workspace API key (zv_live_* tokens)
 async function authenticateApiKey(
   req: AuthRequest,
@@ -54,7 +87,7 @@ async function authenticateApiKey(
     .from("api_keys")
     .update({ last_used_at: new Date().toISOString() })
     .eq("id", apiKey.id)
-    .then(() => {});
+    .then(undefined, () => {});
 
   // Look up workspace plan for rate limiting and plan-gating
   const { data: workspace } = await supabaseAdmin
@@ -69,7 +102,7 @@ async function authenticateApiKey(
       .from("organizations")
       .update({ last_active_at: new Date().toISOString() })
       .eq("id", workspace.org_id)
-      .then(() => {});
+      .then(undefined, () => {});
   }
 
   req.user = {
@@ -107,6 +140,14 @@ export const authenticate = async (
       return res.status(401).json({ error: "Unauthorized: Invalid API key" });
     }
 
+    // Cache hit — skip all DB queries for repeat requests within the TTL window
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const cached = getCachedAuth(tokenHash);
+    if (cached) {
+      req.user = cached;
+      return next();
+    }
+
     // Supabase JWT path
     const {
       data: { user },
@@ -118,6 +159,8 @@ export const authenticate = async (
       return res.status(401).json({ error: "Unauthorized: Invalid token" });
     }
 
+    // Fetch user flags and workspace membership in parallel.
+    // Include workspace plan/status in the same JOIN to avoid a third sequential query.
     const [{ data: userData }, { data: member }] = await Promise.all([
       supabaseAdmin
         .from("users")
@@ -126,7 +169,7 @@ export const authenticate = async (
         .single(),
       supabaseAdmin
         .from("workspace_members")
-        .select("workspace_id, role")
+        .select("workspace_id, role, workspaces(plan_type, status, org_id)")
         .eq("user_id", user.id)
         .limit(1)
         .maybeSingle(),
@@ -137,37 +180,20 @@ export const authenticate = async (
       member?.workspace_id ||
       (isSuperAdmin ? "00000000-0000-0000-0000-000000000000" : null);
 
-    let workspacePlan: string | null = null;
-    let workspaceStatus: string | null = null;
-    if (member?.workspace_id) {
-      const { data: ws } = await supabaseAdmin
-        .from("workspaces")
-        .select("plan_type, status")
-        .eq("id", member.workspace_id)
-        .single();
+    const ws = member?.workspaces
+      ? (Array.isArray(member.workspaces) ? member.workspaces[0] : member.workspaces)
+      : null;
 
-      workspacePlan = ws?.plan_type ?? null;
-      workspaceStatus = ws?.status ?? null;
-    } else if (isSuperAdmin) {
-      workspacePlan = "ENTERPRISE";
-    }
+    const workspacePlan = ws?.plan_type ?? (isSuperAdmin ? "ENTERPRISE" : null);
+    const workspaceStatus = ws?.status ?? null;
 
-    // Track org activity (fire-and-forget)
-    if (member?.workspace_id) {
+    // Track org activity (fire-and-forget, no await)
+    if (ws?.org_id) {
       supabaseAdmin
-        .from("workspaces")
-        .select("org_id")
-        .eq("id", member.workspace_id)
-        .single()
-        .then(({ data: ws }) => {
-          if (ws?.org_id) {
-            supabaseAdmin
-              .from("organizations")
-              .update({ last_active_at: new Date().toISOString() })
-              .eq("id", ws.org_id)
-              .then(() => {});
-          }
-        });
+        .from("organizations")
+        .update({ last_active_at: new Date().toISOString() })
+        .eq("id", ws.org_id)
+        .then(undefined, () => {});
     }
 
     req.user = {
@@ -180,6 +206,7 @@ export const authenticate = async (
       is_superadmin: isSuperAdmin,
     };
 
+    setCachedAuth(tokenHash, req.user);
     next();
   } catch (err) {
     next(err);

@@ -161,13 +161,18 @@ export default function SignalsPage() {
   };
 
   useEffect(() => {
+    let cancelled = false;
+    const safeFetch = () => {
+      if (!cancelled && document.visibilityState === 'visible') {
+        setNow(Date.now());
+        fetchTriageData(true);
+      }
+    };
     setNow(Date.now());
     fetchTriageData();
-    const interval = setInterval(() => {
-      setNow(Date.now());
-      fetchTriageData(true);
-    }, 45000); // 45s pool
-    return () => clearInterval(interval);
+    const interval = setInterval(safeFetch, 45000); // 45s auto-refresh
+    return () => { cancelled = true; clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filter Signals implementation

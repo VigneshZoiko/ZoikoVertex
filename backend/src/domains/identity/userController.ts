@@ -138,39 +138,28 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { data: userData } = await supabaseAdmin
-      .from('users')
-      .select('is_superadmin, full_name')
-      .eq('id', userId)
-      .single();
+    // authenticate middleware already resolved is_superadmin, workspace_id, and role.
+    // Run the two remaining queries (full_name + org details) in parallel.
+    const isSuperAdmin = req.user?.is_superadmin || false;
+    const workspaceId  = req.user?.workspace_id || null;
+    const role         = req.user?.role || null;
 
-    let role: string | null = null;
-    let workspaceId: string | null = null;
+    const [{ data: userData }, { data: member }] = await Promise.all([
+      supabaseAdmin.from('users').select('full_name').eq('id', userId).single(),
+      !isSuperAdmin && workspaceId
+        ? supabaseAdmin
+            .from('workspaces')
+            .select('name, org_id, status, organizations(name, status, plan_type, premium_paid_until)')
+            .eq('id', workspaceId)
+            .single()
+        : Promise.resolve({ data: null }),
+    ]);
 
-    if (!userData?.is_superadmin) {
-      const { data: member } = await supabaseAdmin
-        .from('workspace_members')
-        .select('workspace_id, role, workspaces(name, org_id, status, organizations(name, status, plan_type, premium_paid_until))')
-        .eq('user_id', userId)
-        .limit(1)
-        .maybeSingle();
-
+    if (!isSuperAdmin) {
       if (member) {
-        console.log('Member found for user:', userId, 'Role:', member.role);
-        workspaceId = member.workspace_id;
-        role = member.role;
-        
-        // Handle potential array return from joined queries (common in some supabase client versions)
-        const ws = Array.isArray(member.workspaces) ? member.workspaces[0] : member.workspaces;
-        const org = Array.isArray(ws?.organizations) ? ws.organizations[0] : ws?.organizations;
-
-        const orgStatus = org?.status;
-        const planType = org?.plan_type;
-        const premiumPaidUntil = org?.premium_paid_until;
-        const orgId = ws?.org_id;
-        const orgName = org?.name;
-        const wsName = ws?.name;
-        const wsStatus = ws?.status;
+        const org = Array.isArray((member as any)?.organizations)
+          ? (member as any).organizations[0]
+          : (member as any)?.organizations;
 
         return res.json({
           success: true,
@@ -180,23 +169,22 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
             full_name: userData?.full_name || null,
             is_superadmin: false,
             workspace_id: workspaceId,
-            workspace_name: wsName || null,
-            workspace_status: wsStatus || 'ACTIVE',
-            org_id: orgId || null,
-            org_name: orgName || 'ZoikoGroup',
-            plan_type: planType || 'FREE',
-            premium_paid_until: premiumPaidUntil || null,
+            workspace_name: (member as any)?.name || null,
+            workspace_status: (member as any)?.status || 'ACTIVE',
+            org_id: (member as any)?.org_id || null,
+            org_name: org?.name || 'ZoikoGroup',
+            plan_type: org?.plan_type || 'FREE',
+            premium_paid_until: org?.premium_paid_until || null,
             role,
-            org_status: orgStatus || 'ACTIVE',
+            org_status: org?.status || 'ACTIVE',
             permissions: ROLE_PERMISSIONS_MAP[role?.toUpperCase() || ''] || [],
           },
         });
       }
-      console.log('No member found for user:', userId);
     }
 
     // Non-superadmin with no workspace membership — infer deletion or unassigned
-    const effectiveOrgStatus = (!userData?.is_superadmin && !workspaceId) ? 'NO_WORKSPACE' : 'ACTIVE';
+    const effectiveOrgStatus = (!isSuperAdmin && !workspaceId) ? 'NO_WORKSPACE' : 'ACTIVE';
 
     res.json({
       success: true,
@@ -204,15 +192,15 @@ export const getUserContext = async (req: AuthRequest, res: Response, next: Next
         user_id: userId,
         email: req.user?.email || null,
         full_name: userData?.full_name || null,
-        is_superadmin: userData?.is_superadmin || false,
+        is_superadmin: isSuperAdmin,
         workspace_id: workspaceId,
         workspace_status: null,
         org_id: null,
         org_name: 'ZoikoGroup',
-        plan_type: userData?.is_superadmin ? 'ENTERPRISE' : 'FREE',
+        plan_type: isSuperAdmin ? 'ENTERPRISE' : 'FREE',
         role,
         org_status: effectiveOrgStatus,
-        permissions: userData?.is_superadmin ? ['*'] : (ROLE_PERMISSIONS_MAP[String(role || '').toUpperCase()] || []),
+        permissions: isSuperAdmin ? ['*'] : (ROLE_PERMISSIONS_MAP[String(role || '').toUpperCase()] || []),
       },
     });
   } catch (error) {

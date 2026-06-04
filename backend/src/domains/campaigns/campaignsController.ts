@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { deleteMetaCampaign } from './metaCampaignPublisher';
 
 // ── Status & Type constants ──────────────────────────────────
 
@@ -239,28 +240,7 @@ export const createCampaign = async (req: AuthRequest, res: Response, next: Next
       .from('workspaces').select('org_id').eq('id', workspaceId).single();
     if (!ws?.org_id) return res.status(400).json({ error: 'Organization not found' });
 
-    // ── Wallet credits validation (organic/boost only — PAID_ADS billed via Meta) ─
-    let walletWarning: string | undefined;
-
-    if (parsed.data.campaign_type !== 'PAID_ADS') {
-      const { data: wallet } = await supabaseAdmin
-        .from('wallets')
-        .select('balance, processing_balance')
-        .eq('workspace_id', workspaceId)
-        .single();
-
-      if (!wallet || (wallet.balance <= 0 && wallet.processing_balance <= 0)) {
-        return res.status(402).json({
-          error: 'Insufficient credits. Please deposit funds to your wallet before creating a campaign.',
-          code: 'NO_CREDITS',
-        });
-      }
-
-      if (wallet.balance <= 0 && wallet.processing_balance > 0) {
-        walletWarning = 'Your deposit is still processing. Campaign saved as draft — you can launch once credits are available.';
-      }
-    }
-    // ────────────────────────────────────────────────────────────
+    // Meta charges the client's own ad account directly — no internal wallet gate.
 
     // Destructure meta/paid-ads fields separately so they are handled explicitly
     const {
@@ -308,7 +288,7 @@ export const createCampaign = async (req: AuthRequest, res: Response, next: Next
       { name: data.name, campaign_type: data.campaign_type },
     );
 
-    res.status(201).json({ success: true, data, ...(walletWarning ? { warning: walletWarning } : {}) });
+    res.status(201).json({ success: true, data });
   } catch (err) { next(err); }
 };
 
@@ -344,7 +324,14 @@ export const updateCampaign = async (req: AuthRequest, res: Response, next: Next
 
     // Material edit detection: if campaign is APPROVED and key fields change, reset three_key_status
     const MATERIAL_FIELDS = ['budget_total', 'budget_currency', 'targeting', 'creative', 'platforms', 'start_at', 'end_at'];
-    const hasMaterialEdit = MATERIAL_FIELDS.some(f => parsed.data[f as keyof typeof parsed.data] !== undefined);
+    // Only void approval when a material field actually CHANGED vs the stored value —
+    // not when the field is merely present in the PATCH body with the same value.
+    const hasMaterialEdit = MATERIAL_FIELDS.some(f => {
+      const newVal = parsed.data[f as keyof typeof parsed.data];
+      if (newVal === undefined) return false;
+      const currentVal = (current as any)[f];
+      return JSON.stringify(newVal) !== JSON.stringify(currentVal);
+    });
     const isApproved = ['APPROVED', 'SCHEDULED', 'ACTIVE'].includes(current.status);
 
     const {
@@ -418,6 +405,9 @@ export const deleteCampaign = async (req: AuthRequest, res: Response, next: Next
   try {
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    // Delete from Meta first (non-fatal — the DB record is still removed even if Meta cleanup fails)
+    await deleteMetaCampaign(String(req.params.id), workspaceId).catch(() => {});
 
     const { error } = await supabaseAdmin
       .from('campaigns')
