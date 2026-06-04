@@ -17,7 +17,7 @@
   "type": "commonjs",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "@supabase/supabase-js": "^2.106.2",
+    "@supabase/supabase-js": "^2.107.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/helmet": "^0.0.48",
