@@ -9,6 +9,7 @@ import { RiskClassifier } from "./riskClassifier";
 import { logAuditEvent } from "../governance/evidenceController";
 import { broadcastWebhookEvent } from "../integrations/apiWebhookController";
 
+// Which statuses each role sees in the queue
 const ROLE_QUEUE_STATUSES: Record<string, string[]> = {
   REVIEWER: ["PENDING_REVIEW", "PENDING_MANAGER"],
   MANAGER: ["PENDING_MANAGER", "PENDING_REVIEW"],
@@ -37,6 +38,7 @@ const ROLE_QUEUE_STATUSES: Record<string, string[]> = {
   ],
 };
 
+// Approval path per risk level — ordered stages the item moves through
 const RISK_PATHS: Record<string, string[]> = {
   LOW: ["PENDING_REVIEW", "APPROVED"],
   STANDARD: ["PENDING_MANAGER", "APPROVED"],
@@ -102,7 +104,6 @@ export const submitForReview = async (
       .select("workspace_id")
       .eq("user_id", userId)
       .single();
-
     if (!member)
       return res.status(403).json({ error: "No workspace membership" });
 
@@ -123,6 +124,7 @@ export const submitForReview = async (
         );
 
     const assessment = safetyResult.assessment;
+
     const path = RISK_PATHS[assessment.level] ?? RISK_PATHS.STANDARD;
     const initialStatus = path[0];
 
@@ -211,6 +213,8 @@ export const getApprovalQueue = async (
       statusFilter = ROLE_QUEUE_STATUSES[role] || [];
     }
 
+    // Fetch all (workspace-scoped) and filter by status in JS to avoid enum type errors
+    // for status values not yet present in the DB's intent_status enum.
     let query = supabaseAdmin
       .from("publish_intents")
       .select("*")
@@ -219,7 +223,6 @@ export const getApprovalQueue = async (
     if (!isSuperAdmin && workspaceId) {
       query = query.eq("workspace_id", workspaceId);
     }
-
     if (role === "CREATOR") {
       query = query.eq("creator_id", userId);
     }
@@ -231,6 +234,7 @@ export const getApprovalQueue = async (
       throw error;
     }
 
+    // Join creator users in-memory
     const items = rawData || [];
     const creatorIds = [
       ...new Set(items.map((i: any) => i.creator_id).filter(Boolean)),
@@ -262,7 +266,7 @@ export const getApprovalQueue = async (
       };
     });
 
-    const filtered = data.filter((item: any) =>
+    const filtered = (data || []).filter((item: any) =>
       statusFilter.includes(item.status),
     );
     res.json({ success: true, data: filtered, role });
@@ -295,11 +299,9 @@ export const getApprovalStats = async (
     let query = supabaseAdmin
       .from("publish_intents")
       .select("status, created_at");
-
     if (!userCtx?.is_superadmin && member?.workspace_id) {
       query = query.eq("workspace_id", member.workspace_id);
     }
-
     const { data: all, error: pubErr } = await query;
     if (pubErr) {
       if ((pubErr as any).code === "42P01")
@@ -342,13 +344,13 @@ export const getApprovalStats = async (
         else if (s === "REJECTED") counts.rejected_this_week++;
       }
     }
-
     counts.total_pending =
       counts.pending_review +
       counts.pending_validation +
       counts.pending_authorization +
       counts.pending_governance;
 
+    // Recent decisions (last 10 approved/rejected)
     let recentQuery = supabaseAdmin
       .from("publish_intents")
       .select("id, content, platform, status, created_at, creator_id")
@@ -359,8 +361,9 @@ export const getApprovalStats = async (
     if (!userCtx?.is_superadmin && member?.workspace_id) {
       recentQuery = recentQuery.eq("workspace_id", member.workspace_id);
     }
-
     const { data: recentRaw } = await recentQuery;
+
+    // Join creator users in-memory
     const recentItems = recentRaw || [];
     const recentCreatorIds = [
       ...new Set(recentItems.map((i: any) => i.creator_id).filter(Boolean)),
@@ -431,7 +434,6 @@ export const takeApprovalAction = async (
       .select("*")
       .eq("id", id)
       .single();
-
     if (fetchErr || !intent)
       return res.status(404).json({ error: "Intent not found" });
 
@@ -453,9 +455,10 @@ export const takeApprovalAction = async (
         break;
       case "approve":
       case "validate":
-      case "authorize":
+      case "authorize": {
         nextStatus = getNextStatus(intent.status, riskLevel);
         break;
+      }
       default:
         return res.status(400).json({ error: "Invalid action" });
     }
@@ -475,11 +478,12 @@ export const takeApprovalAction = async (
             decision_id: decisionResult.decision_id,
           })
           .eq("id", id);
-
-        return res.status(403).json({
-          error: "Governance blocked",
-          decision_class: decisionResult.decision_class,
-        });
+        return res
+          .status(403)
+          .json({
+            error: "Governance blocked",
+            decision_class: decisionResult.decision_class,
+          });
       }
 
       await supabaseAdmin
@@ -498,10 +502,7 @@ export const takeApprovalAction = async (
     } else {
       await supabaseAdmin
         .from("publish_intents")
-        .update({
-          status: nextStatus,
-          feedback: feedback || null,
-        })
+        .update({ status: nextStatus, feedback: feedback || null })
         .eq("id", id);
     }
 
