@@ -48,7 +48,7 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
 
 function fmt(ts: string) {
   try { return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
-  catch { return ts; }
+  catch { return "Invalid date"; }
 }
 
 export default function IdentityLedgerDashboard() {
@@ -59,6 +59,7 @@ export default function IdentityLedgerDashboard() {
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterState, setFilterState] = useState("");
@@ -78,7 +79,7 @@ export default function IdentityLedgerDashboard() {
         const res = await api.get("/api/identity-ledger/break-glass");
         if (res.success) setBreakGlassSessions(res.data);
       }
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e.message || "Failed to fetch data"); }
     setLoading(false);
   }, [activeTab]);
 
@@ -91,7 +92,7 @@ export default function IdentityLedgerDashboard() {
     try {
       const res = await api.get("/api/identity-ledger/chain/verify");
       if (res.success) setVerificationResult(res.data);
-    } catch { /* ignore */ }
+    } catch (e: any) { setVerificationResult({ status: "error", message: e.message || "Verification failed" }); }
     setVerifying(false);
   };
 
@@ -100,7 +101,7 @@ export default function IdentityLedgerDashboard() {
     try {
       const res = await api.get(`/api/identity-ledger/actors/${actorId}`);
       if (res.success) setActorDetails(res.data);
-    } catch { /* ignore */ }
+    } catch (e: any) { setError(e.message || "Failed to load actor details"); }
   };
 
   const filteredActors = actors.filter(a => {
@@ -145,6 +146,15 @@ export default function IdentityLedgerDashboard() {
           </button>
         ))}
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-xs text-red-400">{error}</p>
+          <button onClick={() => setError(null)} className="ml-auto text-red-400/60 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
 
       {/* Content */}
       <div className="min-h-[400px]">

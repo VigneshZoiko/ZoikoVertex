@@ -132,6 +132,38 @@ CREATE TRIGGER trg_assign_audit_chain_position
   FOR EACH ROW
   EXECUTE FUNCTION public.assign_audit_chain_position();
 
+-- 6a. Create helper function for alphabetically-sorted JSON text matching TypeScript sortedJson()
+-- PostgreSQL jsonb::TEXT uses internal B-tree hash order (NOT alphabetical),
+-- which produces different SHA-256 hashes than TypeScript's computeEventHash.
+CREATE OR REPLACE FUNCTION public.sorted_jsonb(j jsonb) RETURNS TEXT
+LANGUAGE plpgsql IMMUTABLE STRICT AS $$
+DECLARE
+  key TEXT;
+  val jsonb;
+  items TEXT[] := '{}';
+  elem jsonb;
+  arr_items TEXT[] := '{}';
+BEGIN
+  IF j IS NULL THEN
+    RETURN '{}';
+  END IF;
+  CASE jsonb_typeof(j)
+    WHEN 'object' THEN
+      FOR key, val IN SELECT * FROM jsonb_each(j) WHERE val IS NOT NULL ORDER BY key LOOP
+        items := items || (to_json(key)::TEXT || ':' || public.sorted_jsonb(val));
+      END LOOP;
+      RETURN '{' || array_to_string(items, ',') || '}';
+    WHEN 'array' THEN
+      FOR elem IN SELECT * FROM jsonb_array_elements(j) LOOP
+        arr_items := arr_items || public.sorted_jsonb(elem);
+      END LOOP;
+      RETURN '[' || array_to_string(arr_items, ',') || ']';
+    ELSE
+      RETURN j::TEXT;
+  END CASE;
+END;
+$$;
+
 -- 6. Create function to verify chain integrity for a tenant
 CREATE OR REPLACE FUNCTION public.verify_audit_chain(
   p_tenant_id TEXT DEFAULT 'default',
@@ -149,15 +181,15 @@ RETURNS TABLE(
 ) AS $$
 DECLARE
   rec RECORD;
-  prev_rec RECORD;
+  prev_hash_val TEXT;
   prev_ok BOOLEAN := TRUE;
 BEGIN
   FOR rec IN
-    SELECT * FROM public.audit_events
-    WHERE tenant_id = p_tenant_id AND chain_id = p_chain_id
-      AND block_number >= p_start_block
-      AND (p_end_block IS NULL OR block_number <= p_end_block)
-    ORDER BY block_number ASC
+    SELECT ae.* FROM public.audit_events ae
+    WHERE ae.tenant_id = p_tenant_id AND ae.chain_id = p_chain_id
+      AND ae.block_number >= p_start_block
+      AND (p_end_block IS NULL OR ae.block_number <= p_end_block)
+    ORDER BY ae.block_number ASC
   LOOP
     IF rec.block_number = 1 THEN
       -- Genesis block: prev_hash must be NULL
@@ -170,14 +202,14 @@ BEGIN
       END IF;
     ELSE
       -- Check prev_hash matches previous block's hash
-      SELECT hash INTO prev_rec.hash
-      FROM public.audit_events
-      WHERE tenant_id = p_tenant_id AND chain_id = p_chain_id
-        AND block_number = rec.block_number - 1;
+      SELECT prev.hash INTO prev_hash_val
+      FROM public.audit_events prev
+      WHERE prev.tenant_id = p_tenant_id AND prev.chain_id = p_chain_id
+        AND prev.block_number = rec.block_number - 1;
 
-      IF rec.prev_hash IS NULL OR rec.prev_hash != prev_rec.hash THEN
+      IF rec.prev_hash IS NULL OR rec.prev_hash != prev_hash_val THEN
         chain_verified := FALSE;
-        error_message := 'prev_hash mismatch: expected ' || COALESCE(prev_rec.hash, 'NULL') || ' but got ' || COALESCE(rec.prev_hash, 'NULL');
+        error_message := 'prev_hash mismatch: expected ' || COALESCE(prev_hash_val, 'NULL') || ' but got ' || COALESCE(rec.prev_hash, 'NULL');
       ELSE
         chain_verified := TRUE;
         error_message := NULL;
@@ -312,12 +344,12 @@ BEGIN
     COALESCE(p_event_data->>'event_type', '') || '|' ||
     COALESCE(p_event_data->>'event_title', '') || '|' ||
     COALESCE(p_event_data->>'event_summary', '') || '|' ||
-    COALESCE(jsonb_strip_nulls(p_event_data->'actor')::TEXT, '{}') || '|' ||
-    COALESCE(jsonb_strip_nulls(p_event_data->'object')::TEXT, '{}') || '|' ||
-    COALESCE(jsonb_strip_nulls(p_event_data->'correlation')::TEXT, '{}') || '|' ||
-    COALESCE(jsonb_strip_nulls(p_event_data->'authority')::TEXT, '{}') || '|' ||
-    COALESCE(jsonb_strip_nulls(p_event_data->'change')::TEXT, '{}') || '|' ||
-    COALESCE(jsonb_strip_nulls(p_event_data->'ai_context')::TEXT, '{}') || '|' ||
+    COALESCE(public.sorted_jsonb(p_event_data->'actor'), '{}') || '|' ||
+    COALESCE(public.sorted_jsonb(p_event_data->'object'), '{}') || '|' ||
+    COALESCE(public.sorted_jsonb(p_event_data->'correlation'), '{}') || '|' ||
+    COALESCE(public.sorted_jsonb(p_event_data->'authority'), '{}') || '|' ||
+    COALESCE(public.sorted_jsonb(p_event_data->'change'), '{}') || '|' ||
+    COALESCE(public.sorted_jsonb(p_event_data->'ai_context'), '{}') || '|' ||
     COALESCE(p_event_data->>'risk_level', 'low') || '|' ||
     COALESCE(p_event_data->>'status', 'success') || '|' ||
     COALESCE(p_event_data->>'retention_class', 'STANDARD') || '|' ||

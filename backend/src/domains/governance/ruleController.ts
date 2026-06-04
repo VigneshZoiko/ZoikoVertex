@@ -8,7 +8,7 @@ function getTenantId(req: AuthRequest): string {
 }
 
 function getUserId(req: AuthRequest): string {
-  return req.user?.id || '';
+  return req.user?.id || DEFAULT_TENANT_ID;
 }
 
 export const listRules = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -197,5 +197,42 @@ export const getRuleStats = async (req: AuthRequest, res: Response, next: NextFu
   try {
     const stats = await rulesService.getRuleStats(getTenantId(req));
     res.json({ success: true, data: stats });
+  } catch (error) { next(error); }
+};
+
+export const getRuleDetails = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const details = await rulesService.getRuleDetails(req.params.id as string);
+    res.json({ success: true, data: details });
+  } catch (error) { next(error); }
+};
+
+export const getRuleStagesHandler = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const path = await rulesService.getRulePath(req.params.id as string);
+    if (!path) return res.json({ success: true, data: [] });
+    const stages = await rulesService.getRuleStages((path as { id: string }).id);
+    res.json({ success: true, data: stages });
+  } catch (error) { next(error); }
+};
+
+export const getRuleEscalationsHandler = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const escalations = await rulesService.getRuleEscalations(req.params.id as string);
+    res.json({ success: true, data: escalations });
+  } catch (error) { next(error); }
+};
+
+export const markRuleReadyToPublish = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const rule = await rulesService.markRuleReadyToPublish(req.params.id as string, getTenantId(req), getUserId(req));
+    res.json({ success: true, data: rule });
+  } catch (error) { next(error); }
+};
+
+export const markRuleInvalid = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const rule = await rulesService.markRuleInvalid(req.params.id as string, getTenantId(req), getUserId(req), req.body.reason || 'Marked invalid by user');
+    res.json({ success: true, data: rule });
   } catch (error) { next(error); }
 };

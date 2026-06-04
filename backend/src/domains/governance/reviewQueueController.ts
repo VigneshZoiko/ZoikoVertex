@@ -1,7 +1,9 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { createAuditEvent } from '../../services/auditTrail.service';
+import { supabaseAdmin } from '../../shared/supabase';
 import * as reviewQueueService from '../../services/reviewQueue.service';
+import * as validationService from '../../services/validationDesk.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
 
 async function getTenantId(req: AuthRequest): Promise<string> {
@@ -346,6 +348,114 @@ export async function getAuditLog(req: AuthRequest, res: Response, next: NextFun
   } catch (error) {
     next(error);
   }
+}
+
+export async function getReviewValidation(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const tenantId = await getTenantId(req);
+    const itemId = req.params.id as string;
+    const item = await reviewQueueService.getReviewItem(itemId, tenantId);
+    if (!item) return res.json({ success: true, data: [] });
+
+    // Link via source_entity_id from review item to validation_items.source_entity_id
+    const sourceEntityId = item.source_entity_id;
+    const { data: validationItems } = await supabaseAdmin
+      .from('validation_items')
+      .select('id')
+      .eq('source_entity_id', sourceEntityId)
+      .limit(1);
+
+    if (validationItems && validationItems.length > 0) {
+      const validationItemId = validationItems[0].id;
+      const runs = await validationService.getValidationRuns(validationItemId);
+      if (runs && runs.length > 0) {
+        const results = await Promise.all(
+          runs.map(r => validationService.getValidationRunResults((r as { id: string }).id).catch(() => null))
+        );
+        return res.json({ success: true, data: results.filter(Boolean) });
+      }
+    }
+
+    res.json({ success: true, data: [] });
+  } catch (error) { next(error); }
+}
+
+export async function getReviewPolicyFlags(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const tenantId = await getTenantId(req);
+    const itemId = req.params.id as string;
+    const item = await reviewQueueService.getReviewItem(itemId, tenantId);
+    if (!item) return res.json({ success: true, data: [] });
+
+    // Query for policy flags from approval_rule_conflicts
+    const sourceEntityId = item.source_entity_id;
+    const { data: conflicts } = await supabaseAdmin
+      .from('approval_rule_conflicts')
+      .select('*')
+      .or(`related_rule_id.eq.${sourceEntityId},approval_rule_id.eq.${sourceEntityId}`)
+      .limit(10);
+
+    res.json({ success: true, data: conflicts || [] });
+  } catch (error) { next(error); }
+}
+
+export async function getReviewNotesHandler(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const params = req.params as { id: string };
+    const notes = await reviewQueueService.listReviewNotes(params.id);
+    res.json({ success: true, data: notes });
+  } catch (error) { next(error); }
+}
+
+export async function getReviewRevisionHistory(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const params = req.params as { id: string };
+    const decisions = await reviewQueueService.listReviewDecisions(params.id);
+    res.json({ success: true, data: decisions });
+  } catch (error) { next(error); }
+}
+
+export async function assignReviewItemHandler(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const tenantId = await getTenantId(req);
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const params = req.params as { id: string };
+    const result = await reviewQueueService.assignReviewItem({ id: params.id, assigned_to: userId, assigned_by: userId, tenant_id: tenantId });
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+}
+
+export async function addReviewNoteHandler(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const params = req.params as { id: string };
+    const result = await reviewQueueService.addReviewNote({ review_item_id: params.id, note_body: req.body.note_body, created_by: userId });
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+}
+
+export async function bulkReviewAction(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const action = req.params.action;
+    const { item_ids } = req.body;
+    if (!Array.isArray(item_ids) || item_ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'item_ids array is required' });
+    }
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const results = [];
+    for (const id of item_ids) {
+      try {
+        const result = await reviewQueueService.recordDecision({ review_item_id: id, decision_type: action as any, decided_by: userId, reason: req.body.reason || 'Bulk action' });
+        results.push({ id, success: true, data: result });
+      } catch (e: any) {
+        results.push({ id, success: false, error: e.message });
+      }
+    }
+    res.json({ success: true, data: results });
+  } catch (error) { next(error); }
 }
 
 async function logReviewAuditEvent(params: {

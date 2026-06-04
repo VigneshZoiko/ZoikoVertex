@@ -81,6 +81,92 @@ export class PromptBindingService {
     return data;
   }
 
+  static async getKnowledgeBindingById(id: string) {
+    const { data, error } = await supabaseAdmin
+      .from('prompt_knowledge_bindings')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  static async updateKnowledgeBinding(id: string, patch: {
+    kb_id?: string | null;
+    collection_id?: string | null;
+    retrieval_mode?: string;
+    freshness_rule?: string;
+    citation_required?: boolean;
+    source_priority?: string;
+    restricted_sources?: string[];
+  }) {
+    const update: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(patch)) {
+      if (v !== undefined) update[k] = v;
+    }
+    const { data, error } = await supabaseAdmin
+      .from('prompt_knowledge_bindings')
+      .update(update)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  static async deleteKnowledgeBinding(id: string) {
+    const { error } = await supabaseAdmin
+      .from('prompt_knowledge_bindings')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  }
+
+  static async getBindingById(id: string) {
+    const { data, error } = await supabaseAdmin
+      .from('prompt_bindings')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  static async updateBinding(id: string, patch: {
+    agent_id?: string | null;
+    workflow_id?: string | null;
+    workflow_node_id?: string | null;
+    channel_id?: string | null;
+    brand_id?: string | null;
+    locale?: string;
+    environment?: string;
+    effective_from?: string | null;
+    effective_to?: string | null;
+  }) {
+    const update: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(patch)) {
+      if (v !== undefined) update[k] = v;
+    }
+    const { data, error } = await supabaseAdmin
+      .from('prompt_bindings')
+      .update(update)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  static async deleteBinding(id: string) {
+    const { error } = await supabaseAdmin
+      .from('prompt_bindings')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  }
+
   static async listToolPermissions(versionId: string) {
     const { data, error } = await supabaseAdmin
       .from('prompt_tool_permissions')
@@ -115,5 +201,46 @@ export class PromptBindingService {
       .single();
     if (error) throw error;
     return data;
+  }
+
+  static async getToolPermissionById(id: string) {
+    const { data, error } = await supabaseAdmin
+      .from('prompt_tool_permissions')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
+  static async updateToolPermission(id: string, patch: {
+    tool_name?: string;
+    tool_id?: string | null;
+    allowed_actions?: string[];
+    conditions_json?: Record<string, unknown>;
+    approval_required?: boolean;
+    runtime_policy_id?: string | null;
+  }) {
+    const update: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(patch)) {
+      if (v !== undefined) update[k] = v;
+    }
+    const { data, error } = await supabaseAdmin
+      .from('prompt_tool_permissions')
+      .update(update)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  static async deleteToolPermission(id: string) {
+    const { error } = await supabaseAdmin
+      .from('prompt_tool_permissions')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
   }
 }

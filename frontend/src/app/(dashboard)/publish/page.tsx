@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import {
   Sparkles,
@@ -20,6 +21,14 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderKanban,
+  Eye,
+  ThumbsUp,
+  MessageCircle,
+  Share2,
+  Bookmark,
+  Heart,
+  Repeat2,
+  MoreHorizontal,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -56,6 +65,498 @@ const MediaPackManager = dynamic(
 );
 import { useDraftGuard } from "@/lib/context/DraftGuardContext";
 import { api } from "@/lib/api";
+
+// ── Platform colour map ────────────────────────────────────────────────────────
+const PLATFORM_COLORS: Record<string, string> = {
+  facebook:  'bg-blue-600',
+  instagram: 'bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600',
+  twitter:   'bg-black',
+  x:         'bg-black',
+  linkedin:  'bg-blue-700',
+  threads:   'bg-zinc-900',
+  youtube:   'bg-red-600',
+  pinterest: 'bg-red-600',
+};
+const PLATFORM_LABEL: Record<string, string> = {
+  facebook: 'Facebook', instagram: 'Instagram', twitter: 'X', x: 'X',
+  linkedin: 'LinkedIn', threads: 'Threads', youtube: 'YouTube', pinterest: 'Pinterest',
+};
+
+// ── PostPreview component ──────────────────────────────────────────────────────
+function PostPreview({
+  connectedAccounts,
+  selectedAccountIds,
+  description,
+  isPlatformSpecific,
+  platformCaptions,
+  mediaPreview,
+  mediaUrls,
+  carouselIndex,
+}: {
+  connectedAccounts: any[];
+  selectedAccountIds: string[];
+  description: string;
+  isPlatformSpecific: boolean;
+  platformCaptions: Record<string, string>;
+  mediaPreview: string | null;
+  mediaUrls: string[];
+  carouselIndex: number;
+}) {
+  const [activePlatform, setActivePlatform] = React.useState('');
+
+  const selectedAccs = connectedAccounts.filter(a => selectedAccountIds.includes(a.id));
+  const platforms    = [...new Set(selectedAccs.map((a: any) => a.platform as string))];
+
+  React.useEffect(() => {
+    if (platforms.length > 0 && !platforms.includes(activePlatform)) {
+      setActivePlatform(platforms[0]);
+    }
+    if (platforms.length === 0) setActivePlatform('');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAccountIds.join(',')]);
+
+  const account     = selectedAccs.find((a: any) => a.platform === activePlatform);
+  const caption     = isPlatformSpecific
+    ? (platformCaptions[activePlatform] || platformCaptions[activePlatform?.toLowerCase()] || platformCaptions[activePlatform?.charAt(0)?.toUpperCase() + activePlatform?.slice(1)] || description)
+    : description;
+  const currentMedia = mediaUrls.length > 0 ? (mediaUrls[carouselIndex] || mediaUrls[0]) : mediaPreview;
+  const initials     = account?.account_name?.charAt(0)?.toUpperCase() || account?.account_handle?.charAt(0)?.toUpperCase() || '?';
+  const displayName  = account?.account_name || account?.account_handle || 'Your Account';
+  const handle       = account?.account_handle ? `@${account.account_handle}` : '';
+
+  // Empty state
+  if (platforms.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[240px] text-center py-10 px-4">
+        <Eye className="w-8 h-8 text-[var(--foreground-muted)] mb-3 opacity-40" />
+        <p className="text-xs font-semibold text-[var(--foreground-muted)]">Post Preview</p>
+        <p className="text-[11px] text-[var(--foreground-muted)] mt-1 opacity-60">Select a platform to see how your post will look</p>
+      </div>
+    );
+  }
+
+  const isFacebook  = activePlatform === 'facebook';
+  const isInstagram = activePlatform === 'instagram';
+  const isTwitter   = activePlatform === 'twitter' || activePlatform === 'x';
+  const isLinkedIn  = activePlatform === 'linkedin';
+  const isThreads   = activePlatform === 'threads';
+  const isYouTube   = activePlatform === 'youtube';
+  const isPinterest = activePlatform === 'pinterest';
+
+  return (
+    <div className="space-y-3">
+      {/* Platform tabs */}
+      <div className="flex flex-wrap gap-1.5">
+        {platforms.map(p => (
+          <button
+            key={p}
+            onClick={() => setActivePlatform(p)}
+            className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all border ${
+              activePlatform === p
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)] hover:border-indigo-500/50'
+            }`}
+          >
+            {PLATFORM_LABEL[p] || p}
+          </button>
+        ))}
+      </div>
+
+      {/* Preview card */}
+      {/* ── YouTube preview ─────────────────────────────────── */}
+      {isYouTube && (
+        <div className="rounded-xl overflow-hidden border border-zinc-200 bg-white text-zinc-900">
+          {/* Video thumbnail */}
+          <div className="relative w-full aspect-video bg-zinc-900">
+            {currentMedia ? (
+              currentMedia.match(/\.(mp4|mov|webm)$/i)
+                ? <video src={currentMedia} className="w-full h-full object-cover" muted />
+                : <Image src={currentMedia} alt="thumbnail" fill className="object-cover" unoptimized />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+                <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center">
+                  <div className="w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[18px] border-l-white ml-1" />
+                </div>
+              </div>
+            )}
+            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">0:00</div>
+          </div>
+          {/* Video info */}
+          <div className="flex gap-3 p-3">
+            <div className="w-9 h-9 rounded-full bg-red-600 flex items-center justify-center text-white text-xs font-bold shrink-0">{initials}</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold leading-snug line-clamp-2">{caption || 'Your video title'}</p>
+              <p className="text-[11px] text-zinc-500 mt-1">{displayName}</p>
+              <p className="text-[11px] text-zinc-500">0 views · Just now</p>
+            </div>
+            <MoreHorizontal className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+          </div>
+        </div>
+      )}
+
+      {/* ── Pinterest preview ────────────────────────────────── */}
+      {isPinterest && (
+        <div className="rounded-xl overflow-hidden bg-white text-zinc-900 max-w-[220px] mx-auto shadow-md">
+          {/* Pin image */}
+          <div className="relative bg-zinc-100" style={{ aspectRatio: '2/3' }}>
+            {currentMedia ? (
+              currentMedia.match(/\.(mp4|mov|webm)$/i)
+                ? <video src={currentMedia} className="w-full h-full object-cover" muted />
+                : <Image src={currentMedia} alt="pin" fill className="object-cover" unoptimized />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-zinc-100">
+                <p className="text-xs text-zinc-400">No image</p>
+              </div>
+            )}
+            {/* Save button overlay */}
+            <button className="absolute top-2.5 right-2.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full hover:bg-red-700 transition-colors">
+              Save
+            </button>
+          </div>
+          {/* Pin caption */}
+          {caption && (
+            <div className="p-3">
+              <p className="text-xs font-semibold line-clamp-2 text-zinc-900">{caption}</p>
+            </div>
+          )}
+          {/* Creator */}
+          <div className="flex items-center gap-2 px-3 pb-3">
+            <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">{initials}</div>
+            <p className="text-[11px] text-zinc-500 truncate">{displayName}</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── All other platforms ──────────────────────────────── */}
+      {!isYouTube && !isPinterest && <div className={`rounded-xl overflow-hidden border text-sm ${
+        isTwitter || isThreads
+          ? 'bg-zinc-950 border-zinc-800 text-white'
+          : 'bg-white border-zinc-200 text-zinc-900'
+      }`}>
+
+        {/* ── Facebook / LinkedIn header ── */}
+        {(isFacebook || isLinkedIn) && (
+          <div className="flex items-start gap-2.5 p-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 ${PLATFORM_COLORS[activePlatform] || 'bg-zinc-400'}`}>
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm leading-tight">{displayName}</p>
+              <p className="text-[11px] text-zinc-500">Just now · <Globe className="w-2.5 h-2.5 inline mb-0.5" /></p>
+            </div>
+            <MoreHorizontal className="w-4 h-4 text-zinc-400 shrink-0 mt-1" />
+          </div>
+        )}
+
+        {/* ── Instagram header ── */}
+        {isInstagram && (
+          <div className="flex items-center gap-2.5 px-3 py-2.5">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600 p-0.5 shrink-0">
+              <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-xs font-bold text-zinc-900">
+                {initials}
+              </div>
+            </div>
+            <p className="font-bold text-sm flex-1">{handle || displayName}</p>
+            <MoreHorizontal className="w-4 h-4 text-zinc-400 shrink-0" />
+          </div>
+        )}
+
+        {/* ── Twitter/X header ── */}
+        {isTwitter && (
+          <div className="flex items-start gap-2.5 p-3">
+            <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-white text-sm font-bold shrink-0">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1">
+                <span className="font-bold text-sm">{displayName}</span>
+                <span className="text-zinc-500 text-[11px]">{handle}</span>
+              </div>
+              {caption && <p className="text-sm mt-1 leading-relaxed text-white">{caption}</p>}
+            </div>
+            <MoreHorizontal className="w-4 h-4 text-zinc-500 shrink-0" />
+          </div>
+        )}
+
+        {/* ── Threads header ── */}
+        {isThreads && (
+          <div className="flex items-start gap-2.5 p-3">
+            <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-white text-sm font-bold shrink-0">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm text-white">{handle || displayName}</p>
+              {caption && <p className="text-sm mt-1 text-zinc-200 leading-relaxed">{caption}</p>}
+            </div>
+            <MoreHorizontal className="w-4 h-4 text-zinc-500 shrink-0 mt-1" />
+          </div>
+        )}
+
+        {/* Caption (Facebook / LinkedIn / Instagram — below header) */}
+        {(isFacebook || isLinkedIn || isInstagram) && caption && (
+          <p className={`px-3 pb-2.5 text-[13px] leading-relaxed ${isInstagram ? 'text-zinc-900' : 'text-zinc-800'}`}>
+            {caption.length > 200 ? caption.slice(0, 200) + '…' : caption}
+          </p>
+        )}
+
+        {/* Media */}
+        {currentMedia && (
+          <div className={`w-full overflow-hidden ${isInstagram ? 'aspect-square' : 'aspect-video'} bg-zinc-100`}>
+            {currentMedia.match(/\.(mp4|mov|webm)$/i) ? (
+              <video src={currentMedia} className="w-full h-full object-cover" muted />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={currentMedia} alt="preview" className="w-full h-full object-cover" />
+            )}
+          </div>
+        )}
+
+        {/* No media placeholder */}
+        {!currentMedia && (
+          <div className={`w-full bg-zinc-100 flex items-center justify-center ${isInstagram ? 'aspect-square' : 'aspect-video'}`}>
+            <p className="text-xs text-zinc-400">No media</p>
+          </div>
+        )}
+
+        {/* ── Facebook action bar ── */}
+        {isFacebook && (
+          <>
+            <div className="px-3 py-1.5 flex items-center justify-between text-[11px] text-zinc-500 border-b border-zinc-100">
+              <span>👍 Like</span>
+              <span>0 comments · 0 shares</span>
+            </div>
+            <div className="flex divide-x divide-zinc-100">
+              {[['👍', 'Like'], ['💬', 'Comment'], ['↗', 'Share']].map(([icon, label]) => (
+                <button key={label} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors">
+                  <span>{icon}</span>{label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ── Instagram action bar ── */}
+        {isInstagram && (
+          <div className="px-3 py-2.5">
+            <div className="flex items-center gap-4">
+              <Heart className="w-5 h-5 text-zinc-800" />
+              <MessageCircle className="w-5 h-5 text-zinc-800" />
+              <Share2 className="w-5 h-5 text-zinc-800" />
+              <Bookmark className="w-5 h-5 text-zinc-800 ml-auto" />
+            </div>
+            <p className="text-[12px] font-bold mt-2 text-zinc-900">0 likes</p>
+          </div>
+        )}
+
+        {/* ── Twitter/X action bar ── */}
+        {isTwitter && (
+          <div className="flex items-center justify-between px-3 py-2 text-zinc-500">
+            {[MessageCircle, Repeat2, Heart, Share2].map((Icon, i) => (
+              <div key={i} className="flex items-center gap-1 hover:text-blue-400 transition-colors cursor-pointer">
+                <Icon className="w-4 h-4" />
+                <span className="text-[11px]">0</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── LinkedIn action bar ── */}
+        {isLinkedIn && (
+          <div className="flex divide-x divide-zinc-100 border-t border-zinc-100 mt-1">
+            {[['👍', 'Like'], ['💬', 'Comment'], ['↗', 'Repost'], ['📤', 'Send']].map(([icon, label]) => (
+              <button key={label} className="flex-1 flex items-center justify-center gap-1 py-2 text-[11px] font-semibold text-zinc-500 hover:bg-zinc-50 transition-colors">
+                <span>{icon}</span><span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── Threads action bar ── */}
+        {isThreads && (
+          <div className="flex items-center gap-4 px-3 py-2.5 text-zinc-400">
+            <Heart className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
+            <MessageCircle className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
+            <Repeat2 className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
+            <Share2 className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
+          </div>
+        )}
+      </div>}
+    </div>
+  );
+}
+
+// ── AccountDropdown component ─────────────────────────────────────────────────
+const PLATFORM_DOT: Record<string, string> = {
+  facebook: 'bg-blue-500', instagram: 'bg-pink-500', twitter: 'bg-sky-400',
+  x: 'bg-black border border-zinc-700', linkedin: 'bg-blue-700', threads: 'bg-zinc-800',
+  youtube: 'bg-red-600', pinterest: 'bg-red-500',
+};
+
+function AccountDropdown({
+  connectedAccounts,
+  selectedAccountIds,
+  toggleAccountSelection,
+  mediaType,
+  mediaCount,
+  mediaMeta,
+  platformPostTypes,
+}: {
+  connectedAccounts: any[];
+  selectedAccountIds: string[];
+  toggleAccountSelection: (id: string) => void;
+  mediaType: string;
+  mediaCount: number;
+  mediaMeta: MediaMeta | null;
+  platformPostTypes: Record<string, string[]>;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState('');
+  const dropRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const postableAccounts = connectedAccounts;
+
+  const filtered = postableAccounts.filter(a =>
+    !search ||
+    a.account_name?.toLowerCase().includes(search.toLowerCase()) ||
+    a.account_handle?.toLowerCase().includes(search.toLowerCase()) ||
+    a.platform?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedAccs = postableAccounts.filter(a => selectedAccountIds.includes(a.id));
+
+  return (
+    <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4" ref={dropRef}>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
+          <Globe className="w-3.5 h-3.5 text-indigo-400" />
+          Post To
+        </label>
+        {selectedAccs.length > 0 && (
+          <span className="text-[11px] text-[var(--foreground-muted)]">
+            {selectedAccs.length} account{selectedAccs.length > 1 ? 's' : ''} selected
+          </span>
+        )}
+      </div>
+
+      {/* Selected chips */}
+      {selectedAccs.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {selectedAccs.map(a => (
+            <div key={a.id} className="flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-full px-2.5 py-1">
+              <div className={`w-2 h-2 rounded-full shrink-0 ${PLATFORM_DOT[a.platform] || 'bg-zinc-500'}`} />
+              <span className="text-[11px] font-semibold text-[var(--foreground)] truncate max-w-[100px]">
+                {a.account_name || a.account_handle || a.platform}
+              </span>
+              <button onClick={() => toggleAccountSelection(a.id)} className="text-[var(--foreground-muted)] hover:text-rose-400 transition-colors ml-0.5">
+                <XCircle className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Trigger */}
+      <div className="relative">
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="w-full flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] hover:border-indigo-500/50 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-muted)] transition-all text-left"
+        >
+          <Globe className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{selectedAccs.length === 0 ? 'Select social accounts…' : 'Add more accounts…'}</span>
+          <ChevronRight className={`w-4 h-4 transition-transform ${open ? 'rotate-90' : ''}`} />
+        </button>
+
+        {open && (
+          <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-2xl overflow-hidden">
+            {/* Search */}
+            <div className="p-3 border-b border-[var(--border)]">
+              <input
+                autoFocus
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search accounts…"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+            {/* List — capped at ~4 accounts (56px each) with scroll */}
+            <div className="overflow-y-auto" style={{ maxHeight: '224px' }}>
+              {filtered.length === 0 ? (
+                <p className="text-xs text-[var(--foreground-muted)] text-center py-6">
+                  {postableAccounts.length === 0 ? 'No social accounts connected — go to Platform Accounts to connect.' : 'No accounts match your search.'}
+                </p>
+              ) : (
+                filtered.map(a => {
+                  const isSel = selectedAccountIds.includes(a.id);
+                  const postTypes = platformPostTypes[a.platform] || platformPostTypes[a.platform?.charAt(0)?.toUpperCase() + a.platform?.slice(1)];
+                  const { blocked, warning } = mediaCount > 0 && mediaType
+                    ? getCompatibility(a.platform, postTypes, mediaCount, mediaType, mediaMeta ?? undefined)
+                    : { blocked: false, warning: null };
+
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => !blocked && toggleAccountSelection(a.id)}
+                      disabled={blocked}
+                      className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left ${
+                        blocked
+                          ? 'opacity-40 cursor-not-allowed bg-rose-500/5'
+                          : isSel
+                            ? 'bg-indigo-500/5 hover:bg-indigo-500/10'
+                            : 'hover:bg-[var(--surface)]'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${PLATFORM_DOT[a.platform] || 'bg-zinc-500'}`}>
+                        {(a.account_name || a.platform)?.charAt(0)?.toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-[var(--foreground)] truncate">{a.account_name || a.account_handle}</p>
+                        {blocked ? (
+                          <p className="text-[11px] text-rose-400 truncate">Not supported — {warning || 'incompatible media'}</p>
+                        ) : warning ? (
+                          <p className="text-[11px] text-amber-400 truncate">{warning}</p>
+                        ) : (
+                          <p className="text-[11px] text-[var(--foreground-muted)] capitalize">{a.platform}{a.account_handle ? ` · @${a.account_handle}` : ''}</p>
+                        )}
+                      </div>
+                      {blocked ? (
+                        <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                      ) : (
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isSel ? 'bg-indigo-600 border-indigo-600' : 'border-[var(--border)]'}`}>
+                          {isSel && <CheckCircle2 className="w-3 h-3 text-white" />}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            {/* Footer */}
+            {selectedAccs.length > 0 && (
+              <div className="p-3 border-t border-[var(--border)] flex items-center justify-between">
+                <span className="text-[11px] text-[var(--foreground-muted)]">{selectedAccs.length} selected</span>
+                <button onClick={() => setOpen(false)} className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors">Done</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {postableAccounts.length === 0 && (
+        <p className="text-[11px] text-amber-400 mt-2">
+          No social accounts connected yet — <a href="/accounts" className="underline">connect platforms</a> to start posting.
+        </p>
+      )}
+    </div>
+  );
+}
 
 function PublishPageInner() {
   const searchParams = useSearchParams();
@@ -1175,7 +1676,54 @@ function PublishPageInner() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Main Composer - Left Side */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="lg:col-span-7 space-y-4">
+
+          {/* ── Campaign Selector (top) ─────────────────────────────────────── */}
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
+                <FolderKanban className="w-3.5 h-3.5 text-indigo-400" />
+                Campaign <span className="text-[var(--foreground-muted)] font-normal">(optional)</span>
+              </label>
+              <Link href="/campaigns" className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                Manage campaigns →
+              </Link>
+            </div>
+            {publishCampaigns.length === 0 ? (
+              <p className="text-xs text-[var(--foreground-muted)] bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2.5">
+                No active campaigns — launch one from Campaigns first.
+              </p>
+            ) : (
+              <select
+                value={selectedCampaignId}
+                onChange={e => setSelectedCampaignId(e.target.value)}
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-indigo-500 transition-colors"
+              >
+                <option value="">Select a campaign…</option>
+                {publishCampaigns.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+            {selectedCampaignId && (
+              <p className="text-[11px] text-emerald-400 mt-2 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" />
+                Post will be linked to this campaign and can be boosted after publishing.
+              </p>
+            )}
+          </div>
+
+          {/* ── Post To — Account Dropdown (top) ───────────────────────────── */}
+          <AccountDropdown
+            connectedAccounts={connectedAccounts}
+            selectedAccountIds={selectedAccountIds}
+            toggleAccountSelection={toggleAccountSelection}
+            mediaType={assetType || (media?.type?.startsWith('video') ? 'video' : media ? 'image' : '')}
+            mediaCount={selectedUrls.length || (media ? 1 : 0)}
+            mediaMeta={mediaMeta}
+            platformPostTypes={platformPostTypes}
+          />
+
           {/* Media Section */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
@@ -1564,8 +2112,8 @@ function PublishPageInner() {
             )}
           </div>
 
-          {/* Platform Selection */}
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
+          {/* Platform Selection — hidden (moved to top; PlatformSelector kept for post-type/compat logic) */}
+          <div className="hidden bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
             <h3 className="text-sm font-bold text-[var(--foreground)] mb-4">
               Post To
             </h3>
@@ -1690,7 +2238,7 @@ function PublishPageInner() {
             );
           })()}
 
-          {/* Active Campaign linking — blacked out if blocking violations exist */}
+          {/* Active Campaign linking — moved to top; keeping hidden for backward compat */}
           {(() => {
             const mediaType = assetType || (media?.type?.startsWith("video") ? "video" : media ? "image" : "");
             const count = selectedUrls.length || (media ? 1 : 0);
@@ -1701,7 +2249,7 @@ function PublishPageInner() {
             });
 
             return (
-              <div className={`bg-[var(--card)] border rounded-2xl p-4 space-y-3 transition-all ${
+              <div className={`hidden bg-[var(--card)] border rounded-2xl p-4 space-y-3 transition-all ${
                 hasBlocking ? "border-rose-500/30 opacity-50" : "border-[var(--border)]"
               }`}>
                 <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
@@ -1760,10 +2308,32 @@ function PublishPageInner() {
           </button>
         </div>
 
-        {/* Right Sidebar - All-in-One */}
-        <div className="lg:col-span-4 space-y-4">
-          {/* Week Calendar */}
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+        {/* Right Sidebar */}
+        <div className="lg:col-span-5 space-y-4">
+          {/* Post Preview */}
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
+            <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2 mb-3">
+              <Eye className="w-3.5 h-3.5 text-indigo-400" />
+              Post Preview
+            </h3>
+            <PostPreview
+              connectedAccounts={connectedAccounts}
+              selectedAccountIds={selectedAccountIds}
+              description={description}
+              isPlatformSpecific={isPlatformSpecific}
+              platformCaptions={platformCaptions}
+              mediaPreview={mediaPreview}
+              mediaUrls={selectedUrls}
+              carouselIndex={carouselIndex}
+            />
+          </div>
+
+          {/* REMOVE: Week Calendar — moved to calendar page */}
+          {/* REMOVE: Scheduled Posts — moved to calendar page */}
+          {/* REMOVE: Recent Posts — moved to calendar page */}
+
+          {/* placeholder so existing code below finds the right opening div */}
+          <div className="hidden bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 hidden-week-cal">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
                 <Calendar className="w-3 h-3 text-indigo-400" />
@@ -1813,8 +2383,8 @@ function PublishPageInner() {
             </div>
           </div>
 
-          {/* Scheduled Posts */}
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+          {/* Scheduled Posts — moved to Calendar page */}
+          <div className="hidden bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
             <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2 mb-2">
               <Clock className="w-3 h-3 text-emerald-400" />
               Scheduled ({scheduledPosts.length})
@@ -1860,8 +2430,8 @@ function PublishPageInner() {
             )}
           </div>
 
-          {/* Recent Posts — publish status diagnostics */}
-          <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
+          {/* Recent Posts — moved to Calendar page */}
+          <div className="hidden bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
                 <ListTodo className="w-3 h-3 text-indigo-400" />

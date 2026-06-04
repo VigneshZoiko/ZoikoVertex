@@ -112,12 +112,13 @@ export default function SafetyOverviewPage() {
   // Simulation States
   const [isSimulatingDegradation, setIsSimulatingDegradation] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   // Fetch Overview Data
   const fetchOverview = async (showRefreshIndicator = false) => {
     if (showRefreshIndicator) setIsRefreshing(true);
     try {
-      const res = await api.get("/api/safety/overview");
+      const res = await api.get("/api/v1/safety/overview");
       if (res.success && res.data) {
         setData(res.data);
         setIsSimulatingDegradation(res.data.api_status === "degraded");
@@ -144,7 +145,7 @@ export default function SafetyOverviewPage() {
   const handleToggleDegradation = async (checked: boolean) => {
     setIsSimulatingDegradation(checked);
     try {
-      await api.post("/api/safety/actions/toggle-degraded", { degraded: checked });
+      await api.post("/api/v1/safety/actions/toggle-degraded", { degraded: checked });
       await fetchOverview();
     } catch (err) {
       console.error("Degradation toggle failed", err);
@@ -167,7 +168,7 @@ export default function SafetyOverviewPage() {
     setSubmittingPause(true);
     try {
       const isCurrentlyPaused = data?.active_mode === "emergency_pause";
-      const res = await api.post("/api/safety/actions/request-emergency-pause", {
+      const res = await api.post("/api/v1/safety/actions/request-emergency-pause", {
         state: isCurrentlyPaused ? "inactive" : "active",
         reason: pauseReason,
         mfa_code: mfaCode,
@@ -192,12 +193,14 @@ export default function SafetyOverviewPage() {
   // Start Critical Review session
   const handleReviewCriticalQueue = async () => {
     try {
-      const res = await api.post("/api/safety/actions/review-critical-queue", {});
+      const res = await api.post("/api/v1/safety/actions/review-critical-queue", {});
       if (res.success) {
-        alert("Review session initiated. Action logged to audit trail. Navigating to Command Center...");
+        setInfoMessage("Review session initiated. Action logged to audit trail.");
+        setTimeout(() => setInfoMessage(null), 5000);
       }
     } catch (err) {
-      console.error(err);
+      setInfoMessage("Review session initiation failed.");
+      setTimeout(() => setInfoMessage(null), 5000);
     }
   };
 
@@ -290,6 +293,14 @@ export default function SafetyOverviewPage() {
           </div>
         </div>
       </div>
+
+      {/* Info Message Banner */}
+      {infoMessage && (
+        <div className="bg-emerald-500/10 border-b border-emerald-500/30 text-emerald-400 py-3 px-4 text-center text-sm font-semibold flex items-center justify-center gap-2">
+          <CheckCircle className="w-5 h-5 flex-shrink-0" />
+          <span>{infoMessage}</span>
+        </div>
+      )}
 
       {/* Degradation Banner / Warning Area */}
       {isDegraded && (

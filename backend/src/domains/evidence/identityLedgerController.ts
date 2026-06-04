@@ -261,7 +261,8 @@ export async function verifyLedgerChain(req: AuthRequest, res: Response, next: N
 
 export async function listDelegations(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const tenantId = (req.user as any)?.tenant_id || 'default';
+    const rawTenantId = (req.user as any)?.tenant_id;
+    const tenantId = rawTenantId && rawTenantId !== 'default' ? rawTenantId : '00000000-0000-0000-0000-000000000000';
     const status = req.query.status as string | undefined;
     const result = await identityLedgerService.listDelegations({ tenant_id: tenantId, status });
     res.json({ success: true, data: result });
@@ -272,7 +273,8 @@ export async function listDelegations(req: AuthRequest, res: Response, next: Nex
 
 export async function createDelegation(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const tenantId = (req.user as any)?.tenant_id || 'default';
+    const rawTenantId = (req.user as any)?.tenant_id;
+    const tenantId = rawTenantId && rawTenantId !== 'default' ? rawTenantId : '00000000-0000-0000-0000-000000000000';
     const { delegator_id, delegatee_id, scope, expires_at, reason } = req.body;
     const result = await identityLedgerService.createDelegation({
       tenant_id: tenantId,
@@ -304,7 +306,8 @@ export async function revokeDelegation(req: AuthRequest, res: Response, next: Ne
 
 export async function listBreakGlass(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const tenantId = (req.user as any)?.tenant_id || 'default';
+    const rawTenantId = (req.user as any)?.tenant_id;
+    const tenantId = rawTenantId && rawTenantId !== 'default' ? rawTenantId : '00000000-0000-0000-0000-000000000000';
     const status = req.query.status as string | undefined;
     const result = await identityLedgerService.listBreakGlassSessions({ tenant_id: tenantId, status });
     res.json({ success: true, data: result });
@@ -315,7 +318,8 @@ export async function listBreakGlass(req: AuthRequest, res: Response, next: Next
 
 export async function requestBreakGlass(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const tenantId = (req.user as any)?.tenant_id || 'default';
+    const rawTenantId = (req.user as any)?.tenant_id;
+    const tenantId = rawTenantId && rawTenantId !== 'default' ? rawTenantId : '00000000-0000-0000-0000-000000000000';
     const userId = req.user?.id;
     if (!userId) return res.status(400).json({ error: 'User required' });
     const { reason, elevated_roles } = req.body;

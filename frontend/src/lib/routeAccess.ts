@@ -65,7 +65,7 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: '/library/upload',                roles: ['CREATOR', 'CAMPAIGN_MANAGER', 'ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN'] },
 
   // ── Command ───────────────────────────────────────────────────────────────
-  { prefix: '/operations',                    roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'AGENT_OPERATOR', 'CAMPAIGN_MANAGER', 'PUBLISHER', 'SUPERADMIN'] },
+  { prefix: '/operations',                    roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'AGENT_ARCHITECT', 'AGENT_OPERATOR', 'CAMPAIGN_MANAGER', 'PUBLISHER', 'SUPERADMIN'] },
   { prefix: '/analytics',                     roles: ['ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'AUDITOR', 'COMPLIANCE_REVIEWER', 'PUBLISHER', 'SUPERADMIN'] },
 
   // ── Support (open to all authenticated) ───────────────────────────────────

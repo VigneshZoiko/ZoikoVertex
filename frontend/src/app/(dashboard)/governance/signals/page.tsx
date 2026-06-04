@@ -74,7 +74,7 @@ interface SafetyAction {
   };
 }
 
-export default function RiskIntakePage() {
+export default function SignalsPage() {
   const { hasRole, isLoading: rolesLoading } = useRoles();
 
   // Primary Workspace States
@@ -116,6 +116,17 @@ export default function RiskIntakePage() {
   const [manualSeverity, setManualSeverity] = useState<"Low" | "Medium" | "High" | "Critical">("Low");
   const [creatingManual, setCreatingManual] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  // Notification & dialog state
+  const [notification, setNotification] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [promptModal, setPromptModal] = useState<{ title: string; callback: (value: string) => void } | null>(null);
+  const [promptValue, setPromptValue] = useState("");
+  const [confirmModal, setConfirmModal] = useState<{ title: string; message: string; callback: () => void } | null>(null);
+
+  const showNotification = (text: string, type: "success" | "error" = "success") => {
+    setNotification({ type, text });
+    setTimeout(() => setNotification(null), 4000);
+  };
 
   const [now, setNow] = useState(Date.now);
 
@@ -226,7 +237,7 @@ export default function RiskIntakePage() {
     if (!selectedSignal) return;
 
     if (!justificationReason || justificationReason.trim().length < 10) {
-      alert("Override justification must be at least 10 characters long.");
+      showNotification("Override justification must be at least 10 characters long.", "error");
       return;
     }
 
@@ -256,58 +267,66 @@ export default function RiskIntakePage() {
         setSelectedSignal(null);
         fetchTriageData();
       } else {
-        alert(res.error || "Triage classification rejected.");
+        showNotification(res.error || "Triage classification rejected.", "error");
       }
     } catch (err: any) {
-      alert(err.message || "Triage classification failed.");
+      showNotification(err.message || "Triage classification failed.", "error");
     }
   };
 
   // Submit Signal Route Action
   const handleRouteSignal = async (dest: string) => {
     if (!selectedSignal) return;
-    const reason = prompt("Enter justification for routing this signal (minimum 10 chars):");
-    if (!reason || reason.trim().length < 10) {
-      alert("Valid routing justification is mandatory.");
-      return;
-    }
-
-    try {
-      const res = await api.post(`/api/safety/signals/${selectedSignal.id}/route`, {
-        destination: dest,
-        reason
-      });
-      if (res.success) {
-        setSelectedSignal(null);
-        fetchTriageData();
-      } else {
-        alert(res.error || "Routing rejected.");
+    setPromptModal({
+      title: "Enter justification for routing this signal (minimum 10 chars):",
+      callback: async (reason) => {
+        setPromptModal(null);
+        if (!reason || reason.trim().length < 10) {
+          showNotification("Valid routing justification is mandatory.", "error");
+          return;
+        }
+        try {
+          const res = await api.post(`/api/safety/signals/${selectedSignal.id}/route`, {
+            destination: dest,
+            reason
+          });
+          if (res.success) {
+            setSelectedSignal(null);
+            fetchTriageData();
+          } else {
+            showNotification(res.error || "Routing rejected.", "error");
+          }
+        } catch (err: any) {
+          showNotification(err.message || "Routing command failed.", "error");
+        }
       }
-    } catch (err: any) {
-      alert(err.message || "Routing command failed.");
-    }
+    });
   };
 
   // Submit Close Signal Action
   const handleCloseSignal = async () => {
     if (!selectedSignal) return;
-    const reason = prompt("Enter mandatory resolution justification to CLOSE this signal (minimum 10 chars):");
-    if (!reason || reason.trim().length < 10) {
-      alert("Closing justification is mandatory.");
-      return;
-    }
-
-    try {
-      const res = await api.post(`/api/safety/signals/${selectedSignal.id}/close`, { reason });
-      if (res.success) {
-        setSelectedSignal(null);
-        fetchTriageData();
-      } else {
-        alert(res.error || "Close request rejected.");
+    setPromptModal({
+      title: "Enter mandatory resolution justification to CLOSE this signal (minimum 10 chars):",
+      callback: async (reason) => {
+        setPromptModal(null);
+        if (!reason || reason.trim().length < 10) {
+          showNotification("Closing justification is mandatory.", "error");
+          return;
+        }
+        try {
+          const res = await api.post(`/api/safety/signals/${selectedSignal.id}/close`, { reason });
+          if (res.success) {
+            setSelectedSignal(null);
+            fetchTriageData();
+          } else {
+            showNotification(res.error || "Close request rejected.", "error");
+          }
+        } catch (err: any) {
+          showNotification(err.message || "Close action failed.", "error");
+        }
       }
-    } catch (err: any) {
-      alert(err.message || "Close action failed.");
-    }
+    });
   };
 
   // Create manual signal
@@ -346,11 +365,15 @@ export default function RiskIntakePage() {
 
   // Bulk classify mock
   const handleBulkClassify = () => {
-    const confirmBulk = confirm("Execute auto-classification for all Low/Medium signals with AI confidence >= 0.85?");
-    if (confirmBulk) {
-      alert("Bulk auto-routing successfully processed. 2 Low-severity signals routed.");
-      fetchTriageData();
-    }
+    setConfirmModal({
+      title: "Bulk Auto-Classification",
+      message: "Execute auto-classification for all Low/Medium signals with AI confidence >= 0.85?",
+      callback: () => {
+        setConfirmModal(null);
+        showNotification("Bulk auto-routing successfully processed. 2 Low-severity signals routed.", "success");
+        fetchTriageData();
+      }
+    });
   };
 
   if (loading) {
@@ -395,7 +418,51 @@ export default function RiskIntakePage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#ddd] pb-24 font-sans selection:bg-amber-500/30 selection:text-white flex flex-col justify-between">
-      
+
+      {/* Notification Banner */}
+      {notification && (
+        <div className={`fixed top-4 right-4 z-[60] px-4 py-3 rounded-xl text-xs font-bold shadow-2xl flex items-center gap-2 border ${
+          notification.type === "success" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-400"
+        }`}>
+          {notification.type === "success" ? <CheckCircle className="w-4 h-4" /> : <AlertOctagon className="w-4 h-4" />}
+          {notification.text}
+        </div>
+      )}
+
+      {/* Prompt Modal */}
+      {promptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="bg-[#111] border border-[#222] w-full max-w-md rounded-2xl p-6 shadow-2xl">
+            <h3 className="text-sm font-bold text-white mb-4">{promptModal.title}</h3>
+            <textarea
+              autoFocus
+              value={promptValue}
+              onChange={(e) => setPromptValue(e.target.value)}
+              className="w-full h-24 bg-black border border-[#333] focus:border-[#555] rounded-xl p-3 text-xs text-white focus:outline-none resize-none"
+              placeholder="Enter reason..."
+            />
+            <div className="flex gap-3 justify-end mt-4">
+              <button onClick={() => { setPromptModal(null); setPromptValue(""); }} className="px-4 py-2 bg-neutral-900 border border-[#333] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold">Cancel</button>
+              <button onClick={() => { const val = promptValue; setPromptValue(""); promptModal.callback(val); }} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black rounded-xl text-xs font-extrabold">Submit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="bg-[#111] border border-[#222] w-full max-w-md rounded-2xl p-6 shadow-2xl">
+            <h3 className="text-sm font-bold text-white mb-2">{confirmModal.title}</h3>
+            <p className="text-xs text-[#888]">{confirmModal.message}</p>
+            <div className="flex gap-3 justify-end mt-6">
+              <button onClick={() => setConfirmModal(null)} className="px-4 py-2 bg-neutral-900 border border-[#333] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold">Cancel</button>
+              <button onClick={confirmModal.callback} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black rounded-xl text-xs font-extrabold">Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Workspace Frame */}
       <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6 flex-1 flex flex-col">
         
@@ -478,7 +545,7 @@ export default function RiskIntakePage() {
             </button>
 
             <button
-              onClick={() => alert("Exporting 5-Zone signal list queue details as CSV...")}
+              onClick={() => showNotification("Exporting 5-Zone signal list queue details as CSV...", "success")}
               className="p-2 bg-[#141414] hover:bg-[#1f1f1f] border border-[#222] hover:border-[#333] rounded-xl text-[#888] hover:text-white transition-all flex items-center justify-center"
               title="Export Queue View"
             >

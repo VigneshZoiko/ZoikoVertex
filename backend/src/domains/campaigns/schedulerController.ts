@@ -139,7 +139,10 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
     await logToDatabase('info', 'Scheduler', `Generating AI recommendations for: ${platform} / ${niche}`, { platform, audienceRegion, userTimezone });
 
     const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    // Try models in order — fall back if overloaded
+    const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    let model = genAI.getGenerativeModel({ model: GEMINI_MODELS[0] });
+    // Model selection happens at generateContent — use retry wrapper below
 
     const dayName = getDayName(resolvedDate);
 
@@ -173,9 +176,22 @@ RESPONSE (strict JSON, no markdown, no backticks):
   ]
 }`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    let text = '';
+    for (const modelId of GEMINI_MODELS) {
+      try {
+        model = genAI.getGenerativeModel({ model: modelId });
+        const result = await model.generateContent(prompt);
+        text = (await result.response).text();
+        break;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
+          continue;
+        }
+        throw e;
+      }
+    }
+    if (!text) throw new Error('All Gemini models unavailable — please try again shortly');
     
     let parsed;
     try {

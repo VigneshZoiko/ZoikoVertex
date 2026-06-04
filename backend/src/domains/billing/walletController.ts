@@ -207,11 +207,24 @@ export const createDepositSession = async (req: AuthRequest, res: Response, _nex
     const availableAt  = new Date(Date.now() + holdHours * 60 * 60 * 1000).toISOString();
     const grossCents   = Math.round(fees.totalCharge * 100);
 
+    // Get billing email for receipt
+    const { data: workspace } = await supabaseAdmin
+      .from('workspaces')
+      .select('billing_email')
+      .eq('id', workspaceId)
+      .single();
+
+    // Get user email for receipt fallback
+    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId || '');
+    const receiptEmail = workspace?.billing_email || userData?.user?.email || undefined;
+
     // Create Stripe Checkout Session
     const session = await stripeClient.checkout.sessions.create({
-      customer:   stripeCustomerId,
-      mode:       'payment',
-      payment_method_types: ['card'],
+      customer:              stripeCustomerId,
+      customer_email:        !stripeCustomerId ? receiptEmail : undefined, // only if no customer yet
+      mode:                  'payment',
+      payment_method_types:  ['card'],
+      invoice_creation:      { enabled: true }, // Stripe generates a proper invoice
       line_items: [
         {
           quantity: 1,
@@ -219,14 +232,14 @@ export const createDepositSession = async (req: AuthRequest, res: Response, _nex
             currency:     currency.toLowerCase(),
             unit_amount:  grossCents,
             product_data: {
-              name:        `ZoikoVertex Campaign Credits â€” $${amount.toFixed(2)}`,
-              description: `$${fees.netCredits.toFixed(2)} campaign wallet credits (includes $${fees.stripeFee.toFixed(2)} processing fee). Non-refundable.`,
+              name:        `ZoikoVertex Campaign Credits - $${amount.toFixed(2)}`,
+              description: `$${fees.netCredits.toFixed(2)} campaign wallet credits (includes $${fees.stripeFee.toFixed(2)} Stripe processing fee). Non-refundable.`,
             },
           },
         },
       ],
-      success_url: `${env.FRONTEND_URL}/wallet?deposit=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${env.FRONTEND_URL}/wallet?deposit=cancelled`,
+      success_url: `${env.FRONTEND_URL}/admin/billing?deposit=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${env.FRONTEND_URL}/admin/billing?deposit=cancelled`,
       metadata: {
         workspace_id:  workspaceId,
         wallet_id:     wallet!.id,
@@ -238,6 +251,7 @@ export const createDepositSession = async (req: AuthRequest, res: Response, _nex
         currency,
       },
       payment_intent_data: {
+        receipt_email: receiptEmail,    // Stripe sends receipt email automatically
         metadata: {
           workspace_id: workspaceId,
           purpose:      'campaign_wallet_deposit',
@@ -254,8 +268,108 @@ export const createDepositSession = async (req: AuthRequest, res: Response, _nex
       fees,
     });
   } catch (err: unknown) {
-    logger.error({ err: err instanceof Error ? err.message : err }, '[Wallet] createDepositSession failed');
-    return res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to create payment session' });
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err: msg, workspaceId }, '[Wallet] createDepositSession failed');
+    return res.status(500).json({ error: msg || 'Failed to create payment session' });
+  }
+};
+
+// ── POST /api/v1/billing/deposit/sync-session ─────────────────────────────────
+// Called when user returns from Stripe Checkout with ?session_id=xxx.
+// Retrieves the session, verifies payment, and records the deposit.
+// Safe to call multiple times — idempotent via stripe_charge_id uniqueness.
+
+export const syncDepositSession = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
+
+  const { session_id } = req.body as { session_id?: string };
+  if (!session_id) return res.status(400).json({ error: 'session_id required' });
+
+  const stripeClient = getStripe();
+  if (!stripeClient) return res.status(503).json({ error: 'Stripe not configured' });
+
+  try {
+    const session = await stripeClient.checkout.sessions.retrieve(session_id) as any;
+
+    if (session.payment_status !== 'paid') {
+      return res.json({ success: true, data: { status: session.payment_status, credited: false } });
+    }
+
+    const meta      = session.metadata || {};
+    const walletId  = meta.wallet_id;
+    if (!walletId) return res.status(400).json({ error: 'Session missing wallet metadata' });
+
+    // Idempotency — skip if already recorded
+    const { data: existing } = await supabaseAdmin
+      .from('wallet_transactions')
+      .select('id')
+      .eq('stripe_charge_id', session.id)
+      .maybeSingle();
+
+    if (existing) {
+      return res.json({ success: true, data: { status: 'paid', credited: false, reason: 'already_recorded' } });
+    }
+
+    const netCredits  = parseFloat(meta.net_credits  || '0');
+    const stripeFee   = parseFloat(meta.stripe_fee   || '0');
+    const taxAmount   = parseFloat(meta.tax_amount   || '0');
+    const grossAmount = netCredits + stripeFee + taxAmount;
+    const holdHours   = parseInt(env.DEPOSIT_HOLD_HOURS || '48');
+    const resolvedAt  = meta.available_at || new Date(Date.now() + holdHours * 60 * 60 * 1000).toISOString();
+    const currency    = meta.currency || 'USD';
+
+    // Insert PROCESSING transaction
+    await supabaseAdmin.from('wallet_transactions').insert({
+      wallet_id:                walletId,
+      type:                     'CREDIT',
+      status:                   'PROCESSING',
+      amount:                   netCredits,
+      gross_amount:             grossAmount,
+      net_amount:               netCredits,
+      stripe_fee:               stripeFee,
+      tax_amount:               taxAmount,
+      currency,
+      stripe_charge_id: session.id,
+      initiated_by:             meta.initiated_by || null,
+      available_at:             resolvedAt,
+      description:              `Campaign credits deposit - processing`,
+    });
+
+    // Update wallet processing_balance
+    const { data: wallet } = await supabaseAdmin
+      .from('wallets').select('processing_balance, total_deposited').eq('id', walletId).single();
+
+    await supabaseAdmin.from('wallets').update({
+      processing_balance: (wallet?.processing_balance || 0) + netCredits,
+      total_deposited:    (wallet?.total_deposited    || 0) + grossAmount,
+      updated_at:         new Date().toISOString(),
+    }).eq('id', walletId);
+
+    // Get receipt/invoice URL from Stripe session
+    let receiptUrl: string | null = null;
+    try {
+      if (session.invoice) {
+        const invoice = await stripeClient!.invoices.retrieve(session.invoice as string) as any;
+        receiptUrl = invoice.hosted_invoice_url || invoice.invoice_pdf || null;
+      }
+    } catch { /* non-fatal */ }
+
+    logger.info({ walletId, netCredits, resolvedAt, sessionId: session.id }, '[Wallet] Deposit synced from session');
+    return res.json({
+      success: true,
+      data: {
+        status:       'paid',
+        credited:     true,
+        amount:       netCredits,
+        available_at: resolvedAt,
+        receipt_url:  receiptUrl,
+      },
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err: msg, sessionId: session_id }, '[Wallet] syncDepositSession failed');
+    return res.status(500).json({ error: msg });
   }
 };
 
@@ -279,6 +393,28 @@ export const stripeWebhook = async (req: Request, res: Response) => {
     return res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  // ── checkout.session.completed (setup mode) — save customer ID ──────────────
+  if (event.type === 'checkout.session.completed' && event.data.object.mode === 'setup') {
+    const session = event.data.object as any;
+    const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
+    if (customerId) {
+      try {
+        // Find workspace wallet by customer ID match (or by workspace_id in metadata)
+        const workspaceId = session.metadata?.workspace_id;
+        if (workspaceId) {
+          const { data: wallet } = await supabaseAdmin
+            .from('wallets').select('id, stripe_customer_id').eq('workspace_id', workspaceId).single();
+          if (wallet && !wallet.stripe_customer_id) {
+            await supabaseAdmin.from('wallets').update({ stripe_customer_id: customerId }).eq('id', wallet.id);
+            logger.info({ workspaceId, customerId }, '[Billing] Customer ID saved from setup webhook');
+          }
+        }
+      } catch { /* non-fatal */ }
+    }
+    return res.json({ received: true });
+  }
+
+  // ── checkout.session.completed (payment mode) — credit deposit ───────────────
   if (event.type === 'checkout.session.completed') {
     const session  = event.data.object;
     const meta     = session.metadata || {};
@@ -308,14 +444,13 @@ export const stripeWebhook = async (req: Request, res: Response) => {
           amount:                   netCredits,
           gross_amount:             grossAmount,
           net_amount:               netCredits,
-          stripe_fee:               stripeFee,
-          tax_amount:               taxAmount,
+          stripe_fee:       stripeFee,
+          tax_amount:       taxAmount,
           currency,
-          stripe_payment_intent_id: session.payment_intent,
-          stripe_charge_id:         session.id,
+          stripe_charge_id: session.id,
           initiated_by:             meta.initiated_by || null,
           available_at:             resolvedAt,
-          description:              `Campaign credits deposit â€” processing`,
+          description:              `Campaign credits deposit - processing`,
         })
         .select('id')
         .single();
@@ -346,6 +481,82 @@ export const stripeWebhook = async (req: Request, res: Response) => {
       logger.info({ walletId, netCredits, availableAt: resolvedAt, txId: tx?.id }, '[Wallet] Deposit queued as PROCESSING');
     } catch (err: unknown) {
       logger.error({ err: err instanceof Error ? err.message : err, sessionId: session.id }, '[Wallet] Webhook deposit processing failed');
+    }
+  }
+
+  // ── invoice.payment_succeeded — subscription renewed ─────────────────────────
+  if (event.type === 'invoice.payment_succeeded') {
+    const invoice = event.data.object as any;
+    const customerId = invoice.customer;
+    const subscriptionId = invoice.subscription;
+    if (customerId && subscriptionId) {
+      try {
+        const { data: wallet } = await supabaseAdmin
+          .from('wallets').select('id').eq('stripe_customer_id', customerId).single();
+        if (wallet) {
+          const sub = await stripeClient.subscriptions.retrieve(subscriptionId) as any;
+          const renewalDate = new Date(sub.current_period_end * 1000).toISOString();
+          await supabaseAdmin.from('wallets').update({
+            stripe_subscription_id: subscriptionId,
+            plan_renewal_date: renewalDate,
+            updated_at: new Date().toISOString(),
+          }).eq('id', wallet.id);
+          logger.info({ customerId, subscriptionId, renewalDate }, '[Billing] Subscription renewed');
+        }
+      } catch { /* non-fatal */ }
+    }
+  }
+
+  // ── invoice.payment_failed — notify workspace ─────────────────────────────────
+  if (event.type === 'invoice.payment_failed') {
+    const invoice = event.data.object as any;
+    const customerId = invoice.customer;
+    if (customerId) {
+      try {
+        const { data: wallet } = await supabaseAdmin
+          .from('wallets').select('id, workspace_id').eq('stripe_customer_id', customerId).single();
+        if (wallet) {
+          await supabaseAdmin.from('notifications').insert({
+            workspace_id: wallet.workspace_id,
+            type: 'PAYMENT_FAILED',
+            title: 'Payment failed',
+            body: 'Your subscription payment failed. Please update your payment method to keep your plan active.',
+            link: '/admin/billing',
+            is_read: false,
+            created_at: new Date().toISOString(),
+          });
+          logger.warn({ customerId, invoiceId: invoice.id }, '[Billing] Payment failed — notification sent');
+        }
+      } catch { /* non-fatal */ }
+    }
+  }
+
+  // ── customer.subscription.deleted — downgrade to Starter ─────────────────────
+  if (event.type === 'customer.subscription.deleted') {
+    const sub = event.data.object as any;
+    const customerId = sub.customer;
+    if (customerId) {
+      try {
+        const { data: wallet } = await supabaseAdmin
+          .from('wallets').select('id, workspace_id').eq('stripe_customer_id', customerId).single();
+        if (wallet) {
+          await supabaseAdmin.from('wallets').update({
+            stripe_subscription_id: null,
+            plan_renewal_date: null,
+            updated_at: new Date().toISOString(),
+          }).eq('id', wallet.id);
+          await supabaseAdmin.from('workspaces').update({
+            plan_type: 'STARTER',
+            updated_at: new Date().toISOString(),
+          }).eq('id', wallet.workspace_id);
+          // Also downgrade organizations
+          const { data: ws } = await supabaseAdmin.from('workspaces').select('org_id').eq('id', wallet.workspace_id).single();
+          if (ws?.org_id) {
+            await supabaseAdmin.from('organizations').update({ plan_type: 'STARTER', updated_at: new Date().toISOString() }).eq('id', ws.org_id);
+          }
+          logger.info({ customerId }, '[Billing] Subscription deleted — downgraded to STARTER');
+        }
+      } catch { /* non-fatal */ }
     }
   }
 
@@ -440,11 +651,14 @@ export const getSpendCap = async (req: AuthRequest, res: Response, _next: NextFu
   try {
     const { data: wallet } = await supabaseAdmin
       .from('wallets')
-      .select('spend_cap_enabled')
+      .select('spend_cap_enabled, spend_cap_amount')
       .eq('workspace_id', workspaceId)
       .single();
 
-    return res.json({ success: true, data: { spend_cap_enabled: wallet?.spend_cap_enabled ?? true } });
+    return res.json({ success: true, data: {
+      spend_cap_enabled: wallet?.spend_cap_enabled ?? false,
+      spend_cap_amount:  wallet?.spend_cap_amount  ?? null,
+    }});
   } catch {
     return res.status(500).json({ success: false, error: 'Internal server error' });
   }
@@ -456,20 +670,27 @@ export const updateSpendCap = async (req: AuthRequest, res: Response, _next: Nex
   const workspaceId = req.user?.workspace_id;
   if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
 
-  const { spend_cap_enabled } = req.body;
+  const { spend_cap_enabled, spend_cap_amount } = req.body;
 
   try {
     const { data: wallet, error } = await supabaseAdmin
       .from('wallets')
       .upsert(
-        { workspace_id: workspaceId, spend_cap_enabled: Boolean(spend_cap_enabled) },
+        {
+          workspace_id:    workspaceId,
+          spend_cap_enabled: Boolean(spend_cap_enabled),
+          spend_cap_amount:  spend_cap_amount != null ? parseFloat(spend_cap_amount) : null,
+        },
         { onConflict: 'workspace_id', ignoreDuplicates: false }
       )
-      .select('spend_cap_enabled')
+      .select('spend_cap_enabled, spend_cap_amount')
       .single();
 
     if (error) throw error;
-    return res.json({ success: true, data: { spend_cap_enabled: wallet?.spend_cap_enabled } });
+    return res.json({ success: true, data: {
+      spend_cap_enabled: wallet?.spend_cap_enabled,
+      spend_cap_amount:  wallet?.spend_cap_amount,
+    }});
   } catch {
     return res.status(500).json({ success: false, error: 'Failed to update spend cap' });
   }
@@ -482,17 +703,17 @@ export const getBillingSettings = async (req: AuthRequest, res: Response, _next:
   if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
 
   try {
-    const { data: workspace } = await supabaseAdmin
-      .from('workspaces')
-      .select('billing_email, billing_additional_emails')
-      .eq('id', workspaceId)
-      .single();
+    const [{ data: workspace }, { data: wallet }] = await Promise.all([
+      supabaseAdmin.from('workspaces').select('billing_email, billing_additional_emails').eq('id', workspaceId).single(),
+      supabaseAdmin.from('wallets').select('plan_renewal_date').eq('workspace_id', workspaceId).single(),
+    ]);
 
     return res.json({
       success: true,
       data: {
         billing_email:             workspace?.billing_email            || '',
         billing_additional_emails: workspace?.billing_additional_emails || [],
+        next_renewal_date:         wallet?.plan_renewal_date           || null,
       },
     });
   } catch {
@@ -601,6 +822,116 @@ export const createSetupIntent = async (req: AuthRequest, res: Response, _next: 
 };
 
 // â”€â”€ GET /api/v1/billing/payment-methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+// POST /api/v1/billing/payment-methods/setup-checkout
+// Stripe Checkout in setup mode — no stripe.js required on frontend.
+export const createSetupCheckout = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
+  const stripeClient = getStripe();
+  if (!stripeClient) return res.status(503).json({ error: 'Payment processing not configured' });
+  try {
+    const frontendUrl = env.FRONTEND_URL || 'http://localhost:3000';
+
+    // Try to get/create Stripe customer — fall back to customerless session if it fails
+    let customerId: string | undefined;
+    try {
+      const ctx = await ensureStripeCustomer(workspaceId);
+      customerId = ctx?.stripeCustomerId;
+    } catch (custErr: unknown) {
+      logger.warn({ err: custErr instanceof Error ? custErr.message : custErr }, '[Billing] ensureStripeCustomer failed — creating session without customer');
+    }
+
+    const sessionParams: Record<string, unknown> = {
+      mode:                 'setup',
+      payment_method_types: ['card'],
+      // {CHECKOUT_SESSION_ID} is replaced by Stripe with the actual session ID
+      success_url: `${frontendUrl}/admin/billing?card=added&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url:  `${frontendUrl}/admin/billing?card=cancelled`,
+    };
+    if (customerId) sessionParams.customer = customerId;
+
+    const session = await stripeClient.checkout.sessions.create(sessionParams as any);
+    return res.json({ success: true, data: { url: session.url } });
+  } catch (err: unknown) {
+    logger.error({ err: err instanceof Error ? err.message : err }, '[Billing] createSetupCheckout failed');
+    return res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to create card setup session' });
+  }
+};
+
+// POST /api/v1/billing/payment-methods/sync-session
+// Called when user returns from Stripe card setup with ?session_id=xxx
+// Retrieves the session, extracts customer, saves to wallet, sets default PM.
+export const syncCardSession = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
+  const { session_id } = req.body as { session_id?: string };
+  if (!session_id) return res.status(400).json({ error: 'session_id required' });
+
+  const stripeClient = getStripe();
+  if (!stripeClient) return res.status(503).json({ error: 'Payment processing not configured' });
+
+  try {
+    const session = await stripeClient.checkout.sessions.retrieve(session_id, {
+      expand: ['setup_intent', 'customer'],
+    }) as any;
+
+    if (session.status !== 'complete') {
+      return res.status(400).json({ error: 'Session not completed' });
+    }
+
+    const stripeCustomerId: string = typeof session.customer === 'string'
+      ? session.customer
+      : session.customer?.id;
+
+    if (!stripeCustomerId) return res.status(400).json({ error: 'No customer found in session' });
+
+    // Get or create wallet and save customer ID
+    let { data: wallet } = await supabaseAdmin
+      .from('wallets')
+      .select('id, stripe_customer_id')
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!wallet) {
+      const { data: created } = await supabaseAdmin
+        .from('wallets')
+        .insert({ workspace_id: workspaceId, balance: 0, processing_balance: 0, total_deposited: 0, currency: 'USD', stripe_customer_id: stripeCustomerId })
+        .select('id, stripe_customer_id')
+        .single();
+      wallet = created;
+    } else if (!wallet.stripe_customer_id) {
+      await supabaseAdmin
+        .from('wallets')
+        .update({ stripe_customer_id: stripeCustomerId })
+        .eq('id', wallet.id);
+    }
+
+    // Set the new card as default if no default yet
+    const setupIntent = session.setup_intent;
+    const paymentMethodId = typeof setupIntent === 'string'
+      ? null
+      : setupIntent?.payment_method;
+
+    if (paymentMethodId && stripeCustomerId) {
+      await stripeClient.customers.update(stripeCustomerId, {
+        invoice_settings: { default_payment_method: paymentMethodId },
+      });
+      if (wallet?.id) {
+        await supabaseAdmin
+          .from('wallets')
+          .update({ default_payment_method_id: paymentMethodId })
+          .eq('id', wallet.id);
+      }
+    }
+
+    logger.info({ workspaceId, stripeCustomerId, paymentMethodId }, '[Billing] Card session synced');
+    return res.json({ success: true, data: { stripe_customer_id: stripeCustomerId, payment_method_id: paymentMethodId } });
+  } catch (err: unknown) {
+    logger.error({ err: err instanceof Error ? err.message : err }, '[Billing] syncCardSession failed');
+    return res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to sync card session' });
+  }
+};
 
 export const listPaymentMethods = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;
@@ -719,6 +1050,210 @@ export const setDefaultPaymentMethod = async (req: AuthRequest, res: Response, _
 };
 
 // â”€â”€ GET /api/v1/billing/invoices â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+// ── POST /api/v1/billing/subscribe ───────────────────────────────────────────
+// Creates a Stripe subscription for the workspace using their default card.
+// plan: 'GROWTH' | 'SCALE'
+
+export const createSubscription = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ error: 'Missing workspace context' });
+
+  const { plan, payment_method_id } = req.body as { plan?: string; payment_method_id?: string };
+  if (!plan || !['GROWTH', 'SCALE'].includes(plan.toUpperCase())) {
+    return res.status(400).json({ error: 'plan must be GROWTH or SCALE' });
+  }
+
+  const priceId = plan.toUpperCase() === 'GROWTH' ? env.STRIPE_PRICE_GROWTH : env.STRIPE_PRICE_SCALE;
+  if (!priceId) {
+    return res.status(503).json({ error: `Stripe price for ${plan} not configured. Add STRIPE_PRICE_${plan.toUpperCase()} to .env` });
+  }
+
+  const stripeClient = getStripe();
+  if (!stripeClient) return res.status(503).json({ error: 'Payment processing not configured' });
+
+  try {
+    const { data: wallet } = await supabaseAdmin
+      .from('wallets')
+      .select('id, stripe_customer_id, default_payment_method_id, stripe_subscription_id')
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!wallet?.stripe_customer_id) {
+      return res.status(400).json({ error: 'No payment method on file. Add a card first.' });
+    }
+
+    // Use explicitly selected card, fall back to default, then any saved card
+    const pmId = payment_method_id || wallet.default_payment_method_id;
+    if (!pmId) {
+      return res.status(400).json({ error: 'No payment card selected. Add a card first.' });
+    }
+
+    // Cancel existing subscription if any
+    if (wallet.stripe_subscription_id) {
+      try {
+        await stripeClient.subscriptions.cancel(wallet.stripe_subscription_id);
+      } catch { /* subscription may already be cancelled */ }
+    }
+
+    const subscription = await stripeClient.subscriptions.create({
+      customer:               wallet.stripe_customer_id,
+      items:                  [{ price: priceId }],
+      default_payment_method: pmId,
+      expand:                 ['latest_invoice.payment_intent'],
+    }) as any;
+
+    const renewalDate = new Date(subscription.current_period_end * 1000).toISOString();
+
+    // Save subscription ID and renewal date to wallet
+    await supabaseAdmin
+      .from('wallets')
+      .update({
+        stripe_subscription_id: subscription.id,
+        plan_renewal_date: renewalDate,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', wallet.id);
+
+    // Record subscription payment as a transaction for history
+    const planPriceMap: Record<string, number> = { GROWTH: 399, SCALE: 999 };
+    const planAmount = planPriceMap[plan.toUpperCase()] || 0;
+    await supabaseAdmin.from('wallet_transactions').insert({
+      wallet_id:   wallet.id,
+      type:        'CREDIT',
+      status:      'AVAILABLE',
+      amount:      planAmount,
+      net_amount:  planAmount,
+      currency:    'USD',
+      description: `${plan.toUpperCase()} plan subscription - monthly`,
+      stripe_charge_id: subscription.latest_invoice?.payment_intent?.id || subscription.id,
+      available_at: new Date().toISOString(),
+      created_at:   new Date().toISOString(),
+    });
+
+    // Update workspace plan
+    await supabaseAdmin
+      .from('workspaces')
+      .update({ plan_type: plan.toUpperCase(), updated_at: new Date().toISOString() })
+      .eq('id', workspaceId);
+
+    // Also update organizations.plan_type (user context reads from here)
+    const { data: ws } = await supabaseAdmin
+      .from('workspaces')
+      .select('org_id')
+      .eq('id', workspaceId)
+      .single();
+
+    if (ws?.org_id) {
+      await supabaseAdmin
+        .from('organizations')
+        .update({ plan_type: plan.toUpperCase(), updated_at: new Date().toISOString() })
+        .eq('id', ws.org_id);
+    }
+
+    logger.info({ workspaceId, plan, subscriptionId: subscription.id, renewalDate }, '[Billing] Subscription created');
+
+    return res.json({
+      success: true,
+      data: {
+        subscription_id:      subscription.id,
+        plan:                 plan.toUpperCase(),
+        renewal_date:         renewalDate,
+        status:               subscription.status,
+        cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+        current_period_end:   renewalDate,
+      },
+    });
+  } catch (err: unknown) {
+    logger.error({ err: err instanceof Error ? err.message : err }, '[Billing] createSubscription failed');
+    return res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to create subscription' });
+  }
+};
+
+// ── POST /api/v1/billing/cancel-subscription ─────────────────────────────────
+// Cancels the subscription at end of current period (plan stays active until then).
+
+export const cancelSubscription = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ error: 'Missing workspace context' });
+
+  const stripeClient = getStripe();
+  if (!stripeClient) return res.status(503).json({ error: 'Payment processing not configured' });
+
+  try {
+    const { data: wallet } = await supabaseAdmin
+      .from('wallets')
+      .select('id, stripe_subscription_id')
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!wallet?.stripe_subscription_id) {
+      return res.status(400).json({ error: 'No active subscription found' });
+    }
+
+    // Cancel at period end — plan stays active until renewal date
+    const subscription = await stripeClient.subscriptions.update(wallet.stripe_subscription_id, {
+      cancel_at_period_end: true,
+    }) as any;
+
+    const renewalDate = new Date(subscription.current_period_end * 1000).toISOString();
+
+    await supabaseAdmin
+      .from('wallets')
+      .update({ plan_renewal_date: renewalDate, updated_at: new Date().toISOString() })
+      .eq('id', wallet.id);
+
+    logger.info({ workspaceId, subscriptionId: wallet.stripe_subscription_id }, '[Billing] Subscription set to cancel at period end');
+
+    return res.json({
+      success: true,
+      data: { cancels_at: renewalDate, message: 'Subscription will cancel at end of billing period' },
+    });
+  } catch (err: unknown) {
+    logger.error({ err: err instanceof Error ? err.message : err }, '[Billing] cancelSubscription failed');
+    return res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to cancel subscription' });
+  }
+};
+
+// ── GET /api/v1/billing/subscription ─────────────────────────────────────────
+// Returns current subscription status, renewal date, and cancellation state.
+
+export const getSubscription = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ error: 'Missing workspace context' });
+
+  const stripeClient = getStripe();
+
+  try {
+    const { data: wallet } = await supabaseAdmin
+      .from('wallets')
+      .select('stripe_subscription_id, plan_renewal_date')
+      .eq('workspace_id', workspaceId)
+      .single();
+
+    if (!wallet?.stripe_subscription_id || !stripeClient) {
+      return res.json({ success: true, data: { subscription: null } });
+    }
+
+    const sub = await stripeClient.subscriptions.retrieve(wallet.stripe_subscription_id) as any;
+
+    return res.json({
+      success: true,
+      data: {
+        subscription: {
+          id:                  sub.id,
+          status:              sub.status,
+          cancel_at_period_end: sub.cancel_at_period_end,
+          current_period_end:  new Date(sub.current_period_end * 1000).toISOString(),
+          plan:                sub.items.data[0]?.price?.lookup_key || sub.items.data[0]?.price?.id,
+        },
+      },
+    });
+  } catch (err: unknown) {
+    logger.error({ err: err instanceof Error ? err.message : err }, '[Billing] getSubscription failed');
+    return res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to get subscription' });
+  }
+};
 
 export const listInvoices = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;

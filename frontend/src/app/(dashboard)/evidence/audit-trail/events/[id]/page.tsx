@@ -89,6 +89,7 @@ export default function FullEventPage() {
   const [event, setEvent] = useState<AuditEvent | null>(null);
   const [related, setRelated] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("overview");
 
   useEffect(() => {
@@ -100,8 +101,8 @@ export default function FullEventPage() {
         ]);
         if (eventRes.success) setEvent(eventRes.data);
         if (relRes.success) setRelated(relRes.data.related || []);
-      } catch (err) {
-        console.error("Failed to load event:", err);
+      } catch (err: any) {
+        setError(err?.message || "Failed to load event");
       } finally {
         setLoading(false);
       }
@@ -116,6 +117,26 @@ export default function FullEventPage() {
           <div className="h-8 bg-[#222] rounded w-1/3" />
           <div className="h-4 bg-[#222] rounded w-1/2" />
           <div className="h-64 bg-[#222] rounded" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="bg-[#111] border border-[#222] rounded-xl p-12 text-center">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-red-400" />
+          <h2 className="text-lg font-medium text-white mb-1">Failed to Load Event</h2>
+          <p className="text-sm text-[#888] mb-4">{error}</p>
+          <div className="flex gap-3 justify-center">
+            <button onClick={() => router.back()} className="text-amber-500 hover:text-amber-400 text-sm flex items-center gap-1 mx-auto">
+              <ArrowLeft className="w-4 h-4" /> Back to Audit Trail
+            </button>
+            <button onClick={() => { setError(null); setLoading(true); window.location.reload(); }} className="text-amber-500 hover:text-amber-400 text-sm flex items-center gap-1 mx-auto">
+              <ArrowLeft className="w-4 h-4" /> Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -409,8 +430,9 @@ function IntegrityTab({ event }: { event: AuditEvent }) {
         const block = res.data.results?.[0];
         setVerified(block?.chain_verified === true);
       }
-    } catch {
+    } catch (e: any) {
       setVerified(false);
+      console.warn("Integrity verification failed:", e?.message);
     } finally {
       setVerifying(false);
     }
@@ -586,8 +608,7 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
             if (!reason) return;
             try {
               await api.post('/api/audit-events/preserve', { event_ids: [event.id], reason, retention_class: 'EXTENDED' });
-              alert('Event preserved');
-            } catch { alert('Failed to preserve event'); }
+            } catch { console.warn('Failed to preserve event'); }
           }}
           className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-sm hover:bg-amber-500/20 flex items-center gap-1.5"
         >
@@ -601,8 +622,7 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
             if (!reason) return;
             try {
               await api.post('/api/audit-events/export', { reason, format, event_ids: [event.id] });
-              alert('Export job created');
-            } catch { alert('Failed to create export'); }
+            } catch { console.warn('Failed to create export'); }
           }}
           className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/20 flex items-center gap-1.5"
         >
@@ -624,7 +644,7 @@ function AccessLogTab({ event }: { event: AuditEvent }) {
       try {
         const res = await api.get(`/api/audit-events?search=${event.event_id}&event_type=audit.access&limit=20`);
         if (res.success) setAccessEvents(res.data.events || []);
-      } catch { /* ignore */ }
+      } catch (e: any) { console.warn("Failed to load access log:", e?.message); }
       setLoading(false);
     }
     loadAccessLog();

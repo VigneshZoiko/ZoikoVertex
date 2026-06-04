@@ -1,2060 +1,579 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Loader2, AlertCircle, RefreshCw, X,
-  Target, DollarSign, Globe, FileText,
-  Rocket, Pause, CheckCircle2, Clock,
-  Calendar, TrendingUp, Zap, Play,
-  Eye, BarChart2, ChevronDown, ImageIcon,
+  Loader2, AlertCircle, MoreHorizontal, Trash2,
+  ExternalLink, RefreshCw, ChevronRight,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
-import { useRoles } from "@/lib/hooks/useRoles";
-import MediaVaultPicker from "@/components/MediaVaultPicker";
 
-// ── Types ─────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────
 
 interface Campaign {
-  id: string; name: string; description?: string;
-  campaign_type: string; status: string; objective: string;
-  business_rationale?: string; success_metrics?: string; region?: string;
-  platforms: string[]; budget_total?: number | null; budget_daily?: number | null;
-  budget_currency?: string; budget_pacing?: string;
-  budget_owner_id?: string; budget_owner_name?: string;
-  spend_recorded?: number; spend_data_state?: string; last_reconciled_at?: string;
+  id: string; name: string; status: string; objective: string;
+  campaign_type: string; platforms: string[];
+  budget_total?: number | null; budget_daily?: number | null;
+  budget_currency?: string; spend_recorded?: number;
   start_at?: string | null; end_at?: string | null;
-  kpi_reach?: number | null; kpi_engagement?: number | null; kpi_conversions?: number | null;
-  campaign_manager_id?: string; campaign_manager_name?: string;
   targeting?: Record<string, unknown>; creative?: Record<string, unknown>;
-  wizard_step?: number; created_at: string; updated_at?: string; created_by?: string;
-  post_limit?: number | null; auto_boost_enabled?: boolean; boost_per_post_budget?: number | null;
+  wizard_step?: number; created_at: string; created_by?: string;
 }
 
-interface GateCondition { id: string; label: string; passed: boolean; reason: string | null; }
-interface CampaignEvent {
-  id: string; event_type: string; actor_role?: string; prev_status?: string;
-  new_status?: string; metadata?: Record<string, unknown>; created_at: string;
-}
-interface CampaignPost {
-  id: string; content: string; platform: string; status: string;
-  media_urls?: string[]; created_at: string; creator_name?: string | null;
-  platform_post_id?: string | null;
-  auto_boost_status?: string | null; boost_id?: string | null;
-}
-interface CampaignBoost {
-  id: string; platform: string;
-  boost_type: 'POST' | 'CAMPAIGN' | 'IMAGE_AD' | 'VIDEO_AD' | 'LEAD_AD' | 'DISPLAY_AD' | 'SEARCH_AD';
-  status: string; objective: string;
-  budget_total?: number; budget_daily?: number; budget_currency?: string;
-  start_at?: string; end_at?: string;
+interface Boost {
+  id: string; status: string; boost_type: string; platform: string;
   impressions: number; reach: number; clicks: number; spend_recorded: number;
-  created_at: string;
-  meta_campaign_id?: string; publish_intent_id?: string;
-  google_campaign_id?: string; google_adgroup_id?: string; google_customer_id?: string;
-  advertising_channel_type?: string;
-  ad_image_url?: string; ad_square_image_url?: string;
-  ad_headline?: string; ad_body?: string; lead_form_id?: string;
+  budget_daily?: number; budget_total?: number; budget_currency?: string;
+  ad_image_url?: string; ad_headline?: string; ad_body?: string;
+  created_at: string; meta_campaign_id?: string;
 }
-interface CampaignInsights {
-  totals:      { impressions: number; reach: number; clicks: number; spend: number };
-  kpis:        { ctr: number; cpm: number; cpc: number };
-  kpi_targets: { reach: number | null; engagement: number | null; conversions: number | null };
-  budget:      { total: number | null; currency: string; spend: number; utilization_pct: number | null };
-  by_platform: { platform: string; impressions: number; reach: number; clicks: number; spend: number }[];
-  by_status:   { status: string; count: number }[];
-  by_objective:{ objective: string; count: number }[];
+
+interface Insights {
+  totals: { impressions: number; reach: number; clicks: number; spend: number };
+  kpis:   { ctr: number; cpm: number; cpc: number };
+  budget: { total: number | null; currency: string; spend: number; utilization_pct: number | null };
   boosts_count: number;
 }
-interface MetaAccount {
-  id: string; platform: string; account_name: string; account_handle?: string;
-  ad_account_id?: string; ad_account_name?: string;
-}
 
-interface BudgetAuth {
-  id: string; status: string; requested_amount: number; requested_daily?: number;
-  currency: string; justification?: string; requested_by?: string;
-  budget_owner_id?: string; decision_by?: string; decision_at?: string;
-  decision_note?: string; expires_at?: string; created_at: string;
-  approval_tier?: string;          // LOW | MEDIUM | HIGH
-  approvals_required?: number;     // 1 or 2
-  approvals_received?: number;     // 0, 1, or 2
-  second_approver_id?: string;
-  second_approved_at?: string;
-  second_decision_note?: string;
-}
-
-// ── Style maps ─────────────────────────────────────────────────
-
-const STATUS_STYLES: Record<string, string> = {
-  DRAFT:             "text-zinc-400 bg-zinc-400/10 border-zinc-400/20",
-  READY_FOR_REVIEW:  "text-blue-400 bg-blue-400/10 border-blue-400/20",
-  IN_REVIEW:         "text-blue-400 bg-blue-400/10 border-blue-400/20",
-  CHANGES_REQUESTED: "text-amber-400 bg-amber-400/10 border-amber-400/20",
-  APPROVED:          "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-  SCHEDULED:         "text-indigo-400 bg-indigo-400/10 border-indigo-400/20",
-  ACTIVE:            "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-  PAUSING:           "text-amber-400 bg-amber-400/10 border-amber-400/20",
-  PAUSED:            "text-amber-400 bg-amber-400/10 border-amber-400/20",
-  COMPLETED:         "text-indigo-400 bg-indigo-400/10 border-indigo-400/20",
-  CLOSED:            "text-zinc-400 bg-zinc-400/10 border-zinc-400/20",
-  REJECTED:          "text-rose-400 bg-rose-400/10 border-rose-400/20",
-  CANCELLED:         "text-rose-400 bg-rose-400/10 border-rose-400/20",
-};
-
-const BOOST_STATUS_STYLES: Record<string, string> = {
-  ACTIVE:    "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  PAUSED:    "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  COMPLETED: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
-  FAILED:    "text-rose-400 bg-rose-500/10 border-rose-500/20",
-  CANCELLED: "text-zinc-400 bg-zinc-800 border-zinc-700",
-  PENDING:   "text-zinc-400 bg-zinc-800 border-zinc-700",
-};
-
-const SPEND_STATE: Record<string, string> = {
-  PRELIMINARY: "text-amber-400", FINAL: "text-emerald-400",
-  STALE: "text-zinc-500", VARIANCE: "text-orange-400",
-};
-
-const TABS = [
-  { id: "overview",    label: "Overview",    icon: Target     },
-  { id: "brief",       label: "Brief",       icon: FileText   },
-  { id: "budget",      label: "Budget",      icon: DollarSign },
-  { id: "posts",       label: "Posts",       icon: Globe      },
-  { id: "insights",    label: "Insights",    icon: BarChart2  },
-  { id: "boosts",      label: "Boosts",      icon: Zap        },
-];
-
-const OBJECTIVES = [
-  { value: "POST_ENGAGEMENT", label: "Post Engagement" },
-  { value: "REACH",           label: "Reach" },
-  { value: "BRAND_AWARENESS", label: "Brand Awareness" },
-  { value: "TRAFFIC",         label: "Traffic" },
-  { value: "VIDEO_VIEWS",     label: "Video Views" },
-  { value: "LEAD_GENERATION", label: "Lead Generation" },
-  { value: "CONVERSIONS",     label: "Conversions" },
-];
-
-const COUNTRY_LIST = ["AE","SA","QA","KW","BH","OM","EG","JO","IN","GB","US","DE","FR","AU","PK","NG","ZA","CA"];
-
-function statusLabel(s: string): string {
-  if (s === "READY_FOR_REVIEW")    return "PENDING APPROVAL";
-  if (s === "IN_REVIEW")           return "UNDER REVIEW";
-  if (s === "CHANGES_REQUESTED")   return "REVISION NEEDED";
-  if (s === "PAUSING")             return "PAUSING…";
-  if (s === "PARTIALLY_APPROVED")  return "PARTIAL APPROVAL";
-  return s.replace(/_/g, " ");
-}
+// ── Helpers ────────────────────────────────────────────────────
 
 const fmt = (d?: string | null) =>
-  d ? new Date(d).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" }) : "—";
+  d ? new Date(d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }) : "--";
 
-// ── Page ──────────────────────────────────────────────────────
+const dur = (start?: string | null, end?: string | null) => {
+  if (!start || !end) return null;
+  const days = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000);
+  return `${days} day${days !== 1 ? "s" : ""}`;
+};
+
+const isActive = (s: string) => ["ACTIVE", "SCHEDULED"].includes(s);
+
+// ── Page ───────────────────────────────────────────────────────
 
 export default function CampaignDetailPage() {
-  const { id }   = useParams<{ id: string }>();
-  const router   = useRouter();
-  const { role: userRole, isSuperAdmin } = useRoles();
-  const canBoost = isSuperAdmin || ['ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER'].includes(userRole ?? '');
+  const { id } = useParams() as { id: string };
+  const router  = useRouter();
 
-  const [campaign, setCampaign]   = useState<Campaign | null>(null);
-  const [events, setEvents]       = useState<CampaignEvent[]>([]);
-  const [gate, setGate]           = useState<{ eligible: boolean; conditions: GateCondition[]; failed_conditions: GateCondition[] } | null>(null);
-  const [posts, setPosts]         = useState<CampaignPost[]>([]);
-  const [boosts, setBoosts]       = useState<CampaignBoost[]>([]);
-  const [insights, setInsights]   = useState<CampaignInsights | null>(null);
-  const [budgetAuth, setBudgetAuth] = useState<{ active: BudgetAuth | null; history: BudgetAuth[] } | null>(null);
-  const [budgetJustification, setBudgetJustification] = useState("");
-  const [budgetAuthLoading, setBudgetAuthLoading] = useState<string | null>(null);
-  const [showRejectModal, setShowRejectModal]   = useState(false);
-  const [rejectNote, setRejectNote]             = useState("");
-  const [showChangesModal, setShowChangesModal] = useState(false);
-  const [changesNote, setChangesNote]           = useState("");
-  const [showResumeModal, setShowResumeModal]   = useState(false);
-  const [resumeReason, setResumeReason]         = useState("");
-  const [showCancelModal, setShowCancelModal]   = useState(false);
-  const [cancelReason, setCancelReason]         = useState("");
-  const [loading, setLoading]         = useState(true);
-  const [secondaryLoading, setSecondaryLoading] = useState(true);
-  const [error, setError]             = useState<string | null>(null);
-  const [activeTab, setActiveTab]     = useState("overview");
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [pauseReason, setPauseReason]     = useState("");
-  const [showPauseModal, setShowPauseModal] = useState(false);
-  const [boostTarget, setBoostTarget] = useState<{ type: 'POST' | 'CAMPAIGN'; postId?: string; postContent?: string } | null>(null);
-  const [pushingToMeta, setPushingToMeta] = useState(false);
-  const [metaPushError, setMetaPushError] = useState<string | null>(null);
+  const [campaign,  setCampaign]  = useState<Campaign | null>(null);
+  const [boosts,    setBoosts]    = useState<Boost[]>([]);
+  const [insights,  setInsights]  = useState<Insights | null>(null);
+  const [tab,       setTab]       = useState<"overview" | "ads">("overview");
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState<string | null>(null);
+  const [menu,      setMenu]      = useState(false);
+  const [toggling,  setToggling]  = useState(false);
 
-  // Phase 1 — load just the campaign so the page renders immediately
-  const loadCampaign = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const res = await api.get(`/api/v1/campaigns/${id}`);
-      setCampaign(res.data);
-    } catch {
-      setError("Campaign not found");
-    } finally { setLoading(false); }
+      const [cRes, bRes, iRes] = await Promise.allSettled([
+        api.get(`/api/v1/campaigns/${id}`),
+        api.get(`/api/v1/ads/boosts?campaign_id=${id}`),
+        api.get(`/api/v1/campaigns/${id}/insights`),
+      ]);
+      if (cRes.status === "fulfilled") setCampaign(cRes.value.data);
+      if (bRes.status === "fulfilled") setBoosts(bRes.value.data || []);
+      if (iRes.status === "fulfilled") setInsights(iRes.value.data);
+    } catch { setError("Failed to load campaign"); }
+    finally { setLoading(false); }
   }, [id]);
 
-  // Phase 2 — load secondary data in the background (non-blocking)
-  const loadSecondary = useCallback(async () => {
-    setSecondaryLoading(true);
-    const [eRes, gRes, pRes, bRes, iRes, baRes] = await Promise.allSettled([
-      api.get(`/api/v1/campaigns/${id}/events`),
-      api.get(`/api/v1/campaigns/${id}/launch-gate`),
-      api.get(`/api/v1/campaigns/${id}/posts`),
-      api.get(`/api/v1/ads/boosts?campaign_id=${id}`),
-      api.get(`/api/v1/campaigns/${id}/insights`),
-      api.get(`/api/v1/campaigns/${id}/budget-auth`),
-    ]);
-    if (eRes.status === "fulfilled") setEvents(eRes.value.data || []);
-    if (gRes.status === "fulfilled") setGate(gRes.value.data);
-    if (pRes.status === "fulfilled") setPosts(pRes.value.data || []);
-    if (bRes.status === "fulfilled") setBoosts(bRes.value.data || []);
-    if (iRes.status === "fulfilled") setInsights(iRes.value.data || null);
-    if (baRes.status === "fulfilled") setBudgetAuth(baRes.value.data || null);
-    setSecondaryLoading(false);
-  }, [id]);
+  useEffect(() => { load(); }, [load]);
 
-  // Full refresh — used after actions (approve, launch, pause, etc.)
-  const load = useCallback(async () => {
-    const [cRes, eRes, gRes, pRes, bRes, iRes, baRes] = await Promise.allSettled([
-      api.get(`/api/v1/campaigns/${id}`),
-      api.get(`/api/v1/campaigns/${id}/events`),
-      api.get(`/api/v1/campaigns/${id}/launch-gate`),
-      api.get(`/api/v1/campaigns/${id}/posts`),
-      api.get(`/api/v1/ads/boosts?campaign_id=${id}`),
-      api.get(`/api/v1/campaigns/${id}/insights`),
-      api.get(`/api/v1/campaigns/${id}/budget-auth`),
-    ]);
-    if (cRes.status === "fulfilled") setCampaign(cRes.value.data);
-    if (eRes.status === "fulfilled") setEvents(eRes.value.data || []);
-    if (gRes.status === "fulfilled") setGate(gRes.value.data);
-    if (pRes.status === "fulfilled") setPosts(pRes.value.data || []);
-    if (bRes.status === "fulfilled") setBoosts(bRes.value.data || []);
-    if (iRes.status === "fulfilled") setInsights(iRes.value.data || null);
-    if (baRes.status === "fulfilled") setBudgetAuth(baRes.value.data || null);
-  }, [id]);
-
-  useEffect(() => {
-    loadCampaign().then(() => loadSecondary());
-  }, [loadCampaign, loadSecondary]);
-
-  const doAction = async (action: string, body?: Record<string, unknown>) => {
-    setActionLoading(action); setError(null);
+  const handleToggle = async () => {
+    if (!campaign || toggling) return;
+    const going = isActive(campaign.status);
+    setToggling(true);
     try {
-      await api.post(`/api/v1/campaigns/${id}/${action}`, body || {});
-      await load();
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
-      setError(msg?.message || msg?.error || (err instanceof Error ? err.message : "Action failed"));
-    } finally { setActionLoading(null); }
+      await api.post(`/api/v1/campaigns/${id}/${going ? "pause" : "resume"}`, {});
+      setCampaign(prev => prev ? { ...prev, status: going ? "PAUSING" : "ACTIVE" } : prev);
+    } catch { /* silent */ }
+    finally { setToggling(false); }
   };
 
-  const handleRequestApproval = () => doAction("submit-review");
-  const handleApprove         = () => doAction("approve");
-  const handleLaunch          = () => doAction("launch");
-  const handleResume          = () => { if (resumeReason.trim()) { doAction("resume", { reason: resumeReason }); setShowResumeModal(false); setResumeReason(""); } };
-  const handleComplete        = () => doAction("complete", {});
-  const handleCancel          = () => { if (cancelReason.trim()) { doAction("cancel", { reason: cancelReason }); setShowCancelModal(false); setCancelReason(""); } };
-  const handleRequestChanges  = (note: string) => doAction("request-changes", { note });
-  const handlePause           = () => {
-    if (pauseReason.trim()) {
-      doAction("pause", { reason: pauseReason });
-      setShowPauseModal(false);
-      setPauseReason("");
-    }
-  };
-
-  const handleBoostAction = async (boostId: string, action: "pause" | "resume" | "cancel") => {
-    const boost = boosts.find(b => b.id === boostId);
-    const base  = boost?.platform === "google" ? "/api/v1/ads/google/boosts" : "/api/v1/ads/boosts";
+  const handleDelete = async () => {
+    if (!confirm("Delete this campaign? This cannot be undone.")) return;
     try {
-      if (action === "cancel") await api.delete(`${base}/${boostId}`);
-      else await api.post(`${base}/${boostId}/${action}`, {});
-      await load();
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setError(msg || "Boost action failed");
-    }
-  };
-
-  const handleSyncBoost = async (boostId: string) => {
-    const boost = boosts.find(b => b.id === boostId);
-    const base  = boost?.platform === "google" ? "/api/v1/ads/google/boosts" : "/api/v1/ads/boosts";
-    try {
-      await api.post(`${base}/${boostId}/sync`, {});
-      await load();
-    } catch {}
-  };
-
-  const handlePushToMeta = async () => {
-    setPushingToMeta(true); setMetaPushError(null);
-    try {
-      await api.post(`/api/v1/campaigns/${id}/push-to-meta`, {});
-      await load();
-    } catch (err: any) {
-      setMetaPushError(err?.data?.error || err?.message || "Failed to push to Meta.");
-    } finally { setPushingToMeta(false); }
-  };
-
-  const handleRequestBudgetAuth = async () => {
-    setBudgetAuthLoading("request"); setError(null);
-    try {
-      await api.post(`/api/v1/campaigns/${id}/budget-auth/request`, { justification: budgetJustification });
-      setBudgetJustification("");
-      await load();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Request failed");
-    } finally { setBudgetAuthLoading(null); }
-  };
-
-  const handleBudgetAuthDecision = async (authId: string, action: "approve" | "reject") => {
-    setBudgetAuthLoading(action); setError(null);
-    try {
-      if (action === "approve") {
-        await api.post(`/api/v1/budget-authorizations/${authId}/approve`, {});
-      } else {
-        if (!rejectNote.trim()) return;
-        await api.post(`/api/v1/budget-authorizations/${authId}/reject`, { decision_note: rejectNote });
-        setShowRejectModal(false);
-        setRejectNote("");
-      }
-      await load();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Decision failed");
-    } finally { setBudgetAuthLoading(null); }
+      await api.delete(`/api/v1/campaigns/${id}`);
+      router.push("/campaigns");
+    } catch { /* silent */ }
   };
 
   if (loading) return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-5 animate-pulse">
-      {/* Header skeleton */}
-      <div className="flex items-start gap-4">
-        <div className="w-9 h-9 rounded-xl bg-zinc-800 shrink-0" />
-        <div className="space-y-2 flex-1">
-          <div className="h-4 w-24 rounded bg-zinc-800" />
-          <div className="h-7 w-72 rounded-lg bg-zinc-800" />
-        </div>
-      </div>
-      {/* Tab bar skeleton */}
-      <div className="flex gap-2 border-b border-zinc-800 pb-px">
-        {[80, 60, 72, 56, 72, 64].map((w, i) => (
-          <div key={i} className="h-9 rounded-t-lg bg-zinc-800" style={{ width: w }} />
-        ))}
-      </div>
-      {/* Cards skeleton */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1,2,3,4].map(i => <div key={i} className="h-28 rounded-2xl bg-zinc-800/60" />)}
-      </div>
-      <div className="h-48 rounded-2xl bg-zinc-800/40" />
+    <div className="flex flex-col items-center justify-center h-full py-24 gap-3">
+      <Loader2 className="w-7 h-7 animate-spin text-zinc-500" />
+      <p className="text-zinc-600 text-sm">Loading campaign...</p>
     </div>
   );
 
-  if (!campaign) return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3 p-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400">
-        <AlertCircle className="w-5 h-5 shrink-0" />
-        <p className="font-medium">{error || "Campaign not found"}</p>
-        <button onClick={() => router.push("/campaigns")} className="ml-auto text-sm underline">Back</button>
-      </div>
+  if (error || !campaign) return (
+    <div className="flex flex-col items-center justify-center h-full py-24 gap-3">
+      <AlertCircle className="w-8 h-8 text-zinc-600" />
+      <p className="text-zinc-400 text-sm">{error || "Campaign not found"}</p>
+      <button onClick={() => router.push("/campaigns")} className="text-xs text-zinc-500 hover:text-white underline">
+        Back to campaigns
+      </button>
     </div>
   );
 
-  const spendPct = campaign.budget_total && campaign.spend_recorded
-    ? Math.round((campaign.spend_recorded / campaign.budget_total) * 100) : null;
-  const isPendingApproval = ["READY_FOR_REVIEW", "IN_REVIEW"].includes(campaign.status);
-  const activeBoosts = boosts.filter(b => b.status === "ACTIVE").length;
+  const spend     = insights?.totals.spend     ?? campaign.spend_recorded ?? 0;
+  const impr      = insights?.totals.impressions ?? 0;
+  const reach     = insights?.totals.reach       ?? 0;
+  const clicks    = insights?.totals.clicks      ?? 0;
+  const ctr       = insights?.kpis.ctr           ?? 0;
+  const cpm       = insights?.kpis.cpm           ?? 0;
+  const cpc       = insights?.kpis.cpc           ?? 0;
+  const budget    = campaign.budget_total         ?? 0;
+  const currency  = campaign.budget_currency      ?? "USD";
+  const spendPct  = budget > 0 ? Math.round((spend / budget) * 100) : 0;
+  const targeting = (campaign.targeting || {}) as Record<string, unknown>;
+  const creative  = (campaign.creative  || {}) as Record<string, unknown>;
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-5">
+    <div className="h-full flex flex-col bg-zinc-950 overflow-hidden">
 
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4 min-w-0">
-          <Link href="/campaigns"
-            className="mt-1 p-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-all shrink-0">
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${STATUS_STYLES[campaign.status] || STATUS_STYLES.DRAFT}`}>
-                {statusLabel(campaign.status)}
-              </span>
-              <span className="text-[10px] text-zinc-600 font-medium">{campaign.campaign_type.replace("_", " ")}</span>
-              {activeBoosts > 0 && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center gap-1">
-                  <Zap className="w-2.5 h-2.5" />{activeBoosts} active boost{activeBoosts > 1 ? "s" : ""}
-                </span>
-              )}
+      {/* ── Header ───────────────────────────────────────────── */}
+      <div className="shrink-0 px-6 py-3 border-b border-zinc-800/60 flex items-center justify-between">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm">
+          <button onClick={() => router.back()} className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded-lg transition-colors mr-1">
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2">
+              <path d="M19 12H5M12 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <Link href="/campaigns" className="text-blue-400 hover:text-blue-300 flex items-center gap-1.5 font-medium">
+            <div className="w-5 h-5 rounded bg-[#1877F2] flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 24 24" className="w-3 h-3 fill-white">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
             </div>
-            <h1 className="text-2xl font-bold text-white leading-snug">{campaign.name}</h1>
-          </div>
+            All ad campaigns
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+          <span className="text-white font-semibold truncate max-w-xs">{campaign.name}</span>
         </div>
 
-        {/* Action Rail */}
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          <button onClick={load} className="p-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl text-zinc-400 transition-all">
-            <RefreshCw className={`w-4 h-4 ${secondaryLoading ? "animate-spin text-indigo-400" : ""}`} />
+        {/* Right: toggle + status + menu */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Toggle */}
+            <button
+              type="button"
+              onClick={handleToggle}
+              disabled={toggling || ["DRAFT","COMPLETED","CANCELLED"].includes(campaign.status)}
+              className={`relative shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed ${
+                isActive(campaign.status) ? "bg-zinc-500" : "bg-zinc-800"
+              }`}
+              style={{ width: 36, height: 20 }}
+            >
+              {toggling ? (
+                <Loader2 className="w-3 h-3 text-white animate-spin absolute top-[3.5px] left-[10px]" />
+              ) : (
+                <span style={{
+                  position: "absolute", top: 3, width: 14, height: 14,
+                  borderRadius: "50%", background: "#ffffff",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                  transition: "transform 200ms",
+                  transform: isActive(campaign.status) ? "translateX(19px)" : "translateX(3px)",
+                }} />
+              )}
+            </button>
+            <span className={`text-sm font-semibold ${isActive(campaign.status) ? "text-white" : "text-zinc-500"}`}>
+              {campaign.status === "PAUSING" ? "Pausing..." :
+               campaign.status.charAt(0) + campaign.status.slice(1).toLowerCase()}
+            </span>
+          </div>
+
+          {campaign.status === "COMPLETED" && (
+            <span className="text-xs text-emerald-400 flex items-center gap-1">
+              <span className="w-3 h-3 text-emerald-400">✓</span> Completed
+            </span>
+          )}
+
+          <button onClick={load} className="p-1.5 text-zinc-600 hover:text-zinc-300 rounded-lg hover:bg-zinc-800 transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" />
           </button>
 
-          {["DRAFT", "CHANGES_REQUESTED"].includes(campaign.status) && (
-            <Link href={`/campaigns/new?edit=${id}&step=${campaign.wizard_step ?? 1}`}
-              className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl transition-all">
-              Continue Wizard
-            </Link>
-          )}
-          {["DRAFT", "CHANGES_REQUESTED"].includes(campaign.status) && (
-            <button onClick={handleRequestApproval} disabled={actionLoading === "submit-review"}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all">
-              {actionLoading === "submit-review" ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              Request Approval
+          {/* Three-dot menu */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMenu(m => !m)}
+              className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+            >
+              <MoreHorizontal className="w-4 h-4" />
             </button>
-          )}
-          {isPendingApproval && (
-            <>
-              <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-xs font-semibold">
-                <Clock className="w-3.5 h-3.5" />Pending Approval
-              </div>
-              {/* Request Changes — send back to agency team with notes */}
-              <button onClick={() => setShowChangesModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl transition-all">
-                <AlertCircle className="w-4 h-4" />Request Changes
-              </button>
-              <button onClick={handleApprove} disabled={actionLoading === "approve"}
-                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all">
-                {actionLoading === "approve" ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                Approve
-              </button>
-            </>
-          )}
-          {["APPROVED", "SCHEDULED"].includes(campaign.status) && gate?.eligible && (
-            <button onClick={handleLaunch} disabled={actionLoading === "launch"}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all">
-              {actionLoading === "launch" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
-              Launch Campaign
-            </button>
-          )}
-          {["PAUSED", "PAUSING"].includes(campaign.status) && (
-            <button onClick={() => setShowResumeModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all">
-              <Play className="w-4 h-4" />Resume Campaign
-            </button>
-          )}
-          {["ACTIVE", "PAUSED", "SCHEDULED"].includes(campaign.status) && (
-            <button onClick={handleComplete} disabled={actionLoading === "complete"}
-              className="flex items-center gap-2 px-4 py-2.5 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 text-zinc-300 text-sm font-semibold rounded-xl transition-all">
-              {actionLoading === "complete" ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              Mark Complete
-            </button>
-          )}
-          {!["COMPLETED", "CANCELLED", "ARCHIVED"].includes(campaign.status) && (
-            <button onClick={() => setShowCancelModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 hover:bg-rose-500/10 border border-zinc-800 hover:border-rose-500/30 text-zinc-500 hover:text-rose-400 text-sm font-semibold rounded-xl transition-all">
-              <X className="w-4 h-4" />Cancel
-            </button>
-          )}
-          {campaign.status === "ACTIVE" && (
-            <>
-              {canBoost && (
-                <button onClick={() => { setBoostTarget({ type: "CAMPAIGN" }); }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-sm font-semibold rounded-xl transition-all">
-                  <Zap className="w-4 h-4" />Boost Campaign
+            {menu && (
+              <div className="absolute right-0 top-9 z-50 w-56 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden">
+                <button
+                  onClick={() => { handleDelete(); setMenu(false); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-rose-400 hover:bg-zinc-900 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />Delete campaign
                 </button>
-              )}
-              <button onClick={() => setShowPauseModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl transition-all">
-                <Pause className="w-4 h-4" />Pause
-              </button>
-            </>
-          )}
+                <div className="border-t border-zinc-800" />
+                <div className="flex items-start gap-2.5 px-4 py-3">
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-500 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm text-zinc-400">View on Facebook</p>
+                    <p className="text-[11px] text-zinc-600 mt-0.5">You&apos;ll need access to the ad account.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0" /><span className="flex-1">{error}</span>
-          <button onClick={() => setError(null)}><X className="w-3.5 h-3.5" /></button>
-        </div>
-      )}
-
-      {/* ── Tabs ── */}
-      <div className="flex gap-0.5 overflow-x-auto pb-px border-b border-zinc-800">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold whitespace-nowrap transition-all rounded-t-lg ${
-              activeTab === t.id
-                ? "text-white bg-zinc-900 border border-b-zinc-900 border-zinc-800 -mb-px"
-                : "text-zinc-500 hover:text-zinc-300"
+      {/* ── Tabs ─────────────────────────────────────────────── */}
+      <div className="shrink-0 flex border-b border-zinc-800/60 px-6">
+        {(["overview", "ads"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all capitalize ${
+              tab === t ? "border-zinc-300 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
             }`}>
-            <t.icon className="w-3.5 h-3.5" />{t.label}
-            {t.id === "boosts" && boosts.length > 0 && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400">{boosts.length}</span>
-            )}
+            {t === "ads" ? `Ads (${boosts.length})` : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
 
-      {/* ── Tab Content ── */}
-      <div className="space-y-4">
+      {/* ── Content ──────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-6 py-6">
 
-        {/* OVERVIEW */}
-        {activeTab === "overview" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { label: "Budget",    value: campaign.budget_total ? `${campaign.budget_currency || "USD"} ${campaign.budget_total.toLocaleString()}` : "—", icon: DollarSign, color: "text-indigo-400", bg: "bg-indigo-500/10" },
-                { label: "Spend",     value: campaign.spend_recorded ? `${campaign.budget_currency || "USD"} ${campaign.spend_recorded.toLocaleString()}${spendPct != null ? ` (${spendPct}%)` : ""}` : "—", icon: TrendingUp, color: "text-amber-400", bg: "bg-amber-500/10" },
-                { label: "Duration",  value: campaign.start_at && campaign.end_at ? `${fmt(campaign.start_at)} – ${fmt(campaign.end_at)}` : "—", icon: Calendar, color: "text-blue-400", bg: "bg-blue-500/10" },
-                { label: "Published Posts", value: String(posts.filter(p => p.status === "PUBLISHED").length), icon: Globe, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-              ].map(({ label, value, icon: Icon, color, bg }) => (
-                <div key={label} className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl">
-                  <div className={`w-8 h-8 ${bg} rounded-xl flex items-center justify-center mb-3`}>
-                    <Icon className={`w-4 h-4 ${color}`} />
-                  </div>
-                  <p className="text-sm font-bold text-white">{value}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">{label}</p>
-                </div>
-              ))}
-            </div>
+        {/* ════ OVERVIEW ════ */}
+        {tab === "overview" && (
+          <div className="space-y-8 max-w-5xl">
 
-            {/* Active boosts summary */}
-            {boosts.length > 0 && (
-              <div className="p-5 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-amber-400" />
-                    <h3 className="font-bold text-white text-sm">{boosts.length} Boost{boosts.length > 1 ? "s" : ""} Running</h3>
-                  </div>
-                  <button onClick={() => setActiveTab("boosts")} className="text-xs text-amber-400 hover:text-amber-300 font-semibold">View all →</button>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "Total Reach",      value: boosts.reduce((s, b) => s + b.reach, 0).toLocaleString() },
-                    { label: "Total Clicks",     value: boosts.reduce((s, b) => s + b.clicks, 0).toLocaleString() },
-                    { label: "Ad Spend",         value: `${campaign.budget_currency || "USD"} ${boosts.reduce((s, b) => s + b.spend_recorded, 0).toFixed(2)}` },
-                  ].map(k => (
-                    <div key={k.label} className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                      <p className="text-sm font-bold text-white">{k.value}</p>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">{k.label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Campaign details */}
+            <section>
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Campaign details</p>
+              <div className="grid grid-cols-3 gap-x-12 gap-y-6">
 
-            {/* Meta Ads Status */}
-            {campaign.platforms?.includes("Meta") && (() => {
-              const metaBoost = boosts.find(b => b.boost_type === "CAMPAIGN" && ["ACTIVE", "PAUSED", "PENDING"].includes(b.status));
-              const failedBoost = boosts.find(b => b.boost_type === "CAMPAIGN" && b.status === "FAILED");
-              return (
-                <div className="p-5 border border-zinc-800 rounded-2xl bg-zinc-900/40">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                        <svg className="w-3.5 h-3.5 text-blue-400" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                      </div>
-                      <h3 className="font-bold text-white text-sm">Meta Ads</h3>
-                      {metaBoost && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                          metaBoost.status === "ACTIVE"  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" :
-                          metaBoost.status === "PAUSED"  ? "text-amber-400 bg-amber-500/10 border-amber-500/20" :
-                                                           "text-zinc-400 bg-zinc-800 border-zinc-700"
-                        }`}>{metaBoost.status}</span>
-                      )}
-                    </div>
-                    {!metaBoost && campaign.status === "ACTIVE" && (
-                      <button
-                        onClick={handlePushToMeta}
-                        disabled={pushingToMeta}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-60"
-                      >
-                        {pushingToMeta ? <><Loader2 className="w-3 h-3 animate-spin" />Pushing…</> : <>Push to Meta</>}
-                      </button>
-                    )}
-                    {metaBoost && (
-                      <button onClick={() => handleSyncBoost(metaBoost.id)} className="text-xs text-zinc-500 hover:text-zinc-300 transition">Sync metrics</button>
-                    )}
-                  </div>
-
-                  {metaPushError && (
-                    <div className="mb-3 flex items-start gap-2 p-3 bg-rose-500/5 border border-rose-500/20 rounded-xl text-xs text-rose-400">
-                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{metaPushError}
-                    </div>
-                  )}
-
-                  {metaBoost ? (
-                    <div className="grid grid-cols-4 gap-3">
-                      {[
-                        { label: "Impressions", value: (metaBoost.impressions || 0).toLocaleString() },
-                        { label: "Reach",       value: (metaBoost.reach || 0).toLocaleString() },
-                        { label: "Clicks",      value: (metaBoost.clicks || 0).toLocaleString() },
-                        { label: "Ad Spend",    value: `${campaign.budget_currency || "USD"} ${(metaBoost.spend_recorded || 0).toFixed(2)}` },
-                      ].map(k => (
-                        <div key={k.label} className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                          <p className="text-sm font-bold text-white">{k.value}</p>
-                          <p className="text-[10px] text-zinc-500 mt-0.5">{k.label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : failedBoost ? (
-                    <p className="text-xs text-rose-400">Previous push failed. Try again when the campaign is active.</p>
-                  ) : campaign.status === "ACTIVE" ? (
-                    <p className="text-xs text-zinc-500">Campaign has not been pushed to Meta Ads yet. Click <strong className="text-white">Push to Meta</strong> to create the campaign in your Meta Ad Account.</p>
-                  ) : (
-                    <p className="text-xs text-zinc-500">Meta campaign will be created automatically when this campaign is launched, if a Meta Ad Account is configured.</p>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* Launch gate */}
-            {gate && ["APPROVED", "SCHEDULED"].includes(campaign.status) && (
-              <div className={`p-5 border rounded-2xl ${gate.eligible ? "bg-emerald-500/5 border-emerald-500/20" : "bg-zinc-900/40 border-zinc-800"}`}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    {gate.eligible ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <AlertCircle className="w-5 h-5 text-amber-400" />}
-                    <h3 className="font-bold text-white text-sm">
-                      {gate.eligible ? "Launch Conditions — All Passed" : `Launch Conditions — ${gate.failed_conditions.length} Blocking`}
-                    </h3>
-                  </div>
-                  <span className="text-xs text-zinc-500">{gate.conditions.filter(c => c.passed).length}/{gate.conditions.length} passed</span>
-                </div>
-                {gate.failed_conditions.map(c => (
-                  <div key={c.id} className="flex items-start gap-2 p-3 bg-rose-500/5 border border-rose-500/20 rounded-xl mb-2 last:mb-0">
-                    <X className="w-3.5 h-3.5 text-rose-400 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs text-zinc-300 font-semibold">{c.label}</p>
-                      {c.reason && <p className="text-xs text-rose-400 mt-0.5">{c.reason}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Recent activity */}
-            {events.length > 0 && (
-              <InfoCard title="Recent Activity">
-                {events.slice(0, 5).map(e => (
-                  <div key={e.id} className="flex items-center gap-3 py-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
-                    <span className="text-xs text-zinc-400 flex-1">{e.event_type.replace(/\./g, " → ")}</span>
-                    {e.new_status && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${STATUS_STYLES[e.new_status] || "text-zinc-500 bg-zinc-800 border-zinc-700"}`}>
-                        {statusLabel(e.new_status)}
-                      </span>
-                    )}
-                    <span className="text-[10px] text-zinc-600 shrink-0">{fmt(e.created_at)}</span>
-                  </div>
-                ))}
-              </InfoCard>
-            )}
-          </div>
-        )}
-
-        {/* BRIEF */}
-        {activeTab === "brief" && (
-          <div className="space-y-4">
-            <InfoCard title="Campaign Brief">
-              <InfoRow label="Name"               value={campaign.name} />
-              <InfoRow label="Type"               value={campaign.campaign_type.replace("_", " ")} />
-              <InfoRow label="Region"             value={campaign.region || "—"} />
-              <InfoRow label="Objective"          value={campaign.objective} />
-              <InfoRow label="Business Rationale" value={campaign.business_rationale || "—"} />
-              <InfoRow label="Success Metrics"    value={campaign.success_metrics || "—"} />
-              <InfoRow label="Campaign Manager"   value={campaign.campaign_manager_name || "—"} />
-              <InfoRow label="Created"            value={fmt(campaign.created_at)} />
-            </InfoCard>
-            {campaign.platforms?.length > 0 && (
-              <InfoCard title="Platforms">
-                <div className="flex flex-wrap gap-2">
-                  {campaign.platforms.map(p => (
-                    <span key={p} className="text-xs px-3 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-xl font-semibold">{p}</span>
-                  ))}
-                </div>
-              </InfoCard>
-            )}
-          </div>
-        )}
-
-        {/* BUDGET */}
-        {activeTab === "budget" && (
-          <div className="space-y-4">
-            <InfoCard title="Budget & Schedule">
-              <InfoRow label="Total Budget"  value={campaign.budget_total ? `${campaign.budget_currency || "USD"} ${campaign.budget_total.toLocaleString()}` : "—"} />
-              <InfoRow label="Pacing"        value={campaign.budget_pacing || "—"} />
-              <InfoRow label="Budget Owner"  value={campaign.budget_owner_name || "—"} />
-              <InfoRow label="Start Date"    value={fmt(campaign.start_at)} />
-              <InfoRow label="End Date"      value={fmt(campaign.end_at)} />
-            </InfoCard>
-            <InfoCard title="Spend Tracking">
-              <div className="flex items-center justify-between mb-3">
-                <InfoRow label="Spend Recorded" value={campaign.spend_recorded ? `${campaign.budget_currency || "USD"} ${campaign.spend_recorded.toLocaleString()}` : "0"} />
-                {campaign.spend_data_state && (
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${SPEND_STATE[campaign.spend_data_state] || "text-zinc-500"}`}>
-                    {campaign.spend_data_state}
+                {/* AD ACCOUNT */}
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Ad Account</p>
+                  <p className="text-sm text-zinc-300 font-medium">Your workspace</p>
+                  <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />Active
                   </span>
-                )}
-              </div>
-              {spendPct != null && (
-                <div className="mt-2">
-                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${spendPct >= 110 ? "bg-rose-500" : spendPct >= 85 ? "bg-amber-500" : "bg-emerald-500"}`}
-                      style={{ width: `${Math.min(spendPct, 100)}%` }} />
-                  </div>
-                  <p className={`text-xs mt-1 font-semibold ${spendPct >= 110 ? "text-rose-400" : spendPct >= 85 ? "text-amber-400" : "text-zinc-400"}`}>
-                    {spendPct}% of budget used
-                    {spendPct >= 110 && " — OVERSPEND"}
-                    {spendPct >= 85 && spendPct < 110 && " — Pacing warning"}
+                </div>
+
+                {/* OBJECTIVE */}
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Objective</p>
+                  <p className="text-sm text-zinc-300 font-medium capitalize">
+                    Main objective: {campaign.objective?.toLowerCase().replace(/_/g, " ")}
+                  </p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    Type: {campaign.campaign_type?.replace(/_/g, " ")}
                   </p>
                 </div>
-              )}
-              <InfoRow label="Last Reconciled" value={fmt(campaign.last_reconciled_at)} />
-            </InfoCard>
 
-            {/* ── Budget Authorization ── */}
-            <InfoCard title="Budget Authorization">
-              {(() => {
-                const auth = budgetAuth?.active;
-                const tier = auth?.approval_tier;
-                const received = auth?.approvals_received ?? 0;
-                const required = auth?.approvals_required ?? 1;
-
-                const TIER_STYLES: Record<string, string> = {
-                  LOW:    "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-                  MEDIUM: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-                  HIGH:   "text-rose-400 bg-rose-500/10 border-rose-500/20",
-                };
-                const AUTH_STYLES: Record<string, string> = {
-                  PENDING:            "text-amber-400 bg-amber-500/10 border-amber-500/20",
-                  PARTIALLY_APPROVED: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-                  APPROVED:           "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-                  REJECTED:           "text-rose-400 bg-rose-500/10 border-rose-500/20",
-                  EXPIRED:            "text-zinc-400 bg-zinc-800 border-zinc-700",
-                  CANCELLED:          "text-zinc-500 bg-zinc-900 border-zinc-800",
-                };
-
-                // Tier info based on campaign budget
-                const budgetAmt = Number(campaign.budget_total) || 0;
-                const inferredTier = budgetAmt >= 500 ? "HIGH" : budgetAmt >= 200 ? "MEDIUM" : "LOW";
-                const displayTier = tier || inferredTier;
-                const tierRequired = displayTier === "HIGH" ? 2 : 1;
-
-                return (
-                  <div className="space-y-4">
-                    {/* Status + tier row */}
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border ${auth ? (AUTH_STYLES[auth.status] || AUTH_STYLES.PENDING) : "text-zinc-500 bg-zinc-900 border-zinc-800"}`}>
-                          {auth?.status === "PARTIALLY_APPROVED" ? "PARTIAL APPROVAL" : (auth?.status ?? "NOT REQUESTED")}
-                        </span>
-                        {/* Tier badge */}
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border ${TIER_STYLES[displayTier]}`}>
-                          {displayTier} TIER
-                        </span>
-                        {/* Approval progress for HIGH tier */}
-                        {(displayTier === "HIGH" || required > 1) && auth && (
-                          <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-800 px-2.5 py-1 rounded-lg border border-zinc-700">
-                            {received}/{tierRequired} approvals
-                          </span>
-                        )}
-                        {auth && (
-                          <span className="text-xs text-zinc-500">
-                            {auth.currency} {Number(auth.requested_amount).toLocaleString()} requested
-                          </span>
-                        )}
-                      </div>
-                      {auth?.expires_at && ["PENDING", "PARTIALLY_APPROVED"].includes(auth.status) && (
-                        <span className="text-[10px] text-zinc-600">Expires {fmt(auth.expires_at)}</span>
-                      )}
-                    </div>
-
-                    {/* Tier explanation */}
-                    {!auth && campaign.budget_total && (
-                      <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                        <p className="text-[11px] text-zinc-500">
-                          {displayTier === "HIGH"   && "HIGH budget (≥$500) requires 2 approvals — admin + workspace owner."}
-                          {displayTier === "MEDIUM" && "MEDIUM budget ($200–$499) requires 1 admin or workspace owner approval."}
-                          {displayTier === "LOW"    && "LOW budget (under $200) requires 1 approver."}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* APPROVED */}
-                    {auth?.status === "APPROVED" && (
-                      <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-1">
-                        <p className="text-xs text-emerald-400 font-semibold">Budget fully authorized — campaign can proceed to launch</p>
-                        {auth.decision_note && <p className="text-xs text-zinc-400">{auth.decision_note}</p>}
-                        <p className="text-[10px] text-zinc-600">Authorized {fmt(auth.decision_at)}</p>
-                      </div>
-                    )}
-
-                    {/* PARTIALLY_APPROVED — first of two approvals done */}
-                    {auth?.status === "PARTIALLY_APPROVED" && (
-                      <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl space-y-3">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                          <p className="text-xs text-blue-300 font-semibold">First approval received ({received}/{tierRequired})</p>
-                        </div>
-                        <p className="text-[11px] text-zinc-500">
-                          This is a HIGH budget campaign — a second approver must approve before launch.
-                        </p>
-                        {auth.decision_note && <p className="text-xs text-zinc-400 italic">&quot;{auth.decision_note}&quot;</p>}
-                        {/* Second approval action */}
-                        <div className="flex gap-2">
-                          <button onClick={() => handleBudgetAuthDecision(auth.id, "approve")}
-                            disabled={budgetAuthLoading === "approve"}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-all">
-                            {budgetAuthLoading === "approve" ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                            Give Second Approval
-                          </button>
-                          <button onClick={() => setShowRejectModal(true)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 text-xs font-semibold rounded-lg transition-all">
-                            <X className="w-3 h-3" />Reject
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* PENDING */}
-                    {auth?.status === "PENDING" && (
-                      <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-3">
-                        <p className="text-xs text-amber-300 font-semibold">
-                          Awaiting approval — {tierRequired === 2 ? "2 approvals required (HIGH budget)" : "1 approval required"}
-                        </p>
-                        {auth.justification && (
-                          <div>
-                            <p className="text-[10px] text-zinc-500 mb-1">Justification</p>
-                            <p className="text-xs text-zinc-300">{auth.justification}</p>
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <button onClick={() => handleBudgetAuthDecision(auth.id, "approve")}
-                            disabled={budgetAuthLoading === "approve"}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-all">
-                            {budgetAuthLoading === "approve" ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                            Approve
-                          </button>
-                          <button onClick={() => setShowRejectModal(true)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 text-xs font-semibold rounded-lg transition-all">
-                            <X className="w-3 h-3" />Reject
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* REJECTED */}
-                    {auth?.status === "REJECTED" && (
-                      <div className="p-3 bg-rose-500/5 border border-rose-500/20 rounded-xl space-y-1">
-                        <p className="text-xs text-rose-400 font-semibold">Authorization rejected</p>
-                        {auth.decision_note && <p className="text-xs text-zinc-400">{auth.decision_note}</p>}
-                      </div>
-                    )}
-
-                    {/* Request / re-request */}
-                    {(!auth || ["REJECTED", "EXPIRED", "CANCELLED"].includes(auth.status)) && campaign.budget_total && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-zinc-500">
-                          {auth?.status === "REJECTED" ? "Re-request with updated justification:" : "Request authorization from the budget owner:"}
-                        </p>
-                        <textarea
-                          value={budgetJustification}
-                          onChange={e => setBudgetJustification(e.target.value)}
-                          placeholder="Optional: explain the business rationale for this budget…"
-                          rows={3}
-                          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:border-indigo-500" />
-                        <button onClick={handleRequestBudgetAuth} disabled={budgetAuthLoading === "request"}
-                          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-semibold rounded-xl transition-all">
-                          {budgetAuthLoading === "request" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <DollarSign className="w-3.5 h-3.5" />}
-                          Request Budget Authorization
-                        </button>
-                      </div>
-                    )}
-
-                    {!campaign.budget_total && (
-                      <p className="text-xs text-zinc-600 italic">Set a budget total in the campaign wizard before requesting authorization.</p>
-                    )}
-                  </div>
-                );
-              })()}
-            </InfoCard>
-
-            {(budgetAuth?.history?.length ?? 0) > 1 && (
-              <InfoCard title="Authorization History">
-                <div className="space-y-2">
-                  {budgetAuth!.history.map(h => (
-                    <div key={h.id} className="flex items-center justify-between px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-xl">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-                          h.status === "APPROVED" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
-                          : h.status === "REJECTED" ? "text-rose-400 border-rose-500/30 bg-rose-500/10"
-                          : "text-zinc-500 border-zinc-700 bg-zinc-800"
-                        }`}>{h.status}</span>
-                        <span className="text-xs text-zinc-500">{h.currency} {Number(h.requested_amount).toLocaleString()}</span>
-                        {h.decision_note && <span className="text-xs text-zinc-600 truncate max-w-xs">{h.decision_note}</span>}
-                      </div>
-                      <span className="text-[10px] text-zinc-600 shrink-0">{fmt(h.created_at)}</span>
-                    </div>
-                  ))}
+                {/* DURATION */}
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Duration</p>
+                  {campaign.status === "COMPLETED" ? (
+                    <p className="text-sm text-zinc-300">Campaign ended.{dur(campaign.start_at, campaign.end_at) ? ` It ran for ${dur(campaign.start_at, campaign.end_at)}.` : ""}</p>
+                  ) : (
+                    <p className="text-sm text-zinc-300">{dur(campaign.start_at, campaign.end_at) ? `Running for ${dur(campaign.start_at, campaign.end_at)}` : "No end date set"}</p>
+                  )}
                 </div>
-              </InfoCard>
-            )}
-          </div>
-        )}
 
-        {/* POSTS */}
-        {activeTab === "posts" && (
-          <div className="space-y-4">
-            {/* Post-limit progress + auto-boost indicator */}
-            {(campaign?.post_limit || campaign?.auto_boost_enabled) && (
-              <div className="flex flex-col gap-3 p-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl">
-                {campaign.post_limit && (() => {
-                  const published = posts.filter(p => p.status === "PUBLISHED").length;
-                  const pct = Math.min(100, Math.round((published / campaign.post_limit) * 100));
-                  return (
-                    <div>
-                      <div className="flex items-center justify-between text-xs mb-2">
-                        <span className="text-zinc-400 font-medium">Post Limit</span>
-                        <span className={`font-bold ${published >= campaign.post_limit! ? "text-amber-400" : "text-zinc-200"}`}>
-                          {published} / {campaign.post_limit}
-                        </span>
-                      </div>
-                      <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                {/* DATES */}
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Dates</p>
+                  <p className="text-sm text-zinc-400">
+                    <span className="text-zinc-600 text-[11px]">Start: </span>{fmt(campaign.start_at)}
+                  </p>
+                  <p className="text-sm text-zinc-400 mt-0.5">
+                    <span className="text-zinc-600 text-[11px]">End: </span>{fmt(campaign.end_at)}
+                  </p>
+                </div>
+
+                {/* BUDGET */}
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Budget</p>
+                  {campaign.budget_total ? (
+                    <>
+                      <p className="text-sm text-zinc-300 font-medium">${campaign.budget_total.toLocaleString()} {currency}</p>
+                      {campaign.budget_daily && <p className="text-[11px] text-zinc-500 mt-0.5">Daily: ${campaign.budget_daily.toLocaleString()}</p>}
+                    </>
+                  ) : <p className="text-sm text-zinc-600">Not set</p>}
+                </div>
+
+                {/* AMOUNT SPENT */}
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Amount Spent</p>
+                  <p className="text-sm text-zinc-300 font-medium">${spend.toFixed(2)}</p>
+                  {budget > 0 && (
+                    <div className="mt-1.5">
+                      <div className="w-32 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all ${published >= campaign.post_limit! ? "bg-amber-500" : "bg-indigo-500"}`}
-                          style={{ width: `${pct}%` }}
+                          className={`h-full rounded-full transition-all ${spendPct >= 90 ? "bg-amber-500" : "bg-zinc-400"}`}
+                          style={{ width: `${Math.min(100, spendPct)}%` }}
                         />
                       </div>
-                      {published >= campaign.post_limit && (
-                        <p className="text-[10px] text-amber-400 mt-1.5">Post limit reached — new posts won&apos;t be auto-boosted.</p>
-                      )}
+                      <p className="text-[10px] text-zinc-600 mt-0.5">{spendPct}% of budget (estimated)</p>
                     </div>
-                  );
-                })()}
-                {campaign.auto_boost_enabled && campaign.status === "ACTIVE" && (
-                  <div className="flex items-center gap-2 text-xs text-emerald-400">
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>Auto-boost active — {campaign.budget_currency || "USD"} {campaign.boost_per_post_budget?.toLocaleString() ?? "—"} per post</span>
-                  </div>
-                )}
+                  )}
+                </div>
+
+                {/* CAMPAIGN CREATED IN */}
+                <div>
+                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Campaign Created In</p>
+                  <p className="text-sm text-zinc-300">ZoikoVertex</p>
+                  {campaign.created_at && (
+                    <p className="text-[11px] text-zinc-600 mt-0.5">
+                      on {new Date(campaign.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  )}
+                </div>
               </div>
-            )}
+            </section>
 
-            <InfoCard title={`Published Posts (${posts.filter(p => p.status === "PUBLISHED").length})`}>
-              <p className="text-xs text-zinc-500 mb-4">Posts published through the Publishing Hub linked to this campaign.</p>
-              {posts.filter(p => p.status === "PUBLISHED").length === 0 ? (
-                <div className="text-center py-10 text-zinc-600">
-                  <Globe className="w-8 h-8 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No published posts yet.</p>
-                  <p className="text-xs mt-1">When a publisher selects this campaign and the post goes live, it will appear here.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {posts.filter(p => p.status === "PUBLISHED").map(p => (
-                    <div key={p.id} className="flex items-start gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                        <Globe className="w-4 h-4 text-indigo-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 uppercase">{p.platform}</span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">PUBLISHED</span>
-                          {/* Auto-boost status badge */}
-                          {p.auto_boost_status && (() => {
-                            const bMap: Record<string, string> = {
-                              LIVE:          "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
-                              QUEUED:        "bg-blue-500/10 border-blue-500/20 text-blue-400",
-                              BOOSTING:      "bg-indigo-500/10 border-indigo-500/20 text-indigo-400",
-                              FAILED:        "bg-rose-500/10 border-rose-500/20 text-rose-400",
-                              LOW_BALANCE:   "bg-amber-500/10 border-amber-500/20 text-amber-400",
-                              LIMIT_REACHED: "bg-amber-500/10 border-amber-500/20 text-amber-400",
-                              SKIPPED:       "bg-zinc-800 border-zinc-700 text-zinc-500",
-                            };
-                            const cls = bMap[p.auto_boost_status] ?? "bg-zinc-800 border-zinc-700 text-zinc-500";
-                            return (
-                              <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${cls}`}>
-                                <Zap className="w-2.5 h-2.5" />
-                                {p.auto_boost_status.replace(/_/g, " ")}
-                              </span>
-                            );
-                          })()}
-                          {p.creator_name && <span className="text-[10px] text-zinc-500">{p.creator_name}</span>}
-                          <span className="text-[10px] text-zinc-600 ml-auto">{fmt(p.created_at)}</span>
-                        </div>
-                        <p className="text-sm text-zinc-300 leading-relaxed line-clamp-2">{p.content || "—"}</p>
-                      </div>
-                      {/* Boost post button — only for Meta platforms with a post ID, admin+ only */}
-                      {canBoost && ["facebook", "instagram"].includes(p.platform?.toLowerCase() || "") && (
-                        <button
-                          onClick={() => setBoostTarget({ type: "POST", postId: p.id, postContent: p.content })}
-                          title={p.platform_post_id ? "Boost this post on Meta" : "Post ID not available — republish via ZoikoVertex to enable boost"}
-                          disabled={!p.platform_post_id}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-                            p.platform_post_id
-                              ? "bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20"
-                              : "bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50"
-                          }`}>
-                          <Zap className="w-3 h-3" />Boost
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </InfoCard>
+            <div className="border-t border-zinc-800/60" />
 
-            {posts.filter(p => p.status !== "PUBLISHED").length > 0 && (
-              <InfoCard title={`In-Progress Posts (${posts.filter(p => p.status !== "PUBLISHED").length})`}>
-                <div className="space-y-3">
-                  {posts.filter(p => p.status !== "PUBLISHED").map(p => (
-                    <div key={p.id} className="flex items-start gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-xl opacity-70">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-300 uppercase">{p.platform}</span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400">{p.status.replace(/_/g, " ")}</span>
-                          {p.creator_name && <span className="text-[10px] text-zinc-500">{p.creator_name}</span>}
-                        </div>
-                        <p className="text-sm text-zinc-400 line-clamp-2">{p.content || "—"}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </InfoCard>
-            )}
-          </div>
-        )}
-
-        {/* INSIGHTS */}
-        {activeTab === "insights" && (
-          <div className="space-y-5">
-
-            {/* Sync nudge if no insights data */}
-            {insights && insights.boosts_count === 0 && (
-              <div className="flex items-center gap-3 p-4 bg-zinc-900/60 border border-zinc-800 rounded-xl text-zinc-500 text-xs">
-                <BarChart2 className="w-4 h-4 shrink-0 text-zinc-600" />
-                No boost data yet. Launch this campaign and create a Meta Ads boost to start seeing metrics here.
-              </div>
-            )}
-
-            {/* ── Aggregate metric cards ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {[
-                { label: "Impressions", value: insights?.totals.impressions.toLocaleString() ?? "—", icon: Eye,       color: "text-indigo-400" },
-                { label: "Reach",       value: insights?.totals.reach.toLocaleString()       ?? "—", icon: TrendingUp, color: "text-sky-400"    },
-                { label: "Clicks",      value: insights?.totals.clicks.toLocaleString()      ?? "—", icon: Target,     color: "text-emerald-400" },
-                { label: "Ad Spend",    value: insights ? `${insights.budget.currency} ${insights.totals.spend.toLocaleString()}` : "—", icon: DollarSign, color: "text-amber-400" },
-              ].map(m => (
-                <div key={m.label} className="p-4 bg-zinc-900/40 border border-zinc-800 rounded-2xl flex items-start gap-3">
-                  <div className={`p-2 rounded-xl bg-zinc-800 ${m.color}`}>
-                    <m.icon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold text-white">{m.value}</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">{m.label}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* ── Calculated KPIs ── */}
-            {insights && (insights.totals.impressions > 0 || insights.totals.clicks > 0) && (
-              <InfoCard title="Performance Ratios">
-                <div className="grid grid-cols-3 gap-4">
-                  {[
-                    { label: "CTR",  value: `${insights.kpis.ctr}%`,                 sub: "Click-through rate"      },
-                    { label: "CPM",  value: `${insights.budget.currency} ${insights.kpis.cpm}`, sub: "Cost per 1,000 impressions" },
-                    { label: "CPC",  value: `${insights.budget.currency} ${insights.kpis.cpc}`, sub: "Cost per click"             },
-                  ].map(k => (
-                    <div key={k.label} className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-center">
-                      <p className="text-2xl font-bold text-white">{k.value}</p>
-                      <p className="text-[10px] font-semibold text-zinc-400 mt-1">{k.label}</p>
-                      <p className="text-[9px] text-zinc-600 mt-0.5">{k.sub}</p>
-                    </div>
-                  ))}
-                </div>
-              </InfoCard>
-            )}
-
-            {/* ── Platform breakdown bar chart ── */}
-            {insights && insights.by_platform.length > 0 && (
-              <InfoCard title="Performance by Platform">
-                <div className="space-y-3">
-                  {insights.by_platform.map(p => {
-                    const maxImpr = Math.max(...insights.by_platform.map(x => x.impressions), 1);
-                    const maxClicks = Math.max(...insights.by_platform.map(x => x.clicks), 1);
-                    return (
-                      <div key={p.platform} className="space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-zinc-300 capitalize">{p.platform}</span>
-                          <span className="text-zinc-500">{p.impressions.toLocaleString()} impr · {p.clicks.toLocaleString()} clicks</span>
-                        </div>
-                        <div className="flex gap-1">
-                          <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-indigo-500 rounded-full transition-all"
-                              style={{ width: `${Math.round((p.impressions / maxImpr) * 100)}%` }} />
-                          </div>
-                          <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500 rounded-full transition-all"
-                              style={{ width: `${Math.round((p.clicks / maxClicks) * 100)}%` }} />
-                          </div>
-                        </div>
-                        <div className="flex gap-1 text-[9px] text-zinc-600">
-                          <span className="flex-1 flex items-center gap-1"><span className="w-2 h-1.5 rounded-sm bg-indigo-500 inline-block" />Impressions</span>
-                          <span className="flex-1 flex items-center gap-1"><span className="w-2 h-1.5 rounded-sm bg-emerald-500 inline-block" />Clicks</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </InfoCard>
-            )}
-
-            {/* ── Budget utilisation ── */}
-            {insights?.budget.total && (
-              <InfoCard title="Budget Utilisation">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-zinc-400">
-                    <span>{insights.budget.currency} {insights.budget.spend.toLocaleString()} spent</span>
-                    <span className="font-semibold">{insights.budget.utilization_pct ?? 0}%</span>
-                    <span>of {insights.budget.currency} {insights.budget.total.toLocaleString()}</span>
-                  </div>
-                  <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${
-                      (insights.budget.utilization_pct ?? 0) >= 110 ? "bg-rose-500"
-                      : (insights.budget.utilization_pct ?? 0) >= 85 ? "bg-amber-500"
-                      : "bg-emerald-500"
-                    }`} style={{ width: `${Math.min(insights.budget.utilization_pct ?? 0, 100)}%` }} />
-                  </div>
-                </div>
-              </InfoCard>
-            )}
-
-            {/* ── KPI Targets vs Actuals ── */}
-            <InfoCard title="KPI Targets">
-              <div className="grid grid-cols-3 gap-4">
+            {/* Performance */}
+            <section>
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Performance</p>
+              <div className="grid grid-cols-5 gap-6">
                 {[
-                  { label: "Reach Target",       target: insights?.kpi_targets.reach,       actual: insights?.totals.reach       },
-                  { label: "Engagement Target",   target: insights?.kpi_targets.engagement,  actual: insights?.totals.clicks      },
-                  { label: "Conversion Target",   target: insights?.kpi_targets.conversions, actual: null                          },
-                ].map(k => {
-                  const pct = k.target && k.actual ? Math.round((k.actual / k.target) * 100) : null;
-                  return (
-                    <div key={k.label} className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl space-y-2">
-                      <div>
-                        <p className="text-lg font-bold text-white">{k.target?.toLocaleString() ?? "—"}</p>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">{k.label}</p>
-                      </div>
-                      {pct !== null && (
-                        <div>
-                          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${pct >= 100 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-500" : "bg-indigo-500"}`}
-                              style={{ width: `${Math.min(pct, 100)}%` }} />
-                          </div>
-                          <p className="text-[10px] text-zinc-600 mt-1">{k.actual?.toLocaleString()} actual · {pct}%</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </InfoCard>
-
-            {/* ── Boost status distribution ── */}
-            {insights && insights.by_status.length > 0 && (
-              <InfoCard title="Boost Status Distribution">
-                <div className="flex flex-wrap gap-2">
-                  {insights.by_status.map(s => (
-                    <div key={s.status} className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold ${BOOST_STATUS_STYLES[s.status] || BOOST_STATUS_STYLES.PENDING}`}>
-                      <span>{s.status}</span>
-                      <span className="text-[11px] font-bold opacity-80">{s.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </InfoCard>
-            )}
-
-            {/* ── Objective breakdown ── */}
-            {insights && insights.by_objective.length > 0 && (
-              <InfoCard title="Boosts by Objective">
-                <div className="flex flex-wrap gap-2">
-                  {insights.by_objective.map(o => (
-                    <div key={o.objective} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700 text-xs text-zinc-300">
-                      <span className="font-semibold">{o.objective.replace(/_/g, " ")}</span>
-                      <span className="text-zinc-500 font-bold">{o.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </InfoCard>
-            )}
-
-          </div>
-        )}
-
-        {/* BOOSTS */}
-        {activeTab === "boosts" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-zinc-500">Meta Ads boosts linked to this campaign. Sync to pull latest metrics.</p>
-              {campaign.status === "ACTIVE" && (
-                <button onClick={() => setBoostTarget({ type: "CAMPAIGN" })}
-                  className="flex items-center gap-2 px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-xl transition-all">
-                  <Zap className="w-3.5 h-3.5" />New Boost
-                </button>
-              )}
-            </div>
-
-            {boosts.length === 0 ? (
-              <div className="text-center py-16 text-zinc-600 bg-zinc-900/40 border border-zinc-800 rounded-2xl">
-                <Zap className="w-8 h-8 mx-auto mb-3 opacity-30" />
-                <p className="text-sm font-semibold">No boosts yet</p>
-                <p className="text-xs mt-1 max-w-xs mx-auto">
-                  {campaign.status === "ACTIVE"
-                    ? "Click \"New Boost\" or use the \"Boost\" button on a published post to amplify this campaign on Meta."
-                    : "Launch this campaign first, then boost individual posts or the whole campaign on Meta Ads."}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {boosts.map(b => (
-                  <div key={b.id} className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-3">
-                    {/* Boost header */}
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${BOOST_STATUS_STYLES[b.status] || BOOST_STATUS_STYLES.PENDING}`}>
-                          {b.status}
-                        </span>
-                        {/* Ad type badge */}
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${
-                          b.platform === "google" ? "bg-orange-500/10 text-orange-400" : "bg-blue-500/10 text-blue-400"
-                        }`}>
-                          {b.boost_type?.replace(/_/g, " ") || "BOOST"}
-                        </span>
-                        {/* Channel type badge for Google */}
-                        {b.platform === "google" && b.advertising_channel_type && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-orange-500/5 text-orange-300 uppercase border border-orange-500/20">
-                            {b.advertising_channel_type}
-                          </span>
-                        )}
-                        <span className="text-[10px] text-zinc-500 uppercase font-semibold">{b.platform}</span>
-                        <span className="text-[10px] text-zinc-600">{b.objective.replace(/_/g, " ")}</span>
-                        {/* Creative thumbnail */}
-                        {b.ad_image_url && (
-                          <img
-                            src={b.ad_image_url}
-                            alt="Creative"
-                            className="w-8 h-8 rounded-md object-cover border border-zinc-700"
-                          />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={() => handleSyncBoost(b.id)}
-                          title="Sync metrics"
-                          className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-colors">
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        </button>
-                        {b.status === "ACTIVE" && (
-                          <button onClick={() => handleBoostAction(b.id, "pause")}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors">
-                            <Pause className="w-3 h-3" />Pause
-                          </button>
-                        )}
-                        {b.status === "PAUSED" && (
-                          <button onClick={() => handleBoostAction(b.id, "resume")}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors">
-                            <Play className="w-3 h-3" />Resume
-                          </button>
-                        )}
-                        {["ACTIVE", "PAUSED"].includes(b.status) && (
-                          <button onClick={() => handleBoostAction(b.id, "cancel")}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-zinc-800 text-zinc-400 hover:bg-rose-500/10 hover:text-rose-400 transition-colors">
-                            <X className="w-3 h-3" />Cancel
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Budget + dates */}
-                    <div className="flex flex-wrap gap-4 text-xs text-zinc-500">
-                      <span>
-                        <span className="text-zinc-300 font-semibold">
-                          {b.budget_daily
-                            ? `${b.budget_currency} ${b.budget_daily}/day`
-                            : b.budget_total
-                              ? `${b.budget_currency} ${b.budget_total} total`
-                              : "—"}
-                        </span>
-                        {" "}budget
-                      </span>
-                      <span>{fmt(b.start_at)} → {fmt(b.end_at)}</span>
-                    </div>
-
-                    {/* Metrics */}
-                    <div className="grid grid-cols-4 gap-3">
-                      {[
-                        { label: "Impressions",  value: b.impressions.toLocaleString(),       icon: Eye       },
-                        { label: "Reach",        value: b.reach.toLocaleString(),              icon: BarChart2 },
-                        { label: "Clicks",       value: b.clicks.toLocaleString(),             icon: Zap       },
-                        { label: "Ad Spend",     value: `${b.budget_currency || "USD"} ${b.spend_recorded.toFixed(2)}`, icon: DollarSign },
-                      ].map(m => (
-                        <div key={m.label} className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                          <p className="text-sm font-bold text-white">{m.value}</p>
-                          <p className="text-[10px] text-zinc-500 mt-0.5">{m.label}</p>
-                        </div>
-                      ))}
-                    </div>
+                  { label: "MAIN RESULT",           value: clicks > 0 ? clicks.toLocaleString() : (impr > 0 ? impr.toLocaleString() : "0"), sub: "Link clicks" },
+                  { label: "COST PER MAIN RESULT",  value: clicks > 0 && spend > 0 ? `$${(spend / clicks).toFixed(2)}` : "--", sub: "per link click" },
+                  { label: "CTR",                   value: ctr > 0 ? `${ctr.toFixed(2)}%` : "--", sub: "" },
+                  { label: "IMPRESSIONS",           value: impr > 0 ? impr.toLocaleString() : "--", sub: "" },
+                  { label: "REACH",                 value: reach > 0 ? reach.toLocaleString() : "--", sub: "" },
+                ].map(({ label, value, sub }) => (
+                  <div key={label}>
+                    <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">{label}</p>
+                    <p className="text-2xl font-bold text-white">{value}</p>
+                    {sub && <p className="text-[11px] text-zinc-500 mt-0.5">{sub}</p>}
                   </div>
                 ))}
               </div>
+              {cpm > 0 || cpc > 0 ? (
+                <div className="grid grid-cols-5 gap-6 mt-6 pt-4 border-t border-zinc-800/40">
+                  {[
+                    { label: "CPM",   value: cpm > 0 ? `$${cpm.toFixed(2)}` : "--" },
+                    { label: "CPC",   value: cpc > 0 ? `$${cpc.toFixed(2)}` : "--" },
+                    { label: "ROAS",  value: "--" },
+                    { label: "CPP",   value: "--" },
+                    { label: "TOTAL SPEND", value: `$${spend.toFixed(2)}` },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">{label}</p>
+                      <p className="text-lg font-semibold text-zinc-300">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+
+            {/* Placements — from creative/targeting */}
+            {(campaign.platforms?.length > 0 || !!(targeting?.geography)) && (
+              <>
+                <div className="border-t border-zinc-800/60" />
+                <section>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Placements</p>
+                  <div className="space-y-3">
+                    {campaign.platforms?.length > 0 && (
+                      <div className="flex items-start gap-6">
+                        <p className="text-xs text-zinc-600 w-36 shrink-0 pt-0.5">Publisher platforms:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {campaign.platforms.map(p => (
+                            <span key={p} className="px-2.5 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-300">{p}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {(targeting?.geography as string[])?.length > 0 && (
+                      <div className="flex items-start gap-6">
+                        <p className="text-xs text-zinc-600 w-36 shrink-0 pt-0.5">Locations:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(targeting.geography as string[]).map((g: string) => (
+                            <span key={g} className="px-2.5 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-300">{g}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </>
+            )}
+
+            {/* Audience — from targeting */}
+            {Object.keys(targeting).length > 0 && (
+              <>
+                <div className="border-t border-zinc-800/60" />
+                <section>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Audience</p>
+                  <div className="space-y-3">
+                    {(targeting.age_min != null || targeting.age_max != null) && (
+                      <div className="flex items-center gap-6">
+                        <p className="text-xs text-zinc-600 w-36 shrink-0">Age:</p>
+                        <p className="text-sm text-zinc-300">{String(targeting.age_min ?? 18)}–{String(targeting.age_max ?? 65)}</p>
+                      </div>
+                    )}
+                    {!!targeting.gender && String(targeting.gender) !== "ALL" && (
+                      <div className="flex items-center gap-6">
+                        <p className="text-xs text-zinc-600 w-36 shrink-0">Gender:</p>
+                        <p className="text-sm text-zinc-300 capitalize">{String(targeting.gender)}</p>
+                      </div>
+                    )}
+                    {(targeting.interests as string[])?.length > 0 && (
+                      <div className="flex items-start gap-6">
+                        <p className="text-xs text-zinc-600 w-36 shrink-0 pt-0.5">Interests:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(targeting.interests as string[]).map((t: string) => (
+                            <span key={t} className="px-2.5 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-300">{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {(targeting.keywords as string[])?.length > 0 && (
+                      <div className="flex items-start gap-6">
+                        <p className="text-xs text-zinc-600 w-36 shrink-0 pt-0.5">Keywords:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(targeting.keywords as string[]).map((k: string) => (
+                            <span key={k} className="px-2.5 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-300">{k}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </>
             )}
           </div>
         )}
-      </div>
 
-      {/* ── Pause Modal ── */}
-      {showPauseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-white flex items-center gap-2"><Pause className="w-4 h-4 text-amber-400" />Pause Campaign</h2>
-              <button onClick={() => setShowPauseModal(false)}><X className="w-4 h-4 text-zinc-500" /></button>
+        {/* ════ ADS ════ */}
+        {tab === "ads" && (
+          boosts.length === 0 ? (
+            <div className="py-20 flex flex-col items-center text-center">
+              <p className="text-zinc-400 font-semibold mb-1">No ads yet</p>
+              <p className="text-zinc-600 text-sm">Ads will appear here once this campaign has active boosts.</p>
             </div>
-            <textarea rows={3} value={pauseReason} onChange={e => setPauseReason(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 resize-none"
-              placeholder="Reason for pausing…" />
-            <div className="flex gap-3">
-              <button onClick={() => setShowPauseModal(false)}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Cancel</button>
-              <button onClick={handlePause} disabled={!pauseReason.trim() || actionLoading === "pause"}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl">
-                {actionLoading === "pause" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pause className="w-4 h-4" />}
-                Confirm Pause
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Resume Modal ── */}
-      {showResumeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-white flex items-center gap-2"><Play className="w-4 h-4 text-emerald-400" />Resume Campaign</h2>
-              <button onClick={() => setShowResumeModal(false)}><X className="w-4 h-4 text-zinc-500" /></button>
-            </div>
-            <p className="text-xs text-zinc-500">Resuming will restart ad spend on Meta and Google. Provide a reason for the audit log.</p>
-            <textarea rows={3} value={resumeReason} onChange={e => setResumeReason(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500 resize-none"
-              placeholder="e.g. Client approved budget increase, issue resolved, campaign updated…" />
-            <div className="flex gap-3">
-              <button onClick={() => setShowResumeModal(false)}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Cancel</button>
-              <button onClick={handleResume} disabled={!resumeReason.trim() || actionLoading === "resume"}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl">
-                {actionLoading === "resume" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                Confirm Resume
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Cancel Campaign Modal ── */}
-      {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-white flex items-center gap-2"><X className="w-4 h-4 text-rose-400" />Cancel Campaign</h2>
-              <button onClick={() => setShowCancelModal(false)}><X className="w-4 h-4 text-zinc-500" /></button>
-            </div>
-            <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400">
-              This cannot be undone. All active boosts will be cancelled and the campaign cannot be relaunched.
-            </div>
-            <textarea rows={3} value={cancelReason} onChange={e => setCancelReason(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-rose-500 resize-none"
-              placeholder="Reason for cancellation…" />
-            <div className="flex gap-3">
-              <button onClick={() => setShowCancelModal(false)}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Keep Campaign</button>
-              <button onClick={handleCancel} disabled={cancelReason.trim().length < 5 || actionLoading === "cancel"}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl">
-                {actionLoading === "cancel" ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                Cancel Campaign
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Request Changes Modal ── */}
-      {showChangesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-white flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-400" />Request Changes
-              </h2>
-              <button onClick={() => setShowChangesModal(false)}><X className="w-4 h-4 text-zinc-500" /></button>
-            </div>
-            <p className="text-xs text-zinc-500">Explain what needs to change before this campaign can be approved. The team will be notified.</p>
-            <textarea rows={4} value={changesNote} onChange={e => setChangesNote(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 resize-none"
-              placeholder="e.g. Headline needs to be updated, landing page URL returns 404, budget exceeds client's approved limit…" />
-            <div className="flex gap-3">
-              <button onClick={() => setShowChangesModal(false)}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Cancel</button>
-              <button
-                onClick={() => { handleRequestChanges(changesNote); setShowChangesModal(false); setChangesNote(""); }}
-                disabled={changesNote.trim().length < 10 || actionLoading === "request-changes"}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl">
-                {actionLoading === "request-changes" ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertCircle className="w-4 h-4" />}
-                Send Back for Revision
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Budget Reject Modal ── */}
-      {showRejectModal && budgetAuth?.active && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-white flex items-center gap-2"><X className="w-4 h-4 text-rose-400" />Reject Budget Authorization</h2>
-              <button onClick={() => setShowRejectModal(false)}><X className="w-4 h-4 text-zinc-500" /></button>
-            </div>
-            <p className="text-sm text-zinc-400">Provide a reason so the requester knows how to address the issue.</p>
-            <textarea rows={3} value={rejectNote} onChange={e => setRejectNote(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-rose-500 resize-none"
-              placeholder="Reason for rejection…" />
-            <div className="flex gap-3">
-              <button onClick={() => setShowRejectModal(false)}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Cancel</button>
-              <button onClick={() => handleBudgetAuthDecision(budgetAuth.active!.id, "reject")}
-                disabled={!rejectNote.trim() || budgetAuthLoading === "reject"}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl">
-                {budgetAuthLoading === "reject" ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-                Confirm Reject
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Boost Modal ── */}
-      {boostTarget && (
-        <BoostModal
-          target={boostTarget}
-          campaignId={id}
-          campaign={campaign}
-          onClose={() => setBoostTarget(null)}
-          onSuccess={() => { setBoostTarget(null); load(); }}
-        />
-      )}
-    </div>
-  );
-}
-
-// ── BoostModal ────────────────────────────────────────────────
-
-// ── BoostImageUpload — inline upload for BoostModal ───────────
-function BoostImageUpload({
-  label, hint, value, slot, uploading, onUpload, onClear,
-}: {
-  label: string; hint?: string; value: string; slot: string;
-  uploading: boolean;
-  onUpload: (file: File, slot: string) => void;
-  onClear: () => void;
-}) {
-  const ref = useRef<HTMLInputElement>(null);
-  const labelCls = "block text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5";
-  return (
-    <div>
-      <label className={labelCls}>
-        {label}
-        {hint && <span className="normal-case font-normal text-zinc-600 ml-1">— {hint}</span>}
-      </label>
-      {value ? (
-        <div className="relative w-full h-28 rounded-xl overflow-hidden border border-zinc-700 bg-zinc-900">
-          <img src={value} alt="Creative" className="w-full h-full object-cover" />
-          <button type="button" onClick={onClear}
-            className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-white hover:bg-black">
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-      ) : (
-        <button type="button" onClick={() => ref.current?.click()} disabled={uploading}
-          className="w-full h-20 border border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1.5 text-zinc-500 hover:border-zinc-500 hover:text-zinc-400 transition-all disabled:opacity-50">
-          {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
-          <span className="text-xs">{uploading ? "Uploading…" : "Click to upload"}</span>
-        </button>
-      )}
-      <input ref={ref} type="file" accept="image/*" className="hidden"
-        onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(f, slot); }} />
-    </div>
-  );
-}
-
-function BoostModal({
-  target, campaignId, campaign, onClose, onSuccess,
-}: {
-  target:     { type: 'POST' | 'CAMPAIGN'; postId?: string; postContent?: string };
-  campaignId: string;
-  campaign:   Campaign;
-  onClose:    () => void;
-  onSuccess:  () => void;
-}) {
-  // Agency model: no account selection — backend resolves agency account automatically
-  const [boostPlatform, setBoostPlatform] = useState<'meta' | 'google'>('meta');
-  // Google creative fields
-  const [headline, setHeadline]                         = useState("");
-  const [adDescription, setAdDescription]              = useState("");
-  const [finalUrl, setFinalUrl]                         = useState("");
-  const [googleAdType, setGoogleAdType]                 = useState<'display' | 'search'>('display');
-  const [googleImageUrl, setGoogleImageUrl]             = useState("");
-  const [googleSquareUrl, setGoogleSquareUrl]           = useState("");
-  const [rsaHeadlines, setRsaHeadlines]                 = useState(["", "", ""]);
-  const [rsaDescriptions, setRsaDescriptions]           = useState(["", ""]);
-  const [googleKeywords, setGoogleKeywords]             = useState("");
-
-  // Meta creative fields (for CAMPAIGN-type, non-POST boosts)
-  const [metaAdType, setMetaAdType]                     = useState<'post_boost' | 'image_ad' | 'video_ad' | 'lead_ad'>('post_boost');
-  const [adImageUrl, setAdImageUrl]                     = useState("");
-  const [adVideoUrl, setAdVideoUrl]                     = useState("");
-  const [adHeadline, setAdHeadline]                     = useState("");
-  const [adBody, setAdBody]                             = useState("");
-  const [adCta, setAdCta]                               = useState("LEARN_MORE");
-  const [adLandingUrl, setAdLandingUrl]                 = useState("");
-  const [leadFormId, setLeadFormId]                     = useState("");
-  const [uploadingImage, setUploadingImage]             = useState<string | null>(null);
-  const [vaultPicker,   setVaultPicker]                 = useState<{ slot: string } | null>(null);
-
-  // Shared state
-  const [objective, setObjective]     = useState(target.type === "POST" ? "POST_ENGAGEMENT" : "REACH");
-  const [budgetType, setBudgetType]   = useState<"daily" | "total">("daily");
-  const [budgetAmount, setBudgetAmount] = useState(campaign.budget_daily?.toString() || campaign.budget_total?.toString() || "");
-  const [startAt, setStartAt]         = useState(campaign.start_at?.split("T")[0] || new Date().toISOString().split("T")[0]);
-  const [endAt, setEndAt]             = useState(campaign.end_at?.split("T")[0] || "");
-  const [countries, setCountries]     = useState<string[]>((campaign.targeting?.geography as string[] | undefined) || []);
-  const [ageMin, setAgeMin]           = useState(18);
-  const [ageMax, setAgeMax]           = useState(65);
-  const [submitting, setSubmitting]   = useState(false);
-  const [error, setError]             = useState<string | null>(null);
-
-  // Agency model: customer linking is handled by admins via Admin → Ad Accounts, not from this UI
-  const handleLinkGoogleCustomer = async (_customerId: string) => { void _customerId; };
-
-  const toggleCountry = (c: string) => {
-    setCountries(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
-  };
-
-  const uploadBoostImage = async (file: File, slot: string) => {
-    if (file.size > 10 * 1024 * 1024) { setError("Max 10 MB per image"); return; }
-    setUploadingImage(slot);
-    try {
-      const ext  = file.name.split(".").pop() || "jpg";
-      const path = `boost-creatives/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("media").upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
-      const { data: { publicUrl } } = supabase.storage.from("media").getPublicUrl(path);
-      if (slot === "meta-image")         setAdImageUrl(publicUrl);
-      else if (slot === "google-land")   setGoogleImageUrl(publicUrl);
-      else if (slot === "google-square") setGoogleSquareUrl(publicUrl);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Upload failed");
-    } finally { setUploadingImage(null); }
-  };
-
-  const handleSubmit = async () => {
-    if (!budgetAmount || parseFloat(budgetAmount) <= 0) { setError("Enter a valid budget"); return; }
-    if (!startAt || !endAt) { setError("Start and end dates are required"); return; }
-
-    // Agency model: no account validation — backend resolves agency account automatically
-
-    if (boostPlatform === 'meta') {
-      const boostType = target.type === "POST" ? "POST" : (
-        metaAdType === "image_ad" ? "IMAGE_AD" :
-        metaAdType === "video_ad" ? "VIDEO_AD" :
-        metaAdType === "lead_ad"  ? "LEAD_AD"  : "CAMPAIGN"
-      );
-
-      setSubmitting(true); setError(null);
-      try {
-        await api.post("/api/v1/ads/boosts", {
-          boost_type:        boostType,
-          publish_intent_id: target.type === "POST" ? target.postId : undefined,
-          campaign_id:       campaignId,
-          // No connected_account_id — backend resolves agency account
-          objective:         metaAdType === "lead_ad" ? "LEAD_GENERATION" : objective,
-          [budgetType === "daily" ? "budget_daily" : "budget_total"]: parseFloat(budgetAmount),
-          budget_currency: campaign.budget_currency || "USD",
-          start_at: startAt, end_at: endAt,
-          targeting: { countries, age_min: ageMin, age_max: ageMax },
-          ad_image_url:   adImageUrl   || undefined,
-          ad_video_url:   adVideoUrl   || undefined,
-          ad_headline:    adHeadline   || undefined,
-          ad_body:        adBody       || undefined,
-          ad_cta:         adCta        || undefined,
-          ad_landing_url: adLandingUrl || undefined,
-          lead_form_id:   leadFormId   || undefined,
-        });
-        onSuccess();
-      } catch (err: unknown) {
-        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-        setError(msg || "Failed to create boost");
-      } finally { setSubmitting(false); }
-    } else {
-      if (googleAdType === 'search') {
-        const heads = rsaHeadlines.filter(Boolean);
-        const descs = rsaDescriptions.filter(Boolean);
-        if (heads.length < 3) { setError("Search ads need at least 3 headlines"); return; }
-        if (descs.length < 2) { setError("Search ads need at least 2 descriptions"); return; }
-        if (!finalUrl)        { setError("Landing page URL is required for Search ads"); return; }
-      }
-
-      setSubmitting(true); setError(null);
-      try {
-        await api.post("/api/v1/ads/google/boosts", {
-          boost_type:           googleAdType === 'search' ? 'SEARCH_AD' : 'DISPLAY_AD',
-          google_campaign_type: googleAdType.toUpperCase(),
-          campaign_id:          campaignId,
-          // No connected_account_id — backend resolves agency account
-          objective,
-          [budgetType === "daily" ? "budget_daily" : "budget_total"]: parseFloat(budgetAmount),
-          budget_currency:     campaign.budget_currency || "USD",
-          start_at: startAt, end_at: endAt,
-          targeting:           { countries, age_min: ageMin, age_max: ageMax },
-          ad_image_url:        googleImageUrl  || undefined,
-          ad_square_image_url: googleSquareUrl || undefined,
-          headline:            headline        || undefined,
-          description:         adDescription  || undefined,
-          final_url:           finalUrl        || undefined,
-          rsa_headlines:       rsaHeadlines.filter(Boolean),
-          rsa_descriptions:    rsaDescriptions.filter(Boolean),
-          keywords:            googleKeywords ? googleKeywords.split("\n").filter(Boolean) : [],
-        });
-        onSuccess();
-      } catch (err: unknown) {
-        const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-        setError(msg || "Failed to create Google Ads boost");
-      } finally { setSubmitting(false); }
-    }
-  };
-
-  const inputCls = "w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-amber-500 transition-all";
-  const labelCls = "block text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5";
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-800">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" />
-            <h2 className="font-bold text-white">
-              {target.type === "POST" ? "Boost Post" : "Boost Campaign"}
-            </h2>
-          </div>
-          <button onClick={onClose}><X className="w-4 h-4 text-zinc-500" /></button>
-        </div>
-
-        <div className="p-6 space-y-4">
-          {/* Post preview */}
-          {target.type === "POST" && target.postContent && (
-            <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-              <p className="text-xs text-zinc-500 mb-1">Boosting post:</p>
-              <p className="text-sm text-zinc-300 line-clamp-2">{target.postContent}</p>
-            </div>
-          )}
-
-          {/* Platform selector */}
-          <div>
-            <label className={labelCls}>Ad Platform</label>
-            <div className="flex gap-2">
-              {(["meta", "google"] as const).map(p => (
-                <button key={p} onClick={() => { setBoostPlatform(p); setError(null); }}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
-                    boostPlatform === p
-                      ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
-                      : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
-                  }`}>
-                  {p === 'meta' ? 'Meta Ads' : 'Google Ads'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Meta Ads section ── */}
-          {boostPlatform === 'meta' && (
-            <>
-              {/* Agency badge — no account selection needed */}
-              <div className="flex items-center gap-2 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <p className="text-xs text-emerald-300">Ads will run through the <strong>ZoikoVertex agency Meta account</strong></p>
-              </div>
-
-              {/* Meta ad type selector — only for CAMPAIGN boosts (not POST boosts) */}
-              {target.type === "CAMPAIGN" && (
-                <div>
-                  <label className={labelCls}>Ad Type</label>
-                  <div className="flex flex-wrap gap-2">
-                    {([
-                      { value: "post_boost", label: "Campaign Boost" },
-                      { value: "image_ad",   label: "Image Ad"       },
-                      { value: "video_ad",   label: "Video Ad"       },
-                      { value: "lead_ad",    label: "Lead Ad"        },
-                    ] as const).map(t => (
-                      <button key={t.value} type="button" onClick={() => setMetaAdType(t.value)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                          metaAdType === t.value
-                            ? "bg-blue-500/15 text-blue-300 border-blue-500/30"
-                            : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
-                        }`}>
-                        {t.label}
-                      </button>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm" style={{ minWidth: 1000 }}>
+                <thead>
+                  <tr className="border-b border-zinc-800">
+                    {["AD", "STATUS", "AD SET NAME", "MAIN RESULT", "COST PER RESULT", "AMOUNT SPENT", "CPP", "CPM", "CPC"].map(h => (
+                      <th key={h} className={`px-4 py-3 text-[10px] font-bold text-zinc-600 uppercase tracking-widest whitespace-nowrap ${h === "AD" ? "text-left min-w-[280px]" : "text-right"}`}>
+                        {h}
+                      </th>
                     ))}
-                  </div>
-                </div>
-              )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {boosts.map((b, i) => {
+                    const bSpend = b.spend_recorded || 0;
+                    const bClicks = b.clicks || 0;
+                    const cpr = bClicks > 0 && bSpend > 0 ? (bSpend / bClicks).toFixed(2) : null;
+                    const isAdActive = ["ACTIVE"].includes(b.status);
+                    return (
+                      <tr key={b.id}
+                        className={`border-b border-zinc-800/40 transition-colors ${
+                          isAdActive ? "bg-amber-500/3 hover:bg-amber-500/5" : "hover:bg-zinc-900/40"
+                        } ${i < boosts.length - 1 ? "" : "border-b-0"}`}>
 
-              {/* Image Ad creative */}
-              {target.type === "CAMPAIGN" && metaAdType === "image_ad" && (
-                <>
-                  <div>
-                    <BoostImageUpload
-                      label="Ad Image" hint="Recommended 1200×628"
-                      value={adImageUrl} slot="meta-image"
-                      uploading={uploadingImage === "meta-image"}
-                      onUpload={uploadBoostImage} onClear={() => setAdImageUrl("")}
-                    />
-                    {!adImageUrl && (
-                      <button type="button" onClick={() => setVaultPicker({ slot: "meta-image" })}
-                        className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
-                        or browse Media Vault →
-                      </button>
-                    )}
-                  </div>
-                  <div>
-                    <label className={labelCls}>Headline <span className="normal-case text-zinc-600 font-normal">(max 40 chars)</span></label>
-                    <input value={adHeadline} maxLength={40} onChange={e => setAdHeadline(e.target.value)} className={inputCls} placeholder="Your offer headline" />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Ad Copy <span className="normal-case text-zinc-600 font-normal">(max 125 chars)</span></label>
-                    <textarea rows={2} value={adBody} maxLength={125} onChange={e => setAdBody(e.target.value)} className={`${inputCls} resize-none`} placeholder="Describe your offer…" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={labelCls}>CTA</label>
-                      <select value={adCta} onChange={e => setAdCta(e.target.value)} className={inputCls}>
-                        {["LEARN_MORE","SHOP_NOW","SIGN_UP","BOOK_NOW","CONTACT_US","DOWNLOAD","GET_QUOTE","SUBSCRIBE"].map(c =>
-                          <option key={c} value={c}>{c.replace(/_/g," ")}</option>
-                        )}
-                      </select>
-                    </div>
-                    <div>
-                      <label className={labelCls}>Landing URL</label>
-                      <input type="url" value={adLandingUrl} onChange={e => setAdLandingUrl(e.target.value)} className={inputCls} placeholder="https://…" />
-                    </div>
-                  </div>
-                </>
-              )}
+                        {/* AD */}
+                        <td className="px-4 py-4 min-w-[280px]">
+                          <div className="flex items-start gap-3">
+                            {b.ad_image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={b.ad_image_url} alt="" className="w-16 h-12 object-cover rounded shrink-0 bg-zinc-800" />
+                            ) : (
+                              <div className="w-16 h-12 bg-zinc-800 rounded shrink-0 flex items-center justify-center text-zinc-600 text-xs">No img</div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-white truncate">{b.ad_headline || `${b.boost_type.replace(/_/g, " ")} Ad`}</p>
+                              {b.ad_body && <p className="text-[11px] text-zinc-500 line-clamp-2 mt-0.5">{b.ad_body}</p>}
+                              <p className="text-[10px] text-zinc-600 mt-1 flex items-center gap-1">
+                                <span>📷</span>
+                                {b.boost_type === "POST" ? "Post boost" :
+                                 b.boost_type === "IMAGE_AD" ? "Single image ad" :
+                                 b.boost_type === "VIDEO_AD" ? "Video ad" :
+                                 b.boost_type.replace(/_/g, " ").toLowerCase()}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
 
-              {/* Video Ad creative */}
-              {target.type === "CAMPAIGN" && metaAdType === "video_ad" && (
-                <>
-                  <div>
-                    <label className={labelCls}>Video URL / Facebook Video ID</label>
-                    <input value={adVideoUrl} onChange={e => setAdVideoUrl(e.target.value)} className={inputCls} placeholder="Paste Facebook-hosted video URL or ID" />
-                  </div>
-                  <BoostImageUpload
-                    label="Thumbnail (optional)" hint="Shown before video plays"
-                    value={adImageUrl} slot="meta-image"
-                    uploading={uploadingImage === "meta-image"}
-                    onUpload={uploadBoostImage} onClear={() => setAdImageUrl("")}
-                  />
-                  <div>
-                    <label className={labelCls}>Headline</label>
-                    <input value={adHeadline} maxLength={40} onChange={e => setAdHeadline(e.target.value)} className={inputCls} placeholder="Video headline" />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Ad Copy</label>
-                    <textarea rows={2} value={adBody} maxLength={125} onChange={e => setAdBody(e.target.value)} className={`${inputCls} resize-none`} placeholder="Describe your video…" />
-                  </div>
-                </>
-              )}
+                        {/* STATUS */}
+                        <td className="px-4 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <div style={{
+                              width: 30, height: 17, borderRadius: 999,
+                              background: isAdActive ? "#71717a" : "#3f3f46",
+                              position: "relative", display: "inline-block",
+                            }}>
+                              <span style={{
+                                position: "absolute", top: 1.5, width: 14, height: 14,
+                                borderRadius: "50%", background: "#fff",
+                                boxShadow: "0 1px 2px rgba(0,0,0,0.4)",
+                                transition: "transform 150ms",
+                                transform: isAdActive ? "translateX(15px)" : "translateX(2px)",
+                              }} />
+                            </div>
+                            <span className={`text-xs font-medium ${isAdActive ? "text-white" : "text-zinc-400"}`}>
+                              {b.status.charAt(0) + b.status.slice(1).toLowerCase()}
+                            </span>
+                          </div>
+                        </td>
 
-              {/* Lead Ad creative */}
-              {target.type === "CAMPAIGN" && metaAdType === "lead_ad" && (
-                <>
-                  <div>
-                    <label className={labelCls}>Lead Form ID <span className="normal-case text-rose-400 font-normal">(required)</span></label>
-                    <input value={leadFormId} onChange={e => setLeadFormId(e.target.value)} className={inputCls} placeholder="Paste your Meta Lead Gen Form ID" />
-                    <p className="text-[11px] text-zinc-600 mt-1.5">Create in Meta Ads Manager → Lead Ads Forms → Copy the Form ID</p>
-                  </div>
-                  <div>
-                    <label className={labelCls}>Headline</label>
-                    <input value={adHeadline} maxLength={40} onChange={e => setAdHeadline(e.target.value)} className={inputCls} placeholder="Sign up for exclusive access" />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Ad Copy</label>
-                    <textarea rows={2} value={adBody} maxLength={125} onChange={e => setAdBody(e.target.value)} className={`${inputCls} resize-none`} placeholder="Tell people why to fill the form…" />
-                  </div>
-                </>
-              )}
-            </>
-          )}
+                        {/* AD SET NAME */}
+                        <td className="px-4 py-4 text-right">
+                          <p className="text-xs text-zinc-300">{campaign.name}</p>
+                          <p className="text-[10px] text-zinc-600 mt-0.5">Ad Set</p>
+                        </td>
 
-          {/* ── Google Ads section ── */}
-          {boostPlatform === 'google' && (
-            <>
-              {/* Agency badge — no account selection needed */}
-              <div className="flex items-center gap-2 p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl">
-                <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <p className="text-xs text-blue-300">Ads will run through the <strong>ZoikoVertex agency Google Ads account</strong></p>
-              </div>
+                        {/* MAIN RESULT */}
+                        <td className="px-4 py-4 text-right">
+                          {bClicks > 0 ? (
+                            <><p className="text-sm text-white font-medium">{bClicks.toLocaleString()}</p>
+                            <p className="text-[10px] text-zinc-500">Link clicks</p></>
+                          ) : b.impressions > 0 ? (
+                            <><p className="text-sm text-white font-medium">{b.impressions.toLocaleString()}</p>
+                            <p className="text-[10px] text-zinc-500">Impressions</p></>
+                          ) : <p className="text-zinc-600 text-xs">--</p>}
+                        </td>
 
-              {/* Google Ad Type selector */}
-              <div>
-                <label className={labelCls}>Ad Type</label>
-                <div className="flex gap-2">
-                  {([
-                    { value: "display", label: "Display Ad" },
-                    { value: "search",  label: "Search Ad"  },
-                  ] as const).map(t => (
-                    <button key={t.value} type="button" onClick={() => setGoogleAdType(t.value)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
-                        googleAdType === t.value
-                          ? "bg-orange-500/15 text-orange-300 border-orange-500/30"
-                          : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
-                      }`}>
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                        {/* COST PER RESULT */}
+                        <td className="px-4 py-4 text-right">
+                          {cpr ? (
+                            <><p className="text-sm text-white">${cpr}</p>
+                            <p className="text-[10px] text-zinc-500">per link click</p></>
+                          ) : <p className="text-zinc-600 text-xs">--</p>}
+                        </td>
 
-              {/* Display Ad fields */}
-              {googleAdType === 'display' && (
-                <>
-                  <div>
-                    <BoostImageUpload
-                      label="Landscape Image (1200×628)"
-                      hint="Required for Display"
-                      value={googleImageUrl}
-                      slot="google-land"
-                      uploading={uploadingImage === "google-land"}
-                      onUpload={uploadBoostImage}
-                      onClear={() => setGoogleImageUrl("")}
-                    />
-                    {!googleImageUrl && (
-                      <button type="button" onClick={() => setVaultPicker({ slot: "google-land" })}
-                        className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
-                        or browse Media Vault →
-                      </button>
-                    )}
-                  </div>
-                  <div>
-                    <BoostImageUpload
-                      label="Square Image (1200×1200)"
-                      hint="Required for Display"
-                      value={googleSquareUrl}
-                      slot="google-square"
-                      uploading={uploadingImage === "google-square"}
-                      onUpload={uploadBoostImage}
-                      onClear={() => setGoogleSquareUrl("")}
-                    />
-                    {!googleSquareUrl && (
-                      <button type="button" onClick={() => setVaultPicker({ slot: "google-square" })}
-                        className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
-                        or browse Media Vault →
-                      </button>
-                    )}
-                  </div>
-                  <div>
-                    <label className={labelCls}>Headline <span className="normal-case text-zinc-600 font-normal">(max 30 chars)</span></label>
-                    <input type="text" value={headline} onChange={e => setHeadline(e.target.value)}
-                      maxLength={30} className={inputCls} placeholder="Discover More" />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Description <span className="normal-case text-zinc-600 font-normal">(max 90 chars)</span></label>
-                    <input type="text" value={adDescription} onChange={e => setAdDescription(e.target.value)}
-                      maxLength={90} className={inputCls} placeholder="Amplified by ZoikoVertex" />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Landing Page URL</label>
-                    <input type="url" value={finalUrl} onChange={e => setFinalUrl(e.target.value)}
-                      className={inputCls} placeholder="https://…" />
-                  </div>
-                </>
-              )}
+                        {/* AMOUNT SPENT */}
+                        <td className="px-4 py-4 text-right">
+                          <p className="text-sm text-white">${bSpend.toFixed(2)}</p>
+                          {b.budget_daily && (
+                            <p className="text-[10px] text-zinc-500 mt-0.5">
+                              {b.budget_total ? Math.round((bSpend / b.budget_total) * 100) : 0}% of campaign&apos;s daily budget
+                            </p>
+                          )}
+                        </td>
 
-              {/* Search Ad fields */}
-              {googleAdType === 'search' && (
-                <>
-                  <div>
-                    <label className={labelCls}>Headlines <span className="normal-case text-zinc-600 font-normal">(3 required, max 30 chars each)</span></label>
-                    <div className="space-y-2">
-                      {rsaHeadlines.map((h, i) => (
-                        <input key={i} type="text" value={h} maxLength={30}
-                          onChange={e => { const a = [...rsaHeadlines]; a[i] = e.target.value; setRsaHeadlines(a); }}
-                          className={inputCls} placeholder={`Headline ${i + 1}`} />
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className={labelCls}>Descriptions <span className="normal-case text-zinc-600 font-normal">(2 required, max 90 chars each)</span></label>
-                    <div className="space-y-2">
-                      {rsaDescriptions.map((d, i) => (
-                        <input key={i} type="text" value={d} maxLength={90}
-                          onChange={e => { const a = [...rsaDescriptions]; a[i] = e.target.value; setRsaDescriptions(a); }}
-                          className={inputCls} placeholder={`Description ${i + 1}`} />
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className={labelCls}>Keywords <span className="normal-case text-zinc-600 font-normal">(one per line)</span></label>
-                    <textarea rows={3} value={googleKeywords} onChange={e => setGoogleKeywords(e.target.value)}
-                      className={`${inputCls} resize-none font-mono text-xs`}
-                      placeholder={"running shoes\nbuy sneakers online"} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Landing Page URL <span className="normal-case text-rose-400 font-normal">(required)</span></label>
-                    <input type="url" value={finalUrl} onChange={e => setFinalUrl(e.target.value)}
-                      className={inputCls} placeholder="https://…" />
-                  </div>
-                </>
-              )}
-            </>
-          )}
-
-          {/* Objective */}
-          <div>
-            <label className={labelCls}>Objective</label>
-            <select value={objective} onChange={e => setObjective(e.target.value)} className={inputCls}>
-              {OBJECTIVES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-
-          {/* Budget */}
-          <div>
-            <label className={labelCls}>Budget</label>
-            <div className="flex gap-2 mb-2">
-              {(["daily", "total"] as const).map(t => (
-                <button key={t} onClick={() => setBudgetType(t)}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    budgetType === t ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-zinc-800 text-zinc-500"
-                  }`}>
-                  {t === "daily" ? "Daily" : "Total"}
-                </button>
-              ))}
+                        {/* CPP / CPM / CPC */}
+                        <td className="px-4 py-4 text-right"><p className="text-xs text-zinc-400">--</p></td>
+                        <td className="px-4 py-4 text-right"><p className="text-xs text-zinc-400">{cpm > 0 ? `$${cpm.toFixed(2)}` : "--"}</p></td>
+                        <td className="px-4 py-4 text-right"><p className="text-xs text-zinc-400">{cpc > 0 ? `$${cpc.toFixed(2)}` : "--"}</p></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm font-semibold">
-                {campaign.budget_currency || "USD"}
-              </span>
-              <input type="number" min="1" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)}
-                className={`${inputCls} pl-12`} placeholder="0.00" />
-            </div>
-          </div>
-
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelCls}>Start Date</label>
-              <input type="date" value={startAt} onChange={e => setStartAt(e.target.value)} className={inputCls} />
-            </div>
-            <div>
-              <label className={labelCls}>End Date</label>
-              <input type="date" value={endAt} onChange={e => setEndAt(e.target.value)} className={inputCls} />
-            </div>
-          </div>
-
-          {/* Audience */}
-          <div>
-            <label className={labelCls}>Target Countries</label>
-            <div className="flex flex-wrap gap-1.5">
-              {COUNTRY_LIST.map(c => (
-                <button key={c} type="button" onClick={() => toggleCountry(c)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    countries.includes(c)
-                      ? "bg-amber-500/20 border border-amber-500/30 text-amber-400"
-                      : "bg-zinc-800 border border-zinc-700 text-zinc-500 hover:border-zinc-600"
-                  }`}>{c}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* Age range */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelCls}>Min Age</label>
-              <input type="number" min="13" max="65" value={ageMin}
-                onChange={e => setAgeMin(parseInt(e.target.value))} className={inputCls} />
-            </div>
-            <div>
-              <label className={labelCls}>Max Age</label>
-              <input type="number" min="13" max="65" value={ageMax}
-                onChange={e => setAgeMax(parseInt(e.target.value))} className={inputCls} />
-            </div>
-          </div>
-
-          {error && (
-            <div className="flex items-start gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs">
-              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />{error}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex gap-3 px-6 pb-6">
-          <button onClick={onClose}
-            className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl transition-all">
-            Cancel
-          </button>
-          <button onClick={handleSubmit} disabled={submitting}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all">
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-            {submitting ? "Creating Boost…" : "Launch Boost"}
-          </button>
-        </div>
+          )
+        )}
       </div>
 
-      {/* Media Vault Picker */}
-      {vaultPicker && (
-        <MediaVaultPicker
-          title="Browse Media Vault"
-          hint={vaultPicker.slot.includes("square") ? "Square image (1200×1200)" : "Landscape image (1200×628)"}
-          typeFilter="image"
-          onSelect={url => {
-            if (vaultPicker.slot === "google-land")   setGoogleImageUrl(url);
-            if (vaultPicker.slot === "google-square") setGoogleSquareUrl(url);
-            if (vaultPicker.slot === "meta-image")    setAdImageUrl(url);
-            setVaultPicker(null);
-          }}
-          onClose={() => setVaultPicker(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-// ── Shared sub-components ─────────────────────────────────────
-
-function InfoCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="p-5 bg-zinc-900/40 border border-zinc-800 rounded-2xl space-y-1">
-      <p className="text-[11px] font-bold text-zinc-600 uppercase tracking-widest mb-4">{title}</p>
-      {children}
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-1.5 border-b border-zinc-800/40 last:border-0">
-      <span className="text-xs text-zinc-500 font-semibold shrink-0 w-40">{label}</span>
-      <span className="text-xs text-zinc-300 text-right leading-relaxed">{value}</span>
+      {menu && <div className="fixed inset-0 z-40" onClick={() => setMenu(false)} />}
     </div>
   );
 }

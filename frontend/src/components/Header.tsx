@@ -70,7 +70,7 @@ const allRoutes: SearchItem[] = [
   { label: "Evidence Vault", href: "/governance/evidence", icon: <FileText className="w-4 h-4" />, keywords: "store evidence secure proof records" },
 
   // Integrations
-  { label: "Identity Ledger", href: "/integrations/identity-ledger", icon: <Settings className="w-4 h-4" />, keywords: "identity verification auth sso" },
+  { label: "Identity Ledger", href: "/evidence/identity-ledger", icon: <Settings className="w-4 h-4" />, keywords: "identity verification auth sso" },
   { label: "Data Integrations", href: "/integrations/data", icon: <Settings className="w-4 h-4" />, keywords: "connect import export sync data sources" },
   { label: "API Manager", href: "/integrations/api", icon: <Settings className="w-4 h-4" />, keywords: "api keys tokens endpoints developer" },
   { label: "Integration Health", href: "/integrations/health", icon: <BarChart3 className="w-4 h-4" />, keywords: "status monitoring connections uptime" },

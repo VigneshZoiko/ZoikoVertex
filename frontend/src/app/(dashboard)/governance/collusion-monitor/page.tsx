@@ -30,16 +30,20 @@ export default function CollusionMonitorPage() {
   const [data, setData] = useState<CollusionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchMetrics = async () => {
     try {
       setRefreshing(true);
+      setFetchError(null);
       const res = await api.get('/api/v1/governance/collusion/metrics');
       if (res.success) {
         setData(res.data);
+      } else {
+        setFetchError(res.error || "Failed to load collusion metrics");
       }
     } catch (error) {
-      console.error("Failed to load collusion metrics", error);
+      setFetchError("Failed to load collusion metrics");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -88,6 +92,15 @@ export default function CollusionMonitorPage() {
           </div>
         </div>
       </div>
+
+      {fetchError && (
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400 text-sm font-medium flex items-center gap-2">
+            <ShieldAlert className="w-5 h-5" />
+            {fetchError}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24 gap-4">

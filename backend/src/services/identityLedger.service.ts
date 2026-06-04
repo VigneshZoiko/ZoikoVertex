@@ -330,17 +330,6 @@ function buildLedgerEntryHash(input: {
   return computeHash(input);
 }
 
-async function getPreviousLedgerHash(workspaceId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin
-    .from('identity_ledger_entries')
-    .select('hash')
-    .eq('workspace_id', workspaceId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data?.hash || null;
-}
-
 async function getActorByActorId(actorId: string, workspaceId: string): Promise<IdentityActor | null> {
   const { data, error } = await supabaseAdmin
     .from('identity_actors')
@@ -349,7 +338,7 @@ async function getActorByActorId(actorId: string, workspaceId: string): Promise<
     .eq('actor_id', actorId)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error && error.code !== 'PGRST116') throw error;
   return data as IdentityActor | null;
 }
 
@@ -362,7 +351,7 @@ async function getCurrentSnapshot(actorId: string, workspaceId: string): Promise
     .is('effective_until', null)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error && error.code !== 'PGRST116') throw error;
   return data as AuthoritySnapshot | null;
 }
 
@@ -426,56 +415,7 @@ async function persistActor(existing: IdentityActor | null, seed: ActorSeed, sna
 }
 
 async function createLedgerEntry(seed: ActorSeed, snapshotId: string): Promise<IdentityLedgerEntry> {
-  const { data: previous, error: previousError } = await supabaseAdmin
-    .from('identity_ledger_entries')
-    .select('hash')
-    .eq('workspace_id', seed.workspace_id)
-    .order('timestamp_utc', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (previousError) throw previousError;
-
   const ledgerEntryId = generateOpaqueId('IDL');
-  const prevHash = (previous as { hash?: string } | null)?.hash || null;
-  const source = {
-    source_type: seed.source_system,
-    source_ref_id: seed.source_ref_id,
-    actor_type: seed.actor_type,
-  };
-  const authorityChange = {
-    roles: seed.current_roles,
-    permission_count: seed.current_permissions.length,
-    authority_class: seed.authority_class,
-  };
-  const risk = {
-    level: seed.risk_level,
-    flags: seed.risk_flags,
-  };
-  const retention = {
-    class: 'REGULATED',
-    legal_hold: false,
-  };
-
-  const hash = buildLedgerEntryHash({
-    tenant_id: seed.tenant_id,
-    workspace_id: seed.workspace_id,
-    data_residency: 'auto',
-    schema_version: '1.0',
-    entry_type: seed.entry_type,
-    entry_category: seed.entry_category,
-    timestamp_utc: seed.effective_from,
-    actor_id: seed.actor_id,
-    actor_type: seed.actor_type,
-    source,
-    authority_change: authorityChange,
-    session_context: {},
-    approvals: [],
-    linked_authority_snapshot_id: snapshotId,
-    risk,
-    retention,
-    prev_hash: prevHash,
-  });
 
   const { data, error } = await supabaseAdmin
     .from('identity_ledger_entries')
@@ -490,15 +430,27 @@ async function createLedgerEntry(seed: ActorSeed, snapshotId: string): Promise<I
       timestamp_utc: seed.effective_from,
       actor_id: seed.actor_id,
       actor_type: seed.actor_type,
-      source,
-      authority_change: authorityChange,
+      source: {
+        source_type: seed.source_system,
+        source_ref_id: seed.source_ref_id,
+        actor_type: seed.actor_type,
+      },
+      authority_change: {
+        roles: seed.current_roles,
+        permission_count: seed.current_permissions.length,
+        authority_class: seed.authority_class,
+      },
       session_context: {},
       approvals: [],
       linked_authority_snapshot_id: snapshotId,
-      risk,
-      retention,
-      hash,
-      prev_hash: prevHash,
+      risk: {
+        level: seed.risk_level,
+        flags: seed.risk_flags,
+      },
+      retention: {
+        class: 'REGULATED',
+        legal_hold: false,
+      },
     })
     .select()
     .single();
@@ -830,6 +782,58 @@ async function hydrateSeedFromSources(input: ResolveAuthorityBindingInput): Prom
       .maybeSingle();
 
     if (apiKey) seed = buildApiKeySeed(input.workspace_id, tenantId, apiKey as Record<string, unknown>);
+  } else if (actorType === 'system') {
+    seed = {
+      actor_id: input.actor.actor_id,
+      workspace_id: input.workspace_id,
+      tenant_id: tenantId,
+      actor_type: 'system',
+      display_name: input.actor.actor_name || `System:${input.actor.actor_id}`,
+      email: null,
+      state: 'active',
+      external_identity_id: input.actor.actor_id,
+      source_system: 'platform',
+      source_ref_id: input.actor.actor_id,
+      authority_class: 'system',
+      risk_level: 'low',
+      risk_flags: [],
+      current_roles: ['SYSTEM'],
+      current_permissions: ['system.*'],
+      last_activity_at: input.timestamp_utc || new Date().toISOString(),
+      profile: { seeded_from: 'hydrate_seed', actor_category: 'system_actor' },
+      policy_constraints: { workspace_id: input.workspace_id },
+      agent_context: null,
+      source_lineage: [{ source_type: 'system_registry', source_event_id: input.actor.actor_id }],
+      entry_type: 'identity.created',
+      entry_category: 'identity_assertion',
+      effective_from: input.timestamp_utc || new Date().toISOString(),
+    };
+  } else if (actorType === 'external_reviewer') {
+    seed = {
+      actor_id: input.actor.actor_id,
+      workspace_id: input.workspace_id,
+      tenant_id: tenantId,
+      actor_type: 'external_reviewer',
+      display_name: input.actor.actor_name || `External:${input.actor.actor_id}`,
+      email: null,
+      state: 'restricted',
+      external_identity_id: input.actor.actor_id,
+      source_system: 'external_portal',
+      source_ref_id: input.actor.actor_id,
+      authority_class: 'scoped',
+      risk_level: 'medium',
+      risk_flags: [],
+      current_roles: ['EXTERNAL_REVIEWER'],
+      current_permissions: ['evidence.review', 'evidence.comment'],
+      last_activity_at: input.timestamp_utc || new Date().toISOString(),
+      profile: { seeded_from: 'hydrate_seed', actor_category: 'external_reviewer' },
+      policy_constraints: { workspace_id: input.workspace_id },
+      agent_context: null,
+      source_lineage: [{ source_type: 'external_invitation', source_event_id: input.actor.actor_id }],
+      entry_type: 'identity.created',
+      entry_category: 'identity_assertion',
+      effective_from: input.timestamp_utc || new Date().toISOString(),
+    };
   }
 
   if (!seed) {
@@ -1223,7 +1227,8 @@ export async function verifyIdentityLedgerChain(params: {
     .from('identity_ledger_entries')
     .select('*')
     .eq('workspace_id', params.workspace_id)
-    .order('timestamp_utc', { ascending: true });
+    .order('timestamp_utc', { ascending: true })
+    .order('created_at', { ascending: true });
 
   if (error) throw error;
 
@@ -1355,7 +1360,8 @@ export async function requestBreakGlass(params: { tenant_id: string; actor_id: s
       actor_id: params.actor_id,
       tenant_id: params.tenant_id,
       reason: params.reason,
-      status: 'ACTIVE',
+      status: 'PENDING',
+      review_status: 'AWAITING_REVIEW',
       elevated_roles: params.elevated_roles || ['SUPERADMIN'],
     })
     .select()
@@ -1366,6 +1372,17 @@ export async function requestBreakGlass(params: { tenant_id: string; actor_id: s
 }
 
 export async function activateBreakGlass(params: { id: string }) {
+  const { data: session } = await supabaseAdmin
+    .from('identity_break_glass_sessions')
+    .select('review_status')
+    .eq('id', params.id)
+    .single();
+
+  if (!session) throw new Error('Break-glass session not found');
+  if (session.review_status !== 'APPROVED') {
+    throw new Error('Break-glass session must be reviewed and approved before activation');
+  }
+
   const { data, error } = await supabaseAdmin
     .from('identity_break_glass_sessions')
     .update({ status: 'ACTIVE' })
@@ -1615,19 +1632,6 @@ export async function registerServiceAccount(
   if (error) throw error;
 
   const now = new Date().toISOString();
-  const prevHash = await getPreviousLedgerHash(params.workspace_id);
-  const hash = buildLedgerEntryHash({
-    tenant_id: params.tenant_id, workspace_id: params.workspace_id,
-    data_residency: 'auto', schema_version: '1.0',
-    entry_type: 'actor.registered', entry_category: 'actor_lifecycle',
-    timestamp_utc: now, actor_id: params.created_by, actor_type: 'human_user',
-    source: { source_system: params.source_system, action: 'register_service_account' },
-    authority_change: { change: 'created', service_account_id: params.actor_id },
-    session_context: {}, approvals: [],
-    linked_authority_snapshot_id: null,
-    risk: { risk_level: 'low' }, retention: { class: 'STANDARD' },
-    prev_hash: prevHash,
-  });
 
   await supabaseAdmin.from('identity_ledger_entries').insert({
     ledger_entry_id: generateOpaqueId('IDL'),
@@ -1647,8 +1651,6 @@ export async function registerServiceAccount(
     linked_authority_snapshot_id: null,
     risk: { risk_level: 'low' },
     retention: { class: 'STANDARD' },
-    hash,
-    prev_hash: prevHash,
   });
 
   return data;
@@ -1705,19 +1707,6 @@ export async function revokeServiceAccount(
   if (error) throw error;
 
   const now = new Date().toISOString();
-  const prevHash = await getPreviousLedgerHash(workspaceId);
-  const hash = buildLedgerEntryHash({
-    tenant_id: actor.tenant_id, workspace_id: workspaceId,
-    data_residency: 'auto', schema_version: '1.0',
-    entry_type: 'actor.revoked', entry_category: 'actor_lifecycle',
-    timestamp_utc: now, actor_id: revokedBy, actor_type: 'human_user',
-    source: { source_system: 'identity_ledger', action: 'revoke_service_account', reason: reason || '' },
-    authority_change: { change: 'revoked', previous_state: actor.state, service_account_id: actorId },
-    session_context: {}, approvals: [],
-    linked_authority_snapshot_id: null,
-    risk: { risk_level: 'high' }, retention: { class: 'EXTENDED' },
-    prev_hash: prevHash,
-  });
 
   await supabaseAdmin.from('identity_ledger_entries').insert({
     ledger_entry_id: generateOpaqueId('IDL'),
@@ -1737,8 +1726,6 @@ export async function revokeServiceAccount(
     linked_authority_snapshot_id: null,
     risk: { risk_level: 'high' },
     retention: { class: 'EXTENDED' },
-    hash,
-    prev_hash: prevHash,
   });
 
   return data;
@@ -1993,20 +1980,6 @@ export async function setActorRiskFlags(params: {
   if (error) throw error;
 
   const now = new Date().toISOString();
-  const prevHash = await getPreviousLedgerHash(params.workspace_id);
-  const hash = buildLedgerEntryHash({
-    tenant_id: actor.tenant_id, workspace_id: params.workspace_id,
-    data_residency: 'auto', schema_version: '1.0',
-    entry_type: 'actor.risk_flags_updated', entry_category: 'authority_change',
-    timestamp_utc: now, actor_id: params.set_by, actor_type: 'human_user',
-    source: { source_system: 'identity_ledger', action: 'set_risk_flags' },
-    authority_change: { risk_flags_previous: actor.risk_flags, risk_flags_new: params.risk_flags, reason: params.reason || '' },
-    session_context: {}, approvals: [],
-    linked_authority_snapshot_id: null,
-    risk: { risk_level: params.risk_level || actor.risk_level },
-    retention: { class: 'EXTENDED' },
-    prev_hash: prevHash,
-  });
 
   await supabaseAdmin.from('identity_ledger_entries').insert({
     ledger_entry_id: generateOpaqueId('IDL'),
@@ -2030,8 +2003,6 @@ export async function setActorRiskFlags(params: {
     linked_authority_snapshot_id: null,
     risk: { risk_level: params.risk_level || actor.risk_level },
     retention: { class: 'EXTENDED' },
-    hash,
-    prev_hash: prevHash,
   });
 
   return data;

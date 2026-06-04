@@ -45,20 +45,29 @@ export const VALID_TRANSITIONS: Record<string, string[]> = {
 // ── Zod schemas ──────────────────────────────────────────────
 
 const TargetingSchema = z.object({
-  geography:                  z.array(z.string()).default([]),
+  // Accept both old string[] and new object[] formats for geography
+  geography:                  z.array(z.unknown()).default([]),
+  excluded_geography:         z.array(z.unknown()).default([]),
   audience_summary:           z.string().optional(),
   audience_segments:          z.array(z.string()).default([]),
   exclusions:                 z.array(z.string()).default([]),
   sensitive_category_status:  z.string().default('NONE'),
   jurisdictional_flags:       z.array(z.string()).default([]),
-}).default({ geography: [], audience_segments: [], exclusions: [], sensitive_category_status: 'NONE', jurisdictional_flags: [] });
+  // Audience fields from campaign wizard
+  age_min:                    z.number().int().min(13).max(65).optional(),
+  age_max:                    z.number().int().min(13).max(65).optional(),
+  gender:                     z.string().optional(),
+  interests:                  z.array(z.unknown()).default([]),
+}).default({ geography: [], excluded_geography: [], audience_segments: [], exclusions: [], sensitive_category_status: 'NONE', jurisdictional_flags: [], interests: [] });
 
 const CreativeSchema = z.object({
   asset_ids:        z.array(z.string()).default([]),
   copy_text:        z.string().optional(),
   headline:         z.string().optional(),
   cta_text:         z.string().optional(),
-  landing_page_url: z.string().optional(),
+  landing_page_url: z.string().nullable().optional(),
+  ad_image_url:     z.string().nullable().optional(),
+  meta_ad_type:     z.string().optional(),
   utm_source:       z.string().optional(),
   utm_medium:       z.string().optional(),
   utm_campaign:     z.string().optional(),
@@ -100,13 +109,24 @@ export const CreateSchema = z.object({
   risk_tier:              z.enum(['low', 'medium', 'high', 'critical']).default('low'),
   autonomy_level:         z.enum(['L0', 'L1', 'L2', 'L3', 'L4']).default('L1'),
   approval_tier:          z.enum(['low', 'medium', 'high', 'critical']).default('low'),
-  wizard_step:            z.number().int().min(1).max(5).default(1),
+  wizard_step:            z.number().int().min(1).max(10).default(1),
 
   // Post limit & auto-boost
   post_limit:             z.number().int().positive().nullable().optional(),
   auto_boost_enabled:     z.boolean().default(false),
   boost_per_post_budget:  z.number().positive().nullable().optional(),
   boost_settings:         z.record(z.string(), z.unknown()).nullable().optional(),
+
+  // Paid ads — Meta-specific fields
+  selected_meta_account_id: z.string().uuid().nullable().optional(),
+  ads_data:                 z.array(z.unknown()).nullable().optional(),
+  eu_targeting:             z.boolean().nullable().optional(),
+  eu_beneficiary:           z.string().nullable().optional(),
+  eu_payer:                 z.string().nullable().optional(),
+  tracking_pixel_id:        z.string().nullable().optional(),
+  conversion_event:         z.string().nullable().optional(),
+  welcome_message:          z.string().nullable().optional(),
+  device_type:              z.string().nullable().optional(),
 
   // JSONB fields
   targeting:              TargetingSchema,
@@ -219,35 +239,61 @@ export const createCampaign = async (req: AuthRequest, res: Response, next: Next
       .from('workspaces').select('org_id').eq('id', workspaceId).single();
     if (!ws?.org_id) return res.status(400).json({ error: 'Organization not found' });
 
-    // ── Wallet credits validation ────────────────────────────────
-    const { data: wallet } = await supabaseAdmin
-      .from('wallets')
-      .select('balance, processing_balance')
-      .eq('workspace_id', workspaceId)
-      .single();
-
+    // ── Wallet credits validation (organic/boost only — PAID_ADS billed via Meta) ─
     let walletWarning: string | undefined;
 
-    if (!wallet || (wallet.balance <= 0 && wallet.processing_balance <= 0)) {
-      return res.status(402).json({
-        error: 'Insufficient credits. Please deposit funds to your wallet before creating a campaign.',
-        code: 'NO_CREDITS',
-      });
-    }
+    if (parsed.data.campaign_type !== 'PAID_ADS') {
+      const { data: wallet } = await supabaseAdmin
+        .from('wallets')
+        .select('balance, processing_balance')
+        .eq('workspace_id', workspaceId)
+        .single();
 
-    if (wallet.balance <= 0 && wallet.processing_balance > 0) {
-      walletWarning = 'Your deposit is still processing. Campaign saved as draft — you can launch once credits are available.';
+      if (!wallet || (wallet.balance <= 0 && wallet.processing_balance <= 0)) {
+        return res.status(402).json({
+          error: 'Insufficient credits. Please deposit funds to your wallet before creating a campaign.',
+          code: 'NO_CREDITS',
+        });
+      }
+
+      if (wallet.balance <= 0 && wallet.processing_balance > 0) {
+        walletWarning = 'Your deposit is still processing. Campaign saved as draft — you can launch once credits are available.';
+      }
     }
     // ────────────────────────────────────────────────────────────
+
+    // Destructure meta/paid-ads fields separately so they are handled explicitly
+    const {
+      selected_meta_account_id,
+      ads_data,
+      eu_targeting,
+      eu_beneficiary,
+      eu_payer,
+      tracking_pixel_id,
+      conversion_event,
+      welcome_message,
+      device_type,
+      ...coreData
+    } = parsed.data;
 
     const { data, error } = await supabaseAdmin
       .from('campaigns')
       .insert({
-        ...parsed.data,
-        workspace_id: workspaceId,
-        org_id:       ws.org_id,
-        created_by:   userId,
-        status:       'DRAFT',
+        ...coreData,
+        workspace_id:             workspaceId,
+        org_id:                   ws.org_id,
+        created_by:               userId,
+        status:                   'DRAFT',
+        // Meta / paid ads columns (from migrations 56-59)
+        selected_meta_account_id: selected_meta_account_id ?? null,
+        ads_data:                 ads_data ?? null,
+        eu_targeting:             eu_targeting ?? null,
+        eu_beneficiary:           eu_beneficiary ?? null,
+        eu_payer:                 eu_payer ?? null,
+        tracking_pixel_id:        tracking_pixel_id ?? null,
+        conversion_event:         conversion_event ?? null,
+        welcome_message:          welcome_message ?? null,
+        device_type:              device_type ?? null,
       })
       .select()
       .single();
@@ -301,9 +347,31 @@ export const updateCampaign = async (req: AuthRequest, res: Response, next: Next
     const hasMaterialEdit = MATERIAL_FIELDS.some(f => parsed.data[f as keyof typeof parsed.data] !== undefined);
     const isApproved = ['APPROVED', 'SCHEDULED', 'ACTIVE'].includes(current.status);
 
+    const {
+      selected_meta_account_id: upd_sma,
+      ads_data:                 upd_ads,
+      eu_targeting:             upd_eu,
+      eu_beneficiary:           upd_ben,
+      eu_payer:                 upd_pay,
+      tracking_pixel_id:        upd_px,
+      conversion_event:         upd_ce,
+      welcome_message:          upd_wm,
+      device_type:              upd_dt,
+      ...coreUpdateData
+    } = parsed.data;
+
     const updates: Record<string, unknown> = {
-      ...parsed.data,
-      updated_at: new Date().toISOString(),
+      ...coreUpdateData,
+      updated_at:               new Date().toISOString(),
+      selected_meta_account_id: upd_sma ?? null,
+      ads_data:                 upd_ads ?? null,
+      eu_targeting:             upd_eu  ?? null,
+      eu_beneficiary:           upd_ben ?? null,
+      eu_payer:                 upd_pay ?? null,
+      tracking_pixel_id:        upd_px  ?? null,
+      conversion_event:         upd_ce  ?? null,
+      welcome_message:          upd_wm  ?? null,
+      device_type:              upd_dt  ?? null,
     };
 
     if (hasMaterialEdit && isApproved) {

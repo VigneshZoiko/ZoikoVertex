@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { X, Search, Loader2, ImageIcon, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
 import { api } from "@/lib/api";
 
 interface LibraryAsset {
@@ -94,8 +95,8 @@ export default function MediaVaultPicker({
                     className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all ${
                       isSelected ? "border-white" : "border-transparent hover:border-zinc-600"
                     }`}>
-                    <img src={url} alt={asset.title || ""}
-                      className="w-full h-full object-cover" />
+                    <Image src={url} alt={asset.title || ""} fill
+                      className="object-cover" unoptimized />
                     {isSelected && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                         <CheckCircle2 className="w-6 h-6 text-white" />

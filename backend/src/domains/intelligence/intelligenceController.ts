@@ -39,15 +39,33 @@ export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    const visionModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
-    
-    const result = await visionModel.generateContent([
+    const prompt = [
       "Extract text and summarize this image for a social media story. Focus on key themes and mood. Keep it concise.",
       { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }
-    ]);
+    ];
 
-    const analysis = (await result.response).text();
+    // Try models in order — fall back if 503/overloaded
+    const VISION_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    let analysis = '';
+    let lastErr: unknown;
+    for (const modelId of VISION_MODELS) {
+      try {
+        const visionModel = genAI.getGenerativeModel({ model: modelId });
+        const result = await visionModel.generateContent(prompt as any);
+        analysis = (await result.response).text();
+        break;
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
+          logger.warn(`[Intelligence] ${modelId} unavailable, trying next model`);
+          lastErr = e;
+          continue;
+        }
+        throw e; // Non-503 error — propagate immediately
+      }
+    }
+    if (!analysis) throw lastErr;
     await logToDatabase('info', 'AI', `Vision analysis completed for user ${userId}`, { userId, agent_id: 'agent-content-gen-v1', agent_contract_version: 'v1' });
 
     res.status(200).json({ success: true, analysis });
@@ -74,17 +92,30 @@ export const generateContent = async (req: AuthRequest, res: Response, next: Nex
     if (imageBase64 && env.GEMINI_API_KEY) {
       try {
         const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-        const visionModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
         const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
-        
-        const result = await visionModel.generateContent([
+        const visionPrompt = [
           "Analyze this image for storytelling context. Extract meaningful text if present, otherwise describe the mood, scene, and emotional depth. Be concise and story-ready.",
           { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }
-        ]);
-        imageAnalysis = (await result.response).text();
-        logger.info('[Intelligence] Image analysis completed');
+        ];
+        const VISION_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+        for (const modelId of VISION_MODELS) {
+          try {
+            const visionModel = genAI.getGenerativeModel({ model: modelId });
+            const result = await visionModel.generateContent(visionPrompt as any);
+            imageAnalysis = (await result.response).text();
+            logger.info(`[Intelligence] Image analysis completed with ${modelId}`);
+            break;
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
+              logger.warn(`[Intelligence] ${modelId} unavailable for vision, trying next`);
+              continue;
+            }
+            throw e;
+          }
+        }
       } catch (err) {
-        logger.error({ err }, '[Intelligence] Vision analysis failed');
+        logger.warn({ err }, '[Intelligence] Vision analysis failed — continuing without image context');
       }
     }
 

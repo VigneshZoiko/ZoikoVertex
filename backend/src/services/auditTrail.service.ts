@@ -378,26 +378,26 @@ function computeHash(input: string): string {
   return createHash('sha256').update(input).digest('hex');
 }
 
-function sortedJson(obj: unknown): string {
-  if (obj === null || obj === undefined) return '{}';
-  if (Array.isArray(obj)) return JSON.stringify(obj);
-  if (typeof obj !== 'object') return String(obj);
+function sortedObject(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) return obj.map(item => sortedObject(item));
+  if (typeof obj !== 'object') return obj;
   const result: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
     if (v !== null && v !== undefined) {
-      if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v as Record<string, unknown>).length > 0) {
-        result[k] = sortedJson(v);
-      } else if (Array.isArray(v)) {
-        result[k] = v;
-      } else {
-        result[k] = v;
-      }
+      result[k] = sortedObject(v);
     }
   }
   const sorted: Record<string, unknown> = {};
   for (const k of Object.keys(result).sort()) {
     sorted[k] = result[k];
   }
+  return sorted;
+}
+
+function sortedJson(obj: unknown): string {
+  const sorted = sortedObject(obj);
+  if (sorted === null || sorted === undefined) return '{}';
   return JSON.stringify(sorted);
 }
 

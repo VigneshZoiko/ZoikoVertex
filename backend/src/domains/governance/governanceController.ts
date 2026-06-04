@@ -9,6 +9,7 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { evaluateIntent } from '../decisions/decisionEngine';
 import { ApprovalEngine } from '../decisions/approvalEngine';
 import { logAuditEvent } from './evidenceController';
+import { recordPublishIntentRun } from '../../services/operationsRunRecorder.service';
 
 const SubmitIntentSchema = z.object({
   content: z.object({
@@ -107,6 +108,15 @@ export const submitIntent = async (
     // Fire execution immediately for all intents
     for (const intent of data) {
       internalEventBus.emit('execution.requested', { intentId: intent.id });
+    }
+
+    // Mirror each post into Agent Operations and run the policy checks against
+    // its caption. Non-blocking: recordPublishIntentRun swallows its own errors,
+    // so a recording/policy failure can never break publishing.
+    try {
+      await Promise.all(data.map((intent: any) => recordPublishIntentRun(intent)));
+    } catch (err) {
+      logger.warn({ err }, '[Governance] operations mirror failed (non-blocking)');
     }
 
     try {
