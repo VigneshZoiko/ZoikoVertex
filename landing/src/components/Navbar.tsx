@@ -3,12 +3,12 @@ import Link from "next/link";
 
 export default function Navbar() {
   const navItems = [
-    { label: "Platform",   href: "https://getzoikovertex.com/platform" },
-    { label: "AI Agent",   href: "https://getzoikovertex.com" },
-    { label: "Solution",   href: "https://getzoikovertex.com/solution" },
-    { label: "Resources",  href: "https://getzoikovertex.com/resources-hub" },
-    { label: "About Us",   href: "https://getzoikovertex.com/about" },
-    { label: "Pricing",    href: "https://getzoikovertex.com/pricing" },
+    { label: "Platform",    href: "https://getzoikovertex.com/platform" },
+    { label: "AI Agents",   href: "https://getzoikovertex.com" },
+    { label: "Solutions",   href: "https://getzoikovertex.com/solution" },
+    { label: "Governance",  href: "https://getzoikovertex.com" },
+    { label: "Resources",   href: "https://getzoikovertex.com/resources-hub" },
+    { label: "About Us",    href: "https://getzoikovertex.com/about" },
   ];
 
   return (
