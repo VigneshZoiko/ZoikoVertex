@@ -4,7 +4,7 @@ import Link from "next/link";
 export default function Navbar() {
   const navItems = [
     { label: "Platform",    href: "https://getzoikovertex.com/platform" },
-    { label: "AI Agents",   href: "https://getzoikovertex.com" },
+    { label: "AI Agents",   href: "/ai-agents" },
     { label: "Solutions",   href: "https://getzoikovertex.com/solution" },
     { label: "Governance",  href: "https://getzoikovertex.com" },
     { label: "Resources",   href: "https://getzoikovertex.com/resources-hub" },
