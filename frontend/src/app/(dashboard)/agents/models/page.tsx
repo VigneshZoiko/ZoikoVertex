@@ -41,9 +41,12 @@ export default function ModelPerformancePage() {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const safeFetch = () => { if (!cancelled && document.visibilityState === 'visible') fetchData(); };
+    safeFetch();
+    const interval = setInterval(safeFetch, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

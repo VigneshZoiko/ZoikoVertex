@@ -136,9 +136,12 @@ export default function SafetyOverviewPage() {
   };
 
   useEffect(() => {
-    fetchOverview();
-    const interval = setInterval(() => fetchOverview(), 60000); // 60s auto-refresh
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const safeFetch = () => { if (!cancelled && document.visibilityState === 'visible') fetchOverview(); };
+    safeFetch();
+    const interval = setInterval(safeFetch, 60000); // 60s auto-refresh
+    return () => { cancelled = true; clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle Simulation Toggle
