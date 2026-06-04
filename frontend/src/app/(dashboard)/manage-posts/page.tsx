@@ -10,12 +10,14 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { formatDateTime } from "@/lib/utils";
 import { api } from "@/lib/api";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 export default function ManagePostsPage() {
   const router = useRouter();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
   const fetchMyPosts = async () => {
     setLoading(true);
@@ -36,16 +38,19 @@ export default function ManagePostsPage() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this post? This action cannot be undone.")) return;
-    
-    try {
-      await api.delete(`/api/v1/governance/intents/${id}`);
+    setDeletePostId(id);
+  };
 
+  const confirmDeletePost = async () => {
+    if (!deletePostId) return;
+    try {
+      await api.delete(`/api/v1/governance/intents/${deletePostId}`);
       setMessage({ type: 'success', text: 'Post deleted successfully.' });
-      fetchMyPosts(); // Refresh list
+      fetchMyPosts();
     } catch (err: any) {
       setMessage({ type: 'error', text: 'Failed to delete post. Please try again.' });
     }
+    finally { setDeletePostId(null); }
   };
 
   const getStatusConfig = (status: string) => {
@@ -168,6 +173,15 @@ export default function ManagePostsPage() {
           </button>
         </div>
       )}
+      <ConfirmActionModal
+        open={!!deletePostId}
+        variant="danger"
+        title="Delete post?"
+        message="This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDeletePost}
+        onCancel={() => setDeletePostId(null)}
+      />
     </div>
   );
 }

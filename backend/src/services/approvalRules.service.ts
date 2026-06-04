@@ -43,6 +43,16 @@ export interface ApprovalRuleInput {
 }
 
 export async function createRule(input: ApprovalRuleInput): Promise<ApprovalRule> {
+  if (!input.rule_name || input.rule_name.trim().length === 0) {
+    throw Object.assign(new Error('rule_name is required'), { statusCode: 400 });
+  }
+  if (!validUUID(input.rule_owner_id)) {
+    throw Object.assign(new Error('rule_owner_id must be a valid UUID'), { statusCode: 400 });
+  }
+  if (!validUUID(input.created_by)) {
+    throw Object.assign(new Error('created_by must be a valid UUID'), { statusCode: 400 });
+  }
+
   const id = uuidv4();
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
@@ -522,6 +532,16 @@ export async function getRuleStages(approval_rule_path_id: string) {
   return data || [];
 }
 
+export async function getRuleEscalations(approval_rule_id: string) {
+  if (!validUUID(approval_rule_id)) return [];
+  const { data, error } = await supabaseAdmin
+    .from('approval_rule_escalations')
+    .select('*')
+    .eq('approval_rule_id', approval_rule_id);
+  if (error) throw error;
+  return data || [];
+}
+
 export async function getRuleDetails(approval_rule_id: string) {
   if (!validUUID(approval_rule_id)) return null;
   const rule = await supabaseAdmin
@@ -622,12 +642,37 @@ export async function detectRuleConflicts(approval_rule_id: string, tenant_id: s
   const rule = await getRule(approval_rule_id, tenant_id);
   if (!rule) return [];
 
+  const ruleScope = await getRuleScope(approval_rule_id);
+  const rulePath = await getRulePath(approval_rule_id);
+
   const { data: allRules } = await supabaseAdmin
     .from('approval_rules')
     .select('*')
     .eq('tenant_id', tenant_id)
     .neq('id', approval_rule_id)
     .in('rule_status', ['ACTIVE', 'ACTIVE_WITH_DRAFT_CHANGES', 'DRAFT', 'NEEDS_REVIEW', 'CONFLICT_DETECTED']);
+
+  const allRuleIds = (allRules || []).map(r => r.id);
+
+  const { data: allScopes } = await supabaseAdmin
+    .from('approval_rule_scopes')
+    .select('*')
+    .in('approval_rule_id', allRuleIds.length > 0 ? allRuleIds : ['00000000-0000-0000-0000-000000000000']);
+
+  const { data: allPaths } = await supabaseAdmin
+    .from('approval_rule_paths')
+    .select('*')
+    .in('approval_rule_id', allRuleIds.length > 0 ? allRuleIds : ['00000000-0000-0000-0000-000000000000']);
+
+  const scopeByRuleId = new Map<string, Record<string, unknown>>();
+  const pathByRuleId = new Map<string, Record<string, unknown>>();
+
+  for (const s of allScopes || []) {
+    scopeByRuleId.set(s.approval_rule_id, s as unknown as Record<string, unknown>);
+  }
+  for (const p of allPaths || []) {
+    pathByRuleId.set(p.approval_rule_id, p as unknown as Record<string, unknown>);
+  }
 
   const conflicts: Array<{
     conflict_type: ConflictType;
@@ -636,13 +681,9 @@ export async function detectRuleConflicts(approval_rule_id: string, tenant_id: s
     related_rule_id?: string;
   }> = [];
 
-  const ruleData = rule as unknown as Record<string, unknown>;
-  const ruleScope = (ruleData.rule_scope || {}) as Record<string, unknown>;
-  const rulePath = (ruleData.approval_path || {}) as Record<string, unknown>;
-
   for (const other of allRules || []) {
-    const otherData = other as unknown as Record<string, unknown>;
-    const otherScope = (otherData.rule_scope || {}) as Record<string, unknown>;
+    const otherScope = scopeByRuleId.get(other.id);
+    const otherPath = pathByRuleId.get(other.id);
 
     if (rule.rule_priority === other.rule_priority) {
       conflicts.push({
@@ -653,54 +694,56 @@ export async function detectRuleConflicts(approval_rule_id: string, tenant_id: s
       });
     }
 
-    if (ruleScope.item_types && otherScope.item_types) {
-      const sharedTypes = (ruleScope.item_types as string[]).filter(
-        (t: string) => (otherScope.item_types as string[]).includes(t)
-      );
-      if (sharedTypes.length > 0) {
+    if (ruleScope && otherScope) {
+      const sharedDimensions: string[] = [];
+
+      const rs = ruleScope as Record<string, unknown>;
+      const os = otherScope as Record<string, unknown>;
+
+      const dims = ['jurisdiction', 'platform', 'source_module', 'item_type', 'language', 'audience_segment', 'brand_id', 'campaign_id', 'department_id', 'team_id', 'user_role', 'agent_id', 'workflow_id'];
+      for (const dim of dims) {
+        if (rs[dim] && os[dim] && rs[dim] === os[dim]) {
+          sharedDimensions.push(`${dim}:${rs[dim]}`);
+        }
+      }
+
+      if (sharedDimensions.length > 0) {
         conflicts.push({
           conflict_type: 'OVERLAPPING_SCOPE',
-          conflict_summary: `Rule "${rule.rule_name}" overlaps with "${other.rule_name}" on item types: ${sharedTypes.join(', ')}`,
+          conflict_summary: `Rule "${rule.rule_name}" overlaps with "${other.rule_name}" on: ${sharedDimensions.join(', ')}`,
           blocking: false,
           related_rule_id: other.id,
         });
       }
     }
 
-    const otherPath = (otherData.approval_path || {}) as Record<string, unknown>;
-    if (rulePath.approval_outcome && otherPath.approval_outcome &&
-        rulePath.approval_outcome !== otherPath.approval_outcome) {
-      const outcomeScope = (ruleScope.source_modules && otherScope.source_modules
-        ? (ruleScope.source_modules as string[]).filter(
-            (m: string) => (otherScope.source_modules as string[]).includes(m)
-          )
-        : []) as string[];
-      if (outcomeScope.length > 0) {
-        conflicts.push({
-          conflict_type: 'CONTRADICTORY_OUTCOME',
-          conflict_summary: `Rules "${rule.rule_name}" and "${other.rule_name}" produce different outcomes for same source modules`,
-          blocking: true,
-          related_rule_id: other.id,
-        });
+    if (rulePath && otherPath) {
+      const rp = rulePath as Record<string, unknown>;
+      const op = otherPath as Record<string, unknown>;
+      if (rp.path_type !== op.path_type && ruleScope && otherScope) {
+        const rs = ruleScope as Record<string, unknown>;
+        const os = otherScope as Record<string, unknown>;
+        if (rs.source_module && os.source_module && rs.source_module === os.source_module) {
+          conflicts.push({
+            conflict_type: 'CONTRADICTORY_OUTCOME',
+            conflict_summary: `Rules "${rule.rule_name}" and "${other.rule_name}" have different paths (${rp.path_type} vs ${op.path_type}) for same source module`,
+            blocking: true,
+            related_rule_id: other.id,
+          });
+        }
       }
-    }
-
-    const requiredApprovers = rulePath.required_approvers || [];
-    if (Array.isArray(requiredApprovers) && requiredApprovers.length === 0) {
-      conflicts.push({
-        conflict_type: 'MISSING_APPROVER',
-        conflict_summary: `Rule "${rule.rule_name}" has no required approvers defined`,
-        blocking: true,
-      });
     }
   }
 
-  if (!ruleData.rule_escalation || !(ruleData.rule_escalation as Record<string, unknown>)?.escalation_targets) {
-    conflicts.push({
-      conflict_type: 'MISSING_APPROVER',
-      conflict_summary: `Rule "${rule.rule_name}" has no escalation targets configured`,
-      blocking: false,
-    });
+  if (rulePath) {
+    const rp = rulePath as Record<string, unknown>;
+    if (!rp.emergency_route_enabled) {
+      conflicts.push({
+        conflict_type: 'MISSING_APPROVER',
+        conflict_summary: `Rule "${rule.rule_name}" has no emergency escalation route enabled`,
+        blocking: false,
+      });
+    }
   }
 
   for (const conflict of conflicts) {
@@ -751,6 +794,7 @@ export async function runSimulation(params: {
   const path = await getRulePath(params.approval_rule_id);
   const stages = path ? await getRuleStages((path as { id: string }).id) : [];
   const scope = await getRuleScope(params.approval_rule_id);
+  const escalations = await getRuleEscalations(params.approval_rule_id);
 
   const input = params.simulation_input as Record<string, unknown>;
   const matchedConditions: string[] = [];
@@ -758,19 +802,23 @@ export async function runSimulation(params: {
   let matched = false;
 
   if (scope) {
-    const s = scope as { item_types?: string[]; source_modules?: string[]; risk_levels?: string[] };
+    const s = scope as Record<string, unknown>;
     const inputType = input.item_type as string;
     const inputSource = input.source_module as string;
-    const inputRisk = input.risk_level as string;
+    const inputJurisdiction = input.jurisdiction as string;
+    const inputPlatform = input.platform as string;
 
-    if (s.item_types && inputType && s.item_types.includes(inputType)) {
+    if (s.item_type && inputType && s.item_type === inputType) {
       matchedConditions.push(`item_type: ${inputType}`);
     }
-    if (s.source_modules && inputSource && s.source_modules.includes(inputSource)) {
+    if (s.source_module && inputSource && s.source_module === inputSource) {
       matchedConditions.push(`source_module: ${inputSource}`);
     }
-    if (s.risk_levels && inputRisk && s.risk_levels.includes(inputRisk)) {
-      matchedConditions.push(`risk_level: ${inputRisk}`);
+    if (s.jurisdiction && inputJurisdiction && s.jurisdiction === inputJurisdiction) {
+      matchedConditions.push(`jurisdiction: ${inputJurisdiction}`);
+    }
+    if (s.platform && inputPlatform && s.platform === inputPlatform) {
+      matchedConditions.push(`platform: ${inputPlatform}`);
     }
   }
 
@@ -789,8 +837,8 @@ export async function runSimulation(params: {
     matched_conditions: matchedConditions,
     generated_path: path,
     generated_sla: stages,
-    generated_escalation: rule.rule_escalation || null,
-    generated_fallback: rule.rule_fallback || null,
+    generated_escalation: escalations.length > 0 ? escalations : null,
+    generated_fallback: escalations.some(e => (e as Record<string, unknown>).fallback_after_escalation) || null,
     conflict_warnings,
     blocked_reasons,
   };
@@ -805,8 +853,8 @@ export async function runSimulation(params: {
       matched_conditions: matchedConditions,
       generated_path: path ? path : null,
       generated_sla: stages.length > 0 ? { stages } : null,
-      generated_escalation: rule.rule_escalation || null,
-      generated_fallback: rule.rule_fallback || null,
+      generated_escalation: escalations.length > 0 ? escalations : null,
+      generated_fallback: escalations.some(e => (e as Record<string, unknown>).fallback_after_escalation) || null,
       conflict_warnings,
       blocked_reasons,
     })

@@ -242,7 +242,7 @@ import { setupWorkspace } from './domains/identity/onboardingController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
-import { listRules, createRule, getRule, updateRule, submitRuleForReview, publishRule, deactivateRule, reactivateRule, archiveRule, cloneRule, getRuleScope, upsertRuleScope, getRulePath, upsertRulePath, getRuleVersions, getRuleAuditLog, getRuleConflicts, detectRuleConflicts, resolveRuleConflict, runRuleSimulation, getRuleStats } from './domains/governance/ruleController';
+import { listRules, createRule, getRule, updateRule, submitRuleForReview, publishRule, deactivateRule, reactivateRule, archiveRule, cloneRule, getRuleScope, upsertRuleScope, getRulePath, upsertRulePath, getRuleVersions, getRuleAuditLog, getRuleConflicts, detectRuleConflicts, resolveRuleConflict, runRuleSimulation, getRuleStats, getRuleDetails, getRuleStagesHandler, getRuleEscalationsHandler, markRuleReadyToPublish, markRuleInvalid } from './domains/governance/ruleController';
 import {
   listWorkflows,
   getWorkflow,
@@ -294,7 +294,7 @@ import {
   createApprovalItem, listApprovalItems, getApprovalItem as getV2ApprovalItem,
   takeApprovalAction as takeV2ApprovalAction, assignApprover, reassignApprover,
   getApprovalStats as getV2ApprovalStats, getApprovalEligibility,
-  getApprovalPath, getApprovalDecisions, getApprovalComments, addApprovalComment,
+  getApprovalPath, createApprovalPathHandler, getApprovalDecisions, getApprovalComments, addApprovalComment,
   getApprovalEvidence, addApprovalEvidence, getApprovalAuditTrail,
   exportApprovalRecord, retryCallback, bulkApprovalAction,
 } from './domains/decisions/approvalV2Controller';
@@ -1084,11 +1084,15 @@ app.delete('/api/v1/integrations/connectors/:id', authenticate, blockApiKeyUsers
 app.post('/api/v1/integrations/connectors/:id/sync', authenticate, blockApiKeyUsers, integrationPlanGate, integGuard, triggerSync);
 app.get('/api/v1/integrations/connectors/:id/logs', authenticate, blockApiKeyUsers, integrationPlanGate, integGuard, getSyncLogs);
 
-// Approval Workflow Routes
-app.post('/api/v1/approvals/submit', authenticate, scopeGuard('write:publish', '*'), submitForReview);
-app.get('/api/v1/approvals/queue', authenticate, scopeGuard('read:governance', '*'), getApprovalQueue);
-app.get('/api/v1/approvals/stats', authenticate, scopeGuard('read:governance', '*'), getApprovalStatsLegacy);
-app.post('/api/v1/approvals/items/:id/action', authenticate, scopeGuard('write:publish', '*'), takeApprovalAction);
+// Approval Workflow Routes (DEPRECATED — use /api/v1/approvals-v2/* instead)
+function deprecate(req: any, res: any, next: any) {
+  res.set('X-API-Deprecated', '/api/v1/approvals-v2');
+  next();
+}
+app.post('/api/v1/approvals/submit', authenticate, deprecate, scopeGuard('write:publish', '*'), submitForReview);
+app.get('/api/v1/approvals/queue', authenticate, deprecate, scopeGuard('read:governance', '*'), getApprovalQueue);
+app.get('/api/v1/approvals/stats', authenticate, deprecate, scopeGuard('read:governance', '*'), getApprovalStatsLegacy);
+app.post('/api/v1/approvals/items/:id/action', authenticate, deprecate, scopeGuard('write:publish', '*'), takeApprovalAction);
 
 // ─── Approval Workbench Routes (v2 — Full 3-Panel Wireframe) ────────────
 app.post('/api/v1/approvals-v2/items', authenticate, scopeGuard('write:governance', '*'), createApprovalItem);
@@ -1100,6 +1104,7 @@ app.post('/api/v1/approvals-v2/items/:id/action', authenticate, scopeGuard('writ
 app.patch('/api/v1/approvals-v2/items/:id/assign', authenticate, scopeGuard('write:governance', '*'), assignApprover);
 app.patch('/api/v1/approvals-v2/items/:id/reassign', authenticate, scopeGuard('write:governance', '*'), reassignApprover);
 app.get('/api/v1/approvals-v2/items/:id/path', authenticate, scopeGuard('read:governance', '*'), getApprovalPath);
+app.post('/api/v1/approvals-v2/items/:id/path', authenticate, scopeGuard('write:governance', '*'), createApprovalPathHandler);
 app.get('/api/v1/approvals-v2/items/:id/decisions', authenticate, scopeGuard('read:governance', '*'), getApprovalDecisions);
 app.get('/api/v1/approvals-v2/items/:id/comments', authenticate, scopeGuard('read:governance', '*'), getApprovalComments);
 app.post('/api/v1/approvals-v2/items/:id/comments', authenticate, scopeGuard('write:governance', '*'), addApprovalComment);
@@ -1329,6 +1334,13 @@ app.post('/api/v1/governance/rules/:id/conflicts/detect', authenticate, scopeGua
 app.post('/api/v1/governance/rules/conflicts/:conflictId/resolve', authenticate, scopeGuard('write:governance', '*'), resolveRuleConflict);
 app.post('/api/v1/governance/rules/:id/simulate', authenticate, scopeGuard('write:governance', '*'), runRuleSimulation);
 
+// Additional Approval Rules endpoints
+app.get('/api/v1/governance/rules/:id/details', authenticate, scopeGuard('read:governance', '*'), getRuleDetails);
+app.get('/api/v1/governance/rules/:id/stages', authenticate, scopeGuard('read:governance', '*'), getRuleStagesHandler);
+app.get('/api/v1/governance/rules/:id/escalations', authenticate, scopeGuard('read:governance', '*'), getRuleEscalationsHandler);
+app.post('/api/v1/governance/rules/:id/mark-ready', authenticate, scopeGuard('write:governance', '*'), markRuleReadyToPublish);
+app.post('/api/v1/governance/rules/:id/mark-invalid', authenticate, scopeGuard('write:governance', '*'), markRuleInvalid);
+
 // ─── Review Queue Routes (Accountability Layer) ──────────────────────
 app.post('/api/v1/review-queue', authenticate, scopeGuard('write:governance', '*'), createReviewItem);
 app.get('/api/v1/review-queue', authenticate, scopeGuard('read:governance', '*'), listReviewItems);
@@ -1452,6 +1464,7 @@ app.use(errorHandler);
 import { initWorker } from './workers/schedulerWorker';
 import { initAuditExportWorker } from './workers/auditExportWorker';
 import { initAuditIntegrityWorker } from './workers/auditIntegrityWorker';
+import { initAuditStreamingWorker } from './workers/auditStreamingWorker';
 import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 import { startCampaignWorker } from './workers/campaignWorker';
 import { initOrgInactivityWorker } from './workers/orgInactivityWorker';
@@ -1465,6 +1478,7 @@ try {
     initWorker();
     initAuditExportWorker();
     initAuditIntegrityWorker();
+    initAuditStreamingWorker();
     initVaultWorker();
     initDlpScanWorker();
     startCampaignWorker();

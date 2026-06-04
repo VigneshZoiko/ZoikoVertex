@@ -1,38 +1,42 @@
 import Navbar from "@/components/Navbar";
+import Hero from "@/components/Hero";
+import TrustedBy from "@/components/TrustedBy";
+import Stats from "@/components/Stats";
+import Pricing from "@/components/Pricing";
+import FeatureBlock from "@/components/FeatureBlock";
+import Architecture from "@/components/Architecture";
+import PainPoints from "@/components/PainPoints";
+import AgentsGrid from "@/components/AgentsGrid";
+import Accountability from "@/components/Accountability";
+import EnterpriseBanner from "@/components/EnterpriseBanner";
+import EnterpriseFeatures from "@/components/EnterpriseFeatures";
+import Industries from "@/components/Industries";
+import StackComparison from "@/components/StackComparison";
+import TrustModel from "@/components/TrustModel";
+import Testimonials from "@/components/Testimonials";
+import FooterCTA from "@/components/FooterCTA";
 import Footer from "@/components/Footer";
-import PlatformSection from "@/components/Banner";
-import PlatformPainPoint from "@/components/PlatformPainPoint";
-import PlatformCategory from "@/components/PlatformCategory";
-import PlatformCapabilities from "@/components/PlatformCapabilitie";
-import RoleWorkspaces from "@/components/RoleWorkspace";
-import AIAgentsSection from "@/components/AIAgentsSection";
-import InboxEngagementSection from "@/components/InboxEngagementSection";
-import BrandLibrarySection from "@/components/BrandLibrarySection";
-import EvidenceCrisisSection from "@/components/EvidenceCrisisSection";
-import IntegrationsSection from "@/components/IntegrationsSection";
-import PricingSection from "@/components/PricingSection";
-import SecurityTrustSection from "@/components/SecurityTrustSection";
-import FAQSection from "@/components/FAQSection";
 
 export default function LandingPage() {
   return (
-    <main>
+    <main className="min-h-screen">
       <Navbar />
-      <div className="pt-16">
-        <PlatformSection />
-        <PlatformPainPoint />
-        <PlatformCategory />
-        <PlatformCapabilities />
-        <RoleWorkspaces />
-        <AIAgentsSection />
-        <InboxEngagementSection />
-        <BrandLibrarySection />
-        <EvidenceCrisisSection />
-        <IntegrationsSection />
-        <PricingSection />
-        <SecurityTrustSection />
-        <FAQSection />
-      </div>
+      <Hero />
+      <TrustedBy />
+      <Stats />
+      <Pricing />
+      <FeatureBlock />
+      <Architecture />
+      <PainPoints />
+      <AgentsGrid />
+      <Accountability />
+      <EnterpriseBanner />
+      <EnterpriseFeatures />
+      <Industries />
+      <StackComparison />
+      <TrustModel />
+      <Testimonials />
+      <FooterCTA />
       <Footer />
     </main>
   );

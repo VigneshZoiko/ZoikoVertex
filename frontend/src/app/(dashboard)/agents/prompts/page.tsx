@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 import {
   MessageSquareCode,
   ShieldCheck,
@@ -573,7 +574,33 @@ function TestingTab({
 // ─── Tab: Approvals ────────────────────────────────────────────────────────────
 
 function ApprovalsTab({ prompts, approvalStats, onApprovalAction }: { prompts: PromptRecord[]; approvalStats: ApprovalStats | null; onApprovalAction: (versionId: string, decision: string, comments?: string) => void }) {
+  const [approvalModal, setApprovalModal] = useState<{
+    mode: 'confirm' | 'prompt';
+    versionId: string;
+    promptName: string;
+    decision: string;
+    title: string;
+    message: string;
+    variant?: 'danger' | 'warning' | 'info' | 'default';
+    confirmLabel?: string;
+    promptPlaceholder?: string;
+  } | null>(null);
   const pending = prompts.filter((p) => p.status === "REVIEW_REQUESTED" || p.status === "PRODUCTION_PENDING");
+
+  const handleApprovalConfirm = (value?: string) => {
+    if (!approvalModal) return;
+    const { versionId, decision, mode } = approvalModal;
+    if (mode === 'confirm') {
+      onApprovalAction(versionId, decision);
+    } else {
+      onApprovalAction(
+        versionId,
+        decision,
+        (value || '').trim() || (decision === 'REJECTED' ? 'Rejected by reviewer.' : 'Reviewer requested changes before approval.')
+      );
+    }
+    setApprovalModal(null);
+  };
 
   const APPROVAL_MATRIX = [
     { tier: "Tier 1 — Low", color: "text-emerald-400", requirements: "Prompt owner approval only.", roles: ["PROMPT_OWNER"] },
@@ -618,11 +645,16 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction }: { prompts: P
                   <button
                     onClick={() => {
                       if (!p.active_version_id) return;
-                      const ok = window.confirm(
-                        `Approve "${p.name}"?\n\nThis will move the prompt to APPROVED status and make it eligible for production deployment. This action is recorded in the Evidence Vault.`
-                      );
-                      if (!ok) return;
-                      onApprovalAction(p.active_version_id, 'APPROVED');
+                      setApprovalModal({
+                        mode: 'confirm',
+                        versionId: p.active_version_id,
+                        promptName: p.name,
+                        decision: 'APPROVED',
+                        title: `Approve "${p.name}"?`,
+                        message: 'This will move the prompt to APPROVED status and make it eligible for production deployment. This action is recorded in the Evidence Vault.',
+                        variant: 'info',
+                        confirmLabel: 'Approve',
+                      });
                     }}
                     disabled={!p.active_version_id}
                     className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all disabled:opacity-50"
@@ -631,16 +663,17 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction }: { prompts: P
                     disabled={!p.active_version_id}
                     onClick={() => {
                       if (!p.active_version_id) return;
-                      const comment = window.prompt(
-                        `Request changes for "${p.name}"\n\nEnter your reviewer comments (required):`,
-                        ""
-                      );
-                      if (comment === null) return; // user cancelled
-                      onApprovalAction(
-                        p.active_version_id,
-                        'REJECTED',
-                        comment.trim() || 'Reviewer requested changes before approval.'
-                      );
+                      setApprovalModal({
+                        mode: 'prompt',
+                        versionId: p.active_version_id,
+                        promptName: p.name,
+                        decision: 'REJECTED',
+                        title: `Request Changes for "${p.name}"`,
+                        message: 'Enter your reviewer comments (required):',
+                        variant: 'warning',
+                        confirmLabel: 'Submit Changes',
+                        promptPlaceholder: 'Describe the changes needed...',
+                      });
                     }}
                     className="px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all disabled:opacity-50"
                   >
@@ -649,16 +682,17 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction }: { prompts: P
                   <button
                     onClick={() => {
                       if (!p.active_version_id) return;
-                      const reason = window.prompt(
-                        `Reject "${p.name}"?\n\nProvide a rejection reason (required):`,
-                        ""
-                      );
-                      if (reason === null) return; // user cancelled
-                      onApprovalAction(
-                        p.active_version_id,
-                        'REJECTED',
-                        reason.trim() || 'Rejected by reviewer.'
-                      );
+                      setApprovalModal({
+                        mode: 'prompt',
+                        versionId: p.active_version_id,
+                        promptName: p.name,
+                        decision: 'REJECTED',
+                        title: `Reject "${p.name}"`,
+                        message: 'Provide a rejection reason (required):',
+                        variant: 'danger',
+                        confirmLabel: 'Reject',
+                        promptPlaceholder: 'Reason for rejection...',
+                      });
                     }}
                     disabled={!p.active_version_id}
                     className="px-4 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-rose-500/20 transition-all disabled:opacity-50"
@@ -690,6 +724,18 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction }: { prompts: P
           Users may not approve their own prompt for production when the risk tier requires independent review. Every override must capture approver, reason, policy basis, expiration, and affected scope. Approval status is invalidated when risk-impacting sections change after approval.
         </p>
       </div>
+
+      <ConfirmActionModal
+        open={!!approvalModal}
+        mode={approvalModal?.mode || 'confirm'}
+        variant={approvalModal?.variant || 'danger'}
+        title={approvalModal?.title || ''}
+        message={approvalModal?.message || ''}
+        confirmLabel={approvalModal?.confirmLabel}
+        promptPlaceholder={approvalModal?.promptPlaceholder}
+        onConfirm={handleApprovalConfirm}
+        onCancel={() => setApprovalModal(null)}
+      />
     </div>
   );
 }

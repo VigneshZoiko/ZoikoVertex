@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 import {
   Brain,
   Palette,
@@ -1579,6 +1580,7 @@ export default function KnowledgePage() {
   const [searching, setSearching] = useState(false);
   const [accessPolicy, setAccessPolicy] = useState<any>(null);
   const [showCreateConflict, setShowCreateConflict] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ type: string; id: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -1707,17 +1709,7 @@ export default function KnowledgePage() {
     }
   };
 
-  const handleDeleteSource = async (sourceId: string) => {
-    if (!confirm("Remove this source from the knowledge base? Evidence record will be preserved.")) return;
-    try {
-      await api.delete(`/api/v1/knowledge/entries/${sourceId}`);
-      setSources((prev) => prev.filter((s) => s.id !== sourceId));
-      fetchData();
-    } catch (deleteError) {
-      console.error("Failed to delete source", deleteError);
-      setError("Failed to remove knowledge source.");
-    }
-  };
+  const handleDeleteSource = (sourceId: string) => setConfirmAction({ type: "delete-source", id: sourceId });
 
   const handleApproveSource = async (sourceId: string) => {
     try {
@@ -1728,15 +1720,7 @@ export default function KnowledgePage() {
     }
   };
 
-  const handleRetireSource = async (sourceId: string) => {
-    if (!confirm("Retire this source? It will no longer be retrievable by agents. Evidence history is preserved.")) return;
-    try {
-      await api.post(`/api/v1/knowledge/entries/${sourceId}/retire`, {}).catch(() => api.post(`/api/v1/knowledge/sources/${sourceId}/retire`, {}));
-      setSources((prev) => prev.map((s) => s.id === sourceId ? { ...s, status: "RETIRED" as SourceStatus } : s));
-    } catch {
-      setError("Failed to retire source.");
-    }
-  };
+  const handleRetireSource = (sourceId: string) => setConfirmAction({ type: "retire-source", id: sourceId });
 
   const handleRejectSource = async (sourceId: string) => {
     try {
@@ -1765,25 +1749,9 @@ export default function KnowledgePage() {
     }
   };
 
-  const handleRestrictSource = async (sourceId: string) => {
-    if (!confirm("Restrict this source? It will be blocked from non-privileged agent retrieval.")) return;
-    try {
-      await api.post(`/api/v1/knowledge/sources/${sourceId}/restrict`, {});
-      setSources((prev) => prev.map((s) => s.id === sourceId ? { ...s, status: "RESTRICTED" as SourceStatus } : s));
-    } catch {
-      setError("Failed to restrict source.");
-    }
-  };
+  const handleRestrictSource = (sourceId: string) => setConfirmAction({ type: "restrict-source", id: sourceId });
 
-  const handleQuarantineSource = async (sourceId: string) => {
-    if (!confirm("Quarantine this source? It will be blocked from ALL agent retrieval pending investigation.")) return;
-    try {
-      await api.post(`/api/v1/knowledge/sources/${sourceId}/quarantine`, {});
-      setSources((prev) => prev.map((s) => s.id === sourceId ? { ...s, status: "QUARANTINED" as SourceStatus } : s));
-    } catch {
-      setError("Failed to quarantine source.");
-    }
-  };
+  const handleQuarantineSource = (sourceId: string) => setConfirmAction({ type: "quarantine-source", id: sourceId });
 
   const handleUpdateCollection = async (collectionId: string, data: Partial<KnowledgeCollection>) => {
     try {
@@ -1795,14 +1763,55 @@ export default function KnowledgePage() {
     }
   };
 
-  const handleDeleteCollection = async (collectionId: string) => {
-    if (!confirm("Delete this collection? All associated sources will remain but the collection association will be removed.")) return;
-    try {
-      await api.delete(`/api/v1/knowledge/collections/${collectionId}`).catch(() => api.delete(`/api/v1/knowledge/bases/${collectionId}`));
-      setCollections((prev) => prev.filter((c) => c.id !== collectionId));
-      if (selectedCollection?.id === collectionId) setSelectedCollection(null);
-    } catch {
-      setError("Failed to delete collection.");
+  const handleDeleteCollection = (collectionId: string) => setConfirmAction({ type: "delete-collection", id: collectionId });
+
+  const executeConfirmedAction = async () => {
+    if (!confirmAction) return;
+    const { type, id } = confirmAction;
+    setConfirmAction(null);
+    switch (type) {
+      case "delete-source":
+        try {
+          await api.delete(`/api/v1/knowledge/entries/${id}`);
+          setSources((prev) => prev.filter((s) => s.id !== id));
+          fetchData();
+        } catch {
+          setError("Failed to remove knowledge source.");
+        }
+        break;
+      case "retire-source":
+        try {
+          await api.post(`/api/v1/knowledge/entries/${id}/retire`, {}).catch(() => api.post(`/api/v1/knowledge/sources/${id}/retire`, {}));
+          setSources((prev) => prev.map((s) => s.id === id ? { ...s, status: "RETIRED" as SourceStatus } : s));
+        } catch {
+          setError("Failed to retire source.");
+        }
+        break;
+      case "restrict-source":
+        try {
+          await api.post(`/api/v1/knowledge/sources/${id}/restrict`, {});
+          setSources((prev) => prev.map((s) => s.id === id ? { ...s, status: "RESTRICTED" as SourceStatus } : s));
+        } catch {
+          setError("Failed to restrict source.");
+        }
+        break;
+      case "quarantine-source":
+        try {
+          await api.post(`/api/v1/knowledge/sources/${id}/quarantine`, {});
+          setSources((prev) => prev.map((s) => s.id === id ? { ...s, status: "QUARANTINED" as SourceStatus } : s));
+        } catch {
+          setError("Failed to quarantine source.");
+        }
+        break;
+      case "delete-collection":
+        try {
+          await api.delete(`/api/v1/knowledge/collections/${id}`).catch(() => api.delete(`/api/v1/knowledge/bases/${id}`));
+          setCollections((prev) => prev.filter((c) => c.id !== id));
+          if (selectedCollection?.id === id) setSelectedCollection(null);
+        } catch {
+          setError("Failed to delete collection.");
+        }
+        break;
     }
   };
 
@@ -2173,6 +2182,34 @@ export default function KnowledgePage() {
           onCreate={handleCreateConflict}
         />
       )}
+
+      <ConfirmActionModal
+        open={!!confirmAction}
+        variant="danger"
+        title={
+          confirmAction?.type === "delete-source" ? "Remove Source" :
+          confirmAction?.type === "retire-source" ? "Retire Source" :
+          confirmAction?.type === "restrict-source" ? "Restrict Source" :
+          confirmAction?.type === "quarantine-source" ? "Quarantine Source" :
+          "Delete Collection"
+        }
+        message={
+          confirmAction?.type === "delete-source" ? "Remove this source from the knowledge base? Evidence record will be preserved." :
+          confirmAction?.type === "retire-source" ? "Retire this source? It will no longer be retrievable by agents. Evidence history is preserved." :
+          confirmAction?.type === "restrict-source" ? "Restrict this source? It will be blocked from non-privileged agent retrieval." :
+          confirmAction?.type === "quarantine-source" ? "Quarantine this source? It will be blocked from ALL agent retrieval pending investigation." :
+          "Delete this collection? All associated sources will remain but the collection association will be removed."
+        }
+        confirmLabel={
+          confirmAction?.type === "delete-source" ? "Remove" :
+          confirmAction?.type === "retire-source" ? "Retire" :
+          confirmAction?.type === "restrict-source" ? "Restrict" :
+          confirmAction?.type === "quarantine-source" ? "Quarantine" :
+          "Delete"
+        }
+        onConfirm={executeConfirmedAction}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }

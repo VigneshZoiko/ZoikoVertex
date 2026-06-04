@@ -11,6 +11,7 @@ import {
   Check, ListChecks,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 type ExceptionSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 type ExceptionStatus = "NEW" | "TRIAGE" | "ASSIGNED" | "IN_PROGRESS" | "WAITING_ON_SOURCE" | "WAITING_ON_VALIDATION" | "WAITING_ON_APPROVAL" | "ESCALATED" | "OVERRIDE_REQUESTED" | "OVERRIDE_APPROVED" | "OVERRIDE_DENIED" | "BLOCKED" | "RESOLVED" | "CLOSED" | "ARCHIVED" | "CANCELLED";
@@ -143,6 +144,9 @@ export default function ExceptionsPage() {
   const [showRight, setShowRight] = useState(true);
   const [alertDismissed, setAlertDismissed] = useState<Set<string>>(new Set());
 
+  const [createExceptionModal, setCreateExceptionModal] = useState(false);
+  const [addNoteModal, setAddNoteModal] = useState(false);
+
   const selectedCase = cases.find(c => c.id === selectedId) || null;
 
   const fetchCases = useCallback(async () => {
@@ -156,13 +160,17 @@ export default function ExceptionsPage() {
   useEffect(() => { fetchCases(); }, [fetchCases]);
 
   const handleCreateException = async () => {
-    const title = prompt("Exception title:");
+    setCreateExceptionModal(true);
+  };
+
+  const handleCreateExceptionSubmit = async (title?: string) => {
     if (!title) return;
     try {
       const result = await api.post("/api/v1/exceptions/cases", { exception_title: title });
       if (result.success) { fetchCases(); setSelectedId(result.data.id); }
       else { setError(result.error || "Failed to create exception"); }
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to create exception"); }
+    setCreateExceptionModal(false);
   };
 
   const handleExceptionAction = async (action: string, id: string) => {
@@ -658,7 +666,7 @@ export default function ExceptionsPage() {
                   <button onClick={() => selectedId && handleExceptionAction("assign-owner", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] text-[#888] rounded-lg text-xs hover:text-white border border-[#2d2d2d]">
                     <UserPlus className="w-3 h-3" /> Assign Owner
                   </button>
-                  <button onClick={() => { if (selectedId) { const note = prompt("Enter note:"); if (note) handleExceptionAction("add-note", selectedId); } }} className="w-full flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] text-[#888] rounded-lg text-xs hover:text-white border border-[#2d2d2d]">
+                  <button onClick={() => { if (selectedId) setAddNoteModal(true); }} className="w-full flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] text-[#888] rounded-lg text-xs hover:text-white border border-[#2d2d2d]">
                     <MessageSquare className="w-3 h-3" /> Add Note
                   </button>
                   <button onClick={() => selectedId && handleExceptionAction("export", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] text-[#888] rounded-lg text-xs hover:text-white border border-[#2d2d2d]">
@@ -684,6 +692,30 @@ export default function ExceptionsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmActionModal
+        open={createExceptionModal}
+        mode="prompt"
+        variant="info"
+        title="Create Exception"
+        message="Exception title:"
+        promptPlaceholder="Enter exception title..."
+        onConfirm={(value) => handleCreateExceptionSubmit(value)}
+        onCancel={() => setCreateExceptionModal(false)}
+      />
+      <ConfirmActionModal
+        open={addNoteModal}
+        mode="prompt"
+        variant="info"
+        title="Add Note"
+        message="Enter note:"
+        promptPlaceholder="Enter note..."
+        onConfirm={(value) => {
+          if (value && selectedId) handleExceptionAction("add-note", selectedId);
+          setAddNoteModal(false);
+        }}
+        onCancel={() => setAddNoteModal(false)}
+      />
     </div>
   );
 }

@@ -289,9 +289,9 @@ export async function listHolds(req: AuthRequest, res: Response, next: NextFunct
 export async function releaseHold(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = req.params.id as string;
-    const { reason } = req.body;
+    const { reason, authorized_by } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'reason is required' });
-    const result = await vaultService.releaseHold(id, req.user!.id, reason);
+    const result = await vaultService.releaseHold(id, req.user!.id, reason, authorized_by);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 }

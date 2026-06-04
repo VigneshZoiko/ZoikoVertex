@@ -510,8 +510,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
     finally { setExLocLoading(false); }
   }, []);
   // Temp state for edit modal
-  const [tmpAge,    setTmpAge]    = useState(["18","65"]);
-  const [tmpGender, setTmpGender] = useState("ALL");
+  const [tmpAge,        setTmpAge]        = useState(["18","65"]);
+  const [tmpGender,     setTmpGender]     = useState("ALL");
+  const [audienceError, setAudienceError] = useState<string | null>(null);
   const [tmpLoc,    setTmpLoc]    = useState<{key:string; display_name:string; type:string}[]>([{ key: "US", display_name: "United States", type: "country" }]);
   const [tmpExcLocItems, setTmpExcLocItems] = useState<{key:string; display_name:string; type:string}[]>([]);
   const [tmpInt,    setTmpInt]    = useState<{id:string;name:string}[]>([]);
@@ -1401,7 +1402,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           // Keep existing location objects or convert string fallback
                           setTmpLoc(tmpLoc.length > 0 ? tmpLoc : [{ key: "US", display_name: "United States", type: "country" }]);
                           setTmpExcLocItems([...excludeLocations]); // pre-load saved exclude locations
-                          setTmpInt(interests); setShowEditAud(true);
+                          setTmpInt(interests); setAudienceError(null); setShowEditAud(true);
                         }}
                         className="px-3 py-1.5 text-xs font-semibold text-white border border-zinc-600 hover:border-zinc-400 rounded-lg transition-colors">
                         Edit audience
@@ -1660,15 +1661,19 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 
                       {/* Footer */}
                       <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800 bg-zinc-950">
-                        <button onClick={() => setShowEditAud(false)}
+                        {audienceError && (
+                          <p className="text-xs text-rose-400 mr-auto">{audienceError}</p>
+                        )}
+                        <button onClick={() => { setShowEditAud(false); setAudienceError(null); }}
                           className="px-5 py-2 text-sm text-zinc-400 border border-zinc-700 hover:border-zinc-500 hover:text-white rounded-lg font-medium transition-colors">
                           Cancel
                         </button>
                         <button
                           onClick={() => {
+                            setAudienceError(null);
                             const minAge = parseInt(tmpAge[0]);
                             const maxAge = parseInt(tmpAge[1].replace("+","")) || 65;
-                            if (minAge >= maxAge) { alert("Minimum age must be less than maximum age."); return; }
+                            if (minAge >= maxAge) { setAudienceError("Minimum age must be less than maximum age."); return; }
                             setAgeMin(tmpAge[0]); setAgeMax(tmpAge[1].replace("+",""));
                             setGender(tmpGender);
                             setLocation(JSON.stringify(tmpLoc));
