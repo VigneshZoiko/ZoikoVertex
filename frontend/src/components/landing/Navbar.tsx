@@ -3,12 +3,12 @@ import Link from "next/link";
 
 export default function Navbar() {
   const navItems = [
-    { label: "Platform", hasDropdown: true },
-    { label: "AI Agents", hasDropdown: true },
-    { label: "Solutions", hasDropdown: true },
-    { label: "Governance", hasDropdown: false },
-    { label: "Resources", hasDropdown: true },
-    { label: "About Us", hasDropdown: false },
+    { label: "Platform",   href: "/platform" },
+    { label: "AI Agents",  href: "https://zoikovertex.com/ai-agents" },
+    { label: "Solutions",  href: "/solution" },
+    { label: "Governance", href: "/" },
+    { label: "Resources",  href: "/resources-hub" },
+    { label: "About Us",   href: "/about" },
   ];
 
   return (
@@ -27,27 +27,13 @@ export default function Navbar() {
 
         <div className="hidden md:flex items-center gap-6 text-sm text-white/60">
           {navItems.map((item) => (
-            <button
+            <Link
               key={item.label}
-              className="flex items-center gap-1 hover:text-white transition-colors"
+              href={item.href}
+              className="hover:text-white transition-colors"
             >
               {item.label}
-              {item.hasDropdown && (
-                <svg
-                  className="w-3 h-3 opacity-50"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              )}
-            </button>
+            </Link>
           ))}
         </div>
 

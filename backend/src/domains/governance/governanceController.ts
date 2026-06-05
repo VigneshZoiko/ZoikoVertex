@@ -386,8 +386,6 @@ export const getQueue = async (
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const isSuperAdmin = req.user?.is_superadmin;
-    const workspaceId = req.user?.workspace_id;
-
     const role = req.user?.role || (isSuperAdmin ? 'ADMIN' : null);
 
     if (!role && !isSuperAdmin) {

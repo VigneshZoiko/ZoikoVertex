@@ -3,24 +3,26 @@ import Link from "next/link";
 
 export default function Navbar() {
   const navItems = [
-    { label: "Platform", hasDropdown: false, href: "/platform" }, 
-    { label: "AI Agent", hasDropdown: true, href: "/ai-agents" },
-    { label: "Solution", hasDropdown: false, href: "/solution" },
-    { label: "Resources", hasDropdown: false, href: "/resources-hub" },
-    { label: "About Us", hasDropdown: false, href: "/about" },
-    { label: "Pricing", hasDropdown: false, href: "/pricing" },
+    { label: "Platform",   hasDropdown: false, href: "/platform" },
+    { label: "AI Agents",  hasDropdown: false, href: "https://zoikovertex.com/ai-agents" },
+    { label: "Solutions",  hasDropdown: false, href: "/solution" },
+    { label: "Governance", hasDropdown: false, href: "/" },
+    { label: "Resources",  hasDropdown: false, href: "/resources-hub" },
+    { label: "About Us",   hasDropdown: false, href: "/about" },
   ];
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#080812]/90 backdrop-blur-md border-b border-white/5">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center">
-          <Image
-            src="/images/logo-wordmark.svg"
-            alt="ZoikoVertex"
-            width={235}
-            height={36}
-          />
+          <Link href="/">
+            <Image
+              src="/images/logo-wordmark.svg"
+              alt="ZoikoVertex"
+              width={235}
+              height={36}
+            />
+          </Link>
         </div>
 
         <div className="hidden md:flex items-center gap-6 text-sm text-white/60">
