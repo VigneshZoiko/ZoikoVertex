@@ -2,6 +2,8 @@ import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 import { logToDatabase } from '../shared/databaseLogger';
 
 export type AuditItemType = 'social_post' | 'inbox_reply' | 'campaign_asset' | 'agent_action' | 'workflow_output' | 'approval_decision' | 'validation_override' | 'escalation_outcome' | 'published_content_check' | 'sampled_item';
@@ -135,7 +137,8 @@ export interface EvidenceInput {
 
 // ─── Audit Items ──────────────────────────────────────────────────────────
 
-export async function createAuditItem(input: AuditItemInput): Promise<AuditItem> {
+export async function createAuditItem(input: AuditItemInput, auth?: AuthContext): Promise<AuditItem> {
+  requireAnyPermission(auth, 'quality:manage');
   const id = uuidv4();
   const { data, error } = await supabaseAdmin
     .from('quality_audit_items')
@@ -290,8 +293,10 @@ export async function updateAuditStatus(
   id: string,
   status: AuditStatus,
   performed_by: string,
-  extra?: Record<string, unknown>
+  extra?: Record<string, unknown>,
+  auth?: AuthContext
 ): Promise<void> {
+  requireAnyPermission(auth, 'quality:manage');
   const { data: current } = await supabaseAdmin
     .from('quality_audit_items')
     .select('audit_status')
@@ -342,8 +347,10 @@ export async function assignAuditor(
   id: string,
   auditor_id: string,
   performed_by: string,
-  tenant_id: string
+  tenant_id: string,
+  auth?: AuthContext
 ): Promise<void> {
+  requireAnyPermission(auth, 'quality:manage');
   const { error } = await supabaseAdmin
     .from('quality_audit_items')
     .update({ assigned_auditor: auditor_id, updated_at: new Date().toISOString() })
@@ -365,7 +372,8 @@ export async function assignAuditor(
 
 // ─── Scorecard ────────────────────────────────────────────────────────────
 
-export async function upsertScorecard(input: ScorecardInput): Promise<Record<string, unknown>> {
+export async function upsertScorecard(input: ScorecardInput, auth?: AuthContext): Promise<Record<string, unknown>> {
+  requireAnyPermission(auth, 'quality:manage');
   const { data: existing } = await supabaseAdmin
     .from('quality_audit_scorecards')
     .select('id')
@@ -412,8 +420,10 @@ export async function applyScoreOverride(
   reason: string,
   note: string,
   overridden_by: string,
-  tenant_id: string
+  tenant_id: string,
+  auth?: AuthContext
 ): Promise<void> {
+  requireAnyPermission(auth, 'quality:manage');
   const { error } = await supabaseAdmin
     .from('quality_audit_scorecards')
     .update({
@@ -447,7 +457,8 @@ export async function applyScoreOverride(
 
 // ─── Defects ──────────────────────────────────────────────────────────────
 
-export async function createDefect(input: DefectInput): Promise<Record<string, unknown>> {
+export async function createDefect(input: DefectInput, auth?: AuthContext): Promise<Record<string, unknown>> {
+  requireAnyPermission(auth, 'quality:manage');
   const { data, error } = await supabaseAdmin
     .from('quality_audit_defects')
     .insert({
@@ -478,8 +489,10 @@ export async function createDefect(input: DefectInput): Promise<Record<string, u
 export async function resolveDefect(
   defect_id: string,
   performed_by: string,
-  tenant_id: string
+  tenant_id: string,
+  auth?: AuthContext
 ): Promise<void> {
+  requireAnyPermission(auth, 'quality:manage');
   const { error } = await supabaseAdmin
     .from('quality_audit_defects')
     .update({ resolved_at: new Date().toISOString() })
@@ -534,7 +547,8 @@ async function updateItemDefectCount(audit_item_id: string): Promise<void> {
 
 // ─── Corrective Actions ───────────────────────────────────────────────────
 
-export async function createCorrectiveAction(input: CorrectiveActionInput): Promise<Record<string, unknown>> {
+export async function createCorrectiveAction(input: CorrectiveActionInput, auth?: AuthContext): Promise<Record<string, unknown>> {
+  requireAnyPermission(auth, 'quality:manage');
   const { data, error } = await supabaseAdmin
     .from('quality_audit_corrective_actions')
     .insert({
@@ -575,8 +589,10 @@ export async function updateCorrectiveAction(
   id: string,
   updates: { status?: CorrectiveActionStatus; owner?: string; due_at?: string; completed_at?: string; closed_at?: string },
   performed_by: string,
-  tenant_id: string
+  tenant_id: string,
+  auth?: AuthContext
 ): Promise<void> {
+  requireAnyPermission(auth, 'quality:manage');
   const payload: Record<string, unknown> = { ...updates };
   if (updates.status === 'COMPLETED') payload.completed_at = new Date().toISOString();
   if (updates.status === 'CLOSED') payload.closed_at = new Date().toISOString();
@@ -607,7 +623,8 @@ export async function updateCorrectiveAction(
 
 // ─── Notes ────────────────────────────────────────────────────────────────
 
-export async function addAuditNote(input: AuditNoteInput): Promise<Record<string, unknown>> {
+export async function addAuditNote(input: AuditNoteInput, auth?: AuthContext): Promise<Record<string, unknown>> {
+  requireAnyPermission(auth, 'quality:manage');
   const { data, error } = await supabaseAdmin
     .from('quality_audit_notes')
     .insert({
@@ -635,7 +652,8 @@ export async function addAuditNote(input: AuditNoteInput): Promise<Record<string
 
 // ─── Evidence ─────────────────────────────────────────────────────────────
 
-export async function addEvidence(input: EvidenceInput): Promise<Record<string, unknown>> {
+export async function addEvidence(input: EvidenceInput, auth?: AuthContext): Promise<Record<string, unknown>> {
+  requireAnyPermission(auth, 'quality:manage');
   const { data, error } = await supabaseAdmin
     .from('quality_audit_evidence')
     .insert({
@@ -813,7 +831,8 @@ export async function createCallback(input: {
   source_module: string;
   source_entity_id: string;
   callback_payload?: Record<string, unknown>;
-}): Promise<Record<string, unknown>> {
+}, auth?: AuthContext): Promise<Record<string, unknown>> {
+  requireAnyPermission(auth, 'quality:manage');
   const { data, error } = await supabaseAdmin
     .from('quality_audit_callbacks')
     .insert({
@@ -830,7 +849,8 @@ export async function createCallback(input: {
   return data;
 }
 
-export async function findAndRetryCallback(audit_item_id: string, performed_by: string, tenant_id: string): Promise<Record<string, unknown> | null> {
+export async function findAndRetryCallback(audit_item_id: string, performed_by: string, tenant_id: string, auth?: AuthContext): Promise<Record<string, unknown> | null> {
+  requireAnyPermission(auth, 'quality:manage');
   const { data: callbacks } = await supabaseAdmin
     .from('quality_audit_callbacks')
     .select('*')
@@ -842,7 +862,8 @@ export async function findAndRetryCallback(audit_item_id: string, performed_by: 
   return retryCallback(callbacks[0].id, performed_by, tenant_id);
 }
 
-export async function retryCallback(callback_id: string, performed_by: string, tenant_id: string): Promise<Record<string, unknown>> {
+export async function retryCallback(callback_id: string, performed_by: string, tenant_id: string, auth?: AuthContext): Promise<Record<string, unknown>> {
+  requireAnyPermission(auth, 'quality:manage');
   const { data: cb, error: fetchErr } = await supabaseAdmin
     .from('quality_audit_callbacks')
     .select('*')
@@ -1038,7 +1059,8 @@ export async function generateSample(params: {
   platform?: string;
   risk_level?: string;
   count?: number;
-}): Promise<AuditItem[]> {
+}, auth?: AuthContext): Promise<AuditItem[]> {
+  requireAnyPermission(auth, 'quality:manage');
   const count = params.count || 10;
   const items: AuditItem[] = [];
   let remaining = count;

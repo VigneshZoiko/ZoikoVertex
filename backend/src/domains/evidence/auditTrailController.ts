@@ -20,6 +20,7 @@ import {
 } from '../../services/auditTrail.service';
 import { createCase as createForensicCase } from '../../services/forensicHub.service';
 import { logger } from '../../shared/logger';
+import { buildAuthContext } from '../../shared/serviceAuth';
 
 async function logAuditAccess(params: {
   workspace_id: string;
@@ -234,6 +235,7 @@ export async function createExport(req: AuthRequest, res: Response, next: NextFu
       return res.status(400).json({ error: 'Format must be csv, json, or pdf' });
     }
 
+    const auth = buildAuthContext(req.user);
     const job = await createExportJob({
       workspace_id: workspaceId,
       requested_by: userId,
@@ -246,7 +248,7 @@ export async function createExport(req: AuthRequest, res: Response, next: NextFu
       status,
       retention_class,
       actor_id,
-    });
+    }, auth);
 
     res.status(202).json({ success: true, data: job });
   } catch (err) {
@@ -286,6 +288,7 @@ export async function preserve(req: AuthRequest, res: Response, next: NextFuncti
       return res.status(400).json({ error: 'Valid retention_class required' });
     }
 
+    const auth = buildAuthContext(req.user);
     const result = await preserveEvents({
       workspace_id: workspaceId,
       event_ids,
@@ -293,7 +296,7 @@ export async function preserve(req: AuthRequest, res: Response, next: NextFuncti
       retention_class,
       requested_by: userId,
       actor: { actor_id: userId, actor_type: 'human_user' },
-    });
+    }, auth);
 
     res.json({ success: true, data: result });
   } catch (err) {
@@ -305,7 +308,8 @@ export async function preserve(req: AuthRequest, res: Response, next: NextFuncti
 
 export async function sealExpired(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const result = await sealExpiredRecords();
+    const auth = buildAuthContext(req.user);
+    const result = await sealExpiredRecords(auth);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
@@ -346,6 +350,7 @@ export async function createEvent(req: AuthRequest, res: Response, next: NextFun
       return res.status(400).json({ error: 'Validation failed', field_errors: errors });
     }
 
+    const auth = buildAuthContext(req.user);
     const event = await createAuditEvent({
       workspace_id: workspaceId,
       org_id: body.org_id,
@@ -369,7 +374,7 @@ export async function createEvent(req: AuthRequest, res: Response, next: NextFun
       evidence_state: body.evidence_state || 'not_preserved',
       retention_class: body.retention_class || 'STANDARD',
       idempotency_key: body.idempotency_key,
-    });
+    }, auth);
 
     res.status(201).json({ success: true, data: event });
   } catch (err) {
@@ -396,6 +401,7 @@ export async function createInvestigation(req: AuthRequest, res: Response, next:
     }
     if (!reason) return res.status(400).json({ error: 'Reason required' });
 
+    const auth = buildAuthContext(req.user);
     const forensicCase = await createForensicCase({
       workspace_id: workspaceId,
       case_type: 'investigation',
@@ -420,7 +426,7 @@ export async function createInvestigation(req: AuthRequest, res: Response, next:
       risk_level: severity === 'CRITICAL' ? 'critical' : severity === 'HIGH' ? 'high' : 'medium',
       status: 'success',
       retention_class: 'EXTENDED',
-    });
+    }, auth);
 
     res.status(201).json({
       success: true,

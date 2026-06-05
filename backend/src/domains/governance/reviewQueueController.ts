@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import * as reviewQueueService from '../../services/reviewQueue.service';
 import * as validationService from '../../services/validationDesk.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
+import { buildAuthContext } from '../../shared/serviceAuth';
 
 async function getTenantId(req: AuthRequest): Promise<string> {
   return req.user?.workspace_id || DEFAULT_TENANT_ID;
@@ -15,6 +16,7 @@ export async function createItem(req: AuthRequest, res: Response, next: NextFunc
     const tenantId = await getTenantId(req);
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const auth = buildAuthContext(req.user);
 
     const body = req.body as {
       workspace_id: string;
@@ -46,7 +48,7 @@ export async function createItem(req: AuthRequest, res: Response, next: NextFunc
       risk_level: body.risk_level as any,
       risk_category: body.risk_category,
       due_at: body.due_at,
-    });
+    }, auth);
 
     await logReviewAuditEvent({
       workspaceId: tenantId, userId, itemId: item.id,       action: 'review.item.submitted',
@@ -123,6 +125,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
     const tenantId = await getTenantId(req);
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const auth = buildAuthContext(req.user);
 
     const params = req.params as { id: string };
     const id = params.id;
@@ -151,10 +154,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
 
       const updated = await reviewQueueService.updateReviewItemStatus({
         id, tenant_id: tenantId, status: 'APPROVED', userId,
-      });
+      }, auth);
       await reviewQueueService.recordDecision({
         review_item_id: id, decision_type: 'APPROVED', reason, note, decided_by: userId,
-      });
+      }, auth);
 
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.approved',
@@ -170,10 +173,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
 
       const updated = await reviewQueueService.updateReviewItemStatus({
         id, tenant_id: tenantId, status: 'REJECTED', feedback: note, userId,
-      });
+      }, auth);
       await reviewQueueService.recordDecision({
         review_item_id: id, decision_type: 'REJECTED', reason, note, decided_by: userId,
-      });
+      }, auth);
 
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.rejected',
@@ -189,10 +192,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
 
       const updated = await reviewQueueService.updateReviewItemStatus({
         id, tenant_id: tenantId, status: 'AWAITING_REVISION', feedback: note, userId,
-      });
+      }, auth);
       await reviewQueueService.recordDecision({
         review_item_id: id, decision_type: 'REVISION_REQUESTED', reason, note, decided_by: userId,
-      });
+      }, auth);
 
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.revision_requested',
@@ -208,10 +211,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
 
       const updated = await reviewQueueService.updateReviewItemStatus({
         id, tenant_id: tenantId, status: 'ESCALATED', feedback: note, userId,
-      });
+      }, auth);
       await reviewQueueService.recordDecision({
         review_item_id: id, decision_type: 'ESCALATED', reason, note, decided_by: userId,
-      });
+      }, auth);
 
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.escalated',
@@ -229,14 +232,14 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
 
       const updated = await reviewQueueService.updateReviewItemStatus({
         id, tenant_id: tenantId, status: 'APPROVED', feedback: note, userId,
-      });
+      }, auth);
       await reviewQueueService.recordDecision({
         review_item_id: id, decision_type: 'OVERRIDE_APPLIED', reason, note, decided_by: userId,
-      });
+      }, auth);
       await reviewQueueService.recordOverride({
         review_item_id: id, override_reason: reason || 'Override applied',
         risk_acknowledgement: note, overridden_by: userId,
-      });
+      }, auth);
 
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.override',
@@ -254,7 +257,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
       const updated = await reviewQueueService.assignReviewItem({
         id, tenant_id: tenantId, assigned_to: body.assigned_to, assigned_by: userId,
         team: body.team, due_at: body.due_at, note,
-      });
+      }, auth);
 
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.assigned',
@@ -272,10 +275,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
 
       const updated = await reviewQueueService.updateReviewItemStatus({
         id, tenant_id: tenantId, status: 'RELEASED', userId,
-      });
+      }, auth);
       await reviewQueueService.recordDecision({
         review_item_id: id, decision_type: 'APPROVED', reason: 'Released to production', decided_by: userId,
-      });
+      }, auth);
 
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.released',
@@ -290,7 +293,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
 
       const result = await reviewQueueService.addReviewNote({
         review_item_id: id, note_body: note, created_by: userId,
-      });
+      }, auth);
 
       return res.json({ success: true, data: result });
     }
@@ -420,8 +423,9 @@ export async function assignReviewItemHandler(req: AuthRequest, res: Response, n
     const tenantId = await getTenantId(req);
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const auth = buildAuthContext(req.user);
     const params = req.params as { id: string };
-    const result = await reviewQueueService.assignReviewItem({ id: params.id, assigned_to: userId, assigned_by: userId, tenant_id: tenantId });
+    const result = await reviewQueueService.assignReviewItem({ id: params.id, assigned_to: userId, assigned_by: userId, tenant_id: tenantId }, auth);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -430,8 +434,9 @@ export async function addReviewNoteHandler(req: AuthRequest, res: Response, next
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const auth = buildAuthContext(req.user);
     const params = req.params as { id: string };
-    const result = await reviewQueueService.addReviewNote({ review_item_id: params.id, note_body: req.body.note_body, created_by: userId });
+    const result = await reviewQueueService.addReviewNote({ review_item_id: params.id, note_body: req.body.note_body, created_by: userId }, auth);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -445,10 +450,11 @@ export async function bulkReviewAction(req: AuthRequest, res: Response, next: Ne
     }
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const auth = buildAuthContext(req.user);
     const results = [];
     for (const id of item_ids) {
       try {
-        const result = await reviewQueueService.recordDecision({ review_item_id: id, decision_type: action as any, decided_by: userId, reason: req.body.reason || 'Bulk action' });
+        const result = await reviewQueueService.recordDecision({ review_item_id: id, decision_type: action as any, decided_by: userId, reason: req.body.reason || 'Bulk action' }, auth);
         results.push({ id, success: true, data: result });
       } catch (e: any) {
         results.push({ id, success: false, error: e.message });

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as approvalService from '../../services/approval.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
+import { buildAuthContext } from '../../shared/serviceAuth';
 
 function getTenantId(req: AuthRequest): string {
   return req.user?.workspace_id || DEFAULT_TENANT_ID;
@@ -80,12 +81,13 @@ export const createApprovalItem = async (req: AuthRequest, res: Response, next: 
     const input = CreateItemSchema.parse(req.body);
     const tenantId = getTenantId(req);
     const userId = getUserId(req);
+    const auth = buildAuthContext(req.user);
     const item = await approvalService.createApprovalItem({
       tenant_id: tenantId,
       workspace_id: tenantId,
       ...input,
       submitted_by: userId,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: item });
   } catch (error) { next(error); }
 };
@@ -132,6 +134,7 @@ export const takeApprovalAction = async (req: AuthRequest, res: Response, next: 
     const userId = getUserId(req);
     const role = getRole(req);
     const isSuper = isSuperAdmin(req);
+    const auth = buildAuthContext(req.user);
 
     const item = await approvalService.getApprovalItem(id, tenantId);
     if (!item) return res.status(404).json({ error: 'Approval item not found' });
@@ -144,28 +147,28 @@ export const takeApprovalAction = async (req: AuthRequest, res: Response, next: 
     let result;
     switch (action) {
       case 'approve':
-        result = await approvalService.approveItem(id, tenantId, userId, reason, note);
+        result = await approvalService.approveItem(id, tenantId, userId, reason, note, auth);
         break;
       case 'reject':
         if (!reason) return res.status(400).json({ error: 'Rejection requires a reason' });
-        result = await approvalService.rejectItem(id, tenantId, userId, reason, note);
+        result = await approvalService.rejectItem(id, tenantId, userId, reason, note, auth);
         break;
       case 'request_changes':
         if (!reason) return res.status(400).json({ error: 'Change request requires an instruction' });
-        result = await approvalService.requestChanges(id, tenantId, userId, reason, condition_owner, condition_due_at, note);
+        result = await approvalService.requestChanges(id, tenantId, userId, reason, condition_owner, condition_due_at, note, auth);
         break;
       case 'conditional_approval':
         if (!condition_text || !condition_owner || !condition_due_at) {
           return res.status(400).json({ error: 'Conditional approval requires condition_text, condition_owner, and condition_due_at' });
         }
-        result = await approvalService.approveWithConditions(id, tenantId, userId, condition_text, condition_owner, condition_due_at, note);
+        result = await approvalService.approveWithConditions(id, tenantId, userId, condition_text, condition_owner, condition_due_at, note, auth);
         break;
       case 'escalate':
         if (!target_role || !reason) return res.status(400).json({ error: 'Escalation requires target_role and reason' });
-        result = await approvalService.escalateItem(id, tenantId, userId, target_role, reason, note);
+        result = await approvalService.escalateItem(id, tenantId, userId, target_role, reason, note, auth);
         break;
       case 'cancel':
-        result = await approvalService.cancelApproval(id, tenantId, userId);
+        result = await approvalService.cancelApproval(id, tenantId, userId, auth);
         break;
       default:
         return res.status(400).json({ error: 'Invalid action' });
@@ -179,7 +182,8 @@ export const assignApprover = async (req: AuthRequest, res: Response, next: Next
   try {
     const id = paramStr(req, 'id');
     const { approver_id } = AssignSchema.parse(req.body);
-    const result = await approvalService.assignApprover(id, getTenantId(req), getUserId(req), approver_id);
+    const auth = buildAuthContext(req.user);
+    const result = await approvalService.assignApprover(id, getTenantId(req), getUserId(req), approver_id, auth);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 };
@@ -188,7 +192,8 @@ export const reassignApprover = async (req: AuthRequest, res: Response, next: Ne
   try {
     const id = paramStr(req, 'id');
     const { approver_id } = AssignSchema.parse(req.body);
-    const result = await approvalService.reassignApprover(id, getTenantId(req), getUserId(req), approver_id);
+    const auth = buildAuthContext(req.user);
+    const result = await approvalService.reassignApprover(id, getTenantId(req), getUserId(req), approver_id, auth);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 };
@@ -225,9 +230,10 @@ export const createApprovalPathHandler = async (req: AuthRequest, res: Response,
     if (!path_type || !total_stages) {
       return res.status(400).json({ success: false, error: 'path_type and total_stages are required' });
     }
+    const auth = buildAuthContext(req.user);
     const path = await approvalService.createApprovalPath(id, {
       path_type, total_stages, required_roles, required_users, quorum_required, fallback_approver, escalation_target, sla_due_at,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: path });
   } catch (error) { next(error); }
 };
@@ -252,7 +258,8 @@ export const addApprovalComment = async (req: AuthRequest, res: Response, next: 
   try {
     const id = paramStr(req, 'id');
     const { body, visibility } = CommentSchema.parse(req.body);
-    const comment = await approvalService.addApprovalComment(id, getUserId(req), body, visibility);
+    const auth = buildAuthContext(req.user);
+    const comment = await approvalService.addApprovalComment(id, getUserId(req), body, visibility, auth);
     res.status(201).json({ success: true, data: comment });
   } catch (error) { next(error); }
 };
@@ -269,7 +276,8 @@ export const addApprovalEvidence = async (req: AuthRequest, res: Response, next:
   try {
     const id = paramStr(req, 'id');
     const input = EvidenceSchema.parse(req.body);
-    const evidence = await approvalService.addApprovalEvidence(id, input);
+    const auth = buildAuthContext(req.user);
+    const evidence = await approvalService.addApprovalEvidence(id, input, auth);
     res.status(201).json({ success: true, data: evidence });
   } catch (error) { next(error); }
 };
@@ -285,7 +293,8 @@ export const getApprovalAuditTrail = async (req: AuthRequest, res: Response, nex
 export const exportApprovalRecord = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = paramStr(req, 'id');
-    const record = await approvalService.exportApprovalRecord(id, getTenantId(req));
+    const auth = buildAuthContext(req.user);
+    const record = await approvalService.exportApprovalRecord(id, getTenantId(req), auth);
     if (!record) return res.status(404).json({ error: 'Approval item not found' });
     res.json({ success: true, data: record });
   } catch (error) { next(error); }
@@ -294,7 +303,8 @@ export const exportApprovalRecord = async (req: AuthRequest, res: Response, next
 export const retryCallback = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const callbackId = paramStr(req, 'callbackId');
-    await approvalService.retryCallback(callbackId);
+    const auth = buildAuthContext(req.user);
+    await approvalService.retryCallback(callbackId, auth);
     res.json({ success: true });
   } catch (error) { next(error); }
 };
@@ -310,6 +320,7 @@ export const bulkApprovalAction = async (req: AuthRequest, res: Response, next: 
     const userId = getUserId(req);
     const role = getRole(req);
     const isSuper = isSuperAdmin(req);
+    const auth = buildAuthContext(req.user);
 
     const results = [];
     for (const id of ids) {
@@ -322,12 +333,12 @@ export const bulkApprovalAction = async (req: AuthRequest, res: Response, next: 
         }
         let result;
         switch (action) {
-          case 'approve': result = await approvalService.approveItem(id, tenantId, userId, reason, note); break;
-          case 'reject': result = await approvalService.rejectItem(id, tenantId, userId, reason || 'Bulk rejection', note); break;
-          case 'request_changes': result = await approvalService.requestChanges(id, tenantId, userId, reason || 'Bulk changes requested', condition_owner, condition_due_at, note); break;
-          case 'conditional_approval': result = await approvalService.approveWithConditions(id, tenantId, userId, condition_text, condition_owner, condition_due_at, note); break;
-          case 'escalate': result = await approvalService.escalateItem(id, tenantId, userId, target_role, reason, note); break;
-          case 'cancel': result = await approvalService.cancelApproval(id, tenantId, userId); break;
+          case 'approve': result = await approvalService.approveItem(id, tenantId, userId, reason, note, auth); break;
+          case 'reject': result = await approvalService.rejectItem(id, tenantId, userId, reason || 'Bulk rejection', note, auth); break;
+          case 'request_changes': result = await approvalService.requestChanges(id, tenantId, userId, reason || 'Bulk changes requested', condition_owner, condition_due_at, note, auth); break;
+          case 'conditional_approval': result = await approvalService.approveWithConditions(id, tenantId, userId, condition_text, condition_owner, condition_due_at, note, auth); break;
+          case 'escalate': result = await approvalService.escalateItem(id, tenantId, userId, target_role, reason, note, auth); break;
+          case 'cancel': result = await approvalService.cancelApproval(id, tenantId, userId, auth); break;
           default: results.push({ id, success: false, error: 'Invalid action' }); continue;
         }
         results.push({ id, success: true, data: result });

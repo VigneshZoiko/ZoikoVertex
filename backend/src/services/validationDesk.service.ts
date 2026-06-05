@@ -2,6 +2,8 @@ import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 
 export type ValidationItemType = 'social_post' | 'inbox_reply' | 'campaign_asset' | 'agent_action' | 'workflow_output' | 'revision_item' | 'escalated_item' | 'approval_bound_item' | 'platform_specific_content' | 'source_claim_item';
 export type ValidationStatus = 'PENDING_VALIDATION' | 'IN_VALIDATION' | 'PASSED' | 'WARNING' | 'FAILED' | 'BLOCKED' | 'NEEDS_REVISION' | 'MANUAL_CHECK_REQUIRED' | 'ESCALATION_REQUIRED' | 'OVERRIDE_ELIGIBLE' | 'PASSED_WITH_OVERRIDE' | 'OVERRIDE_PROHIBITED' | 'REVALIDATION_NEEDED' | 'COMPLETED' | 'ARCHIVED';
@@ -64,7 +66,8 @@ export interface ValidationItemInput {
 
 // ─── Validation Items ────────────────────────────────────────────────────
 
-export async function createValidationItem(input: ValidationItemInput): Promise<ValidationItem> {
+export async function createValidationItem(input: ValidationItemInput, auth?: AuthContext): Promise<ValidationItem> {
+  requireAnyPermission(auth, 'validation:manage');
   const { data, error } = await supabaseAdmin
     .from('validation_items')
     .insert({
@@ -189,7 +192,8 @@ export async function getValidationItem(id: string): Promise<ValidationItem & {
   };
 }
 
-export async function updateValidationStatus(id: string, status: ValidationStatus, performed_by: string, tenant_id: string): Promise<void> {
+export async function updateValidationStatus(id: string, status: ValidationStatus, performed_by: string, tenant_id: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'validation:manage');
   const { data: current } = await supabaseAdmin
     .from('validation_items')
     .select('validation_status')
@@ -220,7 +224,8 @@ export async function updateValidationStatus(id: string, status: ValidationStatu
   } catch { /* non-blocking */ }
 }
 
-export async function assignValidator(id: string, validator_id: string, performed_by: string, tenant_id: string): Promise<void> {
+export async function assignValidator(id: string, validator_id: string, performed_by: string, tenant_id: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'validation:manage');
   const { error } = await supabaseAdmin
     .from('validation_items')
     .update({ assigned_validator: validator_id, updated_at: new Date().toISOString() })
@@ -239,7 +244,8 @@ export async function createValidationRun(input: {
   validation_engine_version?: string;
   content_snapshot_version?: string;
   run_by: string;
-}): Promise<Record<string, unknown>> {
+}, auth?: AuthContext): Promise<Record<string, unknown>> {
+  requireAnyPermission(auth, 'validation:manage');
   const { data, error } = await supabaseAdmin
     .from('validation_runs')
     .insert({
@@ -281,7 +287,9 @@ export async function completeValidationRun(
       issue_summary?: string;
     }>;
   },
+  auth?: AuthContext,
 ): Promise<{ score: number; failed_count: number; warning_count: number; blocked_count: number; manual_check_count: number; highest_severity: string | null }> {
+  requireAnyPermission(auth, 'validation:manage');
   const now = new Date().toISOString();
 
   await supabaseAdmin
@@ -408,7 +416,8 @@ export async function applyOverride(input: {
   note?: string;
   overridden_by: string;
   tenant_id: string;
-}): Promise<void> {
+}, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'validation:manage');
   await supabaseAdmin.from('validation_overrides').insert({
     id: uuidv4(),
     validation_item_id: input.validation_item_id,
@@ -440,7 +449,8 @@ export async function completeManualCheck(input: {
   completed_by: string;
   tenant_id: string;
   validation_item_id: string;
-}): Promise<void> {
+}, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'validation:manage');
   await supabaseAdmin.from('validation_manual_checks').insert({
     id: uuidv4(),
     validation_item_id: input.validation_item_id,
@@ -462,7 +472,8 @@ export async function addNote(input: {
   parent_note_id?: string;
   note_body: string;
   created_by: string;
-}): Promise<Record<string, unknown>> {
+}, auth?: AuthContext): Promise<Record<string, unknown>> {
+  requireAnyPermission(auth, 'validation:manage');
   const { data, error } = await supabaseAdmin
     .from('validation_notes')
     .insert({
@@ -500,7 +511,8 @@ export async function getAuditLog(validation_item_id: string): Promise<Record<st
 
 // ─── Revalidation ────────────────────────────────────────────────────────
 
-export async function markRevalidationNeeded(id: string, tenant_id: string, reason: string, performed_by: string): Promise<void> {
+export async function markRevalidationNeeded(id: string, tenant_id: string, reason: string, performed_by: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'validation:manage');
   const { data: item } = await supabaseAdmin
     .from('validation_items')
     .select('validation_status')
@@ -520,7 +532,8 @@ export async function createCallback(input: {
   source_entity_id: string;
   callback_payload?: Record<string, unknown>;
   tenant_id: string;
-}): Promise<Record<string, unknown>> {
+}, auth?: AuthContext): Promise<Record<string, unknown>> {
+  requireAnyPermission(auth, 'validation:manage');
   const { data, error } = await supabaseAdmin
     .from('validation_callbacks')
     .insert({
@@ -599,7 +612,8 @@ export async function processPendingCallbacks(tenant_id: string, limit: number =
   return { processed, failed };
 }
 
-export async function retryCallback(callback_id: string, performed_by: string, tenant_id: string): Promise<Record<string, unknown>> {
+export async function retryCallback(callback_id: string, performed_by: string, tenant_id: string, auth?: AuthContext): Promise<Record<string, unknown>> {
+  requireAnyPermission(auth, 'validation:manage');
   const { data: cb } = await supabaseAdmin.from('validation_callbacks').select('*').eq('id', callback_id).single();
   if (!cb) throw new Error('Callback not found');
 
