@@ -6,7 +6,7 @@ export default function AgentsGrid() {
       layer: "Strategic Control Layer",
       name: "Chief Strategy Agent",
       desc: "ZoikoVertex continuously monitors EBITDA targets, budget envelopes, and business context to automatically shift capital allocation toward highest-return marketing activity.",
-      link: "Revenue & ROI Management â†’",
+      link: "Revenue & ROI Management →",
       icon: Zap,
       iconColor: "#0891b2",
       iconBg: "#e0f7ff",
@@ -14,8 +14,8 @@ export default function AgentsGrid() {
     {
       layer: "Financial & Optimization Layer",
       name: "Quantitative Ad Spend Agent",
-      desc: "Analyses CPA, ROAS, and marginal return across every channel in real time. Reallocates budget within policy boundaries â€” no manual intervention required.",
-      link: "Full bid optimisation â†’",
+      desc: "Analyses CPA, ROAS, and marginal return across every channel in real time. Reallocates budget within policy boundaries — no manual intervention required.",
+      link: "Full bid optimisation →",
       icon: BarChart2,
       iconColor: "#6366f1",
       iconBg: "#ede9fe",
@@ -23,8 +23,8 @@ export default function AgentsGrid() {
     {
       layer: "Financial & Optimization Layer",
       name: "Revenue Forensic Agent",
-      desc: "Multi-touch attribution that reconciles marketing performance to actual revenue. Gives finance teams a single version of ROI truth â€” defensible, board-ready, and audit-traceable.",
-      link: "Multi-touch attribution â†’",
+      desc: "Multi-touch attribution that reconciles marketing performance to actual revenue. Gives finance teams a single version of ROI truth — defensible, board-ready, and audit-traceable.",
+      link: "Multi-touch attribution →",
       icon: Activity,
       iconColor: "#0891b2",
       iconBg: "#e0f7ff",
@@ -33,7 +33,7 @@ export default function AgentsGrid() {
       layer: "Governance & Risk Layer",
       name: "Compliance Sentry",
       desc: "Reviews all outputs against brand rules, legal requirements, and sector-specific controls. Nothing publishes without passing compliance review. Pre-authorises agent actions.",
-      link: "Pre-authorise agent actions â†’",
+      link: "Pre-authorise agent actions →",
       icon: Shield,
       iconColor: "#7c3aed",
       iconBg: "#ede9fe",
@@ -41,8 +41,8 @@ export default function AgentsGrid() {
     {
       layer: "Simulation Layer",
       name: "Synthetic Audience Engine",
-      desc: "Predicts likely audience response before spend is committed. Test creative and targeting hypotheses against synthetic audiences â€” eliminate waste before it happens.",
-      link: "Test spend before committing â†’",
+      desc: "Predicts likely audience response before spend is committed. Test creative and targeting hypotheses against synthetic audiences — eliminate waste before it happens.",
+      link: "Test spend before committing →",
       icon: Users,
       iconColor: "#0d9488",
       iconBg: "#ccfbf1",
@@ -51,7 +51,7 @@ export default function AgentsGrid() {
       layer: "Execution Intelligence Layer",
       name: "Growth Optimisation Agent",
       desc: "Identifies inefficiency across your channels and creatives. Scales what works. Kills what doesn't. Tied directly to contribution margin, not vanity metrics.",
-      link: "Continuous output optimisation â†’",
+      link: "Continuous output optimisation →",
       icon: Eye,
       iconColor: "#0891b2",
       iconBg: "#e0f7ff",
@@ -63,7 +63,7 @@ export default function AgentsGrid() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-14">
           <p className="text-indigo-500 text-xs font-bold tracking-widest uppercase mb-3">
-            â€” The Full Agent Operating System
+            — The Full Agent Operating System
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-4">
             Every agent. Every capability.

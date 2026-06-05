@@ -54,13 +54,13 @@ async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
   try {
     return await fetch(url, init);
   } catch (err) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        `[API] Backend unreachable at ${url}. Ensure the server is running on the configured port.`,
-      );
-    }
-    // Tag the message so callers can detect this as a network/offline error
-    throw new Error(`NETWORK_ERROR: Connection to backend failed. ${err instanceof Error ? err.message : ''}`);
+    console.error(
+      `[API Network Error] Failed to connect to backend at ${url}. Ensure the server is running.`,
+      err,
+    );
+    throw new Error(
+      "Connection to backend failed. Please ensure the backend server is running and accessible.",
+    );
   }
 }
 

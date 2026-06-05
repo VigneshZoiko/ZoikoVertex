@@ -2,6 +2,7 @@
 import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
 import { createAuditEvent } from './auditTrail.service';
+import * as vaultService from './evidenceVault.service';
 
 export function registerEventBridge(): void {
   // ─── Identity Ledger Events ────────────────────────────────────────────────
@@ -245,6 +246,26 @@ export function registerEventBridge(): void {
       logger.info(`[EventBridge] Exception ${exception_id} routed to Quality Audit`);
     } catch (err) {
       logger.error({ err }, '[EventBridge] exception.sent_to_quality_audit failed');
+    }
+  });
+
+  // ─── Auto-Preservation to Evidence Vault ───────────────────────────────────
+  internalEventBus.on('audit.event_created', async (payload: unknown) => {
+    const { event_id, workspace_id, tenant_id, risk_level, event_type } = payload as any;
+    // Automatically preserve HIGH or CRITICAL risk events to the Evidence Vault
+    if (risk_level === 'high' || risk_level === 'critical') {
+      try {
+        await vaultService.preserveAuditEventToVault({
+          workspace_id,
+          tenant_id: tenant_id || 'default',
+          audit_event_id: event_id,
+          reason: `Automatic preservation of ${risk_level} risk event: ${event_type}`,
+          preservation_type: 'AUDIT_AUTO_SYNC'
+        });
+        logger.info({ eventId: event_id }, '[EventBridge] Automatically preserved critical event to Vault');
+      } catch (err) {
+        logger.error({ err, eventId: event_id }, '[EventBridge] Auto-preservation failed');
+      }
     }
   });
 
