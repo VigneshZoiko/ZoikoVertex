@@ -5,6 +5,11 @@ import { buildAuthContext } from '../../shared/serviceAuth';
 
 const DEFAULT_WORKSPACE_ID = 'WRK-001';
 
+function getTenantId(req: AuthRequest): string {
+  const tenantId = (req.user as any)?.tenant_id;
+  return tenantId && tenantId !== 'default' ? tenantId : (req.user?.workspace_id || DEFAULT_WORKSPACE_ID);
+}
+
 // ─── GET /api/forensic/cases ──────────────────────────────────────────────────
 
 export async function listCases(req: AuthRequest, res: Response, next: NextFunction) {
@@ -36,6 +41,7 @@ export async function createCase(req: AuthRequest, res: Response, next: NextFunc
       workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
       case_type, title, summary, severity, source, source_event_ids,
       owner_user_id, sla_due_at, actor_id: req.user!.id,
+      tenant_id: getTenantId(req),
     }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) {

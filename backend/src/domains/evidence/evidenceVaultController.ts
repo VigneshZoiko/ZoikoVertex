@@ -9,8 +9,8 @@ function getWorkspaceId(req: AuthRequest): string {
 }
 
 function getTenantId(req: AuthRequest): string {
-  if (!(req.user as Record<string, unknown>)?.tenant_id) throw Object.assign(new Error('Tenant ID is required'), { statusCode: 400 });
-  return (req.user as Record<string, unknown>).tenant_id as string;
+  const rawTenantId = (req.user as Record<string, unknown>)?.tenant_id as string | undefined;
+  return rawTenantId && rawTenantId !== 'default' ? rawTenantId : getWorkspaceId(req);
 }
 
 // ─── GET /api/evidence-vault/items ────────────────────────────────────────────

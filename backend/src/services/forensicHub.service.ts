@@ -400,7 +400,8 @@ export async function preserveToVault(params: {
     `${toPreserve.length} evidence items sent to vault. Retention: ${params.retention_class}.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'vault_status', previous_value: 'not_preserved', new_value: 'preserved', change_reason: params.preservation_reason },
-    { permission_used: 'forensic.evidence.preserve', override_reason: `Manifest: ${manifestId}` }
+    { permission_used: 'forensic.evidence.preserve', override_reason: `Manifest: ${manifestId}` },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -436,7 +437,8 @@ export async function applyLegalHold(caseId: string, reason: string, actorId: st
     `Legal hold applied. Reason: ${reason}${scope ? `. Scope: ${scope}` : ''}`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'legal_hold_active', previous_value: false, new_value: true, change_reason: reason },
-    { permission_used: 'forensic.legal_hold.apply', override_reason: scope || reason }
+    { permission_used: 'forensic.legal_hold.apply', override_reason: scope || reason },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -467,7 +469,8 @@ export async function releaseLegalHold(caseId: string, reason: string, actorId: 
     `Legal hold released. Reason: ${reason}`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'legal_hold_active', previous_value: true, new_value: false, change_reason: reason },
-    { permission_used: 'forensic.legal_hold.release' }
+    { permission_used: 'forensic.legal_hold.release' },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -516,10 +519,12 @@ export async function emitForensicAuditEvent(
   title: string, summary: string, object: { object_type: string; object_id: string; object_name?: string },
   change?: { field_changed?: string; previous_value?: unknown; new_value?: unknown; change_reason?: string },
   authority?: { permission_used?: string; policy_rule_id?: string; approval_required?: boolean; override_reason?: string; override_authority?: string },
+  tenantId?: string,
 ): Promise<string | null> {
   try {
     const result = await createAuditEvent({
       workspace_id: workspaceId,
+      tenant_id: tenantId || workspaceId,
       event_category: 'evidence_legal',
       event_type: eventType,
       event_title: title,
@@ -611,7 +616,7 @@ export async function getCaseByCaseId(caseId: string): Promise<ForensicCase | nu
 export async function createCase(params: {
   workspace_id: string; case_type: string; title: string; summary?: string;
   severity?: string; source?: string; source_event_ids?: string[];
-  owner_user_id?: string; sla_due_at?: string; actor_id: string;
+  owner_user_id?: string; sla_due_at?: string; actor_id: string; tenant_id?: string;
 }, auth?: AuthContext): Promise<ForensicCase> {
   requireAnyPermission(auth, 'evidence:view');
   const { data, error } = await supabaseAdmin
@@ -627,6 +632,7 @@ export async function createCase(params: {
       source_event_ids: params.source_event_ids || [],
       owner_user_id: params.owner_user_id || null,
       sla_due_at: params.sla_due_at || calculateSlaDueAt(params.severity || 'medium'),
+      tenant_id: params.tenant_id || params.workspace_id,
     })
     .select('*, participants:case_participants(*)')
     .single();
@@ -642,7 +648,8 @@ export async function createCase(params: {
     `Forensic case "${caseRecord.title}" created as ${params.case_type}.`,
     { object_type: 'forensic_case', object_id: caseRecord.case_id },
     undefined,
-    { permission_used: 'forensic.case.create' }
+    { permission_used: 'forensic.case.create' },
+    caseRecord.tenant_id
   );
 
   // Record action
@@ -695,7 +702,8 @@ export async function updateCase(
         `Severity changed from ${existing.severity} to ${params.severity}.`,
         { object_type: 'forensic_case', object_id: existing.case_id },
         { field_changed: 'severity', previous_value: existing.severity, new_value: params.severity, change_reason: params.reason },
-        { permission_used: 'forensic.case.update_severity' }
+        { permission_used: 'forensic.case.update_severity' },
+        existing.tenant_id
       );
       await supabaseAdmin.from('case_actions').insert({
         case_id: caseId, action_type: 'severity_changed', actor_id: params.actor_id,
@@ -719,7 +727,8 @@ export async function updateCase(
       `Status changed from ${existing.status} to ${params.status}.`,
       { object_type: 'forensic_case', object_id: existing.case_id },
       { field_changed: 'status', previous_value: existing.status, new_value: params.status, change_reason: params.reason },
-      { permission_used: 'forensic.case.update_status' }
+      { permission_used: 'forensic.case.update_status' },
+      existing.tenant_id
     );
     await supabaseAdmin.from('case_actions').insert({
       case_id: caseId, action_type: 'status_changed', actor_id: params.actor_id,
@@ -736,7 +745,8 @@ export async function updateCase(
       `Owner assigned to ${params.owner_user_id}.`,
       { object_type: 'forensic_case', object_id: existing.case_id },
       { field_changed: 'owner_user_id', previous_value: existing.owner_user_id, new_value: params.owner_user_id, change_reason: params.reason },
-      { permission_used: 'forensic.case.assign' }
+      { permission_used: 'forensic.case.assign' },
+      existing.tenant_id
     );
     await supabaseAdmin.from('case_actions').insert({
       case_id: caseId, action_type: 'assignment', actor_id: params.actor_id,
@@ -791,7 +801,8 @@ export async function addEvidence(params: {
     `Evidence item ${params.source_type}:${params.source_id} added.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     undefined,
-    { permission_used: 'forensic.evidence.add' }
+    { permission_used: 'forensic.evidence.add' },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -818,7 +829,8 @@ export async function pinEvidence(evidenceId: string, pinReason: string, actorId
     `Evidence ${item.source_type}:${item.source_id} pinned as key evidence.`,
     { object_type: 'forensic_case', object_id: item.case.case_id },
     undefined,
-    { permission_used: 'forensic.evidence.pin' }
+    { permission_used: 'forensic.evidence.pin' },
+    item.case.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -855,7 +867,8 @@ export async function addNote(params: {
     `Note (${params.note_class}) added to case.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     undefined,
-    { permission_used: 'forensic.note.add' }
+    { permission_used: 'forensic.note.add' },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -953,7 +966,8 @@ export async function closeCase(caseId: string, params: {
     `Case closed with outcome: ${params.outcome}.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'status', previous_value: caseRec.status, new_value: 'closed', change_reason: params.rationale },
-    { permission_used: 'forensic.case.close', override_reason: `Outcome: ${params.outcome}` }
+    { permission_used: 'forensic.case.close', override_reason: `Outcome: ${params.outcome}` },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -1079,7 +1093,8 @@ export async function reopenCase(caseId: string, reason: string, actorId: string
     `Previously closed case reopened. Reason: ${reason}`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'status', previous_value: 'closed', new_value: 'reopened', change_reason: reason },
-    { permission_used: 'forensic.case.reopen' }
+    { permission_used: 'forensic.case.reopen' },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -1150,7 +1165,8 @@ export async function createExport(params: {
     `Export package (${params.package_type}/${params.format}) requested. Reason: ${params.reason}`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     undefined,
-    { permission_used: 'forensic.export.create' }
+    { permission_used: 'forensic.export.create' },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -1179,12 +1195,13 @@ export async function approveExport(exportId: string, actorId: string, auth?: Au
   }).eq('id', exportId);
 
   await emitForensicAuditEvent(
-    'forensic.export_approved', '', actorId,
+    'forensic.export_approved', exp.workspace_id, actorId,
     `Export Approved: ${exp.id.substring(0, 8)}`,
     `Export package ${exp.package_type}/${exp.format} approved by ${actorId}.`,
     { object_type: 'case_export', object_id: exp.id },
     { field_changed: 'status', previous_value: 'pending_approval', new_value: 'approved' },
-    { permission_used: 'forensic.export.approve' }
+    { permission_used: 'forensic.export.approve' },
+    exp.workspace_id
   );
 
   const { data: updated } = await supabaseAdmin.from('case_exports').select('*').eq('id', exportId).single();
@@ -1262,7 +1279,8 @@ export async function generateExportPackage(exportId: string, actorId: string, a
     `Export package generated. Manifest: ${manifestHash}`,
     { object_type: 'case_export', object_id: exportId },
     { field_changed: 'status', previous_value: 'generating', new_value: 'ready', change_reason: `Manifest: ${manifestHash}` },
-    { permission_used: 'forensic.export.generate' }
+    { permission_used: 'forensic.export.generate' },
+    caseRec.tenant_id
   );
 
   const { data: updated } = await supabaseAdmin.from('case_exports').select('*').eq('id', exportId).single();
@@ -1354,7 +1372,8 @@ export async function markEvidencePrivileged(evidenceId: string, actorId: string
     `Evidence item ${item.id.substring(0, 8)} marked as privileged.`,
     { object_type: 'forensic_case', object_id: item.case.case_id },
     { field_changed: 'privilege_flag', previous_value: false, new_value: true },
-    { permission_used: 'forensic.privilege.apply' }
+    { permission_used: 'forensic.privilege.apply' },
+    item.case.tenant_id
   );
 }
 
@@ -1375,6 +1394,7 @@ export async function unpinEvidence(evidenceId: string, reason: string, actorId:
     `Evidence unpinned. Reason: ${reason}`,
     { object_type: 'forensic_case', object_id: item.case.case_id },
     { field_changed: 'is_pinned', previous_value: true, new_value: false, change_reason: reason },
-    { permission_used: 'forensic.evidence.unpin' }
+    { permission_used: 'forensic.evidence.unpin' },
+    item.case.tenant_id
   );
 }
