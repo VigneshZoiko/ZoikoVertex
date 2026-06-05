@@ -297,6 +297,7 @@ import { authenticate, provisionGuard, scopeGuard } from './shared/authMiddlewar
 import { integrationPlanGate, blockApiKeyUsers, planRateLimit } from './shared/planLimits';
 import { requireRole } from './shared/permissionMiddleware';
 import { registerExecutionListeners } from './domains/channels/executionService';
+import { registerEventBridge } from './services/eventBridge';
 import {
   listApiKeys, createApiKey, revokeApiKey, deleteApiKey,
   listWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook, getDeliveryLogs,
@@ -1048,10 +1049,84 @@ app.get('/api/v1/knowledge/sources/:sourceId/chunks', authenticate, KnowledgeCon
 
 // Search API
 app.get('/api/v1/knowledge/search', authenticate, KnowledgeController.searchSources);
-
 // Access Policy API
 app.get('/api/v1/knowledge/access-policy', authenticate, KnowledgeController.getAccessPolicy);
 app.post('/api/v1/knowledge/access-policy', authenticate, KnowledgeController.upsertAccessPolicy);
+
+app.get('/api/v1/knowledge/access-policy', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getAccessPolicy);
+app.post('/api/v1/knowledge/access-policy', authenticate, scopeGuard('write:content', '*'), KnowledgeController.upsertAccessPolicy);
+
+// Collection Lifecycle
+app.post('/api/v1/knowledge/collections/:id/request-approval', authenticate, scopeGuard('write:content', '*'), KnowledgeController.requestCollectionApproval);
+app.post('/api/v1/knowledge/collections/:id/approve', authenticate, scopeGuard('write:content', '*'), KnowledgeController.approveCollection);
+app.post('/api/v1/knowledge/collections/:id/activate', authenticate, scopeGuard('write:content', '*'), KnowledgeController.activateCollection);
+app.post('/api/v1/knowledge/collections/:id/restrict', authenticate, scopeGuard('write:content', '*'), KnowledgeController.restrictCollection);
+app.post('/api/v1/knowledge/collections/:id/retire', authenticate, scopeGuard('write:content', '*'), KnowledgeController.retireCollection);
+
+// Source Processing
+app.post('/api/v1/knowledge/sources/:id/process', authenticate, scopeGuard('write:content', '*'), KnowledgeController.processSource);
+app.post('/api/v1/knowledge/sources/:id/re-embed', authenticate, scopeGuard('write:content', '*'), KnowledgeController.reEmbedSource);
+
+// Version History
+app.get('/api/v1/knowledge/sources/:id/versions', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getSourceVersions);
+app.get('/api/v1/knowledge/sources/:id/diff', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getSourceDiff);
+app.post('/api/v1/knowledge/sources/:id/rollback', authenticate, scopeGuard('write:content', '*'), KnowledgeController.rollbackSource);
+
+// Evidence Bundles
+app.post('/api/v1/knowledge/sources/:id/evidence', authenticate, scopeGuard('read:content', '*'), KnowledgeController.createEvidenceBundle);
+app.get('/api/v1/knowledge/sources/:id/evidence/export', authenticate, scopeGuard('read:content', '*'), KnowledgeController.exportEvidenceBundle);
+
+// Export
+app.post('/api/v1/knowledge/export', authenticate, scopeGuard('read:content', '*'), KnowledgeController.exportSources);
+app.post('/api/v1/knowledge/collections/:id/export', authenticate, scopeGuard('read:content', '*'), KnowledgeController.exportCollection);
+
+// Connector Ingestion
+app.post('/api/v1/knowledge/connectors/ingest', authenticate, scopeGuard('write:content', '*'), KnowledgeController.ingestFromConnector);
+app.get('/api/v1/knowledge/connectors/status', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getConnectorStatus);
+
+// Search
+app.get('/api/v1/knowledge/search', authenticate, scopeGuard('read:content', '*'), KnowledgeController.searchKnowledge);
+
+// Settings
+app.get('/api/v1/knowledge/settings', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getSettings);
+
+// Analytics
+app.get('/api/v1/knowledge/analytics', authenticate, scopeGuard('read:analytics', '*'), KnowledgeController.getAnalytics);
+
+// SLA / Workers
+app.post('/api/v1/knowledge/sla/check', authenticate, scopeGuard('write:content', '*'), KnowledgeController.checkReviewSLAs);
+app.post('/api/v1/knowledge/staleness/retire', authenticate, scopeGuard('write:content', '*'), KnowledgeController.retireExpiredSources);
+
+// Scan
+app.post('/api/v1/knowledge/sources/:id/scan', authenticate, scopeGuard('write:content', '*'), KnowledgeController.scanSource);
+
+// Citations
+app.post('/api/v1/knowledge/citations', authenticate, scopeGuard('write:content', '*'), KnowledgeController.recordCitation);
+
+// Governed Retrieval
+app.post('/api/v1/knowledge/retrieve', authenticate, scopeGuard('read:content', '*'), KnowledgeController.governedRetrieval);
+
+// Notifications
+app.get('/api/v1/knowledge/notifications', authenticate, scopeGuard('read:content', '*'), KnowledgeController.listNotifications);
+app.post('/api/v1/knowledge/notifications/:id/acknowledge', authenticate, scopeGuard('write:content', '*'), KnowledgeController.acknowledgeNotification);
+
+// Conflict Auto-Detection
+app.post('/api/v1/knowledge/sources/:id/detect-conflicts', authenticate, scopeGuard('write:content', '*'), KnowledgeController.autoDetectConflicts);
+
+// Expire Source
+app.post('/api/v1/knowledge/sources/:id/expire', authenticate, scopeGuard('write:content', '*'), KnowledgeController.expireSource);
+
+// Dependency API
+app.get('/api/v1/knowledge/sources/:id/dependencies', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getSourceDependencies);
+app.get('/api/v1/knowledge/collections/:id/dependencies', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getCollectionDependencies);
+
+// Retrieval Evaluation
+app.post('/api/v1/knowledge/retrieval/evaluate', authenticate, scopeGuard('read:content', '*'), KnowledgeController.evaluateRetrieval);
+
+// HTML Page Capture
+app.post('/api/v1/knowledge/sources/from-url', authenticate, scopeGuard('write:content', '*'), KnowledgeController.uploadSourceWithHtml);
+
+
 
 // ─── Prompt Governance Routes ────────────────────────────────────────────
 // Static routes (must come before parameterized :id routes)
@@ -1224,9 +1299,34 @@ import { initWorker } from './workers/schedulerWorker';
 import { initAuditExportWorker } from './workers/auditExportWorker';
 import { initAuditIntegrityWorker } from './workers/auditIntegrityWorker';
 import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
+import { KnowledgeSlaWorker } from './modules/knowledge/KnowledgeSlaWorker';
+import { KnowledgeStalenessWorker } from './modules/knowledge/KnowledgeStalenessWorker';
+
+function startKnowledgeWorkers(): void {
+  const SLA_INTERVAL = 6 * 60 * 60 * 1000;
+  const STALE_INTERVAL = 24 * 60 * 60 * 1000;
+
+  setInterval(() => {
+    KnowledgeSlaWorker.checkReviewSLAs().catch((e: any) =>
+      logger.error({ err: e }, 'Scheduled SLA check failed')
+    );
+  }, SLA_INTERVAL);
+
+  setInterval(() => {
+    KnowledgeStalenessWorker.checkAndRetireExpired().catch((e: any) =>
+      logger.error({ err: e }, 'Scheduled expiry check failed')
+    );
+    KnowledgeStalenessWorker.checkStaleSources().catch((e: any) =>
+      logger.error({ err: e }, 'Scheduled stale check failed')
+    );
+  }, STALE_INTERVAL);
+
+  logger.info('[workers] Knowledge workers scheduled: SLA every 6h, staleness every 24h');
+}
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
+  registerEventBridge();
   const server = app.listen(port, () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers
@@ -1235,6 +1335,7 @@ try {
     initAuditIntegrityWorker();
     initVaultWorker();
     initDlpScanWorker();
+    startKnowledgeWorkers();
   });
 
   server.on('error', (err: Error & { code?: string }) => {
