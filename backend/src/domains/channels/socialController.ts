@@ -4,7 +4,6 @@ import { randomUUID } from 'crypto';
 import { env } from '../../config/env';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
-import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
 
 // In-memory session store for short-lived OAuth page-selection sessions (10 min TTL)
 const _sessionStore = new Map<string, { data: string; expiresAt: number }>();
@@ -98,8 +97,6 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
         logger.info(`[Social] Page found: ${page.name}. IG Business Account Data: ${JSON.stringify(pageDetails.instagram_business_account || 'NONE')}`);
 
         // 4b. Save Facebook Page
-        // access_token = Page Access Token (for publishing/replying)
-        // refresh_token = long-lived User Access Token (needed to read comment authors — Page tokens strip `from` in v18+)
         const facebookAccount = {
           workspace_id: workspaceId,
           platform: 'facebook',
@@ -107,20 +104,13 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
           account_handle: pageDetails.username || page.id,
           page_id: page.id,  // numeric page ID — required by adcreatives object_story_spec
           avatar_url: pageDetails.picture?.data?.url,
-          access_token: page.access_token,   // Page Access Token (posts/inbox)
-          refresh_token: accessToken,         // Long-lived User Token (ads API — pages_manage_ads)
-          status: 'active',
-          token_expires_at: longLivedData.expires_in
-            ? new Date(Date.now() + longLivedData.expires_in * 1000).toISOString()
-            : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-          token_status: 'active',
+          access_token: page.access_token,
+          status: 'active'
         };
 
         await supabaseAdmin
           .from('connected_accounts')
           .upsert(facebookAccount, { onConflict: 'workspace_id,platform,account_handle' });
-
-        broadcastWebhookEvent(workspaceId, 'account.connected', { platform: 'facebook', account_handle: facebookAccount.account_handle, account_name: facebookAccount.account_name, connected_at: new Date().toISOString() }).catch(() => {});
 
         // 4c. Save Linked Instagram Account (if exists)
         if (pageDetails.instagram_business_account) {
@@ -129,14 +119,10 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
             workspace_id: workspaceId,
             platform: 'instagram',
             account_name: ig.username,
-            account_handle: ig.id,
+            account_handle: ig.id, 
             avatar_url: ig.profile_picture_url,
-            access_token: page.access_token,
-            status: 'active',
-            token_expires_at: longLivedData.expires_in
-              ? new Date(Date.now() + longLivedData.expires_in * 1000).toISOString()
-              : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-            token_status: 'active',
+            access_token: page.access_token, 
+            status: 'active'
           };
 
           const { error: igSaveError } = await supabaseAdmin
@@ -147,7 +133,6 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
             logger.error({ igSaveError }, `[Social] Database error saving IG: ${ig.username}`);
           } else {
             logger.info(`[Social] Successfully connected Instagram: ${ig.username}`);
-            broadcastWebhookEvent(workspaceId, 'account.connected', { platform: 'instagram', account_handle: ig.id, account_name: ig.username, connected_at: new Date().toISOString() }).catch(() => {});
           }
         }
       } catch (err) {
@@ -258,28 +243,21 @@ export const handleLinkedInCallback = async (req: Request, res: Response, next: 
     });
     const profileData = await profileResponse.json();
 
-    const accountData: Record<string, any> = {
+    const accountData = {
       workspace_id: workspaceId,
       platform: 'linkedin',
       account_name: profileData.name || profileData.given_name || profileData.email || 'LinkedIn User',
       account_handle: profileData.sub,
       avatar_url: profileData.picture,
       access_token: accessToken,
-      status: 'active',
-      token_expires_at: tokenData.expires_in
-        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-        : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-      token_status: 'active',
+      status: 'active'
     };
-    if (tokenData.refresh_token) accountData.refresh_token = tokenData.refresh_token;
 
     const { error: dbError } = await supabaseAdmin
       .from('connected_accounts')
       .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
 
     if (dbError) throw dbError;
-
-    broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=linkedin`);
 
@@ -327,8 +305,6 @@ export const saveLinkedInPages = async (req: Request, res: Response, next: NextF
           account_handle: page.urn,
           access_token: accessToken,
           status: 'active',
-          token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-          token_status: 'active',
         }, { onConflict: 'workspace_id,platform,account_handle' });
 
       if (dbError) throw dbError;
@@ -392,28 +368,21 @@ export const handlePinterestCallback = async (req: Request, res: Response, next:
     });
     const profileData = await profileResponse.json();
 
-    const accountData: Record<string, any> = {
+    const accountData = {
       workspace_id: workspaceId,
       platform: 'pinterest',
       account_name: profileData.username || 'Pinterest User',
       account_handle: profileData.username,
       avatar_url: profileData.profile_image,
       access_token: accessToken,
-      status: 'active',
-      token_expires_at: tokenData.expires_in
-        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      token_status: 'active',
+      status: 'active'
     };
-    if (tokenData.refresh_token) accountData.refresh_token = tokenData.refresh_token;
 
     const { error: dbError } = await supabaseAdmin
       .from('connected_accounts')
       .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
 
     if (dbError) throw dbError;
-
-    broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=pinterest`);
 
@@ -485,11 +454,7 @@ export const handleThreadsCallback = async (req: Request, res: Response, next: N
       account_handle: profileData.id,
       avatar_url: profileData.threads_profile_picture_url,
       access_token: accessToken,
-      status: 'active',
-      token_expires_at: longLivedData.expires_in
-        ? new Date(Date.now() + longLivedData.expires_in * 1000).toISOString()
-        : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-      token_status: 'active',
+      status: 'active'
     };
 
     const { error: dbError } = await supabaseAdmin
@@ -497,8 +462,6 @@ export const handleThreadsCallback = async (req: Request, res: Response, next: N
       .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
 
     if (dbError) throw dbError;
-
-    broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=threads`);
 
@@ -562,36 +525,28 @@ export const handleTwitterCallback = async (req: Request, res: Response, next: N
     });
     const profileData = await profileResponse.json();
 
-    if (profileData.errors || !profileData.data) {
-      logger.error({ details: profileData.errors ?? profileData }, '[Social] Twitter profile fetch failed');
-      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Failed to fetch Twitter profile — ensure users.read scope is granted')}`);
+    if (profileData.errors) {
+      logger.error({ details: profileData.errors }, '[Social] Twitter profile fetch failed');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=twitter&reason=${encodeURIComponent('Failed to fetch Twitter profile')}`);
     }
 
     const user = profileData.data;
 
-    const accountData: Record<string, any> = {
+    const accountData = {
       workspace_id: workspaceId,
       platform: 'twitter',
       account_name: user.name || user.username,
       account_handle: user.username,
-      page_id: user.id,
-      avatar_url: user.profile_image_url?.replace('_normal', '') ?? null,
+      avatar_url: user.profile_image_url,
       access_token: accessToken,
-      status: 'active',
-      token_expires_at: tokenData.expires_in
-        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-        : new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-      token_status: 'active',
+      status: 'active'
     };
-    if (tokenData.refresh_token) accountData.refresh_token = tokenData.refresh_token;
 
     const { error: dbError } = await supabaseAdmin
       .from('connected_accounts')
       .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
 
     if (dbError) throw dbError;
-
-    broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=twitter`);
 
@@ -728,12 +683,9 @@ export const handleYoutubeCallback = async (req: Request, res: Response, next: N
       account_handle: channel.snippet.customUrl || channel.id,
       avatar_url: channel.snippet.thumbnails?.default?.url,
       access_token: accessToken,
-      status: 'active',
-      token_expires_at: tokenData.expires_in
-        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-        : new Date(Date.now() + 3600 * 1000).toISOString(),
-      token_status: 'active',
+      status: 'active'
     };
+    // Only set refresh_token when Google returns one (not returned on every re-auth)
     if (refreshToken) accountData.refresh_token = refreshToken;
 
     const { error: dbError } = await supabaseAdmin
@@ -741,8 +693,6 @@ export const handleYoutubeCallback = async (req: Request, res: Response, next: N
       .upsert(accountData, { onConflict: 'workspace_id,platform,account_handle' });
 
     if (dbError) throw dbError;
-
-    broadcastWebhookEvent(workspaceId, 'account.connected', { platform: accountData.platform, account_handle: accountData.account_handle, account_name: accountData.account_name, connected_at: new Date().toISOString() }).catch(() => {});
 
     res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=youtube`);
 
@@ -751,69 +701,66 @@ export const handleYoutubeCallback = async (req: Request, res: Response, next: N
   }
 };
 
-
 /**
- * Handles the Google Ads OAuth callback (uses Google OAuth with adwords scope)
+ * Handles the TikTok OAuth callback
  */
-export const handleGoogleAdsCallback = async (req: Request, res: Response, next: NextFunction) => {
+export const handleTikTokCallback = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { code, state: stateParam, error: oauthError } = req.query;
+    const { code, state: stateParam, error: oauthError, error_description } = req.query;
 
     if (oauthError) {
-      logger.warn(`[Social] Google Ads OAuth denied: ${oauthError}`);
-      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=googleads&reason=${encodeURIComponent(oauthError as string)}`);
+      logger.warn(`[Social] TikTok OAuth denied: ${oauthError}`);
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=tiktok&reason=${encodeURIComponent((error_description as string) || (oauthError as string))}`);
     }
 
     if (!code) {
-      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=googleads&reason=${encodeURIComponent('No authorization code returned')}`);
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=tiktok&reason=${encodeURIComponent('No authorization code returned from TikTok')}`);
     }
 
     const workspaceId = stateParam as string;
-    logger.info(`[Social] Handling Google Ads callback for workspace: ${workspaceId}`);
+    logger.info(`[Social] Handling TikTok callback for workspace: ${workspaceId}`);
 
-    const clientId     = env.GOOGLE_ADS_CLIENT_ID     || env.YOUTUBE_CLIENT_ID     || '';
-    const clientSecret = env.GOOGLE_ADS_CLIENT_SECRET || env.YOUTUBE_CLIENT_SECRET || '';
-    const redirectUri  = env.GOOGLE_ADS_REDIRECT_URI  || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/googleads/callback`;
+    const redirectUri = env.TIKTOK_REDIRECT_URI || `${env.FRONTEND_URL.replace('3000', '5005')}/api/auth/tiktok/callback`;
 
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    // Exchange code for access token
+    const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cache-Control': 'no-cache' },
       body: new URLSearchParams({
-        code:          code as string,
-        client_id:     clientId,
-        client_secret: clientSecret,
-        redirect_uri:  redirectUri,
-        grant_type:    'authorization_code',
+        client_key: env.TIKTOK_CLIENT_KEY || '',
+        client_secret: env.TIKTOK_CLIENT_SECRET || '',
+        code: code as string,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
       }),
     });
 
-    const tokenData = await tokenResponse.json();
+    const tokenData = await tokenRes.json();
     if (tokenData.error) {
-      logger.error({ details: tokenData }, '[Social] Google Ads token exchange failed');
-      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=googleads&reason=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
+      logger.error({ details: tokenData }, '[Social] TikTok token exchange failed');
+      return res.redirect(`${env.FRONTEND_URL}/accounts?status=error&platform=tiktok&reason=${encodeURIComponent(tokenData.error_description || tokenData.error)}`);
     }
 
-    const accessToken  = tokenData.access_token;
-    const refreshToken = tokenData.refresh_token || null;
+    const accessToken: string = tokenData.access_token;
+    const refreshToken: string | null = tokenData.refresh_token || null;
+    const openId: string = tokenData.open_id;
 
-    // Fetch Google user info for account name
-    const profileRes  = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` },
+    // Fetch user profile
+    const userRes = await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name,username', {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
     });
-    const profileData = await profileRes.json();
+    const userData = await userRes.json();
+    const user = userData.data?.user || {};
+    logger.info(`[Social] TikTok user connected: ${user.display_name} (${openId})`);
 
     const accountData: Record<string, unknown> = {
-      workspace_id:  workspaceId,
-      platform:      'googleads',
-      account_name:  profileData.name || profileData.email || 'Google Ads Account',
-      account_handle: profileData.sub || profileData.email,
-      avatar_url:    profileData.picture || null,
-      access_token:  accessToken,
-      status:        'active',
-      token_expires_at: tokenData.expires_in
-        ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
-        : new Date(Date.now() + 3600 * 1000).toISOString(),
-      token_status: 'active',
+      workspace_id: workspaceId,
+      platform: 'tiktok',
+      account_name: user.display_name || 'TikTok User',
+      account_handle: user.username || openId,
+      avatar_url: user.avatar_url || null,
+      access_token: accessToken,
+      status: 'active',
     };
     if (refreshToken) accountData.refresh_token = refreshToken;
 
@@ -823,9 +770,8 @@ export const handleGoogleAdsCallback = async (req: Request, res: Response, next:
 
     if (dbError) throw dbError;
 
-    logger.info(`[Social] Google Ads account connected for workspace ${workspaceId}`);
-    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=googleads`);
-
+    logger.info(`[Social] TikTok account saved for workspace ${workspaceId}`);
+    res.redirect(`${env.FRONTEND_URL}/accounts?status=success&platform=tiktok`);
   } catch (error) {
     next(error);
   }
@@ -869,8 +815,6 @@ export const disconnectAccount = async (req: any, res: Response, next: NextFunct
     const { error: deleteError } = await query;
 
     if (deleteError) throw deleteError;
-
-    broadcastWebhookEvent(member.workspace_id, 'account.disconnected', { account_id: id, disconnected_by: userId, disconnected_at: new Date().toISOString() }).catch(() => {});
 
     logger.info(`[Social] Account ${id} disconnected by user ${userId}`);
     res.status(200).json({ success: true, message: 'Account disconnected successfully' });

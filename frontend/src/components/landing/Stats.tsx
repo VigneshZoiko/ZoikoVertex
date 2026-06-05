@@ -23,7 +23,7 @@
           </h2>
           <p className="text-gray-500 text-sm max-w-md mx-auto leading-relaxed text-center">
             Not abstract intelligence. Measurable performance movement, reduced
-            waste, and improved capital efficiency — reportable to finance.
+            waste, and improved capital efficiency â€” reportable to finance.
           </p>
         </div>
 

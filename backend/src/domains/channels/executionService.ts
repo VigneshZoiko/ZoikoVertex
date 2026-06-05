@@ -2,8 +2,6 @@
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { internalEventBus } from '../../shared/internalEventBus';
-import { broadcastWebhookEvent } from '../integrations/apiWebhookController';
-import { AutoCampaignBoostService } from '../campaigns/autoCampaignBoostService';
 
 export function registerExecutionListeners(): void {
   internalEventBus.on('execution.requested', (payload: unknown) => {
@@ -75,58 +73,14 @@ export class ExecutionService {
       const allSuccessful = results.every(r => r.success);
       const firstError = results.find(r => !r.success)?.error;
 
-      // 3. Update final status — also save platform post ID if Meta publish succeeded
-      const metaResult = results.find(r => r.success && r.id && ['facebook', 'instagram'].includes(r.platform));
+      // 3. Update final status
       await supabaseAdmin
         .from('publish_intents')
-        .update({
+        .update({ 
           status: allSuccessful ? 'PUBLISHED' : 'FAILED',
-          feedback: allSuccessful ? null : (firstError || 'One or more platforms failed to publish.'),
-          ...(metaResult?.id ? { platform_post_id: metaResult.id } : {}),
+          feedback: allSuccessful ? null : (firstError || 'One or more platforms failed to publish.')
         })
         .eq('id', intentId);
-
-      // 4. Auto-retire media vault record on full success.
-      // Only the DB row is removed — the file stays in Supabase Storage so that
-      // publish_intents.media_url (and inbox/comment previews) keep working.
-      // If even one platform failed we leave the record untouched.
-      if (allSuccessful) {
-        const urlsToClean: string[] = [
-          ...(intent.media_url ? [intent.media_url] : []),
-          ...(Array.isArray(intent.media_urls) ? intent.media_urls : []),
-        ].filter(Boolean);
-
-        if (urlsToClean.length > 0) {
-          // Match on the primary `url` column; the asset is keyed by its first URL.
-          const { error: cleanErr } = await supabaseAdmin
-            .from('media_library')
-            .delete()
-            .in('url', urlsToClean);
-
-          if (cleanErr) {
-            // Non-fatal — log and continue. Storage file is unaffected.
-            logger.warn({ cleanErr, intentId }, '[Execution] Media vault cleanup failed (non-fatal)');
-          } else {
-            logger.info(`[Execution] Media vault record(s) retired after successful publish of ${intentId}`);
-          }
-        }
-      }
-
-      // 5. Auto-boost: if post published on an ACTIVE campaign, trigger immediately
-      if (allSuccessful && intent.campaign_id) {
-        AutoCampaignBoostService.triggerPostBoost(intentId, intent.campaign_id, intent.workspace_id)
-          .catch((err: any) => logger.warn({ err, intentId }, '[Execution] Auto-boost trigger failed (non-fatal)'));
-      }
-
-      // 6. Broadcast webhook event
-      broadcastWebhookEvent(intent.workspace_id, allSuccessful ? 'post.published' : 'post.failed', {
-        intent_id: intentId,
-        platform: intent.platform,
-        content: (intent.content || '').substring(0, 500),
-        status: allSuccessful ? 'PUBLISHED' : 'FAILED',
-        error: allSuccessful ? undefined : (firstError || 'One or more platforms failed'),
-        published_at: new Date().toISOString(),
-      }).catch(() => {});
 
     } catch (err) {
       logger.error({ err }, `[Execution] Fatal error during publication of ${intentId}`);
@@ -150,6 +104,8 @@ export class ExecutionService {
         return await this.postToTwitter(intent, account);
       } else if (account.platform === 'youtube') {
         return await this.postToYoutube(intent, account);
+      } else if (account.platform === 'tiktok') {
+        return await this.postToTikTok(intent, account);
       }
       return { success: false, platform: account.platform, error: `Unsupported platform: ${account.platform}` };
     } catch (err: any) {
@@ -158,61 +114,27 @@ export class ExecutionService {
     }
   }
 
-  private static async uploadTwitterMedia(mediaUrl: string, accessToken: string): Promise<string | null> {
-    try {
-      const imgRes = await fetch(mediaUrl);
-      if (!imgRes.ok) throw new Error(`Failed to download media: ${imgRes.status}`);
-      const buffer = await imgRes.arrayBuffer();
-      const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
-
-      // v2 media upload endpoint with multipart/form-data
-      const form = new FormData();
-      form.append('media', new Blob([buffer], { type: mimeType }), 'media');
-      form.append('media_category', 'tweet_image');
-      form.append('media_type', mimeType);
-
-      const uploadRes = await fetch('https://api.x.com/2/media/upload', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: form,
-      });
-
-      const uploadData: any = await uploadRes.json();
-      if (!uploadRes.ok || uploadData.errors) {
-        logger.warn({ status: uploadRes.status, uploadData }, '[Execution] Twitter media upload failed — posting without image');
-        return null;
-      }
-
-      const mediaId = uploadData.data?.id ?? uploadData.media_id_string ?? null;
-      logger.info(`[Execution] Twitter media uploaded: ${mediaId}`);
-      return mediaId as string;
-    } catch (err: any) {
-      logger.warn({ err }, '[Execution] Twitter media upload error — posting without image');
-      return null;
-    }
-  }
-
   private static async postToTwitter(intent: any, account: any): Promise<PublishResult> {
     logger.info(`[Execution] Sending tweet for ${account.account_handle}...`);
     try {
-      const body: any = { text: intent.content };
+      const url = 'https://api.twitter.com/2/tweets';
+      
+      const body: any = {
+        text: intent.content
+      };
 
-      // Upload media if present
       if (intent.media_url) {
-        const mediaId = await ExecutionService.uploadTwitterMedia(intent.media_url, account.access_token);
-        if (mediaId) {
-          body.media = { media_ids: [mediaId] };
-          logger.info(`[Execution] Attaching media ${mediaId} to tweet`);
-        }
+        logger.warn(`[Execution] Twitter media upload requires v1.1 API integration. Sending tweet as text/link. URL: ${intent.media_url}`);
+        // Can optionally append media_url to the text if desired, but we'll leave it out or handle it natively later.
       }
 
-      const response = await fetch('https://api.twitter.com/2/tweets', {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${account.access_token}`,
+          'Authorization': `Bearer ${account.access_token}`
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
       });
 
       const data = await response.json();
@@ -741,4 +663,115 @@ export class ExecutionService {
     }
   }
 
+  private static async postToTikTok(intent: any, account: any): Promise<PublishResult> {
+    logger.info(`[Execution] Posting to TikTok for @${account.account_handle}...`);
+    try {
+      if (!intent.media_url) throw new Error('TikTok requires a video URL to publish.');
+      if (!this.isVideoUrl(intent.media_url)) throw new Error('TikTok only supports video content.');
+
+      const title = (intent.content || intent.title || 'ZoikoVertex Upload').substring(0, 150);
+
+      // Step 1: Fetch video bytes (FILE_UPLOAD avoids domain verification requirement)
+      logger.info(`[Execution] Fetching video bytes for TikTok FILE_UPLOAD...`);
+      const videoRes = await fetch(intent.media_url);
+      if (!videoRes.ok) throw new Error(`Failed to fetch video: ${videoRes.status} ${videoRes.statusText}`);
+      const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+      const videoSize = videoBuffer.length;
+      logger.info(`[Execution] TikTok video fetched: ${(videoSize / 1024 / 1024).toFixed(2)}MB`);
+
+      // Step 2: Calculate chunks (TikTok requires 5MB–64MB per chunk, except last)
+      const MIN_CHUNK = 5 * 1024 * 1024;
+      const MAX_CHUNK = 64 * 1024 * 1024;
+      const chunkSize = videoSize <= MIN_CHUNK ? videoSize : Math.min(MAX_CHUNK, Math.max(MIN_CHUNK, videoSize));
+      const totalChunks = Math.ceil(videoSize / chunkSize);
+
+      // Step 3: Init FILE_UPLOAD
+      const initRes = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${account.access_token}`,
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: JSON.stringify({
+          post_info: {
+            title,
+            privacy_level: 'SELF_ONLY',
+            disable_duet: true,
+            disable_comment: true,
+            disable_stitch: true,
+            video_cover_timestamp_ms: 1000,
+          },
+          source_info: {
+            source: 'FILE_UPLOAD',
+            video_size: videoSize,
+            chunk_size: chunkSize,
+            total_chunk_count: totalChunks,
+          },
+        }),
+      });
+
+      const initData = await initRes.json();
+      logger.info({ initData }, '[Execution] TikTok init response');
+      const errCode = initData.error?.code;
+      if (errCode && errCode !== 'ok') {
+        throw new Error(initData.error?.message || `TikTok init error: ${errCode}`);
+      }
+
+      const publishId: string = initData.data?.publish_id;
+      const uploadUrl: string = initData.data?.upload_url;
+      if (!publishId || !uploadUrl) throw new Error('TikTok did not return publish_id or upload_url');
+      logger.info(`[Execution] TikTok FILE_UPLOAD init ok — publish_id: ${publishId}, chunks: ${totalChunks}`);
+
+      // Step 4: Upload chunks
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize, videoSize);
+        const chunk = videoBuffer.slice(start, end);
+
+        logger.info(`[Execution] TikTok uploading chunk ${i + 1}/${totalChunks} (bytes ${start}-${end - 1})...`);
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'video/mp4',
+            'Content-Range': `bytes ${start}-${end - 1}/${videoSize}`,
+            'Content-Length': String(chunk.length),
+          },
+          body: chunk,
+        });
+
+        if (!uploadRes.ok && uploadRes.status !== 206) {
+          const errBody = await uploadRes.text();
+          throw new Error(`TikTok chunk ${i + 1} upload failed (${uploadRes.status}): ${errBody}`);
+        }
+        logger.info(`[Execution] TikTok chunk ${i + 1}/${totalChunks} uploaded (HTTP ${uploadRes.status})`);
+      }
+
+      // Step 5: Poll publish status (up to 60s)
+      for (let attempt = 0; attempt < 15; attempt++) {
+        await new Promise(r => setTimeout(r, 4000));
+        const statusRes = await fetch('https://open.tiktokapis.com/v2/post/publish/status/fetch/', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${account.access_token}`,
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+          body: JSON.stringify({ publish_id: publishId }),
+        });
+        const statusData = await statusRes.json();
+        const status: string = statusData.data?.status;
+        logger.info(`[Execution] TikTok status [${attempt + 1}/15]: ${status}`);
+        if (status === 'PUBLISH_COMPLETE') {
+          return { success: true, platform: 'tiktok', id: publishId };
+        }
+        if (status === 'FAILED') {
+          throw new Error(`TikTok publish failed: ${statusData.data?.fail_reason || 'unknown reason'}`);
+        }
+      }
+
+      throw new Error('TikTok publish timed out — check TikTok app for video status.');
+    } catch (err: any) {
+      logger.error({ err }, '[Execution] TikTok Error');
+      return { success: false, platform: 'tiktok', error: err.message };
+    }
+  }
 }
