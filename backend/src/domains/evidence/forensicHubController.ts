@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as forensicService from '../../services/forensicHub.service';
 import { buildAuthContext } from '../../shared/serviceAuth';
+import { logger } from '../../shared/logger';
 
 const DEFAULT_WORKSPACE_ID = 'WRK-001';
 
@@ -72,18 +73,43 @@ export async function getStats(req: AuthRequest, res: Response, next: NextFuncti
   }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // ─── GET /api/forensic/cases/:caseId ──────────────────────────────────────────
 
 export async function getCase(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const caseId = req.params.caseId as string;
-    const result = caseId.includes('-')
-      ? await forensicService.getCaseByCaseId(caseId)
-      : await forensicService.getCase(caseId);
-    if (!result) return res.status(404).json({ success: false, error: 'Case not found' });
+    const isUuid = UUID_RE.test(caseId);
+    
+    logger.info({ caseId, isUuid }, '[ForensicHub] Fetching case detail');
+
+    // Strategy 1: Try Primary Key lookup first if it looks like a UUID
+    let result = null;
+    if (isUuid) {
+      result = await forensicService.getCase(caseId);
+    }
+
+    // Strategy 2: If not found or not a UUID, try lookup by human-readable case_id
+    if (!result) {
+      result = await forensicService.getCaseByCaseId(caseId);
+    }
+
+    // Strategy 3: Final fallback - try UUID lookup even if regex failed (safety)
+    if (!result && !isUuid) {
+      try {
+        result = await forensicService.getCase(caseId);
+      } catch { /* ignore error on fallback */ }
+    }
+      
+    if (!result) {
+      logger.warn({ caseId, isUuid }, '[ForensicHub] Case not found in database after all lookup strategies');
+      return res.status(404).json({ success: false, error: 'Case not found' });
+    }
 
     res.json({ success: true, data: result });
   } catch (error) {
+    logger.error({ error, caseId: req.params.caseId }, '[ForensicHub] Failed to fetch case');
     next(error);
   }
 }

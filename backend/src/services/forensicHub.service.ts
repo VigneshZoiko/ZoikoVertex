@@ -592,25 +592,83 @@ export async function listCases(filters: {
 }
 
 export async function getCase(caseId: string): Promise<ForensicCase | null> {
-  const { data, error } = await supabaseAdmin
-    .from('forensic_cases')
-    .select('*, participants:case_participants(*)')
-    .eq('id', caseId)
-    .single();
+  try {
+    logger.info({ caseId }, '[ForensicService] Attempting getCase');
 
-  if (error || !data) return null;
-  return fromDb(data);
+    // Diagnostic 1: Check if any cases exist at all
+    const { count, error: countErr } = await supabaseAdmin
+      .from('forensic_cases')
+      .select('*', { count: 'exact', head: true });
+    
+    logger.info({ total_cases: count, error: countErr }, '[ForensicService] DB Diagnostic - Total cases count');
+
+    // Diagnostic 2: Try primary key lookup
+    const { data, error } = await supabaseAdmin
+      .from('forensic_cases')
+      .select('*')
+      .eq('id', caseId)
+      .maybeSingle();
+
+    if (error) {
+      logger.error({ error, caseId }, '[ForensicService] getCase base query error');
+      return null;
+    }
+
+    if (!data) {
+      logger.warn({ caseId }, '[ForensicService] getCase: No record found for this ID');
+      
+      // Diagnostic 3: Peek at the last 3 created cases to see what IDs look like
+      const { data: peek } = await supabaseAdmin
+        .from('forensic_cases')
+        .select('id, case_id, title')
+        .order('created_at', { ascending: false })
+        .limit(3);
+      
+      logger.info({ peek }, '[ForensicService] DB Diagnostic - Recent cases peek');
+      return null;
+    }
+
+    logger.info({ id: data.id, case_id: data.case_id }, '[ForensicService] getCase: Record found');
+
+    // Fetch participants separately to be safe
+    const { data: participants, error: pErr } = await supabaseAdmin
+      .from('case_participants')
+      .select('*')
+      .eq('case_id', data.id);
+
+    if (pErr) logger.warn({ pErr }, '[ForensicService] Failed to fetch participants');
+
+    return fromDb({ ...data, participants: participants || [] });
+  } catch (err) {
+    logger.error({ err, caseId }, '[ForensicService] getCase exception');
+    return null;
+  }
 }
 
 export async function getCaseByCaseId(caseId: string): Promise<ForensicCase | null> {
-  const { data, error } = await supabaseAdmin
-    .from('forensic_cases')
-    .select('*, participants:case_participants(*)')
-    .eq('case_id', caseId)
-    .single();
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('forensic_cases')
+      .select('*')
+      .eq('case_id', caseId)
+      .maybeSingle();
 
-  if (error || !data) return null;
-  return fromDb(data);
+    if (error) {
+      logger.error({ error, caseId }, '[ForensicService] getCaseByCaseId base query error');
+      return null;
+    }
+    if (!data) return null;
+
+    const { data: participants } = await supabaseAdmin
+      .from('case_participants')
+      .select('*')
+      .eq('case_id', data.id);
+
+    return fromDb({ ...data, participants: participants || [] });
+  } catch (err) {
+    logger.error({ err, caseId }, '[ForensicService] getCaseByCaseId exception');
+    return null;
+  }
 }
 
 export async function createCase(params: {
