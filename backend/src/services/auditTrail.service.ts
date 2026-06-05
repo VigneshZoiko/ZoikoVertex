@@ -486,10 +486,12 @@ export async function createAuditEvent(input: AuditEventInput, auth?: AuthContex
   try {
     internalEventBus.emit('audit.event_created', {
       workspace_id: input.workspace_id,
+      tenant_id: input.tenant_id,
       actor_id: input.actor.actor_id,
       event_id: result.event_id,
       event_type: input.event_type,
       event_category: input.event_category,
+      risk_level: input.risk_level,
     });
   } catch (emitErr) {
     logger.error({ emitErr }, 'Failed to emit audit.event_created');

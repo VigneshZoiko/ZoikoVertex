@@ -251,20 +251,20 @@ export function registerEventBridge(): void {
 
   // ─── Auto-Preservation to Evidence Vault ───────────────────────────────────
   internalEventBus.on('audit.event_created', async (payload: unknown) => {
-    const { id, workspace_id, tenant_id, risk_level, event_type } = payload as any;
+    const { event_id, workspace_id, tenant_id, risk_level, event_type } = payload as any;
     // Automatically preserve HIGH or CRITICAL risk events to the Evidence Vault
     if (risk_level === 'high' || risk_level === 'critical') {
       try {
         await vaultService.preserveAuditEventToVault({
           workspace_id,
           tenant_id: tenant_id || 'default',
-          audit_event_id: id,
+          audit_event_id: event_id,
           reason: `Automatic preservation of ${risk_level} risk event: ${event_type}`,
           preservation_type: 'AUDIT_AUTO_SYNC'
         });
-        logger.info({ eventId: id }, '[EventBridge] Automatically preserved critical event to Vault');
+        logger.info({ eventId: event_id }, '[EventBridge] Automatically preserved critical event to Vault');
       } catch (err) {
-        logger.error({ err, eventId: id }, '[EventBridge] Auto-preservation failed');
+        logger.error({ err, eventId: event_id }, '[EventBridge] Auto-preservation failed');
       }
     }
   });

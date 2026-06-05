@@ -292,6 +292,52 @@ export async function preserveEvidence(params: PreserveParams, auth?: AuthContex
   return data;
 }
 
+/**
+ * Automatically preserves an audit event to the Evidence Vault.
+ * Typically called by the Event Bridge for High/Critical risk events.
+ */
+export async function preserveAuditEventToVault(params: {
+  workspace_id: string;
+  tenant_id: string;
+  audit_event_id: string;
+  reason: string;
+  preservation_type: string;
+}): Promise<VaultEvidenceItem> {
+  // Fetch the audit event first
+  const { data: event, error } = await supabaseAdmin
+    .from('audit_events')
+    .select('*')
+    .eq('event_id', params.audit_event_id)
+    .single();
+
+  if (error || !event) {
+    throw new Error(`Audit event ${params.audit_event_id} not found for preservation`);
+  }
+
+  // Map audit event to preservation params
+  return await preserveEvidence({
+    workspace_id: params.workspace_id,
+    tenant_id: params.tenant_id,
+    source_type: 'audit_event',
+    source_id: params.audit_event_id,
+    source_system: 'zoikovertex.audit_trail',
+    source_timestamp_utc: event.timestamp_utc,
+    evidence_type: event.event_type,
+    risk_level: event.risk_level,
+    sensitivity: event.risk_level === 'critical' ? 'confidential' : 'internal',
+    preservation_reason: params.reason,
+    preserved_by: 'system',
+    payload: JSON.stringify(event),
+    payload_size: JSON.stringify(event).length,
+    mime_type: 'application/json',
+    retention_class: 'EXTENDED',
+    metadata: {
+      preservation_type: params.preservation_type,
+      original_event: event
+    }
+  });
+}
+
 export async function listEvidenceItems(filters: {
   workspace_id?: string;
   source_type?: string;
