@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { env } from '../../config/env';
+import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type Sentiment = 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
@@ -70,30 +71,50 @@ function keywordClassify(text: string): { risk_level: RiskLevel; sentiment: Sent
 
 // ── Groq AI classifier (nuanced fallback) ─────────────────────────────────────
 
-async function groqClassify(text: string): Promise<{ risk_level: RiskLevel; sentiment: Sentiment } | null> {
+async function groqClassify(text: string, workspaceId?: string): Promise<{ risk_level: RiskLevel; sentiment: Sentiment } | null> {
   if (!env.GROQ_API_KEY) return null;
   try {
     const groq = new OpenAI({ apiKey: env.GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' });
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a social media content moderation classifier. Classify the message below.
+    const INLINE_SYSTEM = `You are a social media content moderation classifier. Classify the message below.
 Return ONLY a JSON object, no explanation:
 {"risk_level":"LOW"|"MEDIUM"|"HIGH"|"CRITICAL","sentiment":"POSITIVE"|"NEUTRAL"|"NEGATIVE"}
 
 CRITICAL: death threats, extreme abuse, slurs, explicit violence
 HIGH: legal threats (sue, chargeback, fraud), serious escalation intent
 MEDIUM: strong complaints, frustration, dissatisfaction
-LOW: general inquiry, neutral or positive message`,
-        },
-        { role: 'user', content: text.slice(0, 500) },
-      ],
-      temperature: 0,
-      max_tokens: 50,
+LOW: general inquiry, neutral or positive message`;
+    const callModel = async (p: string): Promise<string> => {
+      const c = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: p }],
+        temperature: 0,
+        max_tokens: 50,
+      });
+      return c.choices[0]?.message?.content?.trim() || '';
+    };
+    // Phase 4.D — prefer the governed 'inbox_message_classification' prompt; on
+    // governance block, audited fallback (fail-closed in production when
+    // PROMPT_GOVERNANCE_ENFORCED) to the inline classifier prompt.
+    let raw: string;
+    const governed = await GovernedModelGate.execute({
+      useCaseKey: 'inbox_message_classification',
+      workspaceId: workspaceId || '',
+      variables: { content: text.slice(0, 500) },
+      modelProvider: 'groq',
+      invoke: callModel,
     });
-    const raw = completion.choices[0]?.message?.content?.trim() || '';
+    if (governed.ok) {
+      raw = governed.output || '';
+    } else {
+      await GovernedModelGate.legacyInlineFallback('inbox_message_classification', workspaceId, `governed prompt unavailable: ${governed.code}`);
+      const completion = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'system', content: INLINE_SYSTEM }, { role: 'user', content: text.slice(0, 500) }],
+        temperature: 0,
+        max_tokens: 50,
+      });
+      raw = completion.choices[0]?.message?.content?.trim() || '';
+    }
     const jsonMatch = raw.match(/\{.*\}/s);
     if (!jsonMatch) return null;
     const parsed = JSON.parse(jsonMatch[0]) as { risk_level: string; sentiment: string };
@@ -110,14 +131,14 @@ LOW: general inquiry, neutral or positive message`,
 
 // ── Main export: hybrid keyword + AI classifier ───────────────────────────────
 
-export async function classifyMessage(text: string): Promise<{ risk_level: RiskLevel; sentiment: Sentiment }> {
+export async function classifyMessage(text: string, workspaceId?: string): Promise<{ risk_level: RiskLevel; sentiment: Sentiment }> {
   const keyword = keywordClassify(text);
 
   // CRITICAL from keywords is definitive — skip expensive Groq call
   if (keyword.risk_level === 'CRITICAL') return keyword;
 
   // Run Groq for nuanced classification; take the higher severity
-  const ai = await groqClassify(text);
+  const ai = await groqClassify(text, workspaceId);
   if (!ai) return keyword;
 
   const LEVELS: RiskLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];

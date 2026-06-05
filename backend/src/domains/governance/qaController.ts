@@ -5,6 +5,7 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import * as qaService from '../../services/qualityAudit.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
 import { logger } from '../../shared/logger';
+import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
 import { buildAuthContext } from '../../shared/serviceAuth';
 
 function getParamId(req: AuthRequest): string {
@@ -66,13 +67,34 @@ export const performQualityCheck = async (req: AuthRequest, res: Response, next:
       "optimized_content": "string"
     }`;
     logger.info({ userId, platforms }, '[QA] Performing quality check');
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.5,
+    const workspaceId = (req.user?.workspace_id as string) || DEFAULT_TENANT_ID;
+    const callModel = async (p: string): Promise<string> => {
+      const c = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: p }],
+        response_format: { type: "json_object" },
+        temperature: 0.5,
+      });
+      return c.choices[0]?.message?.content || '';
+    };
+    // Phase 4.B — prefer the governed prompt; on governance block, record an
+    // audited fallback (fail-closed in production when PROMPT_GOVERNANCE_ENFORCED)
+    // and fall back to the inline prompt so behavior is unchanged while the flag is off.
+    const governed = await GovernedModelGate.execute({
+      useCaseKey: 'qa_quality_check',
+      workspaceId,
+      variables: { content: content || '', platforms: (platforms || []).join(', ') },
+      modelProvider: 'groq',
+      actorId: userId,
+      invoke: callModel,
     });
-    const text = completion.choices[0].message.content;
+    let text: string;
+    if (governed.ok) {
+      text = governed.output || '';
+    } else {
+      await GovernedModelGate.legacyInlineFallback('qa_quality_check', workspaceId, `governed prompt unavailable: ${governed.code}`);
+      text = await callModel(prompt);
+    }
     if (!text) throw new Error('QA Engine returned empty response');
     const result = JSON.parse(text);
     res.status(200).json({ success: true, data: result });

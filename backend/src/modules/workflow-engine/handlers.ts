@@ -14,6 +14,7 @@
 
 import { supabaseAdmin } from "../../shared/supabase";
 import { moderate } from "../safety/moderationService";
+import { RuntimeVariableGovernanceService } from "../prompts/RuntimeVariableGovernanceService";
 import { logger } from "../../shared/logger";
 import type {
   StepHandler,
@@ -114,7 +115,7 @@ const promptExecutionHandler: StepHandler = async (ctx): Promise<StepResult> => 
 
   const { data: version, error } = await supabaseAdmin
     .from("prompt_versions")
-    .select("id, body")
+    .select("id, body, prompt_id")
     .eq("id", versionId)
     .maybeSingle();
   if (error || !version) {
@@ -125,14 +126,53 @@ const promptExecutionHandler: StepHandler = async (ctx): Promise<StepResult> => 
     };
   }
 
+  // Resolve the governance scope (risk tier + workspace) for runtime enforcement.
+  const { data: promptRow } = await supabaseAdmin
+    .from("prompts")
+    .select("risk_tier, workspace_id")
+    .eq("id", version.prompt_id)
+    .maybeSingle();
+  const riskTier = (promptRow?.risk_tier as string) || "tier_2_medium";
+  const workspaceId = ctx.workspaceId || (promptRow?.workspace_id as string) || "";
+
+  // The trigger bag doubles as the governed runtime variables.
+  const trigger = ctx.bag.triggerInput;
+  const parameters: Record<string, unknown> =
+    trigger && typeof trigger === "object" && !Array.isArray(trigger)
+      ? (trigger as Record<string, unknown>)
+      : {};
+
+  // ── Runtime governance gate (fail-closed) ────────────────────────────────
+  // Enforce the LOCKED Constraint Shadow + governed variables BEFORE the
+  // rendered prompt is emitted downstream. enforce() loads the locked shadow,
+  // verifies its hash, applies its compiled block-rules, and FAILS CLOSED when
+  // the shadow is missing / stale / hash-mismatched. It always records an audit
+  // event, and (executionId provided) writes a prompt_runtime_traces evidence
+  // row marking the violation. This is real runtime enforcement at the live
+  // step-runner, not an advisory endpoint.
+  const governance = await RuntimeVariableGovernanceService.enforce({
+    promptVersionId: versionId,
+    parameters,
+    riskTier,
+    workspaceId,
+    executionId: ctx.instanceId,
+  });
+  if (!governance.passed) {
+    return {
+      status: "blocked",
+      reasonCode: "runtime_governance_blocked",
+      message: `Runtime governance blocked prompt execution (${governance.enforcementAction}): ${
+        governance.constraintViolations[0] ||
+        "fail-closed: locked constraint shadow missing, stale, or hash-mismatched"
+      }`,
+    };
+  }
+
   // Naive variable interpolation: replace {{key}} with values from the
   // trigger input if it's an object. Keeps v1 dependency-free.
   let rendered = version.body || "";
-  const trigger = ctx.bag.triggerInput;
-  if (trigger && typeof trigger === "object" && !Array.isArray(trigger)) {
-    for (const [k, v] of Object.entries(trigger as Record<string, unknown>)) {
-      rendered = rendered.replaceAll(`{{${k}}}`, String(v ?? ""));
-    }
+  for (const [k, v] of Object.entries(parameters)) {
+    rendered = rendered.replaceAll(`{{${k}}}`, String(v ?? ""));
   }
 
   return {

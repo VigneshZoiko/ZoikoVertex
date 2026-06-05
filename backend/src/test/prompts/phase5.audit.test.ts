@@ -7,6 +7,7 @@ import { PromptController } from '../../modules/prompts/promptController';
 import { PromptEvidenceService } from '../../modules/prompts/PromptEvidenceService';
 import { PromptAuditService } from '../../modules/prompts/PromptAuditService';
 import { setFixtures, resetFixtures } from '../helpers/supabaseMock';
+import { lockedShadowFixture } from '../helpers/constraintShadowFixture';
 
 function seedBase() {
   setFixtures({
@@ -27,6 +28,10 @@ function seedBase() {
     ],
     prompt_test_runs: [
       { id: 'tr1', prompt_version_id: 'v1', pass_fail: 'PASS', environment: 'draft' },
+    ],
+    prompt_constraint_shadows: [
+      lockedShadowFixture({ versionId: 'v1', promptId: 'p-active', workspaceId: 'ws-a', riskTier: 'tier_1_low' }),
+      lockedShadowFixture({ versionId: 'v2', promptId: 'p-active', workspaceId: 'ws-a', riskTier: 'tier_1_low' }),
     ],
     workspace_members: [
       { user_id: 'u1', workspace_id: 'ws-a', role: 'ADMIN' },

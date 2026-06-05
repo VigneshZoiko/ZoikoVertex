@@ -11,6 +11,12 @@ import {
   DependencyHealthStatus,
   DependencyHealthResult,
 } from '../DependencyHealthService';
+import { BehavioralDriftService, BehavioralDriftCategory, BehavioralDriftReport } from './BehavioralDriftService';
+import { ADVERSARIAL_CATEGORIES, ADVERSARIAL_CATEGORY_LIST, AdversarialCategoryId } from '../adversarialCategories';
+import { PROVIDER_LIST, ProviderId, METRIC_LIST, MetricId, PROVIDER_CONFIGS, METRIC_DISPLAY } from '../crossModelProviders';
+import { isRealModelValidationEnabled } from '../modelProviders';
+import { listRegisteredProviders } from '../ModelExecutionAdapter';
+import { computePDIBand, PDIBand } from '../pdiBands';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GovernanceDashboardService — Batch 3B.14 (Read-only aggregation)
@@ -398,4 +404,389 @@ export class GovernanceDashboardService {
       runtime,
     };
   }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Phase 6.5 — Evaluation Intelligence Dashboard
+  //
+  // Three read-only rollup views, computed from existing prompt tables +
+  // audit ledger + BehavioralDriftService. No new tables, no new pages,
+  // no duplicate data. Each view returns a structured object that the
+  // existing dashboard renders into a tab/section.
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Evaluation view — PDI trends, evaluation pass rates, and cross-model
+   * rankings. Reads only existing tables: prompts, prompt_audit_ledger.
+   */
+  static async getEvaluationView(workspaceId: string): Promise<EvaluationView> {
+    // PDI trend: last 50 prompt.defensibility_index.computed events for the
+    // workspace, grouped by date.
+    const { data: pdiEvents } = await supabaseAdmin
+      .from('prompt_audit_ledger')
+      .select('after_state, created_at, prompt_id, version_id')
+      .eq('workspace_id', workspaceId)
+      .eq('event_type', 'prompt.defensibility_index.computed')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    const pdiByVersion: Record<string, { score: number; band: PDIBand; at: string }> = {};
+    for (const e of pdiEvents || []) {
+      const vs = String(e.version_id || '');
+      if (!vs || pdiByVersion[vs]) continue;
+      const score = (e.after_state as any)?.pdi_score ?? 0;
+      pdiByVersion[vs] = { score, band: computePDIBand(score), at: e.created_at };
+    }
+
+    const pdiTrend: EvaluationPDIPoint[] = (pdiEvents || []).slice(0, 30).map((e) => {
+      const score = (e.after_state as any)?.pdi_score ?? 0;
+      return {
+        prompt_id: e.prompt_id,
+        version_id: e.version_id,
+        score,
+        band: computePDIBand(score),
+        at: e.created_at,
+      };
+    });
+
+    const allScores = Object.values(pdiByVersion).map((v) => v.score);
+    const bandCounts: Record<PDIBand, number> = { EXCELLENT: 0, STRONG: 0, MODERATE: 0, WEAK: 0 };
+    for (const v of Object.values(pdiByVersion)) bandCounts[v.band]++;
+    const pdiSummary = {
+      total_computed: Object.keys(pdiByVersion).length,
+      average_score: allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0,
+      band_distribution: bandCounts,
+    };
+
+    // Evaluation pass rate: count of test runs (non-adversarial) in the
+    // workspace. Pass rate is computed over the last 100 runs.
+    const { data: runs } = await supabaseAdmin
+      .from('prompt_test_runs')
+      .select('pass_fail, score_summary, created_at')
+      .eq('workspace_id', workspaceId)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    const evalRuns = (runs || []).filter((r: any) => r.run_metadata?.adversarial !== true);
+    const passed = evalRuns.filter((r) => String(r.pass_fail).toUpperCase() === 'PASS').length;
+    const failed = evalRuns.filter((r) => String(r.pass_fail).toUpperCase() === 'FAIL').length;
+    const warnings = evalRuns.length - passed - failed;
+    const passRate = evalRuns.length > 0 ? Math.round((passed / evalRuns.length) * 100) : 0;
+    const evalTrend: EvaluationPassPoint[] = (runs || []).slice(0, 30).map((r) => ({
+      pass_fail: String(r.pass_fail || 'UNKNOWN'),
+      score: (r.score_summary as any)?.overall_score ?? 0,
+      at: r.created_at,
+    }));
+
+    // Cross-model rankings: read the latest cross-model real comparison per
+    // prompt_version_id. We aggregate by reading the latest audit events.
+    const { data: cmEvents } = await supabaseAdmin
+      .from('prompt_audit_ledger')
+      .select('after_state, version_id, created_at')
+      .eq('workspace_id', workspaceId)
+      .eq('event_type', 'prompt.cross_model.real_comparison')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    const crossModelRankings: CrossModelRanking[] = [];
+    const providerWinCount: Record<ProviderId, number> = { google: 0, groq: 0 };
+    for (const e of cmEvents || []) {
+      const winner = (e.after_state as any)?.winner as ProviderId | null;
+      if (winner) providerWinCount[winner] = (providerWinCount[winner] || 0) + 1;
+      const providers = (e.after_state as any)?.providers_evaluated as ProviderId[] | undefined;
+      if (providers && Array.isArray(providers)) {
+        for (const p of providers) {
+          if (!crossModelRankings.find((r) => r.provider === p)) {
+            crossModelRankings.push({ provider: p, wins: providerWinCount[p] || 0 });
+          }
+        }
+      }
+    }
+    for (const r of crossModelRankings) r.wins = providerWinCount[r.provider] || 0;
+    crossModelRankings.sort((a, b) => b.wins - a.wins);
+
+    return {
+      workspace_id: workspaceId,
+      generated_at: new Date().toISOString(),
+      validation_enabled: isRealModelValidationEnabled(),
+      registered_providers: listRegisteredProviders() as ProviderId[],
+      pdi: {
+        summary: pdiSummary,
+        trend: pdiTrend,
+      },
+      evaluation: {
+        total_runs: evalRuns.length,
+        pass_rate: passRate,
+        passed,
+        failed,
+        warnings,
+        trend: evalTrend,
+      },
+      cross_model: {
+        rankings: crossModelRankings,
+        providers_evaluated: crossModelRankings.length,
+        most_recent_winner: (cmEvents?.[0]?.after_state as any)?.winner || null,
+        last_evaluation_at: cmEvents?.[0]?.created_at || null,
+      },
+    };
+  }
+
+  /**
+   * Adversarial view — pass rates, attack categories, risk distribution.
+   * Reads prompt_audit_ledger for real-adversarial events and aggregates
+   * by category, severity, and verdict.
+   */
+  static async getAdversarialView(workspaceId: string): Promise<AdversarialView> {
+    const { data: events } = await supabaseAdmin
+      .from('prompt_audit_ledger')
+      .select('after_state, created_at, prompt_id, version_id')
+      .eq('workspace_id', workspaceId)
+      .eq('event_type', 'prompt.test.adversarial.real_attack')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    const byCategory: Record<AdversarialCategoryId, { total: number; passed: number; failed: number; warnings: number; pass_rate: number }> = {} as any;
+    for (const cat of ADVERSARIAL_CATEGORY_LIST) {
+      byCategory[cat.id] = { total: 0, passed: 0, failed: 0, warnings: 0, pass_rate: 0 };
+    }
+    const bySeverity: Record<string, { total: number; failed: number }> = {
+      critical: { total: 0, failed: 0 },
+      high: { total: 0, failed: 0 },
+      medium: { total: 0, failed: 0 },
+      low: { total: 0, failed: 0 },
+    };
+
+    let totalAttacks = 0;
+    let totalPasses = 0;
+    let totalFailures = 0;
+    let bypasses = 0;
+
+    for (const e of events || []) {
+      const s = e.after_state as any;
+      const cat = s?.category as AdversarialCategoryId;
+      const sev = s?.severity as string;
+      const verdict = s?.verdict as string;
+      if (!cat || !byCategory[cat]) continue;
+      byCategory[cat].total++;
+      totalAttacks++;
+      if (verdict === 'pass') {
+        byCategory[cat].passed++;
+        totalPasses++;
+      } else if (verdict === 'fail') {
+        byCategory[cat].failed++;
+        totalFailures++;
+      } else if (verdict === 'warning') {
+        byCategory[cat].warnings++;
+      }
+      if (s?.bypass_detected) bypasses++;
+      if (bySeverity[sev]) {
+        bySeverity[sev].total++;
+        if (verdict !== 'pass') bySeverity[sev].failed++;
+      }
+    }
+    for (const c of Object.values(byCategory)) {
+      c.pass_rate = c.total > 0 ? Math.round((c.passed / c.total) * 100) : 0;
+    }
+    const overallPassRate = totalAttacks > 0 ? Math.round((totalPasses / totalAttacks) * 100) : 0;
+
+    return {
+      workspace_id: workspaceId,
+      generated_at: new Date().toISOString(),
+      validation_enabled: isRealModelValidationEnabled(),
+      registered_providers: listRegisteredProviders() as ProviderId[],
+      summary: {
+        total_attacks: totalAttacks,
+        passed: totalPasses,
+        failed: totalFailures,
+        pass_rate: overallPassRate,
+        bypasses_detected: bypasses,
+      },
+      by_category: byCategory,
+      by_severity: bySeverity,
+      category_metadata: ADVERSARIAL_CATEGORIES,
+      recent_attacks: (events || []).slice(0, 20).map((e) => {
+        const s = e.after_state as any;
+        return {
+          prompt_id: e.prompt_id,
+          version_id: e.version_id,
+          category: s?.category,
+          severity: s?.severity,
+          verdict: s?.verdict,
+          bypass_detected: s?.bypass_detected,
+          at: e.created_at,
+        };
+      }),
+    };
+  }
+
+  /**
+   * Drift view — semantic / safety / quality drift and incidents. Delegates
+   * to BehavioralDriftService.detectWorkspaceDrift so we do not duplicate
+   * drift logic; this view just packages the report for the dashboard.
+   */
+  static async getDriftView(workspaceId: string): Promise<DriftView> {
+    const reports: BehavioralDriftReport[] = await BehavioralDriftService.detectWorkspaceDrift(workspaceId);
+
+    const byCategory: Record<BehavioralDriftCategory, { total: number; by_severity: Record<string, number> }> = {
+      semantic_drift: { total: 0, by_severity: { low: 0, medium: 0, high: 0, critical: 0 } },
+      response_drift: { total: 0, by_severity: { low: 0, medium: 0, high: 0, critical: 0 } },
+      safety_drift: { total: 0, by_severity: { low: 0, medium: 0, high: 0, critical: 0 } },
+      quality_drift: { total: 0, by_severity: { low: 0, medium: 0, high: 0, critical: 0 } },
+      model_drift: { total: 0, by_severity: { low: 0, medium: 0, high: 0, critical: 0 } },
+    };
+    const bySeverity: Record<string, number> = { low: 0, medium: 0, high: 0, critical: 0 };
+    const incidents: DriftView['incidents'] = [];
+    let totalFindings = 0;
+
+    for (const r of reports) {
+      for (const f of r.findings) {
+        totalFindings++;
+        byCategory[f.category].total++;
+        byCategory[f.category].by_severity[f.severity]++;
+        bySeverity[f.severity]++;
+        if (f.incident_id) {
+          incidents.push({
+            incident_id: f.incident_id,
+            prompt_id: f.prompt_id,
+            version_id: f.prompt_version_id,
+            category: f.category,
+            severity: f.severity,
+            drift_score: f.drift_score,
+            opened_at: f.detected_at,
+          });
+        }
+      }
+    }
+
+    return {
+      workspace_id: workspaceId,
+      generated_at: new Date().toISOString(),
+      validation_enabled: isRealModelValidationEnabled(),
+      registered_providers: listRegisteredProviders() as ProviderId[],
+      summary: {
+        total_findings: totalFindings,
+        prompts_with_drift: reports.length,
+        by_severity: bySeverity as DriftView['summary']['by_severity'],
+      },
+      by_category: byCategory,
+      incidents,
+      reports,
+    };
+  }
+}
+
+// ─── Phase 6.5 — Dashboard View Types ──────────────────────────────────────
+
+export interface EvaluationPDIPoint {
+  prompt_id: string | null;
+  version_id: string | null;
+  score: number;
+  band: PDIBand;
+  at: string;
+}
+
+export interface EvaluationPassPoint {
+  pass_fail: string;
+  score: number;
+  at: string;
+}
+
+export interface CrossModelRanking {
+  provider: ProviderId;
+  wins: number;
+}
+
+export interface EvaluationView {
+  workspace_id: string;
+  generated_at: string;
+  /**
+   * True when ENABLE_REAL_MODEL_VALIDATION=true at boot. The cross-model
+   * section will show historical rankings from past real comparisons; the
+   * dashboard renders a "Validation Disabled" notice when this is false.
+   */
+  validation_enabled: boolean;
+  /** Provider ids currently registered in the boot-time adapter registry. */
+  registered_providers: ProviderId[];
+  pdi: {
+    summary: {
+      total_computed: number;
+      average_score: number;
+      band_distribution: Record<PDIBand, number>;
+    };
+    trend: EvaluationPDIPoint[];
+  };
+  evaluation: {
+    total_runs: number;
+    pass_rate: number;
+    passed: number;
+    failed: number;
+    warnings: number;
+    trend: EvaluationPassPoint[];
+  };
+  cross_model: {
+    rankings: CrossModelRanking[];
+    providers_evaluated: number;
+    most_recent_winner: ProviderId | null;
+    last_evaluation_at: string | null;
+  };
+}
+
+export interface AdversarialView {
+  workspace_id: string;
+  generated_at: string;
+  /**
+   * True when ENABLE_REAL_MODEL_VALIDATION=true at boot. The dashboard
+   * renders a "Validation Disabled" notice when this is false.
+   */
+  validation_enabled: boolean;
+  /** Provider ids currently registered in the boot-time adapter registry. */
+  registered_providers: ProviderId[];
+  summary: {
+    total_attacks: number;
+    passed: number;
+    failed: number;
+    pass_rate: number;
+    bypasses_detected: number;
+  };
+  by_category: Record<AdversarialCategoryId, { total: number; passed: number; failed: number; warnings: number; pass_rate: number }>;
+  by_severity: Record<string, { total: number; failed: number }>;
+  category_metadata: typeof ADVERSARIAL_CATEGORIES;
+  recent_attacks: Array<{
+    prompt_id: string | null;
+    version_id: string | null;
+    category: string;
+    severity: string;
+    verdict: string;
+    bypass_detected: boolean;
+    at: string;
+  }>;
+}
+
+export interface DriftView {
+  workspace_id: string;
+  generated_at: string;
+  /**
+   * True when ENABLE_REAL_MODEL_VALIDATION=true at boot. Drift detection
+   * does not call model adapters directly (it inspects runtime traces), so
+   * this flag is informational — the dashboard still shows drift data when
+   * validation is disabled, with a small "Validation Disabled" notice for
+   * consistency with the other two Phase 6 dashboards.
+   */
+  validation_enabled: boolean;
+  /** Provider ids currently registered in the boot-time adapter registry. */
+  registered_providers: ProviderId[];
+  summary: {
+    total_findings: number;
+    prompts_with_drift: number;
+    by_severity: { low: number; medium: number; high: number; critical: number };
+  };
+  by_category: Record<BehavioralDriftCategory, { total: number; by_severity: Record<string, number> }>;
+  incidents: Array<{
+    incident_id: string;
+    prompt_id: string;
+    version_id: string;
+    category: BehavioralDriftCategory;
+    severity: string;
+    drift_score: number;
+    opened_at: string;
+  }>;
+  reports: BehavioralDriftReport[];
 }

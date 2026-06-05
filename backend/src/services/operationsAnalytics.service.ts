@@ -148,9 +148,19 @@ export async function getAnalyticsMetrics(workspaceId: string, filters: Operatio
     applyQueueIncidentScope(supabaseAdmin.from('queue_items').select('id', { count: 'exact', head: true }), workspaceId, scopedRunIds).not('due_at', 'is', null), // 25 slaTotal (items with a due time)
     evidenceScope(),                                                                       // 26 evidenceBundles
     evidenceScope().in('status', ['captured', 'export_ready', 'locked']),                  // 27 evidenceComplete
+    // Human review time: fetch run_events for WAITING_HUMAN_REVIEW transitions in last 30d
+    supabaseAdmin.from('run_events').select('run_id, created_at')
+      .eq('event_type', 'state.waiting_human_review')
+      .in('run_id', runIds).gte('created_at', last30d)
+      .order('created_at', { ascending: true }),                                            // 28 humanReviewEntries (data)
+    // Incident closure time: fetch closed incidents with their timestamps
+    applyQueueIncidentScope(supabaseAdmin.from('incidents').select('created_at, closed_at'), workspaceId, scopedRunIds)
+      .not('closed_at', 'is', null).gte('created_at', last30d),                             // 29 closedIncidents (data)
   ]);
 
-  const c = results.map((r: any) => r.count || 0);
+  const c = results.slice(0, 28).map((r: any) => r.count || 0);
+  const hrEntries = results[28] as { data?: Array<{ run_id: string; created_at: string }> } || { data: [] };
+  const closedIncidentsData = results[29] as { data?: Array<{ created_at: string; closed_at: string }> } || { data: [] };
   const [
     activeRuns, activeRuns24h, queueDepth,
     runs24, runs7d, runs30d,
@@ -162,6 +172,46 @@ export async function getAnalyticsMetrics(workspaceId: string, filters: Operatio
     slaBreached, slaTotal,
     evidenceBundles, evidenceComplete,
   ] = c;
+
+  // Compute human_review_time (average minutes spent in WAITING_HUMAN_REVIEW).
+  // For each entry event, find the next transition out of that state for the same run.
+  const hrRuns = (hrEntries.data || []).reduce((acc: Record<string, string[]>, ev: { run_id: string; created_at: string }) => {
+    if (!acc[ev.run_id]) acc[ev.run_id] = [];
+    acc[ev.run_id].push(ev.created_at);
+    return acc;
+  }, {} as Record<string, string[]>);
+  const hrDurationsMin: number[] = [];
+  const hrExitEvents = (await supabaseAdmin.from('run_events').select('run_id, created_at')
+      .in('event_type', ['state.paused','state.stopped','state.policy_blocked','state.quarantined'])
+      .in('run_id', runIds).gte('created_at', last30d)
+      .order('created_at', { ascending: true })).data || [];
+  const exitByRun = (hrExitEvents as Array<{ run_id: string; created_at: string }>).reduce((acc: Record<string, string[]>, ev) => {
+    if (!acc[ev.run_id]) acc[ev.run_id] = [];
+    acc[ev.run_id].push(ev.created_at);
+    return acc;
+  }, {} as Record<string, string[]>);
+  for (const [rid, entries] of Object.entries(hrRuns)) {
+    const exits = exitByRun[rid] || [];
+    for (const entry of entries) {
+      const nextExit = exits.find((e) => e > entry);
+      if (nextExit) {
+        hrDurationsMin.push(Math.round((new Date(nextExit).getTime() - new Date(entry).getTime()) / 60000));
+      }
+    }
+  }
+
+  // Compute incident_closure_time (average hours from creation to closure).
+  const closureHours = (closedIncidentsData.data || [])
+    .map((inc: { created_at: string; closed_at: string }) => {
+      const dur = (new Date(inc.closed_at).getTime() - new Date(inc.created_at).getTime()) / 3600000;
+      return Math.round(dur * 10) / 10;
+    });
+  const incidentClosureTime = closureHours.length > 0
+    ? Math.round((closureHours.reduce((a: number, b: number) => a + b, 0) / closureHours.length) * 10) / 10
+    : 0;
+  const humanReviewTime = hrDurationsMin.length > 0
+    ? Math.round(hrDurationsMin.reduce((a, b) => a + b, 0) / hrDurationsMin.length)
+    : 0;
 
   const pct = (num: number, den: number) => (den > 0 ? Math.round((num / den) * 100) : 0);
 
@@ -191,5 +241,74 @@ export async function getAnalyticsMetrics(workspaceId: string, filters: Operatio
     },
     sla_breach_rate: pct(slaBreached, slaTotal),
     evidence_completeness: pct(evidenceComplete, evidenceBundles),
+    human_review_time: { value: humanReviewTime, unit: 'min', period: '30d' },
+    incident_closure_time: { value: incidentClosureTime, unit: 'hours', period: '30d' },
   };
+}
+
+/**
+ * Generate a CSV string from the current analytics metrics.
+ * Header row + one data row. Designed for admin export (pulled into sheets /
+ * dashboards). Permission-gating is the caller's responsibility.
+ */
+export async function getAnalyticsCSV(workspaceId: string, filters: OperationsScopeFilters = {}): Promise<string> {
+  const metrics = await getAnalyticsMetrics(workspaceId, filters);
+  const rows: string[][] = [];
+  const escape = (v: unknown): string => {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  // Header
+  rows.push([
+    'metric',
+    'period',
+    'value',
+    'unit',
+    'trend',
+  ]);
+  // Active runs
+  if (metrics.active_runs) rows.push(['active_runs', metrics.active_runs.period, escape(metrics.active_runs.value), metrics.active_runs.unit, metrics.active_runs.trend]);
+  // Queue depth
+  if (metrics.queue_depth) rows.push(['queue_depth', 'current', escape(metrics.queue_depth.value), metrics.queue_depth.unit, metrics.queue_depth.trend]);
+  // Throughput
+  if (metrics.throughput) {
+    for (const [period, val] of Object.entries(metrics.throughput)) {
+      rows.push(['throughput', period, escape(val), 'count', '']);
+    }
+  }
+  // Failure rate
+  if (metrics.failure_rate) {
+    for (const [period, val] of Object.entries(metrics.failure_rate)) {
+      rows.push(['failure_rate', period, escape(val), '%', '']);
+    }
+  }
+  // Retry success rate
+  if (metrics.retry_success_rate) {
+    for (const [period, val] of Object.entries(metrics.retry_success_rate)) {
+      rows.push(['retry_success_rate', period, escape(val), '%', '']);
+    }
+  }
+  // Policy block rate
+  if (metrics.policy_block_rate) {
+    for (const [period, val] of Object.entries(metrics.policy_block_rate)) {
+      rows.push(['policy_block_rate', period, escape(val), '%', '']);
+    }
+  }
+  // Incidents
+  if (metrics.incidents) {
+    for (const [period, val] of Object.entries(metrics.incidents)) {
+      const v = val as { created: number; resolved: number };
+      rows.push(['incidents_created', period, escape(v.created), 'count', '']);
+      rows.push(['incidents_resolved', period, escape(v.resolved), 'count', '']);
+    }
+  }
+  // SLA breach rate
+  if (metrics.sla_breach_rate !== undefined) rows.push(['sla_breach_rate', 'current', escape(metrics.sla_breach_rate), '%', '']);
+  // Evidence completeness
+  if (metrics.evidence_completeness !== undefined) rows.push(['evidence_completeness', 'current', escape(metrics.evidence_completeness), '%', '']);
+  // Human review time
+  if (metrics.human_review_time) rows.push(['human_review_time', metrics.human_review_time.period, escape(metrics.human_review_time.value), metrics.human_review_time.unit, '']);
+  // Incident closure time
+  if (metrics.incident_closure_time) rows.push(['incident_closure_time', metrics.incident_closure_time.period, escape(metrics.incident_closure_time.value), metrics.incident_closure_time.unit, '']);
+  return rows.map((r) => r.join(',')).join('\n') + '\n';
 }

@@ -95,6 +95,7 @@
       const brand_id = getQueryValue(req, "brand_id");
       const brand_name = getQueryValue(req, "brand");
       const severity = getQueryValue(req, "severity");
+      const policy_result = getQueryValue(req, "policy_result");
       const search = getQueryValue(req, "search");
       const date_from = getQueryValue(req, "date_from");
       const date_to = getQueryValue(req, "date_to");
@@ -110,6 +111,7 @@
         brand_id,
         brand_name,
         severity,
+        policy_result,
         search,
         date_from,
         date_to,
@@ -545,6 +547,74 @@
     }
   };
 
+  export const holdRun = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "hold");
+      const id = getParam(req, "id");
+      const run = await runService.getAgentRun(id);
+      assertWorkspaceScope(req.user, run.workspace_id);
+      const reason = requireReason(req.body?.reason, "hold");
+      const impactScope = req.body?.impact_scope || "selected_run";
+      const userId = req.user?.id || "system";
+      const userName = req.user?.email || "Unknown";
+      const result = await runService.holdRun(
+        id,
+        reason,
+        userId,
+        userName,
+        impactScope,
+      );
+      await logToDatabase(
+        "info",
+        "Operations",
+        `Agent run ${id} held by ${userName}`,
+        { runId: id, reason },
+      );
+      res.json({ success: true, ...result, message: "Run held" });
+    } catch (err) {
+      logger.error({ err }, "Failed to hold run");
+      next(err);
+    }
+  };
+
+  export const releaseHoldRun = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "release_hold");
+      const id = getParam(req, "id");
+      const run = await runService.getAgentRun(id);
+      assertWorkspaceScope(req.user, run.workspace_id);
+      const reason = requireReason(req.body?.reason, "release_hold");
+      const impactScope = req.body?.impact_scope || "selected_run";
+      const userId = req.user?.id || "system";
+      const userName = req.user?.email || "Unknown";
+      const result = await runService.releaseHoldRun(
+        id,
+        reason,
+        userId,
+        userName,
+        impactScope,
+      );
+      await logToDatabase(
+        "info",
+        "Operations",
+        `Agent run ${id} released from hold by ${userName}`,
+        { runId: id, reason },
+      );
+      res.json({ success: true, ...result, message: "Run released from hold" });
+    } catch (err) {
+      logger.error({ err }, "Failed to release hold on run");
+      next(err);
+    }
+  };
+
   export const restrictedMode = async (
     req: AuthRequest,
     res: Response,
@@ -845,6 +915,34 @@
     }
   };
 
+  export const exportAnalyticsCSV = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "view");
+      const workspaceId = req.user?.workspace_id;
+      if (!workspaceId)
+        return res.status(403).json({ error: "Workspace not found" });
+      const reason = requireReason(req.body?.reason, "export_evidence");
+      const userName = req.user?.email || "Unknown";
+      const csv = await analyticsService.getAnalyticsCSV(workspaceId, operationsScopeFilters(req));
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="operations-analytics-${new Date().toISOString().slice(0, 10)}.csv"`);
+      await logToDatabase(
+        "info",
+        "Operations",
+        `Analytics CSV exported by ${userName}`,
+        { reason, format: "csv" },
+      );
+      res.send(csv);
+    } catch (err) {
+      logger.error({ err }, "Failed to export analytics CSV");
+      next(err);
+    }
+  };
+
   export const getRunEvidence = async (
     req: AuthRequest,
     res: Response,
@@ -900,6 +998,40 @@
       });
     } catch (err) {
       logger.error({ err }, "Failed to export evidence");
+      next(err);
+    }
+  };
+
+  export const exportOutputSnapshot = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "export_evidence");
+      const id = getParam(req, "id");
+      const run = await runService.getAgentRun(id);
+      assertWorkspaceScope(req.user, run.workspace_id);
+      const reason = requireReason(req.body?.reason, "export_evidence");
+      const userId = req.user?.id || "system";
+      const userName = req.user?.email || "Unknown";
+      internalEventBus.emit("operations.event", {
+        type: "output.exported",
+        run_id: id,
+        workspace_id: run.workspace_id,
+        reason,
+        exported_by: userId,
+        created_at: new Date().toISOString(),
+      });
+      await logToDatabase(
+        "info",
+        "Operations",
+        `Output snapshot for run ${id} exported by ${userName}`,
+        { runId: id, reason },
+      );
+      res.json({ success: true, message: "Output snapshot export recorded" });
+    } catch (err) {
+      logger.error({ err }, "Failed to export output snapshot");
       next(err);
     }
   };

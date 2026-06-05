@@ -10,6 +10,7 @@ import { PromptBindingPolicyService } from '../../modules/prompts/PromptBindingP
 import { AdversarialTestService } from '../../modules/prompts/AdversarialTestService';
 import { GovernanceDriftService } from '../../modules/prompts/services/GovernanceDriftService';
 import { setFixtures, resetFixtures } from '../helpers/supabaseMock';
+import { lockedShadowFixture } from '../helpers/constraintShadowFixture';
 
 beforeEach(() => {
   setFixtures({
@@ -59,6 +60,12 @@ beforeEach(() => {
     prompt_evidence_links: [],
     vault_evidence_items: [],
     prompt_drift_log: [],
+    prompt_constraint_shadows: [
+      lockedShadowFixture({ versionId: 'v1', promptId: 'p-tier1', workspaceId: 'ws-a', riskTier: 'tier_1_low' }),
+      lockedShadowFixture({ versionId: 'v2', promptId: 'p-tier2', workspaceId: 'ws-a', riskTier: 'tier_2_medium' }),
+      lockedShadowFixture({ versionId: 'v3', promptId: 'p-tier3', workspaceId: 'ws-a', riskTier: 'tier_3_high' }),
+      lockedShadowFixture({ versionId: 'v4', promptId: 'p-tier4', workspaceId: 'ws-a', riskTier: 'tier_4_critical' }),
+    ],
     workspace_members: [
       { user_id: 'u1', workspace_id: 'ws-a', role: 'ADMIN' },
     ],
@@ -82,9 +89,9 @@ describe('Phase 5D — Policy Simulation', () => {
       expect(PromptApprovalPolicyService.requiredApprovalRoles('tier_4_critical')).toEqual(['PROMPT_OWNER', 'COMPLIANCE_REVIEWER', 'SECURITY_ADMIN']);
     });
 
-    it('canRoleSatisfy allows admin roles to satisfy any requirement', () => {
-      expect(PromptApprovalPolicyService.canRoleSatisfy('SECURITY_ADMIN', 'ADMIN')).toBe(true);
-      expect(PromptApprovalPolicyService.canRoleSatisfy('SECURITY_ADMIN', 'WORKSPACE_OWNER')).toBe(true);
+    it('canRoleSatisfy blocks admin roles from satisfying mismatched requirements', () => {
+      expect(PromptApprovalPolicyService.canRoleSatisfy('SECURITY_ADMIN', 'ADMIN')).toBe(false);
+      expect(PromptApprovalPolicyService.canRoleSatisfy('SECURITY_ADMIN', 'WORKSPACE_OWNER')).toBe(false);
     });
 
     it('normalizeReviewerRole uppercases and replaces spaces', () => {

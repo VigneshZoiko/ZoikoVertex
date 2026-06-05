@@ -16,7 +16,9 @@ export type OperationsAction =
   | "create_incident"
   | "run_policy_check"
   | "start"
-  | "delete_run";
+  | "delete_run"
+  | "hold"
+  | "release_hold";
 
 type Actor = NonNullable<AuthRequest["user"]>;
 
@@ -60,6 +62,8 @@ const ACTION_ROLES: Record<OperationsAction, string[]> = {
   run_policy_check: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "GOVERNANCE_ADMIN", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN"],
   start: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "AGENT_OPERATOR", "GOVERNANCE_ADMIN"],
   delete_run: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT"],
+  hold: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "REVIEWER", "VALIDATOR", "APPROVER"],
+  release_hold: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN", "AGENT_ARCHITECT", "AGENT_OPERATOR", "GOVERNANCE_ADMIN", "REVIEWER", "VALIDATOR", "APPROVER"],
 };
 
 export function assertOperationsPermission(
@@ -157,6 +161,8 @@ export function getRuntimeActionGates(
     delete_run: ["STOPPED", "COMPLETED", "FAILED", "CANCELLED", "QUARANTINED"],
     emergency_pause: ["RUNNING", "QUEUED"],
     restricted_mode: ["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW"],
+    hold: ["SCHEDULED", "QUEUED", "RUNNING", "WAITING_HUMAN_REVIEW"],
+    release_hold: ["PAUSED"],
     export_evidence: ["COMPLETED", "FAILED", "POLICY_BLOCKED", "QUARANTINED", "STOPPED", "PAUSED", "RUNNING", "QUEUED", "SCHEDULED"],
   };
 
