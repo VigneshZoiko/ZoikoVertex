@@ -102,10 +102,11 @@ export async function generateCaseSummary(caseId: string, actorId: string, auth?
   await emitForensicAuditEvent(
     'forensic.ai_summary_generated', caseRec.workspace_id, actorId,
     `AI Summary Generated: ${caseRec.case_id}`,
-    `AI case summary draft generated with ${citations.length} citations.`,
+    `AI case summary generated for "${caseRec.title}".`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
-    { field_changed: 'ai_summary', previous_value: null, new_value: 'draft_generated' },
-    { permission_used: 'forensic.ai.summarize' }
+    undefined,
+    { permission_used: 'forensic.ai.summarize' },
+    caseRec.tenant_id
   );
 
   return data;
@@ -128,7 +129,8 @@ export async function approveAiSummary(summaryId: string, actorId: string, auth?
       `AI case summary ${summaryId.substring(0, 8)} approved by ${actorId}.`,
       { object_type: 'forensic_case', object_id: caseRec.case_id },
       { field_changed: 'ai_summary_status', previous_value: 'draft', new_value: 'approved' },
-      { permission_used: 'forensic.ai.approve' }
+      { permission_used: 'forensic.ai.approve' },
+      caseRec.tenant_id
     );
   }
 
@@ -278,7 +280,8 @@ export async function detectAnomalies(caseId: string, actorId: string, auth?: Au
       `${results.length} anomaly patterns found in case data.`,
       { object_type: 'forensic_case', object_id: caseRec.case_id },
       { field_changed: 'anomalies_count', previous_value: 0, new_value: results.length },
-      { permission_used: 'forensic.anomaly.detect' }
+      { permission_used: 'forensic.anomaly.detect' },
+      caseRec.tenant_id
     );
   }
 
@@ -374,7 +377,8 @@ export async function generateRecommendations(caseId: string, actorId: string, a
     `${recommendations.length} recommendations generated for case.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'recommendations', previous_value: null, new_value: recommendations.length },
-    { permission_used: 'forensic.recommendations.generate' }
+    { permission_used: 'forensic.recommendations.generate' },
+    caseRec.tenant_id
   );
 
   return recommendations;
@@ -446,7 +450,8 @@ export async function routeToSiem(caseId: string, eventType: string, actorId: st
     `${routedCount}/${subscriptions.length} SIEM subscriptions received event.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'siem_routed', previous_value: null, new_value: routedCount },
-    { permission_used: 'forensic.siem.route' }
+    { permission_used: 'forensic.siem.route' },
+    caseRec.tenant_id
   );
 
   return { routed: routedCount, subscriptions: subscriptions.length };
