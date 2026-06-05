@@ -186,23 +186,9 @@ export const getApprovalQueue = async (
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const [{ data: userCtx }, { data: member }] = await Promise.all([
-      supabaseAdmin
-        .from("users")
-        .select("is_superadmin")
-        .eq("id", userId)
-        .single(),
-      supabaseAdmin
-        .from("workspace_members")
-        .select("workspace_id, role")
-        .eq("user_id", userId)
-        .maybeSingle(),
-    ]);
-
-    const isSuperAdmin =
-      userCtx?.is_superadmin || req.user?.is_superadmin || false;
-    const role = (member?.role || (isSuperAdmin ? "ADMIN" : "")).toUpperCase();
-    const workspaceId = member?.workspace_id || req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin || false;
+    const role = (req.user?.role || (isSuperAdmin ? "ADMIN" : "")).toUpperCase();
+    const workspaceId = req.user?.workspace_id;
 
     let statusFilter: string[];
     if (isSuperAdmin) {
@@ -284,23 +270,14 @@ export const getApprovalStats = async (
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const { data: member } = await supabaseAdmin
-      .from("workspace_members")
-      .select("workspace_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const { data: userCtx } = await supabaseAdmin
-      .from("users")
-      .select("is_superadmin")
-      .eq("id", userId)
-      .single();
+    const isSuperAdmin = req.user?.is_superadmin || false;
+    const workspaceId = req.user?.workspace_id;
 
     let query = supabaseAdmin
       .from("publish_intents")
       .select("status, created_at");
-    if (!userCtx?.is_superadmin && member?.workspace_id) {
-      query = query.eq("workspace_id", member.workspace_id);
+    if (!isSuperAdmin && workspaceId) {
+      query = query.eq("workspace_id", workspaceId);
     }
     const { data: all, error: pubErr } = await query;
     if (pubErr) {
@@ -358,8 +335,8 @@ export const getApprovalStats = async (
       .order("created_at", { ascending: false })
       .limit(10);
 
-    if (!userCtx?.is_superadmin && member?.workspace_id) {
-      recentQuery = recentQuery.eq("workspace_id", member.workspace_id);
+    if (!isSuperAdmin && workspaceId) {
+      recentQuery = recentQuery.eq("workspace_id", workspaceId);
     }
     const { data: recentRaw } = await recentQuery;
 
@@ -421,13 +398,7 @@ export const takeApprovalAction = async (
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const { data: member } = await supabaseAdmin
-      .from("workspace_members")
-      .select("role")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const role = (member?.role || "").toUpperCase();
+    const role = (req.user?.role || "").toUpperCase();
 
     const { data: intent, error: fetchErr } = await supabaseAdmin
       .from("publish_intents")

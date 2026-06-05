@@ -33,7 +33,7 @@ export default function DashboardLayout({
   >(null);
   const verifyingRef = useRef(false);
 
-  // ── Auth guard ──────────────────────────────────────────────────────────────
+  // ── Auth guard — runs once on mount; RoleContext handles per-nav auth state ──
   useEffect(() => {
     let cancelled = false;
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -41,7 +41,8 @@ export default function DashboardLayout({
       if (!session) router.replace('/login');
     });
     return () => { cancelled = true; };
-  }, [pathname, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── No workspace → verify API before redirecting (guards against stale RoleContext) ─
   useEffect(() => {

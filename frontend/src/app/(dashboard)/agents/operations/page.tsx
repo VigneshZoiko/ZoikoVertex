@@ -1198,10 +1198,12 @@ export default function AgentOperationsPage() {
   }, [statusFilter, brandFilter, envFilter, searchQuery, sortBy, sortDir, dateFrom, dateTo]);
 
   useEffect(() => {
+    let cancelled = false;
+    const safeFetch = () => { if (!cancelled && document.visibilityState === 'visible') fetchData(); };
     setLoading(true);
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    safeFetch();
+    const interval = setInterval(safeFetch, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [fetchData]);
 
   useEffect(() => {

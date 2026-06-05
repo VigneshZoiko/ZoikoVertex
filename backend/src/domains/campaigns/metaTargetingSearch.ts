@@ -65,16 +65,10 @@ export const getReachEstimate = async (req: AuthRequest, res: Response) => {
       geo_locations: geoLocations,
     };
 
-    const url = `${META_GRAPH}/${adAccountId}/reachestimate`;
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        targeting_spec:    JSON.stringify(targetingSpec),
-        optimization_goal: optimization_goal || 'REACH',
-        access_token:      token,
-      }),
-    });
+    // delivery_estimate replaced the deprecated reachestimate endpoint (deprecated in v14.0)
+    const goal = optimization_goal || 'REACH';
+    const url = `${META_GRAPH}/${adAccountId}/delivery_estimate?optimization_goal=${encodeURIComponent(goal)}&targeting_spec=${encodeURIComponent(JSON.stringify(targetingSpec))}&access_token=${token}`;
+    const r = await fetch(url);
 
     const data = await r.json() as any;
     if (data.error) {
@@ -82,17 +76,20 @@ export const getReachEstimate = async (req: AuthRequest, res: Response) => {
       return res.json({ success: true, data: { estimate: null, error: data.error.message } });
     }
 
-    const users = data.data?.users_lower_bound && data.data?.users_upper_bound
-      ? Math.round((data.data.users_lower_bound + data.data.users_upper_bound) / 2)
-      : data.data?.users || null;
+    const row = data.data?.[0];
+    const lower = row?.estimate_mau_lower_bound ?? row?.estimate_dau ?? null;
+    const upper = row?.estimate_mau_upper_bound ?? null;
+    const users = lower !== null && upper !== null
+      ? Math.round((lower + upper) / 2)
+      : lower;
 
     return res.json({
       success: true,
       data: {
         estimate:     users ? users.toLocaleString() : null,
-        lower_bound:  data.data?.users_lower_bound,
-        upper_bound:  data.data?.users_upper_bound,
-        estimate_ready: data.data?.estimate_ready,
+        lower_bound:  lower,
+        upper_bound:  upper,
+        estimate_ready: row?.estimate_ready ?? true,
       },
     });
   } catch (err: unknown) {

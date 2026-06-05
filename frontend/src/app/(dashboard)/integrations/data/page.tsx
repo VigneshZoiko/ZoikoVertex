@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Database, 
   Cpu, 
@@ -71,6 +71,7 @@ export default function DataPage() {
   const [fetchingLogs, setFetchingLogs] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [deleteConnectorId, setDeleteConnectorId] = useState<string | null>(null);
+  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Wizard state (rendered in full page space)
   const [showCreateWizard, setShowCreateWizard] = useState(false);
@@ -130,7 +131,10 @@ export default function DataPage() {
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchInitialData(); }, []);
+  useEffect(() => {
+    fetchInitialData();
+    return () => { if (syncIntervalRef.current) clearInterval(syncIntervalRef.current); };
+  }, []);
 
   const fetchConnectorsOnly = async () => {
     try {
@@ -233,14 +237,16 @@ export default function DataPage() {
         }
         
         let count = 0;
-        const interval = setInterval(async () => {
+        if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = setInterval(async () => {
           await fetchConnectorsOnly();
           if (selectedConnector?.id === id) {
             await fetchLogs(id);
           }
           count++;
           if (count > 8) {
-            clearInterval(interval);
+            clearInterval(syncIntervalRef.current!);
+            syncIntervalRef.current = null;
             setSyncingId(null);
           }
         }, 2000);

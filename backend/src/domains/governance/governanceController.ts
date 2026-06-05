@@ -154,9 +154,8 @@ export const transitionStatus = async (
       return;
     }
 
-    const userRoleResult = req.user?.workspace_id ? await supabaseAdmin.from('workspace_members').select('role').eq('user_id', userId).eq('workspace_id', req.user.workspace_id).maybeSingle() : null;
-    const userRole = userRoleResult?.data?.role || (req.user?.is_superadmin ? 'ADMIN' : 'CREATOR');
     const isSuperAdmin = req.user?.is_superadmin;
+    const userRole = req.user?.role || (isSuperAdmin ? 'ADMIN' : 'CREATOR');
 
     if (userRole === 'CREATOR' && newStatus !== 'CANCELLED' && !isSuperAdmin) {
       return res.status(403).json({ error: 'Creators can only cancel their own intents' });
@@ -327,15 +326,9 @@ export const deleteIntent = async (
       });
     }
 
-    const { data: member } = await supabaseAdmin
-      .from('workspace_members')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
-
     let query = supabaseAdmin.from('publish_intents').delete().eq('id', id);
 
-    if (member?.role !== 'ADMIN' && !req.user?.is_superadmin) {
+    if (req.user?.role !== 'ADMIN' && !req.user?.is_superadmin) {
       query = query.eq('creator_id', userId);
     }
 
@@ -395,10 +388,7 @@ export const getQueue = async (
     const isSuperAdmin = req.user?.is_superadmin;
     const workspaceId = req.user?.workspace_id;
 
-    const userRoleResult = workspaceId
-      ? await supabaseAdmin.from('workspace_members').select('role').eq('user_id', userId).eq('workspace_id', workspaceId).maybeSingle()
-      : null;
-    const role = userRoleResult?.data?.role || (isSuperAdmin ? 'ADMIN' : null);
+    const role = req.user?.role || (isSuperAdmin ? 'ADMIN' : null);
 
     if (!role && !isSuperAdmin) {
       return res.status(200).json({ success: true, data: [] });

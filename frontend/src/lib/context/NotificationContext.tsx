@@ -141,7 +141,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  // Sync with Supabase Realtime (centralized)
+  // Sync with Supabase Realtime (centralized — single channel for both in-app and OS notifications)
   useEffect(() => {
     const channel = supabase
       .channel('central_notifications')
@@ -151,7 +151,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         async (payload) => {
           const { new: newRow, old: oldRow } = payload;
           if (newRow.status !== oldRow.status) {
-            const { data: { user } } = await supabase.auth.getUser();
+            // getSession() reads from localStorage — no network round-trip to Supabase Auth
+            const { data: { session } } = await supabase.auth.getSession();
+            const user = session?.user;
             if (user && newRow.creator_id === user.id) {
               addNotification({
                 title: `Workflow Update: ${newRow.status}`,
@@ -162,6 +164,25 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                   { label: 'View Details', href: `/publish/${newRow.id}`, primary: true }
                 ]
               });
+
+              // OS browser notification (requires permission granted by useRealtimeNotifications)
+              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                const title = `Post ${newRow.status}`;
+                const body = newRow.status === 'RETURNED'
+                  ? `Revision requested: "${newRow.feedback || 'Please check comments'}"`
+                  : `Your post has been ${newRow.status.toLowerCase()}.`;
+                new Notification(title, { body, icon: '/favicon.ico' });
+              }
+            }
+
+            // Notify for admin-level actions even when not the creator
+            if (newRow.status === 'PENDING_MANAGER' || newRow.status === 'PENDING_ADMIN') {
+              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                new Notification('New Action Required', {
+                  body: `A post is now ${newRow.status.replace('_', ' ')}.`,
+                  icon: '/favicon.ico',
+                });
+              }
             }
           }
         }

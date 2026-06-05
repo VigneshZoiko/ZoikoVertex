@@ -386,11 +386,16 @@ export default function CampaignsPage() {
   const [selectedDraft, setSelectedDraft] = React.useState<Campaign | null>(null);
 
   const toggleStatus = async (c: Campaign) => {
-    const going = c.status === "ACTIVE";
-    try {
-      await api.post(`/api/v1/campaigns/${c.id}/${going ? "pause" : "resume"}`, {});
-      setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, status: going ? "PAUSING" : "ACTIVE" } : x));
-    } catch { /* silent */ }
+    const pausing = c.status === "ACTIVE" || c.status === "SCHEDULED";
+    const r = await api.post(
+      `/api/v1/campaigns/${c.id}/${pausing ? "pause" : "resume"}`,
+      pausing ? { reason: "Paused from campaigns list" } : { reason: "Resumed from campaigns list" },
+    );
+    if (!r.success) {
+      setError(r.error || `Failed to ${pausing ? "pause" : "resume"} campaign`);
+      return;
+    }
+    setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, status: pausing ? "PAUSING" : "ACTIVE" } : x));
   };
 
   const deleteCampaign = async (id: string) => {

@@ -357,6 +357,9 @@ export default function AccountsPage() {
           // Pages
           "pages_show_list","pages_read_engagement","pages_manage_posts",
           "pages_read_user_content","pages_manage_engagement","read_insights",
+          // pages_manage_ads — required to create ad creatives on behalf of a Page
+          // (ads_management alone does NOT cover object_story_spec creative creation)
+          "pages_manage_ads",
           // Instagram
           "instagram_basic","instagram_content_publish",
           "instagram_manage_comments","instagram_manage_insights",

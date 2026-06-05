@@ -61,7 +61,7 @@ const PLACEMENT_META_MAP: Record<string, {platform: string; position: string}> =
   facebook_news_feed:        { platform: 'facebook',         position: 'feed' },
   instagram_feed:            { platform: 'instagram',        position: 'stream' },
   facebook_marketplace:      { platform: 'facebook',         position: 'marketplace' },
-  facebook_video_feeds:      { platform: 'facebook',         position: 'video_feeds' },
+  // facebook_video_feeds deprecated in Meta API v17+ — omitted to prevent ad set creation failure
   facebook_right_column:     { platform: 'facebook',         position: 'right_hand_column' },
   instagram_explore:         { platform: 'instagram',        position: 'explore' },
   messenger_inbox:           { platform: 'messenger',        position: 'messenger_home' },
@@ -229,7 +229,7 @@ export async function publishCampaignToMeta(
 
   const { data: account } = await supabaseAdmin
     .from('connected_accounts')
-    .select('access_token, refresh_token, ad_account_id, agency_ad_account_id, account_handle, account_name')
+    .select('access_token, refresh_token, ad_account_id, agency_ad_account_id, account_handle, account_name, page_id')
     .eq('id', accountId)
     .eq('workspace_id', workspaceId)
     .single();
@@ -241,8 +241,6 @@ export async function publishCampaignToMeta(
   const token      = account.access_token || account.refresh_token;
   const adAcctRaw  = account.agency_ad_account_id || account.ad_account_id;
   const adAccountId = adAcctRaw?.startsWith('act_') ? adAcctRaw : `act_${adAcctRaw}`;
-  // Strip @ prefix if present — Meta page_id must be numeric only
-  const pageId = (account.account_handle || '').replace(/^@/, '');
 
   if (!token) {
     return { success: false, error: 'Access token expired. Please reconnect your Facebook account.' };
@@ -251,9 +249,80 @@ export async function publishCampaignToMeta(
     return { success: false, error: 'No ad account ID found. Please link your Meta Ad Account first.' };
   }
 
+  // Resolve the Facebook Page ID — must be numeric for object_story_spec.
+  // Try the stored page_id column first; if missing or non-numeric (e.g. a username),
+  // fetch the user's pages from Meta API at publish time.
+  let pageId: string = (account as any).page_id || '';
+  const isNumeric = (s: string) => /^\d+$/.test(s);
+
+  if (!pageId || !isNumeric(pageId)) {
+    logger.info({ campaignId, accountId, adAccountId }, '[MetaPublisher] Resolving Facebook Page ID...');
+
+    // Strategy 1: /{ad-account-id}/promote_pages — most reliable.
+    // Returns exactly the Pages this ad account is allowed to promote.
+    // Requires no special scope beyond basic ads_management.
+    try {
+      const r1 = await fetch(`${META_GRAPH}/${adAccountId}/promote_pages?fields=id,name&limit=1&access_token=${token}`);
+      const d1 = await r1.json() as any;
+      if (!d1.error && d1.data?.[0]?.id && isNumeric(d1.data[0].id)) {
+        pageId = d1.data[0].id;
+        logger.info({ campaignId, pageId, pageName: d1.data[0].name }, '[MetaPublisher] Resolved Page ID via promote_pages');
+      }
+    } catch { /* fall through */ }
+
+    // Strategy 2: /me/accounts — requires pages_show_list scope
+    if (!pageId || !isNumeric(pageId)) {
+      try {
+        const r2 = await fetch(`${META_GRAPH}/me/accounts?fields=id,name&limit=1&access_token=${token}`);
+        const d2 = await r2.json() as any;
+        if (!d2.error && d2.data?.[0]?.id && isNumeric(d2.data[0].id)) {
+          pageId = d2.data[0].id;
+          logger.info({ campaignId, pageId }, '[MetaPublisher] Resolved Page ID via /me/accounts');
+        }
+      } catch { /* fall through */ }
+    }
+
+    // Strategy 3: resolve from username — but only if it's a Page, not a personal profile.
+    // Pages have a fan_count field; personal profiles don't.
+    if (!pageId || !isNumeric(pageId)) {
+      const handle = (account.account_handle || '').replace(/^@/, '').trim();
+      if (handle) {
+        try {
+          const r3 = await fetch(`${META_GRAPH}/${encodeURIComponent(handle)}?fields=id,name,fan_count&access_token=${token}`);
+          const d3 = await r3.json() as any;
+          // fan_count exists on Pages but not personal profiles
+          if (!d3.error && d3.id && isNumeric(d3.id) && 'fan_count' in d3) {
+            pageId = d3.id;
+            logger.info({ campaignId, pageId, pageName: d3.name }, '[MetaPublisher] Resolved Page ID via username lookup');
+          }
+        } catch { /* fall through */ }
+      }
+    }
+
+    if (!pageId || !isNumeric(pageId)) {
+      return {
+        success: false,
+        error: 'No Facebook Business Page found for this ad account. Please create a Facebook Page in Meta Business Manager and link it to your ad account, then try again.',
+      };
+    }
+
+    // Persist so future publishes skip this lookup
+    await supabaseAdmin
+      .from('connected_accounts')
+      .update({ page_id: pageId } as any)
+      .eq('id', accountId)
+      .eq('workspace_id', workspaceId)
+      .then(undefined, () => {});
+  }
+
   // ── 3. Map fields ─────────────────────────────────────────────────────────
 
-  const metaObjective  = OBJECTIVE_MAP[campaign.objective] || 'OUTCOME_TRAFFIC';
+  // Normalize objective to uppercase to handle display-label variations (e.g. "Traffic" → "TRAFFIC")
+  const normalizedObjective = (campaign.objective || '').toUpperCase().replace(/ /g, '_');
+  if (!OBJECTIVE_MAP[normalizedObjective]) {
+    logger.warn({ campaignId, objective: campaign.objective }, '[MetaPublisher] Unknown objective — defaulting to OUTCOME_TRAFFIC');
+  }
+  const metaObjective    = OBJECTIVE_MAP[normalizedObjective] || 'OUTCOME_TRAFFIC';
   const optimizationGoal = OPTIMIZATION_MAP[campaign.boost_settings?.optimize || 'LANDING_PAGE_VIEWS'] || 'LANDING_PAGE_VIEWS';
 
   // Targeting spec
@@ -441,6 +510,20 @@ export async function publishCampaignToMeta(
     ? campaign.ads_data
     : [creative];
 
+  logger.info({
+    campaignId,
+    source: Array.isArray(campaign.ads_data) && campaign.ads_data.length > 0 ? 'ads_data' : 'creative',
+    adsCount: adsData.length,
+    firstAd: {
+      headline:         adsData[0]?.headline,
+      landing_page_url: adsData[0]?.landing_page_url,
+      copy_text:        adsData[0]?.copy_text,
+      ad_image_url:     adsData[0]?.ad_image_url ? '(set)' : '(empty)',
+      cta_text:         adsData[0]?.cta_text,
+    },
+    pageId,
+  }, '[MetaPublisher] Creative data resolved from DB');
+
   const createdAdIds: string[] = [];
   let firstCreativeId = '';
   let firstAdId       = '';
@@ -534,20 +617,22 @@ export async function publishCampaignToMeta(
     const metaCreativeId = metaCreative.id as string;
     if (idx === 0) firstCreativeId = metaCreativeId;
 
-    // Create the ad
+    // Create the ad as PAUSED — Meta v17+ rejects ACTIVE when the parent ad set is PAUSED.
+    // The full hierarchy is activated together after all ads are created (see step 8 below).
     const metaAd = await metaPost(`/${adAccountId}/ads`, token, {
       name:     adName,
       adset_id: metaAdsetId,
       creative: { creative_id: metaCreativeId },
-      status:   'ACTIVE',
+      status:   'PAUSED',
     });
 
     if (metaAd.error) {
-      logger.warn({ ad: adName, err: metaAd.error.message }, '[MetaPublisher] Ad creation failed');
+      const adErrDetail = metaAd.error.error_user_msg || metaAd.error.message;
+      logger.warn({ ad: adName, metaError: metaAd.error }, '[MetaPublisher] Ad creation failed');
       if (idx === 0) {
         await metaPost(`/${metaCampaignId}`, token, { status: 'DELETED' }).catch(() => {});
-        await saveMetaError(campaignId, metaAd.error.message);
-        return { success: false, error: `Meta API (ad): ${metaAd.error.message}` };
+        await saveMetaError(campaignId, adErrDetail);
+        return { success: false, error: `Meta API (ad): ${adErrDetail}` };
       }
       continue;
     }
@@ -562,10 +647,51 @@ export async function publishCampaignToMeta(
   const metaAdId       = firstAdId;
   logger.info({ total: createdAdIds.length }, '[MetaPublisher] All ads created — activating campaign on Meta');
 
-  // ── 8. Activate campaign on Meta (was created PAUSED) ────────────────────
-  await metaPost(`/${metaCampaignId}`, token, { status: 'ACTIVE' }).catch(() => {});
+  // ── 8. Activate hierarchy: ad set first, then campaign ───────────────────
+  // Meta does NOT cascade activation from campaign to PAUSED ad sets,
+  // and ads created as PAUSED (required by v17+) need explicit activation.
+  let activationFailed = false;
+  let activationError  = '';
 
-  // ── 9. Save Meta IDs to DB + mark ACTIVE ─────────────────────────────────
+  const adSetActivation = await metaPost(`/${metaAdsetId}`, token, { status: 'ACTIVE' });
+  if ((adSetActivation as any).error) {
+    const err = (adSetActivation as any).error;
+    if (err.code === 190) {
+      return { success: false, error: 'Access token expired. Please reconnect your Facebook account and try again.' };
+    }
+    activationFailed = true;
+    activationError  = err.error_user_msg || err.message;
+    logger.warn({ metaError: err }, '[MetaPublisher] Ad set activation failed');
+  }
+
+  if (!activationFailed) {
+    const campActivation = await metaPost(`/${metaCampaignId}`, token, { status: 'ACTIVE' });
+    if ((campActivation as any).error) {
+      const err = (campActivation as any).error;
+      activationFailed = true;
+      activationError  = err.error_user_msg || err.message;
+      logger.warn({ metaError: err }, '[MetaPublisher] Campaign activation failed');
+    }
+  }
+
+  // Activate individual ads regardless of campaign/adset activation errors —
+  // they may become active once the parent is fixed manually.
+  for (const adId of createdAdIds) {
+    const adAct = await metaPost(`/${adId}`, token, { status: 'ACTIVE' });
+    if ((adAct as any).error) {
+      logger.warn({ adId, metaError: (adAct as any).error }, '[MetaPublisher] Individual ad activation failed');
+    }
+  }
+
+  // ── 9. Save Meta IDs to DB ────────────────────────────────────────────────
+  // Status is ACTIVE only when the full hierarchy activated successfully.
+  // If activation failed, write SCHEDULED so the operator can retry / investigate.
+  const finalStatus = activationFailed ? 'SCHEDULED' : 'ACTIVE';
+  if (activationFailed) {
+    logger.warn({ campaignId, activationError }, '[MetaPublisher] Meta objects created but activation failed — marking SCHEDULED');
+    await saveMetaError(campaignId, `Activation failed: ${activationError}. Meta objects exist — check Meta Business Manager.`);
+  }
+
   await supabaseAdmin
     .from('campaigns')
     .update({
@@ -573,12 +699,13 @@ export async function publishCampaignToMeta(
       meta_adset_id:     metaAdsetId,
       meta_creative_id:  metaCreativeId,
       meta_ad_id:        metaAdId,
-      status:            'ACTIVE',
+      status:            finalStatus,
       published_at:      new Date().toISOString(),
-      meta_error:        null,
+      meta_error:        activationFailed ? `Activation failed: ${activationError}` : null,
       updated_at:        new Date().toISOString(),
     })
-    .eq('id', campaignId);
+    .eq('id', campaignId)
+    .eq('workspace_id', workspaceId);
 
   return {
     success:          true,
@@ -659,54 +786,74 @@ export async function syncCampaignsFromMeta(
   adAccountId: string,
   token: string,
 ): Promise<{ synced: number; error?: string }> {
-  const fields = 'id,name,status,objective,created_time,start_time,stop_time,daily_budget,lifetime_budget,configured_status';
-  const result = await metaGet(`/act_${adAccountId.replace('act_', '')}/campaigns?fields=${fields}&limit=50`, token);
+  // Resolve org_id for this workspace once — required for campaign inserts
+  const { data: ws } = await supabaseAdmin
+    .from('workspaces')
+    .select('org_id')
+    .eq('id', workspaceId)
+    .single();
+  const orgId = ws?.org_id || null;
 
-  if (result.error) return { synced: 0, error: result.error.message };
+  const fields  = 'id,name,status,objective,created_time,start_time,stop_time,daily_budget,lifetime_budget,configured_status';
+  const baseUrl = `/act_${adAccountId.replace('act_', '')}/campaigns?fields=${fields}&limit=100`;
 
-  const campaigns = result.data || [];
+  const statusMap: Record<string, string> = {
+    ACTIVE:   'ACTIVE',
+    PAUSED:   'PAUSED',
+    DELETED:  'CANCELLED',
+    ARCHIVED: 'COMPLETED',
+  };
+
+  let nextUrl: string | null = baseUrl;
   let synced = 0;
 
-  for (const mc of campaigns) {
-    const statusMap: Record<string, string> = {
-      ACTIVE:    'ACTIVE',
-      PAUSED:    'PAUSED',
-      DELETED:   'CANCELLED',
-      ARCHIVED:  'COMPLETED',
-    };
+  while (nextUrl) {
+    const result = await metaGet(nextUrl, token);
+    if ((result as any).error) return { synced, error: (result as any).error.message };
 
-    const { data: existing } = await supabaseAdmin
-      .from('campaigns')
-      .select('id')
-      .eq('meta_campaign_id', mc.id)
-      .eq('workspace_id', workspaceId)
-      .maybeSingle();
+    const campaigns: any[] = (result as any).data || [];
 
-    if (!existing) {
-      // Create new campaign record from Meta
-      await supabaseAdmin.from('campaigns').insert({
-        workspace_id:      workspaceId,
-        name:              mc.name,
-        status:            statusMap[mc.status] || 'ACTIVE',
-        campaign_type:     'PAID_ADS',
-        objective:         mc.objective?.replace('OUTCOME_', '') || 'TRAFFIC',
-        platforms:         ['Meta'],
-        budget_daily:      mc.daily_budget     ? parseInt(mc.daily_budget)     / 100 : null,
-        budget_total:      mc.lifetime_budget  ? parseInt(mc.lifetime_budget)  / 100 : null,
-        start_at:          mc.start_time       || null,
-        end_at:            mc.stop_time        || null,
-        meta_campaign_id:  mc.id,
-        published_at:      mc.created_time,
-        created_at:        mc.created_time,
-      });
-    } else {
-      // Update status
-      await supabaseAdmin.from('campaigns').update({
-        status:     statusMap[mc.status] || 'ACTIVE',
-        updated_at: new Date().toISOString(),
-      }).eq('id', existing.id);
+    for (const mc of campaigns) {
+      const { data: existing } = await supabaseAdmin
+        .from('campaigns')
+        .select('id')
+        .eq('meta_campaign_id', mc.id)
+        .eq('workspace_id', workspaceId)
+        .maybeSingle();
+
+      if (!existing) {
+        const { error: insertErr } = await supabaseAdmin.from('campaigns').insert({
+          workspace_id:     workspaceId,
+          org_id:           orgId,
+          name:             mc.name,
+          status:           statusMap[mc.status] || 'ACTIVE',
+          campaign_type:    'PAID_ADS',
+          objective:        mc.objective?.replace('OUTCOME_', '') || 'TRAFFIC',
+          platforms:        ['Meta'],
+          budget_daily:     mc.daily_budget    ? parseInt(mc.daily_budget)    / 100 : null,
+          budget_total:     mc.lifetime_budget ? parseInt(mc.lifetime_budget) / 100 : null,
+          start_at:         mc.start_time      || null,
+          end_at:           mc.stop_time       || null,
+          meta_campaign_id: mc.id,
+          published_at:     mc.created_time,
+          created_at:       mc.created_time,
+        });
+        if (insertErr) {
+          logger.warn({ metaCampaignId: mc.id, err: insertErr.message }, '[MetaSync] Insert failed for synced campaign');
+          continue;
+        }
+      } else {
+        await supabaseAdmin.from('campaigns').update({
+          status:     statusMap[mc.status] || 'ACTIVE',
+          updated_at: new Date().toISOString(),
+        }).eq('id', existing.id);
+      }
+      synced++;
     }
-    synced++;
+
+    // Follow Meta paging cursor — paging.cursors.after is the next page token
+    const after = (result as any).paging?.cursors?.after;
+    nextUrl = after ? `${baseUrl}&after=${after}` : null;
   }
 
   return { synced };
