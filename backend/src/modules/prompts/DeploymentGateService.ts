@@ -5,6 +5,8 @@ import { PromptApprovalPolicyService } from './PromptApprovalPolicyService';
 import { ThreeKeyService } from './ThreeKeyService';
 import { ConstraintShadowService } from './ConstraintShadowService';
 import { supabaseAdmin } from '../../shared/supabase';
+import { computePDIBand, isPDIBandDeploymentBlocked, deriveAutonomyLevel } from './pdiBands';
+import { PromptAuditService } from './PromptAuditService';
 
 export interface GateBlockingIssue {
   type: string;
@@ -204,6 +206,54 @@ export class DeploymentGateService {
           type: 'constraint_shadow_unavailable',
           detail: `Constraint Shadow validation could not be completed: ${err instanceof Error ? err.message : 'service error'}. Deployment blocked (fail-closed).`,
           blocking: true,
+        });
+      }
+    }
+
+    // Gate 9: PDI band — fail-closed on WEAK bands. Only enforced when a PDI
+    // score has actually been computed for the version (so draft/internal_test
+    // versions without a PDI history are unaffected). MODERATE bands warn
+    // rather than block; STRONG and EXCELLENT are unflagged.
+    if (!blockingIssues.some((i) => i.blocking)) {
+      try {
+        const { data: pdiRows } = await supabaseAdmin
+          .from('prompt_audit_ledger')
+          .select('after_state')
+          .eq('version_id', versionId)
+          .eq('event_type', 'prompt.defensibility_index.computed')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const pdiScore: number | null = (pdiRows?.[0]?.after_state as any)?.pdi_score ?? null;
+        if (pdiScore !== null) {
+          const band = computePDIBand(pdiScore);
+          const autonomy = deriveAutonomyLevel(band);
+          if (isPDIBandDeploymentBlocked(band)) {
+            blockingIssues.push({
+              type: 'pdi_band_weak',
+              detail: `PDI band is WEAK (score ${pdiScore}, < 70). Deployment blocked.`,
+              blocking: true,
+            });
+            await PromptAuditService.record({
+              event_type: 'prompt.gate.pdi_band_blocked',
+              workspace_id: options?.workspaceId || null as any,
+              version_id: versionId,
+              reason: `PDI band WEAK (score ${pdiScore}) blocks deployment`,
+              risk_level: riskTier,
+              after_state: { pdi_score: pdiScore, pdi_band: band, autonomy_level: autonomy },
+            });
+          } else if (band === 'MODERATE') {
+            warnings.push({
+              type: 'pdi_band_moderate',
+              detail: `PDI band is MODERATE (score ${pdiScore}). Deployment allowed with autonomy=${autonomy} (supervised).`,
+            });
+          }
+        }
+      } catch (err) {
+        // Fail-closed: PDI gate could not be evaluated — do NOT block on transient
+        // error (this gate is advisory, unlike gates 1–8 which are mandatory).
+        warnings.push({
+          type: 'pdi_band_evaluation_failed',
+          detail: `PDI band evaluation could not complete: ${err instanceof Error ? err.message : 'service error'}. Proceeding without PDI gate.`,
         });
       }
     }

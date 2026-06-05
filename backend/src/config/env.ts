@@ -11,6 +11,13 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   GEMINI_API_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
+  // Phase 6 — Optional real model validation flag.
+  // Default 'false': server starts normally without any model keys, Phase 6
+  // real adversarial + cross-model evaluation short-circuit to a clear
+  // "skipped" status, and all Phase 1–5 governance flows continue to work.
+  // When 'true': at least one of GEMINI_API_KEY or GROQ_API_KEY MUST be set;
+  // boot fails if both are missing. See modules/prompts/modelProviders.ts.
+  ENABLE_REAL_MODEL_VALIDATION: z.string().default('false'),
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
   META_REDIRECT_URI: z.string().optional(),

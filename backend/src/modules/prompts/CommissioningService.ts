@@ -7,6 +7,7 @@ import { SeparationOfDutiesService } from './SeparationOfDutiesService';
 import { ThreeKeyService } from './ThreeKeyService';
 import { DeploymentGateService } from './DeploymentGateService';
 import { ConstraintShadowService } from './ConstraintShadowService';
+import { computePDIBand, isPDIBandDeploymentBlocked, deriveAutonomyLevel } from './pdiBands';
 
 export type CommissioningStatus = 'not_commissioned' | 'pending_review' | 'commissioned' | 'commissioning_failed';
 
@@ -34,7 +35,7 @@ export class CommissioningService {
     promptVersionId: string,
     workspaceId: string,
     _actorId?: string,
-  ): Promise<{ canCommission: boolean; checks: CommissionPreflightCheck[] }> {
+  ): Promise<{ canCommission: boolean; checks: CommissionPreflightCheck[]; pdiBandInfo?: { score: number | null; band: string | null; autonomy: string | null } }> {
     const prompt = await PromptService.getById(promptId, workspaceId);
     const checks: CommissionPreflightCheck[] = [];
 
@@ -173,8 +174,48 @@ export class CommissioningService {
       details: violations?.length ? `${violations.length} violation(s) found` : 'No violations',
     });
 
+    // 10. PDI band — WEAK blocks commissioning. MODERATE allows with autonomy
+    // restrictions; STRONG/EXCELLENT pass. Only enforced when a PDI score has
+    // been computed for this version.
+    let pdiBandInfo: { score: number | null; band: string | null; autonomy: string | null } = { score: null, band: null, autonomy: null };
+    try {
+      const { data: pdiRows } = await supabaseAdmin
+        .from('prompt_audit_ledger')
+        .select('after_state')
+        .eq('version_id', promptVersionId)
+        .eq('event_type', 'prompt.defensibility_index.computed')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const pdiScore: number | null = (pdiRows?.[0]?.after_state as any)?.pdi_score ?? null;
+      if (pdiScore !== null) {
+        const band = computePDIBand(pdiScore);
+        const autonomy = deriveAutonomyLevel(band);
+        pdiBandInfo = { score: pdiScore, band, autonomy };
+        const blocked = isPDIBandDeploymentBlocked(band);
+        checks.push({
+          check: 'PDI band is not WEAK',
+          passed: !blocked,
+          details: blocked
+            ? `PDI band is WEAK (score ${pdiScore}). Commissioning blocked.`
+            : `PDI band is ${band} (score ${pdiScore}); autonomy=${autonomy}`,
+        });
+      } else {
+        checks.push({
+          check: 'PDI band is not WEAK',
+          passed: true,
+          details: 'No PDI score on file for this version; PDI band gate not enforced',
+        });
+      }
+    } catch (err) {
+      checks.push({
+        check: 'PDI band is not WEAK',
+        passed: false,
+        details: `PDI band evaluation error: ${err instanceof Error ? err.message : 'service error'}`,
+      });
+    }
+
     const canCommission = checks.every((c) => c.passed);
-    return { canCommission, checks };
+    return { canCommission, checks, pdiBandInfo };
   }
 
   static async commission(

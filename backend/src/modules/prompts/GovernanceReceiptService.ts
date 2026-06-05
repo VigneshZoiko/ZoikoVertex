@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { PromptAuditService } from './PromptAuditService';
 import { PromptEvidenceService } from './PromptEvidenceService';
 import { FailClosedGuard } from './FailClosedGuard';
+import { computePDIBand, deriveAutonomyLevel } from './pdiBands';
 
 export interface GovernanceReceipt {
   receiptId: string;
@@ -142,6 +143,8 @@ export class GovernanceReceiptService {
       .limit(1);
 
     const pdiScore = (pdiRecords?.[0]?.after_state as any)?.pdi_score ?? null;
+    const pdiBand = pdiScore !== null ? computePDIBand(pdiScore) : null;
+    const autonomyLevel = pdiBand ? deriveAutonomyLevel(pdiBand) : null;
 
     // ── Actor chain ─────────────────────────────────────────────────────
     const actorChain: GovernanceReceipt['actorChain'] = [];
@@ -164,6 +167,8 @@ export class GovernanceReceiptService {
       sodPassed,
       sodCheckCount: sodRecords?.length || 0,
       pdiScore,
+      pdiBand,
+      autonomyLevel,
       evaluationPassed,
       evaluationScore,
     };
@@ -208,6 +213,8 @@ export class GovernanceReceiptService {
       actorChain,
       governanceResults,
       constraintShadowHash,
+      pdiBand,
+      autonomyLevel,
       timestamps: { created: new Date().toISOString(), approvalCompleted, deploymentCompleted },
       receiptStatus: 'sealed',
     };
@@ -264,6 +271,8 @@ export class GovernanceReceiptService {
       constraintShadow: latestShadow || {},
       evaluationResult: latestEval || {},
       pdiScore,
+      pdiBand,
+      autonomyLevel,
       governanceResults,
       constraintShadowHash,
     } as unknown as GovernanceReceipt;

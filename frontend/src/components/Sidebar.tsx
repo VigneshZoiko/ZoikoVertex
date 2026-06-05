@@ -53,6 +53,7 @@ import {
   Bell,
   Eye,
   Lock,
+  BarChart3,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -295,6 +296,33 @@ const NAV_GROUPS: NavGroup[] = [
         icon: MessageSquareCode,
         // Prompt-as-Code, diffs, receipts, commissioning, audit reconstruction —
         // same visibility as Prompt Governance.
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"],
+        plan: "agents" as Feature,
+      },
+      {
+        name: "Evaluation Dashboard",
+        href: "/agents/prompts/dashboards/evaluation",
+        icon: BarChart3,
+        // Phase 6.5 — PDI / evaluation pass rate / cross-model rankings.
+        // Same visibility as Prompt Governance Center.
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"],
+        plan: "agents" as Feature,
+      },
+      {
+        name: "Adversarial Dashboard",
+        href: "/agents/prompts/dashboards/adversarial",
+        icon: ShieldAlert,
+        // Phase 6.5 — adversarial test results. Bypasses must be zero before
+        // promotion; same visibility as Prompt Governance Center.
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"],
+        plan: "agents" as Feature,
+      },
+      {
+        name: "Drift Dashboard",
+        href: "/agents/prompts/dashboards/drift",
+        icon: Activity,
+        // Phase 6.5 — runtime behavioral drift findings, incidents, reports.
+        // Same visibility as Prompt Governance Center.
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"],
         plan: "agents" as Feature,
       },

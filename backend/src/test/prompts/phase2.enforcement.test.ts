@@ -363,7 +363,7 @@ describe('CommissioningService — runPreflight checks', () => {
     expect(result.checks[0].check).toContain('Status');
   });
 
-  it('returns canCommission=true when all 9 checks pass for Tier 2', async () => {
+  it('returns canCommission=true when all 10 checks pass for Tier 2', async () => {
     setFixtures({
       prompts: [{ id: 'p1', workspace_id: 'ws-a', status: 'approved_for_staging', risk_tier: 'tier_2_medium' }],
       prompt_versions: [{ id: 'v1', prompt_id: 'p1', created_by: 'user-author' }],
@@ -382,7 +382,7 @@ describe('CommissioningService — runPreflight checks', () => {
     const result = await CommissioningService.runPreflight('p1', 'v1', 'ws-a');
     expect(result.canCommission).toBe(true);
     expect(result.checks.every((c) => c.passed)).toBe(true);
-    expect(result.checks.length).toBe(9);
+    expect(result.checks.length).toBe(10);
   });
 
   it('reports specific check failures when checks fail', async () => {
@@ -438,7 +438,7 @@ describe('CommissioningService — commission() fail-closed on preflight', () =>
 });
 
 describe('CommissioningService — commission() success path', () => {
-  it('succeeds when all 9 preflights pass', async () => {
+  it('succeeds when all 10 preflights pass', async () => {
     setFixtures({
       prompts: [{ id: 'p1', workspace_id: 'ws-a', status: 'approved_for_staging', risk_tier: 'tier_2_medium' }],
       prompt_versions: [{ id: 'v1', prompt_id: 'p1', version_number: 1, body: 'Test', created_by: 'user-author' }],
@@ -458,7 +458,7 @@ describe('CommissioningService — commission() success path', () => {
     const result = await CommissioningService.commission('p1', 'v1', 'ws-a', 'u1', 'Commissioning test');
     expect(result.status).toBe('commissioned');
     expect(result.receiptId).toMatch(/^GR-/);
-    expect(result.preflightChecks.length).toBe(9);
+    expect(result.preflightChecks.length).toBe(10);
   });
 
   it('generates governance receipt', async () => {

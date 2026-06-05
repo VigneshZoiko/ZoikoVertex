@@ -2253,6 +2253,55 @@ export class PromptController {
   }
 
   // ═════════════════════════════════════════════════════════════════════════
+  // Phase 6.5 — Evaluation Intelligence Dashboard Views
+  // ═════════════════════════════════════════════════════════════════════════
+
+  static async getEvaluationView(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const data = await GovernanceDashboardService.getEvaluationView(workspaceId);
+      await auditPromptEvent('prompt.dashboard.evaluation_viewed', {
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        after_state: { pdi_average: data.pdi.summary.average_score, eval_pass_rate: data.evaluation.pass_rate },
+      }, req);
+      res.json({ success: true, data, generated_at: new Date().toISOString() });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getAdversarialView(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const data = await GovernanceDashboardService.getAdversarialView(workspaceId);
+      await auditPromptEvent('prompt.dashboard.adversarial_viewed', {
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        after_state: { total_attacks: data.summary.total_attacks, pass_rate: data.summary.pass_rate },
+      }, req);
+      res.json({ success: true, data, generated_at: new Date().toISOString() });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getDriftView(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const data = await GovernanceDashboardService.getDriftView(workspaceId);
+      await auditPromptEvent('prompt.dashboard.drift_viewed', {
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        after_state: { total_findings: data.summary.total_findings, prompts_with_drift: data.summary.prompts_with_drift },
+      }, req);
+      res.json({ success: true, data, generated_at: new Date().toISOString() });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
   // Phase 5C — Adversarial Testing
   // ═════════════════════════════════════════════════════════════════════════
 
@@ -2412,6 +2461,90 @@ export class PromptController {
           evidence_refs: report.evidence_refs,
         },
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // Phase 6.2 — Real Adversarial Attack Execution Endpoint
+  // ═════════════════════════════════════════════════════════════════════════
+
+  static async runRealAdversarialSuite(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      const { data: version } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('prompt_id')
+        .eq('id', versionId)
+        .single();
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      const prompt = await PromptService.requireById(version.prompt_id, workspaceId);
+
+      const body = (req.body || {}) as {
+        model_id?: string;
+        provider?: 'google' | 'groq';
+        attacks?: any[];
+      };
+      const report = await AdversarialTestService.runRealAdversarialSuite({
+        promptVersionId: versionId,
+        promptId: version.prompt_id,
+        workspaceId,
+        modelId: body.model_id,
+        provider: body.provider,
+        riskTier: prompt.risk_tier,
+        customAttacks: body.attacks,
+        actorId: req.user?.id,
+      });
+
+      await auditPromptEvent('prompt.test.adversarial.real_completed', {
+        prompt_id: version.prompt_id,
+        prompt_version_id: versionId,
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        risk_tier: prompt.risk_tier,
+        after_state: {
+          total_attacks: report.summary.total,
+          passed: report.summary.passed,
+          failed: report.summary.failed,
+          pass_rate: report.summary.pass_rate,
+          overall_result: report.summary.overall_result,
+          model_id: report.model_id,
+          provider: report.provider,
+        },
+      }, req);
+
+      res.status(201).json({ success: true, data: report });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // Phase 6.3 — Real Cross-Model Comparison Endpoint
+  // ═════════════════════════════════════════════════════════════════════════
+
+  static async runRealCrossModelComparison(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const { data: version } = await supabaseAdmin
+        .from('prompt_versions')
+        .select('prompt_id')
+        .eq('id', versionId)
+        .single();
+      const body = (req.body || {}) as { test_input?: string; providers?: any[] };
+      const result = await CrossModelComparisonService.runRealCrossModelComparison({
+        promptVersionId: versionId,
+        promptId: version?.prompt_id || '',
+        workspaceId,
+        testInput: body.test_input,
+        providers: body.providers,
+        actorId: req.user?.id,
+      });
+      res.json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

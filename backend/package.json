@@ -9,7 +9,10 @@
     "start": "node dist/server.js",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "vitest run",
-    "test:prompts": "vitest run src/test/prompts"
+    "test:prompts": "vitest run src/test/prompts",
+    "verify:governance": "ts-node scripts/verifyGovernance.ts",
+    "verify:governance:migrations": "ts-node scripts/verifyGovernanceMigrations.ts",
+    "verify:governance:append-only": "ts-node scripts/verifyGovernanceAppendOnly.ts"
   },
   "keywords": [],
   "author": "",

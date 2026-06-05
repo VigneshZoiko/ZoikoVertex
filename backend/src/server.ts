@@ -1250,6 +1250,8 @@ app.post('/api/v1/prompts/:id/tests/suites/:suiteId/adversarial/scenarios/seed',
 app.post('/api/v1/prompts/versions/:versionId/tests/adversarial/run', authenticate, govEdit, PromptController.runAdversarialTests);
 app.get('/api/v1/prompts/versions/:versionId/tests/adversarial/runs', authenticate, govView, PromptController.listAdversarialResults);
 app.get('/api/v1/prompts/versions/:versionId/tests/adversarial/runs/:runId', authenticate, govView, PromptController.getAdversarialResultDetail);
+// Phase 6.2 — Real adversarial attack execution
+app.post('/api/v1/prompts/versions/:versionId/tests/adversarial/real', authenticate, govEdit, PromptController.runRealAdversarialSuite);
 
 // Policy Simulation (Phase 5D) — read-only what-if analysis
 app.post('/api/v1/prompts/simulate', authenticate, govView, PromptController.runPolicySimulation);
@@ -1261,6 +1263,11 @@ app.get('/api/v1/prompts/:id/scorecard', authenticate, govView, PromptController
 
 // Governance Metrics Dashboard (Phase 5F) — lean live-computed pipeline
 app.get('/api/v1/prompts/metrics/dashboard', authenticate, govView, PromptController.getGovernanceMetrics);
+
+// Evaluation Intelligence Dashboard Views (Phase 6.5)
+app.get('/api/v1/prompts/dashboard/evaluation', authenticate, govView, PromptController.getEvaluationView);
+app.get('/api/v1/prompts/dashboard/adversarial', authenticate, govView, PromptController.getAdversarialView);
+app.get('/api/v1/prompts/dashboard/drift', authenticate, govView, PromptController.getDriftView);
 
 // ─── Prompt Evaluation (Phase 1) ─────────────────────────────────────
 app.post('/api/v1/prompts/versions/:versionId/evaluate', authenticate, govLifecycle, PromptController.evaluatePromptVersion);
@@ -1286,6 +1293,8 @@ app.get('/api/v1/prompts/:id/pdi', authenticate, govView, PromptController.compu
 // ─── Cross-Model Comparison (Phase 3) ────────────────────────────────
 app.post('/api/v1/prompts/versions/:versionId/cross-model/compare', authenticate, govView, PromptController.compareCrossModel);
 app.post('/api/v1/prompts/versions/:versionId/cross-model/parity-check', authenticate, govView, PromptController.runCrossModelParityCheck);
+// Phase 6.3 — Real cross-model evaluation (4 providers, 6 metrics)
+app.post('/api/v1/prompts/versions/:versionId/cross-model/real', authenticate, govView, PromptController.runRealCrossModelComparison);
 
 // ─── Governance Receipt (Phase 4) ────────────────────────────────────
 app.post('/api/v1/prompts/:id/receipt', authenticate, govLifecycle, PromptController.generateGovernanceReceipt);
@@ -1472,6 +1481,11 @@ import { initOrgInactivityWorker } from './workers/orgInactivityWorker';
 try {
   registerExecutionListeners();
   registerEventBridge();
+  // Phase 6.2 / 6.3 — wire real LLM providers into the ModelExecutionAdapter
+  // registry. Missing keys ⇒ providers skipped (NullAdapter fallback).
+  // PROMPT_GOVERNANCE_ENFORCED=true + zero keys ⇒ boot fails.
+  const { registerProductionAdapters } = require('./modules/prompts/modelProviders');
+  registerProductionAdapters();
   const server = app.listen(port, () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers

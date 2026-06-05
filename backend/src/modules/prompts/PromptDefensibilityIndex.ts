@@ -1,12 +1,16 @@
 import { supabaseAdmin } from '../../shared/supabase';
 import { ConstraintShadowService } from './ConstraintShadowService';
 import { PromptAuditService } from './PromptAuditService';
+import { computePDIBand, deriveAutonomyLevel, describePDIBand, PDIBand, AutonomyLevel } from './pdiBands';
 
 export interface PDIResult {
   promptId: string;
   promptVersionId: string;
   pdiScore: number;
   pdiLevel: 'critical' | 'low' | 'moderate' | 'strong' | 'maximum';
+  pdiBand: PDIBand;
+  autonomyLevel: AutonomyLevel;
+  bandRationale: string;
   componentScores: {
     instructionClarity: number;
     boundaryStrength: number;
@@ -134,15 +138,25 @@ export class PromptDefensibilityIndexService {
     );
 
     const pdiLevel = computePDILevel(pdiScore);
+    const pdiBand = computePDIBand(pdiScore);
+    const autonomyLevel = deriveAutonomyLevel(pdiBand);
+    const bandRationale = describePDIBand(pdiBand);
 
     await PromptAuditService.record({
-      event_type: 'prompt.scorecard.generated',
+      event_type: 'prompt.defensibility_index.computed',
       workspace_id: workspaceId,
       prompt_id: promptId,
       version_id: promptVersionId,
-      reason: `PDI computed: ${pdiScore}/100 (${pdiLevel})`,
+      reason: `PDI computed: ${pdiScore}/100 (band=${pdiBand}, autonomy=${autonomyLevel})`,
       risk_level: riskTier,
-      after_state: { pdi_score: pdiScore, pdi_level: pdiLevel, component_scores: componentScores },
+      after_state: {
+        pdi_score: pdiScore,
+        pdi_level: pdiLevel,
+        pdi_band: pdiBand,
+        autonomy_level: autonomyLevel,
+        band_rationale: bandRationale,
+        component_scores: componentScores,
+      },
     });
 
     return {
@@ -150,6 +164,9 @@ export class PromptDefensibilityIndexService {
       promptVersionId,
       pdiScore,
       pdiLevel,
+      pdiBand,
+      autonomyLevel,
+      bandRationale,
       componentScores,
       findings,
       evaluatedAt: new Date().toISOString(),
