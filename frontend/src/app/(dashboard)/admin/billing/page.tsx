@@ -12,6 +12,7 @@ import {
 import { api } from "@/lib/api";
 import { createPortal } from "react-dom";
 import { useRoleContext } from "@/lib/context/RoleContext";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 // â"€â"€ Types â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
@@ -225,6 +226,7 @@ export default function BillingPage() {
   // Upgrade confirmation modal
   const [upgradeConfirm, setUpgradeConfirm] = useState<{ planId: string; planName: string; price: number } | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [showCancelSub, setShowCancelSub] = useState(false);
 
   // Load Data
   useEffect(() => {
@@ -547,7 +549,10 @@ export default function BillingPage() {
   };
 
   const handleCancelSubscription = async () => {
-    if (!confirm('Cancel subscription? Your plan stays active until the renewal date.')) return;
+    setShowCancelSub(true);
+  };
+
+  const confirmCancelSubscription = async () => {
     try {
       const r = await api.post('/api/v1/billing/cancel-subscription', {});
       if (r.success) {
@@ -555,6 +560,7 @@ export default function BillingPage() {
         showToast(`Subscription cancelled -- active until ${new Date(r.data?.cancels_at).toLocaleDateString()}`, "success");
       }
     } catch { showToast("Failed to cancel subscription", "error"); }
+    finally { setShowCancelSub(false); }
   };
 
   const handleChangePlan = async (planId: string) => {
@@ -1466,6 +1472,15 @@ export default function BillingPage() {
         document.body
       )}
 
+      <ConfirmActionModal
+        open={showCancelSub}
+        variant="warning"
+        title="Cancel Subscription"
+        message="Cancel subscription? Your plan stays active until the renewal date."
+        confirmLabel="Cancel Subscription"
+        onConfirm={confirmCancelSubscription}
+        onCancel={() => setShowCancelSub(false)}
+      />
     </div>
   );
 }

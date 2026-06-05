@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { GitMerge, Loader2, Clock, CheckCircle2, AlertCircle, XCircle, Pause, ShieldAlert, BarChart2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import ConfirmActionModal from '@/components/ConfirmActionModal';
 
 // Per doc section 8 — Runtime Operations Requirements
 // Visible data: workflow name, instance ID, current step, owner, SLA, risk score,
@@ -91,43 +92,54 @@ export default function ActiveOrchestrations({
 }) {
   // Track per-instance loading state: key = `${instanceId}:pause` or `${instanceId}:escalate`
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pauseTarget, setPauseTarget] = useState<Orchestration | null>(null);
+  const [escalateTarget, setEscalateTarget] = useState<Orchestration | null>(null);
 
   const setLoading = (id: string, action: string, val: boolean) =>
     setActionLoading((prev) => ({ ...prev, [`${id}:${action}`]: val }));
 
-  const handlePause = async (orch: Orchestration) => {
-    if (!window.confirm(`Pause instance "${orch.workflowName}" (${orch.id})?\n\nThis will suspend execution at the current step. State is preserved and the run can be resumed.`)) return;
-    setLoading(orch.id, 'pause', true);
+  const handlePause = (orch: Orchestration) => {
+    setPauseTarget(orch);
+  };
+
+  const handleEscalate = (orch: Orchestration) => {
+    setEscalateTarget(orch);
+  };
+
+  const handlePauseConfirm = async () => {
+    if (!pauseTarget) return;
+    setLoading(pauseTarget.id, 'pause', true);
     try {
-      const res = await api.transitionWorkflowInstance(orch.id, { status: 'PAUSED', reason: 'Manually paused from Live Orchestrations panel' });
+      const res = await api.transitionWorkflowInstance(pauseTarget.id, { status: 'PAUSED', reason: 'Manually paused from Live Orchestrations panel' });
       if (res?.success) {
         onActionComplete?.();
       } else {
-        alert(res?.error || 'Failed to pause instance. Please try again.');
+        setErrorMessage(res?.error || 'Failed to pause instance. Please try again.');
       }
     } catch (err: any) {
-      alert(err?.message || 'Network error pausing instance.');
+      setErrorMessage(err?.message || 'Network error pausing instance.');
     } finally {
-      setLoading(orch.id, 'pause', false);
+      setLoading(pauseTarget.id, 'pause', false);
+      setPauseTarget(null);
     }
   };
 
-  const handleEscalate = async (orch: Orchestration) => {
-    const reason = window.prompt(`Escalate instance "${orch.workflowName}" (${orch.id})?\n\nEnter escalation reason (required):`, '');
-    if (reason === null) return; // cancelled
-    if (!reason.trim()) { alert('Escalation reason is required.'); return; }
-    setLoading(orch.id, 'escalate', true);
+  const handleEscalateConfirm = async (value?: string) => {
+    if (!escalateTarget || !value?.trim()) return;
+    setLoading(escalateTarget.id, 'escalate', true);
     try {
-      const res = await api.escalateRun(orch.id, reason.trim());
+      const res = await api.escalateRun(escalateTarget.id, value.trim());
       if (res?.success) {
         onActionComplete?.();
       } else {
-        alert(res?.error || 'Failed to escalate instance. Please try again.');
+        setErrorMessage(res?.error || 'Failed to escalate instance. Please try again.');
       }
     } catch (err: any) {
-      alert(err?.message || 'Network error escalating instance.');
+      setErrorMessage(err?.message || 'Network error escalating instance.');
     } finally {
-      setLoading(orch.id, 'escalate', false);
+      setLoading(escalateTarget.id, 'escalate', false);
+      setEscalateTarget(null);
     }
   };
 
@@ -164,6 +176,16 @@ export default function ActiveOrchestrations({
           </div>
         </div>
       </div>
+
+      {errorMessage && (
+        <div className="px-6 py-3 border-b border-[var(--border)] bg-rose-500/5 flex items-center gap-2 text-xs text-rose-400">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          {errorMessage}
+          <button onClick={() => setErrorMessage(null)} className="ml-auto opacity-60 hover:opacity-100">
+            <XCircle className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto">
@@ -273,6 +295,30 @@ export default function ActiveOrchestrations({
           </tbody>
         </table>
       </div>
+
+      <ConfirmActionModal
+        open={pauseTarget !== null}
+        mode="confirm"
+        variant="warning"
+        title="Pause Instance"
+        message={`Pause instance "${pauseTarget?.workflowName}" (${pauseTarget?.id})?\n\nThis will suspend execution at the current step. State is preserved and the run can be resumed.`}
+        confirmLabel="Pause"
+        loading={pauseTarget ? actionLoading[`${pauseTarget.id}:pause`] || false : false}
+        onConfirm={handlePauseConfirm}
+        onCancel={() => setPauseTarget(null)}
+      />
+      <ConfirmActionModal
+        open={escalateTarget !== null}
+        mode="prompt"
+        variant="warning"
+        title="Escalate Instance"
+        message={`Escalate instance "${escalateTarget?.workflowName}" (${escalateTarget?.id})?`}
+        promptPlaceholder="Enter escalation reason..."
+        confirmLabel="Escalate"
+        loading={escalateTarget ? actionLoading[`${escalateTarget.id}:escalate`] || false : false}
+        onConfirm={handleEscalateConfirm}
+        onCancel={() => setEscalateTarget(null)}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRoleContext } from "@/lib/context/RoleContext";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 type Tab = "overview" | "security" | "access";
 
@@ -74,6 +75,7 @@ export default function ProfilePage() {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 4000);
   };
+  const [showSignOutAll, setShowSignOutAll] = useState(false);
 
   /* ── Load profile ─────────────────────────── */
   const loadProfile = useCallback(async () => {
@@ -266,7 +268,10 @@ export default function ProfilePage() {
   };
 
   const signOutAll = async () => {
-    if (!confirm("Sign out from ALL devices? This will invalidate every active session.")) return;
+    setShowSignOutAll(true);
+  };
+
+  const confirmSignOutAll = async () => {
     await supabase.auth.signOut({ scope: "global" });
     router.push("/login");
   };
@@ -616,6 +621,15 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+      <ConfirmActionModal
+        open={showSignOutAll}
+        variant="warning"
+        title="Sign Out All Devices"
+        message="Sign out from ALL devices? This will invalidate every active session."
+        confirmLabel="Sign Out All"
+        onConfirm={confirmSignOutAll}
+        onCancel={() => setShowSignOutAll(false)}
+      />
     </div>
   );
 }

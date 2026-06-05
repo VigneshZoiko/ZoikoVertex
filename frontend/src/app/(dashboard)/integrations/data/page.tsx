@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Database, 
   Cpu, 
@@ -22,6 +22,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { api } from "@/lib/api";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 interface DataConnector {
   id: string;
@@ -69,6 +70,8 @@ export default function DataPage() {
   const [loading, setLoading] = useState(true);
   const [fetchingLogs, setFetchingLogs] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [deleteConnectorId, setDeleteConnectorId] = useState<string | null>(null);
+  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Wizard state (rendered in full page space)
   const [showCreateWizard, setShowCreateWizard] = useState(false);
@@ -128,7 +131,10 @@ export default function DataPage() {
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchInitialData(); }, []);
+  useEffect(() => {
+    fetchInitialData();
+    return () => { if (syncIntervalRef.current) clearInterval(syncIntervalRef.current); };
+  }, []);
 
   const fetchConnectorsOnly = async () => {
     try {
@@ -192,14 +198,17 @@ export default function DataPage() {
 
   const handleDeleteConnector = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this integration connector? This will stop future automatic runs.")) return;
-    
+    setDeleteConnectorId(id);
+  };
+
+  const confirmDeleteConnector = async () => {
+    if (!deleteConnectorId) return;
     try {
-      const res = await api.delete(`/api/v1/integrations/connectors/${id}`);
+      const res = await api.delete(`/api/v1/integrations/connectors/${deleteConnectorId}`);
       if (res.success) {
-        const updated = connectors.filter(c => c.id !== id);
+        const updated = connectors.filter(c => c.id !== deleteConnectorId);
         setConnectors(updated);
-        if (selectedConnector?.id === id) {
+        if (selectedConnector?.id === deleteConnectorId) {
           if (updated.length > 0) {
             setSelectedConnector(updated[0]);
             fetchLogs(updated[0].id);
@@ -211,6 +220,8 @@ export default function DataPage() {
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setDeleteConnectorId(null);
     }
   };
 
@@ -226,14 +237,16 @@ export default function DataPage() {
         }
         
         let count = 0;
-        const interval = setInterval(async () => {
+        if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = setInterval(async () => {
           await fetchConnectorsOnly();
           if (selectedConnector?.id === id) {
             await fetchLogs(id);
           }
           count++;
           if (count > 8) {
-            clearInterval(interval);
+            clearInterval(syncIntervalRef.current!);
+            syncIntervalRef.current = null;
             setSyncingId(null);
           }
         }, 2000);
@@ -861,6 +874,15 @@ export default function DataPage() {
         </>
       )}
 
+      <ConfirmActionModal
+        open={deleteConnectorId !== null}
+        variant="danger"
+        title="Delete Connector"
+        message="Are you sure you want to delete this integration connector? This will stop future automatic runs."
+        confirmLabel="Delete"
+        onConfirm={confirmDeleteConnector}
+        onCancel={() => setDeleteConnectorId(null)}
+      />
     </div>
   );
 }

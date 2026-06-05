@@ -12,7 +12,7 @@ export default function SignInPage() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     // TODO: wire authentication
-    alert(`Sign in: ${email}`);
+    console.log(`Sign in: ${email}`);
   }
 
   return (

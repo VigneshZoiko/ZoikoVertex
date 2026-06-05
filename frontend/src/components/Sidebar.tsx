@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -543,6 +543,7 @@ export default function Sidebar() {
 
   const [pendingCount, setPendingCount] = useState(0);
   const [supportTicketCount, setSupportTicketCount] = useState(0);
+  const prevRoleRef = useRef<string | null>(null);
 
   const { state } = useNotifications();
   const unreadCount = state?.notifications?.filter((n) => !n.read).length || 0;
@@ -575,9 +576,13 @@ export default function Sidebar() {
   }, []);
 
   useEffect(() => {
-    if (!roleLoading) {
-      setRoleLoaded(true);
-      if (role) fetchPendingCount(role);
+    if (roleLoading) return;
+    setRoleLoaded(true);
+    // Only fetch when the role value itself changes, not on every roleLoading toggle.
+    // The realtime channel below keeps the count live after the initial fetch.
+    if (role && role !== prevRoleRef.current) {
+      prevRoleRef.current = role;
+      fetchPendingCount(role);
     }
   }, [roleLoading, role, fetchPendingCount]);
 

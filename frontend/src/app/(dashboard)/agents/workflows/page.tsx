@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 import RoutingStats from "./components/RoutingStats";
 import WorkflowCanvas from "./components/WorkflowCanvas";
 import ActiveOrchestrations from "./components/ActiveOrchestrations";
@@ -1230,6 +1231,9 @@ export default function WorkflowsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] =
     useState<WorkflowRecord | null>(null);
+  const [emergencyPauseModal, setEmergencyPauseModal] = useState(false);
+  const [emergencyPauseLoading, setEmergencyPauseLoading] = useState(false);
+  const [emergencyMessage, setEmergencyMessage] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -1264,33 +1268,36 @@ export default function WorkflowsPage() {
   }, []);
 
   useEffect(() => {
-    fetchAll();
-    const interval = setInterval(fetchAll, 20000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const safeFetch = () => { if (!cancelled && document.visibilityState === 'visible') fetchAll(); };
+    safeFetch();
+    const interval = setInterval(safeFetch, 20000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [fetchAll]);
 
-  const handleEmergencyPause = async () => {
-    if (
-      window.confirm(
-        "Are you sure you want to trigger an Emergency Pause? This will suspend all active workflows and agents.",
-      )
-    ) {
-      try {
-        const res = await api.post("/api/v1/autonomy/emergency-locks", {
-          lock_level: "L4",
-          scope: "global",
-          reason: "Emergency Pause triggered from Workflows Dashboard",
-        });
-        if (res.success) {
-          alert("Emergency Lock L4 applied successfully.");
-          fetchAll();
-        } else {
-          alert("Failed to apply Emergency Lock.");
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Error applying Emergency Lock.");
+  const handleEmergencyPause = () => setEmergencyPauseModal(true);
+
+  const handleEmergencyPauseConfirm = async () => {
+    setEmergencyPauseModal(false);
+    setEmergencyPauseLoading(true);
+    setEmergencyMessage(null);
+    try {
+      const res = await api.post("/api/v1/autonomy/emergency-locks", {
+        lock_level: "L4",
+        scope: "global",
+        reason: "Emergency Pause triggered from Workflows Dashboard",
+      });
+      if (res.success) {
+        setEmergencyMessage("Emergency Lock L4 applied successfully.");
+        fetchAll();
+      } else {
+        setEmergencyMessage("Failed to apply Emergency Lock.");
       }
+    } catch (err) {
+      console.error(err);
+      setEmergencyMessage("Error applying Emergency Lock.");
+    } finally {
+      setEmergencyPauseLoading(false);
     }
   };
 
@@ -1341,6 +1348,19 @@ export default function WorkflowsPage() {
           </button>
         </div>
       </div>
+
+      {emergencyMessage && (
+        <div className={`flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm ${
+          emergencyMessage === "Emergency Lock L4 applied successfully."
+            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+            : "border-rose-500/20 bg-rose-500/10 text-rose-400"
+        }`}>
+          <span>{emergencyMessage}</span>
+          <button onClick={() => setEmergencyMessage(null)} className="ml-auto hover:text-white">
+            <XCircle className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <CreateWorkflowModal
         open={createOpen}
@@ -1395,6 +1415,17 @@ export default function WorkflowsPage() {
           <EscalationPaths escalations={escalations} />
         </div>
       </div>
+
+      <ConfirmActionModal
+        open={emergencyPauseModal}
+        variant="danger"
+        title="Emergency Pause All Workflows"
+        message="Are you sure you want to trigger an Emergency Pause? This will suspend all active workflows and agents."
+        confirmLabel="Emergency Pause"
+        loading={emergencyPauseLoading}
+        onConfirm={handleEmergencyPauseConfirm}
+        onCancel={() => setEmergencyPauseModal(false)}
+      />
     </div>
   );
 }

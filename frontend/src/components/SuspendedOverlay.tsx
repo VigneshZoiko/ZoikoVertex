@@ -17,6 +17,7 @@ interface Props {
 export default function SuspendedOverlay({ orgName, type, planType }: Props) {
   const router = useRouter();
   const [downgrading, setDowngrading] = useState(false);
+  const [downgradeError, setDowngradeError] = useState(false);
 
   const isPlanExpiry = type === "paused";
 
@@ -31,7 +32,7 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
       await api.post("/api/v1/user/downgrade-to-free", {});
       window.location.reload();
     } catch {
-      alert("Failed to downgrade. Please contact support.");
+      setDowngradeError(true);
     } finally {
       setDowngrading(false);
     }
@@ -82,6 +83,9 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
               {downgrading && <Loader2 className="w-4 h-4 animate-spin" />}
               {downgrading ? "Switching…" : "Continue with Free Plan"}
             </button>
+            {downgradeError && (
+              <p className="text-xs text-rose-400 mt-2">Failed to downgrade. Please contact support.</p>
+            )}
 
             <button
               onClick={handleLogout}

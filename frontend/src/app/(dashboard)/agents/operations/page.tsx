@@ -58,6 +58,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1037,6 +1038,7 @@ export default function AgentOperationsPage() {
   // ── Saved operational views (persisted filter sets) ──
   type SavedView = { name: string; status: string; brand: string; env: string; search: string; sortBy: string; sortDir: "asc" | "desc"; dateFrom: string; dateTo: string };
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   useEffect(() => {
     try { const raw = localStorage.getItem("ops_saved_views"); if (raw) setSavedViews(JSON.parse(raw)); } catch { /* ignore */ }
   }, []);
@@ -1056,15 +1058,17 @@ export default function AgentOperationsPage() {
     setDateFrom(v.dateFrom);
     setDateTo(v.dateTo);
   };
-  const saveCurrentView = () => {
-    const name = window.prompt("Save current filters as a named view:");
-    if (!name || !name.trim()) return;
+  const saveCurrentView = () => setShowSaveViewModal(true);
+  const handleSaveViewConfirm = (value?: string) => {
+    const name = value?.trim();
+    if (!name) return;
+    setShowSaveViewModal(false);
     const view: SavedView = {
-      name: name.trim(), status: statusFilter, brand: brandFilter, env: envFilter,
+      name, status: statusFilter, brand: brandFilter, env: envFilter,
       search: searchQuery, sortBy, sortDir, dateFrom, dateTo,
     };
-    persistViews([...savedViews.filter((x) => x.name !== view.name), view]);
-    flashNotice(`Saved view "${view.name}".`);
+    persistViews([...savedViews.filter((x) => x.name !== name), view]);
+    flashNotice(`Saved view "${name}".`);
   };
 
   // ── Run detail state ──
@@ -1178,10 +1182,12 @@ export default function AgentOperationsPage() {
   }, [statusFilter, brandFilter, envFilter, searchQuery, sortBy, sortDir, dateFrom, dateTo]);
 
   useEffect(() => {
+    let cancelled = false;
+    const safeFetch = () => { if (!cancelled && document.visibilityState === 'visible') fetchData(); };
     setLoading(true);
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    safeFetch();
+    const interval = setInterval(safeFetch, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [fetchData]);
 
   useEffect(() => {
@@ -2271,6 +2277,18 @@ export default function AgentOperationsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmActionModal
+        open={showSaveViewModal}
+        mode="prompt"
+        variant="default"
+        title="Save Current Filter View"
+        message="Enter a name for the current filter set to reuse later."
+        confirmLabel="Save"
+        promptPlaceholder="View name..."
+        onConfirm={handleSaveViewConfirm}
+        onCancel={() => setShowSaveViewModal(false)}
+      />
     </div>
   );
 }

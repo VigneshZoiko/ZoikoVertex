@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useRoles } from "@/lib/hooks/useRoles";
 import { ShieldAlert, Activity, AlertTriangle, AlertOctagon, RefreshCw, Power } from "lucide-react";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 export default function RiskCommandCenterPage() {
   const { hasRole, isLoading: rolesLoading } = useRoles();
@@ -13,6 +14,7 @@ export default function RiskCommandCenterPage() {
   const [gaps, setGaps] = useState<any[]>([]);
   const [pausing, setPausing] = useState(false);
   const [pauseMsg, setPauseMsg] = useState("");
+  const [showPauseConfirm, setShowPauseConfirm] = useState(false);
 
   const fetchRiskData = async () => {
     setLoading(true);
@@ -42,9 +44,11 @@ export default function RiskCommandCenterPage() {
     }
   }, [rolesLoading]);
 
-  const handleEmergencyPause = async () => {
-    if (!window.confirm("WARNING: You are about to initiate a GLOBAL EMERGENCY PAUSE. This will suspend all autonomous publishing. Proceed?")) return;
-    
+  const handleEmergencyPause = () => {
+    setShowPauseConfirm(true);
+  };
+
+  const handleConfirmPause = async () => {
     setPausing(true);
     try {
       const res = await api.post("/api/v1/governance/risk/emergency-pause", {
@@ -61,6 +65,7 @@ export default function RiskCommandCenterPage() {
       setPauseMsg("Emergency pause failed — network error");
     } finally {
       setPausing(false);
+      setShowPauseConfirm(false);
     }
   };
 
@@ -216,6 +221,17 @@ export default function RiskCommandCenterPage() {
           </div>
         </div>
       </div>
+      <ConfirmActionModal
+        open={showPauseConfirm}
+        variant="danger"
+        title="Global Emergency Pause"
+        message="WARNING: You are about to initiate a GLOBAL EMERGENCY PAUSE. This will suspend all autonomous publishing. Proceed?"
+        confirmLabel="Initiate Emergency Pause"
+        loading={pausing}
+        hideCancel={pausing}
+        onConfirm={handleConfirmPause}
+        onCancel={() => { if (!pausing) setShowPauseConfirm(false); }}
+      />
     </div>
   );
 }

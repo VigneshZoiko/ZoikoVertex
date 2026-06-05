@@ -3,13 +3,35 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Loader2, AlertCircle, MoreHorizontal, Trash2,
   ExternalLink, RefreshCw, ChevronRight,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 // ── Types ──────────────────────────────────────────────────────
+
+interface MetaVerifyCheck {
+  field: string;
+  intended: string | null;
+  on_meta: string | null;
+  match: boolean;
+}
+
+interface MetaVerifyResult {
+  meta_ids: { campaign_id: string; adset_id: string; ad_id: string; creative_id: string };
+  live_on_meta: {
+    campaign: { id: string; name: string; objective: string; status: string; error: string | null };
+    ad_set: { daily_budget: string | null; start_time: string | null; end_time: string | null; error: string | null } | null;
+    creative: { headline: string | null; body_text: string | null; landing_url: string | null; thumbnail: string | null; error: string | null } | null;
+    ad: { id: string; status: string; error: string | null } | null;
+  };
+  checks: MetaVerifyCheck[];
+  summary: { total: number; passed: number; failed: number };
+  error?: string;
+}
 
 interface Campaign {
   id: string; name: string; status: string; objective: string;
@@ -63,6 +85,9 @@ export default function CampaignDetailPage() {
   const [error,     setError]     = useState<string | null>(null);
   const [menu,      setMenu]      = useState(false);
   const [toggling,  setToggling]  = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [verifying,     setVerifying]    = useState(false);
+  const [verify,        setVerify]       = useState<MetaVerifyResult | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -83,21 +108,30 @@ export default function CampaignDetailPage() {
 
   const handleToggle = async () => {
     if (!campaign || toggling) return;
-    const going = isActive(campaign.status);
+    const pausing = isActive(campaign.status);
     setToggling(true);
     try {
-      await api.post(`/api/v1/campaigns/${id}/${going ? "pause" : "resume"}`, {});
-      setCampaign(prev => prev ? { ...prev, status: going ? "PAUSING" : "ACTIVE" } : prev);
+      const r = await api.post(
+        `/api/v1/campaigns/${id}/${pausing ? "pause" : "resume"}`,
+        pausing ? { reason: "Paused by operator" } : { reason: "Resumed by operator" },
+      );
+      if (r.success) {
+        setCampaign(prev => prev ? { ...prev, status: pausing ? "PAUSING" : "ACTIVE" } : prev);
+      }
     } catch { /* silent */ }
     finally { setToggling(false); }
   };
 
   const handleDelete = async () => {
-    if (!confirm("Delete this campaign? This cannot be undone.")) return;
+    setConfirmDelete(true);
+  };
+
+  const confirmDeleteCampaign = async () => {
     try {
       await api.delete(`/api/v1/campaigns/${id}`);
       router.push("/campaigns");
     } catch { /* silent */ }
+    finally { setConfirmDelete(false); }
   };
 
   if (loading) return (
@@ -294,10 +328,10 @@ export default function CampaignDetailPage() {
                 {/* BUDGET */}
                 <div>
                   <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Budget</p>
-                  {campaign.budget_total ? (
+                  {(campaign.budget_total || campaign.budget_daily) ? (
                     <>
-                      <p className="text-sm text-zinc-300 font-medium">${campaign.budget_total.toLocaleString()} {currency}</p>
-                      {campaign.budget_daily && <p className="text-[11px] text-zinc-500 mt-0.5">Daily: ${campaign.budget_daily.toLocaleString()}</p>}
+                      {campaign.budget_daily && <p className="text-sm text-zinc-300 font-medium">{currency}{campaign.budget_daily.toLocaleString()} / day</p>}
+                      {campaign.budget_total && !campaign.budget_daily && <p className="text-sm text-zinc-300 font-medium">{currency}{campaign.budget_total.toLocaleString()} total</p>}
                     </>
                   ) : <p className="text-sm text-zinc-600">Not set</p>}
                 </div>
@@ -387,13 +421,16 @@ export default function CampaignDetailPage() {
                         </div>
                       </div>
                     )}
-                    {(targeting?.geography as string[])?.length > 0 && (
+                    {(targeting?.geography as any[])?.length > 0 && (
                       <div className="flex items-start gap-6">
                         <p className="text-xs text-zinc-600 w-36 shrink-0 pt-0.5">Locations:</p>
                         <div className="flex flex-wrap gap-1.5">
-                          {(targeting.geography as string[]).map((g: string) => (
-                            <span key={g} className="px-2.5 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-300">{g}</span>
-                          ))}
+                          {(targeting.geography as any[]).map((g: any, i: number) => {
+                            const label = typeof g === "object" ? (g.display_name || g.key || JSON.stringify(g)) : String(g);
+                            return (
+                              <span key={i} className="px-2.5 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-300">{label}</span>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -421,13 +458,16 @@ export default function CampaignDetailPage() {
                         <p className="text-sm text-zinc-300 capitalize">{String(targeting.gender)}</p>
                       </div>
                     )}
-                    {(targeting.interests as string[])?.length > 0 && (
+                    {(targeting.interests as any[])?.length > 0 && (
                       <div className="flex items-start gap-6">
                         <p className="text-xs text-zinc-600 w-36 shrink-0 pt-0.5">Interests:</p>
                         <div className="flex flex-wrap gap-1.5">
-                          {(targeting.interests as string[]).map((t: string) => (
-                            <span key={t} className="px-2.5 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-300">{t}</span>
-                          ))}
+                          {(targeting.interests as any[]).map((t: any, i: number) => {
+                            const label = typeof t === "object" ? (t.name || t.id || JSON.stringify(t)) : String(t);
+                            return (
+                              <span key={i} className="px-2.5 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-300">{label}</span>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -444,6 +484,91 @@ export default function CampaignDetailPage() {
                   </div>
                 </section>
               </>
+            )}
+
+            {/* ── Meta Verification Panel ── */}
+            {(campaign as any).meta_campaign_id && (
+              <div className="border-t border-zinc-800/60 pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Meta Verification</p>
+                    <p className="text-[11px] text-zinc-600 mt-0.5">Confirm every field actually reached Meta correctly.</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setVerifying(true); setVerify(null);
+                      const r = await api.get(`/api/v1/campaigns/${id}/meta-verify`);
+                      setVerify(r.success ? r.data : { error: r.error });
+                      setVerifying(false);
+                    }}
+                    disabled={verifying}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-semibold rounded-xl transition-all disabled:opacity-50">
+                    {verifying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    {verifying ? "Fetching from Meta…" : "Verify on Meta"}
+                  </button>
+                </div>
+
+                {verify && !verify.error && (
+                  <div className="space-y-4">
+                    {/* Summary bar */}
+                    <div className="flex items-center gap-4 px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                      <span className="text-xs font-bold text-emerald-400">{verify.summary.passed} / {verify.summary.total} fields confirmed</span>
+                      {verify.summary.failed > 0 && <span className="text-xs font-bold text-rose-400">{verify.summary.failed} mismatch{verify.summary.failed > 1 ? "es" : ""}</span>}
+                      <span className="ml-auto text-[10px] text-zinc-600">Campaign: {verify.meta_ids.campaign_id} · Ad Set: {verify.meta_ids.adset_id}</span>
+                    </div>
+
+                    {/* Field-by-field table */}
+                    <div className="border border-zinc-800 rounded-xl overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-zinc-800 bg-zinc-900/60">
+                            <th className="px-4 py-2.5 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest w-40">Field</th>
+                            <th className="px-4 py-2.5 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Sent from Vertex</th>
+                            <th className="px-4 py-2.5 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Live on Meta</th>
+                            <th className="px-4 py-2.5 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest w-16">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-800/60">
+                          {verify.checks.map((c: MetaVerifyCheck) => (
+                            <tr key={c.field} className={c.match ? "" : "bg-rose-500/5"}>
+                              <td className="px-4 py-2.5 text-zinc-400 font-medium">{c.field}</td>
+                              <td className="px-4 py-2.5 text-zinc-300 font-mono text-[11px] max-w-xs truncate">{c.intended ?? "—"}</td>
+                              <td className="px-4 py-2.5 text-zinc-300 font-mono text-[11px] max-w-xs truncate">{c.on_meta ?? <span className="text-zinc-600">not found</span>}</td>
+                              <td className="px-4 py-2.5 text-center">
+                                {c.match
+                                  ? <span className="text-emerald-400 text-sm">✓</span>
+                                  : <span className="text-rose-400 text-sm">✗</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Creative preview */}
+                    {verify.live_on_meta.creative?.thumbnail && (
+                      <div className="flex items-start gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-xl">
+                        <Image src={verify.live_on_meta.creative.thumbnail} alt="Ad thumbnail from Meta" width={96} height={64} className="w-24 h-16 object-cover rounded-lg border border-zinc-700 shrink-0" unoptimized />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-zinc-400 mb-1">Ad thumbnail from Meta</p>
+                          <p className="text-sm text-white font-semibold truncate">{verify.live_on_meta.creative.headline ?? "—"}</p>
+                          <p className="text-[11px] text-zinc-500 mt-0.5 line-clamp-2">{verify.live_on_meta.creative.body_text ?? "—"}</p>
+                          {verify.live_on_meta.creative.landing_url && (
+                            <a href={verify.live_on_meta.creative.landing_url} target="_blank" rel="noopener noreferrer"
+                              className="text-[11px] text-blue-400 hover:underline mt-1 block truncate">
+                              {verify.live_on_meta.creative.landing_url}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {verify?.error && (
+                  <p className="text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">{verify.error}</p>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -483,8 +608,7 @@ export default function CampaignDetailPage() {
                         <td className="px-4 py-4 min-w-[280px]">
                           <div className="flex items-start gap-3">
                             {b.ad_image_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={b.ad_image_url} alt="" className="w-16 h-12 object-cover rounded shrink-0 bg-zinc-800" />
+                              <Image src={b.ad_image_url} alt="Ad creative" width={64} height={48} className="w-16 h-12 object-cover rounded shrink-0 bg-zinc-800" unoptimized />
                             ) : (
                               <div className="w-16 h-12 bg-zinc-800 rounded shrink-0 flex items-center justify-center text-zinc-600 text-xs">No img</div>
                             )}
@@ -574,6 +698,15 @@ export default function CampaignDetailPage() {
       </div>
 
       {menu && <div className="fixed inset-0 z-40" onClick={() => setMenu(false)} />}
+      <ConfirmActionModal
+        open={confirmDelete}
+        variant="danger"
+        title="Delete campaign?"
+        message="This will permanently delete this campaign."
+        confirmLabel="Delete"
+        onConfirm={confirmDeleteCampaign}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

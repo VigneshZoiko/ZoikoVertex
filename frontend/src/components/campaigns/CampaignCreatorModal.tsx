@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import MediaVaultPicker from "@/components/MediaVaultPicker";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ const ALL_PLACEMENTS: Placement[] = [
   { id: "facebook_news_feed",        label: "Facebook News Feed",                               platform: "Facebook",         device: "all" },
   { id: "instagram_feed",            label: "Instagram Feed",                                   platform: "Instagram",        device: "all" },
   { id: "facebook_marketplace",      label: "Facebook Marketplace",                             platform: "Facebook",         device: "mobile",  unavailableFor: ["TRAFFIC","ENGAGEMENT_POST_AD"] },
-  { id: "facebook_video_feeds",      label: "Facebook Video Feeds",                             platform: "Facebook",         device: "all" },
+  // facebook_video_feeds removed — deprecated in Meta API v17+
   { id: "facebook_right_column",     label: "Facebook Right Column",                            platform: "Facebook",         device: "desktop", unavailableFor: ["TRAFFIC","ENGAGEMENT_POST_AD","AWARENESS"] },
   { id: "instagram_explore",         label: "Instagram Explore",                                platform: "Instagram",        device: "mobile",  unavailableFor: ["TRAFFIC"] },
   { id: "messenger_inbox",           label: "Messenger Inbox",                                  platform: "Messenger",        device: "all",     unavailableFor: ["ENGAGEMENT_POST_AD","AWARENESS"] },
@@ -131,7 +132,7 @@ const SIDEBAR_STEPS = [
 
 const inp = "w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors";
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+const Field = React.memo(function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <p className="text-sm font-semibold text-zinc-200">{label}</p>
@@ -139,9 +140,9 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       {children}
     </div>
   );
-}
+});
 
-function Radio({ value, checked, onChange, label, desc }: { value: string; checked: boolean; onChange: () => void; label: string; desc?: string }) {
+const Radio = React.memo(function Radio({ value, checked, onChange, label, desc }: { value: string; checked: boolean; onChange: () => void; label: string; desc?: string }) {
   return (
     <label className="flex items-start gap-3 cursor-pointer group py-1">
       <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? "border-white" : "border-zinc-600 group-hover:border-zinc-400"}`}>
@@ -154,11 +155,11 @@ function Radio({ value, checked, onChange, label, desc }: { value: string; check
       </div>
     </label>
   );
-}
+});
 
 // ── MessageDestPicker — reused for Sales, Engagement, Leads ──
 
-function MessageDestPicker({ msgDest, setMsgDest }: { msgDest: string; setMsgDest: (v: string) => void }) {
+const MessageDestPicker = React.memo(function MessageDestPicker({ msgDest, setMsgDest }: { msgDest: string; setMsgDest: (v: string) => void }) {
   return (
     <div className="ml-7 mt-2 space-y-1.5">
       <p className="text-xs font-semibold text-zinc-400">Select destination</p>
@@ -181,7 +182,7 @@ function MessageDestPicker({ msgDest, setMsgDest }: { msgDest: string; setMsgDes
       </div>
     </div>
   );
-}
+});
 
 // ── Meta Account Picker Modal ─────────────────────────────────
 // Hootsuite-style: shows Facebook Pages + Ad Accounts from Meta API.
@@ -389,8 +390,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 }) {
   const [step,       setStep]       = useState(1);
   const [saving,     setSaving]     = useState(false);
-  const [publishing, setPublishing] = useState(false);
-  const [error,      setError]      = useState<string | null>(null);
+  const [publishing,       setPublishing]       = useState(false);
+  const [publishingStatus, setPublishingStatus] = useState<string | null>(null);
+  const [error,            setError]            = useState<string | null>(null);
   const [campaignId, setCampaignId] = useState<string | null>(editId || null);
 
   // Step 1
@@ -398,6 +400,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   const [selectedPage,    setPage]          = useState("");
   const [adAccounts,      setAdAccts]       = useState<MetaAccount[]>([]); // all Facebook accounts (with or without ad_account_id)
   const [selectedAcc,     setAcc]           = useState("");
+  const [metaBalance,     setMetaBalance]   = useState<{ balance: string | null; amount_spent: string; currency: string; spend_cap: string | null } | null>(null);
   // Meta picker modal state
   const [showMetaPicker,   setShowMetaPicker]   = useState(false);
   const [pickerAccountId,  setPickerAccountId]  = useState("");
@@ -417,6 +420,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       ad_account_id:       adAccountId,
       ad_account_name:     adAccountName,
       ad_account_currency: currency,
+      page_id:             pageId || undefined,  // persist numeric FB Page ID for ad creative
     });
 
     // Refresh so the new ad_account_id shows immediately
@@ -442,7 +446,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   const [ageMin,      setAgeMin]         = useState("18");
   const [ageMax,      setAgeMax]         = useState("65");
   const [gender,      setGender]         = useState("ALL");
-  const [location,    setLocation]       = useState(JSON.stringify([{ key: "US", display_name: "United States", type: "country" }]));
+  const [location,    setLocation]       = useState(() => JSON.stringify([{ key: "US", display_name: "United States", type: "country" }]));
   const [interests,   setInterests]      = useState<{id:string;name:string}[]>([]);
   const [msgDest,        setMsgDest]        = useState("messenger");
   const [trackingPixel,  setTrackingPixel]  = useState("");
@@ -510,8 +514,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
     finally { setExLocLoading(false); }
   }, []);
   // Temp state for edit modal
-  const [tmpAge,    setTmpAge]    = useState(["18","65"]);
-  const [tmpGender, setTmpGender] = useState("ALL");
+  const [tmpAge,        setTmpAge]        = useState(["18","65"]);
+  const [tmpGender,     setTmpGender]     = useState("ALL");
+  const [audienceError, setAudienceError] = useState<string | null>(null);
   const [tmpLoc,    setTmpLoc]    = useState<{key:string; display_name:string; type:string}[]>([{ key: "US", display_name: "United States", type: "country" }]);
   const [tmpExcLocItems, setTmpExcLocItems] = useState<{key:string; display_name:string; type:string}[]>([]);
   const [tmpInt,    setTmpInt]    = useState<{id:string;name:string}[]>([]);
@@ -525,6 +530,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   const [ads,            setAds]          = useState<AdData[]>([{ name: "New ad", copy: "", headline: "", website_url: "http://example.com", cta: "Apply now", image_url: "" }]);
   const [selectedAdIdx,  setSelectedAdIdx]= useState(0);
   const [showSummary,    setShowSummary]  = useState(false);
+  const [showVaultPicker, setShowVaultPicker] = useState(false);
   const [addWebsiteUrl,    setAddWebsiteUrl]    = useState(false);
   const [welcomeMsg,       setWelcomeMsg]       = useState("");
   const [showWelcomeErr,   setShowWelcomeErr]   = useState(false);
@@ -586,6 +592,23 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       else if (fb[0]) setAcc(fb[0].id);
     }).catch(() => {});
   }, []);
+
+  // Fetch Meta ad account balance whenever the selected account changes
+  useEffect(() => {
+    if (!selectedAcc) { setMetaBalance(null); return; }
+    api.get("/api/v1/campaigns/meta/ad-account-details").then(r => {
+      if (r.success && r.data) {
+        setMetaBalance({
+          balance:      r.data.balance ?? null,
+          amount_spent: r.data.amount_spent ?? "0.00",
+          currency:     r.data.currency ?? "USD",
+          spend_cap:    r.data.spend_cap ?? null,
+        });
+      } else {
+        setMetaBalance(null);
+      }
+    }).catch(() => setMetaBalance(null));
+  }, [selectedAcc]);
 
   const [adsSidebarOpen, setAdsSidebarOpen] = useState(true);
 
@@ -722,20 +745,29 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
     );
   }, [effectiveObjective]);
 
-  // When objective changes, reset optimize + conversion location
+  // When objective changes, reset conversion location, optimize, and related state.
+  // Dep = [objective] only — effectiveObjective derives from convLocation, so including
+  // it here caused a loop: changing convLocation → effectiveObjective changes → useEffect
+  // fires → convLocation gets reset, making it impossible to select a conversion location.
   useEffect(() => {
-    const opts = OPTIMIZE_OPTIONS[effectiveObjective] || [];
-    setOptimize(opts[0]?.value || "");
-    setOptimizeOpen(false);
-    setConvLocation(
-      objective === "ENGAGEMENT"      ? "on_ad"       :
+    const defaultLoc =
+      objective === "ENGAGEMENT"      ? "on_ad"        :
       objective === "LEAD_GENERATION" ? "instant_form" :
-      "website"
-    );
+      "website";
+    setConvLocation(defaultLoc);
     setMsgDest("messenger");
     setEngType("POST_ENGAGEMENT");
     setEngTypeOpen(false);
-  }, [objective, effectiveObjective]);
+    setOptimizeOpen(false);
+    // Derive the starting effectiveObjective from the reset convLocation
+    const defaultEffective =
+      objective === "ENGAGEMENT"      ? "ENGAGEMENT_POST_AD"       :
+      objective === "LEAD_GENERATION" ? "LEAD_GENERATION"          :
+      objective;
+    const opts = OPTIMIZE_OPTIONS[defaultEffective] || OPTIMIZE_OPTIONS[objective] || [];
+    setOptimize(opts[0]?.value || "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objective]);
 
   // Step summaries for left sidebar
   const summaries: Record<number, string[]> = {
@@ -750,7 +782,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       "Built audience",
       autoPlace ? "Automatic placements" : `Manual placements (${selectedPlacements.length})`,
       (objective === "CONVERSIONS" && convLocation !== "message" && optimize === "OFFSITE_CONVERSIONS") ? "Tracking" : "",
-      budgetAmt ? `Budget: $${budgetAmt} per ${budgetType === "daily" ? "day" : "total"}` : "",
+      budgetAmt ? `Budget: ${(()=>{const c=adAccounts.find(a=>a.id===selectedAcc)?.ad_account_currency||"USD";const s:Record<string,string>={USD:"$",INR:"₹",EUR:"€",GBP:"£",AUD:"A$",SGD:"S$",MYR:"RM",AED:"د.إ"};return s[c]||(c+" ");})()}${budgetAmt} per ${budgetType === "daily" ? "day" : "total"}` : "",
       startDate ? `From: ${new Date(startDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}` : "",
     ].filter(Boolean),
     3: ["Ads", ad.name],
@@ -844,9 +876,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 
       if (!cid) throw new Error("Failed to save campaign — no ID returned");
 
-      // 2. Publish to Meta Marketing API
-      setError("Publishing to Facebook...");
+      // 2. Publish to Meta Marketing API — use a separate status string, not the error state
+      setPublishingStatus("Publishing to Facebook...");
       const metaResult = await api.post(`/api/v1/campaigns/${cid}/publish-to-meta`, {});
+      setPublishingStatus(null);
 
       if (!metaResult.success) {
         throw new Error(metaResult.error || "Meta API error");
@@ -920,7 +953,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   const anyDropOpen = optimizeOpen || engTypeOpen || audDropOpen || pixelDropOpen || eventDropOpen;
   if (!mounted) return null;
 
-  return createPortal(
+  const modal = createPortal(
     <div className="fixed inset-0 z-[99999] flex items-start justify-center bg-black/65 backdrop-blur-sm pt-3 px-4">
       <div className="relative w-full bg-zinc-900 rounded-xl shadow-2xl flex flex-col overflow-hidden" style={{ maxWidth: 1100, height: "96vh" }}>
         {/* Invisible overlay — closes all dropdowns when clicking outside them */}
@@ -1071,6 +1104,34 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 <p className="text-[11px] text-zinc-500 w-20 shrink-0">Page</p>
                                 <span className="text-[11px] text-zinc-300 truncate">{sel?.account_name || "—"}</span>
                               </div>
+                              {/* Meta ad account balance — fetched from Meta Graph API */}
+                              {metaBalance && (
+                                <div className="px-4 py-2.5 flex items-center gap-4 bg-zinc-900/60 border-t border-zinc-800/60">
+                                  <div>
+                                    <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Account Balance</p>
+                                    <p className={`text-xs font-bold ${metaBalance.balance !== null ? "text-emerald-400" : "text-zinc-500"}`}>
+                                      {metaBalance.balance !== null
+                                        ? `${metaBalance.currency} ${parseFloat(metaBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                                        : "—"}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Spent</p>
+                                    <p className="text-xs font-semibold text-zinc-300">
+                                      {metaBalance.currency} {parseFloat(metaBalance.amount_spent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </p>
+                                  </div>
+                                  {metaBalance.spend_cap && (
+                                    <div>
+                                      <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Spend Cap</p>
+                                      <p className="text-xs font-semibold text-zinc-400">
+                                        {metaBalance.currency} {parseFloat(metaBalance.spend_cap).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </p>
+                                    </div>
+                                  )}
+                                  <p className="text-[10px] text-zinc-600 ml-auto">Live from Meta</p>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
@@ -1401,7 +1462,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           // Keep existing location objects or convert string fallback
                           setTmpLoc(tmpLoc.length > 0 ? tmpLoc : [{ key: "US", display_name: "United States", type: "country" }]);
                           setTmpExcLocItems([...excludeLocations]); // pre-load saved exclude locations
-                          setTmpInt(interests); setShowEditAud(true);
+                          setTmpInt(interests); setAudienceError(null); setShowEditAud(true);
                         }}
                         className="px-3 py-1.5 text-xs font-semibold text-white border border-zinc-600 hover:border-zinc-400 rounded-lg transition-colors">
                         Edit audience
@@ -1660,15 +1721,19 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 
                       {/* Footer */}
                       <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800 bg-zinc-950">
-                        <button onClick={() => setShowEditAud(false)}
+                        {audienceError && (
+                          <p className="text-xs text-rose-400 mr-auto">{audienceError}</p>
+                        )}
+                        <button onClick={() => { setShowEditAud(false); setAudienceError(null); }}
                           className="px-5 py-2 text-sm text-zinc-400 border border-zinc-700 hover:border-zinc-500 hover:text-white rounded-lg font-medium transition-colors">
                           Cancel
                         </button>
                         <button
                           onClick={() => {
+                            setAudienceError(null);
                             const minAge = parseInt(tmpAge[0]);
                             const maxAge = parseInt(tmpAge[1].replace("+","")) || 65;
-                            if (minAge >= maxAge) { alert("Minimum age must be less than maximum age."); return; }
+                            if (minAge >= maxAge) { setAudienceError("Minimum age must be less than maximum age."); return; }
                             setAgeMin(tmpAge[0]); setAgeMax(tmpAge[1].replace("+",""));
                             setGender(tmpGender);
                             setLocation(JSON.stringify(tmpLoc));
@@ -2034,6 +2099,44 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     <h4 className="text-sm font-bold text-white mb-0.5">Budget and duration</h4>
                     <p className="text-xs text-zinc-500">Set the budget and duration of your ad campaign.</p>
                   </div>
+
+                  {/* Meta ad account live balance */}
+                  {metaBalance ? (
+                    <div className="flex items-center gap-5 px-4 py-3 bg-zinc-900 border border-zinc-700/60 rounded-xl">
+                      <div className="flex-1">
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Account Balance</p>
+                        <p className={`text-base font-bold ${metaBalance.balance !== null ? "text-emerald-400" : "text-zinc-500"}`}>
+                          {metaBalance.balance !== null
+                            ? `${symbol}${parseFloat(metaBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="w-px h-8 bg-zinc-800" />
+                      <div className="flex-1">
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Total Spent</p>
+                        <p className="text-base font-semibold text-zinc-300">
+                          {symbol}{parseFloat(metaBalance.amount_spent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      {metaBalance.spend_cap && (
+                        <>
+                          <div className="w-px h-8 bg-zinc-800" />
+                          <div className="flex-1">
+                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Spend Cap</p>
+                            <p className="text-base font-semibold text-zinc-400">
+                              {symbol}{parseFloat(metaBalance.spend_cap).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      <p className="text-[10px] text-zinc-600 shrink-0">Live · Meta</p>
+                    </div>
+                  ) : (
+                    <div className="h-[60px] flex items-center px-4 bg-zinc-900/50 border border-zinc-800 rounded-xl">
+                      <p className="text-xs text-zinc-600">Connecting to Meta ad account…</p>
+                    </div>
+                  )}
+
                   <Field label="Budget" hint={`Enter in ${currency}. Meta minimum is ${symbol}${minAmt}/day for this ad account.`}>
                     <div className="flex items-center gap-4">
                       <div className="relative w-36">
@@ -2165,7 +2268,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         { label: "Special ad categories",   value: specialCat && specialCatType ? specialCatType.charAt(0) + specialCatType.slice(1).toLowerCase() : "No categories declared" },
                         { label: "Audience",                value: "Built audience" },
                         { label: "Placements",              value: autoPlace ? "Automatic placements" : `Manual placements (${selectedPlacements.length})` },
-                        { label: "Payment summary",         value: budgetAmt ? `$${parseFloat(budgetAmt).toFixed(2)} per day` : "—" },
+                        { label: "Payment summary",         value: budgetAmt ? `${(()=>{const c=adAccounts.find(a=>a.id===selectedAcc)?.ad_account_currency||"USD";const s:Record<string,string>={USD:"$",INR:"₹",EUR:"€",GBP:"£",AUD:"A$",SGD:"S$",MYR:"RM",AED:"د.إ"};return s[c]||(c+" ");})()}${parseFloat(budgetAmt).toFixed(2)} ${budgetType === "daily" ? "per day" : "total"}` : "—" },
                         { label: "Duration",                value: startDate ? `From - ${new Date(startDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : "—" },
                         { label: "Created ads",             value: String(ads.length) },
                       ].map(({ label, value }, i) => (
@@ -2245,14 +2348,15 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 if (file) uploadAdImage(file);
                               }} />
                           </label>
-                          <label className="flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-zinc-700 hover:border-zinc-500 rounded-xl cursor-pointer transition-colors group">
+                          <button type="button" onClick={() => setShowVaultPicker(true)}
+                            className="flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-zinc-700 hover:border-zinc-500 rounded-xl cursor-pointer transition-colors group">
                             <div className="w-10 h-10 bg-zinc-800 group-hover:bg-zinc-700 rounded-lg flex items-center justify-center transition-colors">
                               <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                               </svg>
                             </div>
                             <p className="text-xs text-zinc-500 group-hover:text-zinc-400">Add from library</p>
-                          </label>
+                          </button>
                         </div>
                         {imageUploadErr && (
                           <p className="text-[11px] text-rose-400 flex items-center gap-1">
@@ -2537,6 +2641,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
               </button>
             )}
           </div>
+          {publishingStatus && <p className="text-xs text-blue-400 animate-pulse">{publishingStatus}</p>}
           {error && <p className="text-xs text-rose-400">{error}</p>}
           <div className="flex items-center gap-3">
             <button onClick={saveAsDraft} disabled={saving}
@@ -2564,5 +2669,31 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       </div>
     </div>,
     document.body
+  );
+
+  // Render Media Vault Picker portal when open
+  const vaultPickerPortal = showVaultPicker && typeof window !== "undefined"
+    ? createPortal(
+        <MediaVaultPicker
+          title="Choose from Media Vault"
+          hint="Select an image to use as your ad creative"
+          typeFilter="image"
+          onSelect={url => {
+            setAd(a => ({ ...a, image_url: url }));
+            setShowMediaErr(false);
+            clearErr("adImage");
+            setShowVaultPicker(false);
+          }}
+          onClose={() => setShowVaultPicker(false)}
+        />,
+        document.body
+      )
+    : null;
+
+  return (
+    <>
+      {modal}
+      {vaultPickerPortal}
+    </>
   );
 }

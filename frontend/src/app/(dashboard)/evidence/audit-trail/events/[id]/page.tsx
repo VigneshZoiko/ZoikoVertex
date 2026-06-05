@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 import {
   ArrowLeft, Clock, AlertTriangle, CheckCircle2, Shield, Lock, Download,
   Hash, Link2, Activity, Eye, EyeOff, FileSearch, User, Bot, Server, Key,
@@ -482,6 +483,34 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
   const isLegalHold = event.retention_class === "LEGAL_HOLD";
   const vaultId = isPreserved ? `vault-${event.chain_id}-${event.block_number}` : null;
 
+  const [actionModal, setActionModal] = useState<{
+    step: 'preserve' | 'exportFormat' | 'exportReason';
+    format?: string;
+  } | null>(null);
+
+  const handleActionModalConfirm = async (value?: string) => {
+    if (!actionModal) return;
+    const v = value || '';
+    switch (actionModal.step) {
+      case 'preserve':
+        try {
+          await api.post('/api/audit-events/preserve', { event_ids: [event.id], reason: v, retention_class: 'EXTENDED' });
+        } catch { console.warn('Failed to preserve event'); }
+        setActionModal(null);
+        break;
+      case 'exportFormat':
+        if (!v || !['csv', 'json', 'pdf'].includes(v)) { setActionModal(null); break; }
+        setActionModal({ ...actionModal, step: 'exportReason', format: v });
+        break;
+      case 'exportReason':
+        try {
+          await api.post('/api/audit-events/export', { reason: v, format: actionModal.format, event_ids: [event.id] });
+        } catch { console.warn('Failed to create export'); }
+        setActionModal(null);
+        break;
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Vault Status */}
@@ -603,32 +632,45 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
 
       <div className="flex gap-2">
         <button
-          onClick={async () => {
-            const reason = prompt('Reason for preservation:');
-            if (!reason) return;
-            try {
-              await api.post('/api/audit-events/preserve', { event_ids: [event.id], reason, retention_class: 'EXTENDED' });
-            } catch { console.warn('Failed to preserve event'); }
-          }}
+          onClick={() => setActionModal({ step: 'preserve' })}
           className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-sm hover:bg-amber-500/20 flex items-center gap-1.5"
         >
           <Lock className="w-4 h-4" /> Preserve
         </button>
         <button
-          onClick={async () => {
-            const format = prompt('Export format (csv/json/pdf):', 'csv');
-            if (!format || !['csv', 'json', 'pdf'].includes(format)) return;
-            const reason = prompt('Reason for export:');
-            if (!reason) return;
-            try {
-              await api.post('/api/audit-events/export', { reason, format, event_ids: [event.id] });
-            } catch { console.warn('Failed to create export'); }
-          }}
+          onClick={() => setActionModal({ step: 'exportFormat' })}
           className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/20 flex items-center gap-1.5"
         >
           <Download className="w-4 h-4" /> Export
         </button>
       </div>
+
+      {actionModal && (
+        <ConfirmActionModal
+          open={true}
+          mode="prompt"
+          variant="info"
+          title={
+            actionModal.step === 'preserve' ? 'Preserve Event' :
+            'Export Event'
+          }
+          message={
+            actionModal.step === 'preserve' ? 'Reason for preservation:' :
+            actionModal.step === 'exportFormat' ? 'Export format (csv/json/pdf):' :
+            'Reason for export:'
+          }
+          promptPlaceholder={
+            actionModal.step === 'exportFormat' ? 'csv, json, or pdf' :
+            'Enter reason...'
+          }
+          promptDefault={
+            actionModal.step === 'exportFormat' ? 'csv' :
+            undefined
+          }
+          onConfirm={handleActionModalConfirm}
+          onCancel={() => setActionModal(null)}
+        />
+      )}
     </div>
   );
 }

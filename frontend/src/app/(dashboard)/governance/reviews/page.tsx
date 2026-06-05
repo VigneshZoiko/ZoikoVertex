@@ -94,13 +94,17 @@ export default function HumanReviewConsolePage() {
   };
 
   useEffect(() => {
-    setNow(Date.now());
-    fetchQueue();
-    const interval = setInterval(() => {
-      setNow(Date.now());
-      fetchQueue();
-    }, 30000); // 30s auto-refresh
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const safeFetch = () => {
+      if (!cancelled && document.visibilityState === 'visible') {
+        setNow(Date.now());
+        fetchQueue();
+      }
+    };
+    safeFetch();
+    const interval = setInterval(safeFetch, 30000); // 30s auto-refresh
+    return () => { cancelled = true; clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDecision = async (decision: string) => {

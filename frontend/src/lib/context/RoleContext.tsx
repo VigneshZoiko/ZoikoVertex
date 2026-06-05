@@ -99,8 +99,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     try {
       if (!background) setIsLoading(true);
 
-      const { data } = await supabase.auth.getUser();
-      const user = data?.user;
+      // getSession() reads from localStorage — no network round-trip to Supabase Auth.
+      // The backend's authenticate middleware still verifies the JWT server-side.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
 
       if (!user) {
         setRole(null);
@@ -157,9 +159,14 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     fetchUserRole(!!cached);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        // Always background — these fire on tab focus/token refresh, never block the UI
+      if (event === 'SIGNED_IN') {
+        // SIGNED_IN fires once after login — always refresh to pick up the new session
         fetchUserRole(true);
+      } else if (event === 'TOKEN_REFRESHED') {
+        // TOKEN_REFRESHED fires on tab re-focus / auto-renewal (up to once per hour).
+        // Skip if the localStorage cache is still fresh — the user context hasn't changed.
+        const cached = readCache();
+        if (!cached) fetchUserRole(true);
       } else if (event === 'SIGNED_OUT') {
         setRole(null);
         setOrgStatus(null);

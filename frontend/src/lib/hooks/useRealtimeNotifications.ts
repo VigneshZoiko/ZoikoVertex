@@ -1,75 +1,17 @@
-import { useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useEffect } from 'react';
 
+// NotificationContext already opens the realtime channel and handles both
+// in-app and OS notifications. This hook's only job is to request browser
+// notification permission so the OS popups work when the user first arrives.
 export function useRealtimeNotifications() {
-  // Declared before useEffect so it can be referenced without hoisting issues
-  const showNotification = useCallback((title: string, body: string) => {
+  useEffect(() => {
     if (
       typeof window !== 'undefined' &&
       'Notification' in window &&
-      Notification.permission === 'granted'
+      Notification.permission !== 'granted' &&
+      Notification.permission !== 'denied'
     ) {
-      new Notification(title, { body, icon: '/favicon.ico' });
+      Notification.requestPermission();
     }
   }, []);
-
-  useEffect(() => {
-    // Request permission for browser notifications
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (
-        Notification.permission !== 'granted' &&
-        Notification.permission !== 'denied'
-      ) {
-        Notification.requestPermission();
-      }
-    }
-
-    const channel = supabase
-      .channel('publish_intents_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'publish_intents',
-        },
-        async (payload) => {
-          console.log('[Realtime] Change received!', payload);
-
-          const { new: newRow, old: oldRow } = payload;
-
-          // Only notify if status actually changed
-          if (newRow.status !== oldRow.status) {
-            const { data: { user } } = await supabase.auth.getUser();
-
-            // 1. Notify Creator if their post was returned, approved or rejected
-            if (user && newRow.creator_id === user.id) {
-              const title = `Post ${newRow.status}`;
-              const body =
-                newRow.status === 'RETURNED'
-                  ? `Revision requested: "${newRow.feedback || 'Please check comments'}"`
-                  : `Your post has been ${newRow.status.toLowerCase()}.`;
-
-              showNotification(title, body);
-            }
-
-            // 2. Notify Admins/Managers if a post is now pending their review
-            if (
-              newRow.status === 'PENDING_MANAGER' ||
-              newRow.status === 'PENDING_ADMIN'
-            ) {
-              showNotification(
-                'New Action Required',
-                `A post is now ${newRow.status.replace('_', ' ')}.`
-              );
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [showNotification]);
 }

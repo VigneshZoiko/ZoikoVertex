@@ -92,7 +92,7 @@ export function initDlpScanWorker() {
 
         if (existing && existing.length > 0) continue;
 
-        // Run simulated scan
+        // Run simulated scan — fetch all item IDs, then fetch all evidence items in one query
         const { data: pkgItems } = await supabaseAdmin
           .from('vault_package_items')
           .select('item_id')
@@ -103,19 +103,19 @@ export function initDlpScanWorker() {
         let detectionCategory: string | null = null;
 
         if (pkgItems && pkgItems.length > 0) {
-          for (const pi of pkgItems) {
-            const { data: item } = await supabaseAdmin
-              .from('vault_evidence_items')
-              .select('source_type, contains_pii')
-              .eq('id', pi.item_id)
-              .single();
+          const itemIds = pkgItems.map((pi: any) => pi.item_id).filter(Boolean);
+          const { data: evidenceItems } = await supabaseAdmin
+            .from('vault_evidence_items')
+            .select('id, source_type, contains_pii')
+            .in('id', itemIds);
 
+          for (const item of evidenceItems || []) {
             if (item?.contains_pii) {
               findings.push({
                 type: 'pii',
                 field: 'evidence_content',
                 severity: 'medium',
-                item_id: pi.item_id,
+                item_id: item.id,
               });
             }
           }

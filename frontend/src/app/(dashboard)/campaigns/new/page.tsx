@@ -91,7 +91,7 @@ const CTA_OPTIONS = ["Learn More","Shop Now","Sign Up","Book Now","Contact Us","
 const STEP_REQUIRED: Record<number, (keyof WizardData)[]> = {
   1: ["name", "objective"],
   2: ["budget_total", "start_at", "end_at"],
-  3: ["landing_page_url", "headline"],
+  3: ["landing_page_url", "headline", "copy_text"],
 };
 
 const REQUIRED_MSGS: Partial<Record<keyof WizardData, string>> = {
@@ -102,6 +102,7 @@ const REQUIRED_MSGS: Partial<Record<keyof WizardData, string>> = {
   end_at:           "End date is required",
   landing_page_url: "Landing page URL is required",
   headline:         "Headline is required",
+  copy_text:        "Ad body text is required (Meta requires it for image ads)",
 };
 
 type ArrKey = "geography" | "platforms";
@@ -251,7 +252,7 @@ export default function NewCampaignPage() {
             copy_text:        data.copy_text,
             cta_text:         data.cta_text,
             utm_configured:   false,
-            utm_waived:       true,
+            utm_waived:       false,  // user must explicitly waive UTM tracking
             meta_ad_type:        data.meta_ad_type     || undefined,
             google_ad_type:      data.google_ad_type   || undefined,
             ad_image_url:        data.ad_image_url     || undefined,
@@ -287,11 +288,25 @@ export default function NewCampaignPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await api.post(`/api/v1/campaigns/${campaignId}/submit-review`, {});
+      // Launch directly — governance review re-enabled later once campaign flow is validated
+      const launchRes = await api.post(`/api/v1/campaigns/${campaignId}/launch`, {});
+      if (!launchRes.success) throw new Error(launchRes.error || "Launch failed");
+
+      // If Meta platform is selected, publish to Meta immediately
+      if (data.platforms.includes("Meta")) {
+        const metaRes = await api.post(`/api/v1/campaigns/${campaignId}/publish-to-meta`, {});
+        if (!metaRes.success) {
+          // Non-fatal: campaign is launched, Meta publish failed — user can retry from detail page
+          setSubmitError(`Campaign launched but Meta publish failed: ${metaRes.error || "Unknown error"}`);
+          router.push(`/campaigns/${campaignId}`);
+          return;
+        }
+      }
+
       router.push(`/campaigns/${campaignId}`);
     } catch (e: unknown) {
       const body = (e as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
-      setSubmitError(body?.message || body?.error || "Submission failed — please try again.");
+      setSubmitError(body?.message || body?.error || "Launch failed — please try again.");
     } finally { setSubmitting(false); }
   };
 
@@ -352,14 +367,19 @@ export default function NewCampaignPage() {
                 <label className={lbl}>Run ads on</label>
                 <div className="flex gap-3">
                   {[
-                    { id: "Meta",   label: "Meta",   sub: "Facebook & Instagram" },
-                    { id: "Google", label: "Google", sub: "Search & Display"      },
+                    { id: "Meta",   label: "Meta",   sub: "Facebook & Instagram", available: true  },
+                    { id: "Google", label: "Google", sub: "Coming soon",           available: false },
                   ].map(p => (
-                    <button key={p.id} type="button" onClick={() => toggleArr("platforms", p.id)}
+                    <button key={p.id} type="button"
+                      onClick={() => p.available && toggleArr("platforms", p.id)}
+                      disabled={!p.available}
+                      title={!p.available ? "Google Ads publishing is not yet available" : undefined}
                       className={`flex-1 p-4 rounded-xl border text-left transition-all ${
-                        data.platforms.includes(p.id)
-                          ? "bg-white border-white/20 text-zinc-900"
-                          : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                        !p.available
+                          ? "bg-zinc-900/30 border-zinc-800 text-zinc-600 cursor-not-allowed opacity-60"
+                          : data.platforms.includes(p.id)
+                            ? "bg-white border-white/20 text-zinc-900"
+                            : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700"
                       }`}>
                       <p className="text-sm font-bold">{p.label}</p>
                       <p className="text-[11px] opacity-70 mt-0.5">{p.sub}</p>
@@ -720,7 +740,7 @@ export default function NewCampaignPage() {
 
               <div className="p-4 bg-zinc-800/50 border border-zinc-800 rounded-xl">
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  After submitting, your campaign enters the approval queue. Once approved it can be launched and ads will run through the ZoikoVertex agency account.
+                  Your campaign will be launched immediately and published to Meta. You can pause or cancel it at any time from the campaigns list.
                 </p>
               </div>
             </div>
@@ -745,7 +765,7 @@ export default function NewCampaignPage() {
               <button onClick={handleSubmit} disabled={submitting || !campaignId}
                 className="ml-auto flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-zinc-100 disabled:opacity-40 text-zinc-900 text-sm font-bold rounded-xl transition-all">
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                {submitting ? "Submitting…" : "Request Approval"}
+                {submitting ? "Launching…" : "Launch Campaign"}
               </button>
             )}
           </div>
