@@ -105,9 +105,10 @@ export const handleFacebookCallback = async (req: Request, res: Response, next: 
           platform: 'facebook',
           account_name: page.name,
           account_handle: pageDetails.username || page.id,
+          page_id: page.id,  // numeric page ID — required by adcreatives object_story_spec
           avatar_url: pageDetails.picture?.data?.url,
-          access_token: page.access_token,
-          refresh_token: accessToken,
+          access_token: page.access_token,   // Page Access Token (posts/inbox)
+          refresh_token: accessToken,         // Long-lived User Token (ads API — pages_manage_ads)
           status: 'active',
           token_expires_at: longLivedData.expires_in
             ? new Date(Date.now() + longLivedData.expires_in * 1000).toISOString()

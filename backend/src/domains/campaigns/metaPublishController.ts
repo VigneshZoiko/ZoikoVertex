@@ -20,17 +20,17 @@ export const publishToMeta = async (req: AuthRequest, res: Response) => {
     const result = await publishCampaignToMeta(id, workspaceId);
 
     if (!result.success) {
-      logger.warn({ campaignId: id, error: result.error }, '[MetaPublish] Failed');
-      return res.status(400).json({ success: false, error: result.error });
+      logger.warn({ campaignId: id, error: result.error, report_file: result.publish_report?.report_file }, '[MetaPublish] Failed');
+      return res.status(400).json({ success: false, error: result.error, publish_report: result.publish_report });
     }
 
-    logger.info({ campaignId: id, meta_campaign_id: result.meta_campaign_id }, '[MetaPublish] Success');
+    logger.info({ campaignId: id, meta_campaign_id: result.meta_campaign_id, report_file: result.publish_report?.report_file }, '[MetaPublish] Success');
 
     // Remove ad images from the Media Vault — they've been published and no longer
     // need to sit in the library. Fire-and-forget; vault cleanup is non-critical.
     removePublishedImagesFromVault(id, workspaceId).catch(() => {});
 
-    return res.json({ success: true, data: result });
+    return res.json({ success: true, data: result, publish_report: result.publish_report });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err: msg, campaignId: id }, '[MetaPublish] Unexpected error');
