@@ -53,7 +53,7 @@ import {
   Bell,
   Eye,
   Lock,
-  BarChart3,
+  Sparkles,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -357,6 +357,14 @@ const NAV_GROUPS: NavGroup[] = [
         icon: ShieldCheck,
         // Policy rules — governance admin manages, compliance reviews
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER"],
+        plan: "governance" as Feature,
+      },
+      {
+        name: "Prompt Auditor",
+        href: "/governance/prompt-auditor",
+        icon: Sparkles,
+        // Prompt governance audit — governance admin, compliance, auditors, architects
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","COMPLIANCE_REVIEWER","AUDITOR","AGENT_ARCHITECT"],
         plan: "governance" as Feature,
       },
       {

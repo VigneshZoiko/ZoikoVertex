@@ -14,7 +14,6 @@ export const listAccounts = async (req: AuthRequest, res: Response, next: NextFu
       .from('connected_accounts')
       .select('*')
       .eq('workspace_id', workspaceId)
-      .eq('status', 'active')
       .order('platform', { ascending: true });
 
     if (error) throw error;

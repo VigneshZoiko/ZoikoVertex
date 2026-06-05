@@ -8,189 +8,45 @@ import { PromptTestService } from './PromptTestService';
 import { PromptApprovalService } from './PromptApprovalService';
 import { PromptDeploymentService } from './PromptDeploymentService';
 import { PromptBindingService } from './PromptBindingService';
-import { PromptEvidenceService } from './PromptEvidenceService';
-import { PromptAuditService } from './PromptAuditService';
-import { ApprovalInvalidationService } from './ApprovalInvalidationService';
-import { PromptDependencyService } from './PromptDependencyService';
-import { PromptRuntimeTraceService } from './PromptRuntimeTraceService';
-import { DependencyImpactService } from './services/DependencyImpactService';
-import { ReverseDependencyService, ReverseTargetType } from './services/ReverseDependencyService';
-import { DependencyNotificationPlanner } from './services/DependencyNotificationPlanner';
-import { GovernanceDashboardService } from './services/GovernanceDashboardService';
-import { GovernanceDriftService } from './services/GovernanceDriftService';
-import { PromptIncidentService } from './services/PromptIncidentService';
-import { PromptEvidenceExportService } from './services/PromptEvidenceExportService';
-import { AdversarialScenarioService } from './AdversarialScenarioService';
-import { AdversarialTestService } from './AdversarialTestService';
-import { DeploymentGateService } from './DeploymentGateService';
-import { PromptApprovalPolicyService } from './PromptApprovalPolicyService';
-import { PolicySimulationService } from './PolicySimulationService';
-import { PromptScorecardService } from './PromptScorecardService';
-import { GovernanceMetricsService } from './services/GovernanceMetricsService';
-import { PromptEvaluationService } from './PromptEvaluationService';
-import { ConstraintShadowService } from './ConstraintShadowService';
-import { PromptVariableService } from './PromptVariableService';
-import { ParameterPolicyService } from './ParameterPolicyService';
-import { RuntimeVariableGovernanceService } from './RuntimeVariableGovernanceService';
-import { PromptDefensibilityIndexService } from './PromptDefensibilityIndex';
-import { CrossModelComparisonService } from './CrossModelComparisonService';
-import { GovernanceReceiptService } from './GovernanceReceiptService';
-import { CommissioningService } from './CommissioningService';
-import { FailClosedGuard } from './FailClosedGuard';
-import { ThreeKeyService } from './ThreeKeyService';
-import { SeparationOfDutiesService } from './SeparationOfDutiesService';
-import { DelegationService } from './DelegationService';
-import { EscalationService } from './EscalationService';
-import { LifecycleGateService } from './LifecycleGateService';
-import { createAdversarialScenarioSchema, updateAdversarialScenarioSchema, runAdversarialTestSchema } from './schemas/adversarial.schema';
-import { runPolicySimulationSchema } from './schemas/policySimulation.schema';
-import { getParam, getQueryValue, getQueryNumber } from '../../shared/request';
-import { logToDatabase } from '../../shared/databaseLogger';
-import { PROMPT_STATUS } from './PromptService';
-
-const PROMPT_AUDIT_SERVICE = 'prompt-governance';
-
-const normalizeReviewerRole = PromptApprovalPolicyService.normalizeReviewerRole;
-const requiredApprovalRoles = PromptApprovalPolicyService.requiredApprovalRoles;
-const canRoleSatisfy = PromptApprovalPolicyService.canRoleSatisfy;
-
-function clientIp(req?: AuthRequest): string | null {
-  if (!req) return null;
-  const fwd = req.headers?.['x-forwarded-for'];
-  if (typeof fwd === 'string' && fwd.length > 0) return fwd.split(',')[0].trim();
-  if (Array.isArray(fwd) && fwd.length > 0) return fwd[0];
-  return req.ip || req.socket?.remoteAddress || null;
-}
-
-/**
- * Record a prompt governance event. This is the single integration point for
- * Prompt Governance auditing, and it writes to THREE independent sinks:
- *
- *   1. system_logs            — operational log (logToDatabase)
- *   2. Evidence Vault         — content-hashed immutable artifact ("what happened")
- *   3. prompt_audit_ledger    — append-only governance audit trail
- *                               ("who did it, when, why, and what changed")
- *
- * The audit ledger is independent from system_logs and from the Evidence Vault.
- * Routing every lifecycle action through this helper guarantees full audit
- * coverage. Returns the vault evidence UUID (or null) so callers can backlink it
- * onto the approval/deployment row's evidence_id column.
- */
-async function auditPromptEvent(
-  action: string,
-  payload: Record<string, unknown>,
-  req?: AuthRequest,
-  options?: { critical?: boolean },
-): Promise<string | null> {
-  await logToDatabase('info', PROMPT_AUDIT_SERVICE, action, {
-    ...payload,
-    evidence_type: 'prompt_governance_event',
-    created_at: new Date().toISOString(),
-  });
-  const receipt = await PromptEvidenceService.record({
-    event_type: action,
-    prompt_id: payload.prompt_id as string | undefined,
-    prompt_version_id: payload.prompt_version_id as string | undefined,
-    workspace_id: payload.workspace_id as string | undefined,
-    actor_id: payload.actor_id as string | undefined,
-    risk_tier: payload.risk_tier as string | undefined,
-    reason: payload.reason as string | undefined,
-    payload,
-  });
-
-  if (options?.critical && !receipt) {
-    throw new Error(`Critical audit/evidence write failed for ${action}: evidence preservation returned no receipt`);
-  }
-
-  // Append-only governance audit trail (independent of system_logs / vault).
-  const correlationId = receipt?.vault_item_uuid || (payload.correlation_id as string | undefined) || null;
-  const auditRecord = await PromptAuditService.record({
-    event_type: action,
-    workspace_id: payload.workspace_id as string | undefined,
-    prompt_id: payload.prompt_id as string | undefined,
-    version_id: payload.prompt_version_id as string | undefined,
-    actor_id: (payload.actor_id as string | undefined) || req?.user?.id,
-    actor_name: req?.user?.email || (payload.actor_name as string | undefined),
-    actor_role: req?.user?.role || (payload.actor_role as string | undefined) || undefined,
-    reason: payload.reason as string | undefined,
-    risk_level: payload.risk_tier as string | undefined,
-    approval_context: {
-      reviewer_role: payload.reviewer_role ?? null,
-      approval_complete: payload.approval_complete ?? null,
-      environment: payload.environment ?? null,
-      rollback_to_version_id: payload.rollback_to_version_id ?? null,
-    },
-    before_state: (payload.before_state as Record<string, unknown> | undefined) || {},
-    after_state: (payload.after_state as Record<string, unknown> | undefined) || {},
-    evidence_reference: receipt?.vault_item_id || null,
-    source_ip: clientIp(req),
-    correlation_id: correlationId,
-  });
-
-  if (options?.critical && !auditRecord) {
-    throw new Error(`Critical audit/evidence write failed for ${action}: audit ledger record returned no data`);
-  }
-
-  return receipt?.vault_item_uuid || null;
-}
-
-// Prompt statuses for which a live approval can be invalidated (lowercase enums).
-const APPROVAL_ELIGIBLE_STATUSES = ['approved', 'approved_for_staging', 'production_pending'];
-
-/**
- * Governance rule (Doc 3 §7): after a risk-impacting dependency change, re-check
- * whether the version's approval is still valid and, if not, invalidate it and
- * emit `prompt.approval.invalidated` through the existing audit/evidence helper.
- *
- * Create/Update are detected by ApprovalInvalidationService.evaluate() via
- * timestamp comparison. Deletions leave no row to compare, so for deletions we
- * additionally treat the removal of a dependency from an approval-eligible,
- * already-approved version as an invalidation.
- *
- * Enforcement never breaks the underlying mutation — the mutation has already
- * succeeded and been audited; any failure here is swallowed.
- */
-async function enforceApprovalInvalidation(
-  req: AuthRequest,
-  params: { promptId: string; versionId: string; workspaceId: string; deletion?: boolean },
-): Promise<void> {
-  try {
-    let result = await ApprovalInvalidationService.evaluate(params.versionId);
-
-    if (!result.invalidated && params.deletion) {
-      const prompt = await PromptService.getById(params.promptId, params.workspaceId);
-      const eligible = APPROVAL_ELIGIBLE_STATUSES.includes(String(prompt?.status || '').toLowerCase());
-      const approvedAt = eligible ? await ApprovalInvalidationService.getLatestApprovalAt(params.versionId) : null;
-      if (approvedAt) {
-        result = {
-          valid: false,
-          invalidated: true,
-          reason: 'Approval invalidated: dependency removed after approval.',
-        };
-      }
-    }
-
-    if (result.invalidated) {
-      await ApprovalInvalidationService.invalidate(
-        params.versionId,
-        result.reason || 'Dependency changed after approval',
-        result.invalidatedAt,
-      );
-      await auditPromptEvent('prompt.approval.invalidated', {
-        prompt_id: params.promptId,
-        prompt_version_id: params.versionId,
-        workspace_id: params.workspaceId,
-        actor_id: req.user?.id,
-        reason: result.reason,
-        after_state: { approval_invalidated_at: result.invalidatedAt || null, valid: false },
-      }, req);
-    }
-  } catch {
-    // Governance enforcement is best-effort; never break the mutation response.
-  }
-}
+import { PromptGovernanceAgent } from './PromptGovernanceAgent';
+import { getParam, getQueryValue } from '../../shared/request';
 
 export class PromptController {
+  static async evaluatePromptGovernance(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.getWorkspaceId(req.user?.id);
+      
+      const { data: workspace } = await supabaseAdmin
+        .from('workspaces')
+        .select('tenant_id')
+        .eq('id', workspaceId)
+        .maybeSingle();
+      const tenantId = workspace?.tenant_id || workspaceId;
+
+      const { prompt_id, agent_id, input_payload, tools_requested, knowledge_requested, model, environment } = req.body;
+
+      if (!prompt_id || !agent_id || !input_payload) {
+        return res.status(400).json({ error: 'Missing prompt_id, agent_id, or input_payload' });
+      }
+
+      const result = await PromptGovernanceAgent.enforce({
+        workspace_id: workspaceId,
+        tenant_id: tenantId,
+        agent_id,
+        prompt_id,
+        input_payload,
+        tools_requested: tools_requested || [],
+        knowledge_requested: knowledge_requested || [],
+        model,
+        environment: environment || 'production',
+        actor_id: req.user?.id || 'system',
+      });
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
 
   private static async getWorkspaceId(userId: string | undefined): Promise<string> {
     if (!userId) throw new Error('Unauthorized');

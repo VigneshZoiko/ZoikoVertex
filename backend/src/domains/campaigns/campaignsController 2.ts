@@ -2,7 +2,6 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
-import { deleteMetaCampaign } from './metaCampaignPublisher';
 
 // ── Status & Type constants ──────────────────────────────────
 
@@ -46,29 +45,20 @@ export const VALID_TRANSITIONS: Record<string, string[]> = {
 // ── Zod schemas ──────────────────────────────────────────────
 
 const TargetingSchema = z.object({
-  // Accept both old string[] and new object[] formats for geography
-  geography:                  z.array(z.unknown()).default([]),
-  excluded_geography:         z.array(z.unknown()).default([]),
+  geography:                  z.array(z.string()).default([]),
   audience_summary:           z.string().optional(),
   audience_segments:          z.array(z.string()).default([]),
   exclusions:                 z.array(z.string()).default([]),
   sensitive_category_status:  z.string().default('NONE'),
   jurisdictional_flags:       z.array(z.string()).default([]),
-  // Audience fields from campaign wizard
-  age_min:                    z.number().int().min(13).max(65).optional(),
-  age_max:                    z.number().int().min(13).max(65).optional(),
-  gender:                     z.string().optional(),
-  interests:                  z.array(z.unknown()).default([]),
-}).default({ geography: [], excluded_geography: [], audience_segments: [], exclusions: [], sensitive_category_status: 'NONE', jurisdictional_flags: [], interests: [] });
+}).default({ geography: [], audience_segments: [], exclusions: [], sensitive_category_status: 'NONE', jurisdictional_flags: [] });
 
 const CreativeSchema = z.object({
   asset_ids:        z.array(z.string()).default([]),
   copy_text:        z.string().optional(),
   headline:         z.string().optional(),
   cta_text:         z.string().optional(),
-  landing_page_url: z.string().nullable().optional(),
-  ad_image_url:     z.string().nullable().optional(),
-  meta_ad_type:     z.string().optional(),
+  landing_page_url: z.string().optional(),
   utm_source:       z.string().optional(),
   utm_medium:       z.string().optional(),
   utm_campaign:     z.string().optional(),
@@ -110,24 +100,13 @@ export const CreateSchema = z.object({
   risk_tier:              z.enum(['low', 'medium', 'high', 'critical']).default('low'),
   autonomy_level:         z.enum(['L0', 'L1', 'L2', 'L3', 'L4']).default('L1'),
   approval_tier:          z.enum(['low', 'medium', 'high', 'critical']).default('low'),
-  wizard_step:            z.number().int().min(1).max(10).default(1),
+  wizard_step:            z.number().int().min(1).max(5).default(1),
 
   // Post limit & auto-boost
   post_limit:             z.number().int().positive().nullable().optional(),
   auto_boost_enabled:     z.boolean().default(false),
   boost_per_post_budget:  z.number().positive().nullable().optional(),
   boost_settings:         z.record(z.string(), z.unknown()).nullable().optional(),
-
-  // Paid ads — Meta-specific fields
-  selected_meta_account_id: z.string().uuid().nullable().optional(),
-  ads_data:                 z.array(z.unknown()).nullable().optional(),
-  eu_targeting:             z.boolean().nullable().optional(),
-  eu_beneficiary:           z.string().nullable().optional(),
-  eu_payer:                 z.string().nullable().optional(),
-  tracking_pixel_id:        z.string().nullable().optional(),
-  conversion_event:         z.string().nullable().optional(),
-  welcome_message:          z.string().nullable().optional(),
-  device_type:              z.string().nullable().optional(),
 
   // JSONB fields
   targeting:              TargetingSchema,
@@ -222,23 +201,7 @@ export const getCampaign = async (req: AuthRequest, res: Response, next: NextFun
       .single();
 
     if (error || !data) return res.status(404).json({ error: 'Campaign not found' });
-
-    // Enrich with connected account name + ad account name
-    let meta_account_name: string | null = null;
-    let meta_ad_account_name: string | null = null;
-    if (data.selected_meta_account_id) {
-      const { data: acct } = await supabaseAdmin
-        .from('connected_accounts')
-        .select('account_name, ad_account_name, ad_account_id')
-        .eq('id', data.selected_meta_account_id)
-        .single();
-      if (acct) {
-        meta_account_name    = acct.account_name    || null;
-        meta_ad_account_name = acct.ad_account_name || acct.ad_account_id || null;
-      }
-    }
-
-    res.json({ success: true, data: { ...data, meta_account_name, meta_ad_account_name } });
+    res.json({ success: true, data });
   } catch (err) { next(err); }
 };
 
@@ -256,40 +219,14 @@ export const createCampaign = async (req: AuthRequest, res: Response, next: Next
       .from('workspaces').select('org_id').eq('id', workspaceId).single();
     if (!ws?.org_id) return res.status(400).json({ error: 'Organization not found' });
 
-    // Meta charges the client's own ad account directly — no internal wallet gate.
-
-    // Destructure meta/paid-ads fields separately so they are handled explicitly
-    const {
-      selected_meta_account_id,
-      ads_data,
-      eu_targeting,
-      eu_beneficiary,
-      eu_payer,
-      tracking_pixel_id,
-      conversion_event,
-      welcome_message,
-      device_type,
-      ...coreData
-    } = parsed.data;
-
     const { data, error } = await supabaseAdmin
       .from('campaigns')
       .insert({
-        ...coreData,
-        workspace_id:             workspaceId,
-        org_id:                   ws.org_id,
-        created_by:               userId,
-        status:                   'DRAFT',
-        // Meta / paid ads columns (from migrations 56-59)
-        selected_meta_account_id: selected_meta_account_id ?? null,
-        ads_data:                 ads_data ?? null,
-        eu_targeting:             eu_targeting ?? null,
-        eu_beneficiary:           eu_beneficiary ?? null,
-        eu_payer:                 eu_payer ?? null,
-        tracking_pixel_id:        tracking_pixel_id ?? null,
-        conversion_event:         conversion_event ?? null,
-        welcome_message:          welcome_message ?? null,
-        device_type:              device_type ?? null,
+        ...parsed.data,
+        workspace_id: workspaceId,
+        org_id:       ws.org_id,
+        created_by:   userId,
+        status:       'DRAFT',
       })
       .select()
       .single();
@@ -340,44 +277,13 @@ export const updateCampaign = async (req: AuthRequest, res: Response, next: Next
 
     // Material edit detection: if campaign is APPROVED and key fields change, reset three_key_status
     const MATERIAL_FIELDS = ['budget_total', 'budget_currency', 'targeting', 'creative', 'platforms', 'start_at', 'end_at'];
-    // Only void approval when a material field actually CHANGED vs the stored value —
-    // not when the field is merely present in the PATCH body with the same value.
-    const hasMaterialEdit = MATERIAL_FIELDS.some(f => {
-      const newVal = parsed.data[f as keyof typeof parsed.data];
-      if (newVal === undefined) return false;
-      const currentVal = (current as any)[f];
-      return JSON.stringify(newVal) !== JSON.stringify(currentVal);
-    });
+    const hasMaterialEdit = MATERIAL_FIELDS.some(f => parsed.data[f as keyof typeof parsed.data] !== undefined);
     const isApproved = ['APPROVED', 'SCHEDULED', 'ACTIVE'].includes(current.status);
 
-    const {
-      selected_meta_account_id: upd_sma,
-      ads_data:                 upd_ads,
-      eu_targeting:             upd_eu,
-      eu_beneficiary:           upd_ben,
-      eu_payer:                 upd_pay,
-      tracking_pixel_id:        upd_px,
-      conversion_event:         upd_ce,
-      welcome_message:          upd_wm,
-      device_type:              upd_dt,
-      ...coreUpdateData
-    } = parsed.data;
-
     const updates: Record<string, unknown> = {
-      ...coreUpdateData,
+      ...parsed.data,
       updated_at: new Date().toISOString(),
     };
-    // Only write optional JSON/meta fields when explicitly provided in the PATCH body —
-    // omitting a field must not overwrite it with null in the DB.
-    if (upd_sma !== undefined) updates.selected_meta_account_id = upd_sma ?? null;
-    if (upd_ads !== undefined) updates.ads_data                 = upd_ads ?? null;
-    if (upd_eu  !== undefined) updates.eu_targeting             = upd_eu  ?? null;
-    if (upd_ben !== undefined) updates.eu_beneficiary           = upd_ben ?? null;
-    if (upd_pay !== undefined) updates.eu_payer                 = upd_pay ?? null;
-    if (upd_px  !== undefined) updates.tracking_pixel_id        = upd_px  ?? null;
-    if (upd_ce  !== undefined) updates.conversion_event         = upd_ce  ?? null;
-    if (upd_wm  !== undefined) updates.welcome_message          = upd_wm  ?? null;
-    if (upd_dt  !== undefined) updates.device_type              = upd_dt  ?? null;
 
     if (hasMaterialEdit && isApproved) {
       updates.three_key_status = 'VOIDED';
@@ -424,9 +330,6 @@ export const deleteCampaign = async (req: AuthRequest, res: Response, next: Next
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
 
-    // Delete from Meta first (non-fatal — the DB record is still removed even if Meta cleanup fails)
-    await deleteMetaCampaign(String(req.params.id), workspaceId).catch(() => {});
-
     const { error } = await supabaseAdmin
       .from('campaigns')
       .delete()
@@ -454,25 +357,11 @@ export const getCampaignPosts = async (req: AuthRequest, res: Response, next: Ne
 
     const { data, error } = await supabaseAdmin
       .from('publish_intents')
-      .select('id, content, platform, status, media_urls, created_at, project_id, creator_id, platform_post_id')
+      .select('id, content, platform, status, media_urls, created_at, project_id, creator_id')
       .eq('campaign_id', req.params.id)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-
-    const { data: boosts } = await supabaseAdmin
-      .from('campaign_boosts')
-      .select('id, publish_intent_id, status')
-      .eq('campaign_id', req.params.id);
-
-    const boostMap: Record<string, { id: string; status: string }> = {};
-    if (boosts) {
-      boosts.forEach(b => {
-        if (b.publish_intent_id) {
-          boostMap[b.publish_intent_id] = { id: b.id, status: b.status };
-        }
-      });
-    }
 
     const projectIds = [...new Set((data || []).map((p: { project_id: string | null }) => p.project_id).filter(Boolean))];
     const projectMap: Record<string, string> = {};
@@ -494,24 +383,11 @@ export const getCampaignPosts = async (req: AuthRequest, res: Response, next: Ne
 
     res.json({
       success: true,
-      data: (data || []).map((p: Record<string, unknown>) => {
-        const boost = boostMap[String(p.id)];
-        let autoBoostStatus = null;
-        if (boost) {
-          if (boost.status === 'ACTIVE') autoBoostStatus = 'LIVE';
-          else if (boost.status === 'PAUSED') autoBoostStatus = 'QUEUED';
-          else if (boost.status === 'PENDING') autoBoostStatus = 'QUEUED';
-          else if (boost.status === 'FAILED') autoBoostStatus = 'FAILED';
-          else autoBoostStatus = boost.status;
-        }
-        return {
-          ...p,
-          project_name: p.project_id ? (projectMap[p.project_id as string] || null) : null,
-          creator_name: p.creator_id ? (creatorMap[p.creator_id as string] || null) : null,
-          boost_id: boost ? boost.id : null,
-          auto_boost_status: autoBoostStatus,
-        };
-      }),
+      data: (data || []).map((p: Record<string, unknown>) => ({
+        ...p,
+        project_name: p.project_id ? (projectMap[p.project_id as string] || null) : null,
+        creator_name: p.creator_id ? (creatorMap[p.creator_id as string] || null) : null,
+      })),
     });
   } catch (err) { next(err); }
 };

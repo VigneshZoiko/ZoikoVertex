@@ -27,7 +27,7 @@ async function run() {
     }
   } else {
     console.log('User not found. Creating...');
-
+    // @ts-ignore
     const { data: { user: newUser }, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -38,7 +38,7 @@ async function run() {
       console.error('CREATE ERROR:', createError.message);
       process.exit(1);
     }
-    // @ts-expect-error
+    // @ts-ignore
     user = newUser;
     console.log('User created:', user?.id);
   }

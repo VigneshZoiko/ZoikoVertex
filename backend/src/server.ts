@@ -1137,8 +1137,7 @@ app.get('/api/v1/knowledge/reviews', authenticate, scopeGuard('read:content', '*
 app.get('/api/v1/knowledge/sources/:sourceId/chunks', authenticate, scopeGuard('read:content', '*'), KnowledgeController.listChunks);
 
 // Search API
-app.get('/api/v1/knowledge/search', authenticate, scopeGuard('read:content', '*'), KnowledgeController.searchSources);
-
+app.get('/api/v1/knowledge/search', authenticate, KnowledgeController.searchSources);
 // Access Policy API
 app.get('/api/v1/knowledge/access-policy', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getAccessPolicy);
 app.post('/api/v1/knowledge/access-policy', authenticate, scopeGuard('write:content', '*'), KnowledgeController.upsertAccessPolicy);
@@ -1151,25 +1150,86 @@ const govEdit = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'AGE
 // govLifecycle — sensitive lifecycle operations (deploy, approve, pause, etc.)
 const govLifecycle = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'COMPLIANCE_REVIEWER');
 
+app.get('/api/v1/knowledge/access-policy', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getAccessPolicy);
+app.post('/api/v1/knowledge/access-policy', authenticate, scopeGuard('write:content', '*'), KnowledgeController.upsertAccessPolicy);
+
+// Collection Lifecycle
+app.post('/api/v1/knowledge/collections/:id/request-approval', authenticate, scopeGuard('write:content', '*'), KnowledgeController.requestCollectionApproval);
+app.post('/api/v1/knowledge/collections/:id/approve', authenticate, scopeGuard('write:content', '*'), KnowledgeController.approveCollection);
+app.post('/api/v1/knowledge/collections/:id/activate', authenticate, scopeGuard('write:content', '*'), KnowledgeController.activateCollection);
+app.post('/api/v1/knowledge/collections/:id/restrict', authenticate, scopeGuard('write:content', '*'), KnowledgeController.restrictCollection);
+app.post('/api/v1/knowledge/collections/:id/retire', authenticate, scopeGuard('write:content', '*'), KnowledgeController.retireCollection);
+
+// Source Processing
+app.post('/api/v1/knowledge/sources/:id/process', authenticate, scopeGuard('write:content', '*'), KnowledgeController.processSource);
+app.post('/api/v1/knowledge/sources/:id/re-embed', authenticate, scopeGuard('write:content', '*'), KnowledgeController.reEmbedSource);
+
+// Version History
+app.get('/api/v1/knowledge/sources/:id/versions', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getSourceVersions);
+app.get('/api/v1/knowledge/sources/:id/diff', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getSourceDiff);
+app.post('/api/v1/knowledge/sources/:id/rollback', authenticate, scopeGuard('write:content', '*'), KnowledgeController.rollbackSource);
+
+// Evidence Bundles
+app.post('/api/v1/knowledge/sources/:id/evidence', authenticate, scopeGuard('read:content', '*'), KnowledgeController.createEvidenceBundle);
+app.get('/api/v1/knowledge/sources/:id/evidence/export', authenticate, scopeGuard('read:content', '*'), KnowledgeController.exportEvidenceBundle);
+
+// Export
+app.post('/api/v1/knowledge/export', authenticate, scopeGuard('read:content', '*'), KnowledgeController.exportSources);
+app.post('/api/v1/knowledge/collections/:id/export', authenticate, scopeGuard('read:content', '*'), KnowledgeController.exportCollection);
+
+// Connector Ingestion
+app.post('/api/v1/knowledge/connectors/ingest', authenticate, scopeGuard('write:content', '*'), KnowledgeController.ingestFromConnector);
+app.get('/api/v1/knowledge/connectors/status', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getConnectorStatus);
+
+// Search
+app.get('/api/v1/knowledge/search', authenticate, scopeGuard('read:content', '*'), KnowledgeController.searchKnowledge);
+
+// Settings
+app.get('/api/v1/knowledge/settings', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getSettings);
+
+// Analytics
+app.get('/api/v1/knowledge/analytics', authenticate, scopeGuard('read:analytics', '*'), KnowledgeController.getAnalytics);
+
+// SLA / Workers
+app.post('/api/v1/knowledge/sla/check', authenticate, scopeGuard('write:content', '*'), KnowledgeController.checkReviewSLAs);
+app.post('/api/v1/knowledge/staleness/retire', authenticate, scopeGuard('write:content', '*'), KnowledgeController.retireExpiredSources);
+
+// Scan
+app.post('/api/v1/knowledge/sources/:id/scan', authenticate, scopeGuard('write:content', '*'), KnowledgeController.scanSource);
+
+// Citations
+app.post('/api/v1/knowledge/citations', authenticate, scopeGuard('write:content', '*'), KnowledgeController.recordCitation);
+
+// Governed Retrieval
+app.post('/api/v1/knowledge/retrieve', authenticate, scopeGuard('read:content', '*'), KnowledgeController.governedRetrieval);
+
+// Notifications
+app.get('/api/v1/knowledge/notifications', authenticate, scopeGuard('read:content', '*'), KnowledgeController.listNotifications);
+app.post('/api/v1/knowledge/notifications/:id/acknowledge', authenticate, scopeGuard('write:content', '*'), KnowledgeController.acknowledgeNotification);
+
+// Conflict Auto-Detection
+app.post('/api/v1/knowledge/sources/:id/detect-conflicts', authenticate, scopeGuard('write:content', '*'), KnowledgeController.autoDetectConflicts);
+
+// Expire Source
+app.post('/api/v1/knowledge/sources/:id/expire', authenticate, scopeGuard('write:content', '*'), KnowledgeController.expireSource);
+
+// Dependency API
+app.get('/api/v1/knowledge/sources/:id/dependencies', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getSourceDependencies);
+app.get('/api/v1/knowledge/collections/:id/dependencies', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getCollectionDependencies);
+
+// Retrieval Evaluation
+app.post('/api/v1/knowledge/retrieval/evaluate', authenticate, scopeGuard('read:content', '*'), KnowledgeController.evaluateRetrieval);
+
+// HTML Page Capture
+app.post('/api/v1/knowledge/sources/from-url', authenticate, scopeGuard('write:content', '*'), KnowledgeController.uploadSourceWithHtml);
+
+
+
 // ─── Prompt Governance Routes ────────────────────────────────────────────
 // Static routes (must come before parameterized :id routes)
-app.get('/api/v1/prompts/stats', authenticate, govView, PromptController.getPromptStats);
-app.get('/api/v1/prompts/approvals/stats', authenticate, govView, PromptController.getApprovalStats);
-// Append-only audit trail — single record lookup (static, before :id routes)
-app.get('/api/v1/prompts/audit/:auditId', authenticate, govView, PromptController.getAuditEntry);
-// Reverse dependency traversal (static, MUST precede /prompts/:id to avoid shadowing)
-app.get('/api/v1/prompts/dependents', authenticate, govView, PromptController.getPromptDependents);
-// Dependency notification plan (static, MUST precede /prompts/:id to avoid shadowing)
-app.get('/api/v1/prompts/dependency-notifications/plan', authenticate, govView, PromptController.getDependencyNotificationPlan);
-// Governance dashboard rollup (static, MUST precede /prompts/:id to avoid shadowing)
-app.get('/api/v1/prompts/governance-dashboard', authenticate, govView, PromptController.getGovernanceDashboard);
-// Runtime trace ingestion (static, MUST precede /prompts/:id). Service-authenticated
-// via API key scope; JWT users are role-gated inside the handler.
-app.post('/api/v1/prompts/runtime-traces', authenticate, govEdit, scopeGuard('write:prompt_runtime_trace'), PromptController.ingestRuntimeTrace);
-// Incident detail/update/close (static incidents/:incidentId, MUST precede /prompts/:id).
-app.get('/api/v1/prompts/incidents/:incidentId', authenticate, govView, PromptController.getIncident);
-app.patch('/api/v1/prompts/incidents/:incidentId', authenticate, govLifecycle, PromptController.updateIncident);
-app.post('/api/v1/prompts/incidents/:incidentId/close', authenticate, govLifecycle, PromptController.closeIncident);
+app.get('/api/v1/prompts/stats', authenticate, PromptController.getPromptStats);
+app.get('/api/v1/prompts/approvals/stats', authenticate, PromptController.getApprovalStats);
+app.post('/api/v1/prompts/evaluate', authenticate, PromptController.evaluatePromptGovernance);
 
 // Versions sub-routes (no :id prefix)
 app.post('/api/v1/prompts/versions/:versionId/approve', authenticate, govLifecycle, PromptController.approveVersion);
@@ -1482,17 +1542,34 @@ import { initAuditExportWorker } from './workers/auditExportWorker';
 import { initAuditIntegrityWorker } from './workers/auditIntegrityWorker';
 import { initAuditStreamingWorker } from './workers/auditStreamingWorker';
 import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
-import { startCampaignWorker } from './workers/campaignWorker';
-import { initOrgInactivityWorker } from './workers/orgInactivityWorker';
+import { KnowledgeSlaWorker } from './modules/knowledge/KnowledgeSlaWorker';
+import { KnowledgeStalenessWorker } from './modules/knowledge/KnowledgeStalenessWorker';
+
+function startKnowledgeWorkers(): void {
+  const SLA_INTERVAL = 6 * 60 * 60 * 1000;
+  const STALE_INTERVAL = 24 * 60 * 60 * 1000;
+
+  setInterval(() => {
+    KnowledgeSlaWorker.checkReviewSLAs().catch((e: any) =>
+      logger.error({ err: e }, 'Scheduled SLA check failed')
+    );
+  }, SLA_INTERVAL);
+
+  setInterval(() => {
+    KnowledgeStalenessWorker.checkAndRetireExpired().catch((e: any) =>
+      logger.error({ err: e }, 'Scheduled expiry check failed')
+    );
+    KnowledgeStalenessWorker.checkStaleSources().catch((e: any) =>
+      logger.error({ err: e }, 'Scheduled stale check failed')
+    );
+  }, STALE_INTERVAL);
+
+  logger.info('[workers] Knowledge workers scheduled: SLA every 6h, staleness every 24h');
+}
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
   registerEventBridge();
-  // Phase 6.2 / 6.3 — wire real LLM providers into the ModelExecutionAdapter
-  // registry. Missing keys ⇒ providers skipped (NullAdapter fallback).
-  // PROMPT_GOVERNANCE_ENFORCED=true + zero keys ⇒ boot fails.
-  const { registerProductionAdapters } = require('./modules/prompts/modelProviders');
-  registerProductionAdapters();
   const server = app.listen(port, () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers
@@ -1502,8 +1579,7 @@ try {
     initAuditStreamingWorker();
     initVaultWorker();
     initDlpScanWorker();
-    startCampaignWorker();
-    initOrgInactivityWorker();
+    startKnowledgeWorkers();
   });
 
   server.on('error', (err: Error & { code?: string }) => {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import ConfirmActionModal from "@/components/ConfirmActionModal";
 import {
   MessageSquareCode,
   ShieldCheck,
