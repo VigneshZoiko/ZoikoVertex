@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { buildAuthContext } from '../../shared/serviceAuth';
 import * as vaultService from '../../services/evidenceVault.service';
 
 function getWorkspaceId(req: AuthRequest): string {
@@ -8,8 +9,8 @@ function getWorkspaceId(req: AuthRequest): string {
 }
 
 function getTenantId(req: AuthRequest): string {
-  if (!(req.user as Record<string, unknown>)?.tenant_id) throw Object.assign(new Error('Tenant ID is required'), { statusCode: 400 });
-  return (req.user as Record<string, unknown>).tenant_id as string;
+  const rawTenantId = (req.user as Record<string, unknown>)?.tenant_id as string | undefined;
+  return rawTenantId && rawTenantId !== 'default' ? rawTenantId : getWorkspaceId(req);
 }
 
 // ─── GET /api/evidence-vault/items ────────────────────────────────────────────
@@ -47,6 +48,7 @@ export async function preserveEvidence(req: AuthRequest, res: Response, next: Ne
     if (!source_type || !source_id || !source_system || !preservation_reason) {
       return res.status(400).json({ success: false, error: 'source_type, source_id, source_system, and preservation_reason are required' });
     }
+    const auth = buildAuthContext(req.user);
     const result = await vaultService.preserveEvidence({
       source_type, source_id, source_system, source_timestamp_utc,
       evidence_type, risk_level, sensitivity,
@@ -59,7 +61,7 @@ export async function preserveEvidence(req: AuthRequest, res: Response, next: Ne
       workspace_id: getWorkspaceId(req),
       tenant_id: getTenantId(req),
       metadata,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -80,12 +82,13 @@ export async function createCollection(req: AuthRequest, res: Response, next: Ne
   try {
     const { title, description, scope, created_reason } = req.body;
     if (!title) return res.status(400).json({ success: false, error: 'title is required' });
+    const auth = buildAuthContext(req.user);
     const result = await vaultService.createCollection({
       workspace_id: getWorkspaceId(req),
       tenant_id: getTenantId(req),
       title, description, scope, created_reason,
       created_by: req.user!.id,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -125,7 +128,8 @@ export async function addItemsToCollection(req: AuthRequest, res: Response, next
     if (!item_ids || !Array.isArray(item_ids) || item_ids.length === 0) {
       return res.status(400).json({ success: false, error: 'item_ids array is required' });
     }
-    const result = await vaultService.addItemsToCollection(id, item_ids, req.user!.id, reason);
+    const auth = buildAuthContext(req.user);
+    const result = await vaultService.addItemsToCollection(id, item_ids, req.user!.id, reason, auth);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -157,12 +161,13 @@ export async function createPackage(req: AuthRequest, res: Response, next: NextF
     if (!package_type || !title) {
       return res.status(400).json({ success: false, error: 'package_type and title are required' });
     }
+    const auth = buildAuthContext(req.user);
     const result = await vaultService.createPackage({
       workspace_id: getWorkspaceId(req),
       tenant_id: getTenantId(req),
       package_type, title, description, source_collection_id, item_ids, metadata,
       created_by: req.user!.id,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -192,7 +197,8 @@ export async function getPackage(req: AuthRequest, res: Response, next: NextFunc
 export async function sealPackage(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = req.params.id as string;
-    const result = await vaultService.sealPackage(id, req.user!.id);
+    const auth = buildAuthContext(req.user);
+    const result = await vaultService.sealPackage(id, req.user!.id, auth);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -222,12 +228,13 @@ export async function createExport(req: AuthRequest, res: Response, next: NextFu
     if (!package_id || !disclosure_mode) {
       return res.status(400).json({ success: false, error: 'package_id and disclosure_mode are required' });
     }
+    const auth = buildAuthContext(req.user);
     const result = await vaultService.createExport({
       package_id, disclosure_mode, requester_reason, delivery_method, expires_at,
       workspace_id: getWorkspaceId(req),
       tenant_id: getTenantId(req),
       requester_id: req.user!.id,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -262,12 +269,13 @@ export async function applyHold(req: AuthRequest, res: Response, next: NextFunct
     if (!scope_type || !matter_ref || !reason || !effective_date) {
       return res.status(400).json({ success: false, error: 'scope_type, matter_ref, reason, and effective_date are required' });
     }
+    const auth = buildAuthContext(req.user);
     const result = await vaultService.applyHold({
       workspace_id: getWorkspaceId(req),
       tenant_id: getTenantId(req),
       scope_type, scope_id, scope_query, matter_ref, jurisdiction, reason,
       requester_id: req.user!.id, approver_id, effective_date, review_date,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -291,7 +299,8 @@ export async function releaseHold(req: AuthRequest, res: Response, next: NextFun
     const id = req.params.id as string;
     const { reason, authorized_by } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'reason is required' });
-    const result = await vaultService.releaseHold(id, req.user!.id, reason, authorized_by);
+    const auth = buildAuthContext(req.user);
+    const result = await vaultService.releaseHold(id, req.user!.id, reason, authorized_by, auth);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -304,9 +313,10 @@ export async function createRedactionPolicy(req: AuthRequest, res: Response, nex
     if (!name || !rules) {
       return res.status(400).json({ success: false, error: 'name and rules are required' });
     }
+    const auth = buildAuthContext(req.user);
     const result = await vaultService.createRedactionPolicy({
       name, description, rules, created_by: req.user!.id,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -326,13 +336,14 @@ export async function createShare(req: AuthRequest, res: Response, next: NextFun
     if (!package_id || !recipient_email || !expires_at) {
       return res.status(400).json({ success: false, error: 'package_id, recipient_email, and expires_at are required' });
     }
+    const auth = buildAuthContext(req.user);
     const result = await vaultService.createShare({
       package_id, recipient_email, recipient_name, disclosure_mode, redaction_policy_id,
       expires_at, max_views, watermark, allow_download, require_mfa,
       workspace_id: getWorkspaceId(req),
       tenant_id: getTenantId(req),
       created_by: req.user!.id,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -363,7 +374,8 @@ export async function getShare(req: AuthRequest, res: Response, next: NextFuncti
 export async function revokeShare(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const id = req.params.id as string;
-    const result = await vaultService.revokeShare(id, req.user!.id);
+    const auth = buildAuthContext(req.user);
+    const result = await vaultService.revokeShare(id, req.user!.id, auth);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -382,7 +394,8 @@ export async function runDlpScan(req: AuthRequest, res: Response, next: NextFunc
   try {
     const { package_id } = req.body;
     if (!package_id) return res.status(400).json({ success: false, error: 'package_id is required' });
-    const result = await vaultService.runDlpScan(package_id, req.user!.id);
+    const auth = buildAuthContext(req.user);
+    const result = await vaultService.runDlpScan(package_id, req.user!.id, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -414,12 +427,13 @@ export async function createAsyncJob(req: AuthRequest, res: Response, next: Next
   try {
     const { job_type, params, priority, max_retries, idempotency_key } = req.body;
     if (!job_type) return res.status(400).json({ success: false, error: 'job_type is required' });
+    const auth = buildAuthContext(req.user);
     const result = await vaultService.createAsyncJob({
       job_type, params, priority, max_retries, idempotency_key,
       workspace_id: getWorkspaceId(req),
       tenant_id: getTenantId(req),
       created_by: req.user!.id,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -452,6 +466,7 @@ export async function createChainAnchor(req: AuthRequest, res: Response, next: N
   try {
     const { package_id, item_id, anchor_provider, anchor_data } = req.body;
     if (!anchor_provider) return res.status(400).json({ success: false, error: 'anchor_provider is required' });
+    const auth = buildAuthContext(req.user);
     const result = await vaultService.createChainAnchor({
       package_id,
       item_id,
@@ -460,7 +475,7 @@ export async function createChainAnchor(req: AuthRequest, res: Response, next: N
       anchor_provider,
       anchor_data,
       created_by: req.user!.id,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 }
@@ -484,7 +499,8 @@ export async function confirmChainAnchor(req: AuthRequest, res: Response, next: 
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(400).json({ success: false, error: 'Workspace ID required' });
 
-    const result = await vaultService.confirmChainAnchor(anchorId, workspaceId);
+    const auth = buildAuthContext(req.user);
+    const result = await vaultService.confirmChainAnchor(anchorId, workspaceId, auth);
     if (!result) return res.status(404).json({ success: false, error: 'Chain anchor not found' });
 
     res.json({ success: true, data: result });
@@ -512,6 +528,7 @@ export async function createTemplateVersion(req: AuthRequest, res: Response, nex
     if (!package_type || !template_version || !schema) {
       return res.status(400).json({ success: false, error: 'package_type, template_version, and schema are required' });
     }
+    const auth = buildAuthContext(req.user);
     const result = await vaultService.createTemplateVersion({
       workspace_id: getWorkspaceId(req),
       tenant_id: getTenantId(req),
@@ -519,7 +536,7 @@ export async function createTemplateVersion(req: AuthRequest, res: Response, nex
       template_version,
       schema,
       created_by: req.user!.id,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 }

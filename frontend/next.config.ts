@@ -56,6 +56,10 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
+  onDemandEntries: {
+    maxInactiveAge: 30 * 1000,
+    pagesBufferLength: 5,
+  },
   async headers() {
     return [
       {

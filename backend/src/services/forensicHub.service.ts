@@ -2,6 +2,8 @@ import { supabaseAdmin } from '../shared/supabase';
 import { createAuditEvent } from './auditTrail.service';
 import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -367,7 +369,8 @@ export async function preserveToVault(params: {
   case_id: string; evidence_ids: string[];
   retention_class: string; preservation_reason: string;
   actor_id: string; workspace_id: string;
-}): Promise<{ preserved: number; manifest_id: string }> {
+}, auth?: AuthContext): Promise<{ preserved: number; manifest_id: string }> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(params.case_id);
   if (!caseRec) throw new Error('Case not found');
 
@@ -397,7 +400,8 @@ export async function preserveToVault(params: {
     `${toPreserve.length} evidence items sent to vault. Retention: ${params.retention_class}.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'vault_status', previous_value: 'not_preserved', new_value: 'preserved', change_reason: params.preservation_reason },
-    { permission_used: 'forensic.evidence.preserve', override_reason: `Manifest: ${manifestId}` }
+    { permission_used: 'forensic.evidence.preserve', override_reason: `Manifest: ${manifestId}` },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -411,7 +415,8 @@ export async function preserveToVault(params: {
 
 // ─── Phase 2: Legal Hold ─────────────────────────────────────────────────────
 
-export async function applyLegalHold(caseId: string, reason: string, actorId: string, scope?: string): Promise<ForensicCase> {
+export async function applyLegalHold(caseId: string, reason: string, actorId: string, scope?: string, auth?: AuthContext): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
 
@@ -432,7 +437,8 @@ export async function applyLegalHold(caseId: string, reason: string, actorId: st
     `Legal hold applied. Reason: ${reason}${scope ? `. Scope: ${scope}` : ''}`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'legal_hold_active', previous_value: false, new_value: true, change_reason: reason },
-    { permission_used: 'forensic.legal_hold.apply', override_reason: scope || reason }
+    { permission_used: 'forensic.legal_hold.apply', override_reason: scope || reason },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -446,7 +452,8 @@ export async function applyLegalHold(caseId: string, reason: string, actorId: st
   return updated;
 }
 
-export async function releaseLegalHold(caseId: string, reason: string, actorId: string): Promise<ForensicCase> {
+export async function releaseLegalHold(caseId: string, reason: string, actorId: string, auth?: AuthContext): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
   if (!caseRec.legal_hold_active) throw new Error('Case is not under legal hold');
@@ -462,7 +469,8 @@ export async function releaseLegalHold(caseId: string, reason: string, actorId: 
     `Legal hold released. Reason: ${reason}`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'legal_hold_active', previous_value: true, new_value: false, change_reason: reason },
-    { permission_used: 'forensic.legal_hold.release' }
+    { permission_used: 'forensic.legal_hold.release' },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -511,10 +519,12 @@ export async function emitForensicAuditEvent(
   title: string, summary: string, object: { object_type: string; object_id: string; object_name?: string },
   change?: { field_changed?: string; previous_value?: unknown; new_value?: unknown; change_reason?: string },
   authority?: { permission_used?: string; policy_rule_id?: string; approval_required?: boolean; override_reason?: string; override_authority?: string },
+  tenantId?: string,
 ): Promise<string | null> {
   try {
     const result = await createAuditEvent({
       workspace_id: workspaceId,
+      tenant_id: tenantId || workspaceId,
       event_category: 'evidence_legal',
       event_type: eventType,
       event_title: title,
@@ -606,8 +616,9 @@ export async function getCaseByCaseId(caseId: string): Promise<ForensicCase | nu
 export async function createCase(params: {
   workspace_id: string; case_type: string; title: string; summary?: string;
   severity?: string; source?: string; source_event_ids?: string[];
-  owner_user_id?: string; sla_due_at?: string; actor_id: string;
-}): Promise<ForensicCase> {
+  owner_user_id?: string; sla_due_at?: string; actor_id: string; tenant_id?: string;
+}, auth?: AuthContext): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data, error } = await supabaseAdmin
     .from('forensic_cases')
     .insert({
@@ -621,6 +632,7 @@ export async function createCase(params: {
       source_event_ids: params.source_event_ids || [],
       owner_user_id: params.owner_user_id || null,
       sla_due_at: params.sla_due_at || calculateSlaDueAt(params.severity || 'medium'),
+      tenant_id: params.tenant_id || params.workspace_id,
     })
     .select('*, participants:case_participants(*)')
     .single();
@@ -636,7 +648,8 @@ export async function createCase(params: {
     `Forensic case "${caseRecord.title}" created as ${params.case_type}.`,
     { object_type: 'forensic_case', object_id: caseRecord.case_id },
     undefined,
-    { permission_used: 'forensic.case.create' }
+    { permission_used: 'forensic.case.create' },
+    caseRecord.tenant_id
   );
 
   // Record action
@@ -667,8 +680,9 @@ export async function updateCase(
     title?: string; summary?: string; severity?: string; status?: string;
     owner_user_id?: string; sla_due_at?: string; retention_class?: string;
     closure?: any; actor_id: string; reason: string;
-  }
+  }, auth?: AuthContext
 ): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const existing = await getCase(caseId);
   if (!existing) throw new Error('Case not found');
 
@@ -688,7 +702,8 @@ export async function updateCase(
         `Severity changed from ${existing.severity} to ${params.severity}.`,
         { object_type: 'forensic_case', object_id: existing.case_id },
         { field_changed: 'severity', previous_value: existing.severity, new_value: params.severity, change_reason: params.reason },
-        { permission_used: 'forensic.case.update_severity' }
+        { permission_used: 'forensic.case.update_severity' },
+        existing.tenant_id
       );
       await supabaseAdmin.from('case_actions').insert({
         case_id: caseId, action_type: 'severity_changed', actor_id: params.actor_id,
@@ -712,7 +727,8 @@ export async function updateCase(
       `Status changed from ${existing.status} to ${params.status}.`,
       { object_type: 'forensic_case', object_id: existing.case_id },
       { field_changed: 'status', previous_value: existing.status, new_value: params.status, change_reason: params.reason },
-      { permission_used: 'forensic.case.update_status' }
+      { permission_used: 'forensic.case.update_status' },
+      existing.tenant_id
     );
     await supabaseAdmin.from('case_actions').insert({
       case_id: caseId, action_type: 'status_changed', actor_id: params.actor_id,
@@ -729,7 +745,8 @@ export async function updateCase(
       `Owner assigned to ${params.owner_user_id}.`,
       { object_type: 'forensic_case', object_id: existing.case_id },
       { field_changed: 'owner_user_id', previous_value: existing.owner_user_id, new_value: params.owner_user_id, change_reason: params.reason },
-      { permission_used: 'forensic.case.assign' }
+      { permission_used: 'forensic.case.assign' },
+      existing.tenant_id
     );
     await supabaseAdmin.from('case_actions').insert({
       case_id: caseId, action_type: 'assignment', actor_id: params.actor_id,
@@ -749,7 +766,8 @@ export async function updateCase(
   return updated;
 }
 
-export async function addParticipant(caseId: string, userId: string, roleInCase: string, addedBy: string, reason?: string): Promise<CaseParticipant> {
+export async function addParticipant(caseId: string, userId: string, roleInCase: string, addedBy: string, reason?: string, auth?: AuthContext): Promise<CaseParticipant> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data, error } = await supabaseAdmin.from('case_participants').insert({
     case_id: caseId, user_id: userId, role_in_case: roleInCase, added_by: addedBy, added_reason: reason || null,
   }).select().single();
@@ -763,7 +781,8 @@ export async function addEvidence(params: {
   case_id: string; source_type: string; source_id: string;
   relevance?: string; hash?: string; chain_block_number?: number;
   added_by: string; added_reason: string; metadata?: any;
-}): Promise<CaseEvidenceItem> {
+}, auth?: AuthContext): Promise<CaseEvidenceItem> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(params.case_id);
   if (!caseRec) throw new Error('Case not found');
 
@@ -782,7 +801,8 @@ export async function addEvidence(params: {
     `Evidence item ${params.source_type}:${params.source_id} added.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     undefined,
-    { permission_used: 'forensic.evidence.add' }
+    { permission_used: 'forensic.evidence.add' },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -794,7 +814,8 @@ export async function addEvidence(params: {
   return data;
 }
 
-export async function pinEvidence(evidenceId: string, pinReason: string, actorId: string): Promise<void> {
+export async function pinEvidence(evidenceId: string, pinReason: string, actorId: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: item } = await supabaseAdmin.from('case_evidence_items').select('*, case:case_id(*)').eq('id', evidenceId).single();
   if (!item) throw new Error('Evidence item not found');
 
@@ -808,7 +829,8 @@ export async function pinEvidence(evidenceId: string, pinReason: string, actorId
     `Evidence ${item.source_type}:${item.source_id} pinned as key evidence.`,
     { object_type: 'forensic_case', object_id: item.case.case_id },
     undefined,
-    { permission_used: 'forensic.evidence.pin' }
+    { permission_used: 'forensic.evidence.pin' },
+    item.case.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -828,7 +850,8 @@ export async function listEvidence(caseId: string): Promise<CaseEvidenceItem[]> 
 
 export async function addNote(params: {
   case_id: string; note_class: string; content: string; author_id: string;
-}): Promise<CaseNote> {
+}, auth?: AuthContext): Promise<CaseNote> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(params.case_id);
   if (!caseRec) throw new Error('Case not found');
 
@@ -844,7 +867,8 @@ export async function addNote(params: {
     `Note (${params.note_class}) added to case.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     undefined,
-    { permission_used: 'forensic.note.add' }
+    { permission_used: 'forensic.note.add' },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -873,7 +897,8 @@ export async function listNotes(caseId: string, userRoles: string[]): Promise<Ca
 export async function addTask(params: {
   case_id: string; title: string; description?: string; owner_id: string;
   due_at?: string; evidence_link?: any;
-}): Promise<CaseTask> {
+}, auth?: AuthContext): Promise<CaseTask> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data, error } = await supabaseAdmin.from('case_tasks').insert({
     case_id: params.case_id, title: params.title, description: params.description || null,
     owner_id: params.owner_id, due_at: params.due_at || null, evidence_link: params.evidence_link || null,
@@ -889,7 +914,8 @@ export async function listTasks(caseId: string): Promise<CaseTask[]> {
   return data || [];
 }
 
-export async function updateTask(taskId: string, params: { status?: string; completion_proof?: string }): Promise<void> {
+export async function updateTask(taskId: string, params: { status?: string; completion_proof?: string }, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'evidence:view');
   const updateData: Record<string, any> = {};
   if (params.status !== undefined) { updateData.status = params.status; if (params.status === 'completed') updateData.completed_at = new Date().toISOString(); }
   if (params.completion_proof !== undefined) updateData.completion_proof = params.completion_proof;
@@ -911,7 +937,8 @@ export async function listActions(caseId: string): Promise<CaseAction[]> {
 export async function closeCase(caseId: string, params: {
   outcome: string; rationale: string; findings?: string; approval?: string;
   actor_id: string;
-}): Promise<ForensicCase> {
+}, auth?: AuthContext): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
   if (!isValidTransition(caseRec.status, 'closed')) {
@@ -939,7 +966,8 @@ export async function closeCase(caseId: string, params: {
     `Case closed with outcome: ${params.outcome}.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'status', previous_value: caseRec.status, new_value: 'closed', change_reason: params.rationale },
-    { permission_used: 'forensic.case.close', override_reason: `Outcome: ${params.outcome}` }
+    { permission_used: 'forensic.case.close', override_reason: `Outcome: ${params.outcome}` },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -1046,7 +1074,8 @@ export async function getForensicStats(workspaceId?: string): Promise<any> {
 
 // ─── Reopen Case ───────────────────────────────────────────────────────────────
 
-export async function reopenCase(caseId: string, reason: string, actorId: string): Promise<ForensicCase> {
+export async function reopenCase(caseId: string, reason: string, actorId: string, auth?: AuthContext): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
   if (!isValidTransition(caseRec.status, 'reopened')) {
@@ -1064,7 +1093,8 @@ export async function reopenCase(caseId: string, reason: string, actorId: string
     `Previously closed case reopened. Reason: ${reason}`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'status', previous_value: 'closed', new_value: 'reopened', change_reason: reason },
-    { permission_used: 'forensic.case.reopen' }
+    { permission_used: 'forensic.case.reopen' },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -1101,7 +1131,8 @@ const EXPORT_TYPES: Record<string, { formats: string[]; required_scope: string[]
 export async function createExport(params: {
   case_id: string; package_type: string; format: string; redaction_profile: string;
   reason: string; actor_id: string; scope?: any; delivery_method?: string;
-}): Promise<CaseExport> {
+}, auth?: AuthContext): Promise<CaseExport> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(params.case_id);
   if (!caseRec) throw new Error('Case not found');
 
@@ -1134,7 +1165,8 @@ export async function createExport(params: {
     `Export package (${params.package_type}/${params.format}) requested. Reason: ${params.reason}`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     undefined,
-    { permission_used: 'forensic.export.create' }
+    { permission_used: 'forensic.export.create' },
+    caseRec.tenant_id
   );
 
   await supabaseAdmin.from('case_actions').insert({
@@ -1152,7 +1184,8 @@ export async function listExports(caseId: string): Promise<CaseExport[]> {
   return data || [];
 }
 
-export async function approveExport(exportId: string, actorId: string): Promise<CaseExport> {
+export async function approveExport(exportId: string, actorId: string, auth?: AuthContext): Promise<CaseExport> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: exp } = await supabaseAdmin.from('case_exports').select('*').eq('id', exportId).single();
   if (!exp) throw new Error('Export not found');
   if (exp.status !== 'pending_approval') throw new Error(`Cannot approve export in status: ${exp.status}`);
@@ -1162,12 +1195,13 @@ export async function approveExport(exportId: string, actorId: string): Promise<
   }).eq('id', exportId);
 
   await emitForensicAuditEvent(
-    'forensic.export_approved', '', actorId,
+    'forensic.export_approved', exp.workspace_id, actorId,
     `Export Approved: ${exp.id.substring(0, 8)}`,
     `Export package ${exp.package_type}/${exp.format} approved by ${actorId}.`,
     { object_type: 'case_export', object_id: exp.id },
     { field_changed: 'status', previous_value: 'pending_approval', new_value: 'approved' },
-    { permission_used: 'forensic.export.approve' }
+    { permission_used: 'forensic.export.approve' },
+    exp.workspace_id
   );
 
   const { data: updated } = await supabaseAdmin.from('case_exports').select('*').eq('id', exportId).single();
@@ -1175,7 +1209,8 @@ export async function approveExport(exportId: string, actorId: string): Promise<
   return updated;
 }
 
-export async function rejectExport(exportId: string, reason: string, _actorId: string): Promise<CaseExport> {
+export async function rejectExport(exportId: string, reason: string, _actorId: string, auth?: AuthContext): Promise<CaseExport> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: exp } = await supabaseAdmin.from('case_exports').select('*').eq('id', exportId).single();
   if (!exp) throw new Error('Export not found');
   if (exp.status !== 'pending_approval') throw new Error(`Cannot reject export in status: ${exp.status}`);
@@ -1189,7 +1224,8 @@ export async function rejectExport(exportId: string, reason: string, _actorId: s
   return updated;
 }
 
-export async function generateExportPackage(exportId: string, actorId: string): Promise<CaseExport> {
+export async function generateExportPackage(exportId: string, actorId: string, auth?: AuthContext): Promise<CaseExport> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: exp } = await supabaseAdmin.from('case_exports').select('*').eq('id', exportId).single();
   if (!exp) throw new Error('Export not found');
   if (exp.status !== 'approved' && exp.status !== 'draft') {
@@ -1243,7 +1279,8 @@ export async function generateExportPackage(exportId: string, actorId: string): 
     `Export package generated. Manifest: ${manifestHash}`,
     { object_type: 'case_export', object_id: exportId },
     { field_changed: 'status', previous_value: 'generating', new_value: 'ready', change_reason: `Manifest: ${manifestHash}` },
-    { permission_used: 'forensic.export.generate' }
+    { permission_used: 'forensic.export.generate' },
+    caseRec.tenant_id
   );
 
   const { data: updated } = await supabaseAdmin.from('case_exports').select('*').eq('id', exportId).single();
@@ -1319,7 +1356,8 @@ export async function getEntityGraph(caseId: string): Promise<{ nodes: any[]; ed
 
 // ─── Phase 3: Privilege Controls ────────────────────────────────────────────────
 
-export async function markEvidencePrivileged(evidenceId: string, actorId: string): Promise<void> {
+export async function markEvidencePrivileged(evidenceId: string, actorId: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: item } = await supabaseAdmin.from('case_evidence_items')
     .select('*, case:case_id(*)').eq('id', evidenceId).single();
   if (!item) throw new Error('Evidence item not found');
@@ -1334,11 +1372,13 @@ export async function markEvidencePrivileged(evidenceId: string, actorId: string
     `Evidence item ${item.id.substring(0, 8)} marked as privileged.`,
     { object_type: 'forensic_case', object_id: item.case.case_id },
     { field_changed: 'privilege_flag', previous_value: false, new_value: true },
-    { permission_used: 'forensic.privilege.apply' }
+    { permission_used: 'forensic.privilege.apply' },
+    item.case.tenant_id
   );
 }
 
-export async function unpinEvidence(evidenceId: string, reason: string, actorId: string): Promise<void> {
+export async function unpinEvidence(evidenceId: string, reason: string, actorId: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: item } = await supabaseAdmin.from('case_evidence_items')
     .select('*, case:case_id(*)').eq('id', evidenceId).single();
   if (!item) throw new Error('Evidence item not found');
@@ -1354,6 +1394,7 @@ export async function unpinEvidence(evidenceId: string, reason: string, actorId:
     `Evidence unpinned. Reason: ${reason}`,
     { object_type: 'forensic_case', object_id: item.case.case_id },
     { field_changed: 'is_pinned', previous_value: true, new_value: false, change_reason: reason },
-    { permission_used: 'forensic.evidence.unpin' }
+    { permission_used: 'forensic.evidence.unpin' },
+    item.case.tenant_id
   );
 }

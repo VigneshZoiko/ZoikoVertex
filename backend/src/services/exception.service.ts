@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '../shared/supabase';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 import { v4 as uuidv4 } from 'uuid';
 import { broadcastWebhookEvent } from '../domains/integrations/apiWebhookController';
 import { logger } from '../shared/logger';
@@ -42,7 +44,8 @@ export interface ExceptionCaseInput {
 
 // ─── Exception Cases ──────────────────────────────────────────────────────
 
-export async function createExceptionCase(input: ExceptionCaseInput): Promise<ExceptionCase> {
+export async function createExceptionCase(input: ExceptionCaseInput, auth?: AuthContext): Promise<ExceptionCase> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const id = uuidv4();
   const { data, error } = await supabaseAdmin.from('exception_cases').insert({
     id, tenant_id: input.tenant_id, workspace_id: input.workspace_id,
@@ -134,7 +137,8 @@ export async function getExceptionCase(id: string, tenant_id: string): Promise<E
   return data as unknown as ExceptionCase | null;
 }
 
-export async function updateExceptionCase(id: string, tenant_id: string, updates: Partial<ExceptionCase>): Promise<ExceptionCase> {
+export async function updateExceptionCase(id: string, tenant_id: string, updates: Partial<ExceptionCase>, auth?: AuthContext): Promise<ExceptionCase> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const { data, error } = await supabaseAdmin
     .from('exception_cases')
     .update(updates)
@@ -184,7 +188,8 @@ export async function getExceptionStats(tenant_id: string) {
 
 // ─── Assignment ───────────────────────────────────────────────────────────
 
-export async function assignOwner(exceptionId: string, tenant_id: string, userId: string, ownerId: string): Promise<ExceptionCase> {
+export async function assignOwner(exceptionId: string, tenant_id: string, userId: string, ownerId: string, auth?: AuthContext): Promise<ExceptionCase> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const ec = await getExceptionCase(exceptionId, tenant_id);
   if (!ec) throw new Error('Exception case not found');
 
@@ -203,7 +208,8 @@ export async function assignOwner(exceptionId: string, tenant_id: string, userId
   return getExceptionCase(exceptionId, tenant_id) as Promise<ExceptionCase>;
 }
 
-export async function updateSeverity(exceptionId: string, tenant_id: string, userId: string, severity: ExceptionSeverity): Promise<ExceptionCase> {
+export async function updateSeverity(exceptionId: string, tenant_id: string, userId: string, severity: ExceptionSeverity, auth?: AuthContext): Promise<ExceptionCase> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const ec = await getExceptionCase(exceptionId, tenant_id);
   if (!ec) throw new Error('Exception case not found');
 
@@ -221,7 +227,8 @@ export async function updateSeverity(exceptionId: string, tenant_id: string, use
   return getExceptionCase(exceptionId, tenant_id) as Promise<ExceptionCase>;
 }
 
-export async function updateStatus(exceptionId: string, tenant_id: string, userId: string, status: ExceptionStatus): Promise<ExceptionCase> {
+export async function updateStatus(exceptionId: string, tenant_id: string, userId: string, status: ExceptionStatus, auth?: AuthContext): Promise<ExceptionCase> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const ec = await getExceptionCase(exceptionId, tenant_id);
   if (!ec) throw new Error('Exception case not found');
 
@@ -251,7 +258,8 @@ export async function addBlocker(exceptionId: string, input: {
   related_approval_id?: string; related_callback_id?: string;
   blocking_dependency?: string; required_action?: string;
   required_owner_id?: string; automatic_remediation_available?: boolean;
-}): Promise<{ id: string }> {
+}, auth?: AuthContext): Promise<{ id: string }> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const id = uuidv4();
   const { error } = await supabaseAdmin.from('exception_blockers').insert({
     id, exception_id: exceptionId,
@@ -280,7 +288,8 @@ export async function addRemediation(exceptionId: string, input: {
   due_at?: string; target_destination?: string;
   required_validation?: boolean; required_approval?: boolean;
   required_evidence?: string; notes?: string;
-}): Promise<{ id: string }> {
+}, auth?: AuthContext): Promise<{ id: string }> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const id = uuidv4();
   const { error } = await supabaseAdmin.from('exception_remediation').insert({
     id, exception_id: exceptionId,
@@ -292,7 +301,8 @@ export async function addRemediation(exceptionId: string, input: {
   return { id };
 }
 
-export async function completeRemediation(remediationId: string): Promise<void> {
+export async function completeRemediation(remediationId: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'exceptions:manage');
   await supabaseAdmin.from('exception_remediation')
     .update({ completion_status: 'COMPLETED', completed_at: new Date().toISOString() })
     .eq('id', remediationId);
@@ -312,7 +322,8 @@ export async function getRemediations(exceptionId: string): Promise<any[]> {
 
 export async function escalateCase(exceptionId: string, tenant_id: string, userId: string, input: {
   reason: string; severity?: string; target_role?: string; target_user_id?: string; note?: string;
-}): Promise<void> {
+}, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const id = uuidv4();
   await supabaseAdmin.from('exception_escalations').insert({
     id, exception_id: exceptionId,
@@ -340,7 +351,8 @@ export async function requestOverride(exceptionId: string, input: {
   override_reason: string; requested_by: string;
   requested_outcome: string; risk_acknowledgement?: string;
   evidence_attached?: string[]; expires_at?: string;
-}): Promise<{ id: string }> {
+}, auth?: AuthContext): Promise<{ id: string }> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const id = uuidv4();
   const { error } = await supabaseAdmin.from('exception_overrides').insert({
     id, exception_id: exceptionId,
@@ -356,7 +368,8 @@ export async function requestOverride(exceptionId: string, input: {
   return { id };
 }
 
-export async function decideOverride(overrideId: string, decision: 'APPROVED' | 'DENIED', authorityId: string, note?: string): Promise<void> {
+export async function decideOverride(overrideId: string, decision: 'APPROVED' | 'DENIED', authorityId: string, note?: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'exceptions:manage');
   await supabaseAdmin.from('exception_overrides')
     .update({
       override_status: decision,
@@ -373,7 +386,8 @@ export async function decideOverride(overrideId: string, decision: 'APPROVED' | 
 export async function addEvidence(exceptionId: string, input: {
   evidence_type: string; evidence_reference: string;
   source_module: string; created_by: string;
-}): Promise<{ id: string }> {
+}, auth?: AuthContext): Promise<{ id: string }> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const id = uuidv4();
   const { error } = await supabaseAdmin.from('exception_evidence').insert({
     id, exception_id: exceptionId,
@@ -400,7 +414,8 @@ export async function resolveCase(exceptionId: string, tenant_id: string, userId
   corrective_action?: string; preventive_action?: string;
   final_destination?: string; evidence_attached?: string[];
   post_resolution_audit_required?: boolean;
-}): Promise<void> {
+}, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const id = uuidv4();
   await supabaseAdmin.from('exception_resolutions').insert({
     id, exception_id: exceptionId,
@@ -442,7 +457,8 @@ export async function getAuditTrail(exceptionId: string): Promise<any[]> {
 
 // ─── Send to Other Modules ────────────────────────────────────────────────
 
-export async function sendToValidation(exceptionId: string, tenant_id: string, userId: string): Promise<void> {
+export async function sendToValidation(exceptionId: string, tenant_id: string, userId: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const ec = await getExceptionCase(exceptionId, tenant_id);
   if (!ec) throw new Error('Exception case not found');
   await updateStatus(exceptionId, tenant_id, userId, 'WAITING_ON_VALIDATION');
@@ -463,7 +479,8 @@ export async function sendToValidation(exceptionId: string, tenant_id: string, u
   internalEventBus.emit('exception.sent_to_validation', { exception_id: exceptionId, source_module: ec.source_module });
 }
 
-export async function sendToApprovals(exceptionId: string, tenant_id: string, userId: string): Promise<void> {
+export async function sendToApprovals(exceptionId: string, tenant_id: string, userId: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const ec = await getExceptionCase(exceptionId, tenant_id);
   if (!ec) throw new Error('Exception case not found');
   await updateStatus(exceptionId, tenant_id, userId, 'WAITING_ON_APPROVAL');
@@ -484,7 +501,8 @@ export async function sendToApprovals(exceptionId: string, tenant_id: string, us
   internalEventBus.emit('exception.sent_to_approvals', { exception_id: exceptionId, source_module: ec.source_module });
 }
 
-export async function sendToQualityAudit(exceptionId: string, tenant_id: string, _userId: string): Promise<void> {
+export async function sendToQualityAudit(exceptionId: string, tenant_id: string, _userId: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const ec = await getExceptionCase(exceptionId, tenant_id);
   if (!ec) throw new Error('Exception case not found');
   try {
@@ -506,7 +524,8 @@ export async function sendToQualityAudit(exceptionId: string, tenant_id: string,
 
 // ─── Export ───────────────────────────────────────────────────────────────
 
-export async function exportExceptionRecord(exceptionId: string, tenant_id: string): Promise<Record<string, unknown> | null> {
+export async function exportExceptionRecord(exceptionId: string, tenant_id: string, auth?: AuthContext): Promise<Record<string, unknown> | null> {
+  requireAnyPermission(auth, 'exceptions:manage');
   const ec = await getExceptionCase(exceptionId, tenant_id);
   if (!ec) return null;
 

@@ -41,6 +41,9 @@ interface Campaign {
   start_at?: string | null; end_at?: string | null;
   targeting?: Record<string, unknown>; creative?: Record<string, unknown>;
   wizard_step?: number; created_at: string; created_by?: string;
+  selected_meta_account_id?: string | null;
+  meta_account_name?: string | null;
+  meta_ad_account_name?: string | null;
 }
 
 interface Boost {
@@ -80,7 +83,7 @@ export default function CampaignDetailPage() {
   const [campaign,  setCampaign]  = useState<Campaign | null>(null);
   const [boosts,    setBoosts]    = useState<Boost[]>([]);
   const [insights,  setInsights]  = useState<Insights | null>(null);
-  const [tab,       setTab]       = useState<"overview" | "ads">("overview");
+  const [tab,       setTab]       = useState<"overview" | "adset" | "ads">("overview");
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string | null>(null);
   const [menu,      setMenu]      = useState(false);
@@ -262,12 +265,12 @@ export default function CampaignDetailPage() {
 
       {/* ── Tabs ─────────────────────────────────────────────── */}
       <div className="shrink-0 flex border-b border-zinc-800/60 px-6">
-        {(["overview", "ads"] as const).map(t => (
+        {(["overview", "adset", "ads"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all capitalize ${
               tab === t ? "border-zinc-300 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
             }`}>
-            {t === "ads" ? `Ads (${boosts.length})` : t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === "ads" ? `Ads (${boosts.length})` : t === "adset" ? "Ad Set" : "Overview"}
           </button>
         ))}
       </div>
@@ -287,7 +290,12 @@ export default function CampaignDetailPage() {
                 {/* AD ACCOUNT */}
                 <div>
                   <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Ad Account</p>
-                  <p className="text-sm text-zinc-300 font-medium">Your workspace</p>
+                  <p className="text-sm text-zinc-300 font-medium">
+                    {campaign.meta_account_name || "—"}
+                  </p>
+                  {campaign.meta_ad_account_name && (
+                    <p className="text-[11px] text-zinc-500 mt-0.5 font-mono">{campaign.meta_ad_account_name}</p>
+                  )}
                   <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />Active
                   </span>
@@ -572,6 +580,170 @@ export default function CampaignDetailPage() {
             )}
           </div>
         )}
+
+        {/* ════ AD SET ════ */}
+        {tab === "adset" && (() => {
+          const metaAdsetId = (campaign as any).meta_adset_id || null;
+          const metaCampaignId = (campaign as any).meta_campaign_id || null;
+          const obj = (campaign.objective || "").toUpperCase().replace(/ /g, "_");
+          const rawOptimize = (campaign as any).boost_settings?.optimize || "";
+          const optimizeLabelMap: Record<string, string> = {
+            LANDING_PAGE_VIEWS: "Landing Page Views",
+            LINK_CLICKS: "Link Clicks",
+            REACH: "Reach",
+            POST_ENGAGEMENT: "Post Engagement",
+            THRUPLAY: "ThruPlay (Video)",
+            TWO_SECOND_VIDEO_VIEWS: "2-Second Video Views",
+            OFFSITE_CONVERSIONS: "Offsite Conversions",
+            LEAD_GENERATION: "Lead Generation",
+            QUALITY_LEAD: "Quality Lead",
+            AD_RECALL_LIFT: "Ad Recall Lift",
+            CONVERSATIONS: "Conversations",
+            IMPRESSIONS: "Impressions",
+          };
+          const fallbackOptMap: Record<string, string> = {
+            TRAFFIC: "Landing Page Views", AWARENESS: "Reach",
+            ENGAGEMENT: "Post Engagement", LEAD_GENERATION: "Lead Generation",
+            CONVERSIONS: "Offsite Conversions",
+          };
+          const optimization = rawOptimize
+            ? (optimizeLabelMap[rawOptimize] || rawOptimize)
+            : (fallbackOptMap[obj] || "Landing Page Views");
+          const billingMap: Record<string, string> = {
+            THRUPLAY: "ThruPlay", LINK_CLICKS: "Link Clicks",
+          };
+          const billing = billingMap[rawOptimize] || "Impressions";
+          const geo = (targeting?.geography as any[]) || [];
+          const interests = (targeting?.interests as any[]) || [];
+          const budgetDaily = campaign.budget_daily;
+          const budgetTotal = campaign.budget_total;
+          const currency = campaign.budget_currency ?? "USD";
+
+          return (
+            <div className="space-y-8 max-w-5xl">
+              {/* Ad Set Identity */}
+              <section>
+                <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Ad Set Details</p>
+                <div className="grid grid-cols-3 gap-x-12 gap-y-6">
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Ad Set Name</p>
+                    <p className="text-sm text-zinc-300 font-medium">{campaign.name} — Ad Set</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Optimization Goal</p>
+                    <p className="text-sm text-zinc-300 font-medium">{optimization}</p>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">Billing: {billing}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Bid Strategy</p>
+                    <p className="text-sm text-zinc-300 font-medium">Lowest Cost</p>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">No bid cap</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Budget</p>
+                    {budgetDaily
+                      ? <p className="text-sm text-zinc-300 font-medium">{currency} {budgetDaily.toLocaleString()} / day</p>
+                      : budgetTotal
+                      ? <p className="text-sm text-zinc-300 font-medium">{currency} {budgetTotal.toLocaleString()} total</p>
+                      : <p className="text-sm text-zinc-600">Not set</p>}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Start Date</p>
+                    <p className="text-sm text-zinc-300">{fmt(campaign.start_at)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">End Date</p>
+                    <p className="text-sm text-zinc-300">{fmt(campaign.end_at)}</p>
+                  </div>
+                </div>
+
+                {/* Meta IDs */}
+                {(metaCampaignId || metaAdsetId) && (
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    {metaCampaignId && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-[11px] text-zinc-400 font-mono">
+                        <span className="text-zinc-600">Campaign ID:</span> {metaCampaignId}
+                      </span>
+                    )}
+                    {metaAdsetId && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-[11px] text-zinc-400 font-mono">
+                        <span className="text-zinc-600">Ad Set ID:</span> {metaAdsetId}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              <div className="border-t border-zinc-800/60" />
+
+              {/* Targeting */}
+              <section>
+                <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Targeting</p>
+                <div className="space-y-4">
+                  {/* Age & Gender */}
+                  <div className="grid grid-cols-3 gap-x-12">
+                    <div>
+                      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Age Range</p>
+                      <p className="text-sm text-zinc-300">{String(targeting?.age_min ?? 18)}–{String(targeting?.age_max ?? 65)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Gender</p>
+                      <p className="text-sm text-zinc-300 capitalize">
+                        {!targeting?.gender || targeting.gender === "ALL" ? "All genders" : String(targeting.gender)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Advantage Audience</p>
+                      <p className="text-sm text-zinc-300">Off</p>
+                    </div>
+                  </div>
+
+                  {/* Geography */}
+                  {geo.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Locations</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {geo.map((g: any, i: number) => {
+                          const label = typeof g === "object" ? (g.display_name || g.key || JSON.stringify(g)) : String(g);
+                          return <span key={i} className="px-2.5 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-300">{label}</span>;
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Interests */}
+                  {interests.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2">Interests</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {interests.map((t: any, i: number) => {
+                          const label = typeof t === "object" ? (t.name || t.id || JSON.stringify(t)) : String(t);
+                          return <span key={i} className="px-2.5 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-300">{label}</span>;
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {geo.length === 0 && interests.length === 0 && (
+                    <p className="text-sm text-zinc-600">Worldwide, all audiences</p>
+                  )}
+                </div>
+              </section>
+
+              <div className="border-t border-zinc-800/60" />
+
+              {/* Status */}
+              <section>
+                <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Status</p>
+                <div className="flex items-center gap-3">
+                  <span className={`w-2 h-2 rounded-full ${campaign.status === "ACTIVE" ? "bg-emerald-400" : "bg-zinc-500"}`} />
+                  <p className="text-sm text-zinc-300 font-medium capitalize">{campaign.status.toLowerCase()}</p>
+                  <span className="text-zinc-600 text-xs">— Ad set is paused until campaign is activated</span>
+                </div>
+              </section>
+            </div>
+          );
+        })()}
 
         {/* ════ ADS ════ */}
         {tab === "ads" && (

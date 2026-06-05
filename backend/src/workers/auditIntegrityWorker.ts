@@ -15,7 +15,8 @@ export function initAuditIntegrityWorker() {
       const { data: rows } = await supabaseAdmin
         .from('workspaces')
         .select('id')
-        .eq('status', 'ACTIVE');
+        .eq('status', 'ACTIVE')
+        .limit(50);
 
       if (!rows || rows.length === 0) return;
 

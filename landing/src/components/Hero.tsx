@@ -18,8 +18,8 @@ import {
 
 export default function Hero() {
   return (
-    <section className="bg-[#080812] pt-32 pb-12 px-6 xl:px-12 overflow-hidden">
-      <div className="mx-auto max-w-[1280px] grid items-center gap-10 lg:grid-cols-[42%_58%]">
+    <section className="bg-[#080812] pt-20 pb-16 px-6 xl:px-16 overflow-x-clip">
+      <div className="mx-auto max-w-[1440px] grid items-center gap-10 lg:grid-cols-[42%_58%]">
 
         {/* Left — text */}
         <div className="flex flex-col">
@@ -84,7 +84,7 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Right — dashboard mockup (image already has browser chrome built in) */}
+        {/* Right — dashboard mockup */}
         <div className="hidden lg:flex items-center justify-end w-full">
           <Image
             src="/images/Vertex img.png"
