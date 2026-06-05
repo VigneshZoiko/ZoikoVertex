@@ -75,7 +75,8 @@ export function initDlpScanWorker() {
       const { data: pendingPackages } = await supabaseAdmin
         .from('vault_packages')
         .select('id, package_id, workspace_id, tenant_id')
-        .eq('status', 'sealed');
+        .eq('status', 'sealed')
+        .limit(10);
 
       if (!pendingPackages || pendingPackages.length === 0) {
         workerRunning = false;

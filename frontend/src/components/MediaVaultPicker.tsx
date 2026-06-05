@@ -46,7 +46,7 @@ export default function MediaVaultPicker({
   }, [search, load]);
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 shrink-0">
@@ -81,8 +81,8 @@ export default function MediaVaultPicker({
           ) : assets.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 gap-2">
               <ImageIcon className="w-8 h-8 text-zinc-700" />
-              <p className="text-xs text-zinc-500">No media found in vault</p>
-              <p className="text-[11px] text-zinc-600">Upload media in the Library first</p>
+              <p className="text-xs text-zinc-500">{search ? "No results for that search" : "No images in your Media Vault yet"}</p>
+              <p className="text-[11px] text-zinc-600">{search ? "Try a different keyword" : "Upload an image using the upload button — it will appear here automatically"}</p>
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
