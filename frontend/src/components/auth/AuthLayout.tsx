@@ -3,6 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { ShieldCheck, Bot, FileCheck, Lock } from "lucide-react";
+import Navbar from "@/components/landing/Navbar";
 
 const TRUST_BULLETS = [
   { icon: ShieldCheck, text: "Role-based access control + immutable audit trail" },
@@ -13,7 +14,9 @@ const TRUST_BULLETS = [
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#080E1A] flex">
+    <div className="min-h-screen bg-[#080E1A]">
+      <Navbar />
+    <div className="flex pt-16">
       {/* Left brand panel */}
       <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0C1422] border-r border-white/10 w-[44%] shrink-0">
         <div className="max-w-sm">
@@ -58,6 +61,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="flex flex-1 items-center justify-center px-6 py-12">
         {children}
       </div>
+    </div>
     </div>
   );
 }
