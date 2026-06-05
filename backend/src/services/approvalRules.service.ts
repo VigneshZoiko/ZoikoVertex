@@ -793,6 +793,43 @@ export async function detectRuleConflicts(approval_rule_id: string, tenant_id: s
   return conflicts;
 }
 
+
+export async function matchActiveRules(params: {
+  workspace_id: string;
+  item_type?: string;
+  source_module?: string;
+  platform?: string;
+  risk_level?: string;
+}) {
+  const { data: rules, error } = await supabaseAdmin
+    .from('approval_rules')
+    .select('id, rule_priority')
+    .eq('workspace_id', params.workspace_id)
+    .eq('rule_status', 'ACTIVE')
+    .order('rule_priority', { ascending: false });
+
+  if (error || !rules || rules.length === 0) return null;
+
+  for (const rule of rules) {
+    const scope = await getRuleScope(rule.id);
+    if (!scope) continue;
+
+    const s = scope as Record<string, unknown>;
+    let matches = true;
+
+    if (s.item_type && s.item_type !== params.item_type) matches = false;
+    if (s.source_module && s.source_module !== params.source_module) matches = false;
+    if (s.platform && s.platform !== params.platform) matches = false;
+    if (s.risk_classification && s.risk_classification !== params.risk_level) matches = false;
+
+    if (matches) {
+      return await getRuleDetails(rule.id);
+    }
+  }
+
+  return null;
+}
+
 export async function runSimulation(params: {
   approval_rule_id: string;
   simulated_by: string;

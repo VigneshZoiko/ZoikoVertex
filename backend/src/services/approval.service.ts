@@ -5,6 +5,7 @@ import { broadcastWebhookEvent } from '../domains/integrations/apiWebhookControl
 import { logger } from '../shared/logger';
 import type { AuthContext } from '../shared/serviceAuth';
 import { requireAnyPermission } from '../shared/serviceAuth';
+import * as rulesService from './approvalRules.service';
 
 export type ApprovalItemStatus = 'PENDING_APPROVAL' | 'IN_REVIEW' | 'WAITING_ON_OTHERS' | 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED' | 'ESCALATED' | 'CONDITIONAL_APPROVAL' | 'BLOCKED' | 'CANCELLED' | 'COMPLETED' | 'ARCHIVED';
 export type ApprovalItemType = 'SOCIAL_POST' | 'INBOX_REPLY' | 'CAMPAIGN_ASSET' | 'AGENT_ACTION' | 'WORKFLOW_OUTPUT' | 'VALIDATION_OVERRIDE' | 'EXCEPTION_OUTCOME' | 'RESTRICTED_OPERATION' | 'COMPLIANCE_SENSITIVE_ITEM' | 'PUBLISHING_ACTION';
@@ -93,6 +94,61 @@ export interface ApprovalCallback {
 
 // ─── Approval Items ──────────────────────────────────────────────────────
 
+async function applyApprovalRules(item: ApprovalItem): Promise<void> {
+  try {
+    const rule = await rulesService.matchActiveRules({
+      workspace_id: item.workspace_id,
+      item_type: item.item_type,
+      source_module: item.source_module,
+      risk_level: item.risk_level,
+    });
+
+    if (rule && rule.path) {
+      // 1. Update the item with the rule_id
+      await supabaseAdmin
+        .from('approval_items')
+        .update({ approval_rule_id: rule.id, approval_rule_version: rule.active_version })
+        .eq('id', item.id);
+
+      // 2. Map path_type (handling 'SINGLE_APPROVER' -> 'SINGLE')
+      let mappedPathType: PathType = 'SEQUENTIAL';
+      const rt = (rule.path as any).path_type;
+      if (rt === 'SINGLE_APPROVER') mappedPathType = 'SINGLE';
+      else if (rt === 'MULTI_STAGE_HYBRID') mappedPathType = 'SEQUENTIAL';
+      else mappedPathType = rt as PathType;
+
+      // 3. Create the approval path
+      const pathId = uuidv4();
+      await supabaseAdmin.from('approval_paths').insert({
+        id: pathId,
+        approval_item_id: item.id,
+        path_type: mappedPathType,
+        current_stage: 1,
+        total_stages: (rule.path as any).stages?.length || 1,
+        required_approval_level: (rule.path as any).required_approval_level || 1,
+      });
+
+      // 4. Create stages
+      const stages = (rule.path as any).stages || [];
+      for (const stage of stages) {
+        await supabaseAdmin.from('approval_stages').insert({
+          id: uuidv4(),
+          approval_path_id: pathId,
+          stage_order: stage.stage_order,
+          stage_type: stage.stage_type,
+          required_role: stage.required_role,
+          required_user: stage.required_user,
+          stage_status: stage.stage_order === 1 ? 'IN_PROGRESS' : 'PENDING',
+        });
+      }
+      
+      logger.info({ itemId: item.id, ruleId: rule.id }, '[Approvals] Automatically applied approval rule');
+    }
+  } catch (err) {
+    logger.error({ err, itemId: item.id }, '[Approvals] Failed to apply rules');
+  }
+}
+
 export async function createApprovalItem(input: ApprovalItemInput, auth?: AuthContext): Promise<ApprovalItem> {
   requireAnyPermission(auth, 'approvals:manage');
   const id = uuidv4();
@@ -116,6 +172,13 @@ export async function createApprovalItem(input: ApprovalItemInput, auth?: AuthCo
   }).select().single();
   if (error) throw error;
 
+  const item = data as unknown as ApprovalItem;
+
+  // Automatically apply rules if no explicit rule was provided
+  if (!input.approval_rule_id) {
+    await applyApprovalRules(item);
+  }
+
   await createAuditLog({
     tenant_id: input.tenant_id,
     approval_item_id: id,
@@ -132,7 +195,7 @@ export async function createApprovalItem(input: ApprovalItemInput, auth?: AuthCo
     risk_level: input.risk_level,
   }).catch((err) => logger.warn({ error: String(err) }, 'Webhook broadcast failed (non-blocking)'));
 
-  return data as unknown as ApprovalItem;
+  return item;
 }
 
 export async function listApprovalItems(params: {
