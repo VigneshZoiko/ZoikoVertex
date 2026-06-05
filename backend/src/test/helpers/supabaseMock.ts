@@ -105,6 +105,10 @@ class QueryBuilder {
 
   eq(col: string, val: any) { this.preds.push((r) => r[col] === val); return this; }
   neq(col: string, val: any) { this.preds.push((r) => r[col] !== val); return this; }
+  lt(col: string, val: any) { this.preds.push((r) => r[col] < val); return this; }
+  lte(col: string, val: any) { this.preds.push((r) => r[col] <= val); return this; }
+  gt(col: string, val: any) { this.preds.push((r) => r[col] > val); return this; }
+  gte(col: string, val: any) { this.preds.push((r) => r[col] >= val); return this; }
   in(col: string, vals: any[]) { const set = new Set(vals); this.preds.push((r) => set.has(r[col])); return this; }
   is(col: string, val: any) { this.preds.push((r) => (val === null ? r[col] == null : r[col] === val)); return this; }
   not(col: string, op: string, val: any) {
@@ -214,6 +218,7 @@ export const supabaseAdmin = {
   from(table: string) {
     return new QueryBuilder(table);
   },
+  rpc: () => Promise.resolve({ data: null, error: null }),
 };
 
 // Mirror the real module's named exports so the mock is a drop-in.

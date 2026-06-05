@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
@@ -14,6 +15,7 @@ import {
   Filter,
   Flag,
   Gauge,
+  Hand,
   PauseCircle,
   PlayCircle,
   RefreshCcw,
@@ -34,6 +36,8 @@ import { useAgentOperations } from "./useAgentOperations";
 const STATUS_OPTIONS = ["", "SCHEDULED", "QUEUED", "RUNNING", "WAITING_HUMAN_REVIEW", "POLICY_BLOCKED", "FAILED", "PAUSED", "COMPLETED", "QUARANTINED"];
 const SEVERITY_OPTIONS = ["", "normal", "attention", "warning", "critical", "blocked"];
 const ENV_OPTIONS = ["", "production", "staging", "sandbox"];
+const POLICY_RESULT_OPTIONS = ["", "pass", "warning", "blocked", "pending_review", "not_applicable"];
+const BRAND_OPTIONS = ["", "luxe", "essence", "vivid", "neutral", "prestige", "artisan", "studio"];
 const QUEUE_TABS = ["all", "approval", "failure", "retry", "human_review", "publishing", "exception"];
 
 function formatDate(value?: string | null) {
@@ -263,7 +267,7 @@ function QueuePanel({ queues, onAssign, onResolve }: { queues: QueueItem[]; onAs
   );
 }
 
-function RunDetailDrawer({ open, detail, timeline, loading, onClose, onAction }: { open: boolean; detail: ReturnType<typeof useAgentOperations>["selectedDetail"]; timeline: ReturnType<typeof useAgentOperations>["timeline"]; loading: boolean; onClose: () => void; onAction: (action: RuntimeAction) => void }) {
+function RunDetailDrawer({ open, detail, timeline, loading, onClose, onAction }: { open: boolean; detail: ReturnType<typeof useAgentOperations>["selectedDetail"]; timeline: ReturnType<typeof useAgentOperations>["timeline"]; loading: boolean; onClose: () => void; onAction: (action: RuntimeAction | "export_output_snapshot") => void }) {
   const [tab, setTab] = useState("overview");
   const run = detail?.run ?? null;
   if (!open) return null;
@@ -288,6 +292,8 @@ function RunDetailDrawer({ open, detail, timeline, loading, onClose, onAction }:
           <ActionButton action="escalate" run={run} label="Escalate" icon={Flag} onAction={onAction} />
           <ActionButton action="emergency_pause" run={run} label="Emergency Pause" icon={Siren} onAction={onAction} />
           <ActionButton action="restricted_mode" run={run} label="Restricted Mode" icon={Ban} onAction={onAction} />
+          <ActionButton action="hold" run={run} label="Hold" icon={PauseCircle} onAction={onAction} />
+          <ActionButton action="release_hold" run={run} label="Release Hold" icon={PlayCircle} onAction={onAction} />
         </div>
       </div>
       <div className="border-b border-[var(--border)] px-5 py-3">
@@ -305,15 +311,15 @@ function RunDetailDrawer({ open, detail, timeline, loading, onClose, onAction }:
           <div className="grid gap-3 md:grid-cols-2">
             {[
               ["Agent", `${run.agent_name} · ${run.agent_type}`],
-              ["Workflow", `${run.workflow_name || "Unknown"} · ${run.workflow_version || "version missing"}`],
+              ["Workflow", run.workflow_id ? <Link href={`/agents/workflows?id=${run.workflow_id}`} className="underline underline-offset-2 decoration-[var(--border)] hover:decoration-[var(--gold)]">{run.workflow_name || "Unknown"} · {run.workflow_version || "version missing"}</Link> : `${run.workflow_name || "Unknown"} · ${run.workflow_version || "version missing"}`],
               ["Owner", run.owner_name || "Unassigned"],
               ["Environment", run.environment],
               ["Brand / Campaign", `${run.brand_name || run.brand_id || "Brand scoped"} / ${run.campaign_name || "No campaign"}`],
               ["Timing", `Started ${formatDate(run.started_at)} · Due ${formatDate(run.due_at)}`],
               ["Retry linkage", run.original_run_id ? `Retry of ${run.original_run_id}` : "Original attempt"],
               ["Last event", run.last_event || formatDate(run.last_event_at)],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
+            ].map(([label, value], idx) => (
+              <div key={idx} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
                 <p className="text-xs text-[var(--foreground-muted)]">{label}</p>
                 <p className="mt-1 text-sm font-semibold text-[var(--foreground)]">{value}</p>
               </div>
@@ -343,7 +349,7 @@ function RunDetailDrawer({ open, detail, timeline, loading, onClose, onAction }:
             {(detail?.policy_results || []).map((policy) => (
               <div key={policy.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-[var(--foreground)]">{policy.failed_rule || policy.policy_id}</p>
+                  <p className="text-sm font-semibold text-[var(--foreground)]">{policy.failed_rule || (policy.policy_id ? <Link href={`/governance/policies?id=${policy.policy_id}`} className="underline underline-offset-2 decoration-[var(--border)] hover:decoration-[var(--gold)]">{policy.policy_id}</Link> : policy.policy_id)}</p>
                   <Badge className={policy.outcome === "FAIL" || policy.outcome === "ESCALATE" ? "border-rose-500/30 bg-rose-500/10 text-rose-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}>{policy.outcome}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-[var(--foreground-muted)]">Version {policy.policy_version || "unknown"} · Severity {policy.severity} · Remediation {policy.remediation_required ? "required" : "not required"}</p>
@@ -356,6 +362,7 @@ function RunDetailDrawer({ open, detail, timeline, loading, onClose, onAction }:
           <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
             <p className="text-sm font-semibold text-[var(--foreground)]">Evidence bundle</p>
             <p className="mt-2 text-xs text-[var(--foreground-muted)]">Status: {detail?.evidence_bundle?.status || run?.evidence_status || "pending"}</p>
+            {detail?.evidence_bundle?.id ? <p className="mt-1 text-xs text-[var(--foreground-muted)]">ID: <Link href={`/evidence/evidence-vault/items/${detail.evidence_bundle.id}`} className="break-all underline underline-offset-2 decoration-[var(--border)] hover:decoration-[var(--gold)]">{detail.evidence_bundle.id}</Link></p> : null}
             <p className="mt-1 break-all text-xs text-[var(--foreground-muted)]">Hash: {detail?.evidence_bundle?.hash || "not locked"}</p>
             <p className="mt-1 text-xs text-[var(--foreground-muted)]">Approval chain: {(detail?.approval_chain || []).length} recorded decision events</p>
             <button onClick={() => onAction("export_evidence")} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-semibold"><Download className="h-4 w-4" /> Export evidence</button>
@@ -363,8 +370,21 @@ function RunDetailDrawer({ open, detail, timeline, loading, onClose, onAction }:
         ) : null}
         {!loading && ["inputs", "prompt", "knowledge", "output"].includes(tab) ? (
           <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-            <p className="text-sm font-semibold capitalize text-[var(--foreground)]">{tab}</p>
-            <p className="mt-2 text-sm text-[var(--foreground-muted)]">Linked {tab} records are reserved for immutable runtime evidence. This panel is read-only unless the backend grants state-safe editing.</p>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold capitalize text-[var(--foreground)]">{tab}</p>
+                <p className="mt-2 text-sm text-[var(--foreground-muted)]">Linked {tab} records are reserved for immutable runtime evidence. This panel is read-only unless the backend grants state-safe editing.</p>
+              </div>
+              {tab === "output" ? (
+                <button
+                  type="button"
+                  onClick={() => onAction("export_output_snapshot")}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-semibold hover:bg-[var(--surface)]"
+                >
+                  <Download className="h-4 w-4" /> Export
+                </button>
+              ) : null}
+            </div>
             <pre className="mt-3 max-h-72 overflow-auto rounded-xl bg-[var(--surface)] p-3 text-xs text-[var(--foreground-muted)]">{JSON.stringify(tab === "prompt" ? detail?.prompt_version : tab === "knowledge" ? detail?.knowledge_sources : tab === "output" ? detail?.output_snapshot : run, null, 2)}</pre>
           </div>
         ) : null}
@@ -373,7 +393,7 @@ function RunDetailDrawer({ open, detail, timeline, loading, onClose, onAction }:
   );
 }
 
-function ActionModal({ action, run, evidenceBundle, onClose, onComplete }: { action: RuntimeAction | "assign_queue" | "resolve_queue" | "create_incident" | null; run: AgentRun | null; evidenceBundle?: EvidenceBundle; onClose: () => void; onComplete: () => void }) {
+function ActionModal({ action, run, evidenceBundle, onClose, onComplete }: { action: RuntimeAction | "assign_queue" | "resolve_queue" | "create_incident" | "export_csv" | "export_output_snapshot" | null; run: AgentRun | null; evidenceBundle?: EvidenceBundle; onClose: () => void; onComplete: () => void }) {
   const [reason, setReason] = useState("");
   const [severity, setSeverity] = useState("critical");
   const [category, setCategory] = useState("runtime_failure");
@@ -381,13 +401,30 @@ function ActionModal({ action, run, evidenceBundle, onClose, onComplete }: { act
   const [error, setError] = useState<string | null>(null);
   if (!action) return null;
 
-  const needsRun = action !== "create_incident" && action !== "export_evidence";
-  const title = action.replace(/_/g, " ");
+  const isEvidenceExport = action === "export_evidence";
+  const isOutputSnapshotExport = action === "export_output_snapshot";
+  const isCSVExport = action === "export_csv";
+  const needsRun = action !== "create_incident" && !isEvidenceExport && !isCSVExport;
+  let title = action.replace(/_/g, " ");
+  if (isCSVExport) title = "Export Analytics CSV";
+  if (isOutputSnapshotExport) title = "Export Output Snapshot";
   const impact = action === "emergency_pause"
     ? "This will halt the selected runtime path and should be paired with an incident record."
     : action === "retry"
       ? "This creates a linked retry attempt and preserves the original failure evidence."
-      : "The backend will re-check current run state before applying this controlled action.";
+      : action === "hold"
+        ? "This pauses the run with a hold marker. Unlike pause, hold is available to more roles (Reviewer, Validator, Approver) for lighter-touch intervention. Evidence and event history are preserved."
+        : action === "release_hold"
+          ? "This resumes a previously held run back to RUNNING status. The release is recorded with your user id, reason, and scope."
+          : action === "export_evidence"
+            ? evidenceBundle
+              ? `Export evidence bundle ${evidenceBundle.id.slice(0, 8)}... with immutable hash ${evidenceBundle.hash?.slice(0, 12) || "not locked"}. The export is recorded with your user id, reason, timestamp, and bundle scope.`
+              : "No evidence bundle is available for this run. Create or lock a bundle first via the evidence panel."
+            : isCSVExport
+              ? "Downloads current operational analytics as a CSV file. The export is recorded with your user id and reason."
+              : isOutputSnapshotExport
+                ? "Exports the run output snapshot to a server-audited export event. The snapshot path and reason are recorded with your user id and timestamp."
+                : "The backend will re-check current run state before applying this controlled action.";
 
   async function submit() {
     setPending(true);
@@ -403,6 +440,11 @@ function ActionModal({ action, run, evidenceBundle, onClose, onComplete }: { act
       } else if (action === "export_evidence") {
         if (!evidenceBundle) throw new Error("No evidence bundle is available for export yet.");
         await agentOperationsApi.exportEvidence(evidenceBundle, reason);
+      } else if (action === "export_csv") {
+        await agentOperationsApi.exportAnalyticsCSV(reason);
+      } else if (action === "export_output_snapshot") {
+        if (!run) throw new Error("A run is required for output snapshot export.");
+        await agentOperationsApi.exportOutputSnapshot(run.id, reason);
       } else {
         if (needsRun && !run) throw new Error("A run is required for this action.");
         await agentOperationsApi.performRunAction(run!.id, action as RuntimeAction, reason);
@@ -464,7 +506,7 @@ function ActionModal({ action, run, evidenceBundle, onClose, onComplete }: { act
 
 export function AgentOperationsPage() {
   const ops = useAgentOperations();
-  const [modalAction, setModalAction] = useState<RuntimeAction | "create_incident" | null>(null);
+  const [modalAction, setModalAction] = useState<RuntimeAction | "create_incident" | "export_csv" | "export_output_snapshot" | null>(null);
   const [modalRun, setModalRun] = useState<AgentRun | null>(null);
   const selectedRun = ops.selectedDetail?.run ?? null;
 
@@ -480,7 +522,7 @@ export function AgentOperationsPage() {
     ];
   }, [ops.stats, ops.analytics]);
 
-  function openAction(run: AgentRun | null, action: RuntimeAction | "create_incident") {
+  function openAction(run: AgentRun | null, action: RuntimeAction | "create_incident" | "export_csv" | "export_output_snapshot") {
     setModalRun(run);
     setModalAction(action);
   }
@@ -516,9 +558,10 @@ export function AgentOperationsPage() {
         </div>
       </section>
 
-      {ops.error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">{ops.error}</div> : null}
+      {ops.staleWarning ? <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">Displayed state may be stale — no update received in over 2 minutes. <button onClick={ops.refresh} className="underline font-semibold">Refresh now</button>.</div> : null}
+  {ops.error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">{ops.error}</div> : null}
 
-      <section className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 lg:grid-cols-[1fr_180px_180px_180px_auto]">
+      <section className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 lg:grid-cols-[1fr_160px_160px_140px_160px_140px_auto]">
         <label className="relative">
           <Filter className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[var(--foreground-muted)]" />
           <input value={ops.filters.search} onChange={(event) => ops.setFilters({ ...ops.filters, search: event.target.value })} placeholder="Search runs, agents, owners, workflows" className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 pl-9 pr-3 text-sm text-[var(--foreground)]" />
@@ -526,6 +569,8 @@ export function AgentOperationsPage() {
         <select value={ops.filters.status} onChange={(event) => ops.setFilters({ ...ops.filters, status: event.target.value })} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]">{STATUS_OPTIONS.map((item) => <option key={item} value={item}>{item || "All statuses"}</option>)}</select>
         <select value={ops.filters.severity} onChange={(event) => ops.setFilters({ ...ops.filters, severity: event.target.value })} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]">{SEVERITY_OPTIONS.map((item) => <option key={item} value={item}>{item || "All severities"}</option>)}</select>
         <select value={ops.filters.environment} onChange={(event) => ops.setFilters({ ...ops.filters, environment: event.target.value })} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]">{ENV_OPTIONS.map((item) => <option key={item} value={item}>{item || "All environments"}</option>)}</select>
+        <select value={ops.filters.policy_result} onChange={(event) => ops.setFilters({ ...ops.filters, policy_result: event.target.value })} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]">{POLICY_RESULT_OPTIONS.map((item) => <option key={item} value={item}>{item || "All policy results"}</option>)}</select>
+        <select value={ops.filters.brand_name || ""} onChange={(event) => ops.setFilters({ ...ops.filters, brand_name: event.target.value })} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]">{BRAND_OPTIONS.map((item) => <option key={item} value={item}>{item || "All brands"}</option>)}</select>
         <span className="self-center text-xs text-[var(--foreground-muted)]">{ops.totalRuns} permitted records</span>
       </section>
 
@@ -558,12 +603,23 @@ export function AgentOperationsPage() {
             </div>
           </section>
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
-            <h2 className="text-base font-semibold text-[var(--foreground)]">Operational analytics</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-[var(--foreground)]">Operational analytics</h2>
+              <button
+                type="button"
+                onClick={() => openAction(null, "export_csv")}
+                className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-2 py-1 text-xs font-semibold hover:bg-[var(--surface)]"
+              >
+                <Download className="h-3 w-3" /> CSV
+              </button>
+            </div>
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded-xl bg-[var(--surface)] p-3"><Gauge className="h-4 w-4 text-sky-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">24h throughput</p><p className="text-lg font-bold">{ops.analytics?.throughput?.["24h"] ?? 0}</p></div>
               <div className="rounded-xl bg-[var(--surface)] p-3"><CheckCircle2 className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">7d policy block</p><p className="text-lg font-bold">{ops.analytics?.policy_block_rate?.["7d"] ?? 0}%</p></div>
               <div className="rounded-xl bg-[var(--surface)] p-3"><UserCheck className="h-4 w-4 text-indigo-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">Evidence completeness</p><p className="text-lg font-bold">{ops.analytics?.evidence_completeness ?? 0}%</p></div>
               <div className="rounded-xl bg-[var(--surface)] p-3"><AlertTriangle className="h-4 w-4 text-rose-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">30d failure</p><p className="text-lg font-bold">{ops.analytics?.failure_rate?.["30d"] ?? 0}%</p></div>
+              <div className="rounded-xl bg-[var(--surface)] p-3"><Clock3 className="h-4 w-4 text-amber-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">Avg human review</p><p className="text-lg font-bold">{ops.analytics?.human_review_time?.value ?? "—"}</p><p className="text-xs text-[var(--foreground-muted)]">min (30d)</p></div>
+              <div className="rounded-xl bg-[var(--surface)] p-3"><TimerReset className="h-4 w-4 text-violet-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">Avg incident closure</p><p className="text-lg font-bold">{ops.analytics?.incident_closure_time?.value ?? "—"}</p><p className="text-xs text-[var(--foreground-muted)]">hours (30d)</p></div>
             </div>
           </section>
         </aside>

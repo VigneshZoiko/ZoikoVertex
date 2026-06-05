@@ -50,6 +50,8 @@ export interface AgentRun {
   status_config?: { label: string; color: string; severity: string };
   original_run_id?: string | null;
   retry_attempt?: number | null;
+  action_gates?: ActionGate[];
+  permitted_actions?: RuntimeAction[];
 }
 
 export interface RunEvent {
@@ -155,13 +157,24 @@ export interface OperationsAnalytics {
   policy_block_rate?: Record<string, number>;
   sla_breach_rate?: number;
   evidence_completeness?: number;
+  human_review_time?: { value: number; unit: string; period: string };
+  incident_closure_time?: { value: number; unit: string; period: string };
 }
 
 export interface OperationsFilters {
   status: string;
   severity: string;
   environment: string;
+  policy_result: string;
   search: string;
+  brand_id?: string;
+  brand_name?: string;
+}
+
+export interface ActionGate {
+  action: RuntimeAction;
+  allowed: boolean;
+  reason: string;
 }
 
 export type RuntimeAction =
@@ -173,4 +186,6 @@ export type RuntimeAction =
   | "escalate"
   | "emergency_pause"
   | "restricted_mode"
-  | "export_evidence";
+  | "export_evidence"
+  | "hold"
+  | "release_hold";

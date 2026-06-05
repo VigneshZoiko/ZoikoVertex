@@ -310,8 +310,7 @@ export function calculateEligibility(item: ApprovalItem, userId: string, role: s
   if (item.approval_status === 'WAITING_ON_OTHERS') return 'WAITING_ON_PRIOR_STAGE';
 
   if (item.assigned_approver_id && item.assigned_approver_id !== userId) {
-    const adminRoles = ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN'];
-    if (!adminRoles.includes(role)) return 'PERMISSION_DENIED';
+    return 'PERMISSION_DENIED';
   }
 
   if (item.approval_status === 'ESCALATED') return 'ESCALATION_REQUIRED';

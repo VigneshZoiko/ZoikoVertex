@@ -28,7 +28,8 @@ export const listLibrary = async (req: AuthRequest, res: Response, next: NextFun
     }
 
     if (type && type !== 'all') {
-      query = query.eq('file_type', type);
+      // Support both exact match ("image") and MIME type ("image/jpeg", "image/png")
+      query = query.ilike('file_type', `${type}%`);
     }
 
     const { data: items, error } = await query;

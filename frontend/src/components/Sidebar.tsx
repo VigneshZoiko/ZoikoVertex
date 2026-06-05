@@ -44,7 +44,7 @@ import {
   HeartPulse,
   Building2,
   CreditCard,
-  BadgeDollarSign,
+
   TrendingUp,
   FolderKanban,
   Inbox,
@@ -53,6 +53,7 @@ import {
   Bell,
   Eye,
   Lock,
+  BarChart3,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -290,6 +291,42 @@ const NAV_GROUPS: NavGroup[] = [
         plan: "agents" as Feature,
       },
       {
+        name: "Prompt Governance Center",
+        href: "/agents/prompt-governance",
+        icon: MessageSquareCode,
+        // Prompt-as-Code, diffs, receipts, commissioning, audit reconstruction —
+        // same visibility as Prompt Governance.
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"],
+        plan: "agents" as Feature,
+      },
+      {
+        name: "Evaluation Dashboard",
+        href: "/agents/prompts/dashboards/evaluation",
+        icon: BarChart3,
+        // Phase 6.5 — PDI / evaluation pass rate / cross-model rankings.
+        // Same visibility as Prompt Governance Center.
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"],
+        plan: "agents" as Feature,
+      },
+      {
+        name: "Adversarial Dashboard",
+        href: "/agents/prompts/dashboards/adversarial",
+        icon: ShieldAlert,
+        // Phase 6.5 — adversarial test results. Bypasses must be zero before
+        // promotion; same visibility as Prompt Governance Center.
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"],
+        plan: "agents" as Feature,
+      },
+      {
+        name: "Drift Dashboard",
+        href: "/agents/prompts/dashboards/drift",
+        icon: Activity,
+        // Phase 6.5 — runtime behavioral drift findings, incidents, reports.
+        // Same visibility as Prompt Governance Center.
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"],
+        plan: "agents" as Feature,
+      },
+      {
         name: "Knowledge Base",
         href: "/agents/knowledge",
         icon: BookOpen,
@@ -465,12 +502,6 @@ const NAV_GROUPS: NavGroup[] = [
         roles: ["ADMIN","WORKSPACE_OWNER"],
       },
       {
-        name: "Agency Ad Accounts",
-        href: "/admin/ad-accounts",
-        icon: BadgeDollarSign,
-        roles: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN"],
-      },
-      {
         name: "Billing & Usage",
         href: "/admin/billing",
         icon: CreditCard,
@@ -496,13 +527,6 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Activity,
         // Platform health — admins and developers
         roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"],
-      },
-      {
-        name: "Security Center",
-        href: "/admin/security",
-        icon: Lock,
-        // SSO, MFA, IP rules — security admin manages
-        roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"],
       },
       {
         name: "Support & Docs",

@@ -24,15 +24,22 @@ function queryFrom(filters: Partial<OperationsFilters> & { limit?: number; offse
   if (filters.status) query.set("status", filters.status);
   if (filters.severity) query.set("severity", filters.severity);
   if (filters.environment) query.set("environment", filters.environment);
+  if (filters.policy_result) query.set("policy_result", filters.policy_result);
   if (filters.search) query.set("search", filters.search);
+  if (filters.brand_id) query.set("brand_id", filters.brand_id);
+  if (filters.brand_name) query.set("brand_name", filters.brand_name);
   query.set("limit", String(filters.limit ?? 75));
   query.set("offset", String(filters.offset ?? 0));
   return query.toString();
 }
 
 export const agentOperationsApi = {
-  async getStats() {
-    return assertOk<OperationsStats>(await api.get("/api/v1/operations/stats"), "Unable to load operations stats");
+  async getStats(filters?: Partial<OperationsFilters>) {
+    const params = new URLSearchParams();
+    if (filters?.brand_id) params.set("brand_id", filters.brand_id);
+    if (filters?.brand_name) params.set("brand_name", filters.brand_name);
+    const qs = params.toString();
+    return assertOk<OperationsStats>(await api.get(`/api/v1/operations/stats${qs ? `?${qs}` : ''}`), "Unable to load operations stats");
   },
 
   async listRuns(filters: Partial<OperationsFilters> & { limit?: number; offset?: number }) {
@@ -50,18 +57,29 @@ export const agentOperationsApi = {
     return assertOk<{ events: RunEvent[] }>(await api.get(`/api/v1/operations/runs/${id}/timeline`), "Unable to load run timeline");
   },
 
-  async listQueues(queueType?: string) {
+  async listQueues(queueType?: string, filters?: Partial<OperationsFilters>) {
     const query = new URLSearchParams();
     if (queueType && queueType !== "all") query.set("queue_type", queueType);
+    if (filters?.brand_id) query.set("brand_id", filters.brand_id);
+    if (filters?.brand_name) query.set("brand_name", filters.brand_name);
+    if (filters?.environment) query.set("environment", filters.environment);
     return assertOk<{ items: QueueItem[]; total: number }>(await api.get(`/api/v1/operations/queues?${query.toString()}`), "Unable to load queues");
   },
 
-  async listIncidents() {
-    return assertOk<{ incidents: Incident[]; total: number }>(await api.get("/api/v1/operations/incidents"), "Unable to load incidents");
+  async listIncidents(filters?: Partial<OperationsFilters>) {
+    const params = new URLSearchParams();
+    if (filters?.brand_id) params.set("brand_id", filters.brand_id);
+    if (filters?.brand_name) params.set("brand_name", filters.brand_name);
+    const qs = params.toString();
+    return assertOk<{ incidents: Incident[]; total: number }>(await api.get(`/api/v1/operations/incidents${qs ? `?${qs}` : ''}`), "Unable to load incidents");
   },
 
-  async getAnalytics() {
-    return assertOk<OperationsAnalytics>(await api.get("/api/v1/operations/analytics"), "Unable to load analytics");
+  async getAnalytics(filters?: Partial<OperationsFilters>) {
+    const params = new URLSearchParams();
+    if (filters?.brand_id) params.set("brand_id", filters.brand_id);
+    if (filters?.brand_name) params.set("brand_name", filters.brand_name);
+    const qs = params.toString();
+    return assertOk<OperationsAnalytics>(await api.get(`/api/v1/operations/analytics${qs ? `?${qs}` : ''}`), "Unable to load analytics");
   },
 
   async performRunAction(runId: string, action: RuntimeAction, reason: string, impactScope = "selected_run") {
@@ -74,6 +92,8 @@ export const agentOperationsApi = {
       escalate: "escalate",
       emergency_pause: "emergency-pause",
       restricted_mode: "restricted-mode",
+      hold: "hold",
+      release_hold: "release-hold",
       export_evidence: "",
     };
     if (action === "export_evidence") {
@@ -120,6 +140,26 @@ export const agentOperationsApi = {
     return assertOk<{ success: boolean; id: string; exported_at: string }>(
       await api.post(`/api/v1/operations/evidence/${bundle.id}/export`, { reason }),
       "Unable to export evidence",
+    );
+  },
+
+  async exportAnalyticsCSV(reason: string) {
+    const blob = await api.postBlob("/api/v1/operations/analytics/export", { reason });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `operations-analytics-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    return { success: true };
+  },
+
+  async exportOutputSnapshot(runId: string, reason: string) {
+    return assertOk<{ success: boolean; message?: string }>(
+      await api.post(`/api/v1/operations/runs/${runId}/export-output`, { reason }),
+      "Unable to export output snapshot",
     );
   },
 };

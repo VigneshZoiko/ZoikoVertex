@@ -11,6 +11,13 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   GEMINI_API_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
+  // Phase 6 — Optional real model validation flag.
+  // Default 'false': server starts normally without any model keys, Phase 6
+  // real adversarial + cross-model evaluation short-circuit to a clear
+  // "skipped" status, and all Phase 1–5 governance flows continue to work.
+  // When 'true': at least one of GEMINI_API_KEY or GROQ_API_KEY MUST be set;
+  // boot fails if both are missing. See modules/prompts/modelProviders.ts.
+  ENABLE_REAL_MODEL_VALIDATION: z.string().default('false'),
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
   META_REDIRECT_URI: z.string().optional(),
@@ -53,6 +60,11 @@ const envSchema = z.object({
   // Resend for email notifications
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default('ZoikoVertex <noreply@zoikovertex.com>'),
+  // Phase 4 — Governed Prompt Execution. When 'true' AND NODE_ENV=production,
+  // a model call site that still uses an inline prompt (no governed prompt
+  // resolved) FAILS CLOSED. Default 'false' so rollout is deliberate and the
+  // product is not broken before governed prompts are seeded per use-case.
+  PROMPT_GOVERNANCE_ENFORCED: z.string().default('false'),
 });
 
 const result = envSchema.safeParse(process.env);
