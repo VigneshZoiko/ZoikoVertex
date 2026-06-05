@@ -2,6 +2,8 @@ import { supabaseAdmin } from '../shared/supabase';
 import { createAuditEvent } from './auditTrail.service';
 import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -367,7 +369,8 @@ export async function preserveToVault(params: {
   case_id: string; evidence_ids: string[];
   retention_class: string; preservation_reason: string;
   actor_id: string; workspace_id: string;
-}): Promise<{ preserved: number; manifest_id: string }> {
+}, auth?: AuthContext): Promise<{ preserved: number; manifest_id: string }> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(params.case_id);
   if (!caseRec) throw new Error('Case not found');
 
@@ -411,7 +414,8 @@ export async function preserveToVault(params: {
 
 // ─── Phase 2: Legal Hold ─────────────────────────────────────────────────────
 
-export async function applyLegalHold(caseId: string, reason: string, actorId: string, scope?: string): Promise<ForensicCase> {
+export async function applyLegalHold(caseId: string, reason: string, actorId: string, scope?: string, auth?: AuthContext): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
 
@@ -446,7 +450,8 @@ export async function applyLegalHold(caseId: string, reason: string, actorId: st
   return updated;
 }
 
-export async function releaseLegalHold(caseId: string, reason: string, actorId: string): Promise<ForensicCase> {
+export async function releaseLegalHold(caseId: string, reason: string, actorId: string, auth?: AuthContext): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
   if (!caseRec.legal_hold_active) throw new Error('Case is not under legal hold');
@@ -607,7 +612,8 @@ export async function createCase(params: {
   workspace_id: string; case_type: string; title: string; summary?: string;
   severity?: string; source?: string; source_event_ids?: string[];
   owner_user_id?: string; sla_due_at?: string; actor_id: string;
-}): Promise<ForensicCase> {
+}, auth?: AuthContext): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data, error } = await supabaseAdmin
     .from('forensic_cases')
     .insert({
@@ -667,8 +673,9 @@ export async function updateCase(
     title?: string; summary?: string; severity?: string; status?: string;
     owner_user_id?: string; sla_due_at?: string; retention_class?: string;
     closure?: any; actor_id: string; reason: string;
-  }
+  }, auth?: AuthContext
 ): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const existing = await getCase(caseId);
   if (!existing) throw new Error('Case not found');
 
@@ -749,7 +756,8 @@ export async function updateCase(
   return updated;
 }
 
-export async function addParticipant(caseId: string, userId: string, roleInCase: string, addedBy: string, reason?: string): Promise<CaseParticipant> {
+export async function addParticipant(caseId: string, userId: string, roleInCase: string, addedBy: string, reason?: string, auth?: AuthContext): Promise<CaseParticipant> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data, error } = await supabaseAdmin.from('case_participants').insert({
     case_id: caseId, user_id: userId, role_in_case: roleInCase, added_by: addedBy, added_reason: reason || null,
   }).select().single();
@@ -763,7 +771,8 @@ export async function addEvidence(params: {
   case_id: string; source_type: string; source_id: string;
   relevance?: string; hash?: string; chain_block_number?: number;
   added_by: string; added_reason: string; metadata?: any;
-}): Promise<CaseEvidenceItem> {
+}, auth?: AuthContext): Promise<CaseEvidenceItem> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(params.case_id);
   if (!caseRec) throw new Error('Case not found');
 
@@ -794,7 +803,8 @@ export async function addEvidence(params: {
   return data;
 }
 
-export async function pinEvidence(evidenceId: string, pinReason: string, actorId: string): Promise<void> {
+export async function pinEvidence(evidenceId: string, pinReason: string, actorId: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: item } = await supabaseAdmin.from('case_evidence_items').select('*, case:case_id(*)').eq('id', evidenceId).single();
   if (!item) throw new Error('Evidence item not found');
 
@@ -828,7 +838,8 @@ export async function listEvidence(caseId: string): Promise<CaseEvidenceItem[]> 
 
 export async function addNote(params: {
   case_id: string; note_class: string; content: string; author_id: string;
-}): Promise<CaseNote> {
+}, auth?: AuthContext): Promise<CaseNote> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(params.case_id);
   if (!caseRec) throw new Error('Case not found');
 
@@ -873,7 +884,8 @@ export async function listNotes(caseId: string, userRoles: string[]): Promise<Ca
 export async function addTask(params: {
   case_id: string; title: string; description?: string; owner_id: string;
   due_at?: string; evidence_link?: any;
-}): Promise<CaseTask> {
+}, auth?: AuthContext): Promise<CaseTask> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data, error } = await supabaseAdmin.from('case_tasks').insert({
     case_id: params.case_id, title: params.title, description: params.description || null,
     owner_id: params.owner_id, due_at: params.due_at || null, evidence_link: params.evidence_link || null,
@@ -889,7 +901,8 @@ export async function listTasks(caseId: string): Promise<CaseTask[]> {
   return data || [];
 }
 
-export async function updateTask(taskId: string, params: { status?: string; completion_proof?: string }): Promise<void> {
+export async function updateTask(taskId: string, params: { status?: string; completion_proof?: string }, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'evidence:view');
   const updateData: Record<string, any> = {};
   if (params.status !== undefined) { updateData.status = params.status; if (params.status === 'completed') updateData.completed_at = new Date().toISOString(); }
   if (params.completion_proof !== undefined) updateData.completion_proof = params.completion_proof;
@@ -911,7 +924,8 @@ export async function listActions(caseId: string): Promise<CaseAction[]> {
 export async function closeCase(caseId: string, params: {
   outcome: string; rationale: string; findings?: string; approval?: string;
   actor_id: string;
-}): Promise<ForensicCase> {
+}, auth?: AuthContext): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
   if (!isValidTransition(caseRec.status, 'closed')) {
@@ -1046,7 +1060,8 @@ export async function getForensicStats(workspaceId?: string): Promise<any> {
 
 // ─── Reopen Case ───────────────────────────────────────────────────────────────
 
-export async function reopenCase(caseId: string, reason: string, actorId: string): Promise<ForensicCase> {
+export async function reopenCase(caseId: string, reason: string, actorId: string, auth?: AuthContext): Promise<ForensicCase> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
   if (!isValidTransition(caseRec.status, 'reopened')) {
@@ -1101,7 +1116,8 @@ const EXPORT_TYPES: Record<string, { formats: string[]; required_scope: string[]
 export async function createExport(params: {
   case_id: string; package_type: string; format: string; redaction_profile: string;
   reason: string; actor_id: string; scope?: any; delivery_method?: string;
-}): Promise<CaseExport> {
+}, auth?: AuthContext): Promise<CaseExport> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(params.case_id);
   if (!caseRec) throw new Error('Case not found');
 
@@ -1152,7 +1168,8 @@ export async function listExports(caseId: string): Promise<CaseExport[]> {
   return data || [];
 }
 
-export async function approveExport(exportId: string, actorId: string): Promise<CaseExport> {
+export async function approveExport(exportId: string, actorId: string, auth?: AuthContext): Promise<CaseExport> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: exp } = await supabaseAdmin.from('case_exports').select('*').eq('id', exportId).single();
   if (!exp) throw new Error('Export not found');
   if (exp.status !== 'pending_approval') throw new Error(`Cannot approve export in status: ${exp.status}`);
@@ -1175,7 +1192,8 @@ export async function approveExport(exportId: string, actorId: string): Promise<
   return updated;
 }
 
-export async function rejectExport(exportId: string, reason: string, _actorId: string): Promise<CaseExport> {
+export async function rejectExport(exportId: string, reason: string, _actorId: string, auth?: AuthContext): Promise<CaseExport> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: exp } = await supabaseAdmin.from('case_exports').select('*').eq('id', exportId).single();
   if (!exp) throw new Error('Export not found');
   if (exp.status !== 'pending_approval') throw new Error(`Cannot reject export in status: ${exp.status}`);
@@ -1189,7 +1207,8 @@ export async function rejectExport(exportId: string, reason: string, _actorId: s
   return updated;
 }
 
-export async function generateExportPackage(exportId: string, actorId: string): Promise<CaseExport> {
+export async function generateExportPackage(exportId: string, actorId: string, auth?: AuthContext): Promise<CaseExport> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: exp } = await supabaseAdmin.from('case_exports').select('*').eq('id', exportId).single();
   if (!exp) throw new Error('Export not found');
   if (exp.status !== 'approved' && exp.status !== 'draft') {
@@ -1319,7 +1338,8 @@ export async function getEntityGraph(caseId: string): Promise<{ nodes: any[]; ed
 
 // ─── Phase 3: Privilege Controls ────────────────────────────────────────────────
 
-export async function markEvidencePrivileged(evidenceId: string, actorId: string): Promise<void> {
+export async function markEvidencePrivileged(evidenceId: string, actorId: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: item } = await supabaseAdmin.from('case_evidence_items')
     .select('*, case:case_id(*)').eq('id', evidenceId).single();
   if (!item) throw new Error('Evidence item not found');
@@ -1338,7 +1358,8 @@ export async function markEvidencePrivileged(evidenceId: string, actorId: string
   );
 }
 
-export async function unpinEvidence(evidenceId: string, reason: string, actorId: string): Promise<void> {
+export async function unpinEvidence(evidenceId: string, reason: string, actorId: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: item } = await supabaseAdmin.from('case_evidence_items')
     .select('*, case:case_id(*)').eq('id', evidenceId).single();
   if (!item) throw new Error('Evidence item not found');

@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as exceptionService from '../../services/exception.service';
+import { buildAuthContext } from '../../shared/serviceAuth';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
 
 function getTenantId(req: AuthRequest): string {
@@ -114,10 +115,11 @@ export const createException = async (req: AuthRequest, res: Response, next: Nex
     const input = CreateExceptionSchema.parse(req.body);
     const tenantId = getTenantId(req);
     const userId = getUserId(req);
+    const auth = buildAuthContext(req.user);
     const ec = await exceptionService.createExceptionCase({
       tenant_id: tenantId, workspace_id: tenantId,
       created_by: userId, ...input,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: ec });
   } catch (error) { next(error); }
 };
@@ -156,7 +158,8 @@ export const updateException = async (req: AuthRequest, res: Response, next: Nex
   try {
     const id = paramStr(req, 'id');
     const updates = req.body;
-    const ec = await exceptionService.updateExceptionCase(id, getTenantId(req), updates);
+    const auth = buildAuthContext(req.user);
+    const ec = await exceptionService.updateExceptionCase(id, getTenantId(req), updates, auth);
     res.json({ success: true, data: ec });
   } catch (error) { next(error); }
 };
@@ -172,7 +175,8 @@ export const assignOwner = async (req: AuthRequest, res: Response, next: NextFun
   try {
     const id = paramStr(req, 'id');
     const { owner_id } = z.object({ owner_id: z.string().uuid() }).parse(req.body);
-    const ec = await exceptionService.assignOwner(id, getTenantId(req), getUserId(req), owner_id);
+    const auth = buildAuthContext(req.user);
+    const ec = await exceptionService.assignOwner(id, getTenantId(req), getUserId(req), owner_id, auth);
     res.json({ success: true, data: ec });
   } catch (error) { next(error); }
 };
@@ -181,7 +185,8 @@ export const updateSeverity = async (req: AuthRequest, res: Response, next: Next
   try {
     const id = paramStr(req, 'id');
     const { severity } = z.object({ severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']) }).parse(req.body);
-    const ec = await exceptionService.updateSeverity(id, getTenantId(req), getUserId(req), severity);
+    const auth = buildAuthContext(req.user);
+    const ec = await exceptionService.updateSeverity(id, getTenantId(req), getUserId(req), severity, auth);
     res.json({ success: true, data: ec });
   } catch (error) { next(error); }
 };
@@ -190,7 +195,8 @@ export const updateStatus = async (req: AuthRequest, res: Response, next: NextFu
   try {
     const id = paramStr(req, 'id');
     const { status } = z.object({ status: z.string().min(1) }).parse(req.body);
-    const ec = await exceptionService.updateStatus(id, getTenantId(req), getUserId(req), status as any);
+    const auth = buildAuthContext(req.user);
+    const ec = await exceptionService.updateStatus(id, getTenantId(req), getUserId(req), status as any, auth);
     res.json({ success: true, data: ec });
   } catch (error) { next(error); }
 };
@@ -199,7 +205,8 @@ export const addBlocker = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     const id = paramStr(req, 'id');
     const input = BlockerSchema.parse(req.body);
-    const result = await exceptionService.addBlocker(id, input);
+    const auth = buildAuthContext(req.user);
+    const result = await exceptionService.addBlocker(id, input, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 };
@@ -216,7 +223,8 @@ export const addRemediation = async (req: AuthRequest, res: Response, next: Next
   try {
     const id = paramStr(req, 'id');
     const input = RemediationSchema.parse(req.body);
-    const result = await exceptionService.addRemediation(id, input);
+    const auth = buildAuthContext(req.user);
+    const result = await exceptionService.addRemediation(id, input, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 };
@@ -224,7 +232,8 @@ export const addRemediation = async (req: AuthRequest, res: Response, next: Next
 export const completeRemediation = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const remediationId = paramStr(req, 'remediationId');
-    await exceptionService.completeRemediation(remediationId);
+    const auth = buildAuthContext(req.user);
+    await exceptionService.completeRemediation(remediationId, auth);
     res.json({ success: true });
   } catch (error) { next(error); }
 };
@@ -241,7 +250,8 @@ export const escalateException = async (req: AuthRequest, res: Response, next: N
   try {
     const id = paramStr(req, 'id');
     const input = EscalateSchema.parse(req.body);
-    await exceptionService.escalateCase(id, getTenantId(req), getUserId(req), input);
+    const auth = buildAuthContext(req.user);
+    await exceptionService.escalateCase(id, getTenantId(req), getUserId(req), input, auth);
     res.json({ success: true });
   } catch (error) { next(error); }
 };
@@ -250,9 +260,10 @@ export const requestOverride = async (req: AuthRequest, res: Response, next: Nex
   try {
     const id = paramStr(req, 'id');
     const input = OverrideRequestSchema.parse(req.body);
+    const auth = buildAuthContext(req.user);
     const result = await exceptionService.requestOverride(id, {
       ...input, requested_by: getUserId(req),
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 };
@@ -261,7 +272,8 @@ export const decideOverride = async (req: AuthRequest, res: Response, next: Next
   try {
     const overrideId = paramStr(req, 'overrideId');
     const { decision, note } = OverrideDecisionSchema.parse(req.body);
-    await exceptionService.decideOverride(overrideId, decision, getUserId(req), note);
+    const auth = buildAuthContext(req.user);
+    await exceptionService.decideOverride(overrideId, decision, getUserId(req), note, auth);
     res.json({ success: true });
   } catch (error) { next(error); }
 };
@@ -270,9 +282,10 @@ export const addEvidence = async (req: AuthRequest, res: Response, next: NextFun
   try {
     const id = paramStr(req, 'id');
     const input = EvidenceSchema.parse(req.body);
+    const auth = buildAuthContext(req.user);
     const result = await exceptionService.addEvidence(id, {
       ...input, created_by: getUserId(req),
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) { next(error); }
 };
@@ -289,7 +302,8 @@ export const resolveException = async (req: AuthRequest, res: Response, next: Ne
   try {
     const id = paramStr(req, 'id');
     const input = ResolveSchema.parse(req.body);
-    await exceptionService.resolveCase(id, getTenantId(req), getUserId(req), input);
+    const auth = buildAuthContext(req.user);
+    await exceptionService.resolveCase(id, getTenantId(req), getUserId(req), input, auth);
     res.json({ success: true });
   } catch (error) { next(error); }
 };
@@ -297,7 +311,8 @@ export const resolveException = async (req: AuthRequest, res: Response, next: Ne
 export const sendToValidation = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = paramStr(req, 'id');
-    await exceptionService.sendToValidation(id, getTenantId(req), getUserId(req));
+    const auth = buildAuthContext(req.user);
+    await exceptionService.sendToValidation(id, getTenantId(req), getUserId(req), auth);
     res.json({ success: true });
   } catch (error) { next(error); }
 };
@@ -305,7 +320,8 @@ export const sendToValidation = async (req: AuthRequest, res: Response, next: Ne
 export const sendToApprovals = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = paramStr(req, 'id');
-    await exceptionService.sendToApprovals(id, getTenantId(req), getUserId(req));
+    const auth = buildAuthContext(req.user);
+    await exceptionService.sendToApprovals(id, getTenantId(req), getUserId(req), auth);
     res.json({ success: true });
   } catch (error) { next(error); }
 };
@@ -313,7 +329,8 @@ export const sendToApprovals = async (req: AuthRequest, res: Response, next: Nex
 export const sendToQualityAudit = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = paramStr(req, 'id');
-    await exceptionService.sendToQualityAudit(id, getTenantId(req), getUserId(req));
+    const auth = buildAuthContext(req.user);
+    await exceptionService.sendToQualityAudit(id, getTenantId(req), getUserId(req), auth);
     res.json({ success: true });
   } catch (error) { next(error); }
 };
@@ -329,7 +346,8 @@ export const getAuditTrail = async (req: AuthRequest, res: Response, next: NextF
 export const exportExceptionRecord = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = paramStr(req, 'id');
-    const record = await exceptionService.exportExceptionRecord(id, getTenantId(req));
+    const auth = buildAuthContext(req.user);
+    const record = await exceptionService.exportExceptionRecord(id, getTenantId(req), auth);
     if (!record) return res.status(404).json({ error: 'Exception case not found' });
     res.json({ success: true, data: record });
   } catch (error) { next(error); }
@@ -338,7 +356,8 @@ export const exportExceptionRecord = async (req: AuthRequest, res: Response, nex
 export const closeExceptionCase = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = paramStr(req, 'id');
-    const ec = await exceptionService.updateStatus(id, getTenantId(req), getUserId(req), 'CLOSED');
+    const auth = buildAuthContext(req.user);
+    const ec = await exceptionService.updateStatus(id, getTenantId(req), getUserId(req), 'CLOSED', auth);
     res.json({ success: true, data: ec });
   } catch (error) { next(error); }
 };
@@ -346,7 +365,8 @@ export const closeExceptionCase = async (req: AuthRequest, res: Response, next: 
 export const archiveExceptionCase = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = paramStr(req, 'id');
-    const ec = await exceptionService.updateStatus(id, getTenantId(req), getUserId(req), 'ARCHIVED');
+    const auth = buildAuthContext(req.user);
+    const ec = await exceptionService.updateStatus(id, getTenantId(req), getUserId(req), 'ARCHIVED', auth);
     res.json({ success: true, data: ec });
   } catch (error) { next(error); }
 };
@@ -359,6 +379,7 @@ export const bulkExceptionAction = async (req: AuthRequest, res: Response, next:
     }
     const tenantId = getTenantId(req);
     const userId = getUserId(req);
+    const auth = buildAuthContext(req.user);
     const results = [];
 
     for (const id of ids) {
@@ -366,16 +387,16 @@ export const bulkExceptionAction = async (req: AuthRequest, res: Response, next:
         let result;
         switch (action) {
           case 'resolve':
-            result = await exceptionService.resolveCase(id, tenantId, userId, { outcome: 'Resolved' });
+            result = await exceptionService.resolveCase(id, tenantId, userId, { outcome: 'Resolved' }, auth);
             break;
           case 'close':
-            result = await exceptionService.updateStatus(id, tenantId, userId, 'CLOSED');
+            result = await exceptionService.updateStatus(id, tenantId, userId, 'CLOSED', auth);
             break;
           case 'archive':
-            result = await exceptionService.updateStatus(id, tenantId, userId, 'ARCHIVED');
+            result = await exceptionService.updateStatus(id, tenantId, userId, 'ARCHIVED', auth);
             break;
           case 'escalate':
-            result = await exceptionService.escalateCase(id, tenantId, userId, { reason: 'Bulk escalate' });
+            result = await exceptionService.escalateCase(id, tenantId, userId, { reason: 'Bulk escalate' }, auth);
             break;
           default:
             results.push({ id, success: false, error: `Unknown action: ${action}` });

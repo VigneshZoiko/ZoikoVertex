@@ -3,6 +3,7 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { supabaseAdmin } from '../../shared/supabase';
 import { createAuditEvent } from '../../services/auditTrail.service';
 import * as identityLedgerService from '../../services/identityLedger.service';
+import { buildAuthContext } from '../../shared/serviceAuth';
 
 async function getViewerContext(req: AuthRequest): Promise<identityLedgerService.ViewerContext> {
   const userId = req.user?.id;
@@ -275,6 +276,7 @@ export async function createDelegation(req: AuthRequest, res: Response, next: Ne
   try {
     const rawTenantId = (req.user as any)?.tenant_id;
     const tenantId = rawTenantId && rawTenantId !== 'default' ? rawTenantId : '00000000-0000-0000-0000-000000000000';
+    const auth = buildAuthContext(req.user);
     const { delegator_id, delegatee_id, scope, expires_at, reason } = req.body;
     const result = await identityLedgerService.createDelegation({
       tenant_id: tenantId,
@@ -282,7 +284,8 @@ export async function createDelegation(req: AuthRequest, res: Response, next: Ne
       delegatee_id,
       scope,
       expires_at,
-      reason
+      reason,
+      auth,
     });
     res.json({ success: true, data: result });
   } catch (error) {
@@ -294,9 +297,11 @@ export async function revokeDelegation(req: AuthRequest, res: Response, next: Ne
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(400).json({ error: 'User required' });
+    const auth = buildAuthContext(req.user);
     const result = await identityLedgerService.revokeDelegation({
       id: req.params.id as string,
-      revoked_by: userId
+      revoked_by: userId,
+      auth,
     });
     res.json({ success: true, data: result });
   } catch (error) {
@@ -322,12 +327,14 @@ export async function requestBreakGlass(req: AuthRequest, res: Response, next: N
     const tenantId = rawTenantId && rawTenantId !== 'default' ? rawTenantId : '00000000-0000-0000-0000-000000000000';
     const userId = req.user?.id;
     if (!userId) return res.status(400).json({ error: 'User required' });
+    const auth = buildAuthContext(req.user);
     const { reason, elevated_roles } = req.body;
     const result = await identityLedgerService.requestBreakGlass({
       tenant_id: tenantId,
       actor_id: userId,
       reason,
-      elevated_roles
+      elevated_roles,
+      auth,
     });
     res.json({ success: true, data: result });
   } catch (error) {
@@ -337,7 +344,8 @@ export async function requestBreakGlass(req: AuthRequest, res: Response, next: N
 
 export async function activateBreakGlass(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const result = await identityLedgerService.activateBreakGlass({ id: req.params.id as string });
+    const auth = buildAuthContext(req.user);
+    const result = await identityLedgerService.activateBreakGlass({ id: req.params.id as string, auth });
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -346,7 +354,8 @@ export async function activateBreakGlass(req: AuthRequest, res: Response, next: 
 
 export async function endBreakGlass(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const result = await identityLedgerService.endBreakGlass({ id: req.params.id as string });
+    const auth = buildAuthContext(req.user);
+    const result = await identityLedgerService.endBreakGlass({ id: req.params.id as string, auth });
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -357,12 +366,14 @@ export async function reviewBreakGlass(req: AuthRequest, res: Response, next: Ne
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(400).json({ error: 'User required' });
+    const auth = buildAuthContext(req.user);
     const { status, notes } = req.body;
     const result = await identityLedgerService.reviewBreakGlass({
       id: req.params.id as string,
       reviewer_id: userId,
       status,
-      notes
+      notes,
+      auth,
     });
     res.json({ success: true, data: result });
   } catch (error) {
@@ -432,6 +443,7 @@ export async function preserveToVault(req: AuthRequest, res: Response, next: Nex
     const userId = req.user?.id;
     if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
 
+    const auth = buildAuthContext(req.user);
     const { ledger_entry_id, reason } = req.body as { ledger_entry_id?: string; reason?: string };
     if (!ledger_entry_id || !reason) {
       return res.status(400).json({ error: 'ledger_entry_id and reason are required' });
@@ -441,6 +453,7 @@ export async function preserveToVault(req: AuthRequest, res: Response, next: Nex
       workspace_id: workspaceId,
       ledger_entry_id,
       reason,
+      auth,
     });
 
     logIdentityLedgerAccess({
@@ -466,6 +479,7 @@ export async function registerServiceAccount(req: AuthRequest, res: Response, ne
     const userId = req.user?.id;
     if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
 
+    const auth = buildAuthContext(req.user);
     const { actor_id, display_name, source_system, description, permissions, expires_at } = req.body;
     if (!actor_id || !display_name || !source_system) {
       return res.status(400).json({ error: 'actor_id, display_name, and source_system are required' });
@@ -481,6 +495,7 @@ export async function registerServiceAccount(req: AuthRequest, res: Response, ne
       permissions,
       expires_at,
       created_by: userId,
+      auth,
     });
 
     res.status(201).json({ success: true, data: result });
@@ -511,10 +526,11 @@ export async function revokeServiceAccount(req: AuthRequest, res: Response, next
     const userId = req.user?.id;
     if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
 
+    const auth = buildAuthContext(req.user);
     const actorId = req.params.actorId as string;
     const { reason } = req.body as { reason?: string };
 
-    const result = await identityLedgerService.revokeServiceAccount(actorId, workspaceId, userId, reason);
+    const result = await identityLedgerService.revokeServiceAccount(actorId, workspaceId, userId, reason, auth);
     if (!result) return res.status(404).json({ error: 'Service account not found' });
 
     res.json({ success: true, data: result });
@@ -550,8 +566,9 @@ export async function evaluateActorRiskFlags(req: AuthRequest, res: Response, ne
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
 
+    const auth = buildAuthContext(req.user);
     const actorId = req.params.actorId as string;
-    const result = await identityLedgerService.evaluateActorRiskFlags(actorId, workspaceId);
+    const result = await identityLedgerService.evaluateActorRiskFlags(actorId, workspaceId, auth);
 
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
@@ -563,6 +580,7 @@ export async function setActorRiskFlags(req: AuthRequest, res: Response, next: N
     const userId = req.user?.id;
     if (!workspaceId || !userId) return res.status(400).json({ error: 'Workspace ID and user required' });
 
+    const auth = buildAuthContext(req.user);
     const actorId = req.params.actorId as string;
     const { risk_flags, risk_level, reason } = req.body as { risk_flags?: string[]; risk_level?: string; reason?: string };
 
@@ -579,6 +597,7 @@ export async function setActorRiskFlags(req: AuthRequest, res: Response, next: N
       risk_level: level,
       reason,
       set_by: userId,
+      auth,
     });
 
     if (!result) return res.status(404).json({ error: 'Actor not found' });
