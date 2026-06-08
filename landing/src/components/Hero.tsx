@@ -1,25 +1,17 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import Link from "next/link";
 import {
   Activity,
-  Eye,
   Zap,
   CheckSquare,
   BarChart2,
   Shield,
-  LayoutGrid,
-  BarChart,
-  Users,
-  Link2,
-  Clock,
-  FileText,
-  Globe,
 } from "lucide-react";
 
 export default function Hero() {
   return (
-    <section className="bg-[#080812] pt-20 pb-16 px-6 xl:px-16 overflow-x-clip">
-      <div className="mx-auto max-w-[1440px] grid items-center gap-10 lg:grid-cols-[42%_58%]">
+    <section className="bg-[#152238] pt-32 pb-12 px-6 xl:px-12 overflow-hidden">
+      <div className="mx-auto max-w-[1280px] grid items-center gap-10 lg:grid-cols-[42%_58%]">
 
         {/* Left — text */}
         <div className="flex flex-col">
@@ -68,10 +60,10 @@ export default function Hero() {
 
           <div className="flex flex-wrap gap-2">
             {[
-              { label: "AI-agent workflows",          icon: Zap },
+              { label: "AI-agent workflows",            icon: Zap },
               { label: "Approval-controlled execution", icon: CheckSquare },
-              { label: "Audit-ready governance",      icon: Shield },
-              { label: "ROI evidence",                icon: BarChart2 },
+              { label: "Audit-ready governance",        icon: Shield },
+              { label: "ROI evidence",                  icon: BarChart2 },
             ].map(({ label, icon: Icon }) => (
               <span
                 key={label}

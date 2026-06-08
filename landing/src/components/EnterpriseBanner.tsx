@@ -49,7 +49,7 @@ export default function EnterpriseBanner() {
               Governance Control Tower
             </p>
             <p className="text-white/30 text-[11px] text-center mb-6">
-              Autonomous by default Â· Manual by exception
+              Autonomous by default · Manual by exception
             </p>
             <div
               className="relative flex items-center justify-center mb-6"

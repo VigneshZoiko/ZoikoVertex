@@ -3,12 +3,11 @@
     {
       label: "STRATEGY",
       name: "LAYER 1 — STRATEGIC CONTROL",
-
-      bg: "bg-gradient-to-r from-[#6366F1]/20 to-[#00C8F0]/10",
-      border: "#A5B4FC",
-      labelColor: "#6366F1",
-      nameColor: "#6366F1",
-      cardBorder: "#C7D2FE",
+      bg: "rgba(99,102,241,0.12)",
+      border: "rgba(99,102,241,0.35)",
+      labelColor: "#818CF8",
+      nameColor: "#818CF8",
+      cardBorder: "rgba(99,102,241,0.3)",
       components: [
         { title: "Chief Strategy Agent",      desc: "Revenue & EBITDA alignment" },
         { title: "Business Context Engine",   desc: "ERP, inventory, pricing, margin" },
@@ -18,11 +17,11 @@
     {
       label: "EXECUTION",
       name: "LAYER 2 — EXECUTION INTELLIGENCE",
-      bg: "bg-gradient-to-r from-[#4C52E8]/15 to-[#818CF8]/10",
-      border: "#818CF8",
-      labelColor: "#6366F1",
-      nameColor: "#6366F1",
-      cardBorder: "#e8e3f7",
+      bg: "rgba(129,140,248,0.08)",
+      border: "rgba(129,140,248,0.3)",
+      labelColor: "#A5B4FC",
+      nameColor: "#A5B4FC",
+      cardBorder: "rgba(129,140,248,0.25)",
       components: [
         { title: "Creative Intelligence Lab", desc: "Platform-native content & copy" },
         { title: "Execution Agent",           desc: "Deploy, pace, sequence campaigns" },
@@ -33,11 +32,11 @@
     {
       label: "FINANCIAL",
       name: "LAYER 3 — FINANCIAL & OPTIMIZATION",
-      bg: "bg-[linear-gradient(90deg,rgba(0,200,240,0.15)_0%,rgba(99,102,241,0.08)_100%)]",
-      border: "#67E8F9",
-      labelColor: "#0097B5",
-      nameColor: "#0097B5",
-      cardBorder: "#c8eeea",
+      bg: "rgba(52,211,153,0.08)",
+      border: "rgba(52,211,153,0.3)",
+      labelColor: "#34D399",
+      nameColor: "#34D399",
+      cardBorder: "rgba(52,211,153,0.25)",
       components: [
         { title: "Quant Ad Spend Agent",      desc: "CPA / ROAS / marginal return" },
         { title: "Revenue Forensic Agent",    desc: "Multi-touch attribution" },
@@ -48,11 +47,11 @@
     {
       label: "GOVERNED",
       name: "LAYER 4 — GOVERNANCE & RISK",
-      bg: "bg-[linear-gradient(90deg,rgba(30,50,128,0.25)_0%,rgba(55,48,163,0.15)_100%)]",
-      border: "#818CF8",
-      labelColor: "#A5B4FC",
-      nameColor: "#0E7490",
-      cardBorder: "#818CF8",
+      bg: "rgba(167,139,250,0.08)",
+      border: "rgba(167,139,250,0.3)",
+      labelColor: "#C4B5FD",
+      nameColor: "#C4B5FD",
+      cardBorder: "rgba(167,139,250,0.25)",
       components: [
         { title: "Compliance Sentry",       desc: "Brand + legal + sector rules" },
         { title: "Governance Engine",       desc: "Confidence scoring + approvals" },
@@ -63,11 +62,11 @@
     {
       label: "SIMULATE",
       name: "LAYER 5 — SIMULATION",
-      bg: "bg-[linear-gradient(90deg,rgba(16,185,129,0.15)_0%,rgba(99,102,241,0.08)_100%)]",
-      border: "#6EE7B7",
-      labelColor: "#059669",
-      nameColor: "#059669",
-      cardBorder: "#6EE7B7",
+      bg: "rgba(245,158,11,0.08)",
+      border: "rgba(245,158,11,0.3)",
+      labelColor: "#FCD34D",
+      nameColor: "#FCD34D",
+      cardBorder: "rgba(245,158,11,0.25)",
       components: [
         { title: "Synthetic Audience Engine",   desc: "Predict response before spend" },
         { title: "Creative Scenario Modelling", desc: "Test before budget is committed" },
@@ -77,18 +76,18 @@
   ];
 
   return (
-    <section className="py-24 px-6" style={{ background: "#F8FAFC" }}>
+    <section className="py-24 px-6" style={{ background: "#0f1b2e" }}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
-          <p className="inline-flex items-center gap-2 text-indigo-500 text-xs font-bold tracking-widest uppercase mb-4">
-            <span className="w-4 h-px bg-indigo-400 inline-block" />
+          <p className="inline-flex items-center gap-2 text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4">
+            <span className="w-4 h-px bg-cyan-400 inline-block" />
             Agentic Intelligence Architecture
           </p>
-          <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-5 leading-tight">
+          <h2 className="text-4xl lg:text-5xl font-black text-white mb-5 leading-tight">
             A layered system, not a collection of AI helpers
           </h2>
-          <p className="text-gray-500 max-w-lg mx-auto text-sm leading-relaxed">
+          <p className="text-white/40 max-w-lg mx-auto text-sm leading-relaxed">
             Five intelligence layers operating in concert — each purpose-built,
             each governed, each working as a closed loop that connects creative,
             channel, spend, and revenue in real time.
@@ -158,17 +157,17 @@
                       {layer.components.map((c) => (
                         <div
                           key={c.title}
-                          className="flex-1 bg-white rounded-xl px-3.5 py-3"
+                          className="flex-1 rounded-xl px-3.5 py-3"
                           style={{
+                            background: "rgba(10,18,32,0.6)",
                             border: `1px solid ${layer.cardBorder}`,
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
                             minWidth: 0,
                           }}
                         >
-                          <p className=" font-bold text-[12px] mb-1 leading-snug" style={{ color: layer.nameColor  }}>
+                          <p className="font-bold text-[12px] mb-1 leading-snug" style={{ color: "#C8D8E8" }}>
                             {c.title}
                           </p>
-                          <p className="text-[11px] leading-snug" style={{ color: layer.nameColor  }}>
+                          <p className="text-[11px] leading-snug" style={{ color: "#6E8BA0" }}>
                             {c.desc}
                           </p>
                         </div>

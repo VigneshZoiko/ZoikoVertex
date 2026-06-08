@@ -22,8 +22,8 @@ export default function LandingPage() {
     <main className="min-h-screen">
       <Navbar />
       <Hero />
-      <TrustedBy />
       <Stats />
+      <TrustedBy />
       <Pricing />
       <FeatureBlock />
       <Architecture />
