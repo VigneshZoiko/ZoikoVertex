@@ -1,126 +1,169 @@
-﻿export default function Accountability() {
-  const bullets = [
-    "ROI per campaign, channel, and platform",
-    "Cost per acquisition and contribution margin impact",
-    "Lifetime value correlation and revenue path",
-    "Wasted spend identified, recovered, and reported",
-    "Budget reallocation effect on profit, not just spend",
-    "Revenue path from touchpoint to cash event",
-  ];
+const BULLETS = [
+  "ROI per campaign, channel, and platform",
+  "Cost per acquisition and contribution margin impact",
+  "Lifetime value correlation and revenue path",
+  "Wasted spend identified, recovered, and reported",
+  "Budget reallocation effect on profit, not just spend",
+  "Revenue path from touchpoint to cash event",
+];
 
-  const metrics = [
-    { label: "Campaign ROI",           value: "2.3× → 3.7×",   bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
-    { label: "Cost per acquisition",   value: "-26% reduction", bg: "#3a2a10", text: "#f59e0b", border: "#5a4020" },
-    { label: "Wasted spend recovered", value: "$6,400 / 48h",   bg: "#1a2a3a", text: "#60a5fa", border: "#2a3a5a" },
-    { label: "Budget reallocated",     value: "$18,200 auto",   bg: "#1a2a3a", text: "#60a5fa", border: "#2a3a5a" },
-    { label: "Daily profit impact",    value: "+14.0%",         bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
-    { label: "Attribution confidence", value: "Multi-touch ✓",  bg: "#1a3a2a", text: "#4ade80", border: "#2a5a3a" },
-  ];
+const METRICS = [
+  { label: "Campaign ROI",           value: "2.3× → 3.7×",   color: "#34D399", bg: "rgba(52,211,153,0.08)",  border: "rgba(52,211,153,0.2)" },
+  { label: "Cost per acquisition",   value: "-26% reduction", color: "#F59E0B", bg: "rgba(245,158,11,0.08)",  border: "rgba(245,158,11,0.2)" },
+  { label: "Wasted spend recovered", value: "$6,400 / 48h",   color: "#20E7F2", bg: "rgba(32,231,242,0.08)",  border: "rgba(32,231,242,0.2)" },
+  { label: "Budget reallocated",     value: "$18,200 auto",   color: "#20E7F2", bg: "rgba(32,231,242,0.08)",  border: "rgba(32,231,242,0.2)" },
+  { label: "Daily profit impact",    value: "+14.0%",         color: "#34D399", bg: "rgba(52,211,153,0.08)",  border: "rgba(52,211,153,0.2)" },
+  { label: "Attribution confidence", value: "Multi-touch ✓",  color: "#34D399", bg: "rgba(52,211,153,0.08)",  border: "rgba(52,211,153,0.2)" },
+];
 
+export default function Accountability() {
   return (
-    <section style={{ background: "#152238" }} className="py-24 px-6">
-      <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+    <section style={{ background: "#152238", padding: "96px 24px" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 64, alignItems: "center" }}>
 
-        {/* ── LEFT ── */}
+        {/* Left */}
         <div>
-          <div className="flex items-center gap-2 mb-5">
-            <span className="w-4 h-px bg-[#20E7F2] inline-block" />
-            <p className="text-[#20E7F2] text-[10px] font-bold tracking-[0.2em] uppercase">
-              ROI Engine
-            </p>
+          <div style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            fontFamily: "var(--font-jetbrains), 'JetBrains Mono', monospace",
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase" as const,
+            color: "#20E7F2",
+            marginBottom: 20,
+          }}>
+            <span style={{ width: 24, height: 1, background: "#20E7F2", display: "inline-block" }} />
+            ROI Engine
           </div>
-
-          <h2 className="text-4xl lg:text-5xl font-black text-white leading-tight mb-5">
+          <h2 style={{
+            fontFamily: "var(--font-bricolage), 'Bricolage Grotesque', sans-serif",
+            fontSize: "clamp(1.8rem, 3vw, 2.6rem)",
+            fontWeight: 900,
+            color: "#FFFFFF",
+            lineHeight: 1.1,
+            marginBottom: 20,
+            letterSpacing: "-0.02em",
+          }}>
             Audit-grade financial accountability
           </h2>
-
-          <p className="text-[#8b9cb3] text-[14px] leading-relaxed mb-8">
-            ZoikoVertex is designed to satisfy the core finance question: is
-            marketing generating profit, or only activity? The ROI engine
-            reconciles spend to contribution margin in a language CFOs
-            and boards can verify.
+          <p style={{
+            fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+            color: "#5E7A92",
+            fontSize: 14,
+            lineHeight: 1.7,
+            marginBottom: 28,
+          }}>
+            ZoikoVertex is designed to satisfy the core finance question: is marketing generating profit, or only activity? The ROI engine reconciles spend to contribution margin in a language CFOs and boards can verify.
           </p>
-
-          <ul className="space-y-2.5 mb-10">
-            {bullets.map((b) => (
-              <li key={b} className="flex items-start gap-3 text-[#8b9cb3] text-[13px]">
-                <svg
-                  width="14" height="14" viewBox="0 0 24 24" fill="none"
-                  stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                  className="flex-shrink-0 mt-0.5"
-                >
-                  <polyline points="20 6 9 17 4 12" />
+          <ul style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 32 }}>
+            {BULLETS.map((b) => (
+              <li key={b} style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+                fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+                color: "#A9B8C7",
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#20E7F2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+                  <polyline points="20 6 9 17 4 12"/>
                 </svg>
                 {b}
               </li>
             ))}
           </ul>
-
-          <div
-            className=" p-5"
-            style={{ background: "rgba(32,231,242,0.04)", borderLeft: "3px solid #20E7F2" }}
-          >
-            <p className="text-[#8b9cb3] text-[13px] leading-relaxed italic">
-              <span className="text-white font-bold not-italic">Economic inevitability:</span>{" "}
-              If ZoikoVertex improves marketing efficiency by even 15%, it pays for itself
-              multiple times over — making non-adoption financially irrational in
-              performance-sensitive organizations.
+          <div style={{
+            padding: "16px 20px",
+            borderLeft: "3px solid #20E7F2",
+            background: "rgba(32,231,242,0.04)",
+            borderRadius: "0 8px 8px 0",
+          }}>
+            <p style={{
+              fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+              color: "#5E7A92",
+              fontSize: 13,
+              lineHeight: 1.6,
+              fontStyle: "italic",
+            }}>
+              <span style={{ color: "#FFFFFF", fontWeight: 700, fontStyle: "normal" }}>Economic inevitability: </span>
+              If ZoikoVertex improves marketing efficiency by even 15%, it pays for itself multiple times over — making non-adoption financially irrational in performance-sensitive organizations.
             </p>
           </div>
         </div>
 
-        {/* ── RIGHT: Dashboard card ── */}
-        <div
-          className="rounded-2xl overflow-hidden"
-          style={{
-            background: "#152238",
-            border: "1px solid rgba(32,231,242,0.12)",
-            boxShadow: "0 24px 60px #00000073, 0 8px 24px #00000073",
-          }}
-        >
-          {/* Header — distinct lighter bg */}
-          <div
-            className="flex items-center justify-between px-5 py-4"
-            style={{
-              background: "#00000040",
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            <span className="text-white font-bold text-[14px]">
+        {/* Right — dashboard card */}
+        <div style={{
+          borderRadius: 16,
+          overflow: "hidden",
+          border: "1px solid rgba(32,231,242,0.12)",
+          background: "#152238",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+        }}>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "16px 20px",
+            background: "rgba(32,231,242,0.04)",
+            borderBottom: "1px solid rgba(32,231,242,0.08)",
+          }}>
+            <span style={{
+              fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+              fontSize: 13,
+              fontWeight: 700,
+              color: "#FFFFFF",
+            }}>
               Campaign Performance Dashboard
             </span>
-            <span
-              className="flex items-center gap-1.5 text-[#22C55E] text-[11px] font-semibold px-2.5 py-1 rounded-full"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80]" />
+            <span style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontFamily: "var(--font-jetbrains), 'JetBrains Mono', monospace",
+              fontSize: 10,
+              fontWeight: 600,
+              color: "#34D399",
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#34D399" }} />
               Live
             </span>
           </div>
-
-          {/* Metric rows */}
-          <div className="flex flex-col">
-            {metrics.map((m, i) => (
-              <div
-                key={m.label}
-                className="flex items-center justify-between px-5 py-4"
-                style={{
-                  borderBottom: i < metrics.length - 1
-                    ? "1px solid rgba(255,255,255,0.05)"
-                    : "none",
-                }}
-              >
-                <span className="text-[#8b9cb3] text-[13px]">{m.label}</span>
-                <span
-                  className="text-[12px] font-bold px-3 py-1.5 rounded-full"
-                  style={{ background: m.bg, color: m.text, border: `1px solid ${m.border}` }}
-                >
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {METRICS.map((m, i) => (
+              <div key={m.label} style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "14px 20px",
+                borderBottom: i < METRICS.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+              }}>
+                <span style={{
+                  fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+                  color: "#5E7A92",
+                  fontSize: 13,
+                }}>
+                  {m.label}
+                </span>
+                <span style={{
+                  fontFamily: "var(--font-jetbrains), 'JetBrains Mono', monospace",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: m.color,
+                  background: m.bg,
+                  border: `1px solid ${m.border}`,
+                  borderRadius: 999,
+                  padding: "4px 12px",
+                }}>
                   {m.value}
                 </span>
               </div>
             ))}
           </div>
         </div>
-
       </div>
     </section>
   );

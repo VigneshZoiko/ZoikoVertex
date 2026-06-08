@@ -83,7 +83,7 @@ export default function StackComparison() {
   }, []);
 
   return (
-    <section className="bg-[#03050F] py-20 px-6">
+    <section className="bg-[#0f1b2e] py-20 px-6">
       <div ref={ref} className="max-w-5xl mx-auto">
 
         {/* Header */}
