@@ -54,6 +54,7 @@ import {
   Eye,
   Lock,
   Sparkles,
+  BarChart3,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
