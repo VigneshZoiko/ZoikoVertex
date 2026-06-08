@@ -41,9 +41,14 @@ import {
   Check,
   Variable,
   FileText,
+  Activity,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRoleContext } from "@/lib/context/RoleContext";
+import { EvaluationDashboard } from "@/features/prompt-governance/EvaluationDashboard";
+import { AdversarialDashboard } from "@/features/prompt-governance/AdversarialDashboard";
+import { DriftDashboard } from "@/features/prompt-governance/DriftDashboard";
+import { PromptGovernanceCenter } from "@/features/prompt-governance/PromptGovernanceCenter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -137,7 +142,7 @@ interface ApprovalStats {
   };
 }
 
-type ActiveTab = "registry" | "lifecycle" | "testing" | "approvals" | "evidence" | "runtime" | "auditor";
+type ActiveTab = "registry" | "lifecycle" | "testing" | "approvals" | "evidence" | "runtime" | "auditor" | "evaluation" | "adversarial" | "drift" | "center";
 type FilterStatus = "ALL" | LifecycleStatus;
 type FilterRisk = "ALL" | RiskTier;
 
@@ -1416,12 +1421,14 @@ function PromptDetailDrawer({
   onLifecycleAction,
   onVersionAction,
   onExportEvidence,
+  onOpenInCenter,
 }: {
   prompt: PromptRecord;
   onClose: () => void;
   onLifecycleAction: (id: string, action: string) => void;
   onVersionAction: (versionId: string, action: string, extra?: any) => void;
   onExportEvidence: (prompt: PromptRecord, context: string) => void;
+  onOpenInCenter: (promptId: string, versionId?: string) => void;
 }) {
   const [drawerTab, setDrawerTab] = useState<"overview" | "body" | "bindings" | "variables" | "history">("overview");
   const [promptBody, setPromptBody] = useState<string | null>(null);
@@ -1708,12 +1715,13 @@ function PromptDetailDrawer({
         {/* Deployment controls */}
         <div className="p-6 border-t border-slate-800 space-y-3 sticky bottom-0 bg-slate-950">
           <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Deployment Controls</div>
-          <a
-            href={`/agents/prompt-governance?promptId=${prompt.id}${prompt.active_version_id ? `&versionId=${prompt.active_version_id}` : ''}`}
+          <button
+            type="button"
+            onClick={() => onOpenInCenter(prompt.id, prompt.active_version_id)}
             className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300"
           >
             Open in Governance Center →
-          </a>
+          </button>
           <div className="flex flex-wrap gap-2">
             {prompt.status === "DRAFT" && (
               <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'run_tests')} className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Run Tests</button>
@@ -1794,6 +1802,7 @@ export default function PromptsPage() {
   const [hitlRules, setHitlRules] = useState<HitlRule[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<PromptRecord | null>(null);
+  const [centerTarget, setCenterTarget] = useState<{ promptId: string; versionId?: string } | null>(null);
   const [promptsLoading, setPromptsLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
@@ -1895,6 +1904,12 @@ export default function PromptsPage() {
     }
   };
 
+  const handleOpenInCenter = useCallback((promptId: string, versionId?: string) => {
+    setCenterTarget({ promptId, versionId });
+    setActiveTab("center");
+    setSelectedPrompt(null);
+  }, []);
+
   const downloadJson = useCallback((filename: string, payload: unknown) => {
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
@@ -1967,6 +1982,10 @@ export default function PromptsPage() {
     { id: "evidence", label: "Evidence", icon: History },
     { id: "runtime", label: "Runtime", icon: Network },
     { id: "auditor", label: "Auditor", icon: ShieldCheck },
+    { id: "evaluation", label: "Evaluation", icon: BarChart3 },
+    { id: "adversarial", label: "Adversarial", icon: ShieldAlert },
+    { id: "drift", label: "Drift", icon: Activity },
+    { id: "center", label: "Governance Center", icon: FileText },
   ];
 
   return (
@@ -2096,6 +2115,16 @@ export default function PromptsPage() {
           />
         )}
         {activeTab === "auditor" && <AuditorTab />}
+        {activeTab === "evaluation" && <EvaluationDashboard embedded />}
+        {activeTab === "adversarial" && <AdversarialDashboard embedded />}
+        {activeTab === "drift" && <DriftDashboard embedded />}
+        {activeTab === "center" && (
+          <PromptGovernanceCenter
+            embedded
+            initialPromptId={centerTarget?.promptId}
+            initialVersionId={centerTarget?.versionId}
+          />
+        )}
       </div>
 
       {/* Prompt detail drawer */}
@@ -2106,6 +2135,7 @@ export default function PromptsPage() {
           onLifecycleAction={handleLifecycleAction}
           onVersionAction={handleVersionAction}
           onExportEvidence={handleExportPromptEvidence}
+          onOpenInCenter={handleOpenInCenter}
         />
       )}
 

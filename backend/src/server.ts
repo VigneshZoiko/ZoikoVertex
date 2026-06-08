@@ -327,6 +327,8 @@ import {
   createIncident,
   listIncidents,
   resolveIncident,
+  generatePostmortem,
+  getPostmortem,
   getOperationsStats,
   getRunEvidence,
   exportEvidence,
@@ -955,6 +957,8 @@ app.post('/api/v1/operations/queues/:id/resolve', authenticate, resolveQueueItem
 app.post('/api/v1/operations/incidents', authenticate, createIncident);
 app.get('/api/v1/operations/incidents', authenticate, listIncidents);
 app.patch('/api/v1/operations/incidents/:id/resolve', authenticate, resolveIncident);
+app.post('/api/v1/operations/incidents/:id/postmortem', authenticate, generatePostmortem);
+app.get('/api/v1/operations/incidents/:id/postmortem', authenticate, getPostmortem);
 app.get('/api/v1/operations/stats', authenticate, getOperationsStats);
 app.get('/api/v1/operations/evidence/:bundleId', authenticate, getRunEvidence);
 app.post('/api/v1/operations/evidence/:bundleId/export', authenticate, exportEvidence);

@@ -230,6 +230,7 @@ const POLICY_CONFIG: Record<string, { label: string; color: string; bg: string }
   PASS:           { label: "Pass",           color: "text-emerald-400", bg: "bg-emerald-500/10" },
   WARNING:        { label: "Warning",        color: "text-amber-400",   bg: "bg-amber-500/10"   },
   BLOCKED:        { label: "Blocked",        color: "text-rose-400",    bg: "bg-rose-500/10"    },
+  NOT_EVALUATED:  { label: "Not Evaluated",  color: "text-gray-400",    bg: "bg-gray-500/10"     },
   PENDING_REVIEW: { label: "Pending Review", color: "text-purple-400",  bg: "bg-purple-500/10"  },
   NOT_APPLICABLE: { label: "N/A",            color: "text-[#555]",      bg: "bg-white/5"        },
 };
@@ -2141,6 +2142,21 @@ export default function AgentOperationsPage() {
                           </span>
                         </div>
                       </div>
+                      {incident.status === "resolved" && (
+                        <div className="px-4 pb-2 flex items-center gap-2">
+                          <button
+                            onClick={async () => {
+                              try {
+                                await api.generatePostmortem(incident.id);
+                                flashNotice(`Postmortem generated for incident ${incident.id.slice(0, 8)}`);
+                              } catch { setError("Failed to generate postmortem"); }
+                            }}
+                            className="px-2 py-1 text-[10px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-lg hover:bg-indigo-500/20 transition-colors flex items-center gap-1"
+                          >
+                            <FileText className="w-3 h-3" /> Generate Postmortem
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

@@ -380,6 +380,14 @@ export const api = {
     return this.post(`/api/v1/operations/runs/${id}/policy-check`, {});
   },
 
+  async generatePostmortem(incidentId: string) {
+    return this.post(`/api/v1/operations/incidents/${incidentId}/postmortem`, {});
+  },
+
+  async getPostmortem(incidentId: string) {
+    return this.get(`/api/v1/operations/incidents/${incidentId}/postmortem`);
+  },
+
   async getPolicyResults(id: string) {
     return this.get(`/api/v1/operations/runs/${id}/policy-results`);
   },

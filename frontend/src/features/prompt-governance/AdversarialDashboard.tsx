@@ -59,7 +59,7 @@ function StatRow({
   );
 }
 
-export function AdversarialDashboard() {
+export function AdversarialDashboard({ embedded = false }: { embedded?: boolean } = {}) {
   const { hasRole } = useRoleContext();
   const allowed = hasRole(["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "AGENT_ARCHITECT"]);
   const [data, setData] = useState<AdversarialView | null>(null);
@@ -101,23 +101,25 @@ export function AdversarialDashboard() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-[var(--foreground)] flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5" /> Adversarial Dashboard
-          </h1>
-          <p className={`text-sm ${muted}`}>
-            Real adversarial test results across the workspace. Bypasses must be zero
-            before a prompt can move to Review Requested.
-          </p>
+      {!embedded && (
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-[var(--foreground)] flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5" /> Adversarial Dashboard
+            </h1>
+            <p className={`text-sm ${muted}`}>
+              Real adversarial test results across the workspace. Bypasses must be zero
+              before a prompt can move to Review Requested.
+            </p>
+          </div>
+          <a
+            href="/agents/prompts"
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs ${muted} hover:text-[var(--foreground)]`}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Prompt Registry
+          </a>
         </div>
-        <a
-          href="/agents/prompts"
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs ${muted} hover:text-[var(--foreground)]`}
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Prompt Registry
-        </a>
-      </div>
+      )}
 
       {!data.validation_enabled && <ValidationDisabled scope="adversarial" />}
 
