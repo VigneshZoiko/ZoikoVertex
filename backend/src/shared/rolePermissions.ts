@@ -12,6 +12,7 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'quality:view', 'quality:manage', 'rules:view', 'rules:manage', 'exceptions:view', 'exceptions:manage',
     'agents:view', 'agents:manage', 'operations:view', 'operations:manage',
     'workflows:view', 'workflows:manage', 'prompts:view', 'prompts:manage',
+    'prompt.edit.own', 'prompt.edit.any',
     'autonomy:view', 'autonomy:manage', 'models:view', 'knowledge:view', 'knowledge:manage',
     'governance:view', 'governance:manage', 'brand:view', 'brand:manage',
     'policy:view', 'policy:manage', 'risk:view', 'risk:manage',
@@ -30,6 +31,7 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'dashboard:view', 'operations:view',
     'governance:view', 'governance:manage', 'policy:view', 'policy:manage',
     'risk:view', 'risk:manage', 'audit:view', 'evidence:view',
+    'prompt.edit.any',
     'rules:view', 'rules:manage', 'autonomy:view', 'autonomy:manage',
     'queue:view', 'validation:view', 'approvals:view', 'quality:view', 'exceptions:view',
     'agents:view', 'brand:view', 'brand-library:view', 'support:view',
@@ -38,6 +40,7 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'dashboard:view', 'operations:view', 'operations:manage',
     'agents:view', 'agents:manage',
     'workflows:view', 'workflows:manage', 'prompts:view', 'prompts:manage',
+    'prompt.edit.own',
     'knowledge:view', 'models:view', 'queue:view', 'governance:view', 'validation:view', 'support:view',
   ],
   AGENT_OPERATOR: [

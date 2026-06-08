@@ -49,7 +49,6 @@ import {
 import {
   registerProductionAdapters,
   _resetBootRegistrationForTests,
-  isRealModelValidationEnabled,
 } from '../../modules/prompts/modelProviders';
 import { AdversarialTestService } from '../../modules/prompts/AdversarialTestService';
 import { CrossModelComparisonService } from '../../modules/prompts/CrossModelComparisonService';
@@ -74,6 +73,7 @@ function stubAdapters() {
   const stub = (provider: string, output: string) =>
     async (req: ModelExecutionRequest): Promise<ModelExecutionResult> => ({
       output,
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- builtin crypto in a test stub
       outputHash: require('crypto').createHash('sha256').update(output).digest('hex'),
       latencyMs: 5,
       finishReason: 'stop',

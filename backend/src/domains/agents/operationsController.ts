@@ -733,6 +733,7 @@
         id,
         req.user?.is_superadmin ? null : req.user?.workspace_id,
         req.user?.id,
+        typeof req.body?.resolution_notes === "string" ? req.body.resolution_notes : undefined,
       );
       internalEventBus.emit("operations.event", {
         type: "queue.resolved",

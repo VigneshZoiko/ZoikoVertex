@@ -216,6 +216,64 @@ export class PromptController {
     return version;
   }
 
+  // ─── A7: Ownership enforcement (Doc 3 §15 prompt.edit.own vs prompt.edit.any) ──
+  // Roles that carry `prompt.edit.any` — may edit any draft in tenant scope.
+  // Everyone else with `prompt.edit.own` (e.g. AGENT_ARCHITECT) may only edit
+  // drafts they own (owner_id) or created (created_by). Enforced IN ADDITION to
+  // the existing govEdit route guard — never a bypass of it.
+  private static readonly EDIT_ANY_ROLES = ['ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER'];
+
+  private static hasEditAny(req: AuthRequest): boolean {
+    if (req.user?.api_key_id) {
+      const scopes = req.user.api_key_scopes || [];
+      return scopes.includes('*') || scopes.includes('prompt.edit.any');
+    }
+    const role = String(req.user?.role || '').toUpperCase();
+    return !!req.user?.is_superadmin || PromptController.EDIT_ANY_ROLES.includes(role);
+  }
+
+  private static ownsPrompt(req: AuthRequest, prompt: { owner_id?: string | null; created_by?: string | null }): boolean {
+    const uid = req.user?.id;
+    if (!uid) return false;
+    return prompt.owner_id === uid || prompt.created_by === uid;
+  }
+
+  /** `prompt.edit.any` short-circuits to allowed; otherwise the caller must own
+   *  (created_by/owner_id) the prompt to satisfy `prompt.edit.own`. */
+  private static checkEditPermission(
+    req: AuthRequest,
+    prompt: { owner_id?: string | null; created_by?: string | null },
+  ): { allowed: boolean; reason: string } {
+    if (PromptController.hasEditAny(req)) return { allowed: true, reason: 'edit.any' };
+    if (PromptController.ownsPrompt(req, prompt)) return { allowed: true, reason: 'edit.own' };
+    return {
+      allowed: false,
+      reason: 'Forbidden: prompt.edit.own permits editing only prompts you own or are assigned to. prompt.edit.any is required to edit drafts owned by others.',
+    };
+  }
+
+  /** Guard: enforce edit permission, audit any denial, and send 403.
+   *  Returns true when the caller may proceed. */
+  private static async enforceEditPermission(
+    req: AuthRequest,
+    res: Response,
+    prompt: { id: string; owner_id?: string | null; created_by?: string | null; risk_tier?: string },
+    workspaceId: string,
+  ): Promise<boolean> {
+    const check = PromptController.checkEditPermission(req, prompt);
+    if (check.allowed) return true;
+    await auditPromptEvent('prompt.edit.denied', {
+      prompt_id: prompt.id,
+      workspace_id: workspaceId,
+      actor_id: req.user?.id,
+      risk_tier: prompt.risk_tier,
+      reason: 'ownership_denied',
+      after_state: { blocked: true, required_permission: 'prompt.edit.any', owner_id: prompt.owner_id ?? null },
+    }, req);
+    res.status(403).json({ error: check.reason });
+    return false;
+  }
+
   // ─── Prompt CRUD ────────────────────────────────────────────────────────
 
   static async listPrompts(req: AuthRequest, res: Response, next: NextFunction) {
@@ -705,6 +763,8 @@ export class PromptController {
       if ([PROMPT_STATUS.RETIRED, PROMPT_STATUS.ARCHIVED].includes(existing.status)) {
         return res.status(409).json({ error: 'Retired and archived prompts are immutable; clone to draft before editing.' });
       }
+      // A7: prompt.edit.own vs prompt.edit.any
+      if (!(await PromptController.enforceEditPermission(req, res, existing, workspaceId))) return;
       const changedFields = Object.keys(req.body || {});
       const beforeState: Record<string, unknown> = {};
       const afterState: Record<string, unknown> = {};
@@ -778,6 +838,187 @@ export class PromptController {
         after_state: { name: data.name, cloned_from: getParam(req, 'id') },
       }, req);
       res.status(201).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── A1: Create starting paths (Doc 3 §5 / §12) ──────────────────────────
+  // Statuses that represent a prompt that has cleared approval and is therefore
+  // eligible to be used as a template.
+  private static readonly TEMPLATE_SOURCE_STATUSES: string[] = [
+    PROMPT_STATUS.APPROVED_STAGING,
+    PROMPT_STATUS.PRODUCTION_PENDING,
+    PROMPT_STATUS.COMMISSIONED,
+    PROMPT_STATUS.PRODUCTION_ACTIVE,
+    PROMPT_STATUS.PAUSED,
+    PROMPT_STATUS.RETIRED,
+    PROMPT_STATUS.ARCHIVED,
+  ];
+
+  /**
+   * A1 — Create-from-Template. Copies an APPROVED source prompt's configuration
+   * (metadata, risk tier, agent/workflow links, knowledge sources, permitted
+   * tools) and its current version's content (body, variables, guardrails, model
+   * routes) into a brand-new DRAFT. Approvals, audit history, deployment history,
+   * and evidence are intentionally NOT copied — a fresh prompt + version are
+   * inserted, so none of those rows carry over.
+   */
+  static async createFromTemplate(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const sourceId = getParam(req, 'id');
+      const source = await PromptService.requireById(sourceId, workspaceId);
+      if (!PromptController.TEMPLATE_SOURCE_STATUSES.includes(String(source.status))) {
+        return res.status(409).json({ error: 'Templates can only be created from an approved prompt (approved, production, paused, retired, or archived).' });
+      }
+
+      const sourceVersion = source.current_version_id
+        ? await PromptVersionService.getById(source.current_version_id).catch(() => null)
+        : null;
+
+      const created = await PromptService.create({
+        workspace_id: workspaceId,
+        name: req.body.name || `${source.name} (From Template)`,
+        description: req.body.description || `Created from template "${source.name}".`,
+        prompt_type: source.prompt_type,
+        owner_id: req.user?.id,
+        owner_name: req.user?.email || req.user?.id,
+        risk_tier: req.body.risk_tier || source.risk_tier,
+        linked_agent: source.linked_agent,
+        linked_agent_id: source.linked_agent_id,
+        linked_workflow: source.linked_workflow,
+        linked_workflow_id: source.linked_workflow_id,
+        knowledge_sources: source.knowledge_sources || [],
+        tools_permitted: source.tools_permitted || [],
+        created_by: req.user?.id,
+      });
+
+      await PromptVersionService.create({
+        prompt_id: created.id,
+        body: sourceVersion?.body || `Prompt draft for ${created.name}`,
+        variables_json: sourceVersion?.variables_json,
+        guardrails_json: sourceVersion?.guardrails_json,
+        model_routes_json: sourceVersion?.model_routes_json,
+        change_summary: `Initial draft copied from template "${source.name}"`,
+        created_by: req.user?.id,
+      });
+
+      await PromptTestService.createSuite({
+        prompt_id: created.id,
+        suite_name: 'Default Governance Suite',
+        required_for_risk_tier: [created.risk_tier || 'TIER_2_MEDIUM'],
+        scenario_count: 1,
+        evaluator_config: { bootstrap: true },
+      }).catch(() => null);
+
+      await auditPromptEvent('prompt.created', {
+        prompt_id: created.id,
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        risk_tier: created.risk_tier,
+        after_state: { name: created.name, status: created.status, created_from_template: sourceId },
+      }, req);
+
+      res.status(201).json({ success: true, data: created });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * A1 — Import prompt definition JSON. Validates schema / required fields /
+   * risk tier / variable structure and surfaces all validation errors. On
+   * success, creates a DRAFT prompt + initial version from the definition.
+   */
+  static async importPrompt(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const raw = (req.body && typeof req.body.definition === 'object' && req.body.definition !== null)
+        ? req.body.definition
+        : req.body;
+      const def = (raw || {}) as Record<string, any>;
+
+      const errors: string[] = [];
+      const VALID_TIERS = ['tier_1_low', 'tier_2_medium', 'tier_3_high', 'tier_4_critical', 'TIER_1_LOW', 'TIER_2_MEDIUM', 'TIER_3_HIGH', 'TIER_4_CRITICAL'];
+
+      if (!def.name || typeof def.name !== 'string' || !def.name.trim()) {
+        errors.push('`name` is required and must be a non-empty string.');
+      }
+      if (!def.prompt_type || typeof def.prompt_type !== 'string') {
+        errors.push('`prompt_type` is required.');
+      }
+      if (!def.risk_tier || !VALID_TIERS.includes(String(def.risk_tier))) {
+        errors.push('`risk_tier` is required and must be one of tier_1_low, tier_2_medium, tier_3_high, tier_4_critical.');
+      }
+      // Variable structure: optional, but if present must be an object map of
+      // { name -> { type, ... } } or an array of { name, type }.
+      if (def.variables_json !== undefined && def.variables_json !== null) {
+        const v = def.variables_json;
+        const isObjectMap = typeof v === 'object' && !Array.isArray(v);
+        const isArray = Array.isArray(v);
+        if (!isObjectMap && !isArray) {
+          errors.push('`variables_json` must be an object map or an array of variable definitions.');
+        } else {
+          const entries = isArray ? v : Object.entries(v).map(([name, body]: [string, any]) => ({ name, ...(body || {}) }));
+          entries.forEach((entry: any, i: number) => {
+            if (!entry || (!entry.name && !isObjectMap)) errors.push(`Variable #${i + 1}: missing name.`);
+            if (entry && entry.type && typeof entry.type !== 'string') errors.push(`Variable #${i + 1}: type must be a string.`);
+          });
+        }
+      }
+      if (def.guardrails_json !== undefined && def.guardrails_json !== null && typeof def.guardrails_json !== 'object') {
+        errors.push('`guardrails_json` must be an object or array.');
+      }
+
+      if (errors.length > 0) {
+        return res.status(400).json({ success: false, error: 'Prompt import validation failed.', errors });
+      }
+
+      const created = await PromptService.create({
+        workspace_id: workspaceId,
+        name: String(def.name),
+        description: def.description || 'Imported prompt definition.',
+        prompt_type: def.prompt_type,
+        owner_id: req.user?.id,
+        owner_name: req.user?.email || req.user?.id,
+        risk_tier: def.risk_tier,
+        linked_agent: def.linked_agent,
+        linked_agent_id: def.linked_agent_id,
+        linked_workflow: def.linked_workflow,
+        linked_workflow_id: def.linked_workflow_id,
+        knowledge_sources: Array.isArray(def.knowledge_sources) ? def.knowledge_sources : [],
+        tools_permitted: Array.isArray(def.tools_permitted) ? def.tools_permitted : [],
+        created_by: req.user?.id,
+      });
+
+      await PromptVersionService.create({
+        prompt_id: created.id,
+        body: def.body || def.initial_body || `Imported prompt: ${created.name}`,
+        variables_json: def.variables_json,
+        guardrails_json: def.guardrails_json,
+        model_routes_json: def.model_routes_json,
+        change_summary: 'Initial draft imported from definition',
+        created_by: req.user?.id,
+      });
+
+      await PromptTestService.createSuite({
+        prompt_id: created.id,
+        suite_name: 'Default Governance Suite',
+        required_for_risk_tier: [created.risk_tier || 'TIER_2_MEDIUM'],
+        scenario_count: 1,
+        evaluator_config: { bootstrap: true },
+      }).catch(() => null);
+
+      await auditPromptEvent('prompt.created', {
+        prompt_id: created.id,
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        risk_tier: created.risk_tier,
+        after_state: { name: created.name, status: created.status, imported: true },
+      }, req);
+
+      res.status(201).json({ success: true, data: created });
     } catch (error) {
       next(error);
     }
@@ -882,6 +1123,8 @@ export class PromptController {
       if ([PROMPT_STATUS.RETIRED, PROMPT_STATUS.ARCHIVED].includes(prompt.status)) {
         return res.status(409).json({ error: 'Retired and archived prompts are immutable; clone to draft before versioning.' });
       }
+      // A7: creating a new draft version is an edit — prompt.edit.own vs prompt.edit.any
+      if (!(await PromptController.enforceEditPermission(req, res, prompt, workspaceId))) return;
       const data = await PromptVersionService.create({
         prompt_id: getParam(req, 'id'),
         body: req.body.body || '',
@@ -1143,9 +1386,29 @@ export class PromptController {
 
       // Derive reviewer_role from authenticated user first, then body fallback, then default
       const reviewerRole = normalizeReviewerRole(req.user?.role || req.body.reviewer_role);
-      if (!req.body.comments && !req.body.reason) {
-        return res.status(400).json({ error: 'Rejections require actionable notes or a reason category.' });
+
+      // A5 (Doc 3 §7): every rejection must include a reason CATEGORY and
+      // actionable notes. Both are required.
+      const notes = String(req.body.comments || req.body.reason || '').trim();
+      const category = String(req.body.reason_category || '').trim();
+      const VALID_REJECTION_CATEGORIES = [
+        'safety', 'compliance', 'brand', 'quality', 'legal', 'security',
+        'missing_evidence', 'failed_test', 'approval_conflict', 'other',
+      ];
+      if (!category) {
+        return res.status(400).json({ error: 'A rejection reason category is required.', valid_categories: VALID_REJECTION_CATEGORIES });
       }
+      if (!VALID_REJECTION_CATEGORIES.includes(category.toLowerCase())) {
+        return res.status(400).json({ error: `Invalid rejection category. Must be one of: ${VALID_REJECTION_CATEGORIES.join(', ')}.`, valid_categories: VALID_REJECTION_CATEGORIES });
+      }
+      if (!notes) {
+        return res.status(400).json({ error: 'Rejections require actionable notes describing the required change.' });
+      }
+
+      // Persist the category structurally inside decision_reason (no schema
+      // migration): "[category] notes". The category is also surfaced in the
+      // audit event.
+      const decisionReason = `[${category.toLowerCase()}] ${notes}`;
 
       await auditPromptEvent('prompt.approval.rejected', {
         prompt_id: prompt.id,
@@ -1154,8 +1417,9 @@ export class PromptController {
         actor_id: req.user?.id,
         risk_tier: prompt.risk_tier,
         reviewer_role: reviewerRole,
-        reason: req.body.comments || req.body.reason,
-        after_state: { decision: 'REJECTED', status: 'draft' },
+        reason: notes,
+        reason_category: category.toLowerCase(),
+        after_state: { decision: 'REJECTED', status: 'draft', reason_category: category.toLowerCase() },
       }, req, { critical: true });
 
       await PromptApprovalService.create({
@@ -1163,12 +1427,108 @@ export class PromptController {
         reviewer_id: req.user?.id,
         reviewer_role: reviewerRole,
         decision: 'REJECTED',
-        decision_reason: req.body.comments || req.body.reason || '',
+        decision_reason: decisionReason,
       });
 
       await PromptService.updateStatus(version.prompt_id, 'DRAFT', workspaceId);
 
-      res.json({ success: true, message: 'Version rejected' });
+      res.json({ success: true, message: 'Version rejected', data: { reason_category: category.toLowerCase() } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // A6 (Doc 3 §5): "waive with justification where policy allows."
+  // True when the caller holds the prompt.admin.override capability.
+  private static canAdminOverride(req: AuthRequest): boolean {
+    if (req.user?.api_key_id) {
+      const scopes = req.user.api_key_scopes || [];
+      return scopes.includes('*') || scopes.includes('prompt.admin.override');
+    }
+    const role = String(req.user?.role || '').toUpperCase();
+    return !!req.user?.is_superadmin || ['ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER'].includes(role);
+  }
+
+  /**
+   * A6 — Waive outstanding review requirements with justification. Permission-
+   * gated to prompt.admin.override. Policy-aware: HARD deployment-gate blocks
+   * (safety / compliance / adversarial / constraint) are NOT waivable and return
+   * 409. The waiver records an immutable audit/evidence event and completes the
+   * approval chain only when no hard block remains.
+   */
+  static async waiveApproval(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!PromptController.canAdminOverride(req)) {
+        return res.status(403).json({ error: 'Forbidden: waiving review requirements requires the prompt.admin.override capability (governance admin or above).' });
+      }
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      const version = await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      const prompt = await PromptService.requireById(version.prompt_id, workspaceId);
+      if (prompt.current_version_id && prompt.current_version_id !== versionId) {
+        return res.status(409).json({ error: 'Only the current prompt version can be waived.' });
+      }
+      if (LifecycleGateService.isLocked(prompt.status) || LifecycleGateService.isImmutable(prompt.status)) {
+        return res.status(409).json({ error: `Cannot waive: prompt is in '${prompt.status}' status.` });
+      }
+
+      const justification = String(req.body.justification || req.body.reason || '').trim();
+      if (justification.length < 8) {
+        return res.status(400).json({ error: 'A waiver requires a justification of at least 8 characters.' });
+      }
+
+      // Policy-aware: hard safety/compliance/test gates remain enforced. A waiver
+      // may only override soft review-sequencing requirements, never a hard block.
+      const gateResult = await DeploymentGateService.check(versionId, {
+        prompt,
+        workspaceId,
+        overrides: { requireAdversarialPass: true },
+      });
+      const hardBlock = gateResult.blockingIssues.find((i) => i.blocking);
+      if (hardBlock) {
+        await auditPromptEvent('prompt.approval.waive.blocked', {
+          prompt_id: version.prompt_id,
+          prompt_version_id: versionId,
+          workspace_id: workspaceId,
+          actor_id: req.user?.id,
+          risk_tier: prompt.risk_tier,
+          reason: 'hard_block_not_waivable',
+          after_state: { blocked: true, type: hardBlock.type, detail: hardBlock.detail },
+        }, req);
+        return res.status(409).json({ error: `This is a hard safety/compliance block and cannot be waived: ${hardBlock.detail}` });
+      }
+
+      const reviewerRole = normalizeReviewerRole(req.user?.role || req.body.reviewer_role);
+      const policyBasis = String(req.body.policy_basis || 'governance_admin_override').trim();
+
+      // Immutable waiver evidence BEFORE the status change (fail-closed).
+      const waiveEvidenceId = await auditPromptEvent('prompt.approval.waived', {
+        prompt_id: version.prompt_id,
+        prompt_version_id: versionId,
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        risk_tier: prompt.risk_tier,
+        reviewer_role: reviewerRole,
+        reason: justification,
+        after_state: { decision: 'WAIVED', policy_basis: policyBasis, approval_complete: true },
+      }, req, { critical: true });
+
+      const waiverRecord = await PromptApprovalService.create({
+        prompt_version_id: versionId,
+        reviewer_id: req.user?.id,
+        reviewer_role: reviewerRole,
+        decision: 'WAIVED',
+        decision_reason: `[waiver:${policyBasis}] ${justification}`,
+        conditions: policyBasis,
+        evidence_id: waiveEvidenceId || undefined,
+      });
+
+      await GovernanceReceiptService.generate(version.prompt_id, versionId, workspaceId, req.user?.id);
+      await PromptService.updateStatus(version.prompt_id, 'APPROVED_STAGING', workspaceId);
+      await ApprovalInvalidationService.clear(versionId);
+
+      res.json({ success: true, message: 'Review requirements waived; version approved for staging.', data: { waiver_id: waiverRecord?.id || null, policy_basis: policyBasis } });
     } catch (error) {
       next(error);
     }
@@ -1335,7 +1695,28 @@ export class PromptController {
         await supabaseAdmin.from('prompt_deployments').update({ evidence_id: deploymentEvidenceId }).eq('id', deploymentRecord.id);
       }
 
-      res.json({ success: true, message: `Deployed to ${normalizedEnvironment}` });
+      // A4 (Doc 3 §12 Confirmation state): return real deployment data so the UI
+      // can render deployed version, scope, rollback target, evidence link,
+      // timestamp, and actor without fabricating any values.
+      res.json({
+        success: true,
+        message: `Deployed to ${normalizedEnvironment}`,
+        data: {
+          prompt_id: version.prompt_id,
+          version_id: versionId,
+          version_number: version.version_number,
+          environment: normalizedEnvironment,
+          deployment_id: deploymentRecord?.id || null,
+          evidence_id: deploymentEvidenceId || null,
+          rollback_to_version_id: previousProduction?.[0]?.prompt_version_id || null,
+          scope: req.body.scope || {},
+          release_note: req.body.release_note || '',
+          deployed_by: req.user?.email || req.user?.id || null,
+          deployed_at: new Date().toISOString(),
+          linked_agent: prompt.linked_agent || null,
+          linked_workflow: prompt.linked_workflow || null,
+        },
+      });
     } catch (error) {
       next(error);
     }
@@ -2703,9 +3084,80 @@ export class PromptController {
     try {
       const workspaceId = await PromptController.resolveWorkspaceId(req);
       const versionId = getParam(req, 'versionId');
-      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      const version = await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      const prompt = await PromptService.requireById(version.prompt_id, workspaceId);
+      if ([PROMPT_STATUS.RETIRED, PROMPT_STATUS.ARCHIVED].includes(prompt.status)) {
+        return res.status(409).json({ error: 'Retired and archived prompts are immutable; clone to draft before editing variables.' });
+      }
+      // A7: variable authoring is an edit — prompt.edit.own vs prompt.edit.any
+      if (!(await PromptController.enforceEditPermission(req, res, prompt, workspaceId))) return;
       await PromptVariableService.storeVariableDefinitions(versionId, req.body.variables || {});
+      // §7: variables are risk-impacting — re-evaluate approval validity.
+      await enforceApprovalInvalidation(req, { promptId: prompt.id, versionId, workspaceId });
       res.json({ success: true, data: { updated: true } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * A2 — Guardrail authoring. Persists the structured guardrail set onto the
+   * version's existing `guardrails_json` column (no new storage). Guardrails
+   * are risk-impacting, so an edit re-evaluates approval validity (§7).
+   */
+  static async updatePromptGuardrails(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const versionId = getParam(req, 'versionId');
+      const version = await PromptController.requireVersionInWorkspace(versionId, workspaceId);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      const prompt = await PromptService.requireById(version.prompt_id, workspaceId);
+      if ([PROMPT_STATUS.RETIRED, PROMPT_STATUS.ARCHIVED].includes(prompt.status)) {
+        return res.status(409).json({ error: 'Retired and archived prompts are immutable; clone to draft before editing guardrails.' });
+      }
+      // A7: guardrail authoring is an edit — prompt.edit.own vs prompt.edit.any
+      if (!(await PromptController.enforceEditPermission(req, res, prompt, workspaceId))) return;
+
+      const incoming = req.body.guardrails;
+      // Accept either { rules: [...] } or a bare array of rules; normalize to { rules }.
+      const rulesArray = Array.isArray(incoming) ? incoming : Array.isArray(incoming?.rules) ? incoming.rules : null;
+      if (!rulesArray) {
+        return res.status(400).json({ error: 'guardrails must be an array of rules or an object with a rules[] array.' });
+      }
+      const ALLOWED_CATEGORIES = ['policy_rule', 'prohibited_instruction', 'claim_rule', 'safety_block', 'escalation_trigger', 'refusal_rule'];
+      const normalized: Array<Record<string, unknown>> = [];
+      for (let i = 0; i < rulesArray.length; i++) {
+        const r = rulesArray[i] || {};
+        const category = String(r.category || '').toLowerCase();
+        const rule = String(r.rule || '').trim();
+        if (!ALLOWED_CATEGORIES.includes(category)) {
+          return res.status(400).json({ error: `Guardrail #${i + 1}: category must be one of ${ALLOWED_CATEGORIES.join(', ')}.` });
+        }
+        if (!rule) {
+          return res.status(400).json({ error: `Guardrail #${i + 1}: rule text is required.` });
+        }
+        normalized.push({ category, rule, enabled: r.enabled !== false, order: i });
+      }
+
+      const guardrailsJson = { rules: normalized, updated_at: new Date().toISOString() };
+      const { error } = await supabaseAdmin
+        .from('prompt_versions')
+        .update({ guardrails_json: guardrailsJson, updated_at: new Date().toISOString() })
+        .eq('id', versionId);
+      if (error) throw error;
+
+      await auditPromptEvent('prompt.guardrails.updated', {
+        prompt_id: prompt.id,
+        prompt_version_id: versionId,
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        risk_tier: prompt.risk_tier,
+        after_state: { guardrail_count: normalized.length, categories: normalized.map((g) => g.category) },
+      }, req);
+      await enforceApprovalInvalidation(req, { promptId: prompt.id, versionId, workspaceId });
+
+      res.json({ success: true, data: { updated: true, guardrails: guardrailsJson } });
     } catch (error) {
       next(error);
     }

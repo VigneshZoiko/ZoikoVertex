@@ -95,7 +95,7 @@ export default function RoutingStats({ data }: { data?: Stats }) {
           <div className={`p-2.5 rounded-xl ${card.bg} ${card.color} w-fit mb-3`}>
             <card.icon className="w-4 h-4" />
           </div>
-          <p className="text-2xl font-bold text-[var(--text-primary)]">{card.value}</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]">{typeof card.value === 'object' ? '—' : card.value}</p>
           <h3 className="text-[var(--text-secondary)] text-[10px] font-semibold mt-1 leading-snug">{card.title}</h3>
           <p className="text-[var(--text-muted)] text-[10px] mt-0.5 leading-snug">{card.desc}</p>
         </div>

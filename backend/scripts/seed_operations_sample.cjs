@@ -140,9 +140,9 @@ const policy_results = [
 ];
 
 const queue_items = [
-  { id: "5eed0004-0000-0000-0000-000000000001", workspace_id: WS, run_id: RUN.review, queue_type: "human_review", priority: 2, status: "open", due_at: iso(1000 * 60 * 60 * 2), sla_breached: false },
-  { id: "5eed0004-0000-0000-0000-000000000002", workspace_id: WS, run_id: RUN.failed, queue_type: "failed_job", priority: 1, status: "open", due_at: iso(1000 * 60 * 30), sla_breached: false },
-  { id: "5eed0004-0000-0000-0000-000000000003", workspace_id: WS, run_id: RUN.blocked, queue_type: "exception_task", priority: 1, status: "open", due_at: iso(-1000 * 60 * 5), sla_breached: true },
+  { id: "5eed0004-0000-0000-0000-000000000001", workspace_id: WS, run_id: RUN.review, queue_type: "human_review", priority: 2, status: "open", due_at: iso(1000 * 60 * 60 * 2) },
+  { id: "5eed0004-0000-0000-0000-000000000002", workspace_id: WS, run_id: RUN.failed, queue_type: "failed_job", priority: 1, status: "open", due_at: iso(1000 * 60 * 30) },
+  { id: "5eed0004-0000-0000-0000-000000000003", workspace_id: WS, run_id: RUN.blocked, queue_type: "exception_task", priority: 1, status: "open", due_at: iso(-1000 * 60 * 5) },
 ];
 
 const incidents = [

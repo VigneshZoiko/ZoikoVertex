@@ -77,6 +77,7 @@ describe('verification-script bug fixes', () => {
     // correctly returns FAIL for missing tables and PASS for present ones.
     type CheckResult = { name: string; pass: boolean; detail: string };
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- synchronous reference re-implementation; exercised via the async path below
     function checkTablesExist(tables: string[]): CheckResult[] {
       const out: CheckResult[] = [];
       // (this is a synchronous re-implementation that mirrors the fixed

@@ -50,6 +50,7 @@ function registerStubAdapters() {
   const stub: (provider: string, output: string) => (req: ModelExecutionRequest) => Promise<ModelExecutionResult> =
     (provider, output) => async (req) => ({
       output,
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- builtin crypto in a test stub
       outputHash: require('crypto').createHash('sha256').update(output).digest('hex'),
       latencyMs: 5,
       finishReason: 'stop',

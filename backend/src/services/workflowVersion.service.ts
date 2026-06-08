@@ -46,7 +46,7 @@ export async function createDraftVersion(workflowId: string, changeSummary: stri
     id,
     workflow_id: workflowId,
     version_number: nextVersion,
-    state: 'Draft',
+    state: 'draft',
     change_summary: changeSummary || null,
     change_reason: changeReason || null,
     created_by: createdBy,
@@ -59,72 +59,72 @@ export async function createDraftVersion(workflowId: string, changeSummary: stri
 
 export async function submitForApproval(versionId: string) {
   const version = await getVersion(versionId);
-  if (version.state !== 'Draft' && version.state !== 'Testing') {
-    throw Object.assign(new Error('Only Draft or Testing versions can be submitted for approval'), { statusCode: 409 });
+  if (version.state !== 'draft' && version.state !== 'test') {
+    throw Object.assign(new Error('Only draft or test versions can be submitted for approval'), { statusCode: 409 });
   }
-  const { error } = await supabaseAdmin.from('workflow_versions').update({ state: 'Pending Approval' }).eq('id', versionId);
+  const { error } = await supabaseAdmin.from('workflow_versions').update({ state: 'pending_approval' }).eq('id', versionId);
   if (error) throw error;
-  return { id: versionId, state: 'Pending Approval' };
+  return { id: versionId, state: 'pending_approval' };
 }
 
 export async function approveVersion(versionId: string, approvedBy: string) {
   const version = await getVersion(versionId);
-  if (version.state !== 'Pending Approval') {
-    throw Object.assign(new Error('Version must be in Pending Approval state'), { statusCode: 409 });
+  if (version.state !== 'pending_approval') {
+    throw Object.assign(new Error('Version must be in pending_approval state'), { statusCode: 409 });
   }
   const { error } = await supabaseAdmin.from('workflow_versions').update({
-    state: 'Approved',
+    state: 'approved',
     approved_by: approvedBy,
     approved_at: new Date().toISOString(),
   }).eq('id', versionId);
   if (error) throw error;
-  return { id: versionId, state: 'Approved' };
+  return { id: versionId, state: 'approved' };
 }
 
 export async function rejectVersion(versionId: string, reason: string) {
   const version = await getVersion(versionId);
-  if (version.state !== 'Pending Approval') {
-    throw Object.assign(new Error('Version must be in Pending Approval state'), { statusCode: 409 });
+  if (version.state !== 'pending_approval') {
+    throw Object.assign(new Error('Version must be in pending_approval state'), { statusCode: 409 });
   }
-  const { error } = await supabaseAdmin.from('workflow_versions').update({ state: 'Draft', change_reason: reason }).eq('id', versionId);
+  const { error } = await supabaseAdmin.from('workflow_versions').update({ state: 'draft', change_reason: reason }).eq('id', versionId);
   if (error) throw error;
-  return { id: versionId, state: 'Draft' };
+  return { id: versionId, state: 'draft' };
 }
 
 export async function activateVersion(versionId: string, activatedBy: string) {
   const version = await getVersion(versionId);
-  if (version.state !== 'Approved') {
+  if (version.state !== 'approved') {
     throw Object.assign(new Error('Only approved versions can be activated'), { statusCode: 409 });
   }
   const now = new Date().toISOString();
   const { error } = await supabaseAdmin.from('workflow_versions').update({
-    state: 'Active',
+    state: 'active',
     activated_by: activatedBy,
     activated_at: now,
   }).eq('id', versionId);
   if (error) throw error;
 
   await supabaseAdmin.from('workflow_templates').update({
-    status: 'Active',
+    status: 'active',
     current_version_id: versionId,
     active_from: now,
     updated_at: now,
   }).eq('id', version.workflow_id);
 
-  return { id: versionId, state: 'Active' };
+  return { id: versionId, state: 'active' };
 }
 
 export async function rollbackVersion(workflowId: string, targetVersionId: string, reason: string, activatedBy: string) {
   const targetVersion = await getVersion(targetVersionId);
-  if (targetVersion.state !== 'Approved' && targetVersion.state !== 'Active') {
-    throw Object.assign(new Error('Can only rollback to an Approved or Active version'), { statusCode: 409 });
+  if (targetVersion.state !== 'approved' && targetVersion.state !== 'active') {
+    throw Object.assign(new Error('Can only rollback to an approved or active version'), { statusCode: 409 });
   }
 
   const { data: currentActive, error: activeError } = await supabaseAdmin
     .from('workflow_versions')
     .select('id')
     .eq('workflow_id', workflowId)
-    .eq('state', 'Active')
+    .eq('state', 'active')
     .single();
   if (activeError && activeError.code !== 'PGRST116') throw activeError;
 
@@ -137,7 +137,7 @@ export async function rollbackVersion(workflowId: string, targetVersionId: strin
     id: newVersionId,
     workflow_id: workflowId,
     version_number: nextVersion,
-    state: 'Active',
+    state: 'active',
     change_summary: `Rollback to version ${targetVersion.version_number}`,
     change_reason: reason,
     created_by: activatedBy,
@@ -148,29 +148,29 @@ export async function rollbackVersion(workflowId: string, targetVersionId: strin
   });
 
   await supabaseAdmin.from('workflow_templates').update({
-    status: 'Active',
+    status: 'active',
     current_version_id: newVersionId,
     updated_at: now,
   }).eq('id', workflowId);
 
-  return { id: newVersionId, version_number: nextVersion, state: 'Active' };
+  return { id: newVersionId, version_number: nextVersion, state: 'active' };
 }
 
 export async function pauseVersion(versionId: string) {
   const version = await getVersion(versionId);
-  if (version.state !== 'Active') throw Object.assign(new Error('Only active versions can be paused'), { statusCode: 409 });
-  await supabaseAdmin.from('workflow_versions').update({ state: 'Paused' }).eq('id', versionId);
-  await supabaseAdmin.from('workflow_templates').update({ status: 'Paused', updated_at: new Date().toISOString() }).eq('id', version.workflow_id);
-  return { id: versionId, state: 'Paused' };
+  if (version.state !== 'active') throw Object.assign(new Error('Only active versions can be paused'), { statusCode: 409 });
+  await supabaseAdmin.from('workflow_versions').update({ state: 'paused' }).eq('id', versionId);
+  await supabaseAdmin.from('workflow_templates').update({ status: 'paused', updated_at: new Date().toISOString() }).eq('id', version.workflow_id);
+  return { id: versionId, state: 'paused' };
 }
 
 export async function retireVersion(versionId: string) {
   const version = await getVersion(versionId);
-  if (!['Active', 'Paused', 'Deprecated'].includes(version.state)) {
-    throw Object.assign(new Error('Only Active, Paused, or Deprecated versions can be retired'), { statusCode: 409 });
+  if (!['active', 'paused', 'deprecated'].includes(version.state)) {
+    throw Object.assign(new Error('Only active, paused, or deprecated versions can be retired'), { statusCode: 409 });
   }
   const now = new Date().toISOString();
-  await supabaseAdmin.from('workflow_versions').update({ state: 'Retired' }).eq('id', versionId);
-  await supabaseAdmin.from('workflow_templates').update({ status: 'Retired', retired_at: now, updated_at: now }).eq('id', version.workflow_id);
-  return { id: versionId, state: 'Retired' };
+  await supabaseAdmin.from('workflow_versions').update({ state: 'retired' }).eq('id', versionId);
+  await supabaseAdmin.from('workflow_templates').update({ status: 'retired', retired_at: now, updated_at: now }).eq('id', version.workflow_id);
+  return { id: versionId, state: 'retired' };
 }

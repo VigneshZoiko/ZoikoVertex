@@ -66,7 +66,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${style.cls}`}>
       {style.icon}
-      {status}
+      {typeof status === 'object' ? 'Unknown' : status}
     </span>
   );
 };
@@ -78,7 +78,7 @@ const RiskBar = ({ score }: { score: number }) => {
       <div className="w-16 h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
       </div>
-      <span className="text-[10px] text-[var(--text-muted)]">{score}</span>
+      <span className="text-[10px] text-[var(--text-muted)]">{typeof score === 'object' ? '—' : score}</span>
     </div>
   );
 };
@@ -180,7 +180,7 @@ export default function ActiveOrchestrations({
       {errorMessage && (
         <div className="px-6 py-3 border-b border-[var(--border)] bg-rose-500/5 flex items-center gap-2 text-xs text-rose-400">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-          {errorMessage}
+          {typeof errorMessage === 'object' ? 'Unexpected error' : errorMessage}
           <button onClick={() => setErrorMessage(null)} className="ml-auto opacity-60 hover:opacity-100">
             <XCircle className="w-3.5 h-3.5" />
           </button>

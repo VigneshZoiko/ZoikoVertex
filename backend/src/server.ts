@@ -242,6 +242,14 @@ import { setupWorkspace } from './domains/identity/onboardingController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
+import {
+  exportWorkflow,
+  exportApprovals,
+  exportEvidenceByRef,
+  exportPdfReady,
+  exportRuntimeTimeline,
+  triggerWorkflowNotification,
+} from './domains/agents/workflowController';
 import { listRules, createRule, getRule, updateRule, submitRuleForReview, publishRule, deactivateRule, reactivateRule, archiveRule, cloneRule, getRuleScope, upsertRuleScope, getRulePath, upsertRulePath, getRuleVersions, getRuleAuditLog, getRuleConflicts, detectRuleConflicts, resolveRuleConflict, runRuleSimulation, getRuleStats, getRuleDetails, getRuleStagesHandler, getRuleEscalationsHandler, markRuleReadyToPublish, markRuleInvalid } from './domains/governance/ruleController';
 import {
   listWorkflows,
@@ -280,7 +288,13 @@ import {
   listSimulations,
   getDependencies,
   getWorkflowEvidence,
-  createEvidence
+  createEvidence,
+  getThreeKeyChain,
+  recordThreeKeyDecision,
+  listPendingThreeKeyChains,
+  getThreeKeyQuorum,
+  saveWorkflowGraph,
+  saveWorkflowStepConfig
 } from './domains/agents/workflowController';
 import {
   getPerformanceSummary,
@@ -811,6 +825,12 @@ app.get('/api/v1/workspace/settings', authenticate, workspaceGuard, getWorkspace
 app.patch('/api/v1/workspace/settings', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), updateWorkspaceSettings);
 app.get('/api/v1/workspace/data-export', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER'), exportWorkspaceData);
 
+// Workflow RBAC guards
+const workflowView = requireRole('ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'AGENT_OPERATOR', 'SUPERADMIN');
+const workflowWrite = requireRole('ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'SUPERADMIN');
+const workflowApprove = requireRole('ADMIN', 'WORKSPACE_OWNER', 'AGENT_ARCHITECT', 'SUPERADMIN');
+const workflowAdmin = requireRole('ADMIN', 'WORKSPACE_OWNER', 'SUPERADMIN');
+
 // Workspace Settings Routes
 // Protected Account Routes
 app.get('/api/v1/accounts', authenticate, listAccounts);
@@ -851,43 +871,68 @@ app.post('/api/v1/autonomy/negative-knowledge', authenticate, scopeGuard('write:
 app.delete('/api/v1/autonomy/negative-knowledge/:id', authenticate, scopeGuard('write:agents', '*'), deleteNegativeKnowledge);
 
 app.get('/api/v1/agents', authenticate, scopeGuard('read:agents', '*'), listAgents);
-app.get('/api/v1/agents/workflows', authenticate, scopeGuard('read:agents', '*'), listWorkflows);
-app.get('/api/v1/agents/workflows/stats', authenticate, scopeGuard('read:agents', '*'), getWorkflowStats);
-app.get('/api/v1/agents/workflows/control-strip', authenticate, scopeGuard('read:agents', '*'), getControlStrip);
-app.get('/api/v1/agents/workflows/analytics', authenticate, scopeGuard('read:agents', '*'), getWorkflowAnalytics);
-app.get('/api/v1/agents/workflows/active', authenticate, scopeGuard('read:agents', '*'), getActiveOrchestrations);
-app.get('/api/v1/agents/workflows/graph', authenticate, scopeGuard('read:agents', '*'), getWorkflowGraphGeneral);
-app.get('/api/v1/agents/workflows/escalations', authenticate, scopeGuard('read:agents', '*'), getEscalationPaths);
-app.get('/api/v1/agents/workflows/approvals', authenticate, scopeGuard('read:agents', '*'), getApprovals);
-app.get('/api/v1/agents/workflows/approvals/stats', authenticate, scopeGuard('read:agents', '*'), getApprovalStats);
-app.post('/api/v1/agents/workflows', authenticate, scopeGuard('write:agents', '*'), createWorkflow);
-app.post('/api/v1/agents/workflows/versions/:versionId/submit', authenticate, scopeGuard('write:agents', '*'), submitForApproval);
-app.post('/api/v1/agents/workflows/versions/:versionId/approve', authenticate, scopeGuard('write:agents', '*'), approveVersion);
-app.post('/api/v1/agents/workflows/versions/:versionId/reject', authenticate, scopeGuard('write:agents', '*'), rejectVersion);
-app.post('/api/v1/agents/workflows/versions/:versionId/activate', authenticate, scopeGuard('write:agents', '*'), activateVersion);
-app.post('/api/v1/agents/workflows/versions/:versionId/pause', authenticate, scopeGuard('write:agents', '*'), pauseWorkflow);
-app.post('/api/v1/agents/workflows/versions/:versionId/retire', authenticate, scopeGuard('write:agents', '*'), retireWorkflow);
-app.get('/api/v1/agents/workflows/versions/:versionId/graph', authenticate, scopeGuard('read:agents', '*'), getWorkflowGraph);
-app.get('/api/v1/agents/workflows/versions/:versionId/validate', authenticate, scopeGuard('read:agents', '*'), validateReadiness);
-app.post('/api/v1/agents/workflows/versions/:versionId/simulate', authenticate, scopeGuard('write:agents', '*'), runSimulation);
-app.get('/api/v1/agents/workflows/versions/:versionId/simulations', authenticate, scopeGuard('read:agents', '*'), listSimulations);
-app.post('/api/v1/agents/workflows/instances', authenticate, scopeGuard('write:agents', '*'), startWorkflowInstance);
-app.get('/api/v1/agents/workflows/instances', authenticate, scopeGuard('read:agents', '*'), listInstances);
-app.get('/api/v1/agents/workflows/instances/:instanceId', authenticate, scopeGuard('read:agents', '*'), getInstance);
-app.patch('/api/v1/agents/workflows/instances/:instanceId/transition', authenticate, scopeGuard('write:agents', '*'), transitionInstance);
-app.post('/api/v1/agents/workflows/instances/:instanceId/execute', authenticate, scopeGuard('write:agents', '*'), executeWorkflowInstance);
-app.get('/api/v1/agents/workflows/instances/:instanceId/step-runs', authenticate, scopeGuard('read:agents', '*'), getInstanceStepRuns);
-app.get('/api/v1/agents/workflows/instances/:instanceId/evidence', authenticate, scopeGuard('read:agents', '*'), getWorkflowEvidence);
-app.post('/api/v1/agents/workflows/instances/:instanceId/evidence', authenticate, scopeGuard('write:agents', '*'), createEvidence);
-app.post('/api/v1/agents/workflows/approvals/:approvalId/decide', authenticate, scopeGuard('write:agents', '*'), recordApproval);
-app.get('/api/v1/agents/workflows/:id', authenticate, scopeGuard('read:agents', '*'), getWorkflow);
-app.patch('/api/v1/agents/workflows/:id', authenticate, scopeGuard('write:agents', '*'), updateWorkflow);
-app.delete('/api/v1/agents/workflows/:id', authenticate, scopeGuard('write:agents', '*'), deleteWorkflow);
-app.post('/api/v1/agents/workflows/:id/duplicate', authenticate, scopeGuard('write:agents', '*'), duplicateWorkflow);
-app.get('/api/v1/agents/workflows/:id/versions', authenticate, scopeGuard('read:agents', '*'), listVersions);
-app.post('/api/v1/agents/workflows/:id/versions', authenticate, scopeGuard('write:agents', '*'), createDraftVersion);
-app.post('/api/v1/agents/workflows/:id/rollback', authenticate, scopeGuard('write:agents', '*'), rollbackVersion);
-app.get('/api/v1/agents/workflows/:id/dependencies', authenticate, scopeGuard('read:agents', '*'), getDependencies);
+// ─── Workflow Routes ──────────────────────────────────────────────────────────
+// All endpoints under /api/v1/agents/workflows manage workflow templates,
+// versions, instances, approvals, simulations, evidence, exports, and Three-Key
+// approval chains. Middleware: authenticate → workflowView/Write/Approve/Admin
+// → scopeGuard. See workflowController.ts for each handler's JSDoc.
+
+app.get('/api/v1/agents/workflows', authenticate, workflowView, scopeGuard('read:agents', '*'), listWorkflows);
+app.get('/api/v1/agents/workflows/stats', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflowStats);
+app.get('/api/v1/agents/workflows/control-strip', authenticate, workflowView, scopeGuard('read:agents', '*'), getControlStrip);
+app.get('/api/v1/agents/workflows/analytics', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflowAnalytics);
+app.get('/api/v1/agents/workflows/active', authenticate, workflowView, scopeGuard('read:agents', '*'), getActiveOrchestrations);
+app.get('/api/v1/agents/workflows/graph', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflowGraphGeneral);
+app.get('/api/v1/agents/workflows/escalations', authenticate, workflowView, scopeGuard('read:agents', '*'), getEscalationPaths);
+app.get('/api/v1/agents/workflows/approvals', authenticate, workflowView, scopeGuard('read:agents', '*'), getApprovals);
+app.get('/api/v1/agents/workflows/approvals/stats', authenticate, workflowView, scopeGuard('read:agents', '*'), getApprovalStats);
+app.post('/api/v1/agents/workflows', authenticate, workflowWrite, scopeGuard('write:agents', '*'), createWorkflow);
+app.post('/api/v1/agents/workflows/versions/:versionId/submit', authenticate, workflowWrite, scopeGuard('write:agents', '*'), submitForApproval);
+app.post('/api/v1/agents/workflows/versions/:versionId/approve', authenticate, workflowApprove, scopeGuard('write:agents', '*'), approveVersion);
+app.post('/api/v1/agents/workflows/versions/:versionId/reject', authenticate, workflowApprove, scopeGuard('write:agents', '*'), rejectVersion);
+app.post('/api/v1/agents/workflows/versions/:versionId/activate', authenticate, workflowApprove, scopeGuard('write:agents', '*'), activateVersion);
+app.post('/api/v1/agents/workflows/versions/:versionId/pause', authenticate, workflowAdmin, scopeGuard('write:agents', '*'), pauseWorkflow);
+app.post('/api/v1/agents/workflows/versions/:versionId/retire', authenticate, workflowAdmin, scopeGuard('write:agents', '*'), retireWorkflow);
+app.get('/api/v1/agents/workflows/versions/:versionId/graph', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflowGraph);
+app.post('/api/v1/agents/workflows/versions/:versionId/graph', authenticate, workflowWrite, scopeGuard('write:agents', '*'), saveWorkflowGraph);
+app.patch('/api/v1/agents/workflows/steps/:stepId', authenticate, workflowWrite, scopeGuard('write:agents', '*'), saveWorkflowStepConfig);
+app.get('/api/v1/agents/workflows/versions/:versionId/validate', authenticate, workflowView, scopeGuard('read:agents', '*'), validateReadiness);
+app.post('/api/v1/agents/workflows/versions/:versionId/simulate', authenticate, workflowWrite, scopeGuard('write:agents', '*'), runSimulation);
+app.get('/api/v1/agents/workflows/versions/:versionId/simulations', authenticate, workflowView, scopeGuard('read:agents', '*'), listSimulations);
+app.post('/api/v1/agents/workflows/instances', authenticate, workflowWrite, scopeGuard('write:agents', '*'), startWorkflowInstance);
+app.get('/api/v1/agents/workflows/instances', authenticate, workflowView, scopeGuard('read:agents', '*'), listInstances);
+app.get('/api/v1/agents/workflows/instances/:instanceId', authenticate, workflowView, scopeGuard('read:agents', '*'), getInstance);
+app.patch('/api/v1/agents/workflows/instances/:instanceId/transition', authenticate, workflowAdmin, scopeGuard('write:agents', '*'), transitionInstance);
+app.post('/api/v1/agents/workflows/instances/:instanceId/execute', authenticate, workflowAdmin, scopeGuard('write:agents', '*'), executeWorkflowInstance);
+app.get('/api/v1/agents/workflows/instances/:instanceId/step-runs', authenticate, workflowView, scopeGuard('read:agents', '*'), getInstanceStepRuns);
+app.get('/api/v1/agents/workflows/instances/:instanceId/evidence', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflowEvidence);
+app.post('/api/v1/agents/workflows/instances/:instanceId/evidence', authenticate, workflowWrite, scopeGuard('write:agents', '*'), createEvidence);
+app.post('/api/v1/agents/workflows/approvals/:approvalId/decide', authenticate, workflowApprove, scopeGuard('write:agents', '*'), recordApproval);
+app.get('/api/v1/agents/workflows/:id', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflow);
+app.patch('/api/v1/agents/workflows/:id', authenticate, workflowWrite, scopeGuard('write:agents', '*'), updateWorkflow);
+app.delete('/api/v1/agents/workflows/:id', authenticate, workflowAdmin, scopeGuard('write:agents', '*'), deleteWorkflow);
+app.post('/api/v1/agents/workflows/:id/duplicate', authenticate, workflowWrite, scopeGuard('write:agents', '*'), duplicateWorkflow);
+app.get('/api/v1/agents/workflows/:id/versions', authenticate, workflowView, scopeGuard('read:agents', '*'), listVersions);
+app.post('/api/v1/agents/workflows/:id/versions', authenticate, workflowWrite, scopeGuard('write:agents', '*'), createDraftVersion);
+app.post('/api/v1/agents/workflows/:id/rollback', authenticate, workflowAdmin, scopeGuard('write:agents', '*'), rollbackVersion);
+app.get('/api/v1/agents/workflows/:id/dependencies', authenticate, workflowView, scopeGuard('read:agents', '*'), getDependencies);
+
+// ─── Export Routes ────────────────────────────────────────────────────────────
+app.get('/api/v1/agents/workflows/:id/export', authenticate, workflowView, scopeGuard('read:agents', '*'), exportWorkflow);
+app.get('/api/v1/agents/workflows/:id/export/approvals', authenticate, workflowView, scopeGuard('read:agents', '*'), exportApprovals);
+app.get('/api/v1/agents/workflows/:id/export/pdf-ready', authenticate, workflowView, scopeGuard('read:agents', '*'), exportPdfReady);
+app.get('/api/v1/agents/workflows/:id/export/timeline', authenticate, workflowView, scopeGuard('read:agents', '*'), exportRuntimeTimeline);
+app.get('/api/v1/agents/workflows/export/evidence/:evidenceRef', authenticate, workflowView, scopeGuard('read:agents', '*'), exportEvidenceByRef);
+
+// ─── Notification Route ───────────────────────────────────────────────────────
+app.post('/api/v1/agents/workflows/:id/notify', authenticate, workflowWrite, scopeGuard('write:agents', '*'), triggerWorkflowNotification);
+
+// ─── Three-Key Approval Routes ────────────────────────────────────────────────
+app.get('/api/v1/agents/workflows/three-key/pending/list', authenticate, workflowView, scopeGuard('read:agents', '*'), listPendingThreeKeyChains);
+app.get('/api/v1/agents/workflows/three-key/:versionId', authenticate, workflowApprove, scopeGuard('read:agents', '*'), getThreeKeyChain);
+app.get('/api/v1/agents/workflows/three-key/:versionId/quorum', authenticate, workflowView, scopeGuard('read:agents', '*'), getThreeKeyQuorum);
+app.post('/api/v1/agents/workflows/three-key/:chainId/decide', authenticate, workflowApprove, scopeGuard('write:agents', '*'), recordThreeKeyDecision);
+
 app.get('/api/v1/agents/:id', authenticate, scopeGuard('read:agents', '*'), getAgent);
 app.post('/api/v1/agents', authenticate, scopeGuard('write:agents', '*'), registerAgent);
 app.post('/api/v1/agents/:id/certify', authenticate, scopeGuard('write:agents', '*'), certifyAgent);
@@ -1178,6 +1223,8 @@ app.post('/api/v1/prompts/incidents/:incidentId/close', authenticate, govLifecyc
 // Versions sub-routes (no :id prefix)
 app.post('/api/v1/prompts/versions/:versionId/approve', authenticate, govLifecycle, PromptController.approveVersion);
 app.post('/api/v1/prompts/versions/:versionId/reject', authenticate, govLifecycle, PromptController.rejectVersion);
+// A6 — Waive outstanding review requirements with justification (admin override gated in-handler)
+app.post('/api/v1/prompts/versions/:versionId/waive', authenticate, govLifecycle, PromptController.waiveApproval);
 app.post('/api/v1/prompts/versions/:versionId/deploy', authenticate, govLifecycle, PromptController.deployVersion);
 app.get('/api/v1/prompts/versions/:versionId/tests/runs', authenticate, govView, PromptController.listTestRuns);
 app.post('/api/v1/prompts/versions/:versionId/tests/run', authenticate, govEdit, PromptController.runTests);
@@ -1204,6 +1251,8 @@ app.delete('/api/v1/prompts/tool-permissions/:permissionId', authenticate, govEd
 // Prompt CRUD (parameterized :id routes)
 app.get('/api/v1/prompts', authenticate, govView, PromptController.listPrompts);
 app.post('/api/v1/prompts', authenticate, govEdit, PromptController.createPrompt);
+// A1 — Import a prompt definition (static, MUST precede /prompts/:id routes)
+app.post('/api/v1/prompts/import', authenticate, govEdit, PromptController.importPrompt);
 app.get('/api/v1/prompts/:id', authenticate, govView, PromptController.getPrompt);
 app.get('/api/v1/prompts/:id/graph', authenticate, govView, PromptController.getPromptGraph);
 app.get('/api/v1/prompts/:id/dependency-health', authenticate, govView, PromptController.getPromptDependencyHealth);
@@ -1211,6 +1260,8 @@ app.get('/api/v1/prompts/:id/impact', authenticate, govView, PromptController.ge
 app.get('/api/v1/prompts/:id/governance-snapshot', authenticate, govView, PromptController.getPromptGovernanceSnapshot);
 app.patch('/api/v1/prompts/:id', authenticate, govEdit, PromptController.updatePrompt);
 app.post('/api/v1/prompts/:id/clone', authenticate, govEdit, PromptController.clonePrompt);
+// A1 — Create a new draft from an approved prompt used as a template
+app.post('/api/v1/prompts/:id/template', authenticate, govEdit, PromptController.createFromTemplate);
 
 // Lifecycle actions
 app.post('/api/v1/prompts/:id/pause', authenticate, govLifecycle, PromptController.pausePrompt);
@@ -1291,6 +1342,9 @@ app.post('/api/v1/prompts/:id/constraint-shadow/lock', authenticate, govLifecycl
 app.get('/api/v1/prompts/versions/:versionId/variables', authenticate, govView, PromptController.getPromptVariables);
 app.put('/api/v1/prompts/versions/:versionId/variables', authenticate, govEdit, PromptController.updatePromptVariables);
 app.post('/api/v1/prompts/versions/:versionId/variables/validate', authenticate, govView, PromptController.validatePromptVariables);
+
+// ─── Guardrail Authoring (A2) ────────────────────────────────────────
+app.put('/api/v1/prompts/versions/:versionId/guardrails', authenticate, govEdit, PromptController.updatePromptGuardrails);
 
 // ─── Parameter Policy (Phase 2) ──────────────────────────────────────
 app.post('/api/v1/prompts/:id/parameter-policy/evaluate', authenticate, govView, PromptController.evaluateParameterPolicy);
@@ -1495,6 +1549,7 @@ try {
   // Phase 6.2 / 6.3 — wire real LLM providers into the ModelExecutionAdapter
   // registry. Missing keys ⇒ providers skipped (NullAdapter fallback).
   // PROMPT_GOVERNANCE_ENFORCED=true + zero keys ⇒ boot fails.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- intentional lazy require so env (provider keys) is loaded before adapter registration
   const { registerProductionAdapters } = require('./modules/prompts/modelProviders');
   registerProductionAdapters();
   const server = app.listen(port, () => {

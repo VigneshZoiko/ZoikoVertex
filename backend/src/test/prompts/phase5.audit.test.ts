@@ -135,13 +135,13 @@ describe('Phase 5A — Audit/evidence failure blocks critical lifecycle operatio
     });
   });
 
-  // rejectVersion — validates comments first, then audits
+  // rejectVersion — validates category + notes first (Doc 3 §7), then audits
   describe('rejectVersion', () => {
     it('returns 500 when evidence write fails', async () => {
       failEvidence();
       const res = mockRes();
       const next = vi.fn();
-      await PromptController.rejectVersion(mockReq({ params: { versionId: 'v1' }, body: { comments: 'Not approved' } }), res, next);
+      await PromptController.rejectVersion(mockReq({ params: { versionId: 'v1' }, body: { comments: 'Not approved', reason_category: 'quality' } }), res, next);
       expect(next).toHaveBeenCalled();
     });
   });

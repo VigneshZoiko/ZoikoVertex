@@ -35,7 +35,15 @@ import {
   Timer,
   GitMerge,
   Loader2,
+  BarChart3,
+  Activity,
+  FileText,
 } from "lucide-react";
+
+import SimulationPanel from "./components/SimulationPanel";
+import DependencyHealthPanel from "./components/DependencyHealthPanel";
+import EvidencePanel from "./components/EvidencePanel";
+import ApprovalChainPanel from "./components/ApprovalChainPanel";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -89,28 +97,28 @@ interface ControlStripData {
 }
 
 const WORKFLOW_STATUS_MAP: Record<string, WorkflowStatus> = {
-  Draft: "Draft",
-  Testing: "Testing",
-  "Pending Approval": "Pending Approval",
-  Approved: "Approved",
-  Active: "Active",
-  Paused: "Paused",
-  Blocked: "Blocked",
-  Deprecated: "Deprecated",
-  Retired: "Retired",
-  Failed: "Failed",
+  draft: "Draft",
+  testing: "Testing",
+  pending_approval: "Pending Approval",
+  approved: "Approved",
+  active: "Active",
+  paused: "Paused",
+  blocked: "Blocked",
+  deprecated: "Deprecated",
+  retired: "Retired",
+  failed: "Failed",
 };
 
 const INSTANCE_STATUS_MAP: Record<string, string> = {
-  QUEUED: "Pending",
-  RUNNING: "In Progress",
-  WAITING_REVIEW: "Waiting",
-  WAITING_HUMAN_REVIEW: "Waiting",
-  BLOCKED: "Blocked",
-  PAUSED: "Paused",
-  COMPLETED: "Completed",
-  FAILED: "Failed",
-  CANCELLED: "Failed",
+  pending: "Pending",
+  running: "In Progress",
+  waiting_approval: "Waiting",
+  waiting_review: "Waiting",
+  paused: "Paused",
+  blocked: "Blocked",
+  completed: "Completed",
+  failed: "Failed",
+  cancelled: "Failed",
 };
 
 const RISK_LEVEL_MAP: Record<string, RiskLevel> = {
@@ -141,7 +149,7 @@ function mapWorkflowRecord(workflow: any): WorkflowRecord {
     conditionalGates: workflow.conditionalGates ?? workflow.gate_count ?? 0,
     lastRun:
       workflow.lastRun ?? workflow.last_run ?? workflow.updated_at ?? null,
-    owner: workflow.owner || workflow.owner_name || "Unassigned",
+    owner: safeStr(workflow.owner || workflow.owner_name, "Unassigned"),
     riskLevel:
       RISK_LEVEL_MAP[
         (workflow.riskLevel || workflow.risk_level || "").toLowerCase()
@@ -158,32 +166,37 @@ function mapActiveInstance(instance: any) {
   return {
     id: instance.id,
     workflowId: instance.workflow_id,
-    workflowName:
+    workflowName: safeStr(
       instance.workflowName ||
-      instance.workflow_templates?.name ||
+        instance.workflow_templates?.name,
       "Workflow Run",
-    currentStep:
+    ),
+    currentStep: safeStr(
       instance.currentStep ||
-      instance.current_step_name ||
-      instance.current_step_id ||
+        instance.current_step_name ||
+        instance.current_step_id,
       "Awaiting Step",
-    agentAssigned:
+    ),
+    agentAssigned: safeStr(
       instance.agentAssigned ||
-      instance.assigned_agent_name ||
+        instance.assigned_agent_name,
       "Assigned Agent",
-    owner: instance.owner || instance.started_by || undefined,
-    status:
-      INSTANCE_STATUS_MAP[instance.status] || instance.status || "Pending",
+    ),
+    owner: safeStr(instance.owner || instance.started_by) || undefined,
+    status: INSTANCE_STATUS_MAP[instance.status] || safeStr(instance.status, "Pending"),
     timeInStep: formatRelativeMinutes(
       instance.started_at || instance.created_at,
     ),
     startedAt: instance.started_at || instance.created_at,
-    riskScore: instance.risk_score ?? undefined,
-    confidenceScore: instance.confidence_score ?? undefined,
+    riskScore: typeof instance.risk_score === "number" ? instance.risk_score : undefined,
+    confidenceScore: typeof instance.confidence_score === "number" ? instance.confidence_score : undefined,
     sla: instance.due_at
       ? new Date(instance.due_at).toLocaleString()
       : undefined,
-    blocker: instance.blocker || instance.reason_code || undefined,
+    blocker: (() => {
+      const raw = instance.blocker || instance.reason_code;
+      return raw && typeof raw === "string" ? raw : undefined;
+    })(),
   };
 }
 
@@ -192,19 +205,11 @@ function mapEscalation(event: any) {
   const status = `${event.status || ""}`.toLowerCase();
   return {
     id: event.id,
-    workflowName:
-      event.workflowName ||
-      event.run_name ||
-      event.category ||
-      "Workflow escalation",
-    trigger: event.trigger || event.category || "workflow_event",
-    handoffTo: event.handoffTo || event.owner_name || "Governance queue",
-    reason:
-      event.reason ||
-      event.root_cause ||
-      "Escalation raised from workflow authority layer.",
-    escalatedAt:
-      event.escalatedAt || event.created_at || new Date().toISOString(),
+    workflowName: safeStr(event.workflowName || event.run_name || event.category, "Workflow escalation"),
+    trigger: safeStr(event.trigger || event.category, "workflow_event"),
+    handoffTo: safeStr(event.handoffTo || event.owner_name, "Governance queue"),
+    reason: safeStr(event.reason || event.root_cause, "Escalation raised from workflow authority layer."),
+    escalatedAt: safeStr(event.escalatedAt || event.created_at) || new Date().toISOString(),
     resolved: ["resolved", "closed", "completed"].includes(status),
     severity:
       severity === "critical"
@@ -214,11 +219,22 @@ function mapEscalation(event: any) {
           : severity === "low"
             ? "Low"
             : "Medium",
-    sla: event.sla || event.due_at || undefined,
-    evidenceBundleId:
-      event.evidenceBundleId || event.evidence_bundle_id || undefined,
-    overrideReason: event.overrideReason || event.remediation || undefined,
+    sla: safeStr(event.sla || event.due_at) || undefined,
+    evidenceBundleId: safeStr(event.evidenceBundleId || event.evidence_bundle_id) || undefined,
+    overrideReason: safeStr(event.overrideReason || event.remediation) || undefined,
   };
+}
+
+// ── Safe render helpers ────────────────────────────────────────────────────
+
+function safeStr(v: unknown, fallback = "—"): string {
+  if (v === null || v === undefined || typeof v === "object") return fallback;
+  return String(v);
+}
+
+function safeNum(v: unknown, fallback = 0): number {
+  if (v === null || v === undefined || typeof v !== "number") return fallback;
+  return v;
 }
 
 // ── Status helpers ─────────────────────────────────────────────────────────
@@ -844,7 +860,7 @@ function ReportingMetrics({ stats }: { stats?: any }) {
             className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)]/20"
           >
             <p className="text-xl font-bold text-[var(--text-primary)]">
-              {m.value}
+              {safeStr(m.value)}
             </p>
             <p className="text-[10px] font-semibold text-[var(--text-secondary)] mt-0.5">
               {m.label}
@@ -889,17 +905,16 @@ function WorkflowDetailDrawer({
   // activeVersionId is resolved lazily on first action that needs it
   const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
   const [versionLoading, setVersionLoading] = useState(false);
+  const [detailTab, setDetailTab] = useState<string>("overview");
 
-  if (!workflow) return null;
-
-  // Fetch the latest version ID for this template (needed by versioned endpoints)
-  const resolveVersionId = async (): Promise<string | null> => {
+  // Resolver function (defined before early return so hooks are unconditional)
+  const resolveVersionId = useCallback(async (): Promise<string | null> => {
     if (activeVersionId) return activeVersionId;
+    if (!workflow) return null;
     setVersionLoading(true);
     try {
       const res = await api.listWorkflowVersions(workflow.id);
       if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-        // Prefer the most recent version (list is ordered desc by default)
         const vid = res.data[0].id as string;
         setActiveVersionId(vid);
         setVersionLoading(false);
@@ -911,7 +926,12 @@ function WorkflowDetailDrawer({
       setVersionLoading(false);
       return null;
     }
-  };
+  }, [activeVersionId, workflow]);
+
+  // Eagerly resolve version once on mount
+  useEffect(() => { resolveVersionId(); }, [resolveVersionId]);
+
+  if (!workflow) return null;
 
   const runAction = async (label: string, fn: () => Promise<any>) => {
     setActionError(null);
@@ -1020,7 +1040,6 @@ function WorkflowDetailDrawer({
         setActionError(null);
         setActionLoading("Export Evidence");
         try {
-          // Evidence lives on instances; fetch the most recent instance for this workflow
           const instancesRes = await api.get(
             `/api/v1/agents/workflows/instances?workflow_id=${workflow.id}&limit=1`,
           );
@@ -1051,6 +1070,60 @@ function WorkflowDetailDrawer({
           }
         } catch (err: any) {
           setActionError(err?.message || "Failed to export evidence.");
+        } finally {
+          setActionLoading(null);
+        }
+      },
+    },
+    {
+      label: "Export Full JSON",
+      color: "bg-cyan-500 hover:bg-cyan-600",
+      enabled: () => true,
+      fn: async () => {
+        setActionError(null);
+        setActionLoading("Export Full JSON");
+        try {
+          const res = await api.exportWorkflow(workflow.id);
+          if (res?.success && res?.data) {
+            const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `workflow-${workflow.id}-export.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+          } else {
+            setActionError(res?.error || "Export failed.");
+          }
+        } catch (err: any) {
+          setActionError(err?.message || "Export failed.");
+        } finally {
+          setActionLoading(null);
+        }
+      },
+    },
+    {
+      label: "Export Approvals CSV",
+      color: "bg-cyan-500 hover:bg-cyan-600",
+      enabled: () => true,
+      fn: async () => {
+        setActionError(null);
+        setActionLoading("Export Approvals CSV");
+        try {
+          const res = await api.exportApprovalsCsv(workflow.id);
+          if (res?.success && res?.data) {
+            const blob = new Blob([String(res.data)], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `approvals-${workflow.id}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          } else {
+            setActionError(res?.error || "Approvals export failed.");
+          }
+        } catch (err: any) {
+          setActionError(err?.message || "Approvals export failed.");
         } finally {
           setActionLoading(null);
         }
@@ -1090,124 +1163,168 @@ function WorkflowDetailDrawer({
           </button>
         </div>
 
+        {/* Sub-tab navigation */}
+        <div className="flex border-b border-[var(--border)]">
+          {[
+            { key: "overview", label: "Overview", icon: null },
+            { key: "simulation", label: "Simulation", icon: BarChart3 },
+            { key: "dependencies", label: "Dependencies", icon: Activity },
+            { key: "evidence", label: "Evidence", icon: FileText },
+            { key: "approval", label: "Approval", icon: Shield },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button key={tab.key} onClick={() => setDetailTab(tab.key)}
+                className={`flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-colors whitespace-nowrap ${
+                  detailTab === tab.key
+                    ? "text-[var(--text-primary)] border-b-2 border-[var(--text-primary)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] border-b-2 border-transparent"
+                }`}>
+                {Icon && <Icon className="w-3.5 h-3.5" />}
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="px-6 py-5 space-y-5">
-          {/* Status + Risk */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <span
-              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${WORKFLOW_STATUS_STYLES[workflow.status]}`}
-            >
-              {workflow.status}
-            </span>
-            <span
-              className={`text-xs font-semibold ${RISK_STYLES[workflow.riskLevel]}`}
-            >
-              {workflow.riskLevel} Risk
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-              <span
-                className={`w-2 h-2 rounded-full ${HEALTH_STYLES[workflow.health]}`}
-              />
-              {workflow.health}
-            </span>
-          </div>
-
-          {/* Meta */}
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Owner", value: workflow.owner },
-              { label: "Active Runs", value: String(workflow.activeRuns) },
-              { label: "Nodes", value: String(workflow.nodes) },
-              { label: "Gates", value: String(workflow.conditionalGates) },
-              {
-                label: "Last Run",
-                value: workflow.lastRun
-                  ? new Date(workflow.lastRun).toLocaleDateString()
-                  : "Never",
-              },
-              {
-                label: "Updated",
-                value: workflow.updatedAt
-                  ? new Date(workflow.updatedAt).toLocaleDateString()
-                  : "—",
-              },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)]/20"
-              >
-                <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider">
-                  {item.label}
-                </p>
-                <p className="text-sm font-semibold text-[var(--text-primary)] mt-1 truncate">
-                  {item.value}
-                </p>
+          {detailTab === "overview" && (
+            <>
+              {/* Status + Risk */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span
+                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${WORKFLOW_STATUS_STYLES[workflow.status]}`}
+                >
+                  {workflow.status}
+                </span>
+                <span
+                  className={`text-xs font-semibold ${RISK_STYLES[workflow.riskLevel]}`}
+                >
+                  {workflow.riskLevel} Risk
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                  <span
+                    className={`w-2 h-2 rounded-full ${HEALTH_STYLES[workflow.health]}`}
+                  />
+                  {workflow.health}
+                </span>
               </div>
-            ))}
-          </div>
 
-          {/* Lifecycle actions */}
-          {availableActions.length > 0 && (
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
-                Lifecycle Actions
-                {versionLoading && (
-                  <span className="ml-2 text-indigo-400 normal-case font-normal">
-                    Resolving version…
-                  </span>
-                )}
-              </p>
-              {actionError && (
-                <div className="mb-3 flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  {actionError}
+              {/* Meta */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "Owner", value: workflow.owner },
+                  { label: "Active Runs", value: String(workflow.activeRuns) },
+                  { label: "Nodes", value: String(workflow.nodes) },
+                  { label: "Gates", value: String(workflow.conditionalGates) },
+                  {
+                    label: "Last Run",
+                    value: workflow.lastRun
+                      ? new Date(workflow.lastRun).toLocaleDateString()
+                      : "Never",
+                  },
+                  {
+                    label: "Updated",
+                    value: workflow.updatedAt
+                      ? new Date(workflow.updatedAt).toLocaleDateString()
+                      : "—",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)]/20"
+                  >
+                    <p className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider">
+                      {item.label}
+                    </p>
+                    <p className="text-sm font-semibold text-[var(--text-primary)] mt-1 truncate">
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Lifecycle actions */}
+              {availableActions.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
+                    Lifecycle Actions
+                    {versionLoading && (
+                      <span className="ml-2 text-indigo-400 normal-case font-normal">
+                        Resolving version…
+                      </span>
+                    )}
+                  </p>
+                  {actionError && (
+                    <div className="mb-3 flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      {safeStr(actionError)}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {availableActions.map((action) => (
+                      <button
+                        key={action.label}
+                        disabled={actionLoading !== null || versionLoading}
+                        onClick={action.fn}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${action.color}`}
+                      >
+                        {actionLoading === action.label && (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        )}
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
-              <div className="flex flex-wrap gap-2">
-                {availableActions.map((action) => (
-                  <button
-                    key={action.label}
-                    disabled={actionLoading !== null || versionLoading}
-                    onClick={action.fn}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${action.color}`}
-                  >
-                    {actionLoading === action.label && (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    )}
-                    {action.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+
+              {/* No actions available */}
+              {availableActions.length === 0 && (
+                <div className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)]/20 text-xs text-[var(--text-muted)]">
+                  No lifecycle actions are available for a{" "}
+                  <strong className="text-[var(--text-secondary)]">
+                    {workflow.status}
+                  </strong>{" "}
+                  workflow.
+                </div>
+              )}
+
+              {/* Linked agents */}
+              {workflow.linkedAgents.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
+                    Linked Agents
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {workflow.linkedAgents.map((a, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium"
+                      >
+                        {typeof a === "string" ? a : String(a)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
-          {/* No actions available */}
-          {availableActions.length === 0 && (
-            <div className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)]/20 text-xs text-[var(--text-muted)]">
-              No lifecycle actions are available for a{" "}
-              <strong className="text-[var(--text-secondary)]">
-                {workflow.status}
-              </strong>{" "}
-              workflow.
-            </div>
+          {detailTab === "simulation" && (
+            <SimulationPanel versionId={activeVersionId} />
           )}
 
-          {/* Linked agents */}
-          {workflow.linkedAgents.length > 0 && (
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
-                Linked Agents
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {workflow.linkedAgents.map((a) => (
-                  <span
-                    key={a}
-                    className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium"
-                  >
-                    {a}
-                  </span>
-                ))}
-              </div>
-            </div>
+          {detailTab === "dependencies" && (
+            <DependencyHealthPanel workflowId={workflow.id} />
+          )}
+
+          {detailTab === "evidence" && (
+            <EvidencePanel workflowId={workflow.id} />
+          )}
+
+          {detailTab === "approval" && (
+            <ApprovalChainPanel versionId={activeVersionId} />
           )}
         </div>
       </div>
@@ -1243,7 +1360,7 @@ export default function WorkflowsPage() {
       api.get("/api/v1/agents/workflows/active"),
       api.get("/api/v1/agents/workflows/escalations"),
       api.get("/api/v1/agents/workflows"),
-      api.get("/api/v1/approvals/stats"),
+      api.get("/api/v1/agents/workflows/approvals/stats"),
     ]);
     const [
       statsRes,
@@ -1355,7 +1472,7 @@ export default function WorkflowsPage() {
             ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
             : "border-rose-500/20 bg-rose-500/10 text-rose-400"
         }`}>
-          <span>{emergencyMessage}</span>
+          <span>{safeStr(emergencyMessage)}</span>
           <button onClick={() => setEmergencyMessage(null)} className="ml-auto hover:text-white">
             <XCircle className="w-4 h-4" />
           </button>

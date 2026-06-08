@@ -2,6 +2,7 @@
 import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
 import { createAuditEvent } from './auditTrail.service';
+import { alertSecOpsAuditFailure } from '../shared/alertSecOps';
 
 export function registerEventBridge(): void {
   // ─── Identity Ledger Events ────────────────────────────────────────────────
@@ -18,7 +19,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'identity_ledger_entry', object_id: entry_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] identity.authority_changed audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] identity.authority_changed audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] identity.authority_changed audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -36,7 +38,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'evidence_item', object_id: item_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] vault.item_preserved audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] vault.item_preserved audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] vault.item_preserved audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -53,7 +56,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'legal_hold', object_id: hold_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] vault.hold_applied audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] vault.hold_applied audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] vault.hold_applied audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -71,7 +75,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'forensic_case', object_id: case_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] forensic.case_created audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] forensic.case_created audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] forensic.case_created audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -87,7 +92,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'forensic_case', object_id: case_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] forensic.case_closed audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] forensic.case_closed audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] forensic.case_closed audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -105,7 +111,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'review_item', object_id: item_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] review.decision_made audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] review.decision_made audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] review.decision_made audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -123,7 +130,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'approval_item', object_id: item_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] approval.decision_made audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] approval.decision_made audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] approval.decision_made audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -141,7 +149,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'validation_item', object_id: item_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] validation.status_changed audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] validation.status_changed audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] validation.status_changed audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -159,7 +168,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'quality_audit_item', object_id: audit_item_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] quality.audit_completed audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] quality.audit_completed audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] quality.audit_completed audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -177,7 +187,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'approval_rule', object_id: rule_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] approval_rules.conflict_detected audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] approval_rules.conflict_detected audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] approval_rules.conflict_detected audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -195,7 +206,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'exception_case', object_id: exception_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] exception.case_created audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] exception.case_created audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] exception.case_created audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -212,7 +224,8 @@ export function registerEventBridge(): void {
         object: { object_type: 'legal_hold', object_id: hold_id },
       });
     } catch (err) {
-      logger.error({ err }, '[EventBridge] gov_evidence.hold_applied audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] gov_evidence.hold_applied audit failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: '[EventBridge] gov_evidence.hold_applied audit failed', source: 'eventBridge', details: { error: String(err) } });
     }
   });
 
@@ -224,7 +237,7 @@ export function registerEventBridge(): void {
     try {
       logger.info(`[EventBridge] Exception ${exception_id} routed to Validation Desk`);
     } catch (err) {
-      logger.error({ err }, '[EventBridge] exception.sent_to_validation failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] exception.sent_to_validation failed');
     }
   });
 
@@ -234,7 +247,7 @@ export function registerEventBridge(): void {
     try {
       logger.info(`[EventBridge] Exception ${exception_id} routed to Approvals`);
     } catch (err) {
-      logger.error({ err }, '[EventBridge] exception.sent_to_approvals failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] exception.sent_to_approvals failed');
     }
   });
 
@@ -244,7 +257,7 @@ export function registerEventBridge(): void {
     try {
       logger.info(`[EventBridge] Exception ${exception_id} routed to Quality Audit`);
     } catch (err) {
-      logger.error({ err }, '[EventBridge] exception.sent_to_quality_audit failed');
+      logger.error({ err, secops_alert: true }, '[EventBridge] exception.sent_to_quality_audit failed');
     }
   });
 

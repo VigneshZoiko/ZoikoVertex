@@ -114,6 +114,7 @@ export async function resolveQueueItem(
   queueId: string,
   workspaceId?: string | null,
   userId?: string,
+  resolutionNotes?: string | null,
 ) {
   if (workspaceId || userId) {
     const { data: item, error: fetchError } = await supabaseAdmin
@@ -140,14 +141,18 @@ export async function resolveQueueItem(
     }
   }
 
+  const notes = typeof resolutionNotes === 'string' ? resolutionNotes.trim() : '';
+  const update: Record<string, unknown> = {
+    status: 'RESOLVED',
+    resolved_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  if (notes) update.resolution_notes = notes;
+
   const { error } = await supabaseAdmin
     .from('queue_items')
-    .update({
-      status: 'RESOLVED',
-      resolved_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+    .update(update)
     .eq('id', queueId);
   if (error) throw error;
-  return { id: queueId, status: 'RESOLVED' };
+  return { id: queueId, status: 'RESOLVED', resolution_notes: notes || null };
 }
