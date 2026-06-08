@@ -1583,7 +1583,7 @@ function PublishPageInner() {
         <div className="flex items-center gap-4">
           <div className="relative w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl shadow-indigo-500/20">
             <Image
-              src="/images/logo-wordmark.svg"
+              src="/images/zoikovertexlogo.png"
               alt="Logo"
               fill
               sizes="48px"

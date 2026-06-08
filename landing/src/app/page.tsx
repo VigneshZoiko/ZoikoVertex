@@ -24,8 +24,8 @@ export default function LandingPage() {
       <Hero />
       <TrustedBy />
       <Stats />
-      <Pricing />
       <FeatureBlock />
+      <Pricing />
       <Architecture />
       <PainPoints />
       <AgentsGrid />

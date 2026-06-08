@@ -22,7 +22,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="max-w-sm">
           {/* Logo */}
           <Image
-            src="/images/logo-wordmark.svg"
+            src="/images/zoikovertexlogo.png"
             alt="ZoikoVertex"
             width={200}
             height={38}

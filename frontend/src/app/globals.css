@@ -91,6 +91,22 @@
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-jetbrains: var(--font-jetbrains);
+
+  /* ── Figma landing/marketing tokens ── */
+  --lp-bg: #152238;
+  --lp-surface: #0a1526;
+  --lp-cyan: #20E7F2;
+  --lp-cyan-08: rgba(32, 231, 242, 0.08);
+  --lp-cyan-12: rgba(32, 231, 242, 0.12);
+  --lp-cyan-15: rgba(32, 231, 242, 0.15);
+  --lp-cyan-04: rgba(32, 231, 242, 0.04);
+  --lp-cyan-05: rgba(32, 231, 242, 0.05);
+  --lp-text: #FFFFFF;
+  --lp-text-muted: #A9B8C7;
+  --lp-text-secondary: #5E7A92;
+  --lp-border: rgba(32, 231, 242, 0.12);
+  --lp-shadow-menu: 0px 0px 0px 1px rgba(32, 231, 242, 0.05), 0px 20px 60px 0px rgba(0, 0, 0, 0.55);
 }
 
 /* ─── Base Styles ────────────────────────────────────────────────────────── */

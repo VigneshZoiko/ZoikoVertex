@@ -18,14 +18,14 @@
   ];
 
   return (
-    <section style={{ background: "#1E2F55" }} className="py-24 px-6">
+    <section style={{ background: "#152238" }} className="py-24 px-6">
       <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
 
         {/* ── LEFT ── */}
         <div>
           <div className="flex items-center gap-2 mb-5">
-            <span className="w-4 h-px bg-[#6366F1] inline-block" />
-            <p className="text-[#6366F1] text-[10px] font-bold tracking-[0.2em] uppercase">
+            <span className="w-4 h-px bg-[#20E7F2] inline-block" />
+            <p className="text-[#20E7F2] text-[10px] font-bold tracking-[0.2em] uppercase">
               ROI Engine
             </p>
           </div>
@@ -58,7 +58,7 @@
 
           <div
             className=" p-5"
-            style={{ background: "#1E2F55", borderLeft: "3px solid #6366F1" }}
+            style={{ background: "rgba(32,231,242,0.04)", borderLeft: "3px solid #20E7F2" }}
           >
             <p className="text-[#8b9cb3] text-[13px] leading-relaxed italic">
               <span className="text-white font-bold not-italic">Economic inevitability:</span>{" "}
@@ -73,8 +73,8 @@
         <div
           className="rounded-2xl overflow-hidden"
           style={{
-            background: "#1E2F55",
-            border: "1px solid rgba(255,255,255,0.10)",
+            background: "#152238",
+            border: "1px solid rgba(32,231,242,0.12)",
             boxShadow: "0 24px 60px #00000073, 0 8px 24px #00000073",
           }}
         >
