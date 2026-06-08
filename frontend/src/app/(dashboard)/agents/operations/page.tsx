@@ -1516,7 +1516,7 @@ export default function AgentOperationsPage() {
         confirmLabel: "Export Snapshot",
       } as typeof confirmAction);
     },
-    [],
+    [checkStaleAndAct],
   );
 
   const handleExportAnalyticsCSV = async () => {

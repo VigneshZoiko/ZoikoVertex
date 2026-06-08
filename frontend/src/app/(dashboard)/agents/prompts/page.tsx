@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRoleContext } from "@/lib/context/RoleContext";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
