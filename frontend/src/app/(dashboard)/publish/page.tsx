@@ -1678,7 +1678,8 @@ function PublishPageInner() {
         {/* Main Composer - Left Side */}
         <div className="lg:col-span-7 space-y-4">
 
-          {/* ── Campaign Selector (top) ─────────────────────────────────────── */}
+          {/* ── Campaign Selector (top) — temporarily hidden ────────────────── */}
+          {/* TODO: re-enable when campaign linking is ready for publishing hub
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
@@ -1712,6 +1713,7 @@ function PublishPageInner() {
               </p>
             )}
           </div>
+          */}
 
           {/* ── Post To — Account Dropdown (top) ───────────────────────────── */}
           <AccountDropdown
@@ -2238,7 +2240,7 @@ function PublishPageInner() {
             );
           })()}
 
-          {/* Active Campaign linking — moved to top; keeping hidden for backward compat */}
+          {/* Active Campaign linking — temporarily hidden
           {(() => {
             const mediaType = assetType || (media?.type?.startsWith("video") ? "video" : media ? "image" : "");
             const count = selectedUrls.length || (media ? 1 : 0);
@@ -2285,6 +2287,7 @@ function PublishPageInner() {
               </div>
             );
           })()}
+          */}
 
           {/* Platform constraint warnings moved above campaign selector */}
 

@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as rulesService from '../../services/approvalRules.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
+import { buildAuthContext } from '../../shared/serviceAuth';
 
 function getTenantId(req: AuthRequest): string {
   return req.user?.workspace_id || DEFAULT_TENANT_ID;
@@ -29,6 +30,7 @@ export const listRules = async (req: AuthRequest, res: Response, next: NextFunct
 export const createRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const tenant_id = getTenantId(req);
+    const auth = buildAuthContext(req.user);
     const rule = await rulesService.createRule({
       tenant_id,
       workspace_id: tenant_id,
@@ -39,7 +41,7 @@ export const createRule = async (req: AuthRequest, res: Response, next: NextFunc
       risk_classification: req.body.risk_classification || 'LOW',
       tags: req.body.tags || [],
       created_by: getUserId(req),
-    });
+    }, auth);
     res.json({ success: true, data: rule });
   } catch (error) { next(error); }
 };
@@ -61,19 +63,21 @@ export const getRule = async (req: AuthRequest, res: Response, next: NextFunctio
 
 export const updateRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const auth = buildAuthContext(req.user);
     const rule = await rulesService.updateRule({
       id: req.params.id as string,
       tenant_id: getTenantId(req),
       updated_by: getUserId(req),
       ...req.body,
-    });
+    }, auth);
     res.json({ success: true, data: rule });
   } catch (error) { next(error); }
 };
 
 export const submitRuleForReview = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const rule = await rulesService.submitRuleForReview(req.params.id as string, getTenantId(req), getUserId(req));
+    const auth = buildAuthContext(req.user);
+    const rule = await rulesService.submitRuleForReview(req.params.id as string, getTenantId(req), getUserId(req), auth);
     res.json({ success: true, data: rule });
   } catch (error) { next(error); }
 };
@@ -81,35 +85,40 @@ export const submitRuleForReview = async (req: AuthRequest, res: Response, next:
 export const publishRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { publish_note } = req.body;
-    const rule = await rulesService.publishRule(req.params.id as string, getTenantId(req), getUserId(req), publish_note);
+    const auth = buildAuthContext(req.user);
+    const rule = await rulesService.publishRule(req.params.id as string, getTenantId(req), getUserId(req), publish_note, auth);
     res.json({ success: true, data: rule });
   } catch (error) { next(error); }
 };
 
 export const deactivateRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const rule = await rulesService.deactivateRule(req.params.id as string, getTenantId(req), getUserId(req));
+    const auth = buildAuthContext(req.user);
+    const rule = await rulesService.deactivateRule(req.params.id as string, getTenantId(req), getUserId(req), undefined, auth);
     res.json({ success: true, data: rule });
   } catch (error) { next(error); }
 };
 
 export const reactivateRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const rule = await rulesService.reactivateRule(req.params.id as string, getTenantId(req), getUserId(req));
+    const auth = buildAuthContext(req.user);
+    const rule = await rulesService.reactivateRule(req.params.id as string, getTenantId(req), getUserId(req), auth);
     res.json({ success: true, data: rule });
   } catch (error) { next(error); }
 };
 
 export const archiveRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const rule = await rulesService.archiveRule(req.params.id as string, getTenantId(req), getUserId(req));
+    const auth = buildAuthContext(req.user);
+    const rule = await rulesService.archiveRule(req.params.id as string, getTenantId(req), getUserId(req), auth);
     res.json({ success: true, data: rule });
   } catch (error) { next(error); }
 };
 
 export const cloneRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const rule = await rulesService.cloneRule(req.params.id as string, getTenantId(req), getTenantId(req), getUserId(req));
+    const auth = buildAuthContext(req.user);
+    const rule = await rulesService.cloneRule(req.params.id as string, getTenantId(req), getTenantId(req), getUserId(req), auth);
     res.json({ success: true, data: rule });
   } catch (error) { next(error); }
 };
@@ -123,12 +132,13 @@ export const getRuleScope = async (req: AuthRequest, res: Response, next: NextFu
 
 export const upsertRuleScope = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const auth = buildAuthContext(req.user);
     const scope = await rulesService.upsertRuleScope({
       approval_rule_id: req.params.id as string,
       tenant_id: getTenantId(req),
       workspace_id: getTenantId(req),
       ...req.body,
-    });
+    }, auth);
     res.json({ success: true, data: scope });
   } catch (error) { next(error); }
 };
@@ -142,7 +152,8 @@ export const getRulePath = async (req: AuthRequest, res: Response, next: NextFun
 
 export const upsertRulePath = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const path = await rulesService.upsertRulePath({ ...req.body, approval_rule_id: req.params.id as string });
+    const auth = buildAuthContext(req.user);
+    const path = await rulesService.upsertRulePath({ ...req.body, approval_rule_id: req.params.id as string }, auth);
     res.json({ success: true, data: path });
   } catch (error) { next(error); }
 };
@@ -170,25 +181,28 @@ export const getRuleConflicts = async (req: AuthRequest, res: Response, next: Ne
 
 export const detectRuleConflicts = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await rulesService.detectRuleConflicts(req.params.id as string, getTenantId(req));
+    const auth = buildAuthContext(req.user);
+    const result = await rulesService.detectRuleConflicts(req.params.id as string, getTenantId(req), auth);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 };
 
 export const resolveRuleConflict = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const result = await rulesService.resolveConflict(req.params.conflictId as string, getUserId(req));
+    const auth = buildAuthContext(req.user);
+    const result = await rulesService.resolveConflict(req.params.conflictId as string, getUserId(req), auth);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 };
 
 export const runRuleSimulation = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const auth = buildAuthContext(req.user);
     const result = await rulesService.runSimulation({
       approval_rule_id: req.params.id as string,
       simulated_by: getUserId(req),
       simulation_input: req.body,
-    });
+    }, auth);
     res.json({ success: true, data: result });
   } catch (error) { next(error); }
 };
@@ -225,14 +239,16 @@ export const getRuleEscalationsHandler = async (req: AuthRequest, res: Response,
 
 export const markRuleReadyToPublish = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const rule = await rulesService.markRuleReadyToPublish(req.params.id as string, getTenantId(req), getUserId(req));
+    const auth = buildAuthContext(req.user);
+    const rule = await rulesService.markRuleReadyToPublish(req.params.id as string, getTenantId(req), getUserId(req), auth);
     res.json({ success: true, data: rule });
   } catch (error) { next(error); }
 };
 
 export const markRuleInvalid = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const rule = await rulesService.markRuleInvalid(req.params.id as string, getTenantId(req), getUserId(req), req.body.reason || 'Marked invalid by user');
+    const auth = buildAuthContext(req.user);
+    const rule = await rulesService.markRuleInvalid(req.params.id as string, getTenantId(req), getUserId(req), req.body.reason || 'Marked invalid by user', auth);
     res.json({ success: true, data: rule });
   } catch (error) { next(error); }
 };

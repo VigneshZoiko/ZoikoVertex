@@ -92,6 +92,8 @@ export interface ModerationInput {
   subjectId?: string;
   /** Tenant context for tenant-specific rules. */
   tenantId?: string;
+  /** Workspace context for governed safety-moderation resolution. Falls back to tenantId. */
+  workspaceId?: string;
   /** Skip Gemini layer entirely (sandbox / replay). */
   localOnly?: boolean;
   /** Platform the content is destined for (e.g., "linkedin"). */

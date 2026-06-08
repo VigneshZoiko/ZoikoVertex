@@ -4,6 +4,7 @@ import * as validationService from '../../services/validationDesk.service';
 import { createReviewItem } from '../../services/reviewQueue.service';
 import { createApprovalItem } from '../../services/approval.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
+import { buildAuthContext } from '../../shared/serviceAuth';
 
 function getParamId(req: AuthRequest): string {
   const v = req.params.id;
@@ -22,6 +23,7 @@ export const createValidationItem = async (req: AuthRequest, res: Response, next
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const auth = buildAuthContext(req.user);
 
     const body = req.body as {
       source_module: string;
@@ -52,7 +54,7 @@ export const createValidationItem = async (req: AuthRequest, res: Response, next
       submitted_by: userId,
       risk_level: body.risk_level as any,
       due_at: body.due_at,
-    });
+    }, auth);
 
     res.status(201).json({ success: true, data: item });
   } catch (error) {
@@ -102,7 +104,8 @@ export const assignValidator = async (req: AuthRequest, res: Response, next: Nex
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
-    await validationService.assignValidator(getParamId(req), req.body.validator_id, performed_by, tenant_id);
+    const auth = buildAuthContext(req.user);
+    await validationService.assignValidator(getParamId(req), req.body.validator_id, performed_by, tenant_id, auth);
     res.json({ success: true, message: 'Validator assigned' });
   } catch (error) {
     next(error);
@@ -115,23 +118,24 @@ export const runValidation = async (req: AuthRequest, res: Response, next: NextF
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const itemId = getParamId(req);
 
-    await validationService.updateValidationStatus(itemId, 'IN_VALIDATION', performed_by, tenant_id);
+    await validationService.updateValidationStatus(itemId, 'IN_VALIDATION', performed_by, tenant_id, auth);
 
     const run = await validationService.createValidationRun({
       validation_item_id: itemId,
       rule_set_id: req.body.rule_set_id,
       rule_set_version: req.body.rule_set_version,
       run_by: performed_by,
-    });
+    }, auth);
 
     const results = await validationService.completeValidationRun(run.id as string, {
       rule_results: req.body.rule_results || [],
       source_grounding: req.body.source_grounding,
-    });
+    }, auth);
 
-    await validationService.updateValidationStatus(itemId, results.failed_count > 0 ? 'FAILED' : results.warning_count > 0 ? 'WARNING' : 'PASSED', performed_by, tenant_id);
+    await validationService.updateValidationStatus(itemId, results.failed_count > 0 ? 'FAILED' : results.warning_count > 0 ? 'WARNING' : 'PASSED', performed_by, tenant_id, auth);
 
     res.json({ success: true, data: { run, results } });
   } catch (error) {
@@ -143,22 +147,23 @@ export const revalidateItem = async (req: AuthRequest, res: Response, next: Next
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const itemId = getParamId(req);
 
-    await validationService.updateValidationStatus(itemId, 'PENDING_VALIDATION', performed_by, tenant_id);
+    await validationService.updateValidationStatus(itemId, 'PENDING_VALIDATION', performed_by, tenant_id, auth);
 
     const run = await validationService.createValidationRun({
       validation_item_id: itemId,
       rule_set_version: req.body.rule_set_version,
       run_by: performed_by,
-    });
+    }, auth);
 
     const results = await validationService.completeValidationRun(run.id as string, {
       rule_results: req.body.rule_results || [],
       source_grounding: req.body.source_grounding,
-    });
+    }, auth);
 
-    await validationService.updateValidationStatus(itemId, results.failed_count > 0 ? 'FAILED' : results.warning_count > 0 ? 'WARNING' : 'PASSED', performed_by, tenant_id);
+    await validationService.updateValidationStatus(itemId, results.failed_count > 0 ? 'FAILED' : results.warning_count > 0 ? 'WARNING' : 'PASSED', performed_by, tenant_id, auth);
 
     res.json({ success: true, data: { run, results } });
   } catch (error) {
@@ -181,10 +186,11 @@ export const requestRevision = async (req: AuthRequest, res: Response, next: Nex
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const { revision_instruction } = req.body;
     if (!revision_instruction) return res.status(400).json({ success: false, message: 'Revision instruction required' });
 
-    await validationService.updateValidationStatus(getParamId(req), 'NEEDS_REVISION', performed_by, tenant_id);
+    await validationService.updateValidationStatus(getParamId(req), 'NEEDS_REVISION', performed_by, tenant_id, auth);
     res.json({ success: true, message: 'Revision requested' });
   } catch (error) {
     next(error);
@@ -195,6 +201,7 @@ export const sendToReviewQueue = async (req: AuthRequest, res: Response, next: N
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const item = await validationService.getValidationItem(getParamId(req));
 
     const eligibility = validationService.calculateEligibility({
@@ -220,7 +227,7 @@ export const sendToReviewQueue = async (req: AuthRequest, res: Response, next: N
       risk_level: (item.risk_level as any) || 'LOW',
     });
 
-    await validationService.updateValidationStatus(getParamId(req), 'COMPLETED', performed_by, tenant_id);
+    await validationService.updateValidationStatus(getParamId(req), 'COMPLETED', performed_by, tenant_id, auth);
     res.json({ success: true, message: 'Sent to Review Queue' });
   } catch (error) {
     next(error);
@@ -231,6 +238,7 @@ export const sendToApprovals = async (req: AuthRequest, res: Response, next: Nex
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const item = await validationService.getValidationItem(getParamId(req));
 
     const eligibility = validationService.calculateEligibility({
@@ -256,7 +264,7 @@ export const sendToApprovals = async (req: AuthRequest, res: Response, next: Nex
       risk_level: (item.risk_level as string) || 'LOW',
     });
 
-    await validationService.updateValidationStatus(getParamId(req), 'COMPLETED', performed_by, tenant_id);
+    await validationService.updateValidationStatus(getParamId(req), 'COMPLETED', performed_by, tenant_id, auth);
     res.json({ success: true, message: 'Sent to Approvals' });
   } catch (error) {
     next(error);
@@ -267,10 +275,11 @@ export const escalateValidation = async (req: AuthRequest, res: Response, next: 
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const { escalation_reason } = req.body;
     if (!escalation_reason) return res.status(400).json({ success: false, message: 'Escalation reason required' });
 
-    await validationService.updateValidationStatus(getParamId(req), 'ESCALATION_REQUIRED', performed_by, tenant_id);
+    await validationService.updateValidationStatus(getParamId(req), 'ESCALATION_REQUIRED', performed_by, tenant_id, auth);
     res.json({ success: true, message: 'Validation escalated' });
   } catch (error) {
     next(error);
@@ -281,6 +290,7 @@ export const applyOverride = async (req: AuthRequest, res: Response, next: NextF
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const { rule_result_id, override_reason, risk_acknowledgement, note } = req.body;
 
     if (!override_reason) return res.status(400).json({ success: false, message: 'Override reason required' });
@@ -293,7 +303,7 @@ export const applyOverride = async (req: AuthRequest, res: Response, next: NextF
       note,
       overridden_by: performed_by,
       tenant_id,
-    });
+    }, auth);
     res.json({ success: true, message: 'Override applied' });
   } catch (error) {
     next(error);
@@ -304,10 +314,11 @@ export const blockItem = async (req: AuthRequest, res: Response, next: NextFunct
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const { block_reason } = req.body;
     if (!block_reason) return res.status(400).json({ success: false, message: 'Block reason required' });
 
-    await validationService.updateValidationStatus(getParamId(req), 'BLOCKED', performed_by, tenant_id);
+    await validationService.updateValidationStatus(getParamId(req), 'BLOCKED', performed_by, tenant_id, auth);
     res.json({ success: true, message: 'Item blocked' });
   } catch (error) {
     next(error);
@@ -318,6 +329,7 @@ export const completeManualCheck = async (req: AuthRequest, res: Response, next:
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const { manual_check_result, note } = req.body;
 
     await validationService.completeManualCheck({
@@ -328,7 +340,7 @@ export const completeManualCheck = async (req: AuthRequest, res: Response, next:
       note,
       completed_by: performed_by,
       tenant_id,
-    });
+    }, auth);
     res.json({ success: true, message: 'Manual check completed' });
   } catch (error) {
     next(error);
@@ -340,12 +352,13 @@ export const completeManualCheck = async (req: AuthRequest, res: Response, next:
 export const addValidatorNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const created_by = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const note = await validationService.addNote({
       validation_item_id: getParamId(req),
       note_body: req.body.note_body,
       parent_note_id: req.body.parent_note_id,
       created_by,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: note });
   } catch (error) {
     next(error);
@@ -400,7 +413,8 @@ export const retryValidationCallback = async (req: AuthRequest, res: Response, n
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
-    const cb = await validationService.retryCallback(getParam(req, 'callbackId'), performed_by, tenant_id);
+    const auth = buildAuthContext(req.user);
+    const cb = await validationService.retryCallback(getParam(req, 'callbackId'), performed_by, tenant_id, auth);
     res.json({ success: true, data: cb });
   } catch (error) {
     next(error);

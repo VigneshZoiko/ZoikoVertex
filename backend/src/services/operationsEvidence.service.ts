@@ -62,7 +62,7 @@ export async function exportEvidence(params: {
 
 // Deterministically serialize a value with sorted object keys so the hash is
 // stable regardless of column/property ordering.
-function canonicalize(value: unknown): string {
+export function canonicalize(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value ?? null);
   if (Array.isArray(value)) return `[${value.map(canonicalize).join(',')}]`;
   const obj = value as Record<string, unknown>;

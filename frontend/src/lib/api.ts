@@ -54,13 +54,13 @@ async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
   try {
     return await fetch(url, init);
   } catch (err) {
-    console.error(
-      `[API Network Error] Failed to connect to backend at ${url}. Ensure the server is running.`,
-      err,
-    );
-    throw new Error(
-      "Connection to backend failed. Please ensure the backend server is running and accessible.",
-    );
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        `[API] Backend unreachable at ${url}. Ensure the server is running on the configured port.`,
+      );
+    }
+    // Tag the message so callers can detect this as a network/offline error
+    throw new Error(`NETWORK_ERROR: Connection to backend failed. ${err instanceof Error ? err.message : ''}`);
   }
 }
 
@@ -110,6 +110,24 @@ export const api = {
       return apiError(response, endpoint, "POST");
     }
     return response.json();
+  },
+
+  async postBlob(endpoint: string, body: unknown): Promise<Blob> {
+    const auth = await resolveAuth();
+    if (!auth.ok) throw new Error(auth.reason === "NO_SESSION" ? "No session" : "Session expired");
+    const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...auth.headers,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.statusText);
+      throw new Error(`POST ${endpoint} failed: ${response.status} ${text}`);
+    }
+    return response.blob();
   },
 
   async postMultipart(endpoint: string, formData: FormData) {
@@ -339,6 +357,23 @@ export const api = {
 
   async restrictedMode(id: string, reason?: string) {
     return this.post(`/api/v1/operations/runs/${id}/restricted-mode`, { reason });
+  },
+
+  async holdRun(id: string, reason?: string) {
+    return this.post(`/api/v1/operations/runs/${id}/hold`, { reason });
+  },
+
+  async releaseHoldRun(id: string, reason?: string) {
+    return this.post(`/api/v1/operations/runs/${id}/release-hold`, { reason });
+  },
+
+  // Returns CSV Blob for client-side download.
+  async exportAnalyticsCSV(reason: string): Promise<Blob> {
+    return this.postBlob("/api/v1/operations/analytics/export", { reason });
+  },
+
+  async exportOutputSnapshot(id: string, reason: string) {
+    return this.post(`/api/v1/operations/runs/${id}/export-output`, { reason });
   },
 
   async runPolicyCheck(id: string) {

@@ -40,7 +40,8 @@ CREATE INDEX IF NOT EXISTS idx_ptsc_category   ON prompt_test_scenarios(category
 CREATE INDEX IF NOT EXISTS idx_ptsc_severity   ON prompt_test_scenarios(severity);
 
 -- Auto-update updated_at
-CREATE TRIGGER IF NOT EXISTS mdt_prompt_test_scenarios
+DROP TRIGGER IF EXISTS mdt_prompt_test_scenarios ON prompt_test_scenarios;
+CREATE TRIGGER mdt_prompt_test_scenarios
   BEFORE UPDATE ON prompt_test_scenarios
   FOR EACH ROW
   EXECUTE FUNCTION moddatetime(updated_at);

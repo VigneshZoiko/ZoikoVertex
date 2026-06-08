@@ -19,6 +19,7 @@ import { runGeminiModeration } from "./geminiModerator";
 import { aggregateMatches } from "./riskScoring";
 import { DEFAULT_THRESHOLDS } from "./types";
 import type { ModerationInput, ModerationResult, MatchResult } from "./types";
+import { GovernedModelGate } from "../prompts/GovernedModelGate";
 
 // Minimum input length where semantic moderation is worth a Gemini call.
 // Below this, the input is too short to convey context the local engine
@@ -51,15 +52,52 @@ export async function moderate(input: ModerationInput): Promise<ModerationResult
     !local.highConfidence &&
     content.length >= GEMINI_MIN_CHARS;
 
+  let governanceHardBlock = false;
+  let governanceBlockReason: string | undefined;
+
   if (shouldCallGemini) {
+    const workspaceId = input.workspaceId || input.tenantId || "";
     const geminiStart = Date.now();
-    const gemini = await runGeminiModeration(content);
+    // The AI moderation step is a governed model call. A governed
+    // 'safety_moderation' prompt authorizes it; if none resolves AND enforcement
+    // is on in production, we MUST NOT fall back to a local verdict (which could
+    // be "safe") — we hard-block. Local confidence cannot override this.
+    const cap: { result: Awaited<ReturnType<typeof runGeminiModeration>> } = { result: null };
+    const governed = await GovernedModelGate.execute({
+      useCaseKey: "safety_moderation",
+      workspaceId,
+      variables: { content },
+      modelProvider: "gemini",
+      invoke: async () => {
+        cap.result = await runGeminiModeration(content);
+        return cap.result ? cap.result.raw?.reason || "moderated" : "";
+      },
+    });
     geminiMs = Date.now() - geminiStart;
-    if (gemini) {
-      allMatches = [...allMatches, ...gemini.matches];
-      source = local.matches.length > 0 ? "hybrid" : "gemini";
-      modelUsed = gemini.modelUsed;
-      reason = gemini.raw.reason;
+
+    if (governed.ok) {
+      if (cap.result) {
+        allMatches = [...allMatches, ...cap.result.matches];
+        source = local.matches.length > 0 ? "hybrid" : "gemini";
+        modelUsed = cap.result.modelUsed;
+        reason = cap.result.raw.reason;
+      }
+    } else {
+      try {
+        // Not enforced ⇒ records an advisory bypass and preserves legacy behavior.
+        await GovernedModelGate.legacyInlineFallback("safety_moderation", workspaceId, `governed safety prompt unavailable: ${governed.code}`);
+        const gemini = await runGeminiModeration(content);
+        if (gemini) {
+          allMatches = [...allMatches, ...gemini.matches];
+          source = local.matches.length > 0 ? "hybrid" : "gemini";
+          modelUsed = gemini.modelUsed;
+          reason = gemini.raw.reason;
+        }
+      } catch {
+        // Enforced production ⇒ hard block (fail-closed, not fail-open).
+        governanceHardBlock = true;
+        governanceBlockReason = `Safety moderation blocked: a governed prompt is required (${governed.code}).`;
+      }
     }
   }
 
@@ -68,6 +106,24 @@ export async function moderate(input: ModerationInput): Promise<ModerationResult
     allMatches,
     thresholds,
   );
+
+  // ----- Phase 3b: governance hard block overrides any local "safe" verdict -----
+  if (governanceHardBlock) {
+    return {
+      safe: false,
+      verdict: "block",
+      overallRisk: 1,
+      severity: "critical",
+      categoryScores: { ...categoryScores, platform_unsafe: 1 },
+      matches: allMatches,
+      source,
+      evidenceId: newEvidenceId(),
+      timestamp: new Date().toISOString(),
+      reason: governanceBlockReason,
+      modelUsed,
+      timings: { local: localMs, gemini: geminiMs, total: Date.now() - startedAt },
+    };
+  }
 
   // ----- Phase 4: build evidence-stamped result -----
   return {

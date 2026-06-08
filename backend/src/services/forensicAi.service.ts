@@ -2,6 +2,8 @@ import { supabaseAdmin } from '../shared/supabase';
 import { getCase, getEnhancedTimeline, listEvidence, listActions, listTasks } from './forensicHub.service';
 import { emitForensicAuditEvent } from './forensicHub.service';
 import { deliverToSubscription } from './auditTrailStreaming.service';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,7 +23,8 @@ export interface AnomalyResult {
 
 // ─── AI Summary Draft ─────────────────────────────────────────────────────────
 
-export async function generateCaseSummary(caseId: string, actorId: string): Promise<AiSummary> {
+export async function generateCaseSummary(caseId: string, actorId: string, auth?: AuthContext): Promise<AiSummary> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
 
@@ -99,16 +102,18 @@ export async function generateCaseSummary(caseId: string, actorId: string): Prom
   await emitForensicAuditEvent(
     'forensic.ai_summary_generated', caseRec.workspace_id, actorId,
     `AI Summary Generated: ${caseRec.case_id}`,
-    `AI case summary draft generated with ${citations.length} citations.`,
+    `AI case summary generated for "${caseRec.title}".`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
-    { field_changed: 'ai_summary', previous_value: null, new_value: 'draft_generated' },
-    { permission_used: 'forensic.ai.summarize' }
+    undefined,
+    { permission_used: 'forensic.ai.summarize' },
+    caseRec.tenant_id
   );
 
   return data;
 }
 
-export async function approveAiSummary(summaryId: string, actorId: string): Promise<AiSummary> {
+export async function approveAiSummary(summaryId: string, actorId: string, auth?: AuthContext): Promise<AiSummary> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: summary } = await supabaseAdmin.from('case_ai_summaries').select('*').eq('id', summaryId).single();
   if (!summary) throw new Error('AI summary not found');
 
@@ -124,7 +129,8 @@ export async function approveAiSummary(summaryId: string, actorId: string): Prom
       `AI case summary ${summaryId.substring(0, 8)} approved by ${actorId}.`,
       { object_type: 'forensic_case', object_id: caseRec.case_id },
       { field_changed: 'ai_summary_status', previous_value: 'draft', new_value: 'approved' },
-      { permission_used: 'forensic.ai.approve' }
+      { permission_used: 'forensic.ai.approve' },
+      caseRec.tenant_id
     );
   }
 
@@ -133,7 +139,8 @@ export async function approveAiSummary(summaryId: string, actorId: string): Prom
   return updated;
 }
 
-export async function rejectAiSummary(summaryId: string, reason: string): Promise<AiSummary> {
+export async function rejectAiSummary(summaryId: string, reason: string, auth?: AuthContext): Promise<AiSummary> {
+  requireAnyPermission(auth, 'evidence:view');
   await supabaseAdmin.from('case_ai_summaries').update({
     status: 'rejected', rejection_reason: reason,
   }).eq('id', summaryId);
@@ -152,7 +159,8 @@ export async function listAiSummaries(caseId: string): Promise<AiSummary[]> {
 
 // ─── Timeline Explanation ─────────────────────────────────────────────────────
 
-export async function generateTimelineExplanation(caseId: string, _actorId: string): Promise<string> {
+export async function generateTimelineExplanation(caseId: string, _actorId: string, auth?: AuthContext): Promise<string> {
+  requireAnyPermission(auth, 'evidence:view');
   const timeline = await getEnhancedTimeline(caseId);
   if (timeline.length === 0) return 'No timeline events to explain.';
 
@@ -195,7 +203,8 @@ export async function generateTimelineExplanation(caseId: string, _actorId: stri
 
 // ─── Anomaly Detection ────────────────────────────────────────────────────────
 
-export async function detectAnomalies(caseId: string, actorId: string): Promise<AnomalyResult[]> {
+export async function detectAnomalies(caseId: string, actorId: string, auth?: AuthContext): Promise<AnomalyResult[]> {
+  requireAnyPermission(auth, 'evidence:view');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [evidence, actions, _timeline] = await Promise.all([
     listEvidence(caseId), listActions(caseId), getEnhancedTimeline(caseId),
@@ -271,7 +280,8 @@ export async function detectAnomalies(caseId: string, actorId: string): Promise<
       `${results.length} anomaly patterns found in case data.`,
       { object_type: 'forensic_case', object_id: caseRec.case_id },
       { field_changed: 'anomalies_count', previous_value: 0, new_value: results.length },
-      { permission_used: 'forensic.anomaly.detect' }
+      { permission_used: 'forensic.anomaly.detect' },
+      caseRec.tenant_id
     );
   }
 
@@ -287,7 +297,8 @@ export async function listAnomalies(caseId: string): Promise<AnomalyResult[]> {
 
 // ─── Recommended Next Actions ─────────────────────────────────────────────────
 
-export async function generateRecommendations(caseId: string, actorId: string): Promise<string[]> {
+export async function generateRecommendations(caseId: string, actorId: string, auth?: AuthContext): Promise<string[]> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
 
@@ -366,7 +377,8 @@ export async function generateRecommendations(caseId: string, actorId: string): 
     `${recommendations.length} recommendations generated for case.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'recommendations', previous_value: null, new_value: recommendations.length },
-    { permission_used: 'forensic.recommendations.generate' }
+    { permission_used: 'forensic.recommendations.generate' },
+    caseRec.tenant_id
   );
 
   return recommendations;
@@ -374,7 +386,8 @@ export async function generateRecommendations(caseId: string, actorId: string): 
 
 // ─── SIEM Routing ────────────────────────────────────────────────────────────
 
-export async function routeToSiem(caseId: string, eventType: string, actorId: string): Promise<{ routed: number; subscriptions: number }> {
+export async function routeToSiem(caseId: string, eventType: string, actorId: string, auth?: AuthContext): Promise<{ routed: number; subscriptions: number }> {
+  requireAnyPermission(auth, 'evidence:view');
   const caseRec = await getCase(caseId);
   if (!caseRec) throw new Error('Case not found');
 
@@ -437,7 +450,8 @@ export async function routeToSiem(caseId: string, eventType: string, actorId: st
     `${routedCount}/${subscriptions.length} SIEM subscriptions received event.`,
     { object_type: 'forensic_case', object_id: caseRec.case_id },
     { field_changed: 'siem_routed', previous_value: null, new_value: routedCount },
-    { permission_used: 'forensic.siem.route' }
+    { permission_used: 'forensic.siem.route' },
+    caseRec.tenant_id
   );
 
   return { routed: routedCount, subscriptions: subscriptions.length };
@@ -448,7 +462,8 @@ export async function routeToSiem(caseId: string, eventType: string, actorId: st
 export async function createAuditorSession(params: {
   case_id: string; export_id: string; auditor_id: string; workspace_id: string;
   expires_in_hours?: number;
-}): Promise<any> {
+}, auth?: AuthContext): Promise<any> {
+  requireAnyPermission(auth, 'evidence:view');
   const token = `AUD-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 10)}`.toUpperCase();
 
   const { data, error } = await supabaseAdmin.from('auditor_sessions').insert({

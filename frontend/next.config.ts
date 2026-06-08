@@ -56,6 +56,10 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
+  onDemandEntries: {
+    maxInactiveAge: 30 * 1000,
+    pagesBufferLength: 5,
+  },
   async headers() {
     return [
       {
@@ -71,10 +75,15 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:10000';
     return [
       {
         source: '/api/v1/:path*',
-        destination: `${process.env.BACKEND_URL || 'http://localhost:5005'}/api/v1/:path*`,
+        destination: `${backendUrl}/api/v1/:path*`,
+      },
+      {
+        source: '/api/auth/:path*',
+        destination: `${backendUrl}/api/auth/:path*`,
       },
     ];
   },

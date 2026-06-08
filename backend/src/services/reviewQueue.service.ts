@@ -1,6 +1,8 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { internalEventBus } from '../shared/internalEventBus';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 
 export type ReviewItemType = 'social_post' | 'campaign_asset' | 'inbox_reply' | 'agent_action' | 'workflow_output' | 'policy_flagged' | 'validation_failed' | 'exception_item' | 'scheduled_content';
 export type ReviewStatus = 'PENDING_REVIEW' | 'ASSIGNED' | 'IN_REVIEW' | 'AWAITING_REVISION' | 'RESUBMITTED' | 'APPROVED' | 'REJECTED' | 'ESCALATED' | 'BLOCKED' | 'EXPIRED' | 'RELEASED' | 'ARCHIVED';
@@ -58,7 +60,8 @@ export interface ReviewItemInput {
   due_at?: string;
 }
 
-export async function createReviewItem(input: ReviewItemInput): Promise<ReviewItem> {
+export async function createReviewItem(input: ReviewItemInput, auth?: AuthContext): Promise<ReviewItem> {
+  requireAnyPermission(auth, 'queue:manage');
   const id = uuidv4();
   const { data, error } = await supabaseAdmin
     .from('review_items')
@@ -152,7 +155,8 @@ export async function updateReviewItemStatus(params: {
   status: ReviewStatus;
   feedback?: string;
   userId: string;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'queue:manage');
   const updateFields: Record<string, unknown> = { status: params.status, updated_at: new Date().toISOString() };
 
   if (params.status === 'IN_REVIEW') updateFields.reviewed_at = new Date().toISOString();
@@ -202,7 +206,8 @@ export async function assignReviewItem(params: {
   team?: string;
   note?: string;
   due_at?: string;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'queue:manage');
   const { data, error } = await supabaseAdmin
     .from('review_items')
     .update({ assigned_to: params.assigned_to, status: 'ASSIGNED', updated_at: new Date().toISOString() })
@@ -236,7 +241,8 @@ export async function addReviewNote(params: {
   review_item_id: string;
   note_body: string;
   created_by: string;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'queue:manage');
   const { data, error } = await supabaseAdmin
     .from('review_notes')
     .insert({
@@ -411,7 +417,8 @@ export async function recordDecision(params: {
   reason?: string;
   note?: string;
   decided_by: string;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'queue:manage');
   const { data, error } = await supabaseAdmin
     .from('review_decisions')
     .insert({
@@ -432,7 +439,8 @@ export async function recordOverride(params: {
   override_reason: string;
   risk_acknowledgement?: string;
   overridden_by: string;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'queue:manage');
   const { data, error } = await supabaseAdmin
     .from('review_overrides')
     .insert({

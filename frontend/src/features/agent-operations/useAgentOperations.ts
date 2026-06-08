@@ -18,7 +18,10 @@ const DEFAULT_FILTERS: OperationsFilters = {
   status: "",
   severity: "",
   environment: "",
+  policy_result: "",
   search: "",
+  brand_id: "",
+  brand_name: "",
 };
 
 export function useAgentOperations() {
@@ -36,6 +39,7 @@ export function useAgentOperations() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [staleWarning, setStaleWarning] = useState(false);
   const [degradedRealtime, setDegradedRealtime] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
   const mounted = useRef(true);
@@ -46,11 +50,11 @@ export function useAgentOperations() {
     setError(null);
     try {
       const [statsResult, runsResult, queuesResult, incidentsResult, analyticsResult] = await Promise.all([
-        agentOperationsApi.getStats(),
+        agentOperationsApi.getStats(filters),
         agentOperationsApi.listRuns({ ...filters, limit: 100, offset: 0 }),
-        agentOperationsApi.listQueues(),
-        agentOperationsApi.listIncidents(),
-        agentOperationsApi.getAnalytics(),
+        agentOperationsApi.listQueues(undefined, filters),
+        agentOperationsApi.listIncidents(filters),
+        agentOperationsApi.getAnalytics(filters),
       ]);
       if (!mounted.current) return;
       setStats(statsResult);
@@ -59,6 +63,7 @@ export function useAgentOperations() {
       setQueues(queuesResult.items);
       setIncidents(incidentsResult.incidents);
       setAnalytics(analyticsResult);
+      setStaleWarning(false);
       setLastUpdated(new Date());
     } catch (err) {
       if (!mounted.current) return;
@@ -104,12 +109,16 @@ export function useAgentOperations() {
   // Polling fallback. This is a steady backstop refresh; it must NOT mark the
   // stream as degraded (the SSE effect owns the degraded flag based on real
   // connection state). A 30s cadence matches the active operations page.
+  // Also detects stale state (>120s without update) and warns the user.
   useEffect(() => {
     const interval = window.setInterval(() => {
+      if (lastUpdated && Date.now() - lastUpdated.getTime() > 120000) {
+        setStaleWarning(true);
+      }
       refresh();
     }, 30000);
     return () => window.clearInterval(interval);
-  }, [refresh]);
+  }, [refresh, lastUpdated]);
 
   // Realtime SSE with reconnection + exponential backoff and typed-event
   // processing. EventSource cannot send the Authorization header, so we stream
@@ -214,6 +223,7 @@ export function useAgentOperations() {
     loading,
     detailLoading,
     error,
+    staleWarning,
     degradedRealtime,
     lastUpdated,
     refresh,

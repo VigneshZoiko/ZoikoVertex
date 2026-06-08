@@ -6,6 +6,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logAuditEvent } from '../governance/evidenceController';
 import { env } from '../../config/env';
+import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
 import { classifyMessage } from './inboxClassifier';
 
 export interface AutoReplyRule {
@@ -690,13 +691,33 @@ export const generateAiDraft = async (req: AuthRequest, res: Response, next: Nex
 
     if (env.GROQ_API_KEY) {
       const openai = new OpenAI({ baseURL: 'https://api.groq.com/openai/v1', apiKey: env.GROQ_API_KEY });
-      const completion = await openai.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 200,
-        temperature: 0.7,
+      const callModel = async (p: string): Promise<string> => {
+        const c = await openai.chat.completions.create({
+          model: 'llama-3.3-70b-versatile',
+          messages: [{ role: 'user', content: p }],
+          max_tokens: 200,
+          temperature: 0.7,
+        });
+        return c.choices[0]?.message?.content?.trim() || '';
+      };
+      // Phase 4.D — prefer the governed 'inbox_ai_reply' prompt; on governance
+      // block, record an audited fallback (fail-closed in production when
+      // PROMPT_GOVERNANCE_ENFORCED) and use the inline prompt so behavior is
+      // unchanged while the flag is off.
+      const governed = await GovernedModelGate.execute({
+        useCaseKey: 'inbox_ai_reply',
+        workspaceId,
+        variables: { platform: msg.platform, message: msg.message_body, tone, instruction: TONE_INSTRUCTIONS[tone] || TONE_INSTRUCTIONS.professional },
+        modelProvider: 'groq',
+        actorId: userId,
+        invoke: callModel,
       });
-      draft = completion.choices[0]?.message?.content?.trim() || '';
+      if (governed.ok) {
+        draft = governed.output || '';
+      } else {
+        await GovernedModelGate.legacyInlineFallback('inbox_ai_reply', workspaceId, `governed prompt unavailable: ${governed.code}`);
+        draft = await callModel(prompt);
+      }
     } else {
       const firstName = msg.sender_name.split(' ')[0];
       draft = `Thank you for reaching out, ${firstName}! We appreciate your message and will follow up with you very shortly.`;
@@ -1135,7 +1156,7 @@ export async function insertMessageIfNew(
   // Classify + auto-reply asynchronously (non-blocking)
   const msgBody = (payload.message_body as string) || '';
   if (msgBody && inserted?.id) {
-    classifyMessage(msgBody)
+    classifyMessage(msgBody, payload.workspace_id as string | undefined)
       .then(async ({ risk_level, sentiment }) => {
         await supabaseAdmin
           .from('inbox_messages')

@@ -1,6 +1,8 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { internalEventBus } from '../shared/internalEventBus';
 import { v4 as uuidv4 } from 'uuid';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 
 export type RuleStatus = 'DRAFT' | 'NEEDS_REVIEW' | 'READY_TO_PUBLISH' | 'ACTIVE' | 'ACTIVE_WITH_DRAFT_CHANGES' | 'DISABLED' | 'ARCHIVED' | 'CONFLICT_DETECTED' | 'INVALID';
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -42,7 +44,8 @@ export interface ApprovalRuleInput {
   created_by: string;
 }
 
-export async function createRule(input: ApprovalRuleInput): Promise<ApprovalRule> {
+export async function createRule(input: ApprovalRuleInput, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   if (!input.rule_name || input.rule_name.trim().length === 0) {
     throw Object.assign(new Error('rule_name is required'), { statusCode: 400 });
   }
@@ -167,7 +170,8 @@ export async function updateRule(params: {
   expires_at?: string;
   tags?: string[];
   updated_by: string;
-}): Promise<ApprovalRule> {
+}, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const current = await getRule(params.id, params.tenant_id);
   if (!current) throw new Error('Rule not found');
 
@@ -207,7 +211,8 @@ export async function updateRule(params: {
   return data as unknown as ApprovalRule;
 }
 
-export async function submitRuleForReview(id: string, tenant_id: string, userId: string): Promise<ApprovalRule> {
+export async function submitRuleForReview(id: string, tenant_id: string, userId: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'NEEDS_REVIEW', updated_at: new Date().toISOString(), updated_by: userId })
@@ -225,7 +230,8 @@ export async function submitRuleForReview(id: string, tenant_id: string, userId:
   return data as unknown as ApprovalRule;
 }
 
-export async function publishRule(id: string, tenant_id: string, userId: string, publishNote?: string): Promise<ApprovalRule> {
+export async function publishRule(id: string, tenant_id: string, userId: string, publishNote?: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const rule = await getRule(id, tenant_id);
   if (!rule) throw new Error('Rule not found');
 
@@ -269,7 +275,8 @@ export async function publishRule(id: string, tenant_id: string, userId: string,
   return data as unknown as ApprovalRule;
 }
 
-export async function deactivateRule(id: string, tenant_id: string, userId: string, reason?: string): Promise<ApprovalRule> {
+export async function deactivateRule(id: string, tenant_id: string, userId: string, reason?: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'DISABLED', updated_at: new Date().toISOString(), updated_by: userId })
@@ -287,7 +294,8 @@ export async function deactivateRule(id: string, tenant_id: string, userId: stri
   return data as unknown as ApprovalRule;
 }
 
-export async function reactivateRule(id: string, tenant_id: string, userId: string): Promise<ApprovalRule> {
+export async function reactivateRule(id: string, tenant_id: string, userId: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'ACTIVE', updated_at: new Date().toISOString(), updated_by: userId })
@@ -305,7 +313,8 @@ export async function reactivateRule(id: string, tenant_id: string, userId: stri
   return data as unknown as ApprovalRule;
 }
 
-export async function archiveRule(id: string, tenant_id: string, userId: string): Promise<ApprovalRule> {
+export async function archiveRule(id: string, tenant_id: string, userId: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'ARCHIVED', updated_at: new Date().toISOString(), updated_by: userId })
@@ -323,7 +332,8 @@ export async function archiveRule(id: string, tenant_id: string, userId: string)
   return data as unknown as ApprovalRule;
 }
 
-export async function markRuleReadyToPublish(id: string, tenant_id: string, userId: string): Promise<ApprovalRule> {
+export async function markRuleReadyToPublish(id: string, tenant_id: string, userId: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'READY_TO_PUBLISH', updated_at: new Date().toISOString(), updated_by: userId })
@@ -341,7 +351,8 @@ export async function markRuleReadyToPublish(id: string, tenant_id: string, user
   return data as unknown as ApprovalRule;
 }
 
-export async function markRuleInvalid(id: string, tenant_id: string, userId: string, reason: string): Promise<ApprovalRule> {
+export async function markRuleInvalid(id: string, tenant_id: string, userId: string, reason: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'INVALID', updated_at: new Date().toISOString(), updated_by: userId })
@@ -359,7 +370,8 @@ export async function markRuleInvalid(id: string, tenant_id: string, userId: str
   return data as unknown as ApprovalRule;
 }
 
-export async function cloneRule(id: string, tenant_id: string, workspace_id: string, userId: string): Promise<ApprovalRule> {
+export async function cloneRule(id: string, tenant_id: string, workspace_id: string, userId: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const source = await getRule(id, tenant_id);
   if (!source) throw new Error('Source rule not found');
 
@@ -406,7 +418,8 @@ export async function upsertRuleScope(params: {
   agent_id?: string;
   workflow_id?: string;
   restricted_mode_status?: string;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'rules:manage');
   if (!validUUID(params.approval_rule_id)) throw new Error('Rule not found');
   const existing = await getRuleScope(params.approval_rule_id);
   if (existing) {
@@ -482,7 +495,8 @@ export async function upsertRulePath(params: {
   allow_conditional_approval?: boolean;
   allow_delegation?: boolean;
   emergency_route_enabled?: boolean;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'rules:manage');
   if (!validUUID(params.approval_rule_id)) throw new Error('Rule not found');
   const existing = await getRulePath(params.approval_rule_id);
   if (existing) {
@@ -627,7 +641,8 @@ export async function getRuleConflicts(approval_rule_id: string) {
   return data || [];
 }
 
-export async function resolveConflict(conflict_id: string, userId: string) {
+export async function resolveConflict(conflict_id: string, userId: string, auth?: AuthContext) {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rule_conflicts')
     .update({ conflict_status: 'RESOLVED', resolved_at: new Date().toISOString(), resolved_by: userId })
@@ -638,7 +653,8 @@ export async function resolveConflict(conflict_id: string, userId: string) {
   return data;
 }
 
-export async function detectRuleConflicts(approval_rule_id: string, tenant_id: string) {
+export async function detectRuleConflicts(approval_rule_id: string, tenant_id: string, auth?: AuthContext) {
+  requireAnyPermission(auth, 'rules:manage');
   const rule = await getRule(approval_rule_id, tenant_id);
   if (!rule) return [];
 
@@ -781,7 +797,8 @@ export async function runSimulation(params: {
   approval_rule_id: string;
   simulated_by: string;
   simulation_input: Record<string, unknown>;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'rules:manage');
   if (!validUUID(params.approval_rule_id)) throw new Error('Rule not found');
   const { data: rule } = await supabaseAdmin
     .from('approval_rules')

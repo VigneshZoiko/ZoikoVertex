@@ -6,6 +6,7 @@ vi.mock('../../shared/databaseLogger', () => ({ logToDatabase: vi.fn() }));
 import { PromptScorecardService } from '../../modules/prompts/PromptScorecardService';
 import { promptScorecardResponseSchema } from '../../modules/prompts/schemas/scorecard.schema';
 import { setFixtures, resetFixtures } from '../helpers/supabaseMock';
+import { lockedShadowFixture } from '../helpers/constraintShadowFixture';
 
 beforeEach(() => {
   setFixtures({
@@ -64,6 +65,12 @@ beforeEach(() => {
       { id: 'ev-2', workspace_id: 'ws-a', prompt_id: 'p-tier4', created_at: '2025-01-03T00:00:00Z' },
     ],
     prompt_drift_log: [],
+    prompt_constraint_shadows: [
+      lockedShadowFixture({ versionId: 'v1', promptId: 'p-tier1', workspaceId: 'ws-a', riskTier: 'tier_1_low' }),
+      lockedShadowFixture({ versionId: 'v2', promptId: 'p-tier2', workspaceId: 'ws-a', riskTier: 'tier_2_medium' }),
+      lockedShadowFixture({ versionId: 'v3', promptId: 'p-tier3', workspaceId: 'ws-a', riskTier: 'tier_3_high' }),
+      lockedShadowFixture({ versionId: 'v4', promptId: 'p-tier4', workspaceId: 'ws-a', riskTier: 'tier_4_critical' }),
+    ],
     workspace_members: [
       { user_id: 'u1', workspace_id: 'ws-a', role: 'ADMIN' },
     ],

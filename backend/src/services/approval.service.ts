@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { internalEventBus } from '../shared/internalEventBus';
 import { broadcastWebhookEvent } from '../domains/integrations/apiWebhookController';
 import { logger } from '../shared/logger';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 
 export type ApprovalItemStatus = 'PENDING_APPROVAL' | 'IN_REVIEW' | 'WAITING_ON_OTHERS' | 'APPROVED' | 'REJECTED' | 'CHANGES_REQUESTED' | 'ESCALATED' | 'CONDITIONAL_APPROVAL' | 'BLOCKED' | 'CANCELLED' | 'COMPLETED' | 'ARCHIVED';
 export type ApprovalItemType = 'SOCIAL_POST' | 'INBOX_REPLY' | 'CAMPAIGN_ASSET' | 'AGENT_ACTION' | 'WORKFLOW_OUTPUT' | 'VALIDATION_OVERRIDE' | 'EXCEPTION_OUTCOME' | 'RESTRICTED_OPERATION' | 'COMPLIANCE_SENSITIVE_ITEM' | 'PUBLISHING_ACTION';
@@ -91,7 +93,8 @@ export interface ApprovalCallback {
 
 // ─── Approval Items ──────────────────────────────────────────────────────
 
-export async function createApprovalItem(input: ApprovalItemInput): Promise<ApprovalItem> {
+export async function createApprovalItem(input: ApprovalItemInput, auth?: AuthContext): Promise<ApprovalItem> {
+  requireAnyPermission(auth, 'approvals:manage');
   const id = uuidv4();
   const { data, error } = await supabaseAdmin.from('approval_items').insert({
     id,
@@ -177,7 +180,8 @@ export async function getApprovalItem(id: string, tenant_id: string): Promise<Ap
   return data as unknown as ApprovalItem | null;
 }
 
-export async function updateApprovalItem(id: string, tenant_id: string, updates: Partial<ApprovalItem>): Promise<ApprovalItem> {
+export async function updateApprovalItem(id: string, tenant_id: string, updates: Partial<ApprovalItem>, auth?: AuthContext): Promise<ApprovalItem> {
+  requireAnyPermission(auth, 'approvals:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_items')
     .update(updates)
@@ -243,8 +247,7 @@ export function calculateEligibility(item: ApprovalItem, userId: string, role: s
   if (item.approval_status === 'WAITING_ON_OTHERS') return 'WAITING_ON_PRIOR_STAGE';
 
   if (item.assigned_approver_id && item.assigned_approver_id !== userId) {
-    const adminRoles = ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN'];
-    if (!adminRoles.includes(role)) return 'PERMISSION_DENIED';
+    return 'PERMISSION_DENIED';
   }
 
   if (item.approval_status === 'ESCALATED') return 'ESCALATION_REQUIRED';
@@ -308,7 +311,8 @@ async function completeStage(pathId: string, userId: string): Promise<void> {
     .eq('stage_order', path.current_stage);
 }
 
-export async function approveItem(itemId: string, tenant_id: string, userId: string, reason?: string, note?: string): Promise<ApprovalItem> {
+export async function approveItem(itemId: string, tenant_id: string, userId: string, reason?: string, note?: string, auth?: AuthContext): Promise<ApprovalItem> {
+  requireAnyPermission(auth, 'approvals:manage');
   const item = await getApprovalItem(itemId, tenant_id);
   if (!item) throw new Error('Approval item not found');
 
@@ -386,7 +390,8 @@ export async function approveItem(itemId: string, tenant_id: string, userId: str
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
 
-export async function rejectItem(itemId: string, tenant_id: string, userId: string, reason: string, note?: string): Promise<ApprovalItem> {
+export async function rejectItem(itemId: string, tenant_id: string, userId: string, reason: string, note?: string, auth?: AuthContext): Promise<ApprovalItem> {
+  requireAnyPermission(auth, 'approvals:manage');
   const item = await getApprovalItem(itemId, tenant_id);
   if (!item) throw new Error('Approval item not found');
 
@@ -427,7 +432,8 @@ export async function rejectItem(itemId: string, tenant_id: string, userId: stri
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
 
-export async function requestChanges(itemId: string, tenant_id: string, userId: string, instruction: string, ownerId?: string, dueAt?: string, note?: string): Promise<ApprovalItem> {
+export async function requestChanges(itemId: string, tenant_id: string, userId: string, instruction: string, ownerId?: string, dueAt?: string, note?: string, auth?: AuthContext): Promise<ApprovalItem> {
+  requireAnyPermission(auth, 'approvals:manage');
   const item = await getApprovalItem(itemId, tenant_id);
   if (!item) throw new Error('Approval item not found');
 
@@ -458,7 +464,8 @@ export async function requestChanges(itemId: string, tenant_id: string, userId: 
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
 
-export async function approveWithConditions(itemId: string, tenant_id: string, userId: string, conditionText: string, ownerId: string, dueAt: string, note?: string): Promise<ApprovalItem> {
+export async function approveWithConditions(itemId: string, tenant_id: string, userId: string, conditionText: string, ownerId: string, dueAt: string, note?: string, auth?: AuthContext): Promise<ApprovalItem> {
+  requireAnyPermission(auth, 'approvals:manage');
   const item = await getApprovalItem(itemId, tenant_id);
   if (!item) throw new Error('Approval item not found');
 
@@ -482,7 +489,8 @@ export async function approveWithConditions(itemId: string, tenant_id: string, u
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
 
-export async function escalateItem(itemId: string, tenant_id: string, userId: string, targetRole: string, reason: string, note?: string): Promise<ApprovalItem> {
+export async function escalateItem(itemId: string, tenant_id: string, userId: string, targetRole: string, reason: string, note?: string, auth?: AuthContext): Promise<ApprovalItem> {
+  requireAnyPermission(auth, 'approvals:manage');
   const item = await getApprovalItem(itemId, tenant_id);
   if (!item) throw new Error('Approval item not found');
 
@@ -511,7 +519,8 @@ export async function escalateItem(itemId: string, tenant_id: string, userId: st
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
 
-export async function cancelApproval(itemId: string, tenant_id: string, userId: string): Promise<ApprovalItem> {
+export async function cancelApproval(itemId: string, tenant_id: string, userId: string, auth?: AuthContext): Promise<ApprovalItem> {
+  requireAnyPermission(auth, 'approvals:manage');
   const item = await getApprovalItem(itemId, tenant_id);
   if (!item) throw new Error('Approval item not found');
 
@@ -531,7 +540,8 @@ export async function cancelApproval(itemId: string, tenant_id: string, userId: 
 
 // ─── Assignment ───────────────────────────────────────────────────────────
 
-export async function assignApprover(itemId: string, tenant_id: string, userId: string, approverId: string): Promise<ApprovalItem> {
+export async function assignApprover(itemId: string, tenant_id: string, userId: string, approverId: string, auth?: AuthContext): Promise<ApprovalItem> {
+  requireAnyPermission(auth, 'approvals:manage');
   const item = await getApprovalItem(itemId, tenant_id);
   if (!item) throw new Error('Approval item not found');
 
@@ -551,8 +561,8 @@ export async function assignApprover(itemId: string, tenant_id: string, userId: 
   return getApprovalItem(itemId, tenant_id) as Promise<ApprovalItem>;
 }
 
-export async function reassignApprover(itemId: string, tenant_id: string, userId: string, newApproverId: string): Promise<ApprovalItem> {
-  return assignApprover(itemId, tenant_id, userId, newApproverId);
+export async function reassignApprover(itemId: string, tenant_id: string, userId: string, newApproverId: string, auth?: AuthContext): Promise<ApprovalItem> {
+  return assignApprover(itemId, tenant_id, userId, newApproverId, auth);
 }
 
 // ─── Path & Stages ─────────────────────────────────────────────────────────
@@ -585,7 +595,8 @@ export async function createApprovalPath(itemId: string, input: {
   required_roles?: string[]; required_users?: string[];
   quorum_required?: number; fallback_approver?: string;
   escalation_target?: string; sla_due_at?: string;
-}): Promise<ApprovalPath> {
+}, auth?: AuthContext): Promise<ApprovalPath> {
+  requireAnyPermission(auth, 'approvals:manage');
   const id = uuidv4();
   const { data, error } = await supabaseAdmin.from('approval_paths').insert({
     id, approval_item_id: itemId,
@@ -626,7 +637,8 @@ export async function getApprovalComments(itemId: string): Promise<ApprovalComme
   return (data || []) as unknown as ApprovalComment[];
 }
 
-export async function addApprovalComment(itemId: string, userId: string, body: string, visibility: string = 'internal_only'): Promise<ApprovalComment> {
+export async function addApprovalComment(itemId: string, userId: string, body: string, visibility: string = 'internal_only', auth?: AuthContext): Promise<ApprovalComment> {
+  requireAnyPermission(auth, 'approvals:manage');
   const id = uuidv4();
   const { data, error } = await supabaseAdmin.from('approval_comments').insert({
     id, approval_item_id: itemId, comment_body: body, visibility, created_by: userId,
@@ -649,7 +661,8 @@ export async function getApprovalEvidence(itemId: string): Promise<ApprovalEvide
 
 export async function addApprovalEvidence(itemId: string, input: {
   evidence_type: string; evidence_reference: string; source_module: string;
-}): Promise<ApprovalEvidence> {
+}, auth?: AuthContext): Promise<ApprovalEvidence> {
+  requireAnyPermission(auth, 'approvals:manage');
   const id = uuidv4();
   const { data, error } = await supabaseAdmin.from('approval_evidence').insert({
     id, approval_item_id: itemId,
@@ -759,7 +772,8 @@ export async function processPendingCallbacks(): Promise<number> {
   return processed;
 }
 
-export async function retryCallback(callbackId: string): Promise<void> {
+export async function retryCallback(callbackId: string, auth?: AuthContext): Promise<void> {
+  requireAnyPermission(auth, 'approvals:manage');
   const { data: cb, error } = await supabaseAdmin
     .from('approval_callbacks')
     .select('*')
@@ -774,7 +788,8 @@ export async function retryCallback(callbackId: string): Promise<void> {
 
 // ─── Export ────────────────────────────────────────────────────────────────
 
-export async function exportApprovalRecord(itemId: string, tenant_id: string): Promise<Record<string, unknown> | null> {
+export async function exportApprovalRecord(itemId: string, tenant_id: string, auth?: AuthContext): Promise<Record<string, unknown> | null> {
+  requireAnyPermission(auth, 'approvals:manage');
   const item = await getApprovalItem(itemId, tenant_id);
   if (!item) return null;
 

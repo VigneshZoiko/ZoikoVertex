@@ -22,6 +22,9 @@ interface MetaAccount {
 interface AdData {
   name: string; copy: string; headline: string;
   website_url: string; cta: string; image_url: string;
+  ad_type?: "image_ad" | "video_ad" | "lead_ad";
+  video_url?: string;
+  lead_form_id?: string;
 }
 
 // ── Constants ─────────────────────────────────────────────────
@@ -116,9 +119,9 @@ const ALL_PLACEMENTS: Placement[] = [
 ];
 
 const CTA_OPTIONS = [
-  "Apply now", "Book now", "Contact us", "Download",
-  "Get quote", "Learn more", "Shop now", "Sign up",
-  "Subscribe", "Watch more", "Send message", "Get offer",
+  "Learn more", "Shop now", "Sign up", "Book now",
+  "Contact us", "Download", "Get quote", "Subscribe",
+  "Watch more", "Send message", "Get offer",
 ];
 
 const SIDEBAR_STEPS = [
@@ -527,7 +530,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 
   // Step 3
   const [previewTab,     setPreview]      = useState<"desktop"|"mobile"|"instagram">("desktop");
-  const [ads,            setAds]          = useState<AdData[]>([{ name: "New ad", copy: "", headline: "", website_url: "http://example.com", cta: "Apply now", image_url: "" }]);
+  const [ads,            setAds]          = useState<AdData[]>([{ name: "New ad", copy: "", headline: "", website_url: "", cta: "Learn more", image_url: "" }]);
   const [selectedAdIdx,  setSelectedAdIdx]= useState(0);
   const [showSummary,    setShowSummary]  = useState(false);
   const [showVaultPicker, setShowVaultPicker] = useState(false);
@@ -568,6 +571,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       setAd(a => ({ ...a, image_url: publicUrl }));
       setShowMediaErr(false);
       clearErr("adImage");
+      // Register in media_library so it appears in Media Vault picker
+      const mediaType = file.type.startsWith("video/") ? "video" : "image";
+      api.post("/api/v1/library/upload", { title: file.name, urls: [publicUrl], file_type: mediaType }).catch(() => {});
     } catch (e: unknown) {
       setImageUploadErr(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -691,6 +697,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       } else if (Array.isArray(bs.placements) && bs.placements.length) {
         setAutoPlace(false); setSelectedPlacements(bs.placements);
       }
+      if (bs.special_category) { setSpecial(true); setSpecialCatType(bs.special_category); }
       if (c.eu_targeting)   setEuTargeting(c.eu_targeting);
       if (c.eu_beneficiary) setBeneficiary(c.eu_beneficiary);
       if (c.eu_payer)       setPayer(c.eu_payer);
@@ -703,20 +710,26 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       const cr = c.creative || {};
       const loadedAds: AdData[] = Array.isArray(c.ads_data) && c.ads_data.length > 0
         ? c.ads_data.map((a: any) => ({
-            name:        a.name             || "New ad",
-            copy:        a.copy_text        || "",
-            headline:    a.headline         || "",
-            website_url: a.landing_page_url || "http://example.com",
-            cta:         a.cta_text         || "Apply now",
-            image_url:   a.ad_image_url     || "",
+            name:         a.name             || "New ad",
+            copy:         a.copy_text        || "",
+            headline:     a.headline         || "",
+            website_url:  a.landing_page_url || "",
+            cta:          a.cta_text         || "Learn more",
+            image_url:    a.ad_image_url     || "",
+            ad_type:      (a.meta_ad_type === "video_ad" || a.meta_ad_type === "lead_ad") ? a.meta_ad_type : "image_ad",
+            video_url:    a.ad_video_url     || "",
+            lead_form_id: a.lead_form_id     || "",
           }))
         : [{
-            name:        "New ad",
-            copy:        cr.copy_text        || "",
-            headline:    cr.headline         || "",
-            website_url: cr.landing_page_url || "http://example.com",
-            cta:         cr.cta_text         || "Apply now",
-            image_url:   cr.ad_image_url     || "",
+            name:         "New ad",
+            copy:         cr.copy_text        || "",
+            headline:     cr.headline         || "",
+            website_url:  cr.landing_page_url || "",
+            cta:          cr.cta_text         || "Learn more",
+            image_url:    cr.ad_image_url     || "",
+            ad_type:      (cr.meta_ad_type === "video_ad" || cr.meta_ad_type === "lead_ad") ? cr.meta_ad_type as "video_ad"|"lead_ad" : "image_ad" as const,
+            video_url:    cr.ad_video_url     || "",
+            lead_form_id: cr.lead_form_id     || "",
           }];
       setAds(loadedAds);
       setSelectedAdIdx(0);
@@ -766,7 +779,6 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       objective;
     const opts = OPTIMIZE_OPTIONS[defaultEffective] || OPTIMIZE_OPTIONS[objective] || [];
     setOptimize(opts[0]?.value || "");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [objective]);
 
   // Step summaries for left sidebar
@@ -815,21 +827,29 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       excluded_geography: excludeLocations,
       interests: interests,
     },
-    ads_data: ads.map(a => ({
-      name:             a.name,
-      copy_text:        a.copy,
-      headline:         a.headline,
-      cta_text:         a.cta,
-      landing_page_url: a.website_url || null,
-      ad_image_url:     a.image_url   || null,
-    })),
+    ads_data: ads.map(a => {
+      const effectiveType = convLocation === "message" ? "messenger" : (a.ad_type || "image_ad");
+      return {
+        name:             a.name,
+        copy_text:        a.copy,
+        headline:         a.headline,
+        cta_text:         a.cta,
+        landing_page_url: a.website_url  || null,
+        ad_image_url:     a.image_url    || null,
+        meta_ad_type:     effectiveType,
+        ad_video_url:     a.video_url    || null,
+        lead_form_id:     a.lead_form_id || null,
+      };
+    }),
     creative: {
       headline:         ad.headline,
       copy_text:        ad.copy,
       cta_text:         ad.cta,
-      landing_page_url: ad.website_url || null,
-      ad_image_url:     ad.image_url   || null,
-      meta_ad_type:     convLocation === "message" ? "messenger" : "image_ad",
+      landing_page_url: ad.website_url  || null,
+      ad_image_url:     ad.image_url    || null,
+      meta_ad_type:     convLocation === "message" ? "messenger" : (ad.ad_type || "image_ad"),
+      ad_video_url:     ad.video_url    || null,
+      lead_form_id:     ad.lead_form_id || null,
     },
     boost_settings: {
       optimize:         optimize,
@@ -925,8 +945,13 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
     }
 
     if (s === 3) {
-      if (!ad.image_url)
-        errs.adImage = "Add an image or video before continuing";
+      const adType = convLocation === "message" ? "messenger" : (ad.ad_type || "image_ad");
+      if (adType === "image_ad" && !ad.image_url)
+        errs.adImage = "Add an image before continuing";
+      else if (adType === "video_ad" && !ad.video_url)
+        errs.adImage = "Enter a Facebook-hosted video ID or URL";
+      else if (adType === "lead_ad" && !ad.lead_form_id)
+        errs.adImage = "Enter your Meta Lead Gen Form ID";
       if (convLocation === "message" && !welcomeMsg.trim())
         errs.welcomeMsg = "Welcome message is required for message destination campaigns";
     }
@@ -1173,7 +1198,15 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   <div className="space-y-1">
                     {OBJECTIVES.map(o => (
                       <Radio key={o.value} value={o.value} checked={objective === o.value}
-                        onChange={() => setObjective(o.value)} label={o.label} desc={o.desc} />
+                        onChange={() => {
+                          setObjective(o.value);
+                          // Clear conversion tracking if leaving CONVERSIONS objective
+                          if (o.value !== "CONVERSIONS") {
+                            setTrackingPixel("");
+                            setConvEvent("");
+                          }
+                        }}
+                        label={o.label} desc={o.desc} />
                     ))}
                   </div>
                 </div>
@@ -1982,14 +2015,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 
                 {/* Tracking — Sales + On your website + Conversions only */}
                 {objective === "CONVERSIONS" && convLocation !== "message" && optimize === "OFFSITE_CONVERSIONS" && (() => {
-                  // Mock pixels from connected accounts — real: GET /me/adaccounts?fields=owned_pixels
-                  const mockPixels = pages.length > 0
-                    ? pages.map((p, i) => ({ id: `${831557479645367 + i * 100}`, name: p.account_name + " Pixel" }))
-                    : [{ id: "831557479645367", name: "My Website Pixel" }];
-
-                  const filteredPixels = mockPixels.filter(p =>
-                    !pixelSearch || p.name.toLowerCase().includes(pixelSearch.toLowerCase()) || p.id.includes(pixelSearch)
-                  );
+                  // Real pixels are fetched from Meta API at publish time.
+                  // Here users enter their Pixel ID manually (found in Meta Events Manager).
+                  const filteredPixels: { id: string; name: string }[] = [];
 
                   const CONV_EVENTS = [
                     "Add payment info", "Add to cart", "Add to wishlist", "Complete registration",
@@ -2011,41 +2039,22 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         </p>
                       </div>
 
-                      {/* Pixel selector */}
-                      <Field label="Select a tracking pixel">
-                        <div className="relative">
-                          <button type="button" onClick={() => { setPixelDropOpen(o => !o); setEventDropOpen(false); }}
-                            className={inp + " flex items-center justify-between text-left"}>
-                            <span className={trackingPixel ? "text-white" : "text-zinc-600"}>
-                              {trackingPixel || "Search for a tracking pixel"}
-                            </span>
-                            <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${pixelDropOpen ? "rotate-180" : ""}`} />
-                          </button>
-                          {pixelDropOpen && (
-                            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden">
-                              <div className="p-2 border-b border-zinc-800">
-                                <input autoFocus value={pixelSearch} onChange={e => setPixelSearch(e.target.value)}
-                                  placeholder="Search for a tracking pixel"
-                                  className={inp + " text-sm"} />
-                              </div>
-                              <div className="max-h-48 overflow-y-auto">
-                                {filteredPixels.map(p => (
-                                  <button key={p.id} type="button"
-                                    onClick={() => { setTrackingPixel(p.name); setPixelSearch(""); setPixelDropOpen(false); setConvEvent(""); }}
-                                    className="w-full text-left px-4 py-3 hover:bg-zinc-800 transition-colors border-b border-zinc-800/50 last:border-0">
-                                    <p className="text-sm text-white font-medium">{p.name}</p>
-                                    <p className="text-[11px] text-zinc-500 mt-0.5">Pixel ID: {p.id}</p>
-                                  </button>
-                                ))}
-                              </div>
-                              <div className="border-t border-zinc-800">
-                                <button type="button" className="w-full flex items-center gap-2 px-4 py-3 text-xs text-blue-400 hover:bg-zinc-800 transition-colors">
-                                  <span>↗</span> Set up a new tracking pixel on Facebook
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                      {/* Pixel ID — entered manually; found in Meta Events Manager */}
+                      <Field label="Meta Pixel ID">
+                        <input
+                          type="text"
+                          value={trackingPixel}
+                          onChange={e => { setTrackingPixel(e.target.value); setConvEvent(""); }}
+                          placeholder="e.g. 1234567890123456"
+                          className={inp}
+                        />
+                        <p className="text-[11px] text-zinc-600 mt-1">
+                          Find your Pixel ID in{" "}
+                          <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                            Meta Events Manager
+                          </a>
+                          {" "}→ Data Sources → your Pixel.
+                        </p>
                       </Field>
 
                       {/* Conversion event selector */}
@@ -2212,7 +2221,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         <p className="text-[10px] text-zinc-500 mb-1.5">YOUR ADS ({ads.length}/50)</p>
                         {ads.length < 50 && (
                           <button type="button"
-                            onClick={() => { setAds(prev => [...prev, { name: `New ad`, copy: "", headline: "", website_url: "http://example.com", cta: "Apply now", image_url: "" }]); setSelectedAdIdx(ads.length); setShowSummary(false); }}
+                            onClick={() => { setAds(prev => [...prev, { name: `New ad`, copy: "", headline: "", website_url: "http://example.com", cta: "Learn more", image_url: "" }]); setSelectedAdIdx(ads.length); setShowSummary(false); }}
                             className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
                             <span className="text-base leading-none">+</span> Create an ad
                           </button>
@@ -2315,7 +2324,59 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       <p className="text-[10px] text-zinc-600 text-right mt-1">{ad.copy.length} / 2,200</p>
                     </div>
 
-                    {/* Image / video upload */}
+                    {/* Ad format selector — not shown for message destination */}
+                    {convLocation !== "message" && (
+                      <Field label="Ad format">
+                        <div className="flex gap-2">
+                          {([
+                            { value: "image_ad", label: "Image Ad" },
+                            { value: "video_ad", label: "Video Ad" },
+                            ...(objective === "LEAD_GENERATION" ? [{ value: "lead_ad", label: "Lead Form" }] : []),
+                          ] as { value: "image_ad"|"video_ad"|"lead_ad"; label: string }[]).map(type => (
+                            <button key={type.value} type="button"
+                              onClick={() => setAd(a => ({
+                                ...a,
+                                ad_type: type.value,
+                                // Clear fields that belong to the other formats
+                                ...(type.value !== "video_ad" ? { video_url: "" } : {}),
+                                ...(type.value !== "lead_ad"  ? { lead_form_id: "" } : {}),
+                                ...(type.value !== "image_ad" ? { image_url: "" } : {}),
+                              }))}
+                              className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all ${
+                                (ad.ad_type || "image_ad") === type.value
+                                  ? "bg-white text-zinc-900 border-white"
+                                  : "bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-zinc-300"
+                              }`}>
+                              {type.label}
+                            </button>
+                          ))}
+                        </div>
+                      </Field>
+                    )}
+
+                    {/* Video URL — shown when video_ad selected */}
+                    {(ad.ad_type || "image_ad") === "video_ad" && convLocation !== "message" && (
+                      <Field label="Facebook Video ID or URL">
+                        <input type="text" value={ad.video_url || ""}
+                          onChange={e => setAd(a => ({ ...a, video_url: e.target.value }))}
+                          className={inp} placeholder="e.g. 1234567890123456" />
+                        <p className="text-[11px] text-zinc-600 mt-1.5">Upload your video in Meta Ads Manager → Creative Hub, then paste the video ID here.</p>
+                      </Field>
+                    )}
+
+                    {/* Lead form ID — shown when lead_ad selected */}
+                    {(ad.ad_type || "image_ad") === "lead_ad" && convLocation !== "message" && (
+                      <Field label="Meta Lead Gen Form ID">
+                        <input type="text" value={ad.lead_form_id || ""}
+                          onChange={e => setAd(a => ({ ...a, lead_form_id: e.target.value }))}
+                          className={inp} placeholder="e.g. 1234567890123456" />
+                        <p className="text-[11px] text-zinc-600 mt-1.5">Create your form in Meta Ads Manager → Lead Ads Forms, then paste the Form ID here.</p>
+                      </Field>
+                    )}
+
+                    {/* Image upload — shown when image_ad selected */}
+                    {(ad.ad_type || "image_ad") === "image_ad" && convLocation !== "message" && (
+                    <>{/* Image / video upload */}
                     {!ad.image_url ? (
                       <div className="space-y-2">
                         {/* Warning — only shown after failed Next attempt */}
@@ -2380,6 +2441,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         </button>
                       </div>
                     )}
+                    </>
+                  )}
 
                     {/* Message destination fields */}
                     {convLocation === "message" ? (
@@ -2429,7 +2492,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           </label>
                           {addWebsiteUrl && (
                             <input type="url" value={ad.website_url} onChange={e => setAd(a => ({...a, website_url: e.target.value}))}
-                              className={inp} placeholder="http://example.com" />
+                              className={inp} placeholder="https://yourwebsite.com/page" />
                           )}
                         </div>
                       </>

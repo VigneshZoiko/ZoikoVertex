@@ -7,6 +7,7 @@ import { logger } from '../../shared/logger';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logToDatabase } from '../../shared/databaseLogger';
+import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
 
 import { getQueue } from '../../workers/schedulerWorker';
 
@@ -59,22 +60,13 @@ const RecommendSchema = z.object({
   audienceRegion: z.string(),
   audienceAgeGroup: z.string(),
   userTimezone: z.string().optional().default('UTC'),
-  targetDate: z.string().optional().default(''), // YYYY-MM-DD
 });
-
-function getDayName(dateStr: string): string {
-  if (!dateStr) return 'general';
-  try {
-    return new Date(dateStr + 'T12:00:00').toLocaleDateString('en', { weekday: 'long' });
-  } catch { return 'general'; }
-}
 
 
 
 export const getRecommendations = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { platform, niche, audienceRegion, audienceAgeGroup, userTimezone, targetDate } = RecommendSchema.parse(req.body);
-    const resolvedDate = targetDate || new Date().toISOString().split('T')[0];
+    const { platform, niche, audienceRegion, audienceAgeGroup, userTimezone } = RecommendSchema.parse(req.body);
 
     logger.info({ platform, niche, audienceRegion, audienceAgeGroup, userTimezone }, '[Scheduler] Fetching recommendations');
 
@@ -92,15 +84,16 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
 
     if (!cacheError && cachedWindows && cachedWindows.length > 0) {
       await logToDatabase('info', 'Scheduler', `Cache hit for recommendations: ${platform} / ${niche}`, { cachedCount: cachedWindows.length });
-
+      
       const formattedCache = cachedWindows.map(w => ({
-        best_time: w.best_start_time.slice(0, 5),
+        best_start_time: w.best_start_time,
+        best_end_time: w.best_end_time,
         audience_timezone: audienceTimezone,
-        user_local_time: convertTimeToUserTimezone(w.best_start_time, audienceTimezone, userTimezone).slice(0, 5),
+        user_local_time_start: convertTimeToUserTimezone(w.best_start_time, audienceTimezone, userTimezone),
+        user_local_time_end: convertTimeToUserTimezone(w.best_end_time, audienceTimezone, userTimezone),
         confidence_score: w.confidence_score,
-        reasoning_points: [`Peak engagement window for ${audienceAgeGroup} on ${platform} based on historical data.`],
-        source: "cache",
-        target_date: resolvedDate,
+        reasoning: "Based on historical high-engagement data for this demographic.",
+        source: "cache"
       }));
 
       return res.status(200).json({ 
@@ -117,16 +110,19 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
     // 2. AI Fallback (Dynamic Generation)
     if (!env.GEMINI_API_KEY) {
       logger.warn('[Scheduler] GEMINI_API_KEY missing, using generic fallback');
+      const fallbackStart = "12:00:00";
+      const fallbackEnd = "14:00:00";
       return res.status(200).json({
         success: true,
         recommendations: [{
-          best_time: "12:00",
+          best_start_time: fallbackStart,
+          best_end_time: fallbackEnd,
           audience_timezone: audienceTimezone,
-          user_local_time: convertTimeToUserTimezone("12:00:00", audienceTimezone, userTimezone).slice(0, 5),
+          user_local_time_start: convertTimeToUserTimezone(fallbackStart, audienceTimezone, userTimezone),
+          user_local_time_end: convertTimeToUserTimezone(fallbackEnd, audienceTimezone, userTimezone),
           confidence_score: 0.70,
-          reasoning_points: ["Generic midday posting window.", "Broad audience activity peak."],
-          source: "fallback",
-          target_date: resolvedDate,
+          reasoning: "Generic peak hour recommendation.",
+          source: "fallback"
         }],
         timezone_info: {
           audience_region: audienceRegion,
@@ -144,52 +140,81 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
     let model = genAI.getGenerativeModel({ model: GEMINI_MODELS[0] });
     // Model selection happens at generateContent — use retry wrapper below
 
-    const dayName = getDayName(resolvedDate);
+    const prompt = `
+    Act as a Master Social Media Data Analyst.
+    I need you to calculate the absolute best time slots to post content to maximize engagement.
+    
+    INPUT DATA:
+    - Platform: "${platform}"
+    - Niche / Topic: "${niche}"
+    - Target Audience Location: "${audienceRegion}"
+    - Target Audience Age: "${audienceAgeGroup}"
+    - Target Audience Timezone: "${audienceTimezone}"
+ 
+    Task:
+    Analyze the behavioral patterns of this specific demographic on this specific platform.
+    Consider when they wake up, commute, take lunch breaks, and wind down in their local timezone (${audienceTimezone}).
+    
+    Provide the top 2 best posting windows.
+    Format times in strict 24-hour HH:mm:ss format.
 
-    const prompt = `You are a social media data analyst. Find the 3 best specific posting times for maximum engagement.
-
-INPUT:
-- Platform: ${platform}
-- Niche: ${niche}
-- Audience Location: ${audienceRegion} (timezone: ${audienceTimezone})
-- Audience Age: ${audienceAgeGroup}
-- Target Date: ${resolvedDate} (${dayName})
-
-TASK:
-Analyze this demographic's daily routine on ${platform} in ${audienceTimezone}. Factor in ${dayName} behavioral patterns (weekday vs weekend habits differ significantly).
-
-Return 3 precise posting times — NOT ranges, give exact minutes like 13:05 or 09:30.
-For each time, give 2-4 concise bullet points (max 130 chars each) explaining WHY it works for this specific niche and demographic. Be specific — mention the audience, platform, day, and content niche.
-
-RESPONSE (strict JSON, no markdown, no backticks):
-{
-  "recommendations": [
+    RESPONSE FORMAT (STRICT JSON ONLY):
     {
-      "best_time": "HH:mm",
-      "confidence_score": 0.00,
-      "reasoning_points": [
-        "Specific insight about why this exact time works for this audience and niche",
-        "Another behavioral insight",
-        "Optional third insight"
-      ]
-    }
-  ]
-}`;
-
-    let text = '';
-    for (const modelId of GEMINI_MODELS) {
-      try {
-        model = genAI.getGenerativeModel({ model: modelId });
-        const result = await model.generateContent(prompt);
-        text = (await result.response).text();
-        break;
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
-          continue;
+      "recommendations": [
+        {
+          "best_start_time": "HH:mm:ss",
+          "best_end_time": "HH:mm:ss",
+          "confidence_score": 0.00 to 1.00,
+          "reasoning": "1 sentence explanation of why this slot works for this specific niche/age."
         }
-        throw e;
+      ]
+    }`;
+
+    const workspaceId = req.user?.workspace_id as string | undefined;
+    const callModel = async (p: string): Promise<string> => {
+      let t = '';
+      for (const modelId of GEMINI_MODELS) {
+        try {
+          model = genAI.getGenerativeModel({ model: modelId });
+          const result = await model.generateContent(p);
+          t = (await result.response).text();
+          break;
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
+            continue;
+          }
+          throw e;
+        }
       }
+      return t;
+    };
+
+    // Phase 4.D — prefer the governed 'scheduler_recommendation' prompt; on
+    // governance block, audited fallback (fail-closed in production when
+    // PROMPT_GOVERNANCE_ENFORCED) to the inline prompt so behavior is unchanged
+    // while the flag is off.
+    let text = '';
+    const governed = await GovernedModelGate.execute({
+      useCaseKey: 'scheduler_recommendation',
+      workspaceId: workspaceId || '',
+      variables: {
+        platform, niche,
+        audience_region: audienceRegion,
+        audience_timezone: audienceTimezone,
+        audience_age_group: audienceAgeGroup,
+        target_date: resolvedDate,
+        day_name: dayName,
+      },
+      modelProvider: 'gemini',
+      actorId: req.user?.id,
+      invoke: callModel,
+    });
+    if (governed.ok) {
+      text = governed.output || '';
+    } else {
+      await GovernedModelGate.legacyInlineFallback('scheduler_recommendation', workspaceId, `governed prompt unavailable: ${governed.code}`);
+      text = await callModel(prompt);
     }
     if (!text) throw new Error('All Gemini models unavailable — please try again shortly');
     
@@ -223,13 +248,14 @@ RESPONSE (strict JSON, no markdown, no backticks):
     }
 
     const recommendationsWithTimezone = parsed.recommendations.map((r: any) => ({
-      best_time: r.best_time,
+      best_start_time: r.best_start_time,
+      best_end_time: r.best_end_time,
       audience_timezone: audienceTimezone,
-      user_local_time: convertTimeToUserTimezone((r.best_time + ':00'), audienceTimezone, userTimezone).slice(0, 5),
+      user_local_time_start: convertTimeToUserTimezone(r.best_start_time, audienceTimezone, userTimezone),
+      user_local_time_end: convertTimeToUserTimezone(r.best_end_time, audienceTimezone, userTimezone),
       confidence_score: r.confidence_score,
-      reasoning_points: Array.isArray(r.reasoning_points) ? r.reasoning_points : [r.reasoning || ''],
-      source: "ai",
-      target_date: resolvedDate,
+      reasoning: r.reasoning,
+      source: "ai"
     }));
 
     res.status(200).json({

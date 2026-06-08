@@ -11,7 +11,13 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "ignoreDeprecations": "6.0",
-    "types": ["node", "express"]
+    "types": ["node", "express"],
+    "incremental": true,
+    "tsBuildInfoFile": "./.tsbuild"
+  },
+  "ts-node": {
+    "transpileOnly": true,
+    "files": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/test/**", "src/**/*.test.ts"]
