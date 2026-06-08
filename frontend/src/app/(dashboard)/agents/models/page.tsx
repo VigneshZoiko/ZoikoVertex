@@ -46,6 +46,7 @@ export default function ModelPerformancePage() {
     safeFetch();
     const interval = setInterval(safeFetch, 30000);
     return () => { cancelled = true; clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

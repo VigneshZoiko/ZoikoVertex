@@ -375,7 +375,14 @@ const humanReviewHandler: StepHandler = approvalGateHandler;
 
 // ------------------------------------------------------------
 // publish — v1 stub: log + return a synthetic publish receipt.
-// Real platform connectors plug in here later (LinkedIn, X, etc.).
+// Intentionally limited: real platform connectors (LinkedIn, X,
+// Meta, etc.) will be wired in a follow-up when the connector
+// abstraction layer is available. This stub logs the platform,
+// content length and instanceId for operational visibility, and
+// returns a synthetic post ID so downstream steps can proceed.
+// v1 limitation — does not actually publish to any external
+// channel. Production tenants must not rely on this stub for
+// live publishing.
 // ------------------------------------------------------------
 const publishHandler: StepHandler = async (ctx): Promise<StepResult> => {
   const conditions = (ctx.step.conditions ?? {}) as Record<string, unknown>;
@@ -394,8 +401,13 @@ const publishHandler: StepHandler = async (ctx): Promise<StepResult> => {
 };
 
 // ------------------------------------------------------------
-// notify / escalate — v1 logs only. Real implementation hooks
-// into notification service / incident creation later.
+// notify / escalate — v1 logs only.
+// Intentionally limited: real notification dispatching (email,
+// Slack, webhook) will be wired through the notification service
+// abstraction in a follow-up. This stub logs the event for
+// operational visibility and returns success so the workflow
+// engine can proceed. Production tenants must not rely on this
+// stub for actual user notification delivery.
 // ------------------------------------------------------------
 const notifyHandler: StepHandler = async (ctx) => {
   logger.info({ instanceId: ctx.instanceId }, "[workflow-engine] notify (stub)");

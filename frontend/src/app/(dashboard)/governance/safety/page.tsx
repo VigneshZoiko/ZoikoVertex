@@ -141,6 +141,7 @@ export default function SafetyOverviewPage() {
     safeFetch();
     const interval = setInterval(safeFetch, 60000); // 60s auto-refresh
     return () => { cancelled = true; clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle Simulation Toggle

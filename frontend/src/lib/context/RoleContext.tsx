@@ -14,7 +14,6 @@ interface RoleContextType {
   premiumPaidUntil: string | null;
   isSuperAdmin: boolean;
   isLoading: boolean;
-  isBackendOffline: boolean;
   hasRole: (allowedRoles: string[]) => boolean;
   refresh: () => Promise<void>;
 }
@@ -78,7 +77,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [premiumPaidUntil, setPremiumPaidUntil] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isBackendOffline, setIsBackendOffline] = useState(false);
+  const workspaceIdRef = useRef<string | null>(null);
 
   // Seed from localStorage before first paint — eliminates skeleton flash on revisit
   useClientLayoutEffect(() => {
@@ -108,7 +107,6 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       if (!user) {
         setRole(null);
         setIsSuperAdmin(false);
-        setIsBackendOffline(false);
         setIsLoading(false);
         clearCache();
         return;
@@ -118,16 +116,6 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       let nextIsSuperAdmin = false;
 
       const result = await api.get("/api/v1/user/context");
-
-      // Detect backend-offline response (network error returns AUTH_EXPIRED-like object
-      // or the safeFetch throws — both land in catch below).
-      if (result?.code === 'BACKEND_OFFLINE' || result?.status === 503) {
-        setIsBackendOffline(true);
-        return;
-      }
-
-      setIsBackendOffline(false);
-
       if (result.success) {
         if (result.data.role) { nextRole = result.data.role.toUpperCase(); setRole(nextRole); }
         if (result.data.org_status) setOrgStatus(result.data.org_status);
@@ -159,20 +147,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         return;
       }
     } catch (err) {
-      const isNetworkError =
-        err instanceof TypeError &&
-        (err.message.includes('fetch') || err.message.includes('network') || err.message.includes('backend'));
-
-      if (isNetworkError) {
-        // Backend is not reachable — degrade silently, preserve cached data
-        setIsBackendOffline(true);
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[RoleContext] Backend unreachable. Running in offline mode. Start the backend server to restore full functionality.');
-        }
-      } else {
-        console.error('[RoleContext] Failed to fetch user role context:', err);
-        if (!background) clearCache();
-      }
+      console.error("Failed to fetch user role context:", err);
+      if (!background) clearCache();
     } finally {
       if (!background) setIsLoading(false);
     }
@@ -244,7 +220,6 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     premiumPaidUntil,
     isSuperAdmin,
     isLoading,
-    isBackendOffline,
     hasRole,
     refresh: () => fetchUserRole(false),
   };

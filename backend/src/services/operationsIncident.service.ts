@@ -158,6 +158,186 @@ export async function acknowledgeIncident(incidentId: string, actorId: string, n
   return { id: incidentId, status: 'investigating' };
 }
 
+// ── Postmortem Generation (G4) ──────────────────────────────────────────────
+// Generates a structured postmortem for a resolved incident, collecting the
+// run timeline, policy results, control actions, and queue history.
+
+export interface PostmortemData {
+  incident_id: string;
+  created_at: string;
+  created_by: string;
+  summary: {
+    incident_category: string;
+    incident_severity: string;
+    root_cause: string;
+    remediation: string;
+    incident_lifetime_hours: number;
+    run_id: string | null;
+  };
+  timeline: Array<{
+    event_type: string;
+    actor_name: string;
+    timestamp: string;
+    reason?: string;
+  }>;
+  policy_violations: Array<{
+    outcome: string;
+    failed_rule: string | null;
+    check_category: string | null;
+    remediation_path: string | null;
+    created_at: string;
+  }>;
+  control_actions: Array<{
+    action_type: string;
+    requested_by: string;
+    reason: string;
+    result: string;
+    created_at: string;
+  }>;
+  recommendations: string[];
+}
+
+export async function generatePostmortem(
+  incidentId: string,
+  createdBy: string,
+): Promise<{ id: string; postmortem: PostmortemData }> {
+  const incident = await getIncident(incidentId);
+  if (!incident.root_cause) {
+    throw Object.assign(new Error('Cannot generate postmortem: incident has no root cause'), { statusCode: 400 });
+  }
+
+  // Build the structured postmortem data.
+  const runId = incident.run_id;
+  const now = new Date().toISOString();
+  const created = new Date(incident.created_at);
+  const closed = incident.closed_at ? new Date(incident.closed_at) : new Date();
+  const lifetimeHours = (closed.getTime() - created.getTime()) / 3600000;
+
+  // Collect run timeline events.
+  let timeline: Array<{ event_type: string; actor_name: string; timestamp: string; reason?: string }> = [];
+  if (runId) {
+    const { data: events } = await supabaseAdmin
+      .from('run_events')
+      .select('event_type, actor_name, reason, created_at')
+      .eq('run_id', runId)
+      .order('created_at', { ascending: true });
+    if (events) {
+      timeline = events.map((e: any) => ({
+        event_type: e.event_type,
+        actor_name: e.actor_name || 'system',
+        timestamp: e.created_at,
+        reason: e.reason || undefined,
+      }));
+    }
+  }
+
+  // Collect policy violations for the run.
+  let policyViolations: Array<{
+    outcome: string;
+    failed_rule: string | null;
+    check_category: string | null;
+    remediation_path: string | null;
+    created_at: string;
+  }> = [];
+  if (runId) {
+    const { data: policies } = await supabaseAdmin
+      .from('policy_results')
+      .select('outcome, failed_rule, check_category, remediation_path, created_at')
+      .eq('run_id', runId)
+      .neq('outcome', 'pass')
+      .order('created_at', { ascending: false });
+    if (policies) policyViolations = policies;
+  }
+
+  // Collect control actions for the run.
+  let controlActions: Array<{
+    action_type: string;
+    requested_by: string;
+    reason: string;
+    result: string;
+    created_at: string;
+  }> = [];
+  if (runId) {
+    const { data: actions } = await supabaseAdmin
+      .from('runtime_control_actions')
+      .select('action_type, requested_by, reason, result, created_at')
+      .eq('run_id', runId)
+      .order('created_at', { ascending: false });
+    if (actions) {
+      controlActions = actions.map((a: any) => ({
+        action_type: a.action_type,
+        requested_by: a.requested_by || 'system',
+        reason: a.reason,
+        result: a.result || 'completed',
+        created_at: a.created_at,
+      }));
+    }
+  }
+
+  // Build recommendations based on incident data.
+  const recommendations: string[] = [];
+  if (incident.root_cause.toLowerCase().includes('policy')) {
+    recommendations.push('Review and update policy rules to prevent recurrence');
+  }
+  if (incident.category === 'integration_failure') {
+    recommendations.push('Verify integration health and re-run connectivity tests');
+  }
+  if (controlActions.length > 2) {
+    recommendations.push('Reduce manual intervention overhead by automating common remediation paths');
+  }
+  if (timeline.length > 20) {
+    recommendations.push('Review run lifecycle duration; consider optimizing long-running workflows');
+  }
+  if (policyViolations.length > 0) {
+    recommendations.push('Address all policy violations before the next similar run is scheduled');
+  }
+  if (incident.severity === 'critical' || incident.severity === 'high') {
+    recommendations.push('Schedule a formal incident review with the operations team');
+  }
+  recommendations.push('Document lessons learned and update the runbook for this scenario');
+
+  const postmortem: PostmortemData = {
+    incident_id: incidentId,
+    created_at: now,
+    created_by: createdBy,
+    summary: {
+      incident_category: incident.category,
+      incident_severity: incident.severity,
+      root_cause: incident.root_cause,
+      remediation: incident.remediation || '',
+      incident_lifetime_hours: Math.round(lifetimeHours * 100) / 100,
+      run_id: runId,
+    },
+    timeline,
+    policy_violations: policyViolations,
+    control_actions: controlActions,
+    recommendations,
+  };
+
+  // Persist the postmortem data on the incident record.
+  const { error } = await supabaseAdmin
+    .from('incidents')
+    .update({
+      postmortem: JSON.stringify(postmortem),
+      postmortem_created_at: now,
+      postmortem_created_by: createdBy,
+    })
+    .eq('id', incidentId);
+  if (error) throw error;
+
+  return { id: incidentId, postmortem };
+}
+
+export async function getPostmortem(incidentId: string): Promise<PostmortemData | null> {
+  const { data, error } = await supabaseAdmin
+    .from('incidents')
+    .select('postmortem')
+    .eq('id', incidentId)
+    .single();
+  if (error || !data) throw Object.assign(new Error('Incident not found'), { statusCode: 404 });
+  return data.postmortem ? (typeof data.postmortem === 'string' ? JSON.parse(data.postmortem) : data.postmortem) : null;
+}
+
 export async function getIncidentStats(workspaceId: string) {
   const [openIncidents, criticalIncidents, totalIncidents] = await Promise.all([
     supabaseAdmin.from('incidents').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).neq('status', 'resolved'),

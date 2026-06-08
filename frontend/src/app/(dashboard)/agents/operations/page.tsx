@@ -230,6 +230,7 @@ const POLICY_CONFIG: Record<string, { label: string; color: string; bg: string }
   PASS:           { label: "Pass",           color: "text-emerald-400", bg: "bg-emerald-500/10" },
   WARNING:        { label: "Warning",        color: "text-amber-400",   bg: "bg-amber-500/10"   },
   BLOCKED:        { label: "Blocked",        color: "text-rose-400",    bg: "bg-rose-500/10"    },
+  NOT_EVALUATED:  { label: "Not Evaluated",  color: "text-gray-400",    bg: "bg-gray-500/10"     },
   PENDING_REVIEW: { label: "Pending Review", color: "text-purple-400",  bg: "bg-purple-500/10"  },
   NOT_APPLICABLE: { label: "N/A",            color: "text-[#555]",      bg: "bg-white/5"        },
 };
@@ -1041,6 +1042,8 @@ export default function AgentOperationsPage() {
   const [activeTab, setActiveTab] = useState<"runs" | "queues" | "incidents" | "analytics">("runs");
   const [statusFilter, setStatusFilter] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
+  // Doc 6 §2/§3: queue segmentation by type (approval, failed, retry, human-review, publishing, exception …)
+  const [queueTypeFilter, setQueueTypeFilter] = useState<string>("ALL");
 
   // ── Pagination + sorting (server-side; bounds rendered rows) ──
   const PAGE_SIZE = 50;
@@ -1458,6 +1461,43 @@ export default function AgentOperationsPage() {
     }
   };
 
+  // Doc 6 §2/§10: resolve a queue item with a recorded resolution note.
+  const handleQueueResolve = async (item: QueueItem) => {
+    const notes = window.prompt("Resolution note (recorded on the queue item):", "");
+    if (notes === null) return; // cancelled
+    try {
+      const res = await api.resolveQueueItem(item.id, notes.trim() || undefined);
+      if (!res?.success) throw new Error(res?.error || "Resolve failed");
+      await fetchData();
+      flashNotice("Queue item resolved.");
+    } catch (err: any) {
+      setError(err?.message || "Failed to resolve queue item.");
+    }
+  };
+
+  // Doc 6 §2/§7: retry a failed/retry queue item through the governed retry path
+  // (duplicate-publication guard + retry-limit are enforced server-side).
+  const handleQueueRetry = async (item: QueueItem) => {
+    if (!item.run_id) {
+      setError("This queue item is not linked to a runnable task.");
+      return;
+    }
+    const reason = window.prompt("Reason for retry (required, min 8 chars):", "");
+    if (reason === null) return;
+    if (reason.trim().length < 8) {
+      setError("A reason of at least 8 characters is required to retry.");
+      return;
+    }
+    try {
+      const res = await api.retryRun(item.run_id, reason.trim());
+      if (!res?.success) throw new Error(res?.error || "Retry failed");
+      await fetchData();
+      flashNotice("Retry attempt created.");
+    } catch (err: any) {
+      setError(err?.message || "Failed to retry queue item.");
+    }
+  };
+
   const handleEscalateForReview = async (runId: string, reason: string): Promise<void> => {
     try {
       const res = await api.escalateRun(runId, reason);
@@ -1516,7 +1556,7 @@ export default function AgentOperationsPage() {
         confirmLabel: "Export Snapshot",
       } as typeof confirmAction);
     },
-    [checkStaleAndAct],
+    [],
   );
 
   const handleExportAnalyticsCSV = async () => {
@@ -1539,6 +1579,45 @@ export default function AgentOperationsPage() {
     } catch {
       setError("Failed to export analytics CSV. Check permissions.");
     }
+  };
+
+  // Doc 6 §2 — export the currently filtered operational run log to CSV.
+  const handleExportFilteredRuns = () => {
+    if (!filteredRuns.length) {
+      setError("No runs to export with the current filters.");
+      return;
+    }
+    const cols: { key: keyof AgentRun; label: string }[] = [
+      { key: "id", label: "Run ID" },
+      { key: "agent_name", label: "Agent" },
+      { key: "agent_type", label: "Type" },
+      { key: "workflow_name", label: "Workflow" },
+      { key: "status", label: "Status" },
+      { key: "severity", label: "Severity" },
+      { key: "policy_result", label: "Policy" },
+      { key: "evidence_status", label: "Evidence" },
+      { key: "owner_name", label: "Owner" },
+      { key: "brand_name", label: "Brand" },
+      { key: "channel", label: "Channel" },
+      { key: "environment", label: "Environment" },
+      { key: "created_at", label: "Created" },
+      { key: "due_at", label: "Due" },
+      { key: "last_event_at", label: "Last Event" },
+    ];
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = cols.map((c) => esc(c.label)).join(",");
+    const rows = filteredRuns.map((r) => cols.map((c) => esc(r[c.key])).join(","));
+    const csv = [header, ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `operations-runs-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    flashNotice(`Exported ${filteredRuns.length} filtered run(s) to CSV.`);
   };
 
   const handleCreateIncident = async () => {
@@ -1569,6 +1648,11 @@ export default function AgentOperationsPage() {
   const totalPages = Math.max(1, Math.ceil(totalRuns / PAGE_SIZE));
 
   const criticalCount = runs.filter((r) => r.severity === "critical" || ["FAILED", "POLICY_BLOCKED", "QUARANTINED", "ESCALATED"].includes(r.status)).length;
+
+  // Doc 6 §2/§3 — queue segmentation derived values (hoisted out of JSX).
+  const queueTypes = Array.from(new Set(queues.map((q) => q.queue_type))).sort();
+  const visibleQueues = queueTypeFilter === "ALL" ? queues : queues.filter((q) => q.queue_type === queueTypeFilter);
+  const isRetryableQueueItem = (item: QueueItem) => /fail|retry|error/i.test(item.queue_type);
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1821,6 +1905,13 @@ export default function AgentOperationsPage() {
                 <span className="mx-1.5" />
                 <SeverityDot severity="normal" /><span>Normal</span>
               </div>
+              <button
+                onClick={handleExportFilteredRuns}
+                title="Export the currently filtered runs to CSV"
+                className="flex items-center gap-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-2.5 py-1.5 text-xs text-[#aaa] hover:text-white hover:border-[#444] transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" /> Export
+              </button>
               <div className="flex items-center border border-[#2a2a2a] rounded-xl overflow-hidden">
                 <button onClick={() => setViewMode("list")} className={`p-1.5 ${viewMode === "list" ? "bg-[#2a2a2a] text-white" : "text-[#555] hover:text-[#aaa]"} transition-colors`}><List className="w-3.5 h-3.5" /></button>
                 <button onClick={() => setViewMode("card")} className={`p-1.5 ${viewMode === "card" ? "bg-[#2a2a2a] text-white" : "text-[#555] hover:text-[#aaa]"} transition-colors`}><LayoutGrid className="w-3.5 h-3.5" /></button>
@@ -2036,16 +2127,40 @@ export default function AgentOperationsPage() {
       {/* ══════════════════════════════════════════════════════════════════════
           TAB: TASK QUEUE
       ══════════════════════════════════════════════════════════════════════ */}
+      {/* Doc 6 §2/§3 — queue segmentation by type. Tabs derive from the live
+          queue_type values, so approval / failed / retry / human-review /
+          publishing / exception items are each addressable, with per-type counts. */}
       {activeTab === "queues" && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-[#555]">{queues.length} item{queues.length !== 1 ? "s" : ""} in queue</p>
+            <p className="text-sm text-[#555]">{visibleQueues.length} item{visibleQueues.length !== 1 ? "s" : ""}{queueTypeFilter !== "ALL" ? ` · ${queueTypeFilter.replace(/_/g, " ")}` : " in queue"}</p>
           </div>
-          {queues.length === 0 ? (
+          {/* Queue type tabs */}
+          <div className="flex items-center gap-1.5 mb-4 overflow-x-auto">
+            <button
+              onClick={() => setQueueTypeFilter("ALL")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === "ALL" ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:text-white"}`}
+            >
+              All <span className="ml-1 text-[10px] opacity-70">{queues.length}</span>
+            </button>
+            {queueTypes.map((qt) => {
+              const count = queues.filter((q) => q.queue_type === qt).length;
+              return (
+                <button
+                  key={qt}
+                  onClick={() => setQueueTypeFilter(qt)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === qt ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:text-white"}`}
+                >
+                  {qt.replace(/_/g, " ")} <span className="ml-1 text-[10px] opacity-70">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          {visibleQueues.length === 0 ? (
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">
               <CheckCircle2 className="w-12 h-12 text-emerald-400/20 mx-auto mb-3" />
               <p className="text-emerald-400 font-semibold mb-1">Queue Empty</p>
-              <p className="text-[#555] text-sm">No pending tasks in the queue.</p>
+              <p className="text-[#555] text-sm">No pending tasks in this queue.</p>
             </div>
           ) : (
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl overflow-hidden">
@@ -2057,13 +2172,14 @@ export default function AgentOperationsPage() {
                 <span>Actions</span>
               </div>
               <div className="divide-y divide-[#1f1f1f]">
-                {queues.map((item) => {
+                {visibleQueues.map((item) => {
                   const sla = formatTimeRemaining(item.due_at);
+                  const resolved = ["resolved", "cancelled"].includes(String(item.status).toLowerCase());
                   return (
                     <div key={item.id} className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${item.sla_breached ? "border-l-2 border-l-rose-500/50" : ""}`}>
                       <div>
                         <p className="text-sm font-medium text-white">{item.queue_type.replace(/_/g, " ")}</p>
-                        <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${["resolved", "cancelled"].includes(item.status) ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+                        <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${resolved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
                           {item.status}
                         </span>
                       </div>
@@ -2082,10 +2198,14 @@ export default function AgentOperationsPage() {
                         ) : <span className="text-[#333]">—</span>}
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => handleQueueAssign(item)} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors" title="Assign"><UserCheck className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleQueueHold(item)} className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400/70 hover:text-amber-400 transition-colors" title="Hold"><Pause className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleQueueEscalate(item)} className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400/70 hover:text-orange-400 transition-colors" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleQueueCancel(item)} className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400/70 hover:text-rose-400 transition-colors" title="Cancel"><XCircle className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueAssign(item)} disabled={resolved} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors disabled:opacity-30" title={item.assignee_name ? "Reassign / claim" : "Assign"}><UserCheck className="w-3.5 h-3.5" /></button>
+                        {isRetryableQueueItem(item) && (
+                          <button onClick={() => handleQueueRetry(item)} disabled={resolved} className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-400/70 hover:text-blue-400 transition-colors disabled:opacity-30" title="Retry"><RotateCcw className="w-3.5 h-3.5" /></button>
+                        )}
+                        <button onClick={() => handleQueueHold(item)} disabled={resolved} className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400/70 hover:text-amber-400 transition-colors disabled:opacity-30" title="Hold"><Pause className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueEscalate(item)} disabled={resolved} className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400/70 hover:text-orange-400 transition-colors disabled:opacity-30" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueResolve(item)} disabled={resolved} className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400/70 hover:text-emerald-400 transition-colors disabled:opacity-30" title="Resolve with note"><CheckSquare className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueCancel(item)} disabled={resolved} className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400/70 hover:text-rose-400 transition-colors disabled:opacity-30" title="Cancel"><XCircle className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   );
@@ -2141,6 +2261,21 @@ export default function AgentOperationsPage() {
                           </span>
                         </div>
                       </div>
+                      {incident.status === "resolved" && (
+                        <div className="px-4 pb-2 flex items-center gap-2">
+                          <button
+                            onClick={async () => {
+                              try {
+                                await api.generatePostmortem(incident.id);
+                                flashNotice(`Postmortem generated for incident ${incident.id.slice(0, 8)}`);
+                              } catch { setError("Failed to generate postmortem"); }
+                            }}
+                            className="px-2 py-1 text-[10px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-lg hover:bg-indigo-500/20 transition-colors flex items-center gap-1"
+                          >
+                            <FileText className="w-3 h-3" /> Generate Postmortem
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

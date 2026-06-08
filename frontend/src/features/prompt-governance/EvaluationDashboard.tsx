@@ -36,7 +36,7 @@ const PROVIDER_DISPLAY: Record<ProviderId, string> = {
   groq: "Groq Llama 3.3 70B",
 };
 
-export function EvaluationDashboard() {
+export function EvaluationDashboard({ embedded = false }: { embedded?: boolean } = {}) {
   const { hasRole } = useRoleContext();
   const allowed = hasRole(["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "AGENT_ARCHITECT"]);
   const [data, setData] = useState<EvaluationView | null>(null);
@@ -76,23 +76,25 @@ export function EvaluationDashboard() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-[var(--foreground)] flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" /> Evaluation Dashboard
-          </h1>
-          <p className={`text-sm ${muted}`}>
-            PDI scores, evaluation pass rates, and cross-model rankings across the workspace.
-            Read-only rollup of governed prompt evaluation activity.
-          </p>
+      {!embedded && (
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-[var(--foreground)] flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" /> Evaluation Dashboard
+            </h1>
+            <p className={`text-sm ${muted}`}>
+              PDI scores, evaluation pass rates, and cross-model rankings across the workspace.
+              Read-only rollup of governed prompt evaluation activity.
+            </p>
+          </div>
+          <a
+            href="/agents/prompts"
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs ${muted} hover:text-[var(--foreground)]`}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Prompt Registry
+          </a>
         </div>
-        <a
-          href="/agents/prompts"
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs ${muted} hover:text-[var(--foreground)]`}
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Prompt Registry
-        </a>
-      </div>
+      )}
 
       {!data.validation_enabled && <ValidationDisabled scope="evaluation" />}
 

@@ -14,7 +14,7 @@ export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 export type EventStatus = 'success' | 'failed' | 'blocked' | 'pending' | 'overridden' | 'preserved' | 'sealed';
 export type EvidenceState = 'not_preserved' | 'preserved' | 'sealed' | 'archived' | 'legal_hold';
 export type RetentionClass = 'STANDARD' | 'EXTENDED' | 'REGULATED' | 'LEGAL_HOLD';
-export type EventCategory = 'user_identity' | 'content_lifecycle' | 'ai_agent' | 'approval' | 'policy_governance' | 'platform_integration' | 'evidence_legal' | 'system_security' | 'knowledge';
+export type EventCategory = 'user_identity' | 'content_lifecycle' | 'ai_agent' | 'approval' | 'policy_governance' | 'platform_integration' | 'evidence_legal' | 'system_security';
 
 export interface AuditEventInput {
   workspace_id: string;

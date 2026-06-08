@@ -104,6 +104,7 @@ export default function HumanReviewConsolePage() {
     safeFetch();
     const interval = setInterval(safeFetch, 30000); // 30s auto-refresh
     return () => { cancelled = true; clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDecision = async (decision: string) => {
