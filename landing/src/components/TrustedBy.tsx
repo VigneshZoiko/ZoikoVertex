@@ -9,18 +9,36 @@ export default function TrustedBy() {
   ];
 
   return (
-    <section className="bg-[#0f1b2e] py-7 border-y border-white/5">
-      <div className="max-w-6xl mx-auto px-6 flex items-center gap-8 flex-wrap">
-        <span className="text-white/30 text-[10px] font-semibold tracking-[0.15em] uppercase whitespace-nowrap flex-shrink-0">
+    <section style={{
+      background: "#0f1b2e",
+      padding: "28px 24px",
+      borderTop: "1px solid rgba(255,255,255,0.04)",
+      borderBottom: "1px solid rgba(255,255,255,0.04)",
+    }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", gap: 32 }}>
+        <span style={{
+          fontFamily: "var(--font-jetbrains), 'JetBrains Mono', monospace",
+          fontSize: 9,
+          fontWeight: 600,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase" as const,
+          color: "#3A5068",
+          whiteSpace: "nowrap",
+          flexShrink: 0,
+        }}>
           Trusted by enterprise leaders
         </span>
-        <div className="flex-1 h-px bg-white/5 hidden md:block" />
-        <div className="flex items-center gap-8 flex-wrap">
+        <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.04)" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 32, flexWrap: "wrap" }}>
           {logos.map((logo) => (
-            <span
-              key={logo}
-              className="text-white/20 text-sm font-bold tracking-tight whitespace-nowrap hover:text-white/35 transition-colors"
-            >
+            <span key={logo} style={{
+              fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.18)",
+              letterSpacing: "-0.01em",
+              whiteSpace: "nowrap",
+            }}>
               {logo}
             </span>
           ))}

@@ -168,7 +168,7 @@ export default function Pricing() {
 
   return (
     <section className="bg-[#080E1A] py-24 px-6">
-      <div ref={ref} className="max-w-[1200] mx-auto">
+      <div ref={ref} className="max-w-[1200px] mx-auto">
 
         {/* Header */}
         <div className={`text-center mb-10 transition-all duration-700 ease-out ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>

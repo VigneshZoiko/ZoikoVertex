@@ -4,7 +4,7 @@ export default function FooterCTA() {
   return (
     <section
       className="py-28 px-6 text-center"
-      style={{ background: "linear-gradient(160deg,#0d1a35 0%,#080d1a 100%)" }}
+      style={{ background: "linear-gradient(160deg,#0d1a35 0%,#152238 100%)" }}
     >
       <div className="max-w-3xl mx-auto">
         <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-6">
