@@ -148,7 +148,7 @@ export class KnowledgeDependencyService {
         .in('source_id', sourceIds)
         .limit(20);
       return (data || []);
-    } catch (error) {
+    } catch {
       return [];
     }
   }
@@ -161,7 +161,7 @@ export class KnowledgeDependencyService {
         .in('source_id', sourceIds)
         .limit(20);
       return (data || []);
-    } catch (error) {
+    } catch {
       return [];
     }
   }

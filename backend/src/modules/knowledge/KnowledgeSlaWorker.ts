@@ -1,5 +1,4 @@
 import { supabaseAdmin } from '../../shared/supabase';
-import { logger } from '../../shared/logger';
 import { KnowledgeNotificationService } from './KnowledgeNotificationService';
 
 export class KnowledgeSlaWorker {

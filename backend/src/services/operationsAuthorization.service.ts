@@ -134,6 +134,49 @@ export function assertWorkspaceScope(user: Actor | undefined, workspaceId?: stri
   }
 }
 
+// ── Self-Approval & Separation of Duties (SoD) ─────────────────────────────
+// G7: Prevent a user from approving/resolving their own queue items.
+// G8: Prevent a user from resolving an item they assigned unless SoD-exempt.
+export function assertSeparationOfDuties(
+  actorId: string,
+  creatorId: string | undefined | null,
+  context: string,
+): void {
+  if (!creatorId) return; // No creator recorded — cannot check (legacy data path)
+  if (actorId === creatorId) {
+    throw Object.assign(
+      new Error(`Separation of Duties violation: ${context} — the actor created the request and cannot also resolve it`),
+      { statusCode: 403, code: 'OPERATIONS_SOD_VIOLATION' },
+    );
+  }
+}
+
+// Conflict detection: check whether a queue item's run is already assigned to
+// someone else for the same queue type (G8).
+export async function assertNoQueueConflict(
+  runId: string,
+  queueType: string,
+  excludeId?: string,
+): Promise<void> {
+  const { supabaseAdmin } = await import('../shared/supabase');
+  let query = supabaseAdmin
+    .from('queue_items')
+    .select('id, status, assignee_name')
+    .eq('run_id', runId)
+    .eq('queue_type', queueType)
+    .not('status', 'in', '("RESOLVED","CANCELLED")');
+  if (excludeId) query = query.neq('id', excludeId);
+  const { data } = await query;
+  if (data && data.length > 0) {
+    const conflict = data[0];
+    const assignee = conflict.assignee_name || 'another operator';
+    throw Object.assign(
+      new Error(`Conflict detected: run ${runId} already has a pending "${queueType}" item assigned to ${assignee}`),
+      { statusCode: 409, code: 'OPERATIONS_QUEUE_CONFLICT' },
+    );
+  }
+}
+
 export function requireReason(reason: unknown, action: OperationsAction): string {
   const value = typeof reason === "string" ? reason.trim() : "";
   if (value.length < 8) {

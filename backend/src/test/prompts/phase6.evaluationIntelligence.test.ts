@@ -14,7 +14,6 @@ import {
   PDI_BAND_STRONG_MIN,
   PDI_BAND_MODERATE_MIN,
   PDIBand,
-  AutonomyLevel,
 } from '../../modules/prompts/pdiBands';
 import {
   ADVERSARIAL_CATEGORIES,
@@ -24,7 +23,6 @@ import {
   AdversarialCategoryId,
 } from '../../modules/prompts/adversarialCategories';
 import {
-  PROVIDER_CONFIGS,
   PROVIDER_LIST,
   METRIC_LIST,
   METRIC_DISPLAY,

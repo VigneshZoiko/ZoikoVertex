@@ -13,7 +13,7 @@ import {
 } from '../DependencyHealthService';
 import { BehavioralDriftService, BehavioralDriftCategory, BehavioralDriftReport } from './BehavioralDriftService';
 import { ADVERSARIAL_CATEGORIES, ADVERSARIAL_CATEGORY_LIST, AdversarialCategoryId } from '../adversarialCategories';
-import { PROVIDER_LIST, ProviderId, METRIC_LIST, MetricId, PROVIDER_CONFIGS, METRIC_DISPLAY } from '../crossModelProviders';
+import { ProviderId } from '../crossModelProviders';
 import { isRealModelValidationEnabled } from '../modelProviders';
 import { listRegisteredProviders } from '../ModelExecutionAdapter';
 import { computePDIBand, PDIBand } from '../pdiBands';

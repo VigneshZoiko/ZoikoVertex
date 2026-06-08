@@ -35,7 +35,6 @@ export async function createApproval(params: {
     instance_id: params.instance_id,
     step_id: params.step_id,
     required_role: params.required_role,
-    decision: 'PENDING',
   });
   if (error) throw error;
   return { id };
@@ -56,7 +55,7 @@ export async function recordDecision(params: {
     .eq('id', params.approvalId)
     .single();
   if (fetchError || !existing) throw Object.assign(new Error('Approval record not found'), { statusCode: 404 });
-  if (existing.decision !== 'PENDING') {
+  if (existing.decision !== null) {
     throw Object.assign(new Error('Decision already recorded for this approval'), { statusCode: 409 });
   }
 
@@ -78,14 +77,14 @@ export async function getApprovalStats(_workspaceId: string) {
   const { data: pendingApprovals, error: paErr } = await supabaseAdmin
     .from('approval_records')
     .select('required_role, decision', { count: 'exact' })
-    .eq('decision', 'PENDING');
+    .is('decision', null);
 
   if (paErr) throw paErr;
 
-  const totalPending = (pendingApprovals || []).filter((a) => a.decision === 'PENDING').length;
-  const pendingValidation = (pendingApprovals || []).filter((a) => a.required_role === 'VALIDATOR' && a.decision === 'PENDING').length;
-  const pendingAuthorization = (pendingApprovals || []).filter((a) => a.required_role === 'AUTHORIZER' && a.decision === 'PENDING').length;
-  const pendingGovernance = (pendingApprovals || []).filter((a) => a.required_role === 'GOVERNANCE' && a.decision === 'PENDING').length;
+  const totalPending = (pendingApprovals || []).filter((a) => a.decision === null).length;
+  const pendingValidation = (pendingApprovals || []).filter((a) => a.required_role === 'VALIDATOR' && a.decision === null).length;
+  const pendingAuthorization = (pendingApprovals || []).filter((a) => a.required_role === 'AUTHORIZER' && a.decision === null).length;
+  const pendingGovernance = (pendingApprovals || []).filter((a) => a.required_role === 'GOVERNANCE' && a.decision === null).length;
 
   return {
     counts: {
@@ -107,7 +106,7 @@ export async function listPendingApprovals(params: {
     .from('approval_records')
     .select('*, workflow_instances!inner(id, status)', { count: 'exact' })
     .eq('workflow_instances.workspace_id', params.workspace_id)
-    .eq('decision', 'PENDING')
+    .is('decision', null)
     .order('created_at', { ascending: true })
     .range(params.offset, params.offset + params.limit - 1);
 

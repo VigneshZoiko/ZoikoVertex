@@ -54,13 +54,13 @@ async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
   try {
     return await fetch(url, init);
   } catch (err) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        `[API] Backend unreachable at ${url}. Ensure the server is running on the configured port.`,
-      );
-    }
-    // Tag the message so callers can detect this as a network/offline error
-    throw new Error(`NETWORK_ERROR: Connection to backend failed. ${err instanceof Error ? err.message : ''}`);
+    console.error(
+      `[API Network Error] Failed to connect to backend at ${url}. Ensure the server is running.`,
+      err,
+    );
+    throw new Error(
+      "Connection to backend failed. Please ensure the backend server is running and accessible.",
+    );
   }
 }
 
@@ -275,8 +275,8 @@ export const api = {
     });
   },
 
-  async resolveQueueItem(id: string) {
-    return this.post(`/api/v1/operations/queues/${id}/resolve`, {});
+  async resolveQueueItem(id: string, resolution_notes?: string) {
+    return this.post(`/api/v1/operations/queues/${id}/resolve`, resolution_notes ? { resolution_notes } : {});
   },
 
   async createIncident(data: {
@@ -378,6 +378,14 @@ export const api = {
 
   async runPolicyCheck(id: string) {
     return this.post(`/api/v1/operations/runs/${id}/policy-check`, {});
+  },
+
+  async generatePostmortem(incidentId: string) {
+    return this.post(`/api/v1/operations/incidents/${incidentId}/postmortem`, {});
+  },
+
+  async getPostmortem(incidentId: string) {
+    return this.get(`/api/v1/operations/incidents/${incidentId}/postmortem`);
   },
 
   async getPolicyResults(id: string) {
@@ -600,6 +608,56 @@ export const api = {
     return this.get(
       `/api/v1/agents/workflows/instances/${instanceId}/evidence`,
     );
+  },
+  async getWorkflowDependencies(id: string) {
+    return this.get(`/api/v1/agents/workflows/${id}/dependencies`);
+  },
+  async getWorkflowSimulations(versionId: string) {
+    return this.get(`/api/v1/agents/workflows/versions/${versionId}/simulations`);
+  },
+  async getWorkflowValidate(versionId: string) {
+    return this.get(`/api/v1/agents/workflows/versions/${versionId}/validate`);
+  },
+  async getThreeKeyChain(versionId: string) {
+    return this.get(`/api/v1/agents/workflows/three-key/${versionId}`);
+  },
+  async getThreeKeyQuorum(versionId: string) {
+    return this.get(`/api/v1/agents/workflows/three-key/${versionId}/quorum`);
+  },
+  async listPendingThreeKeyChains() {
+    return this.get(`/api/v1/agents/workflows/three-key/pending/list`);
+  },
+
+  // ─── WORKFLOW CANVAS BUILDER API ───
+  async saveWorkflowGraph(versionId: string, nodes: any[], edges: any[]) {
+    return this.post(`/api/v1/agents/workflows/versions/${versionId}/graph`, { nodes, edges });
+  },
+  async saveWorkflowStepConfig(stepId: string, updates: any) {
+    return this.patch(`/api/v1/agents/workflows/steps/${stepId}`, updates);
+  },
+
+  // ─── WORKFLOW EXPORT API ───
+  async exportWorkflow(id: string, reason?: string) {
+    const query = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+    return this.get(`/api/v1/agents/workflows/${id}/export${query}`);
+  },
+  async exportApprovalsCsv(id: string, reason?: string) {
+    const query = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+    return this.get(`/api/v1/agents/workflows/${id}/export/approvals${query}`);
+  },
+  async exportWorkflowPdfReady(id: string) {
+    return this.get(`/api/v1/agents/workflows/${id}/export/pdf-ready`);
+  },
+  async exportRuntimeTimeline(id: string, reason?: string) {
+    const query = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+    return this.get(`/api/v1/agents/workflows/${id}/export/timeline${query}`);
+  },
+  async exportEvidenceByRef(evidenceRef: string, reason?: string) {
+    const query = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+    return this.get(`/api/v1/agents/workflows/export/evidence/${evidenceRef}${query}`);
+  },
+  async triggerWorkflowNotification(id: string, body: any) {
+    return this.post(`/api/v1/agents/workflows/${id}/notify`, body);
   },
 
   // ─── PROMPTS API CLIENT ───

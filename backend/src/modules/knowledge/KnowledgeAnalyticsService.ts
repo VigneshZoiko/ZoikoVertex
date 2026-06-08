@@ -1,5 +1,4 @@
 import { supabaseAdmin } from '../../shared/supabase';
-import { logger } from '../../shared/logger';
 
 export interface KnowledgeAnalytics {
   summary: {
@@ -134,7 +133,7 @@ export class KnowledgeAnalyticsService {
     };
   }
 
-  private static async getSummary(workspaceId: string): Promise<{ chunks: number }> {
+  private static async getSummary(_workspaceId: string): Promise<{ chunks: number }> {
     const { count } = await supabaseAdmin
       .from('knowledge_chunks')
       .select('id', { count: 'exact', head: true });

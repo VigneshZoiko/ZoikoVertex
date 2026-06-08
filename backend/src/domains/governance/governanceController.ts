@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { alertSecOpsAuditFailure } from '../../shared/alertSecOps';
 
 import { evaluateIntent } from '../decisions/decisionEngine';
 import { ApprovalEngine } from '../decisions/approvalEngine';
@@ -129,7 +130,10 @@ export const submitIntent = async (
         module: 'Governance',
         metadata: { count: data.length },
       });
-    } catch { /* audit log failure must never block publish */ }
+    } catch (err) {
+      logger.error({ err, secops_alert: true, source: 'governanceController' }, 'Direct publish audit event write failed');
+      alertSecOpsAuditFailure({ alert_type: 'audit_write_failure', severity: 'critical', message: 'Direct publish audit event write failed', source: 'governanceController', details: { error: String(err) } });
+    }
 
     res.status(200).json({
       success: true,

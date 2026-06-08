@@ -701,6 +701,7 @@
         assignee_id || userId,
         assignee_name || userName,
         req.user?.is_superadmin ? null : req.user?.workspace_id,
+        userId,
       );
       internalEventBus.emit("operations.event", {
         type: "queue.assigned",
@@ -731,6 +732,8 @@
       const result = await queueService.resolveQueueItem(
         id,
         req.user?.is_superadmin ? null : req.user?.workspace_id,
+        req.user?.id,
+        typeof req.body?.resolution_notes === "string" ? req.body.resolution_notes : undefined,
       );
       internalEventBus.emit("operations.event", {
         type: "queue.resolved",
@@ -875,6 +878,64 @@
       res.json({ success: true, ...result, message: "Incident resolved" });
     } catch (err) {
       logger.error({ err }, "Failed to resolve incident");
+      next(err);
+    }
+  };
+
+  export const generatePostmortem = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "create_incident");
+      const id = getParam(req, "id");
+      if (!req.user?.is_superadmin) {
+        const existing = await incidentService.getIncident(id);
+        assertWorkspaceScope(req.user, existing.workspace_id);
+      }
+      const userId = req.user?.id || "system";
+      const result = await incidentService.generatePostmortem(id, userId);
+      await runtimeControlService.recordRuntimeControlAction({
+        run_id: result.postmortem.summary.run_id || id,
+        action_type: 'postmortem_generated',
+        requested_by: userId,
+        reason: `Postmortem generated for incident ${id}`,
+        impact_scope: 'incident_postmortem',
+        result: 'completed',
+      });
+      internalEventBus.emit("operations.event", {
+        type: "incident.postmortem_generated",
+        incident_id: id,
+        workspace_id: req.user?.workspace_id,
+        created_at: new Date().toISOString(),
+      });
+      res.json({ success: true, ...result, message: "Postmortem generated" });
+    } catch (err) {
+      logger.error({ err }, "Failed to generate postmortem");
+      next(err);
+    }
+  };
+
+  export const getPostmortem = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "view");
+      const id = getParam(req, "id");
+      if (!req.user?.is_superadmin) {
+        const existing = await incidentService.getIncident(id);
+        assertWorkspaceScope(req.user, existing.workspace_id);
+      }
+      const postmortem = await incidentService.getPostmortem(id);
+      if (!postmortem) {
+        return res.json({ postmortem: null, message: "No postmortem has been generated for this incident yet" });
+      }
+      res.json({ success: true, postmortem });
+    } catch (err) {
+      logger.error({ err }, "Failed to get postmortem");
       next(err);
     }
   };

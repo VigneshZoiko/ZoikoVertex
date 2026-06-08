@@ -779,6 +779,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       objective;
     const opts = OPTIMIZE_OPTIONS[defaultEffective] || OPTIMIZE_OPTIONS[objective] || [];
     setOptimize(opts[0]?.value || "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [objective]);
 
   // Step summaries for left sidebar

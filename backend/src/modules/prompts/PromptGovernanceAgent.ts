@@ -234,6 +234,7 @@ Evidence records are:
       if (promptError || !prompt) {
         return this.blockAndLog(req, 'PROMPT_NOT_FOUND', `Prompt ${req.prompt_id} was not found in the platform registry.`, 'high');
       }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- retained for downstream governance wiring
       promptRecord = prompt;
 
       let versionId = prompt.current_version_id;
@@ -571,7 +572,7 @@ Evidence records are:
           .single();
         parentOwnerId = prompt?.owner_id || prompt?.created_by || null;
       }
-    } catch (err) {
+    } catch {
       // Safe fallback
     }
 
@@ -818,7 +819,7 @@ Evidence records are:
           }
         }
       }
-    } catch (err) {
+    } catch {
       // Safe fallback on query syntax or database error
     }
 
@@ -889,6 +890,7 @@ Evidence records are:
   }
 
   private static hashString(input: string): string {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- builtin crypto, lazy local require
     const crypto = require('crypto');
     return crypto.createHash('sha256').update(input).digest('hex');
   }

@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=1024 next dev",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=1024 next dev --no-turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",
@@ -32,14 +34,18 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "25.6.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "cross-env": "^10.1.0",
     "eslint": "^9.20.0",
     "eslint-config-next": "16.2.7",
+    "jsdom": "^26.1.0",
     "playwright": "^1.60.0",
     "tailwindcss": "^4",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "^3.2.6"
   }
 }

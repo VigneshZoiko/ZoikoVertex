@@ -162,4 +162,18 @@ export const agentOperationsApi = {
       "Unable to export output snapshot",
     );
   },
+
+  async generatePostmortem(incidentId: string) {
+    return assertOk<{ success: boolean; id: string; postmortem: any; message: string }>(
+      await api.post(`/api/v1/operations/incidents/${incidentId}/postmortem`, {}),
+      "Unable to generate postmortem",
+    );
+  },
+
+  async getPostmortem(incidentId: string) {
+    return assertOk<{ success: boolean; postmortem: any }>(
+      await api.get(`/api/v1/operations/incidents/${incidentId}/postmortem`),
+      "Unable to fetch postmortem",
+    );
+  },
 };

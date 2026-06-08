@@ -443,7 +443,15 @@ function AuditReconstruction({ promptId }: { promptId: string }) {
 }
 
 // ─── Center ──────────────────────────────────────────────────────────────────
-export function PromptGovernanceCenter() {
+export function PromptGovernanceCenter({
+  embedded = false,
+  initialPromptId,
+  initialVersionId,
+}: {
+  embedded?: boolean;
+  initialPromptId?: string;
+  initialVersionId?: string;
+} = {}) {
   const { role } = useRoleContext();
   const [prompts, setPrompts] = useState<PromptRow[]>([]);
   const [promptId, setPromptId] = useState<string>("");
@@ -455,23 +463,40 @@ export function PromptGovernanceCenter() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const pendingVersionRef = useRef<string | null>(null);
+  // Capture the initial target (prop or URL query) once so the list-load
+  // effect below resolves to it without a re-fetch race.
+  const initialTargetRef = useRef<{ promptId?: string; versionId?: string }>({
+    promptId: initialPromptId,
+    versionId: initialVersionId,
+  });
 
   useEffect(() => {
     let qpPrompt: string | null = null;
+    let qpVersion: string | null = null;
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
       qpPrompt = sp.get("promptId");
-      pendingVersionRef.current = sp.get("versionId");
+      qpVersion = sp.get("versionId");
     }
+    const targetPrompt = initialTargetRef.current.promptId || qpPrompt;
+    pendingVersionRef.current = initialTargetRef.current.versionId ?? qpVersion;
     promptGovApi.listPrompts()
       .then((list) => {
         setPrompts(list);
-        const initial = qpPrompt && list.some((p) => p.id === qpPrompt) ? qpPrompt : list[0]?.id || "";
+        const initial = targetPrompt && list.some((p) => p.id === targetPrompt) ? targetPrompt : list[0]?.id || "";
         if (initial) setPromptId(initial);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Unable to load prompts"))
       .finally(() => setLoading(false));
   }, []);
+
+  // When the embedding parent selects a different prompt (e.g. via the
+  // registry drawer's "Open in Governance Center" action), retarget in-place.
+  useEffect(() => {
+    if (!initialPromptId) return;
+    pendingVersionRef.current = initialVersionId ?? null;
+    setPromptId(initialPromptId);
+  }, [initialPromptId, initialVersionId]);
 
   useEffect(() => {
     if (!promptId) return;
@@ -499,15 +524,17 @@ export function PromptGovernanceCenter() {
   const sel = "rounded-lg border border-[var(--border)] bg-[var(--card)] px-2 py-1.5 text-xs";
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-[var(--foreground)]">Prompt Governance Center</h1>
-          <p className={`text-sm ${muted}`}>Prompt-as-Code, version diffs, governance receipts, commissioning, and audit reconstruction.</p>
+      {!embedded && (
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-[var(--foreground)]">Prompt Governance Center</h1>
+            <p className={`text-sm ${muted}`}>Prompt-as-Code, version diffs, governance receipts, commissioning, and audit reconstruction.</p>
+          </div>
+          <a href="/agents/prompts" className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs ${muted} hover:text-[var(--foreground)]`}>
+            <ArrowLeft className="h-3.5 w-3.5" /> Prompt Registry
+          </a>
         </div>
-        <a href="/agents/prompts" className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs ${muted} hover:text-[var(--foreground)]`}>
-          <ArrowLeft className="h-3.5 w-3.5" /> Prompt Registry
-        </a>
-      </div>
+      )}
 
       {error && (isPermissionError(error) ? <PermissionDenied /> : <ErrorNote msg={error} />)}
 

@@ -1,5 +1,4 @@
 import * as crypto from 'crypto';
-import { logger } from '../../shared/logger';
 import { KnowledgeParsingService, type ParsedDocument } from './KnowledgeParsingService';
 
 export interface Chunk {

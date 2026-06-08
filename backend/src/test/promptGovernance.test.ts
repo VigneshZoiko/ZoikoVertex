@@ -1,8 +1,55 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { mockSupabaseNext, mockSupabaseClear } from './setup';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Per-file Supabase mock (queue-driven) — isolated to THIS suite only. It does
+// not touch the global test setup (src/test/setup.ts), so no other suite is
+// affected.
+const hoisted = vi.hoisted(() => {
+  const dataQueue: any[] = [];
+  const rpcQueue: any[] = [];
+  const mqb: any = {
+    select: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockReturnThis(),
+    update: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    neq: vi.fn().mockReturnThis(),
+    is: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    range: vi.fn().mockReturnThis(),
+    single: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockReturnThis(),
+    or: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
+    gt: vi.fn().mockReturnThis(),
+    lte: vi.fn().mockReturnThis(),
+    lt: vi.fn().mockReturnThis(),
+    not: vi.fn().mockReturnThis(),
+    filter: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    then: vi.fn(function (resolve: (v: unknown) => void) {
+      resolve(dataQueue.shift() || { data: null, error: null, count: 0 });
+    }),
+  };
+  const mf = vi.fn(() => mqb);
+  const next = (data: any, error: any = null, count?: number) => { dataQueue.push({ data, error, count }); };
+  const clear = () => { dataQueue.length = 0; rpcQueue.length = 0; };
+  const rpcNext = (data: any, error: any = null) => { rpcQueue.push({ data, error }); };
+  const rpcMock = vi.fn(() => Promise.resolve(rpcQueue.shift() || { data: null, error: null }));
+  return { mqb, mf, next, clear, rpcNext, rpcMock };
+});
+vi.mock('../shared/supabase', () => ({
+  supabaseAdmin: { from: hoisted.mf, rpc: hoisted.rpcMock },
+}));
+vi.mock('../services/evidenceVault.service', () => ({
+  preserveEvidence: vi.fn().mockResolvedValue({ id: 'test-evidence-id-12345' }),
+}));
+const mockSupabaseNext = hoisted.next;
+const mockSupabaseClear = hoisted.clear;
+
 import { PromptGovernanceAgent } from '../modules/prompts/PromptGovernanceAgent';
 import { PromptDeploymentService } from '../modules/prompts/PromptDeploymentService';
-import { supabaseAdmin } from '../shared/supabase';
 
 describe('Prompt Governance Agent', () => {
   beforeEach(() => {
@@ -306,27 +353,8 @@ describe('Prompt Governance Agent', () => {
   });
 
   it('should block output if it contains prohibited words', async () => {
-    const mockPrompt = {
-      id: 'p-7',
-      name: 'Clean Content Prompt',
-      risk_tier: 'tier_1_low',
-      status: 'production_active',
-      current_version_id: 'v-7',
-    };
-    const mockVersion = {
-      id: 'v-7',
-      prompt_id: 'p-7',
-      version_number: 1,
-      body: 'Generate output',
-      guardrails_json: {
-        output_format: {
-          prohibited_words: ['guaranteed returns', 'risk-free'],
-        },
-      },
-    };
-
     // Override LLM call mock to return a prohibited output
-    const enforceSpy = vi.spyOn(PromptGovernanceAgent as any, 'enforce').mockImplementation(async (req: any) => {
+    vi.spyOn(PromptGovernanceAgent as any, 'enforce').mockImplementation(async (_req: any) => {
       return {
         success: false,
         outcome: 'BLOCK',

@@ -267,7 +267,6 @@ export async function publishCampaignToMeta(
   // page_token  = Page Access Token — used only for page-scoped ops (posts, inbox, etc.)
   //               NOT valid for /{adAccountId}/adcreatives with object_story_spec.
   const userToken  = account.refresh_token || account.access_token;  // prefer user token
-  const pageToken  = account.access_token  || account.refresh_token;
   const token      = userToken; // all ad API calls use the user token
   const adAcctRaw  = account.agency_ad_account_id || account.ad_account_id;
   const adAccountId = adAcctRaw?.startsWith('act_') ? adAcctRaw : `act_${adAcctRaw}`;

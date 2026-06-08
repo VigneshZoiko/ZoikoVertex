@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const envSchema = z.object({
-  PORT: z.string().default('5000'),
+  PORT: z.string().default('5006'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   SUPABASE_URL: z.string().url(),
   SUPABASE_KEY: z.string().min(1),
@@ -21,6 +21,7 @@ const envSchema = z.object({
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
   META_REDIRECT_URI: z.string().optional(),
+  META_WEBHOOK_VERIFY_TOKEN: z.string().optional(),
   FRONTEND_URL: z.string().url().default('http://localhost:3000'),
   LINKEDIN_CLIENT_ID: z.string().optional(),
   LINKEDIN_CLIENT_SECRET: z.string().optional(),
@@ -38,10 +39,14 @@ const envSchema = z.object({
   YOUTUBE_CLIENT_ID: z.string().optional(),
   YOUTUBE_CLIENT_SECRET: z.string().optional(),
   YOUTUBE_REDIRECT_URI: z.string().optional(),
-  TIKTOK_CLIENT_KEY: z.string().optional(),
-  TIKTOK_CLIENT_SECRET: z.string().optional(),
-  TIKTOK_REDIRECT_URI: z.string().optional(),
+  GOOGLE_ADS_DEVELOPER_TOKEN:    z.string().optional(),
+  GOOGLE_ADS_CLIENT_ID:          z.string().optional(),
+  GOOGLE_ADS_CLIENT_SECRET:      z.string().optional(),
+  GOOGLE_ADS_REDIRECT_URI:       z.string().optional(),
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID:  z.string().optional(), // Agency MCC customer ID (10-digit, no dashes)
   REDIS_URL: z.string().optional(),
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
   // Required for internal service-to-service calls to /api/v1/users/provision
   INTERNAL_SERVICE_SECRET: z.string().min(32).optional(),
   // Stripe billing

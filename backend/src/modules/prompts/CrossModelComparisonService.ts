@@ -5,7 +5,7 @@ import { PromptAuditService } from './PromptAuditService';
 import { PromptEvidenceService } from './PromptEvidenceService';
 import { getModelAdapter, listRegisteredProviders, ModelExecutionRequest, ModelExecutionResult } from './ModelExecutionAdapter';
 import { isRealModelValidationEnabled } from './modelProviders';
-import { PROVIDER_LIST, PROVIDER_CONFIGS, ProviderId, MetricId, METRIC_LIST, estimateCostUsd, METRIC_DISPLAY } from './crossModelProviders';
+import { PROVIDER_LIST, PROVIDER_CONFIGS, ProviderId, estimateCostUsd } from './crossModelProviders';
 
 export interface ModelOutput {
   modelId: string;
