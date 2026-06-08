@@ -1,13 +1,13 @@
-﻿export default function Architecture() {
+export default function Architecture() {
   const layers = [
     {
       label: "STRATEGY",
       name: "LAYER 1 — STRATEGIC CONTROL",
-      bg: "rgba(99,102,241,0.12)",
-      border: "rgba(99,102,241,0.35)",
-      labelColor: "#818CF8",
-      nameColor: "#818CF8",
-      cardBorder: "rgba(99,102,241,0.3)",
+      bg: "rgba(99,102,241,0.06)",
+      border: "rgba(99,102,241,0.2)",
+      labelColor: "#6366F1",
+      nameColor: "#6366F1",
+      cardBorder: "rgba(99,102,241,0.2)",
       components: [
         { title: "Chief Strategy Agent",      desc: "Revenue & EBITDA alignment" },
         { title: "Business Context Engine",   desc: "ERP, inventory, pricing, margin" },
@@ -17,11 +17,11 @@
     {
       label: "EXECUTION",
       name: "LAYER 2 — EXECUTION INTELLIGENCE",
-      bg: "rgba(129,140,248,0.08)",
-      border: "rgba(129,140,248,0.3)",
-      labelColor: "#A5B4FC",
-      nameColor: "#A5B4FC",
-      cardBorder: "rgba(129,140,248,0.25)",
+      bg: "rgba(99,102,241,0.04)",
+      border: "rgba(99,102,241,0.15)",
+      labelColor: "#6366F1",
+      nameColor: "#6366F1",
+      cardBorder: "rgba(99,102,241,0.15)",
       components: [
         { title: "Creative Intelligence Lab", desc: "Platform-native content & copy" },
         { title: "Execution Agent",           desc: "Deploy, pace, sequence campaigns" },
@@ -32,11 +32,11 @@
     {
       label: "FINANCIAL",
       name: "LAYER 3 — FINANCIAL & OPTIMIZATION",
-      bg: "rgba(52,211,153,0.08)",
-      border: "rgba(52,211,153,0.3)",
-      labelColor: "#34D399",
-      nameColor: "#34D399",
-      cardBorder: "rgba(52,211,153,0.25)",
+      bg: "rgba(16,185,129,0.06)",
+      border: "rgba(16,185,129,0.2)",
+      labelColor: "#059669",
+      nameColor: "#059669",
+      cardBorder: "rgba(16,185,129,0.2)",
       components: [
         { title: "Quant Ad Spend Agent",      desc: "CPA / ROAS / marginal return" },
         { title: "Revenue Forensic Agent",    desc: "Multi-touch attribution" },
@@ -47,11 +47,11 @@
     {
       label: "GOVERNED",
       name: "LAYER 4 — GOVERNANCE & RISK",
-      bg: "rgba(167,139,250,0.08)",
-      border: "rgba(167,139,250,0.3)",
-      labelColor: "#C4B5FD",
-      nameColor: "#C4B5FD",
-      cardBorder: "rgba(167,139,250,0.25)",
+      bg: "rgba(139,92,246,0.05)",
+      border: "rgba(139,92,246,0.18)",
+      labelColor: "#7C3AED",
+      nameColor: "#7C3AED",
+      cardBorder: "rgba(139,92,246,0.18)",
       components: [
         { title: "Compliance Sentry",       desc: "Brand + legal + sector rules" },
         { title: "Governance Engine",       desc: "Confidence scoring + approvals" },
@@ -62,11 +62,11 @@
     {
       label: "SIMULATE",
       name: "LAYER 5 — SIMULATION",
-      bg: "rgba(245,158,11,0.08)",
-      border: "rgba(245,158,11,0.3)",
-      labelColor: "#FCD34D",
-      nameColor: "#FCD34D",
-      cardBorder: "rgba(245,158,11,0.25)",
+      bg: "rgba(217,119,6,0.05)",
+      border: "rgba(217,119,6,0.18)",
+      labelColor: "#B45309",
+      nameColor: "#B45309",
+      cardBorder: "rgba(217,119,6,0.18)",
       components: [
         { title: "Synthetic Audience Engine",   desc: "Predict response before spend" },
         { title: "Creative Scenario Modelling", desc: "Test before budget is committed" },
@@ -76,18 +76,18 @@
   ];
 
   return (
-    <section className="py-24 px-6" style={{ background: "#0f1b2e" }}>
+    <section className="py-24 px-6" style={{ background: "#FFFFFF" }}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
-          <p className="inline-flex items-center gap-2 text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4">
-            <span className="w-4 h-px bg-cyan-400 inline-block" />
+          <p className="inline-flex items-center gap-2 text-indigo-500 text-xs font-bold tracking-widest uppercase mb-4">
+            <span className="w-4 h-px bg-indigo-400 inline-block" />
             Agentic Intelligence Architecture
           </p>
-          <h2 className="text-4xl lg:text-5xl font-black text-white mb-5 leading-tight">
+          <h2 className="text-4xl lg:text-5xl font-black text-gray-900 mb-5 leading-tight">
             A layered system, not a collection of AI helpers
           </h2>
-          <p className="text-white/40 max-w-lg mx-auto text-sm leading-relaxed">
+          <p className="text-gray-500 max-w-lg mx-auto text-sm leading-relaxed">
             Five intelligence layers operating in concert — each purpose-built,
             each governed, each working as a closed loop that connects creative,
             channel, spend, and revenue in real time.
@@ -112,7 +112,7 @@
               {/* Row */}
               <div className="flex items-stretch">
 
-                {/* Vertical label — sits outside the tinted box */}
+                {/* Vertical label */}
                 <div
                   className="flex items-center justify-center flex-shrink-0"
                   style={{ width: 32 }}
@@ -139,10 +139,9 @@
                     padding: "14px 16px",
                   }}
                 >
-                  {/* Inner row: layer name LEFT | cards RIGHT */}
                   <div className="flex items-center gap-4">
 
-                    {/* Layer name — fixed width left column */}
+                    {/* Layer name */}
                     <div style={{ width: 210, flexShrink: 0 }}>
                       <p
                         className="text-[9px] font-bold tracking-widest uppercase leading-tight"
@@ -152,22 +151,21 @@
                       </p>
                     </div>
 
-                    {/* Cards — fill remaining space */}
+                    {/* Cards */}
                     <div className="flex flex-1 gap-2.5">
                       {layer.components.map((c) => (
                         <div
                           key={c.title}
-                          className="flex-1 rounded-xl px-3.5 py-3"
+                          className="flex-1 rounded-xl px-3.5 py-3 bg-white"
                           style={{
-                            background: "rgba(10,18,32,0.6)",
                             border: `1px solid ${layer.cardBorder}`,
                             minWidth: 0,
                           }}
                         >
-                          <p className="font-bold text-[12px] mb-1 leading-snug" style={{ color: "#C8D8E8" }}>
+                          <p className="font-bold text-[12px] mb-1 leading-snug text-gray-800">
                             {c.title}
                           </p>
-                          <p className="text-[11px] leading-snug" style={{ color: "#6E8BA0" }}>
+                          <p className="text-[11px] leading-snug text-gray-500">
                             {c.desc}
                           </p>
                         </div>

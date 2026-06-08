@@ -22,10 +22,10 @@ export default function LandingPage() {
     <main className="min-h-screen">
       <Navbar />
       <Hero />
-      <Stats />
       <TrustedBy />
-      <Pricing />
+      <Stats />
       <FeatureBlock />
+      <Pricing />
       <Architecture />
       <PainPoints />
       <AgentsGrid />
