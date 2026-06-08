@@ -253,7 +253,7 @@ export default function Navbar() {
         {/* Logo — Figma: 235×36px */}
         <Link href="/" style={{ display: "flex", alignItems: "center" }}>
           <Image
-            src="/images/logo-wordmark.svg"
+            src="/images/zoikovertexlogo.png"
             alt="ZoikoVertex"
             width={235}
             height={36}
