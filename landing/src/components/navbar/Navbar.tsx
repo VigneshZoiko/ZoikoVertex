@@ -202,10 +202,122 @@ function PlatformMenu() {
   );
 }
 
+const SOLUTION_ITEMS = [
+  { label: "Overview", desc: "All solutions\nat a glance", href: "/solution" },
+  { label: "Enterprise\nGovernance", desc: "Controlled AI\nfor large teams", href: "/solution#governance" },
+  { label: "Brand\nCompliance", desc: "Policy-bound\ncontent execution", href: "/solution#brand" },
+  { label: "Agency\nWorkflows", desc: "Multi-client\nisolation & control", href: "/solution#agency" },
+  { label: "Regulated\nIndustries", desc: "Audit-ready\nfor finance & legal", href: "/solution#regulated" },
+  { label: "Marketing\nOps Teams", desc: "Approval gates\nand evidence trails", href: "/solution#marketing-ops" },
+];
+
+function SolutionsMenu() {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: -120,
+        top: 45,
+        width: 620,
+        background: "#152238",
+        border: "1px solid rgba(32,231,242,0.12)",
+        borderRadius: 14,
+        boxShadow: "0px 0px 0px 1px rgba(32,231,242,0.05), 0px 20px 60px 0px rgba(0,0,0,0.55)",
+        zIndex: 100,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          height: 44,
+          background: "rgba(32,231,242,0.04)",
+          borderBottom: "0.8px solid rgba(32,231,242,0.12)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 20px",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--font-jetbrains), 'JetBrains Mono', monospace",
+            fontWeight: 500,
+            fontSize: 10.4,
+            letterSpacing: "12%",
+            textTransform: "uppercase",
+            color: "#20E7F2",
+          }}
+        >
+          Solutions
+        </span>
+        <Link
+          href="/solution"
+          style={{
+            fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+            fontWeight: 600,
+            fontSize: 12.5,
+            color: "#20E7F2",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            textDecoration: "none",
+          }}
+        >
+          View All Solutions
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <path d="M2.29 5.5h6.42M6.42 2.29l3.21 3.21-3.21 3.21" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </Link>
+      </div>
+      <div
+        style={{
+          padding: "24px 28.8px 28px",
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          rowGap: 28,
+          columnGap: 16,
+        }}
+      >
+        {SOLUTION_ITEMS.map((item) => (
+          <Link key={item.label} href={item.href} style={{ textDecoration: "none" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10.8 }}>
+              <IconBox><PlaceholderIcon /></IconBox>
+              <span
+                style={{
+                  fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  lineHeight: "15.6px",
+                  color: "#FFFFFF",
+                  whiteSpace: "pre-line",
+                }}
+              >
+                {item.label}
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+                  fontWeight: 300,
+                  fontSize: 11.8,
+                  lineHeight: "17.17px",
+                  color: "#5E7A92",
+                  whiteSpace: "pre-line",
+                }}
+              >
+                {item.desc}
+              </span>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const NAV_ITEMS = [
   { label: "Platform", hasDropdown: true, href: "/platform" },
   { label: "AI Agents", hasDropdown: false, href: "https://zoikovertex.com/ai-agents" },
-  { label: "Solutions", hasDropdown: false, href: "/solution" },
+  { label: "Solutions", hasDropdown: true, href: "/solution" },
   { label: "Governance", hasDropdown: false, href: "/governance" },
   { label: "Resources", hasDropdown: false, href: "/resources-hub" },
   { label: "About Us", hasDropdown: false, href: "/about" },
@@ -349,6 +461,10 @@ export default function Navbar() {
               {item.label === "Platform" && openMenu === "Platform" && (
                 <PlatformMenu />
               )}
+              {/* Solutions mega menu */}
+              {item.label === "Solutions" && openMenu === "Solutions" && (
+                <SolutionsMenu />
+              )}
             </div>
           ))}
         </div>
@@ -375,12 +491,35 @@ export default function Navbar() {
             href="/request-demo"
             style={{
               fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+              fontWeight: 600,
+              fontSize: 13.4,
+              color: "#FFFFFF",
+              background: "transparent",
+              padding: "8px 20px",
+              borderRadius: 10,
+              border: "1.5px solid rgba(255,255,255,0.25)",
+              textDecoration: "none",
+              transition: "border-color 0.15s",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.borderColor = "rgba(255,255,255,0.5)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)")
+            }
+          >
+            Request a Demo
+          </Link>
+          <Link
+            href="/signup"
+            style={{
+              fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
               fontWeight: 700,
               fontSize: 13.4,
               color: "#000000",
               background: "#20E7F2",
               padding: "8px 20px",
-              borderRadius: 8,
+              borderRadius: 10,
               textDecoration: "none",
               transition: "background 0.15s",
             }}

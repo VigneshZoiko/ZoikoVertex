@@ -1,4 +1,3 @@
-import Image from "next/image";
 
 export default function Footer() {
   const cols = [
@@ -78,17 +77,10 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto">
         <div className="grid lg:grid-cols-6 gap-10 pb-14 border-b border-white/5">
           <div className="lg:col-span-1">
-            <div className="flex items-center gap-1.5 mb-4">
-              <Image
-                src="/images/logo-wordmark.svg"
-                alt="ZoikoVertex"
-                width={28}
-                height={28}
-                className="rounded-full"
-              />
-              <span className="text-white font-black text-base tracking-tight">
+            <div className="flex items-center mb-4">
+              <span className="text-white font-black text-xl tracking-tight">
                 ZOIKO<span className="text-cyan-400">VERTEX</span>
-                <sup className="text-[9px] text-white/30 ml-0.5">™</sup>
+                <sup className="text-[10px] text-white/30 ml-0.5">™</sup>
               </span>
             </div>
             <p className="text-white/40 text-xs leading-relaxed mb-6">
