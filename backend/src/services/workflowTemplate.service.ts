@@ -128,7 +128,7 @@ export async function updateTemplate(
     throw Object.assign(new Error("Workflow template not found"), {
       statusCode: 404,
     });
-  if (existing.status === "Active" || existing.status === "Retired") {
+  if (existing.status === "active" || existing.status === "retired") {
     throw Object.assign(
       new Error(
         "Active or retired workflows cannot be directly edited. Create a draft version.",
@@ -176,7 +176,7 @@ export async function deleteDraftTemplate(templateId: string) {
     throw Object.assign(new Error("Workflow template not found"), {
       statusCode: 404,
     });
-  if (existing.status !== "Draft")
+  if (existing.status !== "draft")
     throw Object.assign(new Error("Only draft workflows can be deleted"), {
       statusCode: 409,
     });

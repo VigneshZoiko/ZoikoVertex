@@ -46,10 +46,11 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  new: "New", triage: "Triage", active_investigation: "Active",
+  new: "New", triage: "Triage (Assigning)",
+  active_investigation: "In Progress",
   awaiting_information: "Awaiting Info", legal_review: "Legal Review",
   legal_hold: "Legal Hold", remediation: "Remediation",
-  validation: "Validation", escalated: "Escalated",
+  validation: "Under Review", escalated: "Pending Closure",
   closed: "Closed", reopened: "Reopened",
 };
 

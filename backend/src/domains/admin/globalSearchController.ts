@@ -50,7 +50,7 @@ export const performGlobalSearch = async (req: AuthRequest, res: Response, next:
         ).limit(5),
         scopeFilter(
           supabaseAdmin
-            .from('workflows')
+            .from('workflow_templates')
             .select('id, name, status, risk_level, workspace_id')
             .or(buildOrConditions(words, workflowFields))
         ).limit(5),

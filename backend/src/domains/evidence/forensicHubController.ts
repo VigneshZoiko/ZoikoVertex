@@ -1,8 +1,14 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import * as forensicService from '../../services/forensicHub.service';
+import { buildAuthContext } from '../../shared/serviceAuth';
 
 const DEFAULT_WORKSPACE_ID = 'WRK-001';
+
+function getTenantId(req: AuthRequest): string {
+  const tenantId = (req.user as any)?.tenant_id;
+  return tenantId && tenantId !== 'default' ? tenantId : (req.user?.workspace_id || DEFAULT_WORKSPACE_ID);
+}
 
 // ─── GET /api/forensic/cases ──────────────────────────────────────────────────
 
@@ -30,11 +36,13 @@ export async function createCase(req: AuthRequest, res: Response, next: NextFunc
     if (!case_type || !title) {
       return res.status(400).json({ success: false, error: 'case_type and title are required' });
     }
+    const auth = buildAuthContext(req.user!);
     const result = await forensicService.createCase({
       workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
       case_type, title, summary, severity, source, source_event_ids,
       owner_user_id, sla_due_at, actor_id: req.user!.id,
-    });
+      tenant_id: getTenantId(req),
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -88,10 +96,11 @@ export async function updateCase(req: AuthRequest, res: Response, next: NextFunc
     const { title, summary, severity, status, owner_user_id, sla_due_at, retention_class, closure, reason } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'reason is required for all case updates' });
 
+    const auth = buildAuthContext(req.user!);
     const result = await forensicService.updateCase(caseId, {
       title, summary, severity, status, owner_user_id, sla_due_at, retention_class, closure,
       actor_id: req.user!.id, reason,
-    });
+    }, auth);
     res.json({ success: true, data: result });
   } catch (error: any) {
     if (error.message?.includes('Invalid status transition')) {
@@ -109,7 +118,8 @@ export async function assignCase(req: AuthRequest, res: Response, next: NextFunc
     const { user_id, role_in_case, reason } = req.body;
     if (!user_id) return res.status(400).json({ success: false, error: 'user_id is required' });
 
-    const participant = await forensicService.addParticipant(caseId, user_id, role_in_case || 'investigator', req.user!.id, reason);
+    const auth = buildAuthContext(req.user!);
+    const participant = await forensicService.addParticipant(caseId, user_id, role_in_case || 'investigator', req.user!.id, reason, auth);
     res.status(201).json({ success: true, data: participant });
   } catch (error) {
     next(error);
@@ -125,10 +135,11 @@ export async function addEvidence(req: AuthRequest, res: Response, next: NextFun
     if (!source_type || !source_id || !added_reason) {
       return res.status(400).json({ success: false, error: 'source_type, source_id, and added_reason are required' });
     }
+    const auth = buildAuthContext(req.user!);
     const result = await forensicService.addEvidence({
       case_id: caseId, source_type, source_id, relevance, hash, chain_block_number,
       added_by: req.user!.id, added_reason, metadata,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -154,7 +165,8 @@ export async function pinEvidence(req: AuthRequest, res: Response, next: NextFun
     const evidenceId = req.params.evidenceId as string;
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'reason is required' });
-    await forensicService.pinEvidence(evidenceId, reason, req.user!.id);
+    const auth = buildAuthContext(req.user!);
+    await forensicService.pinEvidence(evidenceId, reason, req.user!.id, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -168,9 +180,10 @@ export async function addNote(req: AuthRequest, res: Response, next: NextFunctio
     const caseId = req.params.caseId as string;
     const { note_class, content } = req.body;
     if (!content) return res.status(400).json({ success: false, error: 'content is required' });
+    const auth = buildAuthContext(req.user!);
     const result = await forensicService.addNote({
       case_id: caseId, note_class: note_class || 'internal_investigation', content, author_id: req.user!.id,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -197,7 +210,8 @@ export async function addTask(req: AuthRequest, res: Response, next: NextFunctio
     const caseId = req.params.caseId as string;
     const { title, description, owner_id, due_at, evidence_link } = req.body;
     if (!title || !owner_id) return res.status(400).json({ success: false, error: 'title and owner_id are required' });
-    const result = await forensicService.addTask({ case_id: caseId, title, description, owner_id, due_at, evidence_link });
+    const auth = buildAuthContext(req.user!);
+    const result = await forensicService.addTask({ case_id: caseId, title, description, owner_id, due_at, evidence_link }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -210,7 +224,8 @@ export async function updateTask(req: AuthRequest, res: Response, next: NextFunc
   try {
     const taskId = req.params.taskId as string;
     const { status, completion_proof } = req.body;
-    await forensicService.updateTask(taskId, { status, completion_proof });
+    const auth = buildAuthContext(req.user!);
+    await forensicService.updateTask(taskId, { status, completion_proof }, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -262,7 +277,8 @@ export async function closeCase(req: AuthRequest, res: Response, next: NextFunct
     if (!outcome || !rationale) {
       return res.status(400).json({ success: false, error: 'outcome and rationale are required' });
     }
-    const result = await forensicService.closeCase(caseId, { outcome, rationale, findings, approval, actor_id: req.user!.id });
+    const auth = buildAuthContext(req.user!);
+    const result = await forensicService.closeCase(caseId, { outcome, rationale, findings, approval, actor_id: req.user!.id }, auth);
     res.json({ success: true, data: result });
   } catch (error: any) {
     if (error.message?.includes('Cannot close')) {
@@ -279,7 +295,8 @@ export async function reopenCase(req: AuthRequest, res: Response, next: NextFunc
     const caseId = req.params.caseId as string;
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'reason is required' });
-    const result = await forensicService.reopenCase(caseId, reason, req.user!.id);
+    const auth = buildAuthContext(req.user!);
+    const result = await forensicService.reopenCase(caseId, reason, req.user!.id, auth);
     res.json({ success: true, data: result });
   } catch (error: any) {
     if (error.message?.includes('Cannot reopen')) {
@@ -298,10 +315,11 @@ export async function preserveToVault(req: AuthRequest, res: Response, next: Nex
     if (!evidence_ids || !evidence_ids.length || !preservation_reason) {
       return res.status(400).json({ success: false, error: 'evidence_ids and preservation_reason are required' });
     }
+    const auth = buildAuthContext(req.user!);
     const result = await forensicService.preserveToVault({
       case_id: caseId, evidence_ids, retention_class: retention_class || 'standard',
       preservation_reason, actor_id: req.user!.id, workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
-    });
+    }, auth);
     res.json({ success: true, data: result });
   } catch (error: any) {
     if (error.message?.includes('No unpreserved evidence')) {
@@ -318,7 +336,8 @@ export async function applyLegalHold(req: AuthRequest, res: Response, next: Next
     const caseId = req.params.caseId as string;
     const { reason, scope } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'reason is required' });
-    const result = await forensicService.applyLegalHold(caseId, reason, req.user!.id, scope);
+    const auth = buildAuthContext(req.user!);
+    const result = await forensicService.applyLegalHold(caseId, reason, req.user!.id, scope, auth);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -332,7 +351,8 @@ export async function releaseLegalHold(req: AuthRequest, res: Response, next: Ne
     const caseId = req.params.caseId as string;
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'reason is required' });
-    const result = await forensicService.releaseLegalHold(caseId, reason, req.user!.id);
+    const auth = buildAuthContext(req.user!);
+    const result = await forensicService.releaseLegalHold(caseId, reason, req.user!.id, auth);
     res.json({ success: true, data: result });
   } catch (error: any) {
     if (error.message?.includes('not under legal hold')) {
@@ -362,11 +382,12 @@ export async function createExport(req: AuthRequest, res: Response, next: NextFu
     if (!package_type || !reason) {
       return res.status(400).json({ success: false, error: 'package_type and reason are required' });
     }
+    const auth = buildAuthContext(req.user!);
     const result = await forensicService.createExport({
       case_id: caseId, package_type, format: format || 'json',
       redaction_profile: redaction_profile || 'standard',
       reason, actor_id: req.user!.id, scope, delivery_method,
-    });
+    }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error: any) {
     if (error.message?.includes('not supported') || error.message?.includes('Unknown package')) {
@@ -393,7 +414,8 @@ export async function listExports(req: AuthRequest, res: Response, next: NextFun
 export async function approveExport(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const exportId = req.params.exportId as string;
-    const result = await forensicService.approveExport(exportId, req.user!.id);
+    const auth = buildAuthContext(req.user!);
+    const result = await forensicService.approveExport(exportId, req.user!.id, auth);
     res.json({ success: true, data: result });
   } catch (error: any) {
     if (error.message?.includes('Cannot approve')) {
@@ -410,7 +432,8 @@ export async function rejectExport(req: AuthRequest, res: Response, next: NextFu
     const exportId = req.params.exportId as string;
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'reason is required' });
-    const result = await forensicService.rejectExport(exportId, reason, req.user!.id);
+    const auth = buildAuthContext(req.user!);
+    const result = await forensicService.rejectExport(exportId, reason, req.user!.id, auth);
     res.json({ success: true, data: result });
   } catch (error: any) {
     if (error.message?.includes('Cannot reject')) {
@@ -425,7 +448,8 @@ export async function rejectExport(req: AuthRequest, res: Response, next: NextFu
 export async function generateExport(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const exportId = req.params.exportId as string;
-    const result = await forensicService.generateExportPackage(exportId, req.user!.id);
+    const auth = buildAuthContext(req.user!);
+    const result = await forensicService.generateExportPackage(exportId, req.user!.id, auth);
     res.json({ success: true, data: result });
   } catch (error: any) {
     if (error.message?.includes('Cannot generate')) {
@@ -440,7 +464,8 @@ export async function generateExport(req: AuthRequest, res: Response, next: Next
 export async function markEvidencePrivileged(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const evidenceId = req.params.evidenceId as string;
-    await forensicService.markEvidencePrivileged(evidenceId, req.user!.id);
+    const auth = buildAuthContext(req.user!);
+    await forensicService.markEvidencePrivileged(evidenceId, req.user!.id, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -454,7 +479,8 @@ export async function unpinEvidence(req: AuthRequest, res: Response, next: NextF
     const evidenceId = req.params.evidenceId as string;
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'reason is required' });
-    await forensicService.unpinEvidence(evidenceId, reason, req.user!.id);
+    const auth = buildAuthContext(req.user!);
+    await forensicService.unpinEvidence(evidenceId, reason, req.user!.id, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);

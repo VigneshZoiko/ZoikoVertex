@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
@@ -41,9 +41,11 @@ export default function ModelPerformancePage() {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const safeFetch = () => { if (!cancelled && document.visibilityState === 'visible') fetchData(); };
+    safeFetch();
+    const interval = setInterval(safeFetch, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
   return (

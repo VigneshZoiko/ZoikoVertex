@@ -47,6 +47,16 @@ export const PROMPT_AUDIT_EVENTS = {
   KNOWLEDGE_BINDING_CHANGE: 'prompt.knowledge.binding_changed',
   TOOL_PERMISSION_CHANGE: 'prompt.tool_permission.changed',
   DEPENDENCY_CHANGE: 'prompt.dependency.changed',
+
+  // Phase 5C — Adversarial Testing events
+  ADVERSARIAL_STARTED: 'prompt.test.adversarial.started',
+  ADVERSARIAL_PASSED: 'prompt.test.adversarial.passed',
+  ADVERSARIAL_WARNING: 'prompt.test.adversarial.warning',
+  ADVERSARIAL_FAILED: 'prompt.test.adversarial.failed',
+  ADVERSARIAL_SCENARIO_FAIL: 'prompt.test.adversarial.scenario_fail',
+
+  // Phase 5E — Scorecard events
+  SCORECARD_GENERATED: 'prompt.scorecard.generated',
 } as const;
 
 function riskTierToLevel(riskTier?: string | null): string {

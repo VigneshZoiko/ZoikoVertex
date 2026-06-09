@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useRoleContext } from "@/lib/context/RoleContext";
 import CampaignCreatorModal from "@/components/campaigns/CampaignCreatorModal";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 // Types
 
@@ -22,6 +23,7 @@ interface Campaign {
   objective: string;
   platforms: string[];
   budget_total?: number | null;
+  budget_daily?: number | null;
   budget_currency?: string;
   spend_recorded?: number;
   start_at?: string | null;
@@ -348,6 +350,7 @@ export default function CampaignsPage() {
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
   const [menu,       setMenu]       = useState<string | null>(null);
+  const [deleteCampaignId, setDeleteCampaignId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -384,19 +387,29 @@ export default function CampaignsPage() {
   const [selectedDraft, setSelectedDraft] = React.useState<Campaign | null>(null);
 
   const toggleStatus = async (c: Campaign) => {
-    const going = c.status === "ACTIVE";
-    try {
-      await api.post(`/api/v1/campaigns/${c.id}/${going ? "pause" : "resume"}`, {});
-      setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, status: going ? "PAUSING" : "ACTIVE" } : x));
-    } catch { /* silent */ }
+    const pausing = c.status === "ACTIVE" || c.status === "SCHEDULED";
+    const r = await api.post(
+      `/api/v1/campaigns/${c.id}/${pausing ? "pause" : "resume"}`,
+      pausing ? { reason: "Paused from campaigns list" } : { reason: "Resumed from campaigns list" },
+    );
+    if (!r.success) {
+      setError(r.error || `Failed to ${pausing ? "pause" : "resume"} campaign`);
+      return;
+    }
+    setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, status: pausing ? "PAUSING" : "ACTIVE" } : x));
   };
 
   const deleteCampaign = async (id: string) => {
-    if (!confirm("Delete this campaign?")) return;
+    setDeleteCampaignId(id);
+  };
+
+  const confirmDeleteCampaign = async () => {
+    if (!deleteCampaignId) return;
     try {
-      await api.delete(`/api/v1/campaigns/${id}`);
-      setCampaigns(prev => prev.filter(c => c.id !== id));
+      await api.delete(`/api/v1/campaigns/${deleteCampaignId}`);
+      setCampaigns(prev => prev.filter(c => c.id !== deleteCampaignId));
     } catch { /* silent */ }
+    finally { setDeleteCampaignId(null); }
   };
 
   const isOn = (s: string) => ["ACTIVE","SCHEDULED"].includes(s);
@@ -583,7 +596,7 @@ export default function CampaignsPage() {
                                   <p className="text-sm font-bold text-white">{c.name}</p>
                                 </div>
                                 <p className="text-xs text-zinc-500">
-                                  {c.objective?.charAt(0) + c.objective?.slice(1).toLowerCase().replace(/_/g," ")} · No ads · {c.budget_total ? `$${c.budget_total} daily budget` : "No budget set"}
+                                  {c.objective?.charAt(0) + c.objective?.slice(1).toLowerCase().replace(/_/g," ")} · No ads · {c.budget_daily ? `$${c.budget_daily}/day` : c.budget_total ? `$${c.budget_total} total` : "No budget set"}
                                 </p>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
@@ -652,8 +665,12 @@ export default function CampaignsPage() {
                     <p className="text-[10px] text-zinc-400">No media</p>
                   </div>
                   <div className="px-3 py-2 flex items-center justify-between">
-                    <p className="text-[10px] text-zinc-500 uppercase">EXAMPLE.COM</p>
-                    <button className="text-[10px] font-bold text-zinc-800 border border-zinc-300 px-2 py-0.5 rounded">APPLY NOW</button>
+                    <p className="text-[10px] text-zinc-500 uppercase truncate max-w-[120px]">
+                      {(() => { try { return new URL((selectedDraft as any).creative?.landing_page_url || (selectedDraft as any).boost_settings?.landing_url || "").hostname || "—"; } catch { return "—"; } })()}
+                    </p>
+                    <button className="text-[10px] font-bold text-zinc-800 border border-zinc-300 px-2 py-0.5 rounded">
+                      {(selectedDraft as any).creative?.cta || "Learn More"}
+                    </button>
                   </div>
                   <div className="flex items-center gap-3 px-3 py-2 border-t border-zinc-100 text-[11px] text-zinc-500">
                     <span>👍 Like</span><span>💬 Comment</span><span>↗ Share</span>
@@ -665,8 +682,8 @@ export default function CampaignsPage() {
                   {[
                     { label: "Ad account", value: accounts[0]?.account_name || "—" },
                     { label: "Objective",  value: selectedDraft.objective?.charAt(0) + selectedDraft.objective?.slice(1).toLowerCase().replace(/_/g," ") },
-                    { label: "Audience",   value: "Build your own audience" },
-                    { label: "Budget",     value: selectedDraft.budget_total ? `$${selectedDraft.budget_total} daily budget` : "Not set" },
+                    { label: "Audience",   value: (() => { const t = (selectedDraft as any).targeting; if (!t) return "All audiences"; const parts = [t.age_min && t.age_max ? `Age ${t.age_min}–${t.age_max}` : null, t.gender && t.gender !== "ALL" ? t.gender : null, (t.geography as any[])?.[0] ? (typeof (t.geography as any[])[0] === "object" ? (t.geography as any[])[0].display_name || (t.geography as any[])[0].key : (t.geography as any[])[0]) : null].filter(Boolean); return parts.length ? parts.join(", ") : "All audiences"; })() },
+                    { label: "Budget",     value: selectedDraft.budget_daily ? `$${selectedDraft.budget_daily}/day` : selectedDraft.budget_total ? `$${selectedDraft.budget_total} total` : "Not set" },
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <p className="text-xs font-bold text-zinc-300">{label}</p>
@@ -822,9 +839,12 @@ export default function CampaignsPage() {
 
                         {/* Budget */}
                         <td className="px-4 py-4 w-[100px] text-right">
-                          {c.budget_total ? (
-                            <><p className="text-sm text-white">${c.budget_total.toLocaleString()}</p>
-                            <p className="text-[10px] text-zinc-500">{c.budget_currency || "USD"}</p></>
+                          {c.budget_daily ? (
+                            <><p className="text-sm text-white">{c.budget_currency || "USD"} {c.budget_daily.toLocaleString()}</p>
+                            <p className="text-[10px] text-zinc-500">/day</p></>
+                          ) : c.budget_total ? (
+                            <><p className="text-sm text-white">{c.budget_currency || "USD"} {c.budget_total.toLocaleString()}</p>
+                            <p className="text-[10px] text-zinc-500">total</p></>
                           ) : <p className="text-zinc-600 text-xs">--</p>}
                         </td>
 
@@ -933,6 +953,15 @@ export default function CampaignsPage() {
         onCreated={() => { setShowCreator(false); setEditCampaignId(null); load(); }}
       />
     )}
+    <ConfirmActionModal
+      open={!!deleteCampaignId}
+      variant="danger"
+      title="Delete campaign?"
+      message="This will permanently delete this campaign."
+      confirmLabel="Delete"
+      onConfirm={confirmDeleteCampaign}
+      onCancel={() => setDeleteCampaignId(null)}
+    />
     </>
   );
 }

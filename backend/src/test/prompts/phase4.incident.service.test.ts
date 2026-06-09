@@ -8,7 +8,7 @@ vi.mock('../../modules/prompts/PromptAuditService', () => ({
   PromptAuditService: { record: vi.fn() },
 }));
 
-import { setFixtures, resetFixtures, mockState } from '../helpers/supabaseMock';
+import { setFixtures, resetFixtures } from '../helpers/supabaseMock';
 import { PromptIncidentService } from '../../modules/prompts/services/PromptIncidentService';
 import { PromptEvidenceService } from '../../modules/prompts/PromptEvidenceService';
 import { PromptAuditService } from '../../modules/prompts/PromptAuditService';

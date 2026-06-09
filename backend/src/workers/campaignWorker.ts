@@ -7,10 +7,11 @@
  * calls the Meta Graph API to create the full ad stack:
  *   campaign → ad set → ad creative (object_story_id) → ad
  *
+ * Meta charges the client's own ad account directly (Hootsuite model).
+ * No internal wallet deductions or spend caps — all billing is on Meta's side.
+ *
  * On success: marks the boost ACTIVE and records meta IDs.
  * On failure: marks the boost FAILED with an error_message.
- * After a successful boost: deducts from the workspace wallet.
- *
  * One boost failing never stops the others.
  */
 
@@ -21,119 +22,8 @@ import {
   resolveMetaAdAccountId,
 } from '../domains/campaigns/agencyAccountResolver';
 
-// ── Spend cap check ───────────────────────────────────────────────────────────
-// Returns true if the deduction is allowed (under cap or cap disabled).
-
-async function checkSpendCap(workspaceId: string, amount: number): Promise<{ allowed: boolean; reason?: string }> {
-  try {
-    const { data: wallet } = await supabaseAdmin
-      .from('wallets')
-      .select('id, spend_cap_enabled, spend_cap_amount')
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (!wallet?.spend_cap_enabled || !wallet.spend_cap_amount) {
-      return { allowed: true }; // No cap set
-    }
-
-    // Sum all DEBIT transactions this calendar month
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-
-    const { data: txns } = await supabaseAdmin
-      .from('wallet_transactions')
-      .select('amount')
-      .eq('wallet_id', wallet.id)
-      .eq('type', 'DEBIT')
-      .gte('created_at', monthStart.toISOString());
-
-    const monthlySpend = (txns || []).reduce((sum: number, tx: any) => sum + Number(tx.amount), 0);
-
-    if (monthlySpend + amount > wallet.spend_cap_amount) {
-      return {
-        allowed: false,
-        reason: `Monthly spend cap of $${wallet.spend_cap_amount} reached (spent $${monthlySpend.toFixed(2)} this month)`,
-      };
-    }
-
-    return { allowed: true };
-  } catch {
-    return { allowed: true }; // Non-fatal — allow if check fails
-  }
-}
-
-// ── Auto top-up trigger ───────────────────────────────────────────────────────
-// Called after a successful wallet deduction. If balance drops below threshold
-// and auto top-up is enabled, charge the default card immediately.
-
-async function triggerAutoTopUp(workspaceId: string): Promise<void> {
-  try {
-    const { data: wallet } = await supabaseAdmin
-      .from('wallets')
-      .select('id, balance, auto_topup_enabled, auto_topup_threshold, auto_topup_amount, stripe_customer_id, default_payment_method_id')
-      .eq('workspace_id', workspaceId)
-      .single();
-
-    if (!wallet?.auto_topup_enabled) return;
-    if (!wallet.stripe_customer_id || !wallet.default_payment_method_id) return;
-    if (Number(wallet.balance) >= Number(wallet.auto_topup_threshold)) return;
-
-    const topUpAmount  = Number(wallet.auto_topup_amount) || 100;
-    const amountCents  = Math.round(topUpAmount * 100);
-
-    // Dynamically import Stripe only when needed
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Stripe     = require('stripe');
-    const stripeKey  = process.env.STRIPE_SECRET_KEY;
-    if (!stripeKey) return;
-
-    const stripe     = new Stripe(stripeKey, { apiVersion: '2024-06-20' });
-    const holdHours  = parseInt(process.env.DEPOSIT_HOLD_HOURS || '48');
-    const availableAt = new Date(Date.now() + holdHours * 60 * 60 * 1000).toISOString();
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount:               amountCents,
-      currency:             'usd',
-      customer:             wallet.stripe_customer_id,
-      payment_method:       wallet.default_payment_method_id,
-      confirm:              true,
-      off_session:          true,
-      description:          `Auto top-up: $${topUpAmount} campaign credits`,
-    }) as any;
-
-    if (paymentIntent.status === 'succeeded') {
-      // Record as PROCESSING transaction (settlement worker will move to balance)
-      await supabaseAdmin.from('wallet_transactions').insert({
-        wallet_id:    wallet.id,
-        type:         'CREDIT',
-        status:       'PROCESSING',
-        amount:       topUpAmount,
-        net_amount:   topUpAmount,
-        currency:     'USD',
-        description:  `Auto top-up: $${topUpAmount}`,
-        stripe_payment_intent_id: paymentIntent.id,
-        available_at: availableAt,
-        created_at:   new Date().toISOString(),
-      });
-
-      // Add to processing_balance immediately
-      await supabaseAdmin.from('wallets').update({
-        processing_balance: Number(wallet.balance) + topUpAmount,
-        total_deposited:    Number(wallet.balance) + topUpAmount,
-        updated_at:         new Date().toISOString(),
-      }).eq('id', wallet.id);
-
-      logger.info({ workspaceId, topUpAmount, paymentIntentId: paymentIntent.id }, '[CampaignWorker] Auto top-up triggered successfully');
-    }
-  } catch (err: any) {
-    logger.warn({ err: err?.message, workspaceId }, '[CampaignWorker] Auto top-up failed (non-fatal)');
-  }
-}
-
 // How often the worker polls
-const POLL_INTERVAL_MS    = 2  * 60 * 1000; // 2 minutes — boost processing
-const SETTLE_INTERVAL_MS  = 15 * 60 * 1000; // 15 minutes — deposit settlement
+const POLL_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 
 // Maximum boosts to process per run to keep runs time-bounded
 const BATCH_LIMIT = 10;
@@ -179,25 +69,13 @@ async function processBoost(boost: any): Promise<void> {
   const campaignId   = boost.campaign_id  as string;
   const intentId     = boost.publish_intent_id as string | null;
 
-  // 0. Spend cap check before doing any work
-  const capCheck = await checkSpendCap(workspaceId, 10); // min $10 estimate
-  if (!capCheck.allowed) {
-    await supabaseAdmin.from('campaign_boosts').update({
-      status:        'FAILED',
-      error_message: capCheck.reason,
-      updated_at:    new Date().toISOString(),
-    }).eq('id', boostId);
-    logger.warn({ boostId, workspaceId, reason: capCheck.reason }, '[CampaignWorker] Boost blocked by spend cap');
-    return;
-  }
-
-  // 1. Mark as BOOSTING so a concurrent run does not double-pick it
+  // Mark as BOOSTING so a concurrent run does not double-pick it
   await supabaseAdmin
     .from('campaign_boosts')
     .update({ status: 'BOOSTING', updated_at: new Date().toISOString() })
     .eq('id', boostId);
 
-  // 2. Fetch campaign details
+  // Fetch campaign details
   const { data: campaign, error: campErr } = await supabaseAdmin
     .from('campaigns')
     .select('id, name, objective, boost_per_post_budget, boost_settings, targeting, budget_daily, budget_currency, start_at, end_at')
@@ -235,6 +113,8 @@ async function processBoost(boost: any): Promise<void> {
   // 5. Budget — prefer boost_per_post_budget, fall back to budget_daily
   const rawBudget    = campaign.boost_per_post_budget || campaign.budget_daily || 10;
   const budgetCents  = Math.round(Number(rawBudget) * 100);
+
+  // Meta charges the client's own ad account directly — no spend cap check needed.
   const currency     = campaign.budget_currency || 'USD';
   const objective    = resolveMetaObjective(campaign.objective || 'POST_ENGAGEMENT');
   const label        = `ZoikoVertex Auto-Boost · ${campaign.name}`;
@@ -266,7 +146,7 @@ async function processBoost(boost: any): Promise<void> {
     name:                  label,
     objective,
     status:                'ACTIVE',
-    special_ad_categories: [],
+    special_ad_categories: ['NONE'], // Meta v18+: must be ['NONE'], not []
   }) as any;
 
   if (metaCampaignRes.error) {
@@ -355,35 +235,6 @@ async function processBoost(boost: any): Promise<void> {
     '[CampaignWorker] Boost activated on Meta'
   );
 
-  // ── Spend cap check with actual budget ───────────────────────────────────────
-  const actualCapCheck = await checkSpendCap(workspaceId, rawBudget);
-  if (!actualCapCheck.allowed) {
-    await supabaseAdmin.from('campaign_boosts').update({
-      status:        'FAILED',
-      error_message: actualCapCheck.reason,
-      updated_at:    new Date().toISOString(),
-    }).eq('id', boostId);
-    // Pause the orphaned Meta campaign
-    try { await metaPost(`/${metaCampaignId}`, token, { status: 'PAUSED' }); } catch { /* non-fatal */ }
-    logger.warn({ boostId, rawBudget, reason: actualCapCheck.reason }, '[CampaignWorker] Boost paused by spend cap after creation');
-    return;
-  }
-
-  // ── Deduct from wallet ────────────────────────────────────────────────────
-
-  const { error: walletErr } = await supabaseAdmin.rpc('deduct_wallet_balance', {
-    p_workspace_id: workspaceId,
-    p_amount:       rawBudget,
-    p_description:  `Auto-boost: ${campaign.name}`,
-    p_campaign_id:  campaignId,
-  });
-
-  if (walletErr) {
-    logger.warn({ boostId, campaignId, err: walletErr.message }, '[CampaignWorker] Wallet deduction failed (boost still live)');
-  } else {
-    // Trigger auto top-up if balance dropped below threshold
-    await triggerAutoTopUp(workspaceId);
-  }
 }
 
 // ── Main processing pass ──────────────────────────────────────────────────────
@@ -426,85 +277,14 @@ async function runBoostProcessingPass(): Promise<void> {
   }
 }
 
-// ── Settle matured deposits (processing_balance → balance) ───────────────────
-// Stripe deposits have a hold period (DEPOSIT_HOLD_HOURS, default 48).
-// Once available_at has passed, move the amount from processing_balance to
-// balance so clients can use the credits.
-
-async function settleMaturedDeposits(): Promise<void> {
-  const now = new Date().toISOString();
-
-  // Find all PROCESSING transactions whose available_at has passed
-  const { data: txns, error } = await supabaseAdmin
-    .from('wallet_transactions')
-    .select('id, wallet_id, amount')
-    .eq('status', 'PROCESSING')
-    .lte('available_at', now)
-    .limit(50);
-
-  if (error) {
-    logger.error({ error }, '[CampaignWorker] Failed to query maturing deposits');
-    return;
-  }
-
-  if (!txns || txns.length === 0) return;
-
-  logger.info(`[CampaignWorker] Settling ${txns.length} matured deposit(s)…`);
-
-  for (const tx of txns) {
-    try {
-      const amount = Number(tx.amount);
-
-      // Move amount: deduct processing_balance, add to balance (atomic via RPC if available)
-      const { error: rpcErr } = await supabaseAdmin.rpc('settle_wallet_deposit', {
-        p_wallet_id: tx.wallet_id,
-        p_amount:    amount,
-      });
-
-      if (rpcErr) {
-        // Fallback: manual two-step update
-        const { data: wallet } = await supabaseAdmin
-          .from('wallets')
-          .select('balance, processing_balance')
-          .eq('id', tx.wallet_id)
-          .single();
-
-        if (wallet) {
-          await supabaseAdmin
-            .from('wallets')
-            .update({
-              balance:            (wallet.balance            || 0) + amount,
-              processing_balance: Math.max(0, (wallet.processing_balance || 0) - amount),
-              updated_at:         now,
-            })
-            .eq('id', tx.wallet_id);
-        }
-      }
-
-      // Mark transaction COMPLETED
-      await supabaseAdmin
-        .from('wallet_transactions')
-        .update({ status: 'COMPLETED', description: 'Campaign credits — available', updated_at: now })
-        .eq('id', tx.id);
-
-      logger.info({ txId: tx.id, walletId: tx.wallet_id, amount }, '[CampaignWorker] Deposit settled — credits now available');
-    } catch (err: any) {
-      logger.error({ err: err.message, txId: tx.id }, '[CampaignWorker] Deposit settlement failed for transaction');
-    }
-  }
-}
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function startCampaignWorker(): void {
-  logger.info('[CampaignWorker] Starting — boost processing every 2m, deposit settlement every 15m');
+  logger.info('[CampaignWorker] Starting — boost processing every 2m');
 
-  // Run immediately on boot, then on intervals
   runBoostProcessingPass().catch((err) =>
     logger.error({ err }, '[CampaignWorker] Initial boost pass failed')
-  );
-  settleMaturedDeposits().catch((err) =>
-    logger.error({ err }, '[CampaignWorker] Initial settlement pass failed')
   );
 
   setInterval(() => {
@@ -512,10 +292,4 @@ export function startCampaignWorker(): void {
       logger.error({ err }, '[CampaignWorker] Scheduled boost pass failed')
     );
   }, POLL_INTERVAL_MS);
-
-  setInterval(() => {
-    settleMaturedDeposits().catch((err) =>
-      logger.error({ err }, '[CampaignWorker] Scheduled settlement pass failed')
-    );
-  }, SETTLE_INTERVAL_MS);
 }

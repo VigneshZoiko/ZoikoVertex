@@ -1583,7 +1583,7 @@ function PublishPageInner() {
         <div className="flex items-center gap-4">
           <div className="relative w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl shadow-indigo-500/20">
             <Image
-              src="/images/logo-wordmark.svg"
+              src="/images/zoikovertexlogo.png"
               alt="Logo"
               fill
               sizes="48px"
@@ -1678,7 +1678,8 @@ function PublishPageInner() {
         {/* Main Composer - Left Side */}
         <div className="lg:col-span-7 space-y-4">
 
-          {/* ── Campaign Selector (top) ─────────────────────────────────────── */}
+          {/* ── Campaign Selector (top) — temporarily hidden ────────────────── */}
+          {/* TODO: re-enable when campaign linking is ready for publishing hub
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
@@ -1712,6 +1713,7 @@ function PublishPageInner() {
               </p>
             )}
           </div>
+          */}
 
           {/* ── Post To — Account Dropdown (top) ───────────────────────────── */}
           <AccountDropdown
@@ -2238,7 +2240,7 @@ function PublishPageInner() {
             );
           })()}
 
-          {/* Active Campaign linking — moved to top; keeping hidden for backward compat */}
+          {/* Active Campaign linking — temporarily hidden
           {(() => {
             const mediaType = assetType || (media?.type?.startsWith("video") ? "video" : media ? "image" : "");
             const count = selectedUrls.length || (media ? 1 : 0);
@@ -2285,6 +2287,7 @@ function PublishPageInner() {
               </div>
             );
           })()}
+          */}
 
           {/* Platform constraint warnings moved above campaign selector */}
 
@@ -2453,11 +2456,17 @@ function PublishPageInner() {
                 {recentPosts.map((post) => {
                   const isPub = post.status === "PUBLISHED";
                   const isFailed = post.status === "FAILED";
-                  const isPending = post.status === "APPROVED";
+                  const isApproved = post.status === "APPROVED";
+                  const isPending = post.status === "PENDING_REVIEW";
+                  const isReturned = post.status === "RETURNED";
+                  const isRejected = post.status === "REJECTED";
+                  const reviewerNote = post.reviewer_feedback || post.feedback;
                   return (
                     <div
                       key={post.id}
-                      className="p-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-xl"
+                      className={`p-2.5 bg-[var(--surface)] border rounded-xl ${
+                        isReturned ? "border-orange-500/40" : "border-[var(--border)]"
+                      }`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] font-bold text-indigo-400 uppercase">
@@ -2467,28 +2476,42 @@ function PublishPageInner() {
                           className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                             isPub
                               ? "bg-emerald-500/20 text-emerald-400"
-                              : isFailed
+                              : isFailed || isRejected
                                 ? "bg-rose-500/20 text-rose-400"
-                                : isPending
-                                  ? "bg-amber-500/20 text-amber-400"
-                                  : "bg-[var(--surface-hover)] text-[var(--foreground-muted)]"
+                                : isReturned
+                                  ? "bg-orange-500/20 text-orange-400"
+                                  : isPending
+                                    ? "bg-blue-500/20 text-blue-400"
+                                    : isApproved
+                                      ? "bg-amber-500/20 text-amber-400"
+                                      : "bg-[var(--surface-hover)] text-[var(--foreground-muted)]"
                           }`}
                         >
                           {isPub
                             ? "PUBLISHED"
                             : isFailed
                               ? "FAILED"
-                              : isPending
-                                ? "PROCESSING…"
-                                : post.status}
+                              : isRejected
+                                ? "REJECTED"
+                                : isReturned
+                                  ? "NEEDS CHANGES"
+                                  : isPending
+                                    ? "IN REVIEW"
+                                    : isApproved
+                                      ? "APPROVED"
+                                      : post.status}
                         </span>
                       </div>
                       <p className="text-[10px] text-[var(--foreground-muted)] truncate mb-1">
                         {post.content}
                       </p>
-                      {isFailed && post.feedback && (
-                        <p className="text-[9px] text-rose-400 bg-rose-500/10 rounded px-1.5 py-1 mt-1 break-words">
-                          {post.feedback}
+                      {(isFailed || isReturned || isRejected) && reviewerNote && (
+                        <p className={`text-[9px] rounded px-1.5 py-1 mt-1 break-words ${
+                          isReturned
+                            ? "text-orange-400 bg-orange-500/10"
+                            : "text-rose-400 bg-rose-500/10"
+                        }`}>
+                          {isReturned ? "Reviewer: " : ""}{reviewerNote}
                         </p>
                       )}
                       <p className="text-[9px] text-[var(--foreground-muted)] mt-1">

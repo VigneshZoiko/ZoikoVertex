@@ -110,19 +110,25 @@ export const fetchMetaAdAccounts = async (req: AuthRequest, res: Response) => {
 export const setAdAccount = async (req: AuthRequest, res: Response) => {
   const { id }      = req.params;
   const workspaceId = req.user?.workspace_id;
-  const { ad_account_id, ad_account_name, ad_account_currency } = req.body as { ad_account_id?: string; ad_account_name?: string; ad_account_currency?: string };
+  const { ad_account_id, ad_account_name, ad_account_currency, page_id } =
+    req.body as { ad_account_id?: string; ad_account_name?: string; ad_account_currency?: string; page_id?: string };
 
   if (!workspaceId) return res.status(400).json({ error: 'Missing workspace context' });
   if (!ad_account_id) return res.status(400).json({ error: 'ad_account_id required' });
 
   try {
+    const updatePayload: Record<string, string | null> = {
+      ad_account_id:       ad_account_id,
+      ad_account_name:     ad_account_name     || null,
+      ad_account_currency: ad_account_currency || null,
+    };
+    // Persist the numeric Facebook Page ID so the publisher can use it for ad creatives.
+    // Only update if provided — don't overwrite an existing page_id with null.
+    if (page_id) updatePayload.page_id = page_id;
+
     const { error } = await supabaseAdmin
       .from('connected_accounts')
-      .update({
-        ad_account_id:       ad_account_id,
-        ad_account_name:     ad_account_name     || null,
-        ad_account_currency: ad_account_currency || null,
-      })
+      .update(updatePayload)
       .eq('id', id)
       .eq('workspace_id', workspaceId);
 

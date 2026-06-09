@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRoleContext } from "@/lib/context/RoleContext";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
+import Toast from "@/components/Toast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -638,7 +640,12 @@ export default function InboxPage() {
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ synced: number; message: string } | null>(null);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const [deleteRuleConfirm, setDeleteRuleConfirm] = useState<{ id: string } | null>(null);
+  const [showDeleteSelectedConfirm, setShowDeleteSelectedConfirm] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [selectMode, setSelectMode] = useState(false);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
@@ -723,7 +730,7 @@ export default function InboxPage() {
       setEditingRule(null);
       setNewRuleName(""); setNewRuleKeywords(""); setNewRuleReply(""); setNewRuleCaseSensitive(false);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Failed to save rule");
+      setToast({ message: e instanceof Error ? e.message : "Failed to save rule", type: 'error' });
     } finally {
       setSavingRule(false);
     }
@@ -737,11 +744,7 @@ export default function InboxPage() {
   };
 
   const handleDeleteRule = async (id: string) => {
-    if (!confirm("Delete this auto-reply rule?")) return;
-    try {
-      await api.deleteInboxAutoReplyRule(id);
-      setAutoReplyRules(prev => prev.filter(r => r.id !== id));
-    } catch { /* silent */ }
+    setDeleteRuleConfirm({ id });
   };
 
   const startEditRule = (rule: AutoReplyRule) => {
@@ -834,7 +837,7 @@ export default function InboxPage() {
       setAiDraft(draft);
       setReplyBody(draft);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Failed");
+      setToast({ message: e instanceof Error ? e.message : "Failed to generate AI draft", type: 'error' });
     } finally {
       setGeneratingDraft(false);
     }
@@ -946,7 +949,7 @@ export default function InboxPage() {
       const res = await api.getInboxMessage(selectedId);
       setDetail(res.data);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Failed");
+      setToast({ message: e instanceof Error ? e.message : "Failed to add note", type: 'error' });
     } finally {
       setSavingNote(false);
     }
@@ -963,7 +966,7 @@ export default function InboxPage() {
       const res = await api.getInboxMessage(selectedId);
       setDetail(res.data);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Failed");
+      setToast({ message: e instanceof Error ? e.message : "Failed to escalate", type: 'error' });
     } finally {
       setEscalating(false);
     }
@@ -976,7 +979,7 @@ export default function InboxPage() {
       setMessages(prev => prev.filter(m => m.id !== selectedId));
       setSelectedId(null); setDetail(null);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Failed");
+      setToast({ message: e instanceof Error ? e.message : "Failed to archive", type: 'error' });
     }
   };
 
@@ -987,7 +990,7 @@ export default function InboxPage() {
       setDetail(prev => prev ? { ...prev, status } : prev);
       setMessages(prev => prev.map(m => m.id === selectedId ? { ...m, status } : m));
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Failed");
+      setToast({ message: e instanceof Error ? e.message : "Failed to update status", type: 'error' });
     }
   };
 
@@ -1000,6 +1003,7 @@ export default function InboxPage() {
       if (res.errors?.length) console.warn('[Inbox sync errors]', res.errors);
       setSyncResult({ synced: res.synced ?? 0, message: res.message || 'Sync complete' });
       if ((res.synced ?? 0) > 0) await fetchMessages();
+      setLastSynced(new Date());
       setTimeout(() => setSyncResult(null), 4000);
     } catch (e: unknown) {
       setSyncResult({ synced: 0, message: e instanceof Error ? e.message : "Sync failed" });
@@ -1008,6 +1012,14 @@ export default function InboxPage() {
       setSyncing(false);
     }
   };
+
+  // Auto-sync on mount and every 2 minutes
+  useEffect(() => {
+    handleSync();
+    const id = setInterval(() => { handleSync(); }, 120_000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleCheck = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1021,7 +1033,11 @@ export default function InboxPage() {
 
   const handleDeleteSelected = async () => {
     if (checkedIds.size === 0) return;
-    if (!confirm(`Delete ${checkedIds.size} message${checkedIds.size > 1 ? "s" : ""} from inbox? This cannot be undone.`)) return;
+    setShowDeleteSelectedConfirm(true);
+  };
+
+  const executeDeleteSelected = async () => {
+    setShowDeleteSelectedConfirm(false);
     setDeleting(true);
     try {
       await api.deleteInboxMessages(Array.from(checkedIds));
@@ -1034,7 +1050,7 @@ export default function InboxPage() {
       setCheckedIds(new Set());
       setSelectMode(false);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Delete failed");
+      setToast({ message: e instanceof Error ? e.message : "Delete failed", type: 'error' });
     } finally {
       setDeleting(false);
     }
@@ -1080,13 +1096,21 @@ export default function InboxPage() {
               Reload
             </button>
           ) : (
-            <button
-              onClick={handleSync} disabled={syncing}
-              className="flex items-center gap-1.5 text-[11px] text-sky-400/60 hover:text-sky-400 bg-sky-400/[0.04] hover:bg-sky-400/10 border border-sky-400/10 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30"
-            >
-              {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCcw className="w-3 h-3" />}
-              {syncing ? "Syncing…" : "Sync"}
-            </button>
+            <div className="flex items-center gap-2">
+              {lastSynced && !syncing && (
+                <span className="flex items-center gap-1 text-[10px] text-green-500/70">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  Live · {timeAgo(lastSynced.toISOString())} ago
+                </span>
+              )}
+              <button
+                onClick={handleSync} disabled={syncing}
+                className="flex items-center gap-1.5 text-[11px] text-sky-400/60 hover:text-sky-400 bg-sky-400/[0.04] hover:bg-sky-400/10 border border-sky-400/10 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+              >
+                {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCcw className="w-3 h-3" />}
+                {syncing ? "Syncing…" : "Sync"}
+              </button>
+            </div>
           )}
           <button
             onClick={openSettings}
@@ -1853,6 +1877,46 @@ export default function InboxPage() {
           </div>
         </div>,
         document.body
+      )}
+
+      {deleteRuleConfirm && (
+        <ConfirmActionModal
+          open={!!deleteRuleConfirm}
+          variant="danger"
+          title="Delete Auto-Reply Rule"
+          message="Delete this auto-reply rule?"
+          confirmLabel="Delete"
+          onConfirm={async () => {
+            const { id } = deleteRuleConfirm;
+            setDeleteRuleConfirm(null);
+            try {
+              await api.deleteInboxAutoReplyRule(id);
+              setAutoReplyRules(prev => prev.filter(r => r.id !== id));
+            } catch { /* silent */ }
+          }}
+          onCancel={() => setDeleteRuleConfirm(null)}
+        />
+      )}
+
+      {showDeleteSelectedConfirm && (
+        <ConfirmActionModal
+          open={showDeleteSelectedConfirm}
+          variant="danger"
+          title="Delete Messages"
+          message={`Delete ${checkedIds.size} message${checkedIds.size > 1 ? "s" : ""} from inbox? This cannot be undone.`}
+          confirmLabel="Delete"
+          loading={deleting}
+          onConfirm={executeDeleteSelected}
+          onCancel={() => setShowDeleteSelectedConfirm(false)}
+        />
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

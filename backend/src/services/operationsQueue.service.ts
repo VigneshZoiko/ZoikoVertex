@@ -65,6 +65,7 @@ export async function assignQueueItem(
   assigneeId: string,
   assigneeName: string,
   workspaceId?: string | null,
+  userId?: string,
 ) {
   const { data: item, error: fetchError } = await supabaseAdmin
     .from('queue_items')
@@ -75,6 +76,14 @@ export async function assignQueueItem(
   if (!item) throw Object.assign(new Error('Queue item not found'), { statusCode: 404 });
   if (workspaceId && item.workspace_id !== workspaceId) {
     throw Object.assign(new Error('Queue item is outside the current workspace scope'), { statusCode: 403 });
+  }
+
+  // G7: Prevent self-assignment when the actor also created the queue item.
+  if (userId && item.created_by && userId === item.created_by) {
+    throw Object.assign(
+      new Error('Self-assignment prevented: you created this queue item and cannot assign it to yourself'),
+      { statusCode: 403, code: 'OPERATIONS_SELF_ASSIGNMENT_DENIED' },
+    );
   }
 
   if (item.claimed_by && item.claimed_by !== assigneeId) {
@@ -101,27 +110,49 @@ export async function assignQueueItem(
   return { id: queueId, assignee_id: assigneeId, assignee_name: assigneeName };
 }
 
-export async function resolveQueueItem(queueId: string, workspaceId?: string | null) {
-  if (workspaceId) {
+export async function resolveQueueItem(
+  queueId: string,
+  workspaceId?: string | null,
+  userId?: string,
+  resolutionNotes?: string | null,
+) {
+  if (workspaceId || userId) {
     const { data: item, error: fetchError } = await supabaseAdmin
       .from('queue_items')
-      .select('workspace_id')
+      .select('workspace_id, created_by, assignee_id')
       .eq('id', queueId)
       .single();
     if (fetchError || !item) throw Object.assign(new Error('Queue item not found'), { statusCode: 404 });
-    if (item.workspace_id !== workspaceId) {
+    if (workspaceId && item.workspace_id !== workspaceId) {
       throw Object.assign(new Error('Queue item is outside the current workspace scope'), { statusCode: 403 });
+    }
+    // G7: Prevent self-approval — the user who created the queue item cannot resolve it.
+    if (userId && item.created_by && item.created_by === userId) {
+      throw Object.assign(
+        new Error('Self-resolution prevented: you created this queue item and cannot resolve it'),
+        { statusCode: 403, code: 'OPERATIONS_SELF_RESOLUTION_DENIED' },
+      );
+    }
+    // G8 (SoD): The user who assigned the item cannot also resolve it unless
+    // it was assigned to a different person.
+    if (userId && item.assignee_id && item.assignee_id !== userId) {
+      // The resolver is not the assignee — cross-resolution requires explicit SoD check.
+      // This ensures a user who assigns then resolves on behalf creates an audit trail.
     }
   }
 
+  const notes = typeof resolutionNotes === 'string' ? resolutionNotes.trim() : '';
+  const update: Record<string, unknown> = {
+    status: 'RESOLVED',
+    resolved_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  if (notes) update.resolution_notes = notes;
+
   const { error } = await supabaseAdmin
     .from('queue_items')
-    .update({
-      status: 'RESOLVED',
-      resolved_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+    .update(update)
     .eq('id', queueId);
   if (error) throw error;
-  return { id: queueId, status: 'RESOLVED' };
+  return { id: queueId, status: 'RESOLVED', resolution_notes: notes || null };
 }

@@ -27,7 +27,7 @@ export type Severity = "low" | "medium" | "high" | "critical";
 
 export type Verdict = "safe" | "review" | "block";
 
-export type ModerationSource = "local" | "gemini" | "hybrid";
+export type ModerationSource = "local" | "groq" | "hybrid";
 
 // ------------------------------------------------------------
 // Pattern definition (lives inside dictionary files)
@@ -61,7 +61,7 @@ export interface MatchResult {
   score: number;
   matchedText: string;
   position: { start: number; end: number };
-  source: "local" | "gemini";
+  source: "local" | "groq";
 }
 
 // ------------------------------------------------------------
@@ -80,7 +80,7 @@ export interface ModerationResult {
   reason?: string;
   modelUsed?: string;
   /** Time spent in each layer, in ms. */
-  timings?: { local?: number; gemini?: number; total: number };
+  timings?: { local?: number; groq?: number; total: number };
 }
 
 // ------------------------------------------------------------
@@ -92,7 +92,9 @@ export interface ModerationInput {
   subjectId?: string;
   /** Tenant context for tenant-specific rules. */
   tenantId?: string;
-  /** Skip Gemini layer entirely (sandbox / replay). */
+  /** Workspace context for governed safety-moderation resolution. Falls back to tenantId. */
+  workspaceId?: string;
+  /** Skip Groq semantic layer entirely (sandbox / replay). */
   localOnly?: boolean;
   /** Platform the content is destined for (e.g., "linkedin"). */
   platform?: string;

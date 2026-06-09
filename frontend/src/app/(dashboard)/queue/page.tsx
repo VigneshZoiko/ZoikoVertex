@@ -1025,19 +1025,24 @@ export default function ReviewQueuePage() {
 
                 const isBulkChecked = bulkSelected.has(item.id);
 
+                const handleCardClick = () => {
+                  if (bulkMode) {
+                    const next = new Set(bulkSelected);
+                    if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                    setBulkSelected(next);
+                  } else {
+                    setSelectedId(isSelected ? null : item.id);
+                  }
+                };
+
                 return (
-                  <button
+                  <div
                     key={item.id}
-                    onClick={() => {
-                      if (bulkMode) {
-                        const next = new Set(bulkSelected);
-                        if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
-                        setBulkSelected(next);
-                      } else {
-                        setSelectedId(isSelected ? null : item.id);
-                      }
-                    }}
-                    className={`w-full text-left bg-[var(--card)] border rounded-xl p-3 transition-all duration-150 hover:border-[var(--card-border)] border-l-4 ${risk.border} ${
+                    role="button"
+                    tabIndex={0}
+                    onClick={handleCardClick}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleCardClick(); } }}
+                    className={`w-full text-left bg-[var(--card)] border rounded-xl p-3 transition-all duration-150 hover:border-[var(--card-border)] border-l-4 cursor-pointer ${risk.border} ${
                       isSelected ? "border-indigo-500/40 border-l-indigo-500 bg-indigo-500/[0.02]" : "border-[var(--border)]"
                     } ${isBulkChecked ? "border-indigo-500/60 bg-indigo-500/5" : ""}`}
                   >
@@ -1146,7 +1151,7 @@ export default function ReviewQueuePage() {
                         <Pen className="w-2.5 h-2.5" /> Note
                       </button>
                     </div>
-                  </button>
+                  </div>
                 );
               })
             )}

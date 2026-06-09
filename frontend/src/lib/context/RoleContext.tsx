@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, ReactNode } from "react";
 import { api } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseReady } from "@/lib/supabase";
 
 interface RoleContextType {
   role: string | null;
@@ -14,6 +14,7 @@ interface RoleContextType {
   premiumPaidUntil: string | null;
   isSuperAdmin: boolean;
   isLoading: boolean;
+  isBackendOffline: boolean;
   hasRole: (allowedRoles: string[]) => boolean;
   refresh: () => Promise<void>;
 }
@@ -77,6 +78,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [premiumPaidUntil, setPremiumPaidUntil] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBackendOffline, setIsBackendOffline] = useState(false);
   const workspaceIdRef = useRef<string | null>(null);
 
   // Seed from localStorage before first paint — eliminates skeleton flash on revisit
@@ -99,8 +101,17 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     try {
       if (!background) setIsLoading(true);
 
-      const { data } = await supabase.auth.getUser();
-      const user = data?.user;
+      if (!isSupabaseReady) {
+        setRole(null);
+        setIsSuperAdmin(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // getSession() reads from localStorage — no network round-trip to Supabase Auth.
+      // The backend's authenticate middleware still verifies the JWT server-side.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
 
       if (!user) {
         setRole(null);
@@ -115,6 +126,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
       const result = await api.get("/api/v1/user/context");
       if (result.success) {
+        setIsBackendOffline(false);
         if (result.data.role) { nextRole = result.data.role.toUpperCase(); setRole(nextRole); }
         if (result.data.org_status) setOrgStatus(result.data.org_status);
         if (result.data.workspace_status) setWorkspaceStatus(result.data.workspace_status);
@@ -146,6 +158,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error("Failed to fetch user role context:", err);
+      setIsBackendOffline(true);
       if (!background) clearCache();
     } finally {
       if (!background) setIsLoading(false);
@@ -156,10 +169,17 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     const cached = readCache();
     fetchUserRole(!!cached);
 
+    if (!isSupabaseReady) return;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        // Always background — these fire on tab focus/token refresh, never block the UI
+      if (event === 'SIGNED_IN') {
+        // SIGNED_IN fires once after login — always refresh to pick up the new session
         fetchUserRole(true);
+      } else if (event === 'TOKEN_REFRESHED') {
+        // TOKEN_REFRESHED fires on tab re-focus / auto-renewal (up to once per hour).
+        // Skip if the localStorage cache is still fresh — the user context hasn't changed.
+        const cached = readCache();
+        if (!cached) fetchUserRole(true);
       } else if (event === 'SIGNED_OUT') {
         setRole(null);
         setOrgStatus(null);
@@ -213,6 +233,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     premiumPaidUntil,
     isSuperAdmin,
     isLoading,
+    isBackendOffline,
     hasRole,
     refresh: () => fetchUserRole(false),
   };

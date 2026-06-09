@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   CheckCircle2, XCircle, Clock, AlertTriangle, ArrowUpRight,
   RefreshCcw, AlertCircle, Search, Filter,
-  ChevronRight, UserPlus, ShieldCheck, FileText, MessageSquare,
+  ChevronRight, UserPlus, ShieldCheck, FileText,
   Eye, EyeOff, Download, Settings,
   Flag, Activity, ThumbsUp,
   ThumbsDown, MessageCircle,
-  HelpCircle, Info, ExternalLink,
+  Info, ExternalLink,
   ClipboardList,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -38,6 +38,37 @@ interface ApprovalDecision {
   decision: string; decision_reason?: string; decision_note?: string;
   condition_text?: string; condition_owner?: string; condition_due_at?: string;
   decided_at: string;
+}
+
+interface ApprovalStage {
+  id: string; approval_path_id: string; stage_order: number; stage_type: string;
+  required_role?: string; assigned_user?: string; stage_status: string;
+  completed_by?: string; completed_at?: string; due_at?: string;
+}
+
+interface ApprovalPathData {
+  path: { id: string; path_type: string; current_stage: number; total_stages: number } | null;
+  stages: ApprovalStage[];
+}
+
+interface ApprovalAuditEntry {
+  id: string; action: string; previous_value?: string; new_value?: string;
+  performed_by: string; performed_at: string;
+}
+
+interface ApprovalComment {
+  id: string; comment_body: string; visibility: string;
+  created_by: string; created_at: string;
+  creator?: { full_name?: string; email?: string };
+}
+
+interface ApprovalStats {
+  counts: {
+    pending_approval: number; in_review: number; waiting_on_others: number;
+    approved: number; rejected: number; changes_requested: number;
+    escalated: number; blocked: number; overdue: number;
+  };
+  approval_rate: number | null;
 }
 
 interface MetricCardDef {
@@ -107,55 +138,6 @@ const ELIGIBILITY_LABEL: Record<EligibilityState, { label: string; color: string
   WORKFLOW_COMPLETED:           { label: "Workflow Completed",     color: "text-emerald-400" },
 };
 
-// ─── Mock Data ───────────────────────────────────────────────────────────
-
-const MOCK_ITEMS: ApprovalItem[] = [
-  { id: "ai1", title: "Q2 LinkedIn Campaign — Executive Summary", item_type: "SOCIAL_POST", source_module: "Media Engine", campaign: "Q2 Brand Campaign", platform: "LinkedIn", approval_status: "PENDING_APPROVAL", required_approval_level: 3, submitted_by: "harsha@zoikovertex.com", submitter_name: "Harsha", validation_status: "Passed", risk_level: "HIGH", due_at: new Date(Date.now() + 7200000).toISOString(), sla_status: "On Track", last_activity: "2h ago", next_action: "Manager Review", created_at: "2026-05-22T08:00:00Z" },
-  { id: "ai2", title: "Legal Threat Response — Twitter DM", item_type: "INBOX_REPLY", source_module: "Inbox & Engagement", platform: "X", approval_status: "IN_REVIEW", required_approval_level: 4, assigned_approver_id: "user-legal", submitted_by: "naresh@zoikovertex.com", submitter_name: "Naresh", validation_status: "Warning", risk_level: "CRITICAL", due_at: new Date(Date.now() + 3600000).toISOString(), sla_status: "Due Soon", last_activity: "30m ago", next_action: "Legal Review", created_at: "2026-05-22T06:00:00Z" },
-  { id: "ai3", title: "Summer Sale — Facebook Carousel", item_type: "CAMPAIGN_ASSET", source_module: "Campaigns", campaign: "Summer Sale 2026", platform: "Instagram", approval_status: "WAITING_ON_OTHERS", required_approval_level: 2, submitted_by: "admin@zoikovertex.com", submitter_name: "Admin", validation_status: "Passed", risk_level: "MEDIUM", due_at: new Date(Date.now() + 86400000).toISOString(), sla_status: "On Track", last_activity: "4h ago", next_action: "Compliance Sign-Off", created_at: "2026-05-21T14:00:00Z" },
-  { id: "ai4", title: "AI Agent Action — Auto-Reply to Complaint", item_type: "AGENT_ACTION", source_module: "Agent Studio", platform: "All", approval_status: "APPROVED", required_approval_level: 3, assigned_approver_id: "user-agent-mgr", submitted_by: "system@zoikovertex.com", submitter_name: "System", validation_status: "Passed", risk_level: "HIGH", last_activity: "1h ago", next_action: "Execute", created_at: "2026-05-22T04:00:00Z" },
-  { id: "ai5", title: "Brand-Sensitive Inbox Reply — Zoiko", item_type: "INBOX_REPLY", source_module: "Inbox & Engagement", platform: "LinkedIn", approval_status: "REJECTED", required_approval_level: 3, submitted_by: "harsha@zoikovertex.com", submitter_name: "Harsha", validation_status: "Failed", risk_level: "HIGH", last_activity: "3h ago", next_action: "Revise", created_at: "2026-05-21T10:00:00Z" },
-  { id: "ai6", title: "Restricted Mode — Emergency Broadcast", item_type: "RESTRICTED_OPERATION", source_module: "Agent Operations", platform: "All", approval_status: "ESCALATED", required_approval_level: 5, submitted_by: "ops@zoikovertex.com", submitter_name: "Operations", validation_status: "Passed", risk_level: "CRITICAL", due_at: new Date(Date.now() + 1800000).toISOString(), sla_status: "Overdue", last_activity: "10m ago", next_action: "Executive Decision", created_at: "2026-05-22T02:00:00Z" },
-  { id: "ai7", title: "YouTube Sponsorship Script", item_type: "CAMPAIGN_ASSET", source_module: "Campaigns", campaign: "Sponsorship Q3", platform: "YouTube", approval_status: "CHANGES_REQUESTED", required_approval_level: 2, submitted_by: "naresh@zoikovertex.com", submitter_name: "Naresh", validation_status: "Warning", risk_level: "MEDIUM", due_at: new Date(Date.now() + 259200000).toISOString(), sla_status: "On Track", last_activity: "1d ago", next_action: "Submit Revision", created_at: "2026-05-20T09:00:00Z" },
-  { id: "ai8", title: "Workflow Output — Campaign Report", item_type: "WORKFLOW_OUTPUT", source_module: "AI Workflow Orchestration", campaign: "Monthly Report", approval_status: "CONDITIONAL_APPROVAL", required_approval_level: 2, submitted_by: "system@zoikovertex.com", submitter_name: "System", validation_status: "Passed", risk_level: "LOW", last_activity: "5h ago", next_action: "Condition Met", created_at: "2026-05-21T16:00:00Z" },
-  { id: "ai9", title: "Compliance Override — Policy Flag", item_type: "VALIDATION_OVERRIDE", source_module: "Validation Desk", platform: "All", approval_status: "BLOCKED", required_approval_level: 4, submitted_by: "validator@zoikovertex.com", submitter_name: "Validator", validation_status: "Failed", risk_level: "HIGH", due_at: new Date(Date.now() - 3600000).toISOString(), sla_status: "Breached", last_activity: "6h ago", next_action: "Revalidate", created_at: "2026-05-21T08:00:00Z" },
-  { id: "ai10", title: "TikTok Trend Post — Product Launch", item_type: "SOCIAL_POST", source_module: "Media Engine", campaign: "Product Launch", platform: "TikTok", approval_status: "PENDING_APPROVAL", required_approval_level: 1, submitted_by: "creator@zoikovertex.com", submitter_name: "Creator", validation_status: "Passed", risk_level: "LOW", last_activity: "20m ago", next_action: "Auto-Approve", created_at: "2026-05-22T10:00:00Z" },
-];
-
-const MOCK_METRICS: MetricCardDef[] = [
-  { id: "m1", label: "Pending Approval", count: 8, icon: Clock, color: "text-blue-400", filterTab: "queue" },
-  { id: "m2", label: "Assigned to Me", count: 3, icon: UserPlus, color: "text-indigo-400", filterTab: "assigned" },
-  { id: "m3", label: "Approved Today", count: 12, icon: CheckCircle2, color: "text-emerald-400", filterTab: "approved" },
-  { id: "m4", label: "Changes Requested", count: 5, icon: AlertTriangle, color: "text-orange-400", filterTab: "changes" },
-  { id: "m5", label: "Escalated", count: 2, icon: ArrowUpRight, color: "text-red-400", filterTab: "escalated" },
-  { id: "m6", label: "Overdue", count: 4, icon: AlertCircle, color: "text-rose-400", filterTab: "overdue" },
-];
-
-const MOCK_ALERTS: AlertDef[] = [
-  { id: "al1", type: "Critical Approvals Pending", message: "3 high-risk items past their SLA deadline require immediate attention", severity: "critical" },
-  { id: "al2", type: "SLA Breach", message: "Emergency Broadcast approval overdue — executive escalation required", severity: "critical" },
-  { id: "al3", type: "Validation Failure Present", message: "Validation Desk returned FAILED for 2 pending approvals", severity: "warning" },
-  { id: "al4", type: "Missing Approver", message: "Legal Threat Response has no assigned approver", severity: "warning" },
-  { id: "al5", type: "Blocked Approval Path", message: "Compliance Override has no valid approval path configured", severity: "warning" },
-  { id: "al6", type: "Restricted Operations Mode", message: "Restricted mode is active — all approvals require executive sign-off", severity: "info" },
-];
-
-const MOCK_DECISIONS: ApprovalDecision[] = [
-  { id: "d1", approver_id: "user-1", approver_name: "Harsha", decision: "APPROVED", decision_note: "LGTM", decided_at: "2026-05-22T09:00:00Z" },
-  { id: "d2", approver_id: "user-2", approver_name: "Naresh", decision: "REJECTED", decision_reason: "Content does not align with brand guidelines", decided_at: "2026-05-21T15:00:00Z" },
-  { id: "d3", approver_id: "user-3", approver_name: "Legal Bot", decision: "CHANGES_REQUESTED", decision_reason: "Legal disclaimer must be added", condition_owner: "user-1", condition_due_at: "2026-05-25T00:00:00Z", decided_at: "2026-05-21T10:00:00Z" },
-];
-
-const MOCK_PATH = {
-  path_type: "SEQUENTIAL" as const, current_stage: 2, total_stages: 4,
-  stages: [
-    { order: 1, label: "Manager Review", role: "Campaign Manager", status: "COMPLETED", completed_by: "Harsha", completed_at: "2026-05-22T08:00:00Z" },
-    { order: 2, label: "Legal Review", role: "Legal", status: "IN_PROGRESS", assigned: "Naresh" },
-    { order: 3, label: "Compliance", role: "Compliance", status: "PENDING" },
-    { order: 4, label: "Executive Sign-Off", role: "Executive", status: "PENDING" },
-  ],
-};
-
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 function timeAgo(date: string): string {
@@ -184,7 +166,8 @@ export default function ApprovalsPage() {
   const canDecide = isSuperAdmin || ['APPROVER', 'VALIDATOR', 'GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER'].includes(role ?? '');
   const canAssign = isSuperAdmin || ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER'].includes(role ?? '');
 
-  const [items, setItems] = useState<ApprovalItem[]>(MOCK_ITEMS);
+  const [items, setItems] = useState<ApprovalItem[]>([]);
+  const [stats, setStats] = useState<ApprovalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("queue");
@@ -200,25 +183,70 @@ export default function ApprovalsPage() {
   const [showLeft, setShowLeft] = useState(true);
   const [showRight, setShowRight] = useState(true);
   const [alertDismissed, setAlertDismissed] = useState<Set<string>>(new Set());
-  const [eligibility, setEligibility] = useState<EligibilityState>("APPROVAL_ELIGIBLE");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [commentText, setCommentText] = useState("");
 
+  // Per-item detail state
+  const [selectedDecisions, setSelectedDecisions] = useState<ApprovalDecision[]>([]);
+  const [selectedPath, setSelectedPath] = useState<ApprovalPathData | null>(null);
+  const [selectedEligibility, setSelectedEligibility] = useState<EligibilityState>("APPROVAL_ELIGIBLE");
+  const [selectedAuditLog, setSelectedAuditLog] = useState<ApprovalAuditEntry[]>([]);
+  const [selectedComments, setSelectedComments] = useState<ApprovalComment[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
   const selectedItem = items.find(i => i.id === selectedId) || null;
 
-  const handleAction = async (action: string, id: string) => {
+  // ─── Derived alerts from real stats ───────────────────────────────────
+  const activeAlerts = useMemo((): AlertDef[] => {
+    if (!stats) return [];
+    const alerts: AlertDef[] = [];
+    if (stats.counts.overdue > 0) {
+      alerts.push({ id: "al-overdue", type: "SLA Breach", message: `${stats.counts.overdue} item${stats.counts.overdue !== 1 ? 's are' : ' is'} past their SLA deadline`, severity: "critical" });
+    }
+    if (stats.counts.escalated > 0) {
+      alerts.push({ id: "al-escalated", type: "Escalated Items", message: `${stats.counts.escalated} item${stats.counts.escalated !== 1 ? 's require' : ' requires'} an escalation decision`, severity: "critical" });
+    }
+    const failedValidation = items.filter(i => i.validation_status === 'Failed').length;
+    if (failedValidation > 0) {
+      alerts.push({ id: "al-validation", type: "Validation Failures", message: `${failedValidation} item${failedValidation !== 1 ? 's have' : ' has'} failed validation`, severity: "warning" });
+    }
+    if (stats.counts.blocked > 0) {
+      alerts.push({ id: "al-blocked", type: "Blocked Items", message: `${stats.counts.blocked} item${stats.counts.blocked !== 1 ? 's are' : ' is'} blocked from progressing`, severity: "warning" });
+    }
+    return alerts;
+  }, [stats, items]);
+
+  // ─── Derived metrics from real stats ──────────────────────────────────
+  const activeMetrics: MetricCardDef[] = [
+    { id: "m1", label: "Pending Approval",   count: stats?.counts.pending_approval   ?? 0, icon: Clock,         color: "text-blue-400",    filterTab: "queue"     },
+    { id: "m2", label: "Assigned to Me",     count: stats?.counts.in_review          ?? 0, icon: UserPlus,      color: "text-indigo-400",  filterTab: "assigned"  },
+    { id: "m3", label: "Approved",           count: stats?.counts.approved            ?? 0, icon: CheckCircle2,  color: "text-emerald-400", filterTab: "approved"  },
+    { id: "m4", label: "Changes Requested",  count: stats?.counts.changes_requested  ?? 0, icon: AlertTriangle, color: "text-orange-400",  filterTab: "changes"   },
+    { id: "m5", label: "Escalated",          count: stats?.counts.escalated           ?? 0, icon: ArrowUpRight,  color: "text-red-400",     filterTab: "escalated" },
+    { id: "m6", label: "Overdue",            count: stats?.counts.overdue             ?? 0, icon: AlertCircle,   color: "text-rose-400",    filterTab: "overdue"   },
+  ];
+
+  const handleAction = async (action: string, id: string, body?: Record<string, any>) => {
     try {
-      const result = await api.post(`/api/v1/approvals-v2/items/${id}/${action}`, {});
+      let result;
+      if (action === 'assign' || action === 'reassign') {
+        result = await api.patch(`/api/v1/approvals-v2/items/${id}/${action}`, body || {});
+      } else if (action === 'export') {
+        result = await api.post(`/api/v1/approvals-v2/items/${id}/export`, {});
+      } else {
+        result = await api.post(`/api/v1/approvals-v2/items/${id}/action`, { action, ...body });
+      }
       if (result.success) {
         fetchItems();
-        setMessage({ type: "success", text: `${action} action completed on ${id}` });
+        if (selectedId === id) fetchItemDetails(id);
+        setMessage({ type: "success", text: `${action.replace(/_/g, ' ')} completed` });
         setTimeout(() => setMessage(null), 3000);
       } else {
         setMessage({ type: "error", text: result.error || `${action} failed` });
         setTimeout(() => setMessage(null), 5000);
       }
     } catch {
-      setMessage({ type: "error", text: `${action} action failed — network error` });
+      setMessage({ type: "error", text: `${action} failed — network error` });
       setTimeout(() => setMessage(null), 5000);
     }
   };
@@ -245,18 +273,50 @@ export default function ApprovalsPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const result = await api.get("/api/v1/approvals-v2/items");
-      if (result.success) setItems(result.data);
+      const [itemsResult, statsResult] = await Promise.all([
+        api.get("/api/v1/approvals-v2/items"),
+        api.get("/api/v1/approvals-v2/stats"),
+      ]);
+      if (itemsResult.success) setItems(itemsResult.data);
+      if (statsResult.success) setStats(statsResult.data);
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to load approvals"); } finally { setLoading(false); }
   }, []);
 
+  const fetchItemDetails = useCallback(async (id: string) => {
+    setDetailsLoading(true);
+    try {
+      const [decisionsRes, pathRes, eligibilityRes, auditRes, commentsRes] = await Promise.all([
+        api.get(`/api/v1/approvals-v2/items/${id}/decisions`),
+        api.get(`/api/v1/approvals-v2/items/${id}/path`),
+        api.get(`/api/v1/approvals-v2/items/${id}/eligibility`),
+        api.get(`/api/v1/approvals-v2/items/${id}/audit-log`),
+        api.get(`/api/v1/approvals-v2/items/${id}/comments`),
+      ]);
+      if (decisionsRes.success) setSelectedDecisions(decisionsRes.data);
+      if (pathRes.success) setSelectedPath(pathRes.data);
+      if (eligibilityRes.success) setSelectedEligibility(eligibilityRes.data.eligibility);
+      if (auditRes.success) setSelectedAuditLog(auditRes.data);
+      if (commentsRes.success) setSelectedComments(commentsRes.data);
+    } catch {} finally { setDetailsLoading(false); }
+  }, []);
+
   useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  useEffect(() => {
+    if (selectedId) {
+      fetchItemDetails(selectedId);
+    } else {
+      setSelectedDecisions([]); setSelectedPath(null);
+      setSelectedEligibility("APPROVAL_ELIGIBLE");
+      setSelectedAuditLog([]); setSelectedComments([]);
+    }
+  }, [selectedId, fetchItemDetails]);
 
   const dismissAlert = (id: string) => {
     const next = new Set(alertDismissed); next.add(id); setAlertDismissed(next);
   };
 
-  const visibleAlerts = MOCK_ALERTS.filter(a => !alertDismissed.has(a.id));
+  const visibleAlerts = activeAlerts.filter(a => !alertDismissed.has(a.id));
 
   const filteredItems = items.filter(item => {
     const q = search.toLowerCase();
@@ -281,22 +341,7 @@ export default function ApprovalsPage() {
     return true;
   });
 
-  const activeMetrics = MOCK_METRICS.map(m => ({
-    ...m,
-    count: m.filterTab ? items.filter(i => {
-      switch (m.filterTab) {
-        case "queue": return i.approval_status === "PENDING_APPROVAL";
-        case "assigned": return i.approval_status === "IN_REVIEW";
-        case "approved": return i.approval_status === "APPROVED";
-        case "changes": return i.approval_status === "CHANGES_REQUESTED";
-        case "escalated": return i.approval_status === "ESCALATED";
-        case "overdue": return i.sla_status === "Breached" || i.sla_status === "Overdue";
-        default: return false;
-      }
-    }).length : m.count,
-  }));
-
-  const decisions = selectedId === "ai1" ? MOCK_DECISIONS : [];
+  const eligibilityInfo = ELIGIBILITY_LABEL[selectedEligibility] ?? { label: selectedEligibility, color: "text-slate-400" };
 
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col bg-[#0e0e0e]">
@@ -348,8 +393,8 @@ export default function ApprovalsPage() {
                   onClick={() => {
                     if (roleBlocked) return;
                     if (btn.key === "bulk_approve" && bulkSelected.size > 0) {
-                      Array.from(bulkSelected).forEach(id => handleAction("approve", id));
-                      setBulkSelected(new Set()); setBulkMode(false);
+                      handleBulkAction("approve");
+                      setBulkMode(false);
                     } else if (selectedId) {
                       handleAction(btn.key, selectedId);
                     }
@@ -619,38 +664,49 @@ export default function ApprovalsPage() {
                         ))}
                       </div>
                     </div>
-                    <div className="col-span-2 bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
-                      <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-3">Approval Path — {MOCK_PATH.path_type}</p>
-                      <div className="flex items-center gap-2">
-                        {MOCK_PATH.stages.map((s, i) => (
-                          <div key={s.order} className="flex-1">
-                            <div className={`p-2.5 rounded-lg border text-center text-[10px] ${
-                              s.status === "COMPLETED" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" :
-                              s.status === "IN_PROGRESS" ? "bg-blue-500/10 border-blue-500/30 text-blue-300" :
-                              "bg-[#0a0a0a] border-[#2d2d2d] text-[#555]"
-                            }`}>
-                              <p className="font-bold">{s.label}</p>
-                              <p className="mt-0.5">{s.role}{s.assigned ? ` (${s.assigned})` : ""}</p>
-                              {s.completed_by && <p className="mt-0.5 opacity-60">by {s.completed_by}</p>}
-                            </div>
-                            {i < MOCK_PATH.stages.length - 1 && (
-                              <div className="flex justify-center py-1"><ChevronRight className="w-3 h-3 text-[#444]" /></div>
-                            )}
+                    {selectedPath && (
+                      <div className="col-span-2 bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
+                        <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-3">
+                          Approval Path — {selectedPath.path?.path_type ?? "—"}
+                          <span className="ml-2 text-[#555] normal-case font-normal">Stage {selectedPath.path?.current_stage} of {selectedPath.path?.total_stages}</span>
+                        </p>
+                        {selectedPath.stages.length === 0 ? (
+                          <p className="text-xs text-[#555]">No stages configured for this approval path.</p>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            {selectedPath.stages.map((s, i) => (
+                              <div key={s.id} className="flex-1">
+                                <div className={`p-2.5 rounded-lg border text-center text-[10px] ${
+                                  s.stage_status === "COMPLETED" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" :
+                                  s.stage_status === "IN_PROGRESS" ? "bg-blue-500/10 border-blue-500/30 text-blue-300" :
+                                  "bg-[#0a0a0a] border-[#2d2d2d] text-[#555]"
+                                }`}>
+                                  <p className="font-bold">Stage {s.stage_order}</p>
+                                  <p className="mt-0.5">{s.required_role || s.stage_type}{s.assigned_user ? ` (${s.assigned_user})` : ""}</p>
+                                  {s.completed_by && <p className="mt-0.5 opacity-60">by {s.completed_by}</p>}
+                                </div>
+                                {i < selectedPath.stages.length - 1 && (
+                                  <div className="flex justify-center py-1"><ChevronRight className="w-3 h-3 text-[#444]" /></div>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
                 {workspaceTab === "history" && (
                   <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
                     <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-3">Decision History</p>
-                    {decisions.length === 0 ? (
+                    {detailsLoading ? (
+                      <p className="text-xs text-[#555]">Loading...</p>
+                    ) : selectedDecisions.length === 0 ? (
                       <p className="text-xs text-[#555]">No decisions recorded yet</p>
                     ) : (
                       <div className="space-y-3">
-                        {decisions.map(d => (
+                        {selectedDecisions.map(d => (
                           <div key={d.id} className="flex items-start gap-3 p-3 bg-[#0a0a0a] rounded-lg border border-[#2d2d2d]">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
                               d.decision === "APPROVED" ? "bg-emerald-500/10" :
@@ -662,7 +718,7 @@ export default function ApprovalsPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-white">{d.approver_name}</span>
+                                <span className="text-xs font-bold text-white">{d.approver_name || d.approver_id}</span>
                                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                                   d.decision === "APPROVED" ? "text-emerald-400 bg-emerald-500/10" :
                                   d.decision === "REJECTED" ? "text-rose-400 bg-rose-500/10" : "text-orange-400 bg-orange-500/10"
@@ -686,10 +742,31 @@ export default function ApprovalsPage() {
                       <input value={commentText} onChange={e => setCommentText(e.target.value)}
                         placeholder="Add a comment..."
                         className="flex-1 bg-[#0a0a0a] border border-[#2d2d2d] rounded-lg px-3 py-2 text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
-                      <button onClick={() => { if (commentText.trim() && selectedId) { handleAction("comment", selectedId); setCommentText(""); } }}
+                      <button onClick={() => {
+                        if (commentText.trim() && selectedId) {
+                          api.post(`/api/v1/approvals-v2/items/${selectedId}/comments`, { body: commentText, visibility: 'internal_only' })
+                            .then(r => { if (r.success) { setCommentText(""); fetchItemDetails(selectedId); } });
+                        }
+                      }}
                         className="px-3 py-2 bg-indigo-500/20 text-indigo-300 rounded-lg text-xs font-medium hover:bg-indigo-500/30">Send</button>
                     </div>
-                    <p className="text-xs text-[#555] text-center py-4">No comments yet. Be the first to add feedback.</p>
+                    {detailsLoading ? (
+                      <p className="text-xs text-[#555]">Loading...</p>
+                    ) : selectedComments.length === 0 ? (
+                      <p className="text-xs text-[#555] text-center py-4">No comments yet. Be the first to add feedback.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {selectedComments.map(c => (
+                          <div key={c.id} className="p-3 bg-[#0a0a0a] rounded-lg border border-[#2d2d2d]">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-bold text-white">{c.creator?.full_name || c.creator?.email || c.created_by}</span>
+                              <span className="text-[9px] text-[#555]">{timeAgo(c.created_at)}</span>
+                            </div>
+                            <p className="text-[11px] text-[#888]">{c.comment_body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -699,9 +776,39 @@ export default function ApprovalsPage() {
                   </div>
                 )}
 
-                {(workspaceTab === "evidence" || workspaceTab === "next-destination" || workspaceTab === "path") && (
+                {(workspaceTab === "evidence" || workspaceTab === "next-destination") && (
                   <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 text-center">
                     <p className="text-xs text-[#555]">This tab will display data once the approval workflow progresses</p>
+                  </div>
+                )}
+
+                {workspaceTab === "path" && (
+                  <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
+                    <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-3">Approval Path</p>
+                    {detailsLoading ? (
+                      <p className="text-xs text-[#555]">Loading...</p>
+                    ) : !selectedPath?.path ? (
+                      <p className="text-xs text-[#555]">No approval path configured for this item.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedPath.stages.map(s => (
+                          <div key={s.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-[#0a0a0a] border border-[#2d2d2d]">
+                            <div className={`w-2 h-2 rounded-full ${
+                              s.stage_status === "COMPLETED" ? "bg-emerald-400" :
+                              s.stage_status === "IN_PROGRESS" ? "bg-blue-400 animate-pulse" : "bg-[#333]"
+                            }`} />
+                            <div className="flex-1">
+                              <p className="text-xs text-[#ccc]">Stage {s.stage_order} · {s.required_role || s.stage_type}</p>
+                              {s.assigned_user && <p className="text-[10px] text-[#555]">Assigned: {s.assigned_user}</p>}
+                            </div>
+                            <span className={`text-[10px] font-medium ${
+                              s.stage_status === "COMPLETED" ? "text-emerald-400" :
+                              s.stage_status === "IN_PROGRESS" ? "text-blue-400" : "text-[#555]"
+                            }`}>{s.stage_status.replace(/_/g, ' ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -717,8 +824,8 @@ export default function ApprovalsPage() {
               <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-3">
                 <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Eligibility</p>
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-xs font-medium text-emerald-400">Approval Eligible</span>
+                  <ShieldCheck className={`w-3.5 h-3.5 ${eligibilityInfo.color}`} />
+                  <span className={`text-xs font-medium ${eligibilityInfo.color}`}>{eligibilityInfo.label}</span>
                 </div>
               </div>
 
@@ -774,18 +881,18 @@ export default function ApprovalsPage() {
               </div>
 
               {/* Path Progress */}
-              {MOCK_PATH.stages.length > 0 && (
+              {selectedPath && selectedPath.stages.length > 0 && (
                 <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-3">
                   <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Path Progress</p>
                   <div className="space-y-2">
-                    {MOCK_PATH.stages.map(s => (
-                      <div key={s.order} className="flex items-center gap-2">
+                    {selectedPath.stages.map(s => (
+                      <div key={s.id} className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${
-                          s.status === "COMPLETED" ? "bg-emerald-400" :
-                          s.status === "IN_PROGRESS" ? "bg-blue-400 animate-pulse" : "bg-[#333]"
+                          s.stage_status === "COMPLETED" ? "bg-emerald-400" :
+                          s.stage_status === "IN_PROGRESS" ? "bg-blue-400 animate-pulse" : "bg-[#333]"
                         }`} />
-                        <span className={`text-[10px] ${s.status === "COMPLETED" ? "text-emerald-300" : s.status === "IN_PROGRESS" ? "text-blue-300" : "text-[#555]"}`}>
-                          {s.label} · {s.role}
+                        <span className={`text-[10px] ${s.stage_status === "COMPLETED" ? "text-emerald-300" : s.stage_status === "IN_PROGRESS" ? "text-blue-300" : "text-[#555]"}`}>
+                          Stage {s.stage_order} · {s.required_role || s.stage_type}
                         </span>
                       </div>
                     ))}
@@ -793,24 +900,26 @@ export default function ApprovalsPage() {
                 </div>
               )}
 
-              {/* Timeline */}
+              {/* Activity — from audit log */}
               <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-3">
                 <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Activity</p>
-                <div className="space-y-2">
-                  {[
-                    { event: "Submitted for approval", time: "2h ago" },
-                    { event: "Assigned to Campaign Manager", time: "1h 45m ago" },
-                    { event: "Manager review started", time: "1h ago" },
-                  ].map((a, i) => (
-                    <div key={`act-${i}`} className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400/50 mt-1 shrink-0" />
-                      <div>
-                        <p className="text-[10px] text-[#888]">{a.event}</p>
-                        <p className="text-[9px] text-[#555]">{a.time}</p>
+                {detailsLoading ? (
+                  <p className="text-[10px] text-[#555]">Loading...</p>
+                ) : selectedAuditLog.length === 0 ? (
+                  <p className="text-[10px] text-[#555]">No activity recorded yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedAuditLog.slice(0, 10).map(entry => (
+                      <div key={entry.id} className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400/50 mt-1 shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-[#888]">{entry.action.replace(/_/g, ' ')}{entry.new_value ? ` → ${entry.new_value}` : ""}</p>
+                          <p className="text-[9px] text-[#555]">{timeAgo(entry.performed_at)}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

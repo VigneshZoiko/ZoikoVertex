@@ -5,6 +5,8 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import * as qaService from '../../services/qualityAudit.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
 import { logger } from '../../shared/logger';
+import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
+import { buildAuthContext } from '../../shared/serviceAuth';
 
 function getParamId(req: AuthRequest): string {
   const v = req.params.id;
@@ -65,13 +67,34 @@ export const performQualityCheck = async (req: AuthRequest, res: Response, next:
       "optimized_content": "string"
     }`;
     logger.info({ userId, platforms }, '[QA] Performing quality check');
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.5,
+    const workspaceId = (req.user?.workspace_id as string) || DEFAULT_TENANT_ID;
+    const callModel = async (p: string): Promise<string> => {
+      const c = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: p }],
+        response_format: { type: "json_object" },
+        temperature: 0.5,
+      });
+      return c.choices[0]?.message?.content || '';
+    };
+    // Phase 4.B — prefer the governed prompt; on governance block, record an
+    // audited fallback (fail-closed in production when PROMPT_GOVERNANCE_ENFORCED)
+    // and fall back to the inline prompt so behavior is unchanged while the flag is off.
+    const governed = await GovernedModelGate.execute({
+      useCaseKey: 'qa_quality_check',
+      workspaceId,
+      variables: { content: content || '', platforms: (platforms || []).join(', ') },
+      modelProvider: 'groq',
+      actorId: userId,
+      invoke: callModel,
     });
-    const text = completion.choices[0].message.content;
+    let text: string;
+    if (governed.ok) {
+      text = governed.output || '';
+    } else {
+      await GovernedModelGate.legacyInlineFallback('qa_quality_check', workspaceId, `governed prompt unavailable: ${governed.code}`);
+      text = await callModel(prompt);
+    }
     if (!text) throw new Error('QA Engine returned empty response');
     const result = JSON.parse(text);
     res.status(200).json({ success: true, data: result });
@@ -161,7 +184,8 @@ export const getQaAuditTrail = async (req: AuthRequest, res: Response, next: Nex
 export const startAudit = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
-    await qaService.updateAuditStatus(getParamId(req), 'IN_AUDIT', userId, { tenant_id: userId });
+    const auth = buildAuthContext(req.user);
+    await qaService.updateAuditStatus(getParamId(req), 'IN_AUDIT', userId, { tenant_id: userId }, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -171,7 +195,8 @@ export const startAudit = async (req: AuthRequest, res: Response, next: NextFunc
 export const passAudit = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
-    await qaService.updateAuditStatus(getParamId(req), 'PASSED', userId, { tenant_id: userId });
+    const auth = buildAuthContext(req.user);
+    await qaService.updateAuditStatus(getParamId(req), 'PASSED', userId, { tenant_id: userId }, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -181,15 +206,16 @@ export const passAudit = async (req: AuthRequest, res: Response, next: NextFunct
 export const failAudit = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const { failure_reason, severity_classification } = req.body;
-    await qaService.updateAuditStatus(getParamId(req), 'FAILED', userId, { tenant_id: userId });
+    await qaService.updateAuditStatus(getParamId(req), 'FAILED', userId, { tenant_id: userId }, auth);
     await qaService.createDefect({
       audit_item_id: getParamId(req),
       defect_category: 'accuracy_issue',
       defect_severity: severity_classification || 'MODERATE',
       defect_description: failure_reason || 'Failed audit',
       created_by: userId,
-    });
+    }, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -199,15 +225,16 @@ export const failAudit = async (req: AuthRequest, res: Response, next: NextFunct
 export const needsCorrection = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const { correction_reason } = req.body;
-    await qaService.updateAuditStatus(getParamId(req), 'NEEDS_CORRECTION', userId, { tenant_id: userId });
+    await qaService.updateAuditStatus(getParamId(req), 'NEEDS_CORRECTION', userId, { tenant_id: userId }, auth);
     await qaService.createCorrectiveAction({
       audit_item_id: getParamId(req),
       title: correction_reason || 'Needs correction',
       priority: 'MEDIUM',
       required_action: correction_reason || '',
       created_by: userId,
-    });
+    }, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -217,7 +244,8 @@ export const needsCorrection = async (req: AuthRequest, res: Response, next: Nex
 export const escalateAudit = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
-    await qaService.updateAuditStatus(getParamId(req), 'ESCALATED', userId, { tenant_id: userId });
+    const auth = buildAuthContext(req.user);
+    await qaService.updateAuditStatus(getParamId(req), 'ESCALATED', userId, { tenant_id: userId }, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -227,7 +255,8 @@ export const escalateAudit = async (req: AuthRequest, res: Response, next: NextF
 export const closeAudit = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
-    await qaService.updateAuditStatus(getParamId(req), 'CLOSED', userId, { tenant_id: userId });
+    const auth = buildAuthContext(req.user);
+    await qaService.updateAuditStatus(getParamId(req), 'CLOSED', userId, { tenant_id: userId }, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -237,10 +266,11 @@ export const closeAudit = async (req: AuthRequest, res: Response, next: NextFunc
 export const assignAuditorToItem = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const tenant_id = req.user?.workspace_id || userId;
     const { auditor_id } = req.body;
     if (!auditor_id) return res.status(400).json({ error: 'auditor_id required' });
-    await qaService.assignAuditor(getParamId(req), auditor_id, userId, tenant_id);
+    await qaService.assignAuditor(getParamId(req), auditor_id, userId, tenant_id, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -252,11 +282,12 @@ export const assignAuditorToItem = async (req: AuthRequest, res: Response, next:
 export const saveScorecard = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const result = await qaService.upsertScorecard({
       audit_item_id: getParamId(req),
       ...req.body,
       scored_by: userId,
-    });
+    }, auth);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -266,9 +297,10 @@ export const saveScorecard = async (req: AuthRequest, res: Response, next: NextF
 export const overrideScorecard = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const tenant_id = req.user?.workspace_id || userId;
     const { score_override, score_override_reason, score_override_note } = req.body;
-    await qaService.applyScoreOverride(getParamId(req), score_override, score_override_reason || '', score_override_note || '', userId, tenant_id);
+    await qaService.applyScoreOverride(getParamId(req), score_override, score_override_reason || '', score_override_note || '', userId, tenant_id, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -280,6 +312,7 @@ export const overrideScorecard = async (req: AuthRequest, res: Response, next: N
 export const addDefect = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const defect = await qaService.createDefect({
       audit_item_id: getParamId(req),
       defect_category: req.body.defect_category,
@@ -288,7 +321,7 @@ export const addDefect = async (req: AuthRequest, res: Response, next: NextFunct
       evidence_reference: req.body.evidence_reference,
       corrective_action_required: req.body.corrective_action_required,
       created_by: userId,
-    });
+    }, auth);
     res.json({ success: true, data: defect });
   } catch (error) {
     next(error);
@@ -298,8 +331,9 @@ export const addDefect = async (req: AuthRequest, res: Response, next: NextFunct
 export const resolveDefect = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const tenant_id = req.user?.workspace_id || userId;
-    await qaService.resolveDefect(req.params.defectId as string, userId, tenant_id);
+    await qaService.resolveDefect(req.params.defectId as string, userId, tenant_id, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -311,6 +345,7 @@ export const resolveDefect = async (req: AuthRequest, res: Response, next: NextF
 export const addCorrectiveAction = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const action = await qaService.createCorrectiveAction({
       audit_item_id: getParamId(req),
       defect_id: req.body.defect_id,
@@ -320,7 +355,7 @@ export const addCorrectiveAction = async (req: AuthRequest, res: Response, next:
       required_action: req.body.required_action,
       due_at: req.body.due_at,
       created_by: userId,
-    });
+    }, auth);
     res.json({ success: true, data: action });
   } catch (error) {
     next(error);
@@ -330,8 +365,9 @@ export const addCorrectiveAction = async (req: AuthRequest, res: Response, next:
 export const updateCorrectiveAction = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const tenant_id = req.user?.workspace_id || userId;
-    await qaService.updateCorrectiveAction(req.params.actionId as string, req.body, userId, tenant_id);
+    await qaService.updateCorrectiveAction(req.params.actionId as string, req.body, userId, tenant_id, auth);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -343,11 +379,12 @@ export const updateCorrectiveAction = async (req: AuthRequest, res: Response, ne
 export const addQaNote = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const note = await qaService.addAuditNote({
       audit_item_id: getParamId(req),
       note_body: req.body.note_body,
       created_by: userId,
-    });
+    }, auth);
     res.json({ success: true, data: note });
   } catch (error) {
     next(error);
@@ -357,13 +394,14 @@ export const addQaNote = async (req: AuthRequest, res: Response, next: NextFunct
 export const addQaEvidence = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const evidence = await qaService.addEvidence({
       audit_item_id: getParamId(req),
       evidence_type: req.body.evidence_type,
       evidence_reference: req.body.evidence_reference,
       source_module: req.body.source_module,
       created_by: userId,
-    });
+    }, auth);
     res.json({ success: true, data: evidence });
   } catch (error) {
     next(error);
@@ -376,13 +414,14 @@ export const generateSample = async (req: AuthRequest, res: Response, next: Next
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const userId = req.user?.id || '';
+    const auth = buildAuthContext(req.user);
     const result = await qaService.generateSample({
       tenant_id,
       workspace_id: tenant_id,
       source_module: req.body.source_module,
       count: parseInt(req.body.count) || 10,
       created_by: userId,
-    });
+    }, auth);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -393,7 +432,8 @@ export const retryQaCallback = async (req: AuthRequest, res: Response, next: Nex
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
-    const cb = await qaService.retryCallback(getParam(req, 'callbackId'), performed_by, tenant_id);
+    const auth = buildAuthContext(req.user);
+    const cb = await qaService.retryCallback(getParam(req, 'callbackId'), performed_by, tenant_id, auth);
     res.json({ success: true, data: cb });
   } catch (error) {
     next(error);
@@ -404,7 +444,8 @@ export const retryQaCallbackByItem = async (req: AuthRequest, res: Response, nex
   try {
     const tenant_id = req.user?.workspace_id || DEFAULT_TENANT_ID;
     const performed_by = req.user?.id || '';
-    const cb = await qaService.findAndRetryCallback(getParamId(req), performed_by, tenant_id);
+    const auth = buildAuthContext(req.user);
+    const cb = await qaService.findAndRetryCallback(getParamId(req), performed_by, tenant_id, auth);
     if (!cb) return res.status(404).json({ success: false, error: 'No callback found for this item' });
     res.json({ success: true, data: cb });
   } catch (error) {

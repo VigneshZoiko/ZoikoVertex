@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 //   policy_results columns: id, run_id, policy_id, policy_version, outcome,
 //     severity, failed_rule, check_category, affected_output_ref,
 //     remediation_required, remediation_path, platform, notes, created_at
-export type PolicyOutcome = 'pass' | 'warning' | 'blocked';
+export type PolicyOutcome = 'pass' | 'warning' | 'blocked' | 'not_evaluated';
 export type PolicySeverity = 'normal' | 'attention' | 'warning' | 'critical' | 'blocked';
 
 export interface PolicyResult {
@@ -41,6 +41,39 @@ type PolicyEvaluation = {
 };
 
 const POLICY_ENGINE_VERSION = 'operations-local-1.1';
+
+// ── Fail-Closed Guard ───────────────────────────────────────────────────────
+// Blocks policy evaluation when the engine state makes evaluation unsafe.
+// G5 fix: fail-closed on missing/empty/malformed run data or engine misconfig.
+export interface FailClosedGuardResult {
+  blocked: boolean;
+  reason: string | null;
+  outcome: PolicyOutcome;
+}
+
+export function failClosedGuard(run: Record<string, unknown> | null | undefined): FailClosedGuardResult {
+  // No run at all — cannot evaluate.
+  if (!run) {
+    return { blocked: true, reason: 'Run not found or not provided', outcome: 'not_evaluated' };
+  }
+
+  // Engine explicitly disabled — fail closed, not open.
+  if (process.env.OPERATIONS_POLICY_ENGINE_DISABLED === 'true') {
+    return { blocked: true, reason: 'Policy engine is disabled by configuration', outcome: 'not_evaluated' };
+  }
+
+  // Run has no task objective, agent name, or workflow — missing critical evaluation input.
+  if (!run.task_objective && !run.workflow_name && !run.agent_name) {
+    return { blocked: true, reason: 'Run lacks task_objective, workflow_name, and agent_name — insufficient data for evaluation', outcome: 'not_evaluated' };
+  }
+
+  // Environment is missing — we cannot determine scope of evaluation.
+  if (!run.environment) {
+    return { blocked: true, reason: 'Run environment is not set — cannot determine evaluation scope', outcome: 'not_evaluated' };
+  }
+
+  return { blocked: false, reason: null, outcome: 'pass' };
+}
 
 // ---------------------------------------------------------------------------
 // Detection keyword groups.
@@ -316,12 +349,63 @@ export async function runPolicyCheck(runId: string) {
     // Fail closed: block external actions when the engine is unavailable.
     await supabaseAdmin
       .from('agent_runs')
-      .update({ policy_result: 'blocked', status: 'POLICY_BLOCKED', updated_at: new Date().toISOString() })
+      .update({ policy_result: 'not_evaluated', status: 'POLICY_BLOCKED', updated_at: new Date().toISOString() })
       .eq('id', runId);
     throw Object.assign(new Error('Policy engine unavailable; external actions are blocked fail-closed'), {
       statusCode: 503,
       code: 'POLICY_ENGINE_UNAVAILABLE',
     });
+  }
+
+  // Apply fail-closed guard: if the run data is incomplete/malformed, record
+  // not_evaluated results rather than silently passing (G5/G6 fix).
+  const guardResult = failClosedGuard(run as Record<string, unknown>);
+  if (guardResult.blocked) {
+    // Record a not_evaluated policy result for the audit trail.
+    const resultId = uuidv4();
+    const row = {
+      id: resultId,
+      run_id: runId,
+      policy_id: null,
+      policy_version: POLICY_ENGINE_VERSION,
+      outcome: 'not_evaluated' as PolicyOutcome,
+      severity: 'blocked' as PolicySeverity,
+      failed_rule: guardResult.reason,
+      check_category: 'system_integrity',
+      affected_output_ref: null,
+      remediation_required: true,
+      remediation_path: 'Provide complete run data (task objective, environment) and re-check policy.',
+      platform: null,
+      notes: `${POLICY_ENGINE_VERSION} — fail-closed guard`,
+    };
+    const { error: insertError } = await supabaseAdmin.from('policy_results').insert(row);
+    if (insertError) throw insertError;
+
+    // Mark the run as not_evaluated / POLICY_BLOCKED so downstream systems
+    // know evaluation was skipped due to safety, not because it passed.
+    await supabaseAdmin
+      .from('agent_runs')
+      .update({ policy_result: 'not_evaluated', status: 'POLICY_BLOCKED', updated_at: new Date().toISOString() })
+      .eq('id', runId);
+
+    // Write a runtime control action so the audit trail records the block.
+    const { recordRuntimeControlAction } = await import('./operationsRuntimeControl.service');
+    await recordRuntimeControlAction({
+      run_id: runId,
+      action_type: 'policy_block',
+      requested_by: 'system',
+      reason: `Fail-closed guard blocked policy evaluation: ${guardResult.reason}`,
+      impact_scope: 'policy_evaluation',
+      result: 'blocked',
+    });
+
+    return {
+      run_id: runId,
+      health,
+      results: [{ ...row, created_at: new Date().toISOString() } as PolicyResult],
+      summary: 'fail_closed_not_evaluated',
+      guard_message: guardResult.reason,
+    };
   }
 
   const results: PolicyResult[] = [];

@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { resolveAuthorityBindingForAuditEvent } from './identityLedger.service';
 import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -403,7 +405,8 @@ function sortedJson(obj: unknown): string {
 
 // ─── Core Operations ──────────────────────────────────────────────────────────
 
-export async function createAuditEvent(input: AuditEventInput): Promise<AuditEvent> {
+export async function createAuditEvent(input: AuditEventInput, auth?: AuthContext): Promise<AuditEvent> {
+  requireAnyPermission(auth, 'audit:view');
   const tenantId = input.tenant_id || 'default';
   const chainId = input.chain_id || 'primary';
   const idempotencyKey = input.idempotency_key || uuidv4();
@@ -842,7 +845,8 @@ export async function verifyChainIntegrity(
   };
 }
 
-export async function sealExpiredRecords() {
+export async function sealExpiredRecords(auth?: AuthContext) {
+  requireAnyPermission(auth, 'audit:view');
   const { data, error } = await supabaseAdmin.rpc('seal_expired_audit_events');
   if (error) throw error;
   return { sealed_count: data };
@@ -860,7 +864,8 @@ export async function createExportJob(params: {
   status?: string;
   retention_class?: string;
   actor_id?: string;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'audit:view');
   const exportId = uuidv4();
   const { data, error } = await supabaseAdmin
     .from('audit_export_jobs')
@@ -909,7 +914,8 @@ export async function preserveEvents(params: {
   requested_by: string;
   org_id?: string;
   actor: { actor_id: string; actor_type: ActorType; actor_name?: string };
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'audit:view');
   const now = new Date().toISOString();
 
   const { data: events, error: fetchError } = await supabaseAdmin

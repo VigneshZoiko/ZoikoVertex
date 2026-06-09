@@ -12,6 +12,8 @@ import {
   ShieldAlert,
   Play,
   Pause,
+  PauseCircle,
+  PlayCircle,
   Square,
   RotateCcw,
   ArrowUpRight,
@@ -58,6 +60,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -192,7 +195,7 @@ interface OperationsStats {
 }
 
 type NumericMetric = number | Record<string, number | undefined> | null | undefined;
-type RuntimeActionType = "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "restricted_mode" | "export_evidence";
+type RuntimeActionType = "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "restricted_mode" | "export_evidence" | "hold" | "release_hold";
 
 interface AnalyticsMetrics {
   failure_rate?: NumericMetric;
@@ -227,6 +230,7 @@ const POLICY_CONFIG: Record<string, { label: string; color: string; bg: string }
   PASS:           { label: "Pass",           color: "text-emerald-400", bg: "bg-emerald-500/10" },
   WARNING:        { label: "Warning",        color: "text-amber-400",   bg: "bg-amber-500/10"   },
   BLOCKED:        { label: "Blocked",        color: "text-rose-400",    bg: "bg-rose-500/10"    },
+  NOT_EVALUATED:  { label: "Not Evaluated",  color: "text-gray-400",    bg: "bg-gray-500/10"     },
   PENDING_REVIEW: { label: "Pending Review", color: "text-purple-400",  bg: "bg-purple-500/10"  },
   NOT_APPLICABLE: { label: "N/A",            color: "text-[#555]",      bg: "bg-white/5"        },
 };
@@ -468,33 +472,38 @@ function EvidenceExportModal({ bundleId, onConfirm, onCancel, loading }: { bundl
             This export will be recorded with your identity, timestamp, and stated reason per governance requirements.
           </div>
           <div>
-            <label className="block text-xs text-[#666] mb-1.5">Export Reason <span className="text-rose-400">*</span></label>
+            <label className="block text-xs text-[#666] mb-1.5">Export Reason <span className="text-rose-400">*</span> <span className="text-[#555]">(minimum 8 characters)</span></label>
             <textarea
               ref={textareaRef}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-white h-20 resize-none focus:outline-none focus:border-[#444] placeholder-[#444]"
+              className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-white h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-[#2a2a2a] focus:border-[#444]"}`}
               placeholder="Legal review, audit request, incident investigation..."
             />
+            <p className={`mt-1 text-xs ${reason.trim().length < 8 ? "text-amber-400" : "text-emerald-400"}`}>
+              {reason.trim().length < 8
+                ? `At least 8 characters required — ${8 - reason.trim().length} more to go (${reason.trim().length}/8).`
+                : `Reason looks good (${reason.trim().length} characters).`}
+            </p>
           </div>
-        </div>
-        <div className="p-4 border-t border-[#2a2a2a] flex items-center justify-end gap-2">
-          <button onClick={onCancel} className="px-4 py-1.5 bg-[#2a2a2a] text-[#aaa] rounded-xl text-sm hover:bg-[#333] transition-colors">Cancel</button>
-          <button
-            onClick={() => onConfirm(reason)}
-            disabled={!reason.trim() || loading}
-            className="px-4 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2"
-          >
+          <div className="p-4 border-t border-[#2a2a2a] flex items-center justify-end gap-2">
+            <button onClick={onCancel} className="px-4 py-1.5 bg-[#2a2a2a] text-[#aaa] rounded-xl text-sm hover:bg-[#333] transition-colors">Cancel</button>
+            <button
+              onClick={() => onConfirm(reason)}
+              disabled={reason.trim().length < 8 || loading}
+              className="px-4 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2"
+            >
             {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Export Bundle
           </button>
         </div>
+        </div>
       </div>
     </div>
-  );
-}
-
-// ─── Run Detail Drawer ────────────────────────────────────────────────────────
+    );
+  }
+  
+  // ─── Run Detail Drawer ────────────────────────────────────────────────────────
 
 type DrawerTab = "overview" | "timeline" | "inputs" | "prompt" | "knowledge" | "policy" | "output" | "evidence";
 
@@ -613,24 +622,28 @@ function RunDetailDrawer({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Agent Type",       value: run.agent_type                      },
-                  { label: "Agent Version",    value: run.agent_version || "—"             },
-                  { label: "Workflow",         value: run.workflow_name                    },
-                  { label: "Workflow Version", value: run.workflow_version || "—"          },
-                  { label: "Current Step",     value: run.current_step || "—"              },
-                  { label: "Trigger Source",   value: run.trigger_source || "—"            },
-                  { label: "Owner",            value: run.owner_name                       },
-                  { label: "Priority",         value: String(run.priority)                 },
-                  { label: "Brand",            value: run.brand_name || "—"                },
-                  { label: "Channel",          value: run.channel || "—"                   },
-                  { label: "Campaign",         value: run.campaign_name || "—"             },
-                  { label: "Environment",      value: run.environment || "—"               },
+                  { label: "Agent Type",       value: run.agent_type, link: run.agent_id ? `/agents/studio?id=${run.agent_id}` : undefined },
+                  { label: "Agent Version",    value: run.agent_version || "—", link: run.agent_id ? `/agents/studio?id=${run.agent_id}` : undefined },
+                  { label: "Workflow",         value: run.workflow_name, link: `/agents/workflows` },
+                  { label: "Workflow Version", value: run.workflow_version || "—", link: `/agents/workflows` },
+                  { label: "Current Step",     value: run.current_step || "—" },
+                  { label: "Trigger Source",   value: run.trigger_source || "—" },
+                  { label: "Owner",            value: run.owner_name },
+                  { label: "Priority",         value: String(run.priority) },
+                  { label: "Brand",            value: run.brand_name || "—" },
+                  { label: "Channel",          value: run.channel || "—" },
+                  { label: "Campaign",         value: run.campaign_name || "—" },
+                  { label: "Environment",      value: run.environment || "—" },
                   { label: "Started",          value: run.started_at ? new Date(run.started_at).toLocaleString() : "—" },
                   { label: "Due",              value: run.due_at ? new Date(run.due_at).toLocaleString() : "—" },
                 ].map((row) => (
                   <div key={row.label} className="bg-[#1a1a1a] rounded-xl p-3 border border-[#2a2a2a]">
                     <p className="text-[10px] text-[#555] mb-0.5">{row.label}</p>
-                    <p className="text-xs text-white font-medium truncate">{row.value}</p>
+                    {row.link ? (
+                      <a href={row.link} className="text-xs text-indigo-400 hover:text-indigo-300 font-medium truncate underline underline-offset-2 decoration-[#333] hover:decoration-indigo-500/40 block">{row.value}</a>
+                    ) : (
+                      <p className="text-xs text-white font-medium truncate">{row.value}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -931,6 +944,11 @@ function RunDetailDrawer({
                           <CopyButton text={detail.evidence_bundle.hash} />
                         </div>
                       )}
+                      {detail.evidence_bundle.id && (
+                        <a href={`/evidence/evidence-vault/items/${detail.evidence_bundle.id}`} className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 underline underline-offset-2 decoration-[#333] hover:decoration-indigo-500/40">
+                          <ArrowRight className="w-3 h-3" /> Open in Evidence Vault
+                        </a>
+                      )}
                       {detail.evidence_bundle.locked_at && (
                         <p className="text-[10px] text-[#555]">Locked: {new Date(detail.evidence_bundle.locked_at).toLocaleString()}</p>
                       )}
@@ -1024,6 +1042,8 @@ export default function AgentOperationsPage() {
   const [activeTab, setActiveTab] = useState<"runs" | "queues" | "incidents" | "analytics">("runs");
   const [statusFilter, setStatusFilter] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
+  // Doc 6 §2/§3: queue segmentation by type (approval, failed, retry, human-review, publishing, exception …)
+  const [queueTypeFilter, setQueueTypeFilter] = useState<string>("ALL");
 
   // ── Pagination + sorting (server-side; bounds rendered rows) ──
   const PAGE_SIZE = 50;
@@ -1037,6 +1057,7 @@ export default function AgentOperationsPage() {
   // ── Saved operational views (persisted filter sets) ──
   type SavedView = { name: string; status: string; brand: string; env: string; search: string; sortBy: string; sortDir: "asc" | "desc"; dateFrom: string; dateTo: string };
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   useEffect(() => {
     try { const raw = localStorage.getItem("ops_saved_views"); if (raw) setSavedViews(JSON.parse(raw)); } catch { /* ignore */ }
   }, []);
@@ -1056,15 +1077,17 @@ export default function AgentOperationsPage() {
     setDateFrom(v.dateFrom);
     setDateTo(v.dateTo);
   };
-  const saveCurrentView = () => {
-    const name = window.prompt("Save current filters as a named view:");
-    if (!name || !name.trim()) return;
+  const saveCurrentView = () => setShowSaveViewModal(true);
+  const handleSaveViewConfirm = (value?: string) => {
+    const name = value?.trim();
+    if (!name) return;
+    setShowSaveViewModal(false);
     const view: SavedView = {
-      name: name.trim(), status: statusFilter, brand: brandFilter, env: envFilter,
+      name, status: statusFilter, brand: brandFilter, env: envFilter,
       search: searchQuery, sortBy, sortDir, dateFrom, dateTo,
     };
-    persistViews([...savedViews.filter((x) => x.name !== view.name), view]);
-    flashNotice(`Saved view "${view.name}".`);
+    persistViews([...savedViews.filter((x) => x.name !== name), view]);
+    flashNotice(`Saved view "${name}".`);
   };
 
   // ── Run detail state ──
@@ -1076,7 +1099,7 @@ export default function AgentOperationsPage() {
 
   // ── Action modals ──
   const [confirmAction, setConfirmAction] = useState<{
-    type: "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "restricted_mode" | "assign" | "start" | "remove";
+    type: "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "restricted_mode" | "assign" | "start" | "remove" | "hold" | "release_hold" | "export_evidence" | "export_output_snapshot";
     runId: string;
     label: string;
     description: string;
@@ -1178,10 +1201,12 @@ export default function AgentOperationsPage() {
   }, [statusFilter, brandFilter, envFilter, searchQuery, sortBy, sortDir, dateFrom, dateTo]);
 
   useEffect(() => {
+    let cancelled = false;
+    const safeFetch = () => { if (!cancelled && document.visibilityState === 'visible') fetchData(); };
     setLoading(true);
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    safeFetch();
+    const interval = setInterval(safeFetch, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [fetchData]);
 
   useEffect(() => {
@@ -1332,6 +1357,10 @@ export default function AgentOperationsPage() {
         case "restricted_mode": await api.restrictedMode(confirmAction.runId, reason); break;
         case "start":         await api.startRun(confirmAction.runId, reason); break;
         case "remove":        await api.deleteRun(confirmAction.runId); break;
+        case "hold":          await api.holdRun(confirmAction.runId, reason); break;
+        case "release_hold":  await api.releaseHoldRun(confirmAction.runId, reason); break;
+        case "export_evidence": await api.exportEvidence(confirmAction.runId, reason); break;
+        case "export_output_snapshot": await api.exportOutputSnapshot(confirmAction.runId, reason); break;
       }
       const wasRemoved = confirmAction.type === "remove";
       const actionLabel = confirmAction.type.replace(/_/g, " ");
@@ -1390,7 +1419,7 @@ export default function AgentOperationsPage() {
       return;
     }
     try {
-      const res = await api.pauseRun(item.run_id, "Held from task queue");
+      const res = await api.holdRun(item.run_id, "Held from task queue");
       if (!res?.success) throw new Error(res?.error || "Hold failed");
       await fetchData();
     } catch (err: any) {
@@ -1429,6 +1458,43 @@ export default function AgentOperationsPage() {
       await fetchData();
     } catch (err: any) {
       setError(err?.message || "Failed to cancel queue item.");
+    }
+  };
+
+  // Doc 6 §2/§10: resolve a queue item with a recorded resolution note.
+  const handleQueueResolve = async (item: QueueItem) => {
+    const notes = window.prompt("Resolution note (recorded on the queue item):", "");
+    if (notes === null) return; // cancelled
+    try {
+      const res = await api.resolveQueueItem(item.id, notes.trim() || undefined);
+      if (!res?.success) throw new Error(res?.error || "Resolve failed");
+      await fetchData();
+      flashNotice("Queue item resolved.");
+    } catch (err: any) {
+      setError(err?.message || "Failed to resolve queue item.");
+    }
+  };
+
+  // Doc 6 §2/§7: retry a failed/retry queue item through the governed retry path
+  // (duplicate-publication guard + retry-limit are enforced server-side).
+  const handleQueueRetry = async (item: QueueItem) => {
+    if (!item.run_id) {
+      setError("This queue item is not linked to a runnable task.");
+      return;
+    }
+    const reason = window.prompt("Reason for retry (required, min 8 chars):", "");
+    if (reason === null) return;
+    if (reason.trim().length < 8) {
+      setError("A reason of at least 8 characters is required to retry.");
+      return;
+    }
+    try {
+      const res = await api.retryRun(item.run_id, reason.trim());
+      if (!res?.success) throw new Error(res?.error || "Retry failed");
+      await fetchData();
+      flashNotice("Retry attempt created.");
+    } catch (err: any) {
+      setError(err?.message || "Failed to retry queue item.");
     }
   };
 
@@ -1479,14 +1545,81 @@ export default function AgentOperationsPage() {
   };
 
   const handleExportSnapshot = useCallback(
-    (run: AgentRun, detail: RunDetail) => {
-      downloadSnapshot(
-        `run-output-${run.id}.txt`,
-        detail.output_snapshot || "No output snapshot available.",
-      );
+    (run: AgentRun, _detail?: RunDetail) => {
+      checkStaleAndAct(run.id, {
+        type: "export_output_snapshot",
+        runId: run.id,
+        label: "Export Output Snapshot",
+        description: "Export the output snapshot to the evidence vault? This will be recorded in the audit trail.",
+        impactPreview: "Creates an immutable evidence record linked to this run.",
+        requireReason: true,
+        confirmLabel: "Export Snapshot",
+      } as typeof confirmAction);
     },
-    [downloadSnapshot],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
+
+  const handleExportAnalyticsCSV = async () => {
+    const reason = window.prompt("Reason for exporting analytics CSV:");
+    if (!reason || reason.trim().length < 8) {
+      setError("A reason of at least 8 characters is required.");
+      return;
+    }
+    try {
+      const blob = await api.exportAnalyticsCSV(reason.trim());
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `operations-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      flashNotice("Analytics CSV exported with audit trail.");
+    } catch {
+      setError("Failed to export analytics CSV. Check permissions.");
+    }
+  };
+
+  // Doc 6 §2 — export the currently filtered operational run log to CSV.
+  const handleExportFilteredRuns = () => {
+    if (!filteredRuns.length) {
+      setError("No runs to export with the current filters.");
+      return;
+    }
+    const cols: { key: keyof AgentRun; label: string }[] = [
+      { key: "id", label: "Run ID" },
+      { key: "agent_name", label: "Agent" },
+      { key: "agent_type", label: "Type" },
+      { key: "workflow_name", label: "Workflow" },
+      { key: "status", label: "Status" },
+      { key: "severity", label: "Severity" },
+      { key: "policy_result", label: "Policy" },
+      { key: "evidence_status", label: "Evidence" },
+      { key: "owner_name", label: "Owner" },
+      { key: "brand_name", label: "Brand" },
+      { key: "channel", label: "Channel" },
+      { key: "environment", label: "Environment" },
+      { key: "created_at", label: "Created" },
+      { key: "due_at", label: "Due" },
+      { key: "last_event_at", label: "Last Event" },
+    ];
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = cols.map((c) => esc(c.label)).join(",");
+    const rows = filteredRuns.map((r) => cols.map((c) => esc(r[c.key])).join(","));
+    const csv = [header, ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `operations-runs-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    flashNotice(`Exported ${filteredRuns.length} filtered run(s) to CSV.`);
+  };
 
   const handleCreateIncident = async () => {
     setIncidentLoading(true);
@@ -1516,6 +1649,11 @@ export default function AgentOperationsPage() {
   const totalPages = Math.max(1, Math.ceil(totalRuns / PAGE_SIZE));
 
   const criticalCount = runs.filter((r) => r.severity === "critical" || ["FAILED", "POLICY_BLOCKED", "QUARANTINED", "ESCALATED"].includes(r.status)).length;
+
+  // Doc 6 §2/§3 — queue segmentation derived values (hoisted out of JSX).
+  const queueTypes = Array.from(new Set(queues.map((q) => q.queue_type))).sort();
+  const visibleQueues = queueTypeFilter === "ALL" ? queues : queues.filter((q) => q.queue_type === queueTypeFilter);
+  const isRetryableQueueItem = (item: QueueItem) => /fail|retry|error/i.test(item.queue_type);
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1768,6 +1906,13 @@ export default function AgentOperationsPage() {
                 <span className="mx-1.5" />
                 <SeverityDot severity="normal" /><span>Normal</span>
               </div>
+              <button
+                onClick={handleExportFilteredRuns}
+                title="Export the currently filtered runs to CSV"
+                className="flex items-center gap-1.5 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-2.5 py-1.5 text-xs text-[#aaa] hover:text-white hover:border-[#444] transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" /> Export
+              </button>
               <div className="flex items-center border border-[#2a2a2a] rounded-xl overflow-hidden">
                 <button onClick={() => setViewMode("list")} className={`p-1.5 ${viewMode === "list" ? "bg-[#2a2a2a] text-white" : "text-[#555] hover:text-[#aaa]"} transition-colors`}><List className="w-3.5 h-3.5" /></button>
                 <button onClick={() => setViewMode("card")} className={`p-1.5 ${viewMode === "card" ? "bg-[#2a2a2a] text-white" : "text-[#555] hover:text-[#aaa]"} transition-colors`}><LayoutGrid className="w-3.5 h-3.5" /></button>
@@ -1875,7 +2020,28 @@ export default function AgentOperationsPage() {
                         {["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW"].includes(run.status) && (
                           <button
                             onClick={() => checkStaleAndAct(run.id, { type: "restricted_mode", runId: run.id, label: "Restricted Operations Mode", description: `Place "${run.agent_name}" in restricted mode?`, impactPreview: "Blocks new autonomous external actions; review, remediation, and approval remain available until cleared.", confirmLabel: "Activate Restricted Mode", confirmClass: "bg-amber-600 hover:bg-amber-700", requireReason: true } as typeof confirmAction)}
-                            className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 hover:text-amber-300 transition-colors" title="Restricted Mode"><ShieldAlert className="w-3.5 h-3.5" /></button>
+                            className={`p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 hover:text-amber-300 transition-colors ${!actionGate(run, "restricted_mode").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
+                            title="Restricted Mode" disabled={!actionGate(run, "restricted_mode").allowed}><ShieldAlert className="w-3.5 h-3.5" /></button>
+                        )}
+                        {["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW", "SCHEDULED"].includes(run.status) && (
+                          <button
+                            onClick={() => checkStaleAndAct(run.id, { type: "hold", runId: run.id, label: "Hold Run", description: `Hold "${run.agent_name}"? The run will pause at its current step.`, impactPreview: "Agent will halt at current step. Use Release Hold to resume.", confirmLabel: "Hold Run", confirmClass: "bg-amber-500 hover:bg-amber-600", requireReason: true } as typeof confirmAction)}
+                            className={`p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 hover:text-amber-300 transition-colors ${!actionGate(run, "hold").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
+                            title="Hold" disabled={!actionGate(run, "hold").allowed}><PauseCircle className="w-3.5 h-3.5" /></button>
+                        )}
+                        {run.status === "PAUSED" && (
+                          <>
+                            <button
+                              onClick={() => checkStaleAndAct(run.id, { type: "release_hold", runId: run.id, label: "Release Hold", description: `Release "${run.agent_name}" from hold?`, impactPreview: "Policy and dependency checks will re-run before the agent continues.", confirmLabel: "Release Hold", confirmClass: "bg-emerald-500 hover:bg-emerald-600", requireReason: true } as typeof confirmAction)}
+                              className={`p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors ${!actionGate(run, "release_hold").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
+                              title="Release Hold" disabled={!actionGate(run, "release_hold").allowed}><PlayCircle className="w-3.5 h-3.5" /></button>
+                          </>
+                        )}
+                        {["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW"].includes(run.status) && run.severity === "critical" && (
+                          <button
+                            onClick={() => checkStaleAndAct(run.id, { type: "emergency_pause", runId: run.id, label: "Emergency Pause", description: `Emergency pause "${run.agent_name}"? This immediately suspends all execution.`, impactPreview: "Immediate suspension. In-progress tool calls may be interrupted. Requires elevated permission.", confirmLabel: "Emergency Pause", confirmClass: "bg-rose-600 hover:bg-rose-700", requireReason: true } as typeof confirmAction)}
+                            className={`p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors ${!actionGate(run, "emergency_pause").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
+                            title="Emergency Pause" disabled={!actionGate(run, "emergency_pause").allowed}><Siren className="w-3.5 h-3.5" /></button>
                         )}
                         {run.status === "STOPPED" && (
                           <button
@@ -1962,16 +2128,40 @@ export default function AgentOperationsPage() {
       {/* ══════════════════════════════════════════════════════════════════════
           TAB: TASK QUEUE
       ══════════════════════════════════════════════════════════════════════ */}
+      {/* Doc 6 §2/§3 — queue segmentation by type. Tabs derive from the live
+          queue_type values, so approval / failed / retry / human-review /
+          publishing / exception items are each addressable, with per-type counts. */}
       {activeTab === "queues" && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-[#555]">{queues.length} item{queues.length !== 1 ? "s" : ""} in queue</p>
+            <p className="text-sm text-[#555]">{visibleQueues.length} item{visibleQueues.length !== 1 ? "s" : ""}{queueTypeFilter !== "ALL" ? ` · ${queueTypeFilter.replace(/_/g, " ")}` : " in queue"}</p>
           </div>
-          {queues.length === 0 ? (
+          {/* Queue type tabs */}
+          <div className="flex items-center gap-1.5 mb-4 overflow-x-auto">
+            <button
+              onClick={() => setQueueTypeFilter("ALL")}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === "ALL" ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:text-white"}`}
+            >
+              All <span className="ml-1 text-[10px] opacity-70">{queues.length}</span>
+            </button>
+            {queueTypes.map((qt) => {
+              const count = queues.filter((q) => q.queue_type === qt).length;
+              return (
+                <button
+                  key={qt}
+                  onClick={() => setQueueTypeFilter(qt)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === qt ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:text-white"}`}
+                >
+                  {qt.replace(/_/g, " ")} <span className="ml-1 text-[10px] opacity-70">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          {visibleQueues.length === 0 ? (
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">
               <CheckCircle2 className="w-12 h-12 text-emerald-400/20 mx-auto mb-3" />
               <p className="text-emerald-400 font-semibold mb-1">Queue Empty</p>
-              <p className="text-[#555] text-sm">No pending tasks in the queue.</p>
+              <p className="text-[#555] text-sm">No pending tasks in this queue.</p>
             </div>
           ) : (
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl overflow-hidden">
@@ -1983,13 +2173,14 @@ export default function AgentOperationsPage() {
                 <span>Actions</span>
               </div>
               <div className="divide-y divide-[#1f1f1f]">
-                {queues.map((item) => {
+                {visibleQueues.map((item) => {
                   const sla = formatTimeRemaining(item.due_at);
+                  const resolved = ["resolved", "cancelled"].includes(String(item.status).toLowerCase());
                   return (
                     <div key={item.id} className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${item.sla_breached ? "border-l-2 border-l-rose-500/50" : ""}`}>
                       <div>
                         <p className="text-sm font-medium text-white">{item.queue_type.replace(/_/g, " ")}</p>
-                        <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${["resolved", "cancelled"].includes(item.status) ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+                        <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${resolved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
                           {item.status}
                         </span>
                       </div>
@@ -2008,10 +2199,14 @@ export default function AgentOperationsPage() {
                         ) : <span className="text-[#333]">—</span>}
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => handleQueueAssign(item)} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors" title="Assign"><UserCheck className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleQueueHold(item)} className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400/70 hover:text-amber-400 transition-colors" title="Hold"><Pause className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleQueueEscalate(item)} className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400/70 hover:text-orange-400 transition-colors" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleQueueCancel(item)} className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400/70 hover:text-rose-400 transition-colors" title="Cancel"><XCircle className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueAssign(item)} disabled={resolved} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors disabled:opacity-30" title={item.assignee_name ? "Reassign / claim" : "Assign"}><UserCheck className="w-3.5 h-3.5" /></button>
+                        {isRetryableQueueItem(item) && (
+                          <button onClick={() => handleQueueRetry(item)} disabled={resolved} className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-400/70 hover:text-blue-400 transition-colors disabled:opacity-30" title="Retry"><RotateCcw className="w-3.5 h-3.5" /></button>
+                        )}
+                        <button onClick={() => handleQueueHold(item)} disabled={resolved} className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400/70 hover:text-amber-400 transition-colors disabled:opacity-30" title="Hold"><Pause className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueEscalate(item)} disabled={resolved} className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400/70 hover:text-orange-400 transition-colors disabled:opacity-30" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueResolve(item)} disabled={resolved} className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400/70 hover:text-emerald-400 transition-colors disabled:opacity-30" title="Resolve with note"><CheckSquare className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueCancel(item)} disabled={resolved} className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400/70 hover:text-rose-400 transition-colors disabled:opacity-30" title="Cancel"><XCircle className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   );
@@ -2067,6 +2262,21 @@ export default function AgentOperationsPage() {
                           </span>
                         </div>
                       </div>
+                      {incident.status === "resolved" && (
+                        <div className="px-4 pb-2 flex items-center gap-2">
+                          <button
+                            onClick={async () => {
+                              try {
+                                await api.generatePostmortem(incident.id);
+                                flashNotice(`Postmortem generated for incident ${incident.id.slice(0, 8)}`);
+                              } catch { setError("Failed to generate postmortem"); }
+                            }}
+                            className="px-2 py-1 text-[10px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-lg hover:bg-indigo-500/20 transition-colors flex items-center gap-1"
+                          >
+                            <FileText className="w-3 h-3" /> Generate Postmortem
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -2106,20 +2316,10 @@ export default function AgentOperationsPage() {
               </div>
               <div className="flex justify-end">
                 <button
-                  onClick={() => {
-                    if (!analytics) return;
-                    const payload = { exported_at: new Date().toISOString(), metrics: analytics };
-                    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = url;
-                    link.download = `ops-analytics-${new Date().toISOString().split("T")[0]}.json`;
-                    link.click();
-                    URL.revokeObjectURL(url);
-                  }}
+                  onClick={handleExportAnalyticsCSV}
                   className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#888] rounded-xl text-xs hover:text-white hover:border-[#444] transition-colors"
                 >
-                  <Download className="w-3.5 h-3.5" /> Export Report
+                  <Download className="w-3.5 h-3.5" /> Export CSV (audited)
                 </button>
               </div>
             </>
@@ -2271,6 +2471,18 @@ export default function AgentOperationsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmActionModal
+        open={showSaveViewModal}
+        mode="prompt"
+        variant="default"
+        title="Save Current Filter View"
+        message="Enter a name for the current filter set to reuse later."
+        confirmLabel="Save"
+        promptPlaceholder="View name..."
+        onConfirm={handleSaveViewConfirm}
+        onCancel={() => setShowSaveViewModal(false)}
+      />
     </div>
   );
 }

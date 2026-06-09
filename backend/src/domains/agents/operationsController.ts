@@ -95,6 +95,7 @@
       const brand_id = getQueryValue(req, "brand_id");
       const brand_name = getQueryValue(req, "brand");
       const severity = getQueryValue(req, "severity");
+      const policy_result = getQueryValue(req, "policy_result");
       const search = getQueryValue(req, "search");
       const date_from = getQueryValue(req, "date_from");
       const date_to = getQueryValue(req, "date_to");
@@ -110,6 +111,7 @@
         brand_id,
         brand_name,
         severity,
+        policy_result,
         search,
         date_from,
         date_to,
@@ -545,6 +547,74 @@
     }
   };
 
+  export const holdRun = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "hold");
+      const id = getParam(req, "id");
+      const run = await runService.getAgentRun(id);
+      assertWorkspaceScope(req.user, run.workspace_id);
+      const reason = requireReason(req.body?.reason, "hold");
+      const impactScope = req.body?.impact_scope || "selected_run";
+      const userId = req.user?.id || "system";
+      const userName = req.user?.email || "Unknown";
+      const result = await runService.holdRun(
+        id,
+        reason,
+        userId,
+        userName,
+        impactScope,
+      );
+      await logToDatabase(
+        "info",
+        "Operations",
+        `Agent run ${id} held by ${userName}`,
+        { runId: id, reason },
+      );
+      res.json({ success: true, ...result, message: "Run held" });
+    } catch (err) {
+      logger.error({ err }, "Failed to hold run");
+      next(err);
+    }
+  };
+
+  export const releaseHoldRun = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "release_hold");
+      const id = getParam(req, "id");
+      const run = await runService.getAgentRun(id);
+      assertWorkspaceScope(req.user, run.workspace_id);
+      const reason = requireReason(req.body?.reason, "release_hold");
+      const impactScope = req.body?.impact_scope || "selected_run";
+      const userId = req.user?.id || "system";
+      const userName = req.user?.email || "Unknown";
+      const result = await runService.releaseHoldRun(
+        id,
+        reason,
+        userId,
+        userName,
+        impactScope,
+      );
+      await logToDatabase(
+        "info",
+        "Operations",
+        `Agent run ${id} released from hold by ${userName}`,
+        { runId: id, reason },
+      );
+      res.json({ success: true, ...result, message: "Run released from hold" });
+    } catch (err) {
+      logger.error({ err }, "Failed to release hold on run");
+      next(err);
+    }
+  };
+
   export const restrictedMode = async (
     req: AuthRequest,
     res: Response,
@@ -631,6 +701,7 @@
         assignee_id || userId,
         assignee_name || userName,
         req.user?.is_superadmin ? null : req.user?.workspace_id,
+        userId,
       );
       internalEventBus.emit("operations.event", {
         type: "queue.assigned",
@@ -661,6 +732,8 @@
       const result = await queueService.resolveQueueItem(
         id,
         req.user?.is_superadmin ? null : req.user?.workspace_id,
+        req.user?.id,
+        typeof req.body?.resolution_notes === "string" ? req.body.resolution_notes : undefined,
       );
       internalEventBus.emit("operations.event", {
         type: "queue.resolved",
@@ -809,6 +882,64 @@
     }
   };
 
+  export const generatePostmortem = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "create_incident");
+      const id = getParam(req, "id");
+      if (!req.user?.is_superadmin) {
+        const existing = await incidentService.getIncident(id);
+        assertWorkspaceScope(req.user, existing.workspace_id);
+      }
+      const userId = req.user?.id || "system";
+      const result = await incidentService.generatePostmortem(id, userId);
+      await runtimeControlService.recordRuntimeControlAction({
+        run_id: result.postmortem.summary.run_id || id,
+        action_type: 'postmortem_generated',
+        requested_by: userId,
+        reason: `Postmortem generated for incident ${id}`,
+        impact_scope: 'incident_postmortem',
+        result: 'completed',
+      });
+      internalEventBus.emit("operations.event", {
+        type: "incident.postmortem_generated",
+        incident_id: id,
+        workspace_id: req.user?.workspace_id,
+        created_at: new Date().toISOString(),
+      });
+      res.json({ success: true, ...result, message: "Postmortem generated" });
+    } catch (err) {
+      logger.error({ err }, "Failed to generate postmortem");
+      next(err);
+    }
+  };
+
+  export const getPostmortem = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "view");
+      const id = getParam(req, "id");
+      if (!req.user?.is_superadmin) {
+        const existing = await incidentService.getIncident(id);
+        assertWorkspaceScope(req.user, existing.workspace_id);
+      }
+      const postmortem = await incidentService.getPostmortem(id);
+      if (!postmortem) {
+        return res.json({ postmortem: null, message: "No postmortem has been generated for this incident yet" });
+      }
+      res.json({ success: true, postmortem });
+    } catch (err) {
+      logger.error({ err }, "Failed to get postmortem");
+      next(err);
+    }
+  };
+
   export const getOperationsStats = async (
     req: AuthRequest,
     res: Response,
@@ -841,6 +972,34 @@
       res.json(metrics);
     } catch (err) {
       logger.error({ err }, "Failed to get analytics metrics");
+      next(err);
+    }
+  };
+
+  export const exportAnalyticsCSV = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "view");
+      const workspaceId = req.user?.workspace_id;
+      if (!workspaceId)
+        return res.status(403).json({ error: "Workspace not found" });
+      const reason = requireReason(req.body?.reason, "export_evidence");
+      const userName = req.user?.email || "Unknown";
+      const csv = await analyticsService.getAnalyticsCSV(workspaceId, operationsScopeFilters(req));
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="operations-analytics-${new Date().toISOString().slice(0, 10)}.csv"`);
+      await logToDatabase(
+        "info",
+        "Operations",
+        `Analytics CSV exported by ${userName}`,
+        { reason, format: "csv" },
+      );
+      res.send(csv);
+    } catch (err) {
+      logger.error({ err }, "Failed to export analytics CSV");
       next(err);
     }
   };
@@ -900,6 +1059,40 @@
       });
     } catch (err) {
       logger.error({ err }, "Failed to export evidence");
+      next(err);
+    }
+  };
+
+  export const exportOutputSnapshot = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      assertOperationsPermission(req.user, "export_evidence");
+      const id = getParam(req, "id");
+      const run = await runService.getAgentRun(id);
+      assertWorkspaceScope(req.user, run.workspace_id);
+      const reason = requireReason(req.body?.reason, "export_evidence");
+      const userId = req.user?.id || "system";
+      const userName = req.user?.email || "Unknown";
+      internalEventBus.emit("operations.event", {
+        type: "output.exported",
+        run_id: id,
+        workspace_id: run.workspace_id,
+        reason,
+        exported_by: userId,
+        created_at: new Date().toISOString(),
+      });
+      await logToDatabase(
+        "info",
+        "Operations",
+        `Output snapshot for run ${id} exported by ${userName}`,
+        { runId: id, reason },
+      );
+      res.json({ success: true, message: "Output snapshot export recorded" });
+    } catch (err) {
+      logger.error({ err }, "Failed to export output snapshot");
       next(err);
     }
   };

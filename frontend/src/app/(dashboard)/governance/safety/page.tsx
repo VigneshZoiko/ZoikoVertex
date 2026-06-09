@@ -2,16 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { useRoles } from "@/lib/hooks/useRoles";
 import {
   ShieldAlert,
   Activity,
-  AlertTriangle,
   AlertOctagon,
   RefreshCw,
   Power,
   CheckCircle,
-  HelpCircle,
   Clock,
   ArrowRight,
   TrendingUp,
@@ -20,12 +17,6 @@ import {
   Lock,
   Unlock,
   Layers,
-  Settings,
-  BookOpen,
-  Scale,
-  Database,
-  Search,
-  ExternalLink,
   Info
 } from "lucide-react";
 
@@ -92,8 +83,6 @@ const PIPELINE_STAGES = [
 ];
 
 export default function SafetyOverviewPage() {
-  const { hasRole, isLoading: rolesLoading } = useRoles();
-  
   // State
   const [data, setData] = useState<SafetyOverviewDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,8 +98,6 @@ export default function SafetyOverviewPage() {
   // Component Detail Modal/Drawer State
   const [selectedComponent, setSelectedComponent] = useState<any | null>(null);
   
-  // Simulation States
-  const [isSimulatingDegradation, setIsSimulatingDegradation] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
@@ -118,10 +105,9 @@ export default function SafetyOverviewPage() {
   const fetchOverview = async (showRefreshIndicator = false) => {
     if (showRefreshIndicator) setIsRefreshing(true);
     try {
-      const res = await api.get("/api/v1/safety/overview");
+      const res = await api.get("/api/safety/overview");
       if (res.success && res.data) {
         setData(res.data);
-        setIsSimulatingDegradation(res.data.api_status === "degraded");
         setErrorState(null);
       } else {
         setErrorState("Could not fetch overview metrics. Invalid API response.");
@@ -136,24 +122,15 @@ export default function SafetyOverviewPage() {
   };
 
   useEffect(() => {
-    fetchOverview();
-    const interval = setInterval(() => fetchOverview(), 60000); // 60s auto-refresh
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const safeFetch = () => { if (!cancelled && document.visibilityState === 'visible') fetchOverview(); };
+    safeFetch();
+    const interval = setInterval(safeFetch, 60000); // 60s auto-refresh
+    return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
-  // Handle Simulation Toggle
-  const handleToggleDegradation = async (checked: boolean) => {
-    setIsSimulatingDegradation(checked);
-    try {
-      await api.post("/api/v1/safety/actions/toggle-degraded", { degraded: checked });
-      await fetchOverview();
-    } catch (err) {
-      console.error("Degradation toggle failed", err);
-    }
-  };
-
   // Trigger Emergency Pause Submit
-  const handleEmergencyPauseSubmit = async (e: React.FormEvent) => {
+  const handleEmergencyPauseSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setModalError(null);
     if (!pauseReason || pauseReason.trim().length < 10) {
@@ -168,7 +145,7 @@ export default function SafetyOverviewPage() {
     setSubmittingPause(true);
     try {
       const isCurrentlyPaused = data?.active_mode === "emergency_pause";
-      const res = await api.post("/api/v1/safety/actions/request-emergency-pause", {
+      const res = await api.post("/api/safety/actions/request-emergency-pause", {
         state: isCurrentlyPaused ? "inactive" : "active",
         reason: pauseReason,
         mfa_code: mfaCode,
@@ -193,7 +170,7 @@ export default function SafetyOverviewPage() {
   // Start Critical Review session
   const handleReviewCriticalQueue = async () => {
     try {
-      const res = await api.post("/api/v1/safety/actions/review-critical-queue", {});
+      const res = await api.post("/api/safety/actions/review-critical-queue", {});
       if (res.success) {
         setInfoMessage("Review session initiated. Action logged to audit trail.");
         setTimeout(() => setInfoMessage(null), 5000);
@@ -326,20 +303,6 @@ export default function SafetyOverviewPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
-            {/* Simulation controls */}
-            <div className="flex items-center gap-2 bg-[#141414] border border-[#2d2d2d] rounded-xl px-4 py-2">
-              <label htmlFor="degrade-toggle" className="text-xs font-semibold text-[#888] cursor-pointer">
-                Simulate API Degradation
-              </label>
-              <input
-                id="degrade-toggle"
-                type="checkbox"
-                checked={isSimulatingDegradation}
-                onChange={(e) => handleToggleDegradation(e.target.checked)}
-                className="w-4 h-4 rounded text-amber-500 bg-black border-[#333] focus:ring-0 cursor-pointer"
-              />
-            </div>
-
             <button
               onClick={() => fetchOverview(true)}
               className="p-2.5 bg-[#141414] hover:bg-[#1f1f1f] border border-[#2d2d2d] hover:border-[#444] rounded-xl transition-all flex items-center justify-center"
@@ -816,7 +779,8 @@ export default function SafetyOverviewPage() {
               </button>
               <button
                 onClick={() => {
-                  alert(`Downstream component deep dive route (/governance/doc-0${selectedComponent.index}) is locked until sequencing is approved.`);
+                  setInfoMessage(`Downstream component deep dive route (/governance/doc-0${selectedComponent.index}) is locked until sequencing is approved.`);
+                  setTimeout(() => setInfoMessage(null), 5000);
                 }}
                 className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black rounded-xl text-xs font-extrabold transition-all"
               >

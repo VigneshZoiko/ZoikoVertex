@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.tsbuild
+.env
+.env.local
+.vscode/
+.git/
+*.test.ts
+src/test/
+*.log

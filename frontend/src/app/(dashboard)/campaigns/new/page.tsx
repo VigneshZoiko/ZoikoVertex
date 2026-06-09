@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, ArrowRight, CheckCircle2, Loader2, AlertCircle,
   DollarSign, Users, ClipboardCheck, Megaphone,
-  TrendingUp, Target, ShoppingBag, X, ImageIcon,
+  TrendingUp, Target, ShoppingBag, X, ImageIcon, Heart, Eye,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
@@ -60,12 +60,12 @@ const DEFAULT: WizardData = {
   ad_image_url: "", ad_square_image_url: "", ad_video_url: "", lead_form_id: "",
 };
 
-// ── 3 Goals only ───────────────────────────────────────────────────────────
-
 const GOALS = [
-  { value: "TRAFFIC",         label: "Website Traffic",     icon: TrendingUp, desc: "Drive visitors to your site"       },
-  { value: "LEAD_GENERATION", label: "Lead Generation",     icon: Target,     desc: "Collect contacts & enquiries"      },
-  { value: "CONVERSIONS",     label: "Sales & Conversions", icon: ShoppingBag,desc: "Drive purchases and key actions"   },
+  { value: "TRAFFIC",         label: "Website Traffic",     icon: TrendingUp, desc: "Drive visitors to your site"        },
+  { value: "AWARENESS",       label: "Brand Awareness",     icon: Eye,        desc: "Reach new people & build awareness" },
+  { value: "ENGAGEMENT",      label: "Engagement",          icon: Heart,      desc: "Boost likes, comments & shares"     },
+  { value: "LEAD_GENERATION", label: "Lead Generation",     icon: Target,     desc: "Collect contacts & enquiries"       },
+  { value: "CONVERSIONS",     label: "Sales & Conversions", icon: ShoppingBag,desc: "Drive purchases and key actions"    },
 ];
 
 // ── Steps ──────────────────────────────────────────────────────────────────
@@ -88,10 +88,11 @@ const COUNTRIES: Record<string, string> = {
 
 const CTA_OPTIONS = ["Learn More","Shop Now","Sign Up","Book Now","Contact Us","Download","Get Quote","Subscribe"];
 
+// Step 3 required fields depend on objective & ad type — computed dynamically in validateStep
 const STEP_REQUIRED: Record<number, (keyof WizardData)[]> = {
   1: ["name", "objective"],
   2: ["budget_total", "start_at", "end_at"],
-  3: ["landing_page_url", "headline"],
+  3: [], // dynamic — see validateStep
 };
 
 const REQUIRED_MSGS: Partial<Record<keyof WizardData, string>> = {
@@ -102,6 +103,8 @@ const REQUIRED_MSGS: Partial<Record<keyof WizardData, string>> = {
   end_at:           "End date is required",
   landing_page_url: "Landing page URL is required",
   headline:         "Headline is required",
+  copy_text:        "Ad body text is required",
+  lead_form_id:     "Lead Form ID is required for Lead Ads",
 };
 
 type ArrKey = "geography" | "platforms";
@@ -137,6 +140,15 @@ export default function NewCampaignPage() {
   useEffect(() => {
     api.get("/api/v1/team/members").then(r => setMembers(r.data || [])).catch(() => {});
   }, []);
+
+  // Auto-switch meta_ad_type when objective changes
+  useEffect(() => {
+    if (data.objective === "LEAD_GENERATION" && data.meta_ad_type !== "lead_ad") {
+      setData(d => ({ ...d, meta_ad_type: "lead_ad" }));
+    } else if (data.objective !== "LEAD_GENERATION" && data.meta_ad_type === "lead_ad") {
+      setData(d => ({ ...d, meta_ad_type: "image_ad" }));
+    }
+  }, [data.objective]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load campaign in edit mode
   useEffect(() => {
@@ -191,8 +203,17 @@ export default function NewCampaignPage() {
       ? <p className="text-xs text-rose-400 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors[key]}</p>
       : null;
 
+  const getStep3Required = (): (keyof WizardData)[] => {
+    const isLeadAd   = data.meta_ad_type === "lead_ad";
+    const noUrl      = data.objective === "AWARENESS" || data.objective === "ENGAGEMENT";
+    const fields: (keyof WizardData)[] = ["headline", "copy_text"];
+    if (!isLeadAd && !noUrl) fields.push("landing_page_url");
+    if (isLeadAd) fields.push("lead_form_id");
+    return fields;
+  };
+
   const validateStep = (): boolean => {
-    const fields = STEP_REQUIRED[step] || [];
+    const fields = step === 3 ? getStep3Required() : (STEP_REQUIRED[step] || []);
     const errors: FieldErrors = {};
     const newTouched: Partial<Record<keyof WizardData, boolean>> = {};
     let valid = true;
@@ -223,10 +244,13 @@ export default function NewCampaignPage() {
         });
       }
       if (step === 2) {
+        const budgetVal = data.budget_total ? parseFloat(data.budget_total) : null;
         Object.assign(payload, {
-          budget_total:     data.budget_total ? parseFloat(data.budget_total) : null,
+          // The wizard only collects one budget field — treat it as daily so Meta
+          // publisher creates a daily-budget ad set (lifetime requires end_at).
+          budget_daily:     data.end_at ? null : budgetVal,
+          budget_total:     data.end_at ? budgetVal : null,
           budget_currency:  data.budget_currency,
-          budget_type:      'LIFETIME',
           budget_pacing:    'EVEN',
           start_at:         data.start_at || null,
           end_at:           data.end_at   || null,
@@ -235,6 +259,16 @@ export default function NewCampaignPage() {
         });
       }
       if (step === 3) {
+        // Default optimization goal per objective for campaigns created via the simple wizard
+        const defaultOptimizeMap: Record<string, string> = {
+          AWARENESS:       'REACH',
+          TRAFFIC:         'LANDING_PAGE_VIEWS',
+          ENGAGEMENT:      'POST_ENGAGEMENT',
+          LEAD_GENERATION: 'LEAD_GENERATION',
+          CONVERSIONS:     'OFFSITE_CONVERSIONS',
+          SALES:           'OFFSITE_CONVERSIONS',
+        };
+        const obj = data.objective || 'TRAFFIC';
         Object.assign(payload, {
           platforms: data.platforms,
           targeting: {
@@ -245,19 +279,23 @@ export default function NewCampaignPage() {
             interests: data.interests ? data.interests.split(",").map(s => s.trim()).filter(Boolean) : [],
             keywords:  data.keywords  ? data.keywords.split("\n").filter(Boolean) : [],
           },
+          boost_settings: {
+            optimize:      defaultOptimizeMap[obj] || 'LANDING_PAGE_VIEWS',
+            conv_location: 'website',
+          },
           creative: {
             landing_page_url: data.landing_page_url,
             headline:         data.headline,
             copy_text:        data.copy_text,
             cta_text:         data.cta_text,
             utm_configured:   false,
-            utm_waived:       true,
-            meta_ad_type:        data.meta_ad_type     || undefined,
-            google_ad_type:      data.google_ad_type   || undefined,
-            ad_image_url:        data.ad_image_url     || undefined,
+            utm_waived:       false,
+            meta_ad_type:        data.meta_ad_type        || undefined,
+            google_ad_type:      data.google_ad_type      || undefined,
+            ad_image_url:        data.ad_image_url        || undefined,
             ad_square_image_url: data.ad_square_image_url || undefined,
-            ad_video_url:        data.ad_video_url     || undefined,
-            lead_form_id:        data.lead_form_id     || undefined,
+            ad_video_url:        data.ad_video_url        || undefined,
+            lead_form_id:        data.lead_form_id        || undefined,
           },
         });
       }
@@ -287,11 +325,35 @@ export default function NewCampaignPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await api.post(`/api/v1/campaigns/${campaignId}/submit-review`, {});
+      // Launch directly — governance review re-enabled later once campaign flow is validated
+      const launchRes = await api.post(`/api/v1/campaigns/${campaignId}/launch`, {});
+      if (!launchRes.success) throw new Error(launchRes.error || "Launch failed");
+
+      // If Meta platform is selected, publish to Meta immediately
+      if (data.platforms.includes("Meta")) {
+        const metaRes = await api.post(`/api/v1/campaigns/${campaignId}/publish-to-meta`, {});
+        if (!metaRes.success) {
+          // Non-fatal: campaign is launched, Meta publish failed — user can retry from detail page
+          const rawErr: string = metaRes.error || "Unknown error";
+          // Map known Meta errors to user-friendly messages
+          let friendlyErr = rawErr;
+          if (rawErr.includes("unsettled") || rawErr.includes("UNSETTLED")) {
+            friendlyErr = "Meta ad account has an unsettled balance. Go to Meta Business Manager → Billing & Payments, add a valid payment method, then re-publish.";
+          } else if (rawErr.includes("pages_manage_ads") || rawErr.includes("1487194")) {
+            friendlyErr = "Meta permission error. Please disconnect and reconnect your Facebook account in the Accounts page, then re-publish.";
+          } else if (rawErr.includes("DISABLED")) {
+            friendlyErr = "Your Meta ad account is disabled. Please check Meta Business Manager.";
+          }
+          setSubmitError(`Campaign saved, but Meta publish failed: ${friendlyErr}`);
+          router.push(`/campaigns/${campaignId}`);
+          return;
+        }
+      }
+
       router.push(`/campaigns/${campaignId}`);
     } catch (e: unknown) {
       const body = (e as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
-      setSubmitError(body?.message || body?.error || "Submission failed — please try again.");
+      setSubmitError(body?.message || body?.error || "Launch failed — please try again.");
     } finally { setSubmitting(false); }
   };
 
@@ -352,14 +414,19 @@ export default function NewCampaignPage() {
                 <label className={lbl}>Run ads on</label>
                 <div className="flex gap-3">
                   {[
-                    { id: "Meta",   label: "Meta",   sub: "Facebook & Instagram" },
-                    { id: "Google", label: "Google", sub: "Search & Display"      },
+                    { id: "Meta",   label: "Meta",   sub: "Facebook & Instagram", available: true  },
+                    { id: "Google", label: "Google", sub: "Coming soon",           available: false },
                   ].map(p => (
-                    <button key={p.id} type="button" onClick={() => toggleArr("platforms", p.id)}
+                    <button key={p.id} type="button"
+                      onClick={() => p.available && toggleArr("platforms", p.id)}
+                      disabled={!p.available}
+                      title={!p.available ? "Google Ads publishing is not yet available" : undefined}
                       className={`flex-1 p-4 rounded-xl border text-left transition-all ${
-                        data.platforms.includes(p.id)
-                          ? "bg-white border-white/20 text-zinc-900"
-                          : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                        !p.available
+                          ? "bg-zinc-900/30 border-zinc-800 text-zinc-600 cursor-not-allowed opacity-60"
+                          : data.platforms.includes(p.id)
+                            ? "bg-white border-white/20 text-zinc-900"
+                            : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700"
                       }`}>
                       <p className="text-sm font-bold">{p.label}</p>
                       <p className="text-[11px] opacity-70 mt-0.5">{p.sub}</p>
@@ -526,17 +593,20 @@ export default function NewCampaignPage() {
                 <label className={lbl}>Interests <span className="normal-case font-normal text-zinc-600">(optional, comma-separated)</span></label>
                 <input value={data.interests} onChange={e => set("interests", e.target.value)}
                   className={`${inp} ${ok}`} placeholder="e.g. Fashion, Luxury, Travel" />
+                <p className="text-[11px] text-zinc-600 mt-1.5">For detailed interest targeting with Meta audience IDs, use the Advanced campaign modal instead.</p>
               </div>
 
-              {/* Landing URL */}
-              <div>
-                <label className={lbl}>Landing Page URL <span className="text-rose-400">*</span></label>
-                <input type="url" value={data.landing_page_url}
-                  onChange={e => set("landing_page_url", e.target.value)}
-                  onBlur={e => touch("landing_page_url", e.target.value)}
-                  className={cls("landing_page_url")} placeholder="https://example.com/campaign" />
-                {fieldErr("landing_page_url")}
-              </div>
+              {/* Landing URL — not needed for lead ads or awareness/engagement */}
+              {data.meta_ad_type !== "lead_ad" && data.objective !== "AWARENESS" && data.objective !== "ENGAGEMENT" && (
+                <div>
+                  <label className={lbl}>Landing Page URL <span className="text-rose-400">*</span></label>
+                  <input type="url" value={data.landing_page_url}
+                    onChange={e => set("landing_page_url", e.target.value)}
+                    onBlur={e => touch("landing_page_url", e.target.value)}
+                    className={cls("landing_page_url")} placeholder="https://example.com/campaign" />
+                  {fieldErr("landing_page_url")}
+                </div>
+              )}
 
               {/* Headline */}
               <div>
@@ -720,7 +790,7 @@ export default function NewCampaignPage() {
 
               <div className="p-4 bg-zinc-800/50 border border-zinc-800 rounded-xl">
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  After submitting, your campaign enters the approval queue. Once approved it can be launched and ads will run through the ZoikoVertex agency account.
+                  Your campaign will be launched immediately and published to Meta. You can pause or cancel it at any time from the campaigns list.
                 </p>
               </div>
             </div>
@@ -745,7 +815,7 @@ export default function NewCampaignPage() {
               <button onClick={handleSubmit} disabled={submitting || !campaignId}
                 className="ml-auto flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-zinc-100 disabled:opacity-40 text-zinc-900 text-sm font-bold rounded-xl transition-all">
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                {submitting ? "Submitting…" : "Request Approval"}
+                {submitting ? "Launching…" : "Launch Campaign"}
               </button>
             )}
           </div>
@@ -785,10 +855,18 @@ function WizardImageUpload({ label, hint, value, onChange }: {
     try {
       const ext  = file.name.split(".").pop() || "jpg";
       const path = `campaign-creatives/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("media").upload(path, file, { upsert: true });
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from("media").getPublicUrl(path);
+      const { error } = await supabase.storage.from("campaign-images").upload(path, file, { upsert: true });
+      if (error) {
+        if (error.message?.includes("Bucket not found") || error.message?.includes("bucket")) {
+          throw new Error('Storage bucket "campaign-images" not found. Create it as a public bucket in Supabase Storage.');
+        }
+        throw error;
+      }
+      const { data: { publicUrl } } = supabase.storage.from("campaign-images").getPublicUrl(path);
       onChange(publicUrl);
+      // Register in media_library so it appears in Media Vault
+      const mediaType = file.type.startsWith("video/") ? "video" : "image";
+      api.post("/api/v1/library/upload", { title: file.name, urls: [publicUrl], file_type: mediaType }).catch(() => {});
     } catch (e: unknown) {
       setUploadErr(e instanceof Error ? e.message : "Upload failed");
     } finally { setUploading(false); }

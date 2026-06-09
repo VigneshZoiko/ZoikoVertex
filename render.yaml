@@ -22,11 +22,19 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      # AI
+      # AI — Google Gemini + Groq
       - key: GEMINI_API_KEY
         sync: false
       - key: GROQ_API_KEY
         sync: false
+      # Phase 6 — Optional real model validation (Prompt Governance).
+      # Default 'false': server boots normally; real adversarial + cross-model
+      # evaluation return a clear "skipped" status; Phase 1–5 governance
+      # is unaffected.
+      # When 'true': at least one of GEMINI_API_KEY or GROQ_API_KEY must be
+      # set, or the server refuses to start. See backend/src/modules/prompts/modelProviders.ts.
+      - key: ENABLE_REAL_MODEL_VALIDATION
+        value: false
       # Meta (Facebook + Instagram + Threads)
       - key: META_APP_ID
         sync: false

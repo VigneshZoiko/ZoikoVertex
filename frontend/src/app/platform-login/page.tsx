@@ -67,7 +67,7 @@ export default function PlatformLoginPage() {
       <div className="hidden lg:flex w-[420px] shrink-0 flex-col justify-between bg-zinc-900 border-r border-zinc-800 px-10 py-10">
         <div>
           <Image
-            src="/images/logo-wordmark.svg"
+            src="/images/zoikovertexlogo.png"
             alt="ZoikoVertex"
             width={148}
             height={30}
@@ -115,7 +115,7 @@ export default function PlatformLoginPage() {
         {/* Top bar (mobile logo + badge) */}
         <header className="flex items-center justify-between px-8 py-5 border-b border-zinc-800 lg:justify-end">
           <Image
-            src="/images/logo-wordmark.svg"
+            src="/images/zoikovertexlogo.png"
             alt="ZoikoVertex"
             width={130}
             height={26}

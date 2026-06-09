@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -9,8 +9,9 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import MediaVaultPicker from "@/components/MediaVaultPicker";
 
-// ── Types ──────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface MetaAccount {
   id: string; platform: string; account_name: string;
@@ -21,9 +22,12 @@ interface MetaAccount {
 interface AdData {
   name: string; copy: string; headline: string;
   website_url: string; cta: string; image_url: string;
+  ad_type?: "image_ad" | "video_ad" | "lead_ad";
+  video_url?: string;
+  lead_form_id?: string;
 }
 
-// ── Constants ─────────────────────────────────────────────────
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const OBJECTIVES = [
   { value: "TRAFFIC",     label: "Traffic",     desc: "Drive visitors to your website or marketing landing pages." },
@@ -80,7 +84,7 @@ const OPTIMIZE_OPTIONS: Record<string, OptimizeOption[]> = {
   ],
 };
 
-// ── Placement definitions ─────────────────────────────────────
+// â”€â”€ Placement definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface Placement {
   id: string; label: string; platform: string;
@@ -98,7 +102,7 @@ const ALL_PLACEMENTS: Placement[] = [
   { id: "facebook_news_feed",        label: "Facebook News Feed",                               platform: "Facebook",         device: "all" },
   { id: "instagram_feed",            label: "Instagram Feed",                                   platform: "Instagram",        device: "all" },
   { id: "facebook_marketplace",      label: "Facebook Marketplace",                             platform: "Facebook",         device: "mobile",  unavailableFor: ["TRAFFIC","ENGAGEMENT_POST_AD"] },
-  { id: "facebook_video_feeds",      label: "Facebook Video Feeds",                             platform: "Facebook",         device: "all" },
+  // facebook_video_feeds removed â€” deprecated in Meta API v17+
   { id: "facebook_right_column",     label: "Facebook Right Column",                            platform: "Facebook",         device: "desktop", unavailableFor: ["TRAFFIC","ENGAGEMENT_POST_AD","AWARENESS"] },
   { id: "instagram_explore",         label: "Instagram Explore",                                platform: "Instagram",        device: "mobile",  unavailableFor: ["TRAFFIC"] },
   { id: "messenger_inbox",           label: "Messenger Inbox",                                  platform: "Messenger",        device: "all",     unavailableFor: ["ENGAGEMENT_POST_AD","AWARENESS"] },
@@ -115,9 +119,9 @@ const ALL_PLACEMENTS: Placement[] = [
 ];
 
 const CTA_OPTIONS = [
-  "Apply now", "Book now", "Contact us", "Download",
-  "Get quote", "Learn more", "Shop now", "Sign up",
-  "Subscribe", "Watch more", "Send message", "Get offer",
+  "Learn more", "Shop now", "Sign up", "Book now",
+  "Contact us", "Download", "Get quote", "Subscribe",
+  "Watch more", "Send message", "Get offer",
 ];
 
 const SIDEBAR_STEPS = [
@@ -127,11 +131,11 @@ const SIDEBAR_STEPS = [
   { num: 4, label: "Publish campaign" },
 ];
 
-// ── Input / Select helpers ────────────────────────────────────
+// â”€â”€ Input / Select helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const inp = "w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors";
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+const Field = React.memo(function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
       <p className="text-sm font-semibold text-zinc-200">{label}</p>
@@ -139,9 +143,9 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       {children}
     </div>
   );
-}
+});
 
-function Radio({ value, checked, onChange, label, desc }: { value: string; checked: boolean; onChange: () => void; label: string; desc?: string }) {
+const Radio = React.memo(function Radio({ value, checked, onChange, label, desc }: { value: string; checked: boolean; onChange: () => void; label: string; desc?: string }) {
   return (
     <label className="flex items-start gap-3 cursor-pointer group py-1">
       <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? "border-white" : "border-zinc-600 group-hover:border-zinc-400"}`}>
@@ -154,11 +158,11 @@ function Radio({ value, checked, onChange, label, desc }: { value: string; check
       </div>
     </label>
   );
-}
+});
 
-// ── MessageDestPicker — reused for Sales, Engagement, Leads ──
+// â”€â”€ MessageDestPicker â€” reused for Sales, Engagement, Leads â”€â”€
 
-function MessageDestPicker({ msgDest, setMsgDest }: { msgDest: string; setMsgDest: (v: string) => void }) {
+const MessageDestPicker = React.memo(function MessageDestPicker({ msgDest, setMsgDest }: { msgDest: string; setMsgDest: (v: string) => void }) {
   return (
     <div className="ml-7 mt-2 space-y-1.5">
       <p className="text-xs font-semibold text-zinc-400">Select destination</p>
@@ -181,9 +185,9 @@ function MessageDestPicker({ msgDest, setMsgDest }: { msgDest: string; setMsgDes
       </div>
     </div>
   );
-}
+});
 
-// ── Meta Account Picker Modal ─────────────────────────────────
+// â”€â”€ Meta Account Picker Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Hootsuite-style: shows Facebook Pages + Ad Accounts from Meta API.
 
 interface MetaPage    { id: string; name: string; picture?: string; }
@@ -220,7 +224,7 @@ function MetaPickerModal({
       else if (aList.length === 1) setSelAdAcct(aList[0].id);
       if (pList.length === 1) setSelPage(pList[0].id);
       if (!adRes.success) setFetchErr(adRes.error || "Failed to load from Meta");
-    }).catch(() => setFetchErr("Could not reach Meta — check your connection"))
+    }).catch(() => setFetchErr("Could not reach Meta â€” check your connection"))
     .finally(() => setLoading(false));
   }, [accountId]);
 
@@ -249,7 +253,7 @@ function MetaPickerModal({
           {loading ? (
             <div className="flex items-center justify-center py-16 gap-3">
               <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
-              <span className="text-sm text-zinc-500">Loading from Meta…</span>
+              <span className="text-sm text-zinc-500">Loading from Metaâ€¦</span>
             </div>
           ) : fetchErr ? (
             <div className="p-6 text-center space-y-2">
@@ -292,11 +296,11 @@ function MetaPickerModal({
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-white">{a.name}</p>
                             <p className="text-[11px] text-zinc-500 mt-0.5">id: {a.id.replace("act_", "")}</p>
-                            <p className="text-[10px] text-zinc-600">{a.currency} · ${a.amount_spent} spent</p>
+                            <p className="text-[10px] text-zinc-600">{a.currency} Â· ${a.amount_spent} spent</p>
                           </div>
                         </button>
 
-                        {/* Warning row — shown but doesn't block selection */}
+                        {/* Warning row â€” shown but doesn't block selection */}
                         {hasIssue && (
                           <div className="px-6 pb-3 pl-[60px] space-y-1">
                             <div className="flex items-center gap-1.5 text-[11px] text-amber-400">
@@ -308,7 +312,7 @@ function MetaPickerModal({
                             {isBilling && (
                               <a href="https://www.facebook.com/ads/manager/billing" target="_blank" rel="noreferrer"
                                 className="text-[11px] text-[#1877F2] hover:underline">
-                                Add a payment method on Facebook ↗
+                                Add a payment method on Facebook â†—
                               </a>
                             )}
                           </div>
@@ -380,7 +384,7 @@ function MetaPickerModal({
   return createPortal(content, document.body);
 }
 
-// ── Main Modal ────────────────────────────────────────────────
+// â”€â”€ Main Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   onClose: () => void;
@@ -389,8 +393,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 }) {
   const [step,       setStep]       = useState(1);
   const [saving,     setSaving]     = useState(false);
-  const [publishing, setPublishing] = useState(false);
-  const [error,      setError]      = useState<string | null>(null);
+  const [publishing,       setPublishing]       = useState(false);
+  const [publishingStatus, setPublishingStatus] = useState<string | null>(null);
+  const [error,            setError]            = useState<string | null>(null);
   const [campaignId, setCampaignId] = useState<string | null>(editId || null);
 
   // Step 1
@@ -398,6 +403,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   const [selectedPage,    setPage]          = useState("");
   const [adAccounts,      setAdAccts]       = useState<MetaAccount[]>([]); // all Facebook accounts (with or without ad_account_id)
   const [selectedAcc,     setAcc]           = useState("");
+  const [metaBalance,     setMetaBalance]   = useState<{ balance: string | null; amount_spent: string; currency: string; spend_cap: string | null } | null>(null);
   // Meta picker modal state
   const [showMetaPicker,   setShowMetaPicker]   = useState(false);
   const [pickerAccountId,  setPickerAccountId]  = useState("");
@@ -417,6 +423,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       ad_account_id:       adAccountId,
       ad_account_name:     adAccountName,
       ad_account_currency: currency,
+      page_id:             pageId || undefined,  // persist numeric FB Page ID for ad creative
     });
 
     // Refresh so the new ad_account_id shows immediately
@@ -442,7 +449,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   const [ageMin,      setAgeMin]         = useState("18");
   const [ageMax,      setAgeMax]         = useState("65");
   const [gender,      setGender]         = useState("ALL");
-  const [location,    setLocation]       = useState(JSON.stringify([{ key: "US", display_name: "United States", type: "country" }]));
+  const [location,    setLocation]       = useState(() => JSON.stringify([{ key: "US", display_name: "United States", type: "country" }]));
   const [interests,   setInterests]      = useState<{id:string;name:string}[]>([]);
   const [msgDest,        setMsgDest]        = useState("messenger");
   const [trackingPixel,  setTrackingPixel]  = useState("");
@@ -510,8 +517,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
     finally { setExLocLoading(false); }
   }, []);
   // Temp state for edit modal
-  const [tmpAge,    setTmpAge]    = useState(["18","65"]);
-  const [tmpGender, setTmpGender] = useState("ALL");
+  const [tmpAge,        setTmpAge]        = useState(["18","65"]);
+  const [tmpGender,     setTmpGender]     = useState("ALL");
+  const [audienceError, setAudienceError] = useState<string | null>(null);
   const [tmpLoc,    setTmpLoc]    = useState<{key:string; display_name:string; type:string}[]>([{ key: "US", display_name: "United States", type: "country" }]);
   const [tmpExcLocItems, setTmpExcLocItems] = useState<{key:string; display_name:string; type:string}[]>([]);
   const [tmpInt,    setTmpInt]    = useState<{id:string;name:string}[]>([]);
@@ -522,9 +530,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 
   // Step 3
   const [previewTab,     setPreview]      = useState<"desktop"|"mobile"|"instagram">("desktop");
-  const [ads,            setAds]          = useState<AdData[]>([{ name: "New ad", copy: "", headline: "", website_url: "http://example.com", cta: "Apply now", image_url: "" }]);
+  const [ads,            setAds]          = useState<AdData[]>([{ name: "New ad", copy: "", headline: "", website_url: "", cta: "Learn more", image_url: "" }]);
   const [selectedAdIdx,  setSelectedAdIdx]= useState(0);
   const [showSummary,    setShowSummary]  = useState(false);
+  const [showVaultPicker, setShowVaultPicker] = useState(false);
   const [addWebsiteUrl,    setAddWebsiteUrl]    = useState(false);
   const [welcomeMsg,       setWelcomeMsg]       = useState("");
   const [showWelcomeErr,   setShowWelcomeErr]   = useState(false);
@@ -562,6 +571,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       setAd(a => ({ ...a, image_url: publicUrl }));
       setShowMediaErr(false);
       clearErr("adImage");
+      // Register in media_library so it appears in Media Vault picker
+      const mediaType = file.type.startsWith("video/") ? "video" : "image";
+      api.post("/api/v1/library/upload", { title: file.name, urls: [publicUrl], file_type: mediaType }).catch(() => {});
     } catch (e: unknown) {
       setImageUploadErr(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -586,6 +598,23 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       else if (fb[0]) setAcc(fb[0].id);
     }).catch(() => {});
   }, []);
+
+  // Fetch Meta ad account balance whenever the selected account changes
+  useEffect(() => {
+    if (!selectedAcc) { setMetaBalance(null); return; }
+    api.get("/api/v1/campaigns/meta/ad-account-details").then(r => {
+      if (r.success && r.data) {
+        setMetaBalance({
+          balance:      r.data.balance ?? null,
+          amount_spent: r.data.amount_spent ?? "0.00",
+          currency:     r.data.currency ?? "USD",
+          spend_cap:    r.data.spend_cap ?? null,
+        });
+      } else {
+        setMetaBalance(null);
+      }
+    }).catch(() => setMetaBalance(null));
+  }, [selectedAcc]);
 
   const [adsSidebarOpen, setAdsSidebarOpen] = useState(true);
 
@@ -628,7 +657,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       if (c.objective) setObjective(c.objective);
       if (c.platforms?.length) { /* platforms stored for reference */ }
 
-      // Budget / dates — prefer daily, fall back to total
+      // Budget / dates â€” prefer daily, fall back to total
       if (c.budget_daily)                     { setBudget(String(c.budget_daily)); setBudgetType("daily"); }
       else if (c.budget_total && !c.budget_daily) { setBudget(String(c.budget_total)); setBudgetType("total"); }
       if (c.start_at)  setStart(c.start_at.split("T")[0]);
@@ -668,6 +697,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       } else if (Array.isArray(bs.placements) && bs.placements.length) {
         setAutoPlace(false); setSelectedPlacements(bs.placements);
       }
+      if (bs.special_category) { setSpecial(true); setSpecialCatType(bs.special_category); }
       if (c.eu_targeting)   setEuTargeting(c.eu_targeting);
       if (c.eu_beneficiary) setBeneficiary(c.eu_beneficiary);
       if (c.eu_payer)       setPayer(c.eu_payer);
@@ -676,24 +706,30 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       if (c.welcome_message)   setWelcomeMsg(c.welcome_message);
       if (c.selected_meta_account_id) setAcc(c.selected_meta_account_id);
 
-      // Creative — use ads_data array if present, fall back to single creative
+      // Creative â€” use ads_data array if present, fall back to single creative
       const cr = c.creative || {};
       const loadedAds: AdData[] = Array.isArray(c.ads_data) && c.ads_data.length > 0
         ? c.ads_data.map((a: any) => ({
-            name:        a.name             || "New ad",
-            copy:        a.copy_text        || "",
-            headline:    a.headline         || "",
-            website_url: a.landing_page_url || "http://example.com",
-            cta:         a.cta_text         || "Apply now",
-            image_url:   a.ad_image_url     || "",
+            name:         a.name             || "New ad",
+            copy:         a.copy_text        || "",
+            headline:     a.headline         || "",
+            website_url:  a.landing_page_url || "",
+            cta:          a.cta_text         || "Learn more",
+            image_url:    a.ad_image_url     || "",
+            ad_type:      (a.meta_ad_type === "video_ad" || a.meta_ad_type === "lead_ad") ? a.meta_ad_type : "image_ad",
+            video_url:    a.ad_video_url     || "",
+            lead_form_id: a.lead_form_id     || "",
           }))
         : [{
-            name:        "New ad",
-            copy:        cr.copy_text        || "",
-            headline:    cr.headline         || "",
-            website_url: cr.landing_page_url || "http://example.com",
-            cta:         cr.cta_text         || "Apply now",
-            image_url:   cr.ad_image_url     || "",
+            name:         "New ad",
+            copy:         cr.copy_text        || "",
+            headline:     cr.headline         || "",
+            website_url:  cr.landing_page_url || "",
+            cta:          cr.cta_text         || "Learn more",
+            image_url:    cr.ad_image_url     || "",
+            ad_type:      (cr.meta_ad_type === "video_ad" || cr.meta_ad_type === "lead_ad") ? cr.meta_ad_type as "video_ad"|"lead_ad" : "image_ad" as const,
+            video_url:    cr.ad_video_url     || "",
+            lead_form_id: cr.lead_form_id     || "",
           }];
       setAds(loadedAds);
       setSelectedAdIdx(0);
@@ -701,7 +737,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       // Jump to step where user left off
       const ws = c.wizard_step || 1;
       setStep(ws > 4 ? 3 : ws);
-    }).catch(() => { /* silent — new campaign */ });
+    }).catch(() => { /* silent â€” new campaign */ });
   }, [editId]);  
 
   // Compute effective objective for placement filtering
@@ -722,20 +758,28 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
     );
   }, [effectiveObjective]);
 
-  // When objective changes, reset optimize + conversion location
+  // When objective changes, reset conversion location, optimize, and related state.
+  // Dep = [objective] only â€” effectiveObjective derives from convLocation, so including
+  // it here caused a loop: changing convLocation â†’ effectiveObjective changes â†’ useEffect
+  // fires â†’ convLocation gets reset, making it impossible to select a conversion location.
   useEffect(() => {
-    const opts = OPTIMIZE_OPTIONS[effectiveObjective] || [];
-    setOptimize(opts[0]?.value || "");
-    setOptimizeOpen(false);
-    setConvLocation(
-      objective === "ENGAGEMENT"      ? "on_ad"       :
+    const defaultLoc =
+      objective === "ENGAGEMENT"      ? "on_ad"        :
       objective === "LEAD_GENERATION" ? "instant_form" :
-      "website"
-    );
+      "website";
+    setConvLocation(defaultLoc);
     setMsgDest("messenger");
     setEngType("POST_ENGAGEMENT");
     setEngTypeOpen(false);
-  }, [objective, effectiveObjective]);
+    setOptimizeOpen(false);
+    // Derive the starting effectiveObjective from the reset convLocation
+    const defaultEffective =
+      objective === "ENGAGEMENT"      ? "ENGAGEMENT_POST_AD"       :
+      objective === "LEAD_GENERATION" ? "LEAD_GENERATION"          :
+      objective;
+    const opts = OPTIMIZE_OPTIONS[defaultEffective] || OPTIMIZE_OPTIONS[objective] || [];
+    setOptimize(opts[0]?.value || "");
+  }, [objective]);
 
   // Step summaries for left sidebar
   const summaries: Record<number, string[]> = {
@@ -750,7 +794,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       "Built audience",
       autoPlace ? "Automatic placements" : `Manual placements (${selectedPlacements.length})`,
       (objective === "CONVERSIONS" && convLocation !== "message" && optimize === "OFFSITE_CONVERSIONS") ? "Tracking" : "",
-      budgetAmt ? `Budget: $${budgetAmt} per ${budgetType === "daily" ? "day" : "total"}` : "",
+      budgetAmt ? `Budget: ${(()=>{const c=adAccounts.find(a=>a.id===selectedAcc)?.ad_account_currency||"USD";const s:Record<string,string>={USD:"$",INR:"â‚¹",EUR:"â‚¬",GBP:"Â£",AUD:"A$",SGD:"S$",MYR:"RM",AED:"Ø¯.Ø¥"};return s[c]||(c+" ");})()}${budgetAmt} per ${budgetType === "daily" ? "day" : "total"}` : "",
       startDate ? `From: ${new Date(startDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}` : "",
     ].filter(Boolean),
     3: ["Ads", ad.name],
@@ -783,21 +827,29 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       excluded_geography: excludeLocations,
       interests: interests,
     },
-    ads_data: ads.map(a => ({
-      name:             a.name,
-      copy_text:        a.copy,
-      headline:         a.headline,
-      cta_text:         a.cta,
-      landing_page_url: a.website_url || null,
-      ad_image_url:     a.image_url   || null,
-    })),
+    ads_data: ads.map(a => {
+      const effectiveType = convLocation === "message" ? "messenger" : (a.ad_type || "image_ad");
+      return {
+        name:             a.name,
+        copy_text:        a.copy,
+        headline:         a.headline,
+        cta_text:         a.cta,
+        landing_page_url: a.website_url  || null,
+        ad_image_url:     a.image_url    || null,
+        meta_ad_type:     effectiveType,
+        ad_video_url:     a.video_url    || null,
+        lead_form_id:     a.lead_form_id || null,
+      };
+    }),
     creative: {
       headline:         ad.headline,
       copy_text:        ad.copy,
       cta_text:         ad.cta,
-      landing_page_url: ad.website_url || null,
-      ad_image_url:     ad.image_url   || null,
-      meta_ad_type:     convLocation === "message" ? "messenger" : "image_ad",
+      landing_page_url: ad.website_url  || null,
+      ad_image_url:     ad.image_url    || null,
+      meta_ad_type:     convLocation === "message" ? "messenger" : (ad.ad_type || "image_ad"),
+      ad_video_url:     ad.video_url    || null,
+      lead_form_id:     ad.lead_form_id || null,
     },
     boost_settings: {
       optimize:         optimize,
@@ -842,11 +894,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
         if (!r.success) throw new Error(r.error || "Failed to update campaign");
       }
 
-      if (!cid) throw new Error("Failed to save campaign — no ID returned");
+      if (!cid) throw new Error("Failed to save campaign â€” no ID returned");
 
-      // 2. Publish to Meta Marketing API
-      setError("Publishing to Facebook...");
+      // 2. Publish to Meta Marketing API â€” use a separate status string, not the error state
+      setPublishingStatus("Publishing to Facebook...");
       const metaResult = await api.post(`/api/v1/campaigns/${cid}/publish-to-meta`, {});
+      setPublishingStatus(null);
 
       if (!metaResult.success) {
         throw new Error(metaResult.error || "Meta API error");
@@ -877,7 +930,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       if (!selAccObj)
         errs.selectedAcc = "Select a Facebook account to continue";
       else if (!selAccObj.ad_account_id)
-        errs.selectedAcc = "Link an ad account before continuing — click \"Select accounts\"";
+        errs.selectedAcc = "Link an ad account before continuing â€” click \"Select accounts\"";
     }
 
     if (s === 2) {
@@ -892,8 +945,13 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
     }
 
     if (s === 3) {
-      if (!ad.image_url)
-        errs.adImage = "Add an image or video before continuing";
+      const adType = convLocation === "message" ? "messenger" : (ad.ad_type || "image_ad");
+      if (adType === "image_ad" && !ad.image_url)
+        errs.adImage = "Add an image before continuing";
+      else if (adType === "video_ad" && !ad.video_url)
+        errs.adImage = "Enter a Facebook-hosted video ID or URL";
+      else if (adType === "lead_ad" && !ad.lead_form_id)
+        errs.adImage = "Enter your Meta Lead Gen Form ID";
       if (convLocation === "message" && !welcomeMsg.trim())
         errs.welcomeMsg = "Welcome message is required for message destination campaigns";
     }
@@ -920,15 +978,15 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   const anyDropOpen = optimizeOpen || engTypeOpen || audDropOpen || pixelDropOpen || eventDropOpen;
   if (!mounted) return null;
 
-  return createPortal(
+  const modal = createPortal(
     <div className="fixed inset-0 z-[99999] flex items-start justify-center bg-black/65 backdrop-blur-sm pt-3 px-4">
       <div className="relative w-full bg-zinc-900 rounded-xl shadow-2xl flex flex-col overflow-hidden" style={{ maxWidth: 1100, height: "96vh" }}>
-        {/* Invisible overlay — closes all dropdowns when clicking outside them */}
+        {/* Invisible overlay â€” closes all dropdowns when clicking outside them */}
         {anyDropOpen && (
           <div className="absolute inset-0 z-[45]" onMouseDown={closeAllDropdowns} />
         )}
 
-        {/* Meta account picker — rendered as portal above this modal */}
+        {/* Meta account picker â€” rendered as portal above this modal */}
         {showMetaPicker && (() => {
           const accId  = pickerAccountId || selectedAcc || adAccounts[0]?.id;
           const accObj = adAccounts.find(a => a.id === accId);
@@ -954,7 +1012,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
         {/* Body */}
         <div className="flex flex-1 overflow-hidden">
 
-          {/* Left sidebar — steps (collapsible) */}
+          {/* Left sidebar â€” steps (collapsible) */}
           <div className={`shrink-0 border-r border-zinc-800 flex flex-col transition-all duration-200 ${modalSidebarOpen ? "w-52" : "w-8"}`}>
             {/* Collapse toggle */}
             <button type="button" onClick={() => setModalSidebarOpen(o => !o)}
@@ -996,7 +1054,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
           {/* Right content area */}
           <div className="flex-1 overflow-y-auto">
 
-            {/* ── STEP 1 ── */}
+            {/* â”€â”€ STEP 1 â”€â”€ */}
             {step === 1 && (
               <div className="p-6 space-y-6">
                 <div className="space-y-4">
@@ -1063,14 +1121,42 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                       {sel!.ad_account_id}
                                     </span>
                                   ) : (
-                                    <span className="text-[11px] text-amber-400">Not linked — click &quot;Select accounts&quot;</span>
+                                    <span className="text-[11px] text-amber-400">Not linked â€” click &quot;Select accounts&quot;</span>
                                   )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 px-4 py-2.5">
                                 <p className="text-[11px] text-zinc-500 w-20 shrink-0">Page</p>
-                                <span className="text-[11px] text-zinc-300 truncate">{sel?.account_name || "—"}</span>
+                                <span className="text-[11px] text-zinc-300 truncate">{sel?.account_name || "â€”"}</span>
                               </div>
+                              {/* Meta ad account balance â€” fetched from Meta Graph API */}
+                              {metaBalance && (
+                                <div className="px-4 py-2.5 flex items-center gap-4 bg-zinc-900/60 border-t border-zinc-800/60">
+                                  <div>
+                                    <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Account Balance</p>
+                                    <p className={`text-xs font-bold ${metaBalance.balance !== null ? "text-emerald-400" : "text-zinc-500"}`}>
+                                      {metaBalance.balance !== null
+                                        ? `${metaBalance.currency} ${parseFloat(metaBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                                        : "â€”"}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Spent</p>
+                                    <p className="text-xs font-semibold text-zinc-300">
+                                      {metaBalance.currency} {parseFloat(metaBalance.amount_spent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </p>
+                                  </div>
+                                  {metaBalance.spend_cap && (
+                                    <div>
+                                      <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Spend Cap</p>
+                                      <p className="text-xs font-semibold text-zinc-400">
+                                        {metaBalance.currency} {parseFloat(metaBalance.spend_cap).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </p>
+                                    </div>
+                                  )}
+                                  <p className="text-[10px] text-zinc-600 ml-auto">Live from Meta</p>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
@@ -1084,10 +1170,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     </>
                   )}
                   {fieldErrors.selectedAcc && (
-                    <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.selectedAcc}</p>
+                    <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>âš </span>{fieldErrors.selectedAcc}</p>
                   )}
                   {fieldErrors.selectedPage && (
-                    <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.selectedPage}</p>
+                    <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>âš </span>{fieldErrors.selectedPage}</p>
                   )}
                 </div>
 
@@ -1099,7 +1185,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       className={inp + (fieldErrors.campName ? " border-rose-500" : "")}
                       placeholder="New campaign"
                     />
-                    {fieldErrors.campName && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.campName}</p>}
+                    {fieldErrors.campName && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>âš </span>{fieldErrors.campName}</p>}
                   </Field>
                 </div>
 
@@ -1112,12 +1198,20 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   <div className="space-y-1">
                     {OBJECTIVES.map(o => (
                       <Radio key={o.value} value={o.value} checked={objective === o.value}
-                        onChange={() => setObjective(o.value)} label={o.label} desc={o.desc} />
+                        onChange={() => {
+                          setObjective(o.value);
+                          // Clear conversion tracking if leaving CONVERSIONS objective
+                          if (o.value !== "CONVERSIONS") {
+                            setTrackingPixel("");
+                            setConvEvent("");
+                          }
+                        }}
+                        label={o.label} desc={o.desc} />
                     ))}
                   </div>
                 </div>
 
-                {/* Conversion location — hidden for Awareness */}
+                {/* Conversion location â€” hidden for Awareness */}
                 {objective !== "AWARENESS" && (
                 <div className="border-t border-zinc-800 pt-5 space-y-4">
                   <div>
@@ -1125,12 +1219,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     <p className="text-xs text-zinc-500">Choose where you want people to take your desired action.</p>
                   </div>
 
-                  {/* Traffic — Website only */}
+                  {/* Traffic â€” Website only */}
                   {objective === "TRAFFIC" && (
                     <Radio value="website" checked label="Website" desc="Drive traffic to your website and marketing landing pages." onChange={() => setConvLocation("website")} />
                   )}
 
-                  {/* Sales — On your website + Message destination */}
+                  {/* Sales â€” On your website + Message destination */}
                   {objective === "CONVERSIONS" && (
                     <div className="space-y-2">
                       <Radio value="website" checked={convLocation !== "message"} label="On your website"
@@ -1143,7 +1237,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     </div>
                   )}
 
-                  {/* Leads — 3 conversion location options */}
+                  {/* Leads â€” 3 conversion location options */}
                   {objective === "LEAD_GENERATION" && (
                     <div className="space-y-1">
                       <Radio value="instant_form" checked={convLocation === "instant_form"}
@@ -1159,7 +1253,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     </div>
                   )}
 
-                  {/* Engagement — 3 options */}
+                  {/* Engagement â€” 3 options */}
                   {objective === "ENGAGEMENT" && (
                     <div className="space-y-1">
                       <Radio value="on_ad"   checked={convLocation === "on_ad"}   label="On your ad"
@@ -1175,7 +1269,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                 </div>
                 )}
 
-                {/* Engagement type selector — shown when "On your ad" */}
+                {/* Engagement type selector â€” shown when "On your ad" */}
                 {objective === "ENGAGEMENT" && convLocation === "on_ad" && (
                     <Field label="Select a type of engagement">
                       <div className="relative">
@@ -1201,7 +1295,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                                   engType === et.value ? "bg-amber-500/10 text-white" : "hover:bg-zinc-800 text-zinc-300"
                                 }`}>
-                                {engType === et.value && <span className="text-amber-400 text-xs">✓</span>}
+                                {engType === et.value && <span className="text-amber-400 text-xs">âœ“</span>}
                                 {engType !== et.value && <span className="w-3" />}
                                 <span className="text-sm font-medium">{et.label}</span>
                               </button>
@@ -1270,7 +1364,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     </p>
                   </label>
 
-                  {/* When checked — category picker + restrictions */}
+                  {/* When checked â€” category picker + restrictions */}
                   {specialCat && (
                     <div className="space-y-3 ml-7">
                       {/* Category dropdown */}
@@ -1315,7 +1409,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
               </div>
             )}
 
-            {/* ── STEP 2 ── */}
+            {/* â”€â”€ STEP 2 â”€â”€ */}
             {step === 2 && (
               <div className="p-6 space-y-6">
                 <div>
@@ -1339,13 +1433,13 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${audDropOpen ? "rotate-180" : ""}`} />
                       </button>
 
-                      {/* Dropdown — all audience options inside */}
+                      {/* Dropdown â€” all audience options inside */}
                       {audDropOpen && (
                         <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden">
-                          {/* Build your own — selected option */}
+                          {/* Build your own â€” selected option */}
                           <button type="button" onClick={() => setAudDropOpen(false)}
                             className="w-full flex items-start gap-3 px-4 py-3.5 text-left bg-amber-500/5 border-b border-zinc-800 hover:bg-amber-500/10 transition-colors">
-                            <span className="text-amber-400 text-xs mt-0.5 shrink-0">✓</span>
+                            <span className="text-amber-400 text-xs mt-0.5 shrink-0">âœ“</span>
                             <div>
                               <p className="text-sm font-bold text-white">Build your own audience</p>
                               <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">Choose who you want to see your ad based on targeting settings including their location, age, interests, and others.</p>
@@ -1379,7 +1473,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Included people who match</p>
                     <p className="text-xs text-zinc-300">Age: {ageMin} - {ageMax}</p>
                     <p className="text-xs text-zinc-300">Gender: {gender === "ALL" ? "All" : gender.charAt(0) + gender.slice(1).toLowerCase()}</p>
-                    <p className="text-xs text-zinc-300">Location: {(() => { try { return (JSON.parse(location) as {display_name:string}[]).map(l => l.display_name).join(", "); } catch { return location || "—"; } })()}</p>
+                    <p className="text-xs text-zinc-300">Location: {(() => { try { return (JSON.parse(location) as {display_name:string}[]).map(l => l.display_name).join(", "); } catch { return location || "â€”"; } })()}</p>
                     {interests.length > 0 && <p className="text-xs text-zinc-300">Interests: {interests.map(i => i.name).join(", ")}</p>}
                     {excludeLocations.length > 0 && (
                       <p className="text-xs text-rose-400 flex items-start gap-1">
@@ -1401,7 +1495,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           // Keep existing location objects or convert string fallback
                           setTmpLoc(tmpLoc.length > 0 ? tmpLoc : [{ key: "US", display_name: "United States", type: "country" }]);
                           setTmpExcLocItems([...excludeLocations]); // pre-load saved exclude locations
-                          setTmpInt(interests); setShowEditAud(true);
+                          setTmpInt(interests); setAudienceError(null); setShowEditAud(true);
                         }}
                         className="px-3 py-1.5 text-xs font-semibold text-white border border-zinc-600 hover:border-zinc-400 rounded-lg transition-colors">
                         Edit audience
@@ -1422,7 +1516,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         </button>
                       </div>
                       <div className="flex flex-1 overflow-hidden">
-                        {/* Left — form */}
+                        {/* Left â€” form */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
                           {/* Location */}
@@ -1472,12 +1566,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 </div>
                               </div>
                             </div>
-                            <p className="text-[11px] text-zinc-600">Locations powered by Meta Targeting API — requires connected Facebook account with ads_management scope.</p>
+                            <p className="text-[11px] text-zinc-600">Locations powered by Meta Targeting API â€” requires connected Facebook account with ads_management scope.</p>
 
                             {/* Exclude toggle */}
                             <button type="button" onClick={() => setShowExclude(o => !o)}
                               className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1">
-                              {showExclude ? "▾" : "▸"} {showExclude ? "Hide" : "Exclude"} Location
+                              {showExclude ? "â–¾" : "â–¸"} {showExclude ? "Hide" : "Exclude"} Location
                             </button>
 
                             {showExclude && (
@@ -1553,7 +1647,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <p className="text-sm font-bold text-white">Age</p>
-                              {specialCat && specialCatType && <span className="text-[10px] text-amber-400 font-semibold">Locked: 18–65+ by special category</span>}
+                              {specialCat && specialCatType && <span className="text-[10px] text-amber-400 font-semibold">Locked: 18â€“65+ by special category</span>}
                             </div>
                             <p className="text-xs text-zinc-500">Select the minimum and maximum age for people who will see your ad.<br/>Note: the minimum age is 13, and the maximum age is 65 and over.</p>
                             <div className="flex items-center gap-3">
@@ -1567,7 +1661,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 </select>
                                 <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-2 top-2.5 pointer-events-none" />
                               </div>
-                              <span className="text-zinc-500">–</span>
+                              <span className="text-zinc-500">â€“</span>
                               <div className="relative">
                                 <select value={tmpAge[1]} onChange={e => setTmpAge([tmpAge[0], e.target.value])}
                                   disabled={!!(specialCat && specialCatType)}
@@ -1591,7 +1685,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             </p>
                             <div className="p-2.5 bg-blue-500/5 border border-blue-500/20 rounded-lg">
                               <p className="text-[11px] text-blue-400 leading-relaxed">
-                                <span className="font-bold">How it works:</span> Interests are fetched from Meta&apos;s Targeting API using your connected ad account. Type to search — e.g. &quot;Technology&quot;, &quot;Travel&quot;, &quot;Fitness&quot;. No extra Meta setup needed — your existing <code className="text-xs bg-blue-500/10 px-1 rounded">ads_management</code> scope covers this.
+                                <span className="font-bold">How it works:</span> Interests are fetched from Meta&apos;s Targeting API using your connected ad account. Type to search â€” e.g. &quot;Technology&quot;, &quot;Travel&quot;, &quot;Fitness&quot;. No extra Meta setup needed â€” your existing <code className="text-xs bg-blue-500/10 px-1 rounded">ads_management</code> scope covers this.
                               </p>
                             </div>
                             <p className="text-xs font-semibold text-zinc-400">Include</p>
@@ -1638,16 +1732,16 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           </div>
                         </div>
 
-                        {/* Right — current details */}
+                        {/* Right â€” current details */}
                         <div className="w-56 shrink-0 bg-zinc-900/50 border-l border-zinc-800 p-5 space-y-4">
                           <p className="text-sm font-bold text-white">Current audience details</p>
                           <div className="space-y-2">
                             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1">
-                              <span>👥</span> Included people who match
+                              <span>ðŸ‘¥</span> Included people who match
                             </p>
                             <p className="text-xs text-zinc-400">Age: {tmpAge[0]} - {tmpAge[1]}</p>
                             <p className="text-xs text-zinc-400">Gender: {tmpGender === "ALL" ? "All" : tmpGender.charAt(0) + tmpGender.slice(1).toLowerCase()}</p>
-                            <p className="text-xs text-zinc-400">Location: {tmpLoc.map(l => l.display_name).join(", ") || "—"}</p>
+                            <p className="text-xs text-zinc-400">Location: {tmpLoc.map(l => l.display_name).join(", ") || "â€”"}</p>
                             {tmpExcLocItems.length > 0 && <p className="text-xs text-rose-400">Excluded: {tmpExcLocItems.map(l => l.display_name).join(", ")}</p>}
                             {tmpInt.length > 0 && <p className="text-xs text-zinc-400">Interests: {tmpInt.map(i => i.name).join(", ")}</p>}
                           </div>
@@ -1660,15 +1754,19 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 
                       {/* Footer */}
                       <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800 bg-zinc-950">
-                        <button onClick={() => setShowEditAud(false)}
+                        {audienceError && (
+                          <p className="text-xs text-rose-400 mr-auto">{audienceError}</p>
+                        )}
+                        <button onClick={() => { setShowEditAud(false); setAudienceError(null); }}
                           className="px-5 py-2 text-sm text-zinc-400 border border-zinc-700 hover:border-zinc-500 hover:text-white rounded-lg font-medium transition-colors">
                           Cancel
                         </button>
                         <button
                           onClick={() => {
+                            setAudienceError(null);
                             const minAge = parseInt(tmpAge[0]);
                             const maxAge = parseInt(tmpAge[1].replace("+","")) || 65;
-                            if (minAge >= maxAge) { alert("Minimum age must be less than maximum age."); return; }
+                            if (minAge >= maxAge) { setAudienceError("Minimum age must be less than maximum age."); return; }
                             setAgeMin(tmpAge[0]); setAgeMax(tmpAge[1].replace("+",""));
                             setGender(tmpGender);
                             setLocation(JSON.stringify(tmpLoc));
@@ -1748,7 +1846,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 
                       {(beneficiary || payer) && !euConfirmed && (
                         <p className="text-[11px] text-amber-400 flex items-center gap-1.5">
-                          <span>⚠</span> Please confirm your details are accurate above.
+                          <span>âš </span> Please confirm your details are accurate above.
                         </p>
                       )}
                     </div>
@@ -1915,16 +2013,11 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   })()}
                 </div>
 
-                {/* Tracking — Sales + On your website + Conversions only */}
+                {/* Tracking â€” Sales + On your website + Conversions only */}
                 {objective === "CONVERSIONS" && convLocation !== "message" && optimize === "OFFSITE_CONVERSIONS" && (() => {
-                  // Mock pixels from connected accounts — real: GET /me/adaccounts?fields=owned_pixels
-                  const mockPixels = pages.length > 0
-                    ? pages.map((p, i) => ({ id: `${831557479645367 + i * 100}`, name: p.account_name + " Pixel" }))
-                    : [{ id: "831557479645367", name: "My Website Pixel" }];
-
-                  const filteredPixels = mockPixels.filter(p =>
-                    !pixelSearch || p.name.toLowerCase().includes(pixelSearch.toLowerCase()) || p.id.includes(pixelSearch)
-                  );
+                  // Real pixels are fetched from Meta API at publish time.
+                  // Here users enter their Pixel ID manually (found in Meta Events Manager).
+                  const filteredPixels: { id: string; name: string }[] = [];
 
                   const CONV_EVENTS = [
                     "Add payment info", "Add to cart", "Add to wishlist", "Complete registration",
@@ -1946,41 +2039,22 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         </p>
                       </div>
 
-                      {/* Pixel selector */}
-                      <Field label="Select a tracking pixel">
-                        <div className="relative">
-                          <button type="button" onClick={() => { setPixelDropOpen(o => !o); setEventDropOpen(false); }}
-                            className={inp + " flex items-center justify-between text-left"}>
-                            <span className={trackingPixel ? "text-white" : "text-zinc-600"}>
-                              {trackingPixel || "Search for a tracking pixel"}
-                            </span>
-                            <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${pixelDropOpen ? "rotate-180" : ""}`} />
-                          </button>
-                          {pixelDropOpen && (
-                            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden">
-                              <div className="p-2 border-b border-zinc-800">
-                                <input autoFocus value={pixelSearch} onChange={e => setPixelSearch(e.target.value)}
-                                  placeholder="Search for a tracking pixel"
-                                  className={inp + " text-sm"} />
-                              </div>
-                              <div className="max-h-48 overflow-y-auto">
-                                {filteredPixels.map(p => (
-                                  <button key={p.id} type="button"
-                                    onClick={() => { setTrackingPixel(p.name); setPixelSearch(""); setPixelDropOpen(false); setConvEvent(""); }}
-                                    className="w-full text-left px-4 py-3 hover:bg-zinc-800 transition-colors border-b border-zinc-800/50 last:border-0">
-                                    <p className="text-sm text-white font-medium">{p.name}</p>
-                                    <p className="text-[11px] text-zinc-500 mt-0.5">Pixel ID: {p.id}</p>
-                                  </button>
-                                ))}
-                              </div>
-                              <div className="border-t border-zinc-800">
-                                <button type="button" className="w-full flex items-center gap-2 px-4 py-3 text-xs text-blue-400 hover:bg-zinc-800 transition-colors">
-                                  <span>↗</span> Set up a new tracking pixel on Facebook
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                      {/* Pixel ID â€” entered manually; found in Meta Events Manager */}
+                      <Field label="Meta Pixel ID">
+                        <input
+                          type="text"
+                          value={trackingPixel}
+                          onChange={e => { setTrackingPixel(e.target.value); setConvEvent(""); }}
+                          placeholder="e.g. 1234567890123456"
+                          className={inp}
+                        />
+                        <p className="text-[11px] text-zinc-600 mt-1">
+                          Find your Pixel ID in{" "}
+                          <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                            Meta Events Manager
+                          </a>
+                          {" "}â†’ Data Sources â†’ your Pixel.
+                        </p>
                       </Field>
 
                       {/* Conversion event selector */}
@@ -2024,7 +2098,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                 {(() => {
                   const selAccObj  = adAccounts.find(a => a.id === selectedAcc);
                   const currency   = selAccObj?.ad_account_currency || "USD";
-                  const SYMBOLS: Record<string, string>  = { USD:"$", INR:"₹", EUR:"€", GBP:"£", AUD:"A$", SGD:"S$", MYR:"RM", AED:"د.إ" };
+                  const SYMBOLS: Record<string, string>  = { USD:"$", INR:"â‚¹", EUR:"â‚¬", GBP:"Â£", AUD:"A$", SGD:"S$", MYR:"RM", AED:"Ø¯.Ø¥" };
                   const MINS: Record<string, number>     = { USD:1, INR:97, EUR:1, GBP:1, AUD:2, SGD:2, MYR:5, AED:4 };
                   const symbol = SYMBOLS[currency] || (currency + " ");
                   const minAmt = MINS[currency] || 1;
@@ -2034,6 +2108,44 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     <h4 className="text-sm font-bold text-white mb-0.5">Budget and duration</h4>
                     <p className="text-xs text-zinc-500">Set the budget and duration of your ad campaign.</p>
                   </div>
+
+                  {/* Meta ad account live balance */}
+                  {metaBalance ? (
+                    <div className="flex items-center gap-5 px-4 py-3 bg-zinc-900 border border-zinc-700/60 rounded-xl">
+                      <div className="flex-1">
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Account Balance</p>
+                        <p className={`text-base font-bold ${metaBalance.balance !== null ? "text-emerald-400" : "text-zinc-500"}`}>
+                          {metaBalance.balance !== null
+                            ? `${symbol}${parseFloat(metaBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : "â€”"}
+                        </p>
+                      </div>
+                      <div className="w-px h-8 bg-zinc-800" />
+                      <div className="flex-1">
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Total Spent</p>
+                        <p className="text-base font-semibold text-zinc-300">
+                          {symbol}{parseFloat(metaBalance.amount_spent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      {metaBalance.spend_cap && (
+                        <>
+                          <div className="w-px h-8 bg-zinc-800" />
+                          <div className="flex-1">
+                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Spend Cap</p>
+                            <p className="text-base font-semibold text-zinc-400">
+                              {symbol}{parseFloat(metaBalance.spend_cap).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      <p className="text-[10px] text-zinc-600 shrink-0">Live Â· Meta</p>
+                    </div>
+                  ) : (
+                    <div className="h-[60px] flex items-center px-4 bg-zinc-900/50 border border-zinc-800 rounded-xl">
+                      <p className="text-xs text-zinc-600">Connecting to Meta ad accountâ€¦</p>
+                    </div>
+                  )}
+
                   <Field label="Budget" hint={`Enter in ${currency}. Meta minimum is ${symbol}${minAmt}/day for this ad account.`}>
                     <div className="flex items-center gap-4">
                       <div className="relative w-36">
@@ -2055,7 +2167,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         ))}
                       </div>
                     </div>
-                    {fieldErrors.budget && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.budget}</p>}
+                    {fieldErrors.budget && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>âš </span>{fieldErrors.budget}</p>}
                   </Field>
                   <Field label="Duration" hint="Choose how long your ad campaign will run.">
                     <div className="flex items-center gap-3">
@@ -2070,7 +2182,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           min={startDate} className={inp} placeholder="No end date" />
                       </div>
                     </div>
-                    {fieldErrors.startDate && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.startDate}</p>}
+                    {fieldErrors.startDate && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>âš </span>{fieldErrors.startDate}</p>}
                   </Field>
                 </div>
                   );
@@ -2081,17 +2193,17 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   <h4 className="text-sm font-bold text-white mb-1">Payment</h4>
                   <p className="text-xs text-zinc-500">
                     Meta will bill your ad account when your ad is published. Review your payment method on Meta.{" "}
-                    <span className="text-blue-400 underline cursor-pointer">Learn more ↗</span>
+                    <span className="text-blue-400 underline cursor-pointer">Learn more â†—</span>
                   </p>
                 </div>
               </div>
             )}
 
-            {/* ── STEP 3 ── */}
+            {/* â”€â”€ STEP 3 â”€â”€ */}
             {step === 3 && (
               <div className="flex h-full overflow-hidden">
 
-                {/* ── Ads List Sidebar (independent from step progress sidebar) ── */}
+                {/* â”€â”€ Ads List Sidebar (independent from step progress sidebar) â”€â”€ */}
                 <div className={`shrink-0 border-r border-zinc-800 flex flex-col transition-all duration-200 ${adsSidebarOpen ? "w-52" : "w-8"}`}>
                   <button type="button" onClick={() => setAdsSidebarOpen(o => !o)}
                     className="flex items-center justify-center w-full h-8 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/50 transition-colors shrink-0">
@@ -2109,7 +2221,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         <p className="text-[10px] text-zinc-500 mb-1.5">YOUR ADS ({ads.length}/50)</p>
                         {ads.length < 50 && (
                           <button type="button"
-                            onClick={() => { setAds(prev => [...prev, { name: `New ad`, copy: "", headline: "", website_url: "http://example.com", cta: "Apply now", image_url: "" }]); setSelectedAdIdx(ads.length); setShowSummary(false); }}
+                            onClick={() => { setAds(prev => [...prev, { name: `New ad`, copy: "", headline: "", website_url: "http://example.com", cta: "Learn more", image_url: "" }]); setSelectedAdIdx(ads.length); setShowSummary(false); }}
                             className="flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
                             <span className="text-base leading-none">+</span> Create an ad
                           </button>
@@ -2126,7 +2238,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             onClick={() => { setSelectedAdIdx(idx); setShowSummary(false); }}>
                             <p className="text-xs text-zinc-300 flex-1 truncate">{a.name || "New ad"}</p>
                             {!a.image_url && (
-                              <span className="text-amber-400 text-xs shrink-0" title="No image added">⚠</span>
+                              <span className="text-amber-400 text-xs shrink-0" title="No image added">âš </span>
                             )}
                             <button type="button"
                               onClick={e => { e.stopPropagation(); if (ads.length === 1) return; setAds(prev => prev.filter((_, i) => i !== idx)); setSelectedAdIdx(Math.max(0, idx - 1)); }}
@@ -2150,23 +2262,23 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   )}
                 </div>
 
-                {/* ── Main: Ad form or Summary ── */}
+                {/* â”€â”€ Main: Ad form or Summary â”€â”€ */}
                 {showSummary ? (
                   /* Summary view */
                   <div className="flex-1 overflow-y-auto p-6">
                     <h2 className="text-base font-bold text-white mb-5">Summary</h2>
                     <div className="space-y-0 border border-zinc-800 rounded-xl overflow-hidden">
                       {[
-                        { label: "Page",                    value: pages.find(p => p.id === selectedPage)?.account_name || "—" },
-                        { label: "Ad account",              value: adAccounts.find(a => a.id === selectedAcc)?.account_name || "—" },
+                        { label: "Page",                    value: pages.find(p => p.id === selectedPage)?.account_name || "â€”" },
+                        { label: "Ad account",              value: adAccounts.find(a => a.id === selectedAcc)?.account_name || "â€”" },
                         { label: "Campaign name",           value: campName },
                         { label: "Objective",               value: OBJECTIVES.find(o => o.value === objective)?.label || objective },
                         { label: "Optimisation and delivery", value: OPTIMIZE_OPTIONS[effectiveObjective]?.find(o => o.value === optimize)?.label || optimize },
                         { label: "Special ad categories",   value: specialCat && specialCatType ? specialCatType.charAt(0) + specialCatType.slice(1).toLowerCase() : "No categories declared" },
                         { label: "Audience",                value: "Built audience" },
                         { label: "Placements",              value: autoPlace ? "Automatic placements" : `Manual placements (${selectedPlacements.length})` },
-                        { label: "Payment summary",         value: budgetAmt ? `$${parseFloat(budgetAmt).toFixed(2)} per day` : "—" },
-                        { label: "Duration",                value: startDate ? `From - ${new Date(startDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : "—" },
+                        { label: "Payment summary",         value: budgetAmt ? `${(()=>{const c=adAccounts.find(a=>a.id===selectedAcc)?.ad_account_currency||"USD";const s:Record<string,string>={USD:"$",INR:"â‚¹",EUR:"â‚¬",GBP:"Â£",AUD:"A$",SGD:"S$",MYR:"RM",AED:"Ø¯.Ø¥"};return s[c]||(c+" ");})()}${parseFloat(budgetAmt).toFixed(2)} ${budgetType === "daily" ? "per day" : "total"}` : "â€”" },
+                        { label: "Duration",                value: startDate ? `From - ${new Date(startDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : "â€”" },
                         { label: "Created ads",             value: String(ads.length) },
                       ].map(({ label, value }, i) => (
                         <div key={label} className={`flex items-start gap-4 px-5 py-3 ${i % 2 === 0 ? "bg-zinc-900/20" : ""} border-b border-zinc-800/50 last:border-0`}>
@@ -2212,10 +2324,62 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       <p className="text-[10px] text-zinc-600 text-right mt-1">{ad.copy.length} / 2,200</p>
                     </div>
 
-                    {/* Image / video upload */}
+                    {/* Ad format selector â€” not shown for message destination */}
+                    {convLocation !== "message" && (
+                      <Field label="Ad format">
+                        <div className="flex gap-2">
+                          {([
+                            { value: "image_ad", label: "Image Ad" },
+                            { value: "video_ad", label: "Video Ad" },
+                            ...(objective === "LEAD_GENERATION" ? [{ value: "lead_ad", label: "Lead Form" }] : []),
+                          ] as { value: "image_ad"|"video_ad"|"lead_ad"; label: string }[]).map(type => (
+                            <button key={type.value} type="button"
+                              onClick={() => setAd(a => ({
+                                ...a,
+                                ad_type: type.value,
+                                // Clear fields that belong to the other formats
+                                ...(type.value !== "video_ad" ? { video_url: "" } : {}),
+                                ...(type.value !== "lead_ad"  ? { lead_form_id: "" } : {}),
+                                ...(type.value !== "image_ad" ? { image_url: "" } : {}),
+                              }))}
+                              className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all ${
+                                (ad.ad_type || "image_ad") === type.value
+                                  ? "bg-white text-zinc-900 border-white"
+                                  : "bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-zinc-300"
+                              }`}>
+                              {type.label}
+                            </button>
+                          ))}
+                        </div>
+                      </Field>
+                    )}
+
+                    {/* Video URL â€” shown when video_ad selected */}
+                    {(ad.ad_type || "image_ad") === "video_ad" && convLocation !== "message" && (
+                      <Field label="Facebook Video ID or URL">
+                        <input type="text" value={ad.video_url || ""}
+                          onChange={e => setAd(a => ({ ...a, video_url: e.target.value }))}
+                          className={inp} placeholder="e.g. 1234567890123456" />
+                        <p className="text-[11px] text-zinc-600 mt-1.5">Upload your video in Meta Ads Manager â†’ Creative Hub, then paste the video ID here.</p>
+                      </Field>
+                    )}
+
+                    {/* Lead form ID â€” shown when lead_ad selected */}
+                    {(ad.ad_type || "image_ad") === "lead_ad" && convLocation !== "message" && (
+                      <Field label="Meta Lead Gen Form ID">
+                        <input type="text" value={ad.lead_form_id || ""}
+                          onChange={e => setAd(a => ({ ...a, lead_form_id: e.target.value }))}
+                          className={inp} placeholder="e.g. 1234567890123456" />
+                        <p className="text-[11px] text-zinc-600 mt-1.5">Create your form in Meta Ads Manager â†’ Lead Ads Forms, then paste the Form ID here.</p>
+                      </Field>
+                    )}
+
+                    {/* Image upload â€” shown when image_ad selected */}
+                    {(ad.ad_type || "image_ad") === "image_ad" && convLocation !== "message" && (
+                    <>{/* Image / video upload */}
                     {!ad.image_url ? (
                       <div className="space-y-2">
-                        {/* Warning — only shown after failed Next attempt */}
+                        {/* Warning â€” only shown after failed Next attempt */}
                         {(showMediaErr || fieldErrors.adImage) && (
                           <div className="flex items-start gap-2.5 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
                             <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0 mt-0.5">
@@ -2236,7 +2400,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 : <ImageIcon className="w-5 h-5 text-zinc-400" />}
                             </div>
                             <p className="text-xs text-zinc-500 group-hover:text-zinc-400">
-                              {imageUploading ? "Uploading…" : "Add image"}
+                              {imageUploading ? "Uploadingâ€¦" : "Add image"}
                             </p>
                             <input type="file" accept="image/*,image/jpeg,image/png,image/gif,image/webp" className="hidden"
                               disabled={imageUploading}
@@ -2245,18 +2409,19 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 if (file) uploadAdImage(file);
                               }} />
                           </label>
-                          <label className="flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-zinc-700 hover:border-zinc-500 rounded-xl cursor-pointer transition-colors group">
+                          <button type="button" onClick={() => setShowVaultPicker(true)}
+                            className="flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-zinc-700 hover:border-zinc-500 rounded-xl cursor-pointer transition-colors group">
                             <div className="w-10 h-10 bg-zinc-800 group-hover:bg-zinc-700 rounded-lg flex items-center justify-center transition-colors">
                               <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                               </svg>
                             </div>
                             <p className="text-xs text-zinc-500 group-hover:text-zinc-400">Add from library</p>
-                          </label>
+                          </button>
                         </div>
                         {imageUploadErr && (
                           <p className="text-[11px] text-rose-400 flex items-center gap-1">
-                            <span>⚠</span>{imageUploadErr}
+                            <span>âš </span>{imageUploadErr}
                           </p>
                         )}
                         {/* Paste a direct public image URL */}
@@ -2276,6 +2441,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         </button>
                       </div>
                     )}
+                    </>
+                  )}
 
                     {/* Message destination fields */}
                     {convLocation === "message" ? (
@@ -2293,7 +2460,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           <p className="text-[10px] text-zinc-600 text-right">{welcomeMsg.length} / 300 characters</p>
                           {(showWelcomeErr || fieldErrors.welcomeMsg) && (
                             <div className="flex items-start gap-2 p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-lg">
-                              <span className="text-rose-400 text-xs shrink-0 mt-0.5">⊘</span>
+                              <span className="text-rose-400 text-xs shrink-0 mt-0.5">âŠ˜</span>
                               <div>
                                 <p className="text-xs font-semibold text-rose-300">Welcome message required</p>
                                 <p className="text-[11px] text-rose-400/80">Add a welcome message to proceed with this campaign type.</p>
@@ -2304,7 +2471,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       </>
                     ) : (
                       <>
-                        {/* Headline — non-message */}
+                        {/* Headline â€” non-message */}
                         <Field label="Headline">
                           <input value={ad.headline} onChange={e => setAd(a => ({...a, headline: e.target.value}))}
                             className={inp} placeholder="Add a headline to get people's attention..." />
@@ -2325,7 +2492,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           </label>
                           {addWebsiteUrl && (
                             <input type="url" value={ad.website_url} onChange={e => setAd(a => ({...a, website_url: e.target.value}))}
-                              className={inp} placeholder="http://example.com" />
+                              className={inp} placeholder="https://yourwebsite.com/page" />
                           )}
                         </div>
                       </>
@@ -2346,7 +2513,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 
                 )} {/* end showSummary ternary */}
 
-                {/* Right: preview — always visible */}
+                {/* Right: preview â€” always visible */}
                 <div className="flex-1 flex flex-col overflow-hidden">
                   {/* Preview tabs */}
                   <div className="flex border-b border-zinc-800 px-4">
@@ -2373,7 +2540,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         : <div className="w-full bg-zinc-100 flex items-center justify-center" style={{ aspectRatio: previewTab === "instagram" ? "1/1" : "16/9" }}><ImageIcon className="w-8 h-8 text-zinc-300" /></div>;
 
                       if (previewTab === "instagram") {
-                        // Message destination — messenger preview style
+                        // Message destination â€” messenger preview style
                         if (convLocation === "message") {
                           return (
                             <div className="bg-white rounded-xl overflow-hidden shadow-lg w-64">
@@ -2384,25 +2551,25 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                   </div>
                                   <div>
                                     <p className="text-xs font-bold text-zinc-900">{pageName}</p>
-                                    <p className="text-[9px] text-zinc-500">Sponsored · 🌐</p>
+                                    <p className="text-[9px] text-zinc-500">Sponsored Â· ðŸŒ</p>
                                   </div>
                                 </div>
-                                <span className="text-zinc-400">···</span>
+                                <span className="text-zinc-400">Â·Â·Â·</span>
                               </div>
                               {imageEl}
                               <div className="px-3 py-2">
                                 <div className="flex items-center justify-between">
                                   <p className="text-xs text-zinc-400 truncate">{pageName.toLowerCase().replace(/ /g, "")}.com</p>
                                   <button className="flex items-center gap-1 text-[11px] text-blue-500 font-bold shrink-0">
-                                    {ad.cta} <span className="text-xs">›</span>
+                                    {ad.cta} <span className="text-xs">â€º</span>
                                   </button>
                                 </div>
                               </div>
                               <div className="flex items-center justify-between px-3 py-1.5 border-t border-zinc-100">
                                 <div className="flex items-center gap-3 text-zinc-600">
-                                  <span>♡</span><span>💬</span><span>⊘</span>
+                                  <span>â™¡</span><span>ðŸ’¬</span><span>âŠ˜</span>
                                 </div>
-                                <span className="text-zinc-600">🔖</span>
+                                <span className="text-zinc-600">ðŸ”–</span>
                               </div>
                               <div className="px-3 pb-2">
                                 <p className="text-[11px] font-bold text-zinc-900">{pageName}</p>
@@ -2421,10 +2588,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 </div>
                                 <div>
                                   <p className="text-xs font-bold text-zinc-900">{pageName}</p>
-                                  <p className="text-[9px] text-zinc-500">Sponsored · 🌐</p>
+                                  <p className="text-[9px] text-zinc-500">Sponsored Â· ðŸŒ</p>
                                 </div>
                               </div>
-                              <span className="text-zinc-400">···</span>
+                              <span className="text-zinc-400">Â·Â·Â·</span>
                             </div>
                             {/* Square image */}
                             {imageEl}
@@ -2432,11 +2599,11 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             <div className="px-3 pt-2 pb-1">
                               <div className="flex items-center justify-between mb-1.5">
                                 <div className="flex items-center gap-3 text-zinc-700">
-                                  <span className="text-lg">♡</span>
-                                  <span className="text-lg">💬</span>
-                                  <span className="text-lg">↗</span>
+                                  <span className="text-lg">â™¡</span>
+                                  <span className="text-lg">ðŸ’¬</span>
+                                  <span className="text-lg">â†—</span>
                                 </div>
-                                <span className="text-lg text-zinc-700">🔖</span>
+                                <span className="text-lg text-zinc-700">ðŸ”–</span>
                               </div>
                               {(ad.headline || ad.copy) && (
                                 <div className="flex items-center justify-between mt-1 border-t border-zinc-100 pt-1.5">
@@ -2453,7 +2620,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         );
                       }
 
-                      // Desktop / Mobile — Facebook style
+                      // Desktop / Mobile â€” Facebook style
                       return (
                         <div className={`bg-white rounded-xl overflow-hidden shadow-lg ${previewTab === "mobile" ? "w-64" : "w-80"}`}>
                           <div className="p-3">
@@ -2462,10 +2629,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 <div className="w-8 h-8 rounded-full bg-zinc-300 flex items-center justify-center text-xs font-bold text-zinc-700">{pageInitial}</div>
                                 <div>
                                   <p className="text-xs font-bold text-zinc-900">{pageName}</p>
-                                  <p className="text-[10px] text-zinc-500">Sponsored · 🌐</p>
+                                  <p className="text-[10px] text-zinc-500">Sponsored Â· ðŸŒ</p>
                                 </div>
                               </div>
-                              <span className="text-zinc-400 text-lg">···</span>
+                              <span className="text-zinc-400 text-lg">Â·Â·Â·</span>
                             </div>
                             {ad.copy && <p className="text-xs text-zinc-800 mb-2 leading-relaxed">{ad.copy}</p>}
                             {imageEl}
@@ -2479,7 +2646,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                               </div>
                             )}
                             <div className="flex items-center gap-4 mt-3 pt-2 border-t border-zinc-100">
-                              {["👍 Like", "💬 Comment", "↗ Share"].map(label => (
+                              {["ðŸ‘ Like", "ðŸ’¬ Comment", "â†— Share"].map(label => (
                                 <button key={label} className="flex-1 text-center text-[11px] text-zinc-500 font-semibold">{label}</button>
                               ))}
                             </div>
@@ -2496,7 +2663,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
               </div>
             )}
 
-            {/* ── STEP 4 ── */}
+            {/* â”€â”€ STEP 4 â”€â”€ */}
             {step === 4 && (
               <div className="p-6 space-y-6">
                 <div>
@@ -2511,8 +2678,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     { label: "Budget",             value: `$${parseFloat(budgetAmt || "0").toFixed(2)} per ${budgetType}` },
                     { label: "Start date",         value: startDate ? new Date(startDate).toLocaleDateString() : "Immediately" },
                     { label: "End date",           value: endDate ? new Date(endDate).toLocaleDateString() : "No end date" },
-                    { label: "Audience",           value: `Age ${ageMin}–${ageMax}, ${gender === "ALL" ? "All genders" : gender}, ${(() => { try { return (JSON.parse(location) as {display_name:string}[]).map(l => l.display_name).join(", "); } catch { return location || "—"; } })()}` },
-                    { label: "Ad headline",        value: ad.headline || "—" },
+                    { label: "Audience",           value: `Age ${ageMin}â€“${ageMax}, ${gender === "ALL" ? "All genders" : gender}, ${(() => { try { return (JSON.parse(location) as {display_name:string}[]).map(l => l.display_name).join(", "); } catch { return location || "â€”"; } })()}` },
+                    { label: "Ad headline",        value: ad.headline || "â€”" },
                   ].map(({ label, value }) => (
                     <div key={label} className="flex items-start gap-4 py-3 border-b border-zinc-800/50">
                       <p className="text-xs text-zinc-500 w-36 shrink-0 pt-0.5">{label}</p>
@@ -2537,6 +2704,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
               </button>
             )}
           </div>
+          {publishingStatus && <p className="text-xs text-blue-400 animate-pulse">{publishingStatus}</p>}
           {error && <p className="text-xs text-rose-400">{error}</p>}
           <div className="flex items-center gap-3">
             <button onClick={saveAsDraft} disabled={saving}
@@ -2564,5 +2732,31 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       </div>
     </div>,
     document.body
+  );
+
+  // Render Media Vault Picker portal when open
+  const vaultPickerPortal = showVaultPicker && typeof window !== "undefined"
+    ? createPortal(
+        <MediaVaultPicker
+          title="Choose from Media Vault"
+          hint="Select an image to use as your ad creative"
+          typeFilter="image"
+          onSelect={url => {
+            setAd(a => ({ ...a, image_url: url }));
+            setShowMediaErr(false);
+            clearErr("adImage");
+            setShowVaultPicker(false);
+          }}
+          onClose={() => setShowVaultPicker(false)}
+        />,
+        document.body
+      )
+    : null;
+
+  return (
+    <>
+      {modal}
+      {vaultPickerPortal}
+    </>
   );
 }

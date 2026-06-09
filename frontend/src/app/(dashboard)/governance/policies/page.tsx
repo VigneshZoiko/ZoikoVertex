@@ -92,6 +92,8 @@ export default function PolicyControlMatrixPage() {
   const [simPayload, setSimPayload] = useState('{\n  "intent": "generate_post",\n  "content": "Our new product guarantees 100% ROI within the first month!"\n}');
   const [simResult, setSimResult] = useState<any | null>(null);
   const [runningSim, setRunningSim] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [simError, setSimError] = useState<string | null>(null);
 
   // Pagination & Filtering
   const [page, setPage] = useState(1);
@@ -169,7 +171,7 @@ export default function PolicyControlMatrixPage() {
           status: 'Draft'
         });
         fetchDashboardData();
-        alert("Rule successfully submitted to Pending Approval queue.");
+        setSuccessMessage("Rule successfully submitted to Pending Approval queue.");
       } else {
         setBuilderError(res.error);
       }
@@ -182,6 +184,7 @@ export default function PolicyControlMatrixPage() {
     if (!selectedSimRule) return;
     setRunningSim(true);
     setSimResult(null);
+    setSimError(null);
     try {
       let parsedPayload = {};
       try { parsedPayload = JSON.parse(simPayload); } catch { parsedPayload = { text: simPayload }; }
@@ -194,10 +197,10 @@ export default function PolicyControlMatrixPage() {
       if (res.success) {
         setSimResult(res.data);
       } else {
-        alert(res.error || "Simulation failed.");
+        setSimError(res.error || "Simulation failed.");
       }
     } catch (err: any) {
-      alert(err.message || "Simulation error.");
+      setSimError(err.message || "Simulation error.");
     } finally {
       setRunningSim(false);
       fetchDashboardData(true); // refresh failures count
@@ -242,6 +245,17 @@ export default function PolicyControlMatrixPage() {
       {/* Main Workspace Frame */}
       <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8 flex-1 flex flex-col">
         
+        {/* Success Message Banner */}
+        {successMessage && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            <span>{successMessage}</span>
+            <button onClick={() => setSuccessMessage(null)} className="ml-auto text-emerald-400/80 hover:text-emerald-300">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Header Strip */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#222] pb-6">
           <div>
@@ -698,6 +712,13 @@ export default function PolicyControlMatrixPage() {
                   {runningSim ? "Computing Deterministic Outcome..." : "Execute Simulation"}
                 </button>
               </div>
+
+              {simError && (
+                <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl text-xs font-semibold flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span>{simError}</span>
+                </div>
+              )}
 
               {simResult && (
                 <div className="mt-6 space-y-3 animate-in slide-in-from-bottom-4 fade-in">

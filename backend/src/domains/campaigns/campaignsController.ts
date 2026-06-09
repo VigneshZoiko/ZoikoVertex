@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { deleteMetaCampaign } from './metaCampaignPublisher';
 
 // ── Status & Type constants ──────────────────────────────────
 
@@ -221,7 +222,23 @@ export const getCampaign = async (req: AuthRequest, res: Response, next: NextFun
       .single();
 
     if (error || !data) return res.status(404).json({ error: 'Campaign not found' });
-    res.json({ success: true, data });
+
+    // Enrich with connected account name + ad account name
+    let meta_account_name: string | null = null;
+    let meta_ad_account_name: string | null = null;
+    if (data.selected_meta_account_id) {
+      const { data: acct } = await supabaseAdmin
+        .from('connected_accounts')
+        .select('account_name, ad_account_name, ad_account_id')
+        .eq('id', data.selected_meta_account_id)
+        .single();
+      if (acct) {
+        meta_account_name    = acct.account_name    || null;
+        meta_ad_account_name = acct.ad_account_name || acct.ad_account_id || null;
+      }
+    }
+
+    res.json({ success: true, data: { ...data, meta_account_name, meta_ad_account_name } });
   } catch (err) { next(err); }
 };
 
@@ -239,28 +256,7 @@ export const createCampaign = async (req: AuthRequest, res: Response, next: Next
       .from('workspaces').select('org_id').eq('id', workspaceId).single();
     if (!ws?.org_id) return res.status(400).json({ error: 'Organization not found' });
 
-    // ── Wallet credits validation (organic/boost only — PAID_ADS billed via Meta) ─
-    let walletWarning: string | undefined;
-
-    if (parsed.data.campaign_type !== 'PAID_ADS') {
-      const { data: wallet } = await supabaseAdmin
-        .from('wallets')
-        .select('balance, processing_balance')
-        .eq('workspace_id', workspaceId)
-        .single();
-
-      if (!wallet || (wallet.balance <= 0 && wallet.processing_balance <= 0)) {
-        return res.status(402).json({
-          error: 'Insufficient credits. Please deposit funds to your wallet before creating a campaign.',
-          code: 'NO_CREDITS',
-        });
-      }
-
-      if (wallet.balance <= 0 && wallet.processing_balance > 0) {
-        walletWarning = 'Your deposit is still processing. Campaign saved as draft — you can launch once credits are available.';
-      }
-    }
-    // ────────────────────────────────────────────────────────────
+    // Meta charges the client's own ad account directly — no internal wallet gate.
 
     // Destructure meta/paid-ads fields separately so they are handled explicitly
     const {
@@ -308,7 +304,7 @@ export const createCampaign = async (req: AuthRequest, res: Response, next: Next
       { name: data.name, campaign_type: data.campaign_type },
     );
 
-    res.status(201).json({ success: true, data, ...(walletWarning ? { warning: walletWarning } : {}) });
+    res.status(201).json({ success: true, data });
   } catch (err) { next(err); }
 };
 
@@ -344,7 +340,14 @@ export const updateCampaign = async (req: AuthRequest, res: Response, next: Next
 
     // Material edit detection: if campaign is APPROVED and key fields change, reset three_key_status
     const MATERIAL_FIELDS = ['budget_total', 'budget_currency', 'targeting', 'creative', 'platforms', 'start_at', 'end_at'];
-    const hasMaterialEdit = MATERIAL_FIELDS.some(f => parsed.data[f as keyof typeof parsed.data] !== undefined);
+    // Only void approval when a material field actually CHANGED vs the stored value —
+    // not when the field is merely present in the PATCH body with the same value.
+    const hasMaterialEdit = MATERIAL_FIELDS.some(f => {
+      const newVal = parsed.data[f as keyof typeof parsed.data];
+      if (newVal === undefined) return false;
+      const currentVal = (current as any)[f];
+      return JSON.stringify(newVal) !== JSON.stringify(currentVal);
+    });
     const isApproved = ['APPROVED', 'SCHEDULED', 'ACTIVE'].includes(current.status);
 
     const {
@@ -362,17 +365,19 @@ export const updateCampaign = async (req: AuthRequest, res: Response, next: Next
 
     const updates: Record<string, unknown> = {
       ...coreUpdateData,
-      updated_at:               new Date().toISOString(),
-      selected_meta_account_id: upd_sma ?? null,
-      ads_data:                 upd_ads ?? null,
-      eu_targeting:             upd_eu  ?? null,
-      eu_beneficiary:           upd_ben ?? null,
-      eu_payer:                 upd_pay ?? null,
-      tracking_pixel_id:        upd_px  ?? null,
-      conversion_event:         upd_ce  ?? null,
-      welcome_message:          upd_wm  ?? null,
-      device_type:              upd_dt  ?? null,
+      updated_at: new Date().toISOString(),
     };
+    // Only write optional JSON/meta fields when explicitly provided in the PATCH body —
+    // omitting a field must not overwrite it with null in the DB.
+    if (upd_sma !== undefined) updates.selected_meta_account_id = upd_sma ?? null;
+    if (upd_ads !== undefined) updates.ads_data                 = upd_ads ?? null;
+    if (upd_eu  !== undefined) updates.eu_targeting             = upd_eu  ?? null;
+    if (upd_ben !== undefined) updates.eu_beneficiary           = upd_ben ?? null;
+    if (upd_pay !== undefined) updates.eu_payer                 = upd_pay ?? null;
+    if (upd_px  !== undefined) updates.tracking_pixel_id        = upd_px  ?? null;
+    if (upd_ce  !== undefined) updates.conversion_event         = upd_ce  ?? null;
+    if (upd_wm  !== undefined) updates.welcome_message          = upd_wm  ?? null;
+    if (upd_dt  !== undefined) updates.device_type              = upd_dt  ?? null;
 
     if (hasMaterialEdit && isApproved) {
       updates.three_key_status = 'VOIDED';
@@ -418,6 +423,9 @@ export const deleteCampaign = async (req: AuthRequest, res: Response, next: Next
   try {
     const workspaceId = req.user?.workspace_id;
     if (!workspaceId) return res.status(403).json({ error: 'No workspace context' });
+
+    // Delete from Meta first (non-fatal — the DB record is still removed even if Meta cleanup fails)
+    await deleteMetaCampaign(String(req.params.id), workspaceId).catch(() => {});
 
     const { error } = await supabaseAdmin
       .from('campaigns')

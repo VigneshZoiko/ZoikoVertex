@@ -1,6 +1,8 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { internalEventBus } from '../shared/internalEventBus';
 import { v4 as uuidv4 } from 'uuid';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 
 export type RuleStatus = 'DRAFT' | 'NEEDS_REVIEW' | 'READY_TO_PUBLISH' | 'ACTIVE' | 'ACTIVE_WITH_DRAFT_CHANGES' | 'DISABLED' | 'ARCHIVED' | 'CONFLICT_DETECTED' | 'INVALID';
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -22,6 +24,7 @@ export interface ApprovalRule {
   effective_at?: string;
   expires_at?: string;
   tags?: string[];
+  keyword_rules?: Array<{ keywords: string[]; action: 'BLOCK' | 'REQUEST_REVIEW'; scopes?: string[] }>;
   created_by: string;
   updated_by: string;
   created_at: string;
@@ -39,10 +42,22 @@ export interface ApprovalRuleInput {
   effective_at?: string;
   expires_at?: string;
   tags?: string[];
+  keyword_rules?: Array<{ keywords: string[]; action: 'BLOCK' | 'REQUEST_REVIEW'; scopes?: string[] }>;
   created_by: string;
 }
 
-export async function createRule(input: ApprovalRuleInput): Promise<ApprovalRule> {
+export async function createRule(input: ApprovalRuleInput, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
+  if (!input.rule_name || input.rule_name.trim().length === 0) {
+    throw Object.assign(new Error('rule_name is required'), { statusCode: 400 });
+  }
+  if (!validUUID(input.rule_owner_id)) {
+    throw Object.assign(new Error('rule_owner_id must be a valid UUID'), { statusCode: 400 });
+  }
+  if (!validUUID(input.created_by)) {
+    throw Object.assign(new Error('created_by must be a valid UUID'), { statusCode: 400 });
+  }
+
   const id = uuidv4();
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
@@ -62,6 +77,7 @@ export async function createRule(input: ApprovalRuleInput): Promise<ApprovalRule
       effective_at: input.effective_at || null,
       expires_at: input.expires_at || null,
       tags: input.tags || [],
+      keyword_rules: input.keyword_rules || [],
     })
     .select()
     .single();
@@ -130,6 +146,20 @@ function isMissingTable(error: unknown): boolean {
   return code === '42P01' || code === '42703';
 }
 
+export async function deleteRule(id: string, tenant_id: string, deleted_by: string): Promise<void> {
+  if (!validUUID(id)) throw Object.assign(new Error('Invalid rule ID'), { statusCode: 400 });
+  const { error } = await supabaseAdmin
+    .from('approval_rules')
+    .delete()
+    .eq('id', id)
+    .eq('tenant_id', tenant_id);
+  if (error) {
+    if (isMissingTable(error)) throw Object.assign(new Error('Approval rules table not found. Run the migration.'), { statusCode: 503 });
+    throw error;
+  }
+  await createAuditLog({ tenant_id, approval_rule_id: id, action: 'rule.deleted', performed_by: deleted_by });
+}
+
 export async function getRule(id: string, tenant_id: string): Promise<ApprovalRule | null> {
   if (!validUUID(id)) return null;
   const { data, error } = await supabaseAdmin
@@ -156,8 +186,10 @@ export async function updateRule(params: {
   effective_at?: string;
   expires_at?: string;
   tags?: string[];
+  keyword_rules?: Array<{ keywords: string[]; action: 'BLOCK' | 'REQUEST_REVIEW'; scopes?: string[] }>;
   updated_by: string;
-}): Promise<ApprovalRule> {
+}, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const current = await getRule(params.id, params.tenant_id);
   if (!current) throw new Error('Rule not found');
 
@@ -170,6 +202,7 @@ export async function updateRule(params: {
   if (params.effective_at !== undefined) updateFields.effective_at = params.effective_at;
   if (params.expires_at !== undefined) updateFields.expires_at = params.expires_at;
   if (params.tags !== undefined) updateFields.tags = params.tags;
+  if (params.keyword_rules !== undefined) updateFields.keyword_rules = params.keyword_rules;
 
   // If rule is ACTIVE, editing creates a draft version (ACTIVE_WITH_DRAFT_CHANGES)
   if (current.rule_status === 'ACTIVE') {
@@ -197,7 +230,8 @@ export async function updateRule(params: {
   return data as unknown as ApprovalRule;
 }
 
-export async function submitRuleForReview(id: string, tenant_id: string, userId: string): Promise<ApprovalRule> {
+export async function submitRuleForReview(id: string, tenant_id: string, userId: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'NEEDS_REVIEW', updated_at: new Date().toISOString(), updated_by: userId })
@@ -215,7 +249,8 @@ export async function submitRuleForReview(id: string, tenant_id: string, userId:
   return data as unknown as ApprovalRule;
 }
 
-export async function publishRule(id: string, tenant_id: string, userId: string, publishNote?: string): Promise<ApprovalRule> {
+export async function publishRule(id: string, tenant_id: string, userId: string, publishNote?: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const rule = await getRule(id, tenant_id);
   if (!rule) throw new Error('Rule not found');
 
@@ -259,7 +294,8 @@ export async function publishRule(id: string, tenant_id: string, userId: string,
   return data as unknown as ApprovalRule;
 }
 
-export async function deactivateRule(id: string, tenant_id: string, userId: string, reason?: string): Promise<ApprovalRule> {
+export async function deactivateRule(id: string, tenant_id: string, userId: string, reason?: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'DISABLED', updated_at: new Date().toISOString(), updated_by: userId })
@@ -277,7 +313,8 @@ export async function deactivateRule(id: string, tenant_id: string, userId: stri
   return data as unknown as ApprovalRule;
 }
 
-export async function reactivateRule(id: string, tenant_id: string, userId: string): Promise<ApprovalRule> {
+export async function reactivateRule(id: string, tenant_id: string, userId: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'ACTIVE', updated_at: new Date().toISOString(), updated_by: userId })
@@ -295,7 +332,8 @@ export async function reactivateRule(id: string, tenant_id: string, userId: stri
   return data as unknown as ApprovalRule;
 }
 
-export async function archiveRule(id: string, tenant_id: string, userId: string): Promise<ApprovalRule> {
+export async function archiveRule(id: string, tenant_id: string, userId: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'ARCHIVED', updated_at: new Date().toISOString(), updated_by: userId })
@@ -313,7 +351,8 @@ export async function archiveRule(id: string, tenant_id: string, userId: string)
   return data as unknown as ApprovalRule;
 }
 
-export async function markRuleReadyToPublish(id: string, tenant_id: string, userId: string): Promise<ApprovalRule> {
+export async function markRuleReadyToPublish(id: string, tenant_id: string, userId: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'READY_TO_PUBLISH', updated_at: new Date().toISOString(), updated_by: userId })
@@ -331,7 +370,8 @@ export async function markRuleReadyToPublish(id: string, tenant_id: string, user
   return data as unknown as ApprovalRule;
 }
 
-export async function markRuleInvalid(id: string, tenant_id: string, userId: string, reason: string): Promise<ApprovalRule> {
+export async function markRuleInvalid(id: string, tenant_id: string, userId: string, reason: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rules')
     .update({ rule_status: 'INVALID', updated_at: new Date().toISOString(), updated_by: userId })
@@ -349,7 +389,8 @@ export async function markRuleInvalid(id: string, tenant_id: string, userId: str
   return data as unknown as ApprovalRule;
 }
 
-export async function cloneRule(id: string, tenant_id: string, workspace_id: string, userId: string): Promise<ApprovalRule> {
+export async function cloneRule(id: string, tenant_id: string, workspace_id: string, userId: string, auth?: AuthContext): Promise<ApprovalRule> {
+  requireAnyPermission(auth, 'rules:manage');
   const source = await getRule(id, tenant_id);
   if (!source) throw new Error('Source rule not found');
 
@@ -396,7 +437,8 @@ export async function upsertRuleScope(params: {
   agent_id?: string;
   workflow_id?: string;
   restricted_mode_status?: string;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'rules:manage');
   if (!validUUID(params.approval_rule_id)) throw new Error('Rule not found');
   const existing = await getRuleScope(params.approval_rule_id);
   if (existing) {
@@ -472,7 +514,8 @@ export async function upsertRulePath(params: {
   allow_conditional_approval?: boolean;
   allow_delegation?: boolean;
   emergency_route_enabled?: boolean;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'rules:manage');
   if (!validUUID(params.approval_rule_id)) throw new Error('Rule not found');
   const existing = await getRulePath(params.approval_rule_id);
   if (existing) {
@@ -518,6 +561,16 @@ export async function getRuleStages(approval_rule_path_id: string) {
     .select('*')
     .eq('approval_rule_path_id', approval_rule_path_id)
     .order('stage_order', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getRuleEscalations(approval_rule_id: string) {
+  if (!validUUID(approval_rule_id)) return [];
+  const { data, error } = await supabaseAdmin
+    .from('approval_rule_escalations')
+    .select('*')
+    .eq('approval_rule_id', approval_rule_id);
   if (error) throw error;
   return data || [];
 }
@@ -607,7 +660,8 @@ export async function getRuleConflicts(approval_rule_id: string) {
   return data || [];
 }
 
-export async function resolveConflict(conflict_id: string, userId: string) {
+export async function resolveConflict(conflict_id: string, userId: string, auth?: AuthContext) {
+  requireAnyPermission(auth, 'rules:manage');
   const { data, error } = await supabaseAdmin
     .from('approval_rule_conflicts')
     .update({ conflict_status: 'RESOLVED', resolved_at: new Date().toISOString(), resolved_by: userId })
@@ -618,9 +672,13 @@ export async function resolveConflict(conflict_id: string, userId: string) {
   return data;
 }
 
-export async function detectRuleConflicts(approval_rule_id: string, tenant_id: string) {
+export async function detectRuleConflicts(approval_rule_id: string, tenant_id: string, auth?: AuthContext) {
+  requireAnyPermission(auth, 'rules:manage');
   const rule = await getRule(approval_rule_id, tenant_id);
   if (!rule) return [];
+
+  const ruleScope = await getRuleScope(approval_rule_id);
+  const rulePath = await getRulePath(approval_rule_id);
 
   const { data: allRules } = await supabaseAdmin
     .from('approval_rules')
@@ -629,6 +687,28 @@ export async function detectRuleConflicts(approval_rule_id: string, tenant_id: s
     .neq('id', approval_rule_id)
     .in('rule_status', ['ACTIVE', 'ACTIVE_WITH_DRAFT_CHANGES', 'DRAFT', 'NEEDS_REVIEW', 'CONFLICT_DETECTED']);
 
+  const allRuleIds = (allRules || []).map(r => r.id);
+
+  const { data: allScopes } = await supabaseAdmin
+    .from('approval_rule_scopes')
+    .select('*')
+    .in('approval_rule_id', allRuleIds.length > 0 ? allRuleIds : ['00000000-0000-0000-0000-000000000000']);
+
+  const { data: allPaths } = await supabaseAdmin
+    .from('approval_rule_paths')
+    .select('*')
+    .in('approval_rule_id', allRuleIds.length > 0 ? allRuleIds : ['00000000-0000-0000-0000-000000000000']);
+
+  const scopeByRuleId = new Map<string, Record<string, unknown>>();
+  const pathByRuleId = new Map<string, Record<string, unknown>>();
+
+  for (const s of allScopes || []) {
+    scopeByRuleId.set(s.approval_rule_id, s as unknown as Record<string, unknown>);
+  }
+  for (const p of allPaths || []) {
+    pathByRuleId.set(p.approval_rule_id, p as unknown as Record<string, unknown>);
+  }
+
   const conflicts: Array<{
     conflict_type: ConflictType;
     conflict_summary: string;
@@ -636,13 +716,9 @@ export async function detectRuleConflicts(approval_rule_id: string, tenant_id: s
     related_rule_id?: string;
   }> = [];
 
-  const ruleData = rule as unknown as Record<string, unknown>;
-  const ruleScope = (ruleData.rule_scope || {}) as Record<string, unknown>;
-  const rulePath = (ruleData.approval_path || {}) as Record<string, unknown>;
-
   for (const other of allRules || []) {
-    const otherData = other as unknown as Record<string, unknown>;
-    const otherScope = (otherData.rule_scope || {}) as Record<string, unknown>;
+    const otherScope = scopeByRuleId.get(other.id);
+    const otherPath = pathByRuleId.get(other.id);
 
     if (rule.rule_priority === other.rule_priority) {
       conflicts.push({
@@ -653,54 +729,56 @@ export async function detectRuleConflicts(approval_rule_id: string, tenant_id: s
       });
     }
 
-    if (ruleScope.item_types && otherScope.item_types) {
-      const sharedTypes = (ruleScope.item_types as string[]).filter(
-        (t: string) => (otherScope.item_types as string[]).includes(t)
-      );
-      if (sharedTypes.length > 0) {
+    if (ruleScope && otherScope) {
+      const sharedDimensions: string[] = [];
+
+      const rs = ruleScope as Record<string, unknown>;
+      const os = otherScope as Record<string, unknown>;
+
+      const dims = ['jurisdiction', 'platform', 'source_module', 'item_type', 'language', 'audience_segment', 'brand_id', 'campaign_id', 'department_id', 'team_id', 'user_role', 'agent_id', 'workflow_id'];
+      for (const dim of dims) {
+        if (rs[dim] && os[dim] && rs[dim] === os[dim]) {
+          sharedDimensions.push(`${dim}:${rs[dim]}`);
+        }
+      }
+
+      if (sharedDimensions.length > 0) {
         conflicts.push({
           conflict_type: 'OVERLAPPING_SCOPE',
-          conflict_summary: `Rule "${rule.rule_name}" overlaps with "${other.rule_name}" on item types: ${sharedTypes.join(', ')}`,
+          conflict_summary: `Rule "${rule.rule_name}" overlaps with "${other.rule_name}" on: ${sharedDimensions.join(', ')}`,
           blocking: false,
           related_rule_id: other.id,
         });
       }
     }
 
-    const otherPath = (otherData.approval_path || {}) as Record<string, unknown>;
-    if (rulePath.approval_outcome && otherPath.approval_outcome &&
-        rulePath.approval_outcome !== otherPath.approval_outcome) {
-      const outcomeScope = (ruleScope.source_modules && otherScope.source_modules
-        ? (ruleScope.source_modules as string[]).filter(
-            (m: string) => (otherScope.source_modules as string[]).includes(m)
-          )
-        : []) as string[];
-      if (outcomeScope.length > 0) {
-        conflicts.push({
-          conflict_type: 'CONTRADICTORY_OUTCOME',
-          conflict_summary: `Rules "${rule.rule_name}" and "${other.rule_name}" produce different outcomes for same source modules`,
-          blocking: true,
-          related_rule_id: other.id,
-        });
+    if (rulePath && otherPath) {
+      const rp = rulePath as Record<string, unknown>;
+      const op = otherPath as Record<string, unknown>;
+      if (rp.path_type !== op.path_type && ruleScope && otherScope) {
+        const rs = ruleScope as Record<string, unknown>;
+        const os = otherScope as Record<string, unknown>;
+        if (rs.source_module && os.source_module && rs.source_module === os.source_module) {
+          conflicts.push({
+            conflict_type: 'CONTRADICTORY_OUTCOME',
+            conflict_summary: `Rules "${rule.rule_name}" and "${other.rule_name}" have different paths (${rp.path_type} vs ${op.path_type}) for same source module`,
+            blocking: true,
+            related_rule_id: other.id,
+          });
+        }
       }
-    }
-
-    const requiredApprovers = rulePath.required_approvers || [];
-    if (Array.isArray(requiredApprovers) && requiredApprovers.length === 0) {
-      conflicts.push({
-        conflict_type: 'MISSING_APPROVER',
-        conflict_summary: `Rule "${rule.rule_name}" has no required approvers defined`,
-        blocking: true,
-      });
     }
   }
 
-  if (!ruleData.rule_escalation || !(ruleData.rule_escalation as Record<string, unknown>)?.escalation_targets) {
-    conflicts.push({
-      conflict_type: 'MISSING_APPROVER',
-      conflict_summary: `Rule "${rule.rule_name}" has no escalation targets configured`,
-      blocking: false,
-    });
+  if (rulePath) {
+    const rp = rulePath as Record<string, unknown>;
+    if (!rp.emergency_route_enabled) {
+      conflicts.push({
+        conflict_type: 'MISSING_APPROVER',
+        conflict_summary: `Rule "${rule.rule_name}" has no emergency escalation route enabled`,
+        blocking: false,
+      });
+    }
   }
 
   for (const conflict of conflicts) {
@@ -738,7 +816,8 @@ export async function runSimulation(params: {
   approval_rule_id: string;
   simulated_by: string;
   simulation_input: Record<string, unknown>;
-}) {
+}, auth?: AuthContext) {
+  requireAnyPermission(auth, 'rules:manage');
   if (!validUUID(params.approval_rule_id)) throw new Error('Rule not found');
   const { data: rule } = await supabaseAdmin
     .from('approval_rules')
@@ -751,6 +830,7 @@ export async function runSimulation(params: {
   const path = await getRulePath(params.approval_rule_id);
   const stages = path ? await getRuleStages((path as { id: string }).id) : [];
   const scope = await getRuleScope(params.approval_rule_id);
+  const escalations = await getRuleEscalations(params.approval_rule_id);
 
   const input = params.simulation_input as Record<string, unknown>;
   const matchedConditions: string[] = [];
@@ -758,19 +838,23 @@ export async function runSimulation(params: {
   let matched = false;
 
   if (scope) {
-    const s = scope as { item_types?: string[]; source_modules?: string[]; risk_levels?: string[] };
+    const s = scope as Record<string, unknown>;
     const inputType = input.item_type as string;
     const inputSource = input.source_module as string;
-    const inputRisk = input.risk_level as string;
+    const inputJurisdiction = input.jurisdiction as string;
+    const inputPlatform = input.platform as string;
 
-    if (s.item_types && inputType && s.item_types.includes(inputType)) {
+    if (s.item_type && inputType && s.item_type === inputType) {
       matchedConditions.push(`item_type: ${inputType}`);
     }
-    if (s.source_modules && inputSource && s.source_modules.includes(inputSource)) {
+    if (s.source_module && inputSource && s.source_module === inputSource) {
       matchedConditions.push(`source_module: ${inputSource}`);
     }
-    if (s.risk_levels && inputRisk && s.risk_levels.includes(inputRisk)) {
-      matchedConditions.push(`risk_level: ${inputRisk}`);
+    if (s.jurisdiction && inputJurisdiction && s.jurisdiction === inputJurisdiction) {
+      matchedConditions.push(`jurisdiction: ${inputJurisdiction}`);
+    }
+    if (s.platform && inputPlatform && s.platform === inputPlatform) {
+      matchedConditions.push(`platform: ${inputPlatform}`);
     }
   }
 
@@ -789,8 +873,8 @@ export async function runSimulation(params: {
     matched_conditions: matchedConditions,
     generated_path: path,
     generated_sla: stages,
-    generated_escalation: rule.rule_escalation || null,
-    generated_fallback: rule.rule_fallback || null,
+    generated_escalation: escalations.length > 0 ? escalations : null,
+    generated_fallback: escalations.some(e => (e as Record<string, unknown>).fallback_after_escalation) || null,
     conflict_warnings,
     blocked_reasons,
   };
@@ -805,8 +889,8 @@ export async function runSimulation(params: {
       matched_conditions: matchedConditions,
       generated_path: path ? path : null,
       generated_sla: stages.length > 0 ? { stages } : null,
-      generated_escalation: rule.rule_escalation || null,
-      generated_fallback: rule.rule_fallback || null,
+      generated_escalation: escalations.length > 0 ? escalations : null,
+      generated_fallback: escalations.some(e => (e as Record<string, unknown>).fallback_after_escalation) || null,
       conflict_warnings,
       blocked_reasons,
     })

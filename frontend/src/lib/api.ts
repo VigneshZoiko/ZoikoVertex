@@ -112,6 +112,24 @@ export const api = {
     return response.json();
   },
 
+  async postBlob(endpoint: string, body: unknown): Promise<Blob> {
+    const auth = await resolveAuth();
+    if (!auth.ok) throw new Error(auth.reason === "NO_SESSION" ? "No session" : "Session expired");
+    const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...auth.headers,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.statusText);
+      throw new Error(`POST ${endpoint} failed: ${response.status} ${text}`);
+    }
+    return response.blob();
+  },
+
   async postMultipart(endpoint: string, formData: FormData) {
     const auth = await resolveAuth();
     if (!auth.ok) return authExpiredResponse(auth.reason);
@@ -257,8 +275,8 @@ export const api = {
     });
   },
 
-  async resolveQueueItem(id: string) {
-    return this.post(`/api/v1/operations/queues/${id}/resolve`, {});
+  async resolveQueueItem(id: string, resolution_notes?: string) {
+    return this.post(`/api/v1/operations/queues/${id}/resolve`, resolution_notes ? { resolution_notes } : {});
   },
 
   async createIncident(data: {
@@ -341,8 +359,33 @@ export const api = {
     return this.post(`/api/v1/operations/runs/${id}/restricted-mode`, { reason });
   },
 
+  async holdRun(id: string, reason?: string) {
+    return this.post(`/api/v1/operations/runs/${id}/hold`, { reason });
+  },
+
+  async releaseHoldRun(id: string, reason?: string) {
+    return this.post(`/api/v1/operations/runs/${id}/release-hold`, { reason });
+  },
+
+  // Returns CSV Blob for client-side download.
+  async exportAnalyticsCSV(reason: string): Promise<Blob> {
+    return this.postBlob("/api/v1/operations/analytics/export", { reason });
+  },
+
+  async exportOutputSnapshot(id: string, reason: string) {
+    return this.post(`/api/v1/operations/runs/${id}/export-output`, { reason });
+  },
+
   async runPolicyCheck(id: string) {
     return this.post(`/api/v1/operations/runs/${id}/policy-check`, {});
+  },
+
+  async generatePostmortem(incidentId: string) {
+    return this.post(`/api/v1/operations/incidents/${incidentId}/postmortem`, {});
+  },
+
+  async getPostmortem(incidentId: string) {
+    return this.get(`/api/v1/operations/incidents/${incidentId}/postmortem`);
   },
 
   async getPolicyResults(id: string) {
@@ -565,6 +608,56 @@ export const api = {
     return this.get(
       `/api/v1/agents/workflows/instances/${instanceId}/evidence`,
     );
+  },
+  async getWorkflowDependencies(id: string) {
+    return this.get(`/api/v1/agents/workflows/${id}/dependencies`);
+  },
+  async getWorkflowSimulations(versionId: string) {
+    return this.get(`/api/v1/agents/workflows/versions/${versionId}/simulations`);
+  },
+  async getWorkflowValidate(versionId: string) {
+    return this.get(`/api/v1/agents/workflows/versions/${versionId}/validate`);
+  },
+  async getThreeKeyChain(versionId: string) {
+    return this.get(`/api/v1/agents/workflows/three-key/${versionId}`);
+  },
+  async getThreeKeyQuorum(versionId: string) {
+    return this.get(`/api/v1/agents/workflows/three-key/${versionId}/quorum`);
+  },
+  async listPendingThreeKeyChains() {
+    return this.get(`/api/v1/agents/workflows/three-key/pending/list`);
+  },
+
+  // ─── WORKFLOW CANVAS BUILDER API ───
+  async saveWorkflowGraph(versionId: string, nodes: any[], edges: any[]) {
+    return this.post(`/api/v1/agents/workflows/versions/${versionId}/graph`, { nodes, edges });
+  },
+  async saveWorkflowStepConfig(stepId: string, updates: any) {
+    return this.patch(`/api/v1/agents/workflows/steps/${stepId}`, updates);
+  },
+
+  // ─── WORKFLOW EXPORT API ───
+  async exportWorkflow(id: string, reason?: string) {
+    const query = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+    return this.get(`/api/v1/agents/workflows/${id}/export${query}`);
+  },
+  async exportApprovalsCsv(id: string, reason?: string) {
+    const query = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+    return this.get(`/api/v1/agents/workflows/${id}/export/approvals${query}`);
+  },
+  async exportWorkflowPdfReady(id: string) {
+    return this.get(`/api/v1/agents/workflows/${id}/export/pdf-ready`);
+  },
+  async exportRuntimeTimeline(id: string, reason?: string) {
+    const query = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+    return this.get(`/api/v1/agents/workflows/${id}/export/timeline${query}`);
+  },
+  async exportEvidenceByRef(evidenceRef: string, reason?: string) {
+    const query = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+    return this.get(`/api/v1/agents/workflows/export/evidence/${evidenceRef}${query}`);
+  },
+  async triggerWorkflowNotification(id: string, body: any) {
+    return this.post(`/api/v1/agents/workflows/${id}/notify`, body);
   },
 
   // ─── PROMPTS API CLIENT ───

@@ -155,8 +155,6 @@ export class PromptDependencyService {
     // ── 4. Collect distinct target ids, then batch-resolve names/status ──────
     const agentIds = bindings.map((b: any) => b.agent_id).filter(Boolean);
     const workflowIds = bindings.map((b: any) => b.workflow_id).filter(Boolean);
-    const channelIds = bindings.map((b: any) => b.channel_id).filter(Boolean);
-    const brandIds = bindings.map((b: any) => b.brand_id).filter(Boolean);
     const kbIds = knowledge.map((k: any) => k.kb_id).filter(Boolean);
     const collectionIds = knowledge.map((k: any) => k.collection_id).filter(Boolean);
 

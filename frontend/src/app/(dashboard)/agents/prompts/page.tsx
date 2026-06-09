@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import ConfirmActionModal from "@/components/ConfirmActionModal";
 import {
   MessageSquareCode,
   ShieldCheck,
@@ -40,9 +41,14 @@ import {
   Check,
   Variable,
   FileText,
+  Activity,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useRoleContext } from "@/lib/context/RoleContext";
+import { EvaluationDashboard } from "@/features/prompt-governance/EvaluationDashboard";
+import { AdversarialDashboard } from "@/features/prompt-governance/AdversarialDashboard";
+import { DriftDashboard } from "@/features/prompt-governance/DriftDashboard";
+import { PromptGovernanceCenter } from "@/features/prompt-governance/PromptGovernanceCenter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -136,7 +142,7 @@ interface ApprovalStats {
   };
 }
 
-type ActiveTab = "registry" | "lifecycle" | "testing" | "approvals" | "evidence" | "runtime" | "auditor";
+type ActiveTab = "registry" | "lifecycle" | "testing" | "approvals" | "evidence" | "runtime" | "auditor" | "evaluation" | "adversarial" | "drift" | "center";
 type FilterStatus = "ALL" | LifecycleStatus;
 type FilterRisk = "ALL" | RiskTier;
 
@@ -257,6 +263,36 @@ function ApprovalChain({ approvals, riskTier }: { approvals: ApprovalRecord[]; r
 
 // ─── Tab: Registry ─────────────────────────────────────────────────────────────
 
+// Governance helpers (Doc 3 §4-D): derive approval / test / deployment state from
+// the loaded prompt record so the filter rail can segment the registry without a
+// round-trip. Required approvals are computed from risk tier (Doc 3 §7).
+function requiredApprovalsForTier(tier: RiskTier): number {
+  return tier === "TIER_4_CRITICAL" ? 3 : tier === "TIER_3_HIGH" ? 2 : tier === "TIER_2_MEDIUM" ? 1 : 0;
+}
+type ApprovalState = "ALL" | "APPROVED" | "PENDING" | "REJECTED" | "NONE";
+function approvalStateOf(p: PromptRecord): Exclude<ApprovalState, "ALL"> {
+  const required = requiredApprovalsForTier(normalizeRiskTier(p.risk_tier));
+  const approved = p.approvals.filter((a) => a.decision === "APPROVED").length;
+  if (p.approvals.some((a) => a.decision === "REJECTED")) return "REJECTED";
+  if (required === 0 || approved >= required) return "APPROVED";
+  if (p.approvals.some((a) => a.decision === "PENDING") || p.status === "REVIEW_REQUESTED" || p.status === "PRODUCTION_PENDING") return "PENDING";
+  return "NONE";
+}
+type TestState = "ALL" | "PASS" | "FAIL" | "PENDING" | "NONE";
+function testStateOf(p: PromptRecord): Exclude<TestState, "ALL"> {
+  return (p.last_test?.pass_fail as Exclude<TestState, "ALL">) || "NONE";
+}
+type DeploymentState = "ALL" | "PRODUCTION" | "STAGING" | "PAUSED" | "NONE";
+function deploymentStateOf(p: PromptRecord): Exclude<DeploymentState, "ALL"> {
+  const s = normalizeStatus(p.status);
+  if (s === "PRODUCTION_ACTIVE") return "PRODUCTION";
+  if (s === "APPROVED_STAGING") return "STAGING";
+  if (s === "PAUSED") return "PAUSED";
+  return "NONE";
+}
+
+const FILTER_SELECT_CLS = "bg-black border border-slate-800 rounded-xl py-2.5 px-4 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition-all";
+
 function RegistryTab({
   prompts,
   search,
@@ -265,6 +301,8 @@ function RegistryTab({
   setFilterStatus,
   filterRisk,
   setFilterRisk,
+  filterTest,
+  setFilterTest,
   onSelectPrompt,
 }: {
   prompts: PromptRecord[];
@@ -274,48 +312,120 @@ function RegistryTab({
   setFilterStatus: (v: FilterStatus) => void;
   filterRisk: FilterRisk;
   setFilterRisk: (v: FilterRisk) => void;
+  filterTest: TestState;
+  setFilterTest: (v: TestState) => void;
   onSelectPrompt: (p: PromptRecord) => void;
 }) {
+  // Doc 3 §4-D filter rail: status, risk, type, agent, workflow, owner, approval
+  // state, test state, deployment state — all combinable and reversible.
+  const [filterType, setFilterType] = useState<"ALL" | PromptType>("ALL");
+  const [filterAgent, setFilterAgent] = useState<string>("ALL");
+  const [filterWorkflow, setFilterWorkflow] = useState<string>("ALL");
+  const [filterOwner, setFilterOwner] = useState<string>("ALL");
+  const [filterApproval, setFilterApproval] = useState<ApprovalState>("ALL");
+  const [filterDeployment, setFilterDeployment] = useState<DeploymentState>("ALL");
+
+  const agents = useMemo(() => Array.from(new Set(prompts.map((p) => p.linked_agent).filter((v) => v && v !== "—"))).sort(), [prompts]);
+  const workflows = useMemo(() => Array.from(new Set(prompts.map((p) => p.linked_workflow).filter((v) => v && v !== "—"))).sort(), [prompts]);
+  const owners = useMemo(() => Array.from(new Set(prompts.map((p) => p.owner).filter(Boolean))).sort(), [prompts]);
+  const promptTypes = useMemo(() => Array.from(new Set(prompts.map((p) => p.prompt_type).filter(Boolean))).sort(), [prompts]);
+
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     return prompts.filter((p) => {
       const matchSearch = !term || p.name.toLowerCase().includes(term) || p.owner.toLowerCase().includes(term) || p.linked_agent.toLowerCase().includes(term);
-      const matchStatus = filterStatus === "ALL" || p.status === filterStatus;
-      const matchRisk = filterRisk === "ALL" || p.risk_tier === filterRisk;
-      return matchSearch && matchStatus && matchRisk;
+      const matchStatus = filterStatus === "ALL" || normalizeStatus(p.status) === filterStatus;
+      const matchRisk = filterRisk === "ALL" || normalizeRiskTier(p.risk_tier) === filterRisk;
+      const matchType = filterType === "ALL" || p.prompt_type === filterType;
+      const matchAgent = filterAgent === "ALL" || p.linked_agent === filterAgent;
+      const matchWorkflow = filterWorkflow === "ALL" || p.linked_workflow === filterWorkflow;
+      const matchOwner = filterOwner === "ALL" || p.owner === filterOwner;
+      const matchApproval = filterApproval === "ALL" || approvalStateOf(p) === filterApproval;
+      const matchTest = filterTest === "ALL" || testStateOf(p) === filterTest;
+      const matchDeployment = filterDeployment === "ALL" || deploymentStateOf(p) === filterDeployment;
+      return matchSearch && matchStatus && matchRisk && matchType && matchAgent && matchWorkflow && matchOwner && matchApproval && matchTest && matchDeployment;
     });
-  }, [prompts, search, filterStatus, filterRisk]);
+  }, [prompts, search, filterStatus, filterRisk, filterType, filterAgent, filterWorkflow, filterOwner, filterApproval, filterTest, filterDeployment]);
+
+  const activeFilterCount = [
+    filterStatus !== "ALL", filterRisk !== "ALL", filterType !== "ALL", filterAgent !== "ALL",
+    filterWorkflow !== "ALL", filterOwner !== "ALL", filterApproval !== "ALL", filterTest !== "ALL", filterDeployment !== "ALL",
+  ].filter(Boolean).length;
+
+  const clearAll = () => {
+    setFilterStatus("ALL"); setFilterRisk("ALL"); setFilterType("ALL"); setFilterAgent("ALL");
+    setFilterWorkflow("ALL"); setFilterOwner("ALL"); setFilterApproval("ALL"); setFilterTest("ALL"); setFilterDeployment("ALL");
+    setSearch("");
+  };
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search by name, owner, or linked agent..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-black border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
-          />
+      {/* Filters — Doc 3 §4-D filter rail */}
+      <div className="space-y-3">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search by name, owner, or linked agent..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-black border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
+            />
+          </div>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as FilterStatus)} className={FILTER_SELECT_CLS}>
+            <option value="ALL">All Statuses</option>
+            {LIFECYCLE_STAGES.map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
+          </select>
+          <select value={filterRisk} onChange={(e) => setFilterRisk(e.target.value as FilterRisk)} className={FILTER_SELECT_CLS}>
+            <option value="ALL">All Risk Tiers</option>
+            {(Object.keys(RISK_META) as RiskTier[]).map((r) => <option key={r} value={r}>{RISK_META[r].label}</option>)}
+          </select>
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
-          className="bg-black border border-slate-800 rounded-xl py-2.5 px-4 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition-all"
-        >
-          <option value="ALL">All Statuses</option>
-          {LIFECYCLE_STAGES.map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
-        </select>
-        <select
-          value={filterRisk}
-          onChange={(e) => setFilterRisk(e.target.value as FilterRisk)}
-          className="bg-black border border-slate-800 rounded-xl py-2.5 px-4 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition-all"
-        >
-          <option value="ALL">All Risk Tiers</option>
-          {(Object.keys(RISK_META) as RiskTier[]).map((r) => <option key={r} value={r}>{RISK_META[r].label}</option>)}
-        </select>
+        <div className="flex flex-wrap gap-3">
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value as "ALL" | PromptType)} className={FILTER_SELECT_CLS}>
+            <option value="ALL">All Types</option>
+            {promptTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)} className={FILTER_SELECT_CLS}>
+            <option value="ALL">All Agents</option>
+            {agents.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <select value={filterWorkflow} onChange={(e) => setFilterWorkflow(e.target.value)} className={FILTER_SELECT_CLS}>
+            <option value="ALL">All Workflows</option>
+            {workflows.map((w) => <option key={w} value={w}>{w}</option>)}
+          </select>
+          <select value={filterOwner} onChange={(e) => setFilterOwner(e.target.value)} className={FILTER_SELECT_CLS}>
+            <option value="ALL">All Owners</option>
+            {owners.map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <select value={filterApproval} onChange={(e) => setFilterApproval(e.target.value as ApprovalState)} className={FILTER_SELECT_CLS}>
+            <option value="ALL">All Approval States</option>
+            <option value="APPROVED">Approved</option>
+            <option value="PENDING">Pending</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="NONE">No Approval</option>
+          </select>
+          <select value={filterTest} onChange={(e) => setFilterTest(e.target.value as TestState)} className={FILTER_SELECT_CLS}>
+            <option value="ALL">All Test States</option>
+            <option value="PASS">Passing</option>
+            <option value="FAIL">Failing</option>
+            <option value="PENDING">Pending</option>
+            <option value="NONE">Untested</option>
+          </select>
+          <select value={filterDeployment} onChange={(e) => setFilterDeployment(e.target.value as DeploymentState)} className={FILTER_SELECT_CLS}>
+            <option value="ALL">All Deployment States</option>
+            <option value="PRODUCTION">Production</option>
+            <option value="STAGING">Staging</option>
+            <option value="PAUSED">Paused</option>
+            <option value="NONE">Not Deployed</option>
+          </select>
+          {activeFilterCount > 0 && (
+            <button onClick={clearAll} className="px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:border-slate-600 transition-all flex items-center gap-1.5">
+              <XCircle className="w-3.5 h-3.5" /> Clear ({activeFilterCount})
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -572,8 +682,34 @@ function TestingTab({
 
 // ─── Tab: Approvals ────────────────────────────────────────────────────────────
 
-function ApprovalsTab({ prompts, approvalStats, onApprovalAction }: { prompts: PromptRecord[]; approvalStats: ApprovalStats | null; onApprovalAction: (versionId: string, decision: string, comments?: string) => void }) {
+function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWaive }: { prompts: PromptRecord[]; approvalStats: ApprovalStats | null; onApprovalAction: (versionId: string, decision: string, comments?: string, reasonCategory?: string) => void; canWaive: boolean; onWaive: (versionId: string, justification: string) => void }) {
+  const [approvalModal, setApprovalModal] = useState<{
+    mode: 'confirm' | 'prompt';
+    versionId: string;
+    promptName: string;
+    decision: string;
+    title: string;
+    message: string;
+    variant?: 'danger' | 'warning' | 'info' | 'default';
+    confirmLabel?: string;
+    promptPlaceholder?: string;
+  } | null>(null);
+  // A5 — structured rejection (category + notes).
+  const [rejectionModal, setRejectionModal] = useState<{ versionId: string; promptName: string; title: string } | null>(null);
+  // A6 — waive justification.
+  const [waiveModal, setWaiveModal] = useState<{ versionId: string; promptName: string } | null>(null);
   const pending = prompts.filter((p) => p.status === "REVIEW_REQUESTED" || p.status === "PRODUCTION_PENDING");
+
+  const handleApprovalConfirm = (value?: string) => {
+    if (!approvalModal) return;
+    const { versionId, decision, mode } = approvalModal;
+    if (mode === 'confirm') {
+      onApprovalAction(versionId, decision);
+    } else {
+      onApprovalAction(versionId, decision, (value || '').trim());
+    }
+    setApprovalModal(null);
+  };
 
   const APPROVAL_MATRIX = [
     { tier: "Tier 1 — Low", color: "text-emerald-400", requirements: "Prompt owner approval only.", roles: ["PROMPT_OWNER"] },
@@ -618,51 +754,40 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction }: { prompts: P
                   <button
                     onClick={() => {
                       if (!p.active_version_id) return;
-                      const ok = window.confirm(
-                        `Approve "${p.name}"?\n\nThis will move the prompt to APPROVED status and make it eligible for production deployment. This action is recorded in the Evidence Vault.`
-                      );
-                      if (!ok) return;
-                      onApprovalAction(p.active_version_id, 'APPROVED');
+                      setApprovalModal({
+                        mode: 'confirm',
+                        versionId: p.active_version_id,
+                        promptName: p.name,
+                        decision: 'APPROVED',
+                        title: `Approve "${p.name}"?`,
+                        message: 'This will move the prompt to APPROVED status and make it eligible for production deployment. This action is recorded in the Evidence Vault.',
+                        variant: 'info',
+                        confirmLabel: 'Approve',
+                      });
                     }}
                     disabled={!p.active_version_id}
                     className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all disabled:opacity-50"
                   >Approve</button>
                   <button
                     disabled={!p.active_version_id}
-                    onClick={() => {
-                      if (!p.active_version_id) return;
-                      const comment = window.prompt(
-                        `Request changes for "${p.name}"\n\nEnter your reviewer comments (required):`,
-                        ""
-                      );
-                      if (comment === null) return; // user cancelled
-                      onApprovalAction(
-                        p.active_version_id,
-                        'REJECTED',
-                        comment.trim() || 'Reviewer requested changes before approval.'
-                      );
-                    }}
+                    onClick={() => { if (p.active_version_id) setRejectionModal({ versionId: p.active_version_id, promptName: p.name, title: `Request Changes for "${p.name}"` }); }}
                     className="px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all disabled:opacity-50"
                   >
                     Request Changes
                   </button>
                   <button
-                    onClick={() => {
-                      if (!p.active_version_id) return;
-                      const reason = window.prompt(
-                        `Reject "${p.name}"?\n\nProvide a rejection reason (required):`,
-                        ""
-                      );
-                      if (reason === null) return; // user cancelled
-                      onApprovalAction(
-                        p.active_version_id,
-                        'REJECTED',
-                        reason.trim() || 'Rejected by reviewer.'
-                      );
-                    }}
+                    onClick={() => { if (p.active_version_id) setRejectionModal({ versionId: p.active_version_id, promptName: p.name, title: `Reject "${p.name}"` }); }}
                     disabled={!p.active_version_id}
                     className="px-4 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-rose-500/20 transition-all disabled:opacity-50"
                   >Reject</button>
+                  {canWaive && (
+                    <button
+                      onClick={() => { if (p.active_version_id) setWaiveModal({ versionId: p.active_version_id, promptName: p.name }); }}
+                      disabled={!p.active_version_id}
+                      title="Waive outstanding review requirements with justification (governance override)"
+                      className="px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                    ><ShieldCheck className="w-3 h-3" /> Waive</button>
+                  )}
                 </div>
               </div>
             ))}
@@ -690,6 +815,42 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction }: { prompts: P
           Users may not approve their own prompt for production when the risk tier requires independent review. Every override must capture approver, reason, policy basis, expiration, and affected scope. Approval status is invalidated when risk-impacting sections change after approval.
         </p>
       </div>
+
+      <ConfirmActionModal
+        open={!!approvalModal}
+        mode={approvalModal?.mode || 'confirm'}
+        variant={approvalModal?.variant || 'danger'}
+        title={approvalModal?.title || ''}
+        message={approvalModal?.message || ''}
+        confirmLabel={approvalModal?.confirmLabel}
+        promptPlaceholder={approvalModal?.promptPlaceholder}
+        onConfirm={handleApprovalConfirm}
+        onCancel={() => setApprovalModal(null)}
+      />
+
+      {/* A5 — structured rejection (category + actionable notes both required) */}
+      {rejectionModal && (
+        <RejectionModal
+          title={rejectionModal.title}
+          promptName={rejectionModal.promptName}
+          onConfirm={(category, notes) => { onApprovalAction(rejectionModal.versionId, 'REJECTED', notes, category); setRejectionModal(null); }}
+          onCancel={() => setRejectionModal(null)}
+        />
+      )}
+
+      {/* A6 — waive with justification (governance override only) */}
+      <ConfirmActionModal
+        open={!!waiveModal}
+        mode="confirm"
+        variant="warning"
+        requireReason
+        reasonPlaceholder="Justification for waiving review requirements (policy basis, why it is safe)…"
+        title={waiveModal ? `Waive review for "${waiveModal.promptName}"` : ''}
+        message="Waiving completes the review chain under governance override and records an immutable audit event. Hard safety/compliance gates cannot be waived."
+        confirmLabel="Waive with Justification"
+        onConfirm={(value) => { if (waiveModal) { onWaive(waiveModal.versionId, (value || '').trim()); setWaiveModal(null); } }}
+        onCancel={() => setWaiveModal(null)}
+      />
     </div>
   );
 }
@@ -780,7 +941,7 @@ function EvidenceTab({
       {/* Governance Receipts */}
       <div className="space-y-3">
         <h3 className="text-xs font-black text-white uppercase tracking-widest">Governance Receipts — Production Deployments</h3>
-        <p className="text-[10px] text-slate-500 leading-relaxed">Every production deployment, approval, rollback, or retirement generates a signed Governance Receipt stored in the Evidence Vault. Receipts are cryptographically linked to the prompt version and policy state in effect at the time of deployment.</p>
+        <p className="text-[10px] text-slate-500 leading-relaxed">Every production deployment, approval, rollback, or retirement generates a signed Governance Receipt stored in the Evidence Vault. The receipt carries the cryptographic prompt-body hash and the policy state in effect at deployment time. Open the Governance Center to view or regenerate the sealed receipt and its verifiable hash.</p>
         {productionPrompts.length === 0 ? (
           <div className="p-6 text-center text-sm text-slate-600 bg-black border border-slate-900 rounded-2xl">No production receipts yet. Receipts are generated when a prompt reaches Production Active status.</div>
         ) : (
@@ -797,18 +958,21 @@ function EvidenceTab({
                 </div>
                 <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
                   {[
-                    { label: "Prompt Hash", value: `SHA-256:${p.id.slice(0,8).toUpperCase()}...` },
-                    { label: "Policy Snapshot", value: "GOV-POLICY-v1.0" },
-                    { label: "Deployment Scope", value: p.linked_agent || "All agents" },
+                    { label: "Active Version", value: p.active_version || "—" },
+                    { label: "Deployment Scope", value: p.linked_agent && p.linked_agent !== "—" ? p.linked_agent : "All agents" },
+                    { label: "Linked Workflow", value: p.linked_workflow && p.linked_workflow !== "—" ? p.linked_workflow : "—" },
                     { label: "Approved By", value: p.approvals.filter(a => a.decision === "APPROVED").map(a => a.reviewer_role).join(", ") || "—" },
                     { label: "Deployed At", value: p.last_deployed ? new Date(p.last_deployed).toLocaleDateString() : "—" },
-                    { label: "Rollback Version", value: p.active_version ? `Prior ${p.active_version}` : "—" },
+                    { label: "Risk Tier", value: RISK_META[normalizeRiskTier(p.risk_tier)].label },
                   ].map((f) => (
                     <div key={f.label} className="p-2.5 bg-slate-950 border border-slate-900 rounded-xl">
                       <div className="text-[9px] text-slate-600 uppercase tracking-widest">{f.label}</div>
                       <div className="text-[10px] text-slate-300 font-bold mt-0.5 font-mono truncate">{f.value}</div>
                     </div>
                   ))}
+                </div>
+                <div className="px-4 pb-4">
+                  <span className="text-[9px] text-slate-600">Sealed cryptographic receipt (prompt-body hash + policy snapshot) is available in the Governance Center → Receipt panel and the Evidence Vault.</span>
                 </div>
               </div>
             ))}
@@ -1313,49 +1477,702 @@ function AuditorTab() {
   );
 }
 
-function CreatePromptModal({ onClose, onCreate, creating }: {
+type CreateMode = "scratch" | "template" | "clone" | "import" | "workflow_node";
+
+// A1 — Doc 3 §5/§12: five governed starting paths.
+function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
   onClose: () => void;
-  onCreate: (data: any) => void;
+  onCreate: (data: any) => Promise<{ ok: boolean; error?: string }>;
   creating: boolean;
+  prompts: PromptRecord[];
 }) {
+  const [mode, setMode] = useState<CreateMode>("scratch");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [promptType, setPromptType] = useState<PromptType>("system");
   const [riskTier, setRiskTier] = useState<RiskTier>("TIER_2_MEDIUM");
+  const [sourceId, setSourceId] = useState("");
+  const [importJson, setImportJson] = useState("");
+  const [workflows, setWorkflows] = useState<{ id: string; name: string }[]>([]);
+  const [workflowId, setWorkflowId] = useState("");
+  const [nodeName, setNodeName] = useState("");
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  // Approved prompts are eligible as templates (Doc 3 §12); any prompt may be cloned.
+  const templateSources = useMemo(
+    () => prompts.filter((p) => ["APPROVED_STAGING", "PRODUCTION_PENDING", "PRODUCTION_ACTIVE", "PAUSED", "RETIRED", "ARCHIVED"].includes(normalizeStatus(p.status))),
+    [prompts],
+  );
+
+  useEffect(() => {
+    if (mode !== "workflow_node" || workflows.length > 0) return;
+    api.get("/api/v1/agents/workflows")
+      .then((res) => {
+        const list = Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.workflows) ? res.data.workflows : [];
+        setWorkflows(list.map((w: any) => ({ id: w.id || w.workflow_id || "", name: w.name || w.workflow_name || "Untitled workflow" })).filter((w: any) => w.id));
+      })
+      .catch(() => setWorkflows([]));
+  }, [mode, workflows.length]);
+
+  const MODES: { id: CreateMode; label: string; icon: React.ElementType }[] = [
+    { id: "scratch", label: "Scratch", icon: Plus },
+    { id: "template", label: "Template", icon: Layers },
+    { id: "clone", label: "Clone", icon: Copy },
+    { id: "import", label: "Import", icon: Download },
+    { id: "workflow_node", label: "Workflow Node", icon: GitBranch },
+  ];
+
+  const submit = async () => {
+    setLocalError(null);
+    let payload: any;
+    if (mode === "import") {
+      let parsed: any;
+      try {
+        parsed = JSON.parse(importJson);
+      } catch {
+        setLocalError("Import failed: the definition is not valid JSON.");
+        return;
+      }
+      payload = { mode, definition: parsed };
+    } else if (mode === "template" || mode === "clone") {
+      if (!sourceId) { setLocalError(`Select a source prompt to ${mode}.`); return; }
+      payload = { mode, source_id: sourceId, name: name || undefined, risk_tier: riskTier };
+    } else if (mode === "workflow_node") {
+      if (!workflowId) { setLocalError("Select a workflow."); return; }
+      if (!name) { setLocalError("Prompt name is required."); return; }
+      const wf = workflows.find((w) => w.id === workflowId);
+      payload = {
+        mode,
+        name,
+        description: description || `Prompt for workflow node "${nodeName || "—"}" in ${wf?.name || "workflow"}.`,
+        prompt_type: promptType,
+        risk_tier: riskTier,
+        linked_workflow: wf?.name || "",
+        linked_workflow_id: workflowId,
+      };
+    } else {
+      if (!name) { setLocalError("Prompt name is required."); return; }
+      payload = { mode: "scratch", name, description, prompt_type: promptType, risk_tier: riskTier };
+    }
+    const result = await onCreate(payload);
+    if (!result.ok) setLocalError(result.error || "Failed to create prompt.");
+  };
+
+  const typeAndRisk = (
+    <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Type</label>
+        <select value={promptType} onChange={(e) => setPromptType(e.target.value as PromptType)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
+          {(["system","agent_role","task","channel","tool_use","escalation","refusal","safety","localization"] as const).map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
+        </select>
+      </div>
+      <div className="space-y-2">
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Risk Tier</label>
+        <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
+          {(Object.keys(RISK_META) as RiskTier[]).map((r) => <option key={r} value={r}>{RISK_META[r].label}</option>)}
+        </select>
+      </div>
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-950 border border-slate-800 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+      <div className="bg-slate-950 border border-slate-800 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between shrink-0">
           <h3 className="text-lg font-bold text-white">New Prompt</h3>
           <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
         </div>
-        <div className="p-8 space-y-5">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Prompt Name *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Brand Voice — Content Lead" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
+
+        {/* Mode selector */}
+        <div className="px-6 pt-5 shrink-0">
+          <div className="grid grid-cols-5 gap-1.5">
+            {MODES.map((m) => {
+              const Icon = m.icon;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => { setMode(m.id); setLocalError(null); }}
+                  className={`flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-wider transition-all ${mode === m.id ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/30" : "bg-black text-slate-500 border-slate-800 hover:text-slate-300"}`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {m.label}
+                </button>
+              );
+            })}
           </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Description</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose and scope of this prompt..." className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all h-20 resize-none text-sm" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+        </div>
+
+        <div className="p-6 space-y-5 overflow-y-auto">
+          {(mode === "scratch" || mode === "workflow_node") && (
+            <>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Prompt Name *</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Brand Voice — Content Lead" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
+              </div>
+              {mode === "workflow_node" && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Workflow *</label>
+                    <select value={workflowId} onChange={(e) => setWorkflowId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
+                      <option value="">{workflows.length ? "Select a workflow…" : "Loading workflows…"}</option>
+                      {workflows.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Node Name / Execution Context</label>
+                    <input value={nodeName} onChange={(e) => setNodeName(e.target.value)} placeholder="e.g. caption-generation node" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
+                  </div>
+                </>
+              )}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Description</label>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose and scope of this prompt..." className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all h-20 resize-none text-sm" />
+              </div>
+              {typeAndRisk}
+            </>
+          )}
+
+          {(mode === "template" || mode === "clone") && (
+            <>
+              <div className="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/15 text-[10px] text-slate-400 leading-relaxed">
+                {mode === "template"
+                  ? "Creates a new draft copying the source's variables, guardrails, tools, knowledge bindings, and metadata. Approvals, audit history, deployments, and evidence are not copied."
+                  : "Creates an independent draft copy of an existing prompt's configuration."}
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{mode === "template" ? "Source (approved prompt) *" : "Source prompt *"}</label>
+                <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
+                  <option value="">Select a source…</option>
+                  {(mode === "template" ? templateSources : prompts).map((p) => <option key={p.id} value={p.id}>{p.name} · {STATUS_META[normalizeStatus(p.status)].label}</option>)}
+                </select>
+                {mode === "template" && templateSources.length === 0 && (
+                  <p className="text-[10px] text-amber-400">No approved prompts available to use as a template yet.</p>
+                )}
+              </div>
+              {mode === "template" && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">New Prompt Name (optional)</label>
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Defaults to “<source> (From Template)”" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
+                  </div>
+                  {typeAndRisk}
+                </>
+              )}
+            </>
+          )}
+
+          {mode === "import" && (
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Type</label>
-              <select value={promptType} onChange={(e) => setPromptType(e.target.value as PromptType)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
-                {(["system","agent_role","task","channel","tool_use","escalation","refusal","safety","localization"] as const).map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
-              </select>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Prompt Definition JSON *</label>
+              <p className="text-[10px] text-slate-500 leading-relaxed">Required fields: <span className="font-mono text-slate-400">name</span>, <span className="font-mono text-slate-400">prompt_type</span>, <span className="font-mono text-slate-400">risk_tier</span>. Optional: <span className="font-mono text-slate-400">body</span>, <span className="font-mono text-slate-400">variables_json</span>, <span className="font-mono text-slate-400">guardrails_json</span>, knowledge/tool arrays. Validation runs server-side.</p>
+              <textarea
+                value={importJson}
+                onChange={(e) => setImportJson(e.target.value)}
+                placeholder={`{\n  "name": "Imported Prompt",\n  "prompt_type": "system",\n  "risk_tier": "tier_2_medium",\n  "body": "...",\n  "variables_json": {}\n}`}
+                className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all h-48 resize-none text-[11px] font-mono"
+              />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Risk Tier</label>
-              <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
-                {(Object.keys(RISK_META) as RiskTier[]).map((r) => <option key={r} value={r}>{RISK_META[r].label}</option>)}
-              </select>
+          )}
+
+          {localError && (
+            <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[11px] text-rose-400 whitespace-pre-wrap">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{localError}</span>
             </div>
-          </div>
-          <button onClick={() => onCreate({ name, description, prompt_type: promptType, risk_tier: riskTier })} disabled={creating || !name} className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20">
-            {creating ? <><Loader2 className="w-4 h-4 animate-spin" />CREATING...</> : <><Plus className="w-4 h-4" />CREATE PROMPT</>}
+          )}
+
+          <button onClick={submit} disabled={creating} className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20">
+            {creating ? <><Loader2 className="w-4 h-4 animate-spin" />CREATING...</> : <><Plus className="w-4 h-4" />{mode === "clone" ? "CLONE PROMPT" : mode === "import" ? "IMPORT PROMPT" : "CREATE PROMPT"}</>}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── A2: Variable Authoring Editor ──────────────────────────────────────────────
+// Full CRUD over governed injection variables (Doc 3 §5). Loads/saves via the
+// existing version variables API; validation runs before save.
+
+type VariableRow = {
+  name: string;
+  type: VariableType;
+  required: boolean;
+  allowedValues: string; // comma-separated (maps to validation.enumValues)
+  validationRule: string; // regex pattern (maps to validation.pattern)
+  fallbackValue: string; // maps to defaultValue
+  example: string; // maps to examples[0]
+};
+
+type VariableType = "string" | "number" | "boolean" | "enum" | "regex" | "json" | "url" | "email";
+const VARIABLE_TYPES: VariableType[] = ["string", "number", "boolean", "enum", "regex", "json", "url", "email"];
+
+function emptyVariableRow(): VariableRow {
+  return { name: "", type: "string", required: false, allowedValues: "", validationRule: "", fallbackValue: "", example: "" };
+}
+
+function VariableEditor({ versionId, editable }: { versionId?: string; editable: boolean }) {
+  const [rows, setRows] = useState<VariableRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!versionId) return;
+    setLoading(true);
+    setError(null);
+    api.get(`/api/v1/prompts/versions/${versionId}/variables`)
+      .then((res) => {
+        if (res?.success && res.data && typeof res.data === "object") {
+          const loaded: VariableRow[] = Object.entries(res.data as Record<string, any>).map(([name, def]) => ({
+            name,
+            type: (def?.type as VariableType) || "string",
+            required: !!def?.required,
+            allowedValues: Array.isArray(def?.validation?.enumValues) ? def.validation.enumValues.join(", ") : "",
+            validationRule: def?.validation?.pattern || "",
+            fallbackValue: def?.defaultValue !== undefined && def?.defaultValue !== null ? String(def.defaultValue) : "",
+            example: Array.isArray(def?.examples) && def.examples.length ? String(def.examples[0]) : "",
+          }));
+          setRows(loaded);
+        } else {
+          setRows([]);
+        }
+      })
+      .catch(() => setError("Failed to load variables."))
+      .finally(() => setLoading(false));
+  }, [versionId]);
+
+  const update = (i: number, patch: Partial<VariableRow>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const remove = (i: number) => setRows((rs) => rs.filter((_, idx) => idx !== i));
+  const add = () => setRows((rs) => [...rs, emptyVariableRow()]);
+
+  const validate = (): string | null => {
+    const seen = new Set<string>();
+    for (const r of rows) {
+      const nm = r.name.trim();
+      if (!nm) return "Every variable needs a name.";
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(nm)) return `Variable "${nm}" must be a machine-readable identifier (letters, numbers, underscore; no spaces).`;
+      if (seen.has(nm)) return `Duplicate variable name "${nm}".`;
+      seen.add(nm);
+      if (r.type === "enum" && !r.allowedValues.trim()) return `Enum variable "${nm}" requires allowed values.`;
+      if (r.validationRule.trim()) {
+        try { new RegExp(r.validationRule); } catch { return `Variable "${nm}" has an invalid validation regex.`; }
+      }
+    }
+    return null;
+  };
+
+  const save = async () => {
+    setError(null); setNotice(null);
+    const v = validate();
+    if (v) { setError(v); return; }
+    const payload: Record<string, any> = {};
+    for (const r of rows) {
+      const validation: Record<string, unknown> = {};
+      if (r.type === "enum" && r.allowedValues.trim()) validation.enumValues = r.allowedValues.split(",").map((s) => s.trim()).filter(Boolean);
+      if (r.validationRule.trim()) validation.pattern = r.validationRule.trim();
+      payload[r.name.trim()] = {
+        name: r.name.trim(),
+        type: r.type,
+        required: r.required,
+        ...(Object.keys(validation).length ? { validation } : {}),
+        ...(r.fallbackValue !== "" ? { defaultValue: r.fallbackValue } : {}),
+        ...(r.example !== "" ? { examples: [r.example] } : {}),
+      };
+    }
+    setSaving(true);
+    try {
+      const res = await api.put(`/api/v1/prompts/versions/${versionId}/variables`, { variables: payload });
+      if (res?.success) setNotice(`Saved ${rows.length} variable definition(s).`);
+      else setError(res?.error || "Failed to save variables.");
+    } catch (e: any) {
+      setError(e?.message || "Failed to save variables.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!versionId) return <p className="text-[11px] text-slate-600 italic">No active version — create a draft version before defining variables.</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black flex items-center gap-2"><Variable className="w-3.5 h-3.5 text-indigo-400" /> Governed Variables</div>
+        {editable && <button onClick={add} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all"><Plus className="w-3 h-3" /> Add Variable</button>}
+      </div>
+
+      {!editable && <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/15 text-[10px] text-amber-400">This prompt is not in an editable state, or you lack edit permission. Variables are read-only.</div>}
+      {loading ? (
+        <div className="flex items-center gap-2 py-6 text-slate-500"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading variables…</span></div>
+      ) : rows.length === 0 ? (
+        <p className="text-[11px] text-slate-600 italic">No variables defined for this version.</p>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((r, i) => (
+            <div key={i} className="p-4 bg-black border border-slate-900 rounded-2xl space-y-3">
+              <div className="flex items-center gap-2">
+                <input disabled={!editable} value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="variable_name" className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500 disabled:opacity-60" />
+                <select disabled={!editable} value={r.type} onChange={(e) => update(i, { type: e.target.value as VariableType })} className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-[11px] text-slate-300 outline-none focus:border-indigo-500 disabled:opacity-60">
+                  {VARIABLE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <label className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap"><input disabled={!editable} type="checkbox" checked={r.required} onChange={(e) => update(i, { required: e.target.checked })} /> required</label>
+                {editable && <button onClick={() => remove(i)} className="p-1.5 text-rose-400/70 hover:text-rose-400 transition-colors" title="Delete variable"><XCircle className="w-4 h-4" /></button>}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input disabled={!editable} value={r.allowedValues} onChange={(e) => update(i, { allowedValues: e.target.value })} placeholder="Allowed values (comma-separated)" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-indigo-500 disabled:opacity-60" />
+                <input disabled={!editable} value={r.validationRule} onChange={(e) => update(i, { validationRule: e.target.value })} placeholder="Validation regex" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] font-mono text-white outline-none focus:border-indigo-500 disabled:opacity-60" />
+                <input disabled={!editable} value={r.fallbackValue} onChange={(e) => update(i, { fallbackValue: e.target.value })} placeholder="Fallback / default value" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-indigo-500 disabled:opacity-60" />
+                <input disabled={!editable} value={r.example} onChange={(e) => update(i, { example: e.target.value })} placeholder="Example" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-indigo-500 disabled:opacity-60" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[11px] text-rose-400"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
+      {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[11px] text-emerald-400"><Check className="w-4 h-4 shrink-0" /><span>{notice}</span></div>}
+      {editable && rows.length > 0 && (
+        <button onClick={save} disabled={saving} className="w-full py-3 bg-indigo-500 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+          {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Check className="w-4 h-4" /> Save Variables</>}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── A2: Guardrail Authoring Editor ──────────────────────────────────────────────
+// CRUD + reorder over governed guardrails (Doc 3 §5). Persists onto the version's
+// existing guardrails_json via the guardrails API.
+
+type GuardrailCategory = "policy_rule" | "prohibited_instruction" | "claim_rule" | "safety_block" | "escalation_trigger" | "refusal_rule";
+const GUARDRAIL_CATEGORIES: { id: GuardrailCategory; label: string }[] = [
+  { id: "policy_rule", label: "Policy Rule" },
+  { id: "prohibited_instruction", label: "Prohibited Instruction" },
+  { id: "claim_rule", label: "Claim Rule" },
+  { id: "safety_block", label: "Safety Block" },
+  { id: "escalation_trigger", label: "Escalation Trigger" },
+  { id: "refusal_rule", label: "Refusal Rule" },
+];
+type GuardrailRow = { category: GuardrailCategory; rule: string; enabled: boolean };
+
+function GuardrailEditor({ promptId, versionId, editable }: { promptId: string; versionId?: string; editable: boolean }) {
+  const [rows, setRows] = useState<GuardrailRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!versionId) return;
+    setLoading(true);
+    setError(null);
+    api.get(`/api/v1/prompts/${promptId}/versions/${versionId}`)
+      .then((res) => {
+        const gj = res?.data?.guardrails_json;
+        const parsed = typeof gj === "string" ? (() => { try { return JSON.parse(gj); } catch { return null; } })() : gj;
+        const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.rules) ? parsed.rules : [];
+        setRows(list.map((g: any) => ({
+          category: (g?.category as GuardrailCategory) || "policy_rule",
+          rule: String(g?.rule || ""),
+          enabled: g?.enabled !== false,
+        })));
+      })
+      .catch(() => setError("Failed to load guardrails."))
+      .finally(() => setLoading(false));
+  }, [promptId, versionId]);
+
+  const update = (i: number, patch: Partial<GuardrailRow>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const remove = (i: number) => setRows((rs) => rs.filter((_, idx) => idx !== i));
+  const add = () => setRows((rs) => [...rs, { category: "policy_rule", rule: "", enabled: true }]);
+  const move = (i: number, dir: -1 | 1) => setRows((rs) => {
+    const j = i + dir;
+    if (j < 0 || j >= rs.length) return rs;
+    const copy = [...rs];
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+    return copy;
+  });
+
+  const save = async () => {
+    setError(null); setNotice(null);
+    for (const r of rows) {
+      if (!r.rule.trim()) { setError("Every guardrail needs rule text."); return; }
+    }
+    setSaving(true);
+    try {
+      const res = await api.put(`/api/v1/prompts/versions/${versionId}/guardrails`, {
+        guardrails: { rules: rows.map((r) => ({ category: r.category, rule: r.rule.trim(), enabled: r.enabled })) },
+      });
+      if (res?.success) setNotice(`Saved ${rows.length} guardrail(s).`);
+      else setError(res?.error || "Failed to save guardrails.");
+    } catch (e: any) {
+      setError(e?.message || "Failed to save guardrails.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!versionId) return <p className="text-[11px] text-slate-600 italic">No active version — create a draft version before defining guardrails.</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-rose-400" /> Guardrails</div>
+        {editable && <button onClick={add} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-rose-500/20 transition-all"><Plus className="w-3 h-3" /> Add Guardrail</button>}
+      </div>
+      {!editable && <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/15 text-[10px] text-amber-400">This prompt is not in an editable state, or you lack edit permission. Guardrails are read-only.</div>}
+      {loading ? (
+        <div className="flex items-center gap-2 py-6 text-slate-500"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading guardrails…</span></div>
+      ) : rows.length === 0 ? (
+        <p className="text-[11px] text-slate-600 italic">No guardrails defined for this version.</p>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((r, i) => (
+            <div key={i} className="p-3 bg-black border border-slate-900 rounded-2xl space-y-2">
+              <div className="flex items-center gap-2">
+                <select disabled={!editable} value={r.category} onChange={(e) => update(i, { category: e.target.value as GuardrailCategory })} className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-[11px] text-slate-300 outline-none focus:border-rose-500 disabled:opacity-60">
+                  {GUARDRAIL_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+                <label className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap"><input disabled={!editable} type="checkbox" checked={r.enabled} onChange={(e) => update(i, { enabled: e.target.checked })} /> enabled</label>
+                <div className="ml-auto flex items-center gap-1">
+                  {editable && <>
+                    <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1.5 py-1 text-slate-500 hover:text-white disabled:opacity-30" title="Move up">↑</button>
+                    <button onClick={() => move(i, 1)} disabled={i === rows.length - 1} className="px-1.5 py-1 text-slate-500 hover:text-white disabled:opacity-30" title="Move down">↓</button>
+                    <button onClick={() => remove(i)} className="p-1.5 text-rose-400/70 hover:text-rose-400" title="Delete guardrail"><XCircle className="w-4 h-4" /></button>
+                  </>}
+                </div>
+              </div>
+              <textarea disabled={!editable} value={r.rule} onChange={(e) => update(i, { rule: e.target.value })} placeholder="Guardrail rule text…" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-rose-500 h-16 resize-none disabled:opacity-60" />
+            </div>
+          ))}
+        </div>
+      )}
+      {error && <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[11px] text-rose-400"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
+      {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[11px] text-emerald-400"><Check className="w-4 h-4 shrink-0" /><span>{notice}</span></div>}
+      {editable && rows.length > 0 && (
+        <button onClick={save} disabled={saving} className="w-full py-3 bg-rose-500 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+          {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Check className="w-4 h-4" /> Save Guardrails</>}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── A3: Inline Pre-Submit Validation (Doc 3 §12) ───────────────────────────────
+// Computes blocking/warning checks from REAL data: the prompt record + the live
+// governance snapshot (degraded dependencies + approval validity). No fakes.
+
+type ValidationLevel = "pass" | "warning" | "blocking";
+interface ValidationCheck { key: string; label: string; level: ValidationLevel; detail: string; }
+
+function PreSubmitValidation({ prompt, onResult }: { prompt: PromptRecord; onResult: (hasBlocking: boolean) => void }) {
+  const [snapshot, setSnapshot] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api.get(`/api/v1/prompts/${prompt.id}/governance-snapshot`)
+      .then((res) => { if (!cancelled) setSnapshot(res?.success ? res.data : null); })
+      .catch(() => { if (!cancelled) setSnapshot(null); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [prompt.id]);
+
+  const checks = useMemo<ValidationCheck[]>(() => {
+    const degraded: any[] = Array.isArray(snapshot?.degraded_dependencies) ? snapshot.degraded_dependencies : [];
+    const typeOf = (d: any) => String(d?.dependency_type || d?.type || "").toLowerCase();
+    const knowledgeDegraded = degraded.filter((d) => ["knowledge", "collection"].includes(typeOf(d)));
+    const toolDegraded = degraded.filter((d) => typeOf(d) === "tool");
+    const approvalInvalidated = snapshot?.approval_validity?.invalidated === true;
+    const hasRejected = prompt.approvals.some((a) => a.decision === "REJECTED");
+    const ownerMissing = !prompt.owner || ["unknown", "—", ""].includes(String(prompt.owner).toLowerCase());
+    const riskMissing = !prompt.risk_tier;
+    const testPass = prompt.last_test?.pass_fail === "PASS";
+
+    return [
+      { key: "owner", label: "Owner assigned", level: ownerMissing ? "blocking" : "pass", detail: ownerMissing ? "Assign an owner before submitting for review." : String(prompt.owner) },
+      { key: "risk", label: "Risk tier set", level: riskMissing ? "blocking" : "pass", detail: riskMissing ? "Set a risk tier." : RISK_META[normalizeRiskTier(prompt.risk_tier)].label },
+      { key: "tests", label: "Variables & prompt tested", level: testPass ? "pass" : "blocking", detail: testPass ? `Last test passed (${prompt.last_test?.score}%).` : "Run the test suite and pass before review (untested variables)." },
+      { key: "tools", label: "Tools approved & available", level: toolDegraded.length ? "blocking" : "pass", detail: toolDegraded.length ? `${toolDegraded.length} tool binding(s) unapproved or unavailable.` : "No unapproved tools." },
+      { key: "knowledge", label: "Knowledge bindings available", level: knowledgeDegraded.length ? "blocking" : "pass", detail: knowledgeDegraded.length ? `${knowledgeDegraded.length} knowledge source(s) unavailable.` : "All bound knowledge sources available." },
+      { key: "approval", label: "No approval conflicts", level: approvalInvalidated ? "blocking" : hasRejected ? "warning" : "pass", detail: approvalInvalidated ? (snapshot?.approval_validity?.reason || "Approval invalidated by a risk-impacting change.") : hasRejected ? "A prior reviewer rejected this version." : "No approval conflicts." },
+    ];
+  }, [snapshot, prompt]);
+
+  const hasBlocking = checks.some((c) => c.level === "blocking");
+  useEffect(() => { if (!loading) onResult(hasBlocking); }, [loading, hasBlocking, onResult]);
+
+  const ICON: Record<ValidationLevel, { icon: React.ElementType; cls: string }> = {
+    pass: { icon: CheckCircle2, cls: "text-emerald-400" },
+    warning: { icon: AlertTriangle, cls: "text-amber-400" },
+    blocking: { icon: XCircle, cls: "text-rose-400" },
+  };
+
+  return (
+    <div className={`rounded-2xl border p-4 space-y-2 ${hasBlocking ? "border-rose-500/20 bg-rose-500/5" : "border-emerald-500/15 bg-emerald-500/5"}`}>
+      <div className="flex items-center gap-2">
+        <ShieldCheck className={`w-3.5 h-3.5 ${hasBlocking ? "text-rose-400" : "text-emerald-400"}`} />
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Pre-Submit Validation</span>
+        {loading && <Loader2 className="w-3 h-3 animate-spin text-slate-500" />}
+        <span className={`ml-auto text-[10px] font-black uppercase tracking-widest ${hasBlocking ? "text-rose-400" : "text-emerald-400"}`}>{hasBlocking ? "Blocked" : "Ready"}</span>
+      </div>
+      <div className="space-y-1.5">
+        {checks.map((c) => {
+          const { icon: Icon, cls } = ICON[c.level];
+          return (
+            <div key={c.key} className="flex items-start gap-2">
+              <Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${cls}`} />
+              <div className="min-w-0">
+                <span className="text-[11px] font-bold text-slate-300">{c.label}</span>
+                <span className="text-[10px] text-slate-500"> — {c.detail}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {hasBlocking && <p className="text-[10px] text-rose-400/80 leading-relaxed">Resolve the blocking items above before submitting for review. Warnings do not block submission.</p>}
+    </div>
+  );
+}
+
+// ─── A4: Post-Deployment Confirmation (Doc 3 §12) ────────────────────────────────
+function DeploymentConfirmation({ data, prompt, onClose, onRollback, onOpenInCenter }: {
+  data: any;
+  prompt: PromptRecord;
+  onClose: () => void;
+  onRollback: () => void;
+  onOpenInCenter: (promptId: string, versionId?: string) => void;
+}) {
+  const [affectedAgents, setAffectedAgents] = useState<string[]>([]);
+  const [affectedWorkflows, setAffectedWorkflows] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.get(`/api/v1/prompts/${prompt.id}/graph`)
+      .then((res) => {
+        const edges: any[] = Array.isArray(res?.data?.edges) ? res.data.edges : [];
+        const byType = (t: string) => Array.from(new Set(edges
+          .filter((e) => String(e?.dependency_type || "").toLowerCase() === t)
+          .map((e) => String(e?.dependency_name || e?.target || "").trim())
+          .filter(Boolean)));
+        setAffectedAgents(byType("agent"));
+        setAffectedWorkflows(byType("workflow").concat(byType("workflow_node")));
+      })
+      .catch(() => { /* fall back to prompt-level links below */ });
+  }, [prompt.id]);
+
+  const agents = affectedAgents.length ? affectedAgents : (data.linked_agent && data.linked_agent !== "—" ? [data.linked_agent] : []);
+  const workflows = affectedWorkflows.length ? affectedWorkflows : (data.linked_workflow && data.linked_workflow !== "—" ? [data.linked_workflow] : []);
+
+  const rows: { label: string; value: string }[] = [
+    { label: "Deployed Version", value: data.version_number || prompt.active_version || "—" },
+    { label: "Environment / Scope", value: String(data.environment || "—").toUpperCase() },
+    { label: "Deployed At", value: data.deployed_at ? new Date(data.deployed_at).toLocaleString() : "—" },
+    { label: "Deployed By", value: data.deployed_by || "—" },
+    { label: "Rollback Target", value: data.rollback_to_version_id ? `Version ${String(data.rollback_to_version_id).slice(0, 8)}…` : "None (first deployment)" },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-slate-950 border border-emerald-500/25 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-emerald-500/5">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            <h3 className="text-lg font-bold text-white">Deployment Confirmed</h3>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
+        </div>
+        <div className="p-6 space-y-5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-white">{prompt.name}</span>
+            <RiskBadge tier={prompt.risk_tier} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {rows.map((r) => (
+              <div key={r.label} className="p-3 bg-black border border-slate-900 rounded-xl">
+                <div className="text-[9px] text-slate-600 uppercase tracking-widest">{r.label}</div>
+                <div className="text-[11px] text-white font-bold mt-1 break-words">{r.value}</div>
+              </div>
+            ))}
+          </div>
+          <div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Affected Agents</div>
+            {agents.length ? (
+              <div className="flex flex-wrap gap-2">{agents.map((a) => <span key={a} className="inline-flex items-center gap-1 text-[10px] text-slate-300 bg-black border border-slate-800 px-2 py-1 rounded-lg"><Cpu className="w-3 h-3 text-indigo-400" />{a}</span>)}</div>
+            ) : <p className="text-[10px] text-slate-600 italic">No agents directly bound to this prompt.</p>}
+          </div>
+          <div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Affected Workflows</div>
+            {workflows.length ? (
+              <div className="flex flex-wrap gap-2">{workflows.map((w) => <span key={w} className="inline-flex items-center gap-1 text-[10px] text-slate-300 bg-black border border-slate-800 px-2 py-1 rounded-lg"><GitBranch className="w-3 h-3 text-amber-400" />{w}</span>)}</div>
+            ) : <p className="text-[10px] text-slate-600 italic">No workflows directly bound to this prompt.</p>}
+          </div>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <button onClick={() => onOpenInCenter(prompt.id, data.version_id)} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all">
+              <FileCheck className="w-3 h-3" /> View Evidence / Receipt
+            </button>
+            {data.evidence_id && (
+              <a href={`/evidence/evidence-vault/items/${data.evidence_id}`} className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all">
+                <ArrowRight className="w-3 h-3" /> Evidence Vault
+              </a>
+            )}
+            <button onClick={() => { onRollback(); onClose(); }} className="flex items-center gap-1.5 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all">
+              <RotateCcw className="w-3 h-3" /> Rollback
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── A5: Structured Rejection Modal (Doc 3 §7) ───────────────────────────────────
+const REJECTION_CATEGORIES: { id: string; label: string }[] = [
+  { id: "safety", label: "Safety" },
+  { id: "compliance", label: "Compliance" },
+  { id: "brand", label: "Brand" },
+  { id: "quality", label: "Quality" },
+  { id: "legal", label: "Legal" },
+  { id: "security", label: "Security" },
+  { id: "missing_evidence", label: "Missing Evidence" },
+  { id: "failed_test", label: "Failed Test" },
+  { id: "approval_conflict", label: "Approval Conflict" },
+  { id: "other", label: "Other" },
+];
+
+function RejectionModal({ title, promptName, onConfirm, onCancel }: {
+  title: string;
+  promptName: string;
+  onConfirm: (category: string, notes: string) => void;
+  onCancel: () => void;
+}) {
+  const [category, setCategory] = useState("");
+  const [notes, setNotes] = useState("");
+  const valid = category && notes.trim().length >= 4;
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-slate-950 border border-rose-500/25 rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+          <h3 className="text-base font-bold text-white">{title}</h3>
+          <button onClick={onCancel} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-[11px] text-slate-500">{promptName}</p>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Reason Category *</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-rose-500 transition-all text-xs">
+              <option value="">Select a category…</option>
+              {REJECTION_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Actionable Notes *</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Describe the specific change required…" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-rose-500 transition-all h-24 resize-none text-sm" />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-slate-800 text-slate-300 font-semibold text-sm hover:bg-slate-900 transition-all">Cancel</button>
+            <button onClick={() => onConfirm(category, notes.trim())} disabled={!valid} className="flex-1 py-3 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-500 disabled:opacity-50 transition-all">Submit</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1370,14 +2187,22 @@ function PromptDetailDrawer({
   onLifecycleAction,
   onVersionAction,
   onExportEvidence,
+  onOpenInCenter,
 }: {
   prompt: PromptRecord;
   onClose: () => void;
   onLifecycleAction: (id: string, action: string) => void;
   onVersionAction: (versionId: string, action: string, extra?: any) => void;
   onExportEvidence: (prompt: PromptRecord, context: string) => void;
+  onOpenInCenter: (promptId: string, versionId?: string) => void;
 }) {
-  const [drawerTab, setDrawerTab] = useState<"overview" | "body" | "bindings" | "variables" | "history">("overview");
+  const [drawerTab, setDrawerTab] = useState<"overview" | "body" | "bindings" | "variables" | "guardrails" | "history">("overview");
+  // A2/A7: variables & guardrails are editable unless the prompt is immutable.
+  // Server still enforces ownership (prompt.edit.own/any) and returns 403 if denied.
+  const editable = !["RETIRED", "ARCHIVED"].includes(normalizeStatus(prompt.status));
+  // A3: inline pre-submit validation result gates the Submit-for-Review action.
+  const [submitBlocked, setSubmitBlocked] = useState(false);
+  const showPreSubmit = ["DRAFT", "INTERNAL_TEST", "REVIEW_REQUESTED"].includes(normalizeStatus(prompt.status));
   const [promptBody, setPromptBody] = useState<string | null>(null);
   const [loadingBody, setLoadingBody] = useState(false);
   const [bodyFetched, setBodyFetched] = useState(false);
@@ -1456,7 +2281,7 @@ function PromptDetailDrawer({
             </button>
           </div>
           <div className="flex gap-1">
-            {(["overview", "body", "bindings", "variables", "history"] as const).map((t) => (
+            {(["overview", "body", "bindings", "variables", "guardrails", "history"] as const).map((t) => (
               <button key={t} onClick={() => setDrawerTab(t)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${drawerTab === t ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "text-slate-500 hover:text-white"}`}>
                 {t}
               </button>
@@ -1550,44 +2375,11 @@ function PromptDetailDrawer({
           )}
 
           {drawerTab === "variables" && (
-            <div className="space-y-5">
-              <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/15">
-                <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Governed Injection Parameters</div>
-                <p className="text-[10px] text-slate-400 leading-relaxed">Variables are controlled inputs injected into every prompt execution. Each must define a data type, allowed values, default fallback, data source, sanitization rule, and audit visibility level. Open-ended placeholders are not permitted in production prompts.</p>
-              </div>
-              <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-3">Required Variable Fields</div>
-                <div className="space-y-2">
-                  {[
-                    { field: "Name", rule: "Stable machine-readable identifier. No spaces. Example: {{user_name}}, {{brand_voice}}, {{channel_type}}." },
-                    { field: "Type", rule: "Text, number, date, location, audience, platform, campaign, product, jurisdiction, or knowledge reference." },
-                    { field: "Allowed Values", rule: "Enumerated values where possible. Free text only with validation rule and sanitization rule defined." },
-                    { field: "Source", rule: "Manual input, workflow data, campaign metadata, CRM, knowledge base, or policy engine." },
-                    { field: "Sanitization", rule: "Prompt-injection filtering, profanity filtering, privacy redaction, and forbidden phrase checks applied before injection." },
-                    { field: "Fallback", rule: "Default value used when source is unavailable. Must not produce an unsafe or brand-violating output." },
-                    { field: "Audit Visibility", rule: "Whether the value appears in Evidence Vault receipts, redacted receipts, or internal logs only." },
-                  ].map((v) => (
-                    <div key={v.field} className="flex gap-3 p-3 bg-black border border-slate-900 rounded-xl">
-                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest whitespace-nowrap min-w-[110px]">{v.field}</span>
-                      <span className="text-[10px] text-slate-400 leading-relaxed">{v.rule}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="p-4 bg-amber-500/5 border border-amber-500/15 rounded-2xl space-y-2">
-                <div className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Common Variables — {prompt.prompt_type}</div>
-                <p className="text-[10px] text-slate-500 leading-relaxed">Define and validate these variables before submitting for review. Production prompts with undefined variable handling cannot pass safety tests.</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {["{{brand_voice}}", "{{channel_type}}", "{{user_name}}", "{{campaign_id}}", "{{locale}}", "{{product_name}}", "{{risk_context}}"].map((v) => (
-                    <span key={v} className="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded">{v}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="p-4 bg-black border border-slate-900 rounded-2xl">
-                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Sanitization Rule</div>
-                <p className="text-[10px] text-slate-600 leading-relaxed">Every injected value must pass prompt-injection filtering before reaching the model. If a variable contains instructions that could override governance rules, the execution is blocked and logged to the Evidence Vault.</p>
-              </div>
-            </div>
+            <VariableEditor versionId={prompt.active_version_id} editable={editable} />
+          )}
+
+          {drawerTab === "guardrails" && (
+            <GuardrailEditor promptId={prompt.id} versionId={prompt.active_version_id} editable={editable} />
           )}
 
           {drawerTab === "body" && (
@@ -1662,15 +2454,33 @@ function PromptDetailDrawer({
         {/* Deployment controls */}
         <div className="p-6 border-t border-slate-800 space-y-3 sticky bottom-0 bg-slate-950">
           <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Deployment Controls</div>
+          {showPreSubmit && <PreSubmitValidation prompt={prompt} onResult={setSubmitBlocked} />}
+          <button
+            type="button"
+            onClick={() => onOpenInCenter(prompt.id, prompt.active_version_id)}
+            className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300"
+          >
+            Open in Governance Center →
+          </button>
           <div className="flex flex-wrap gap-2">
             {prompt.status === "DRAFT" && (
               <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'run_tests')} className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Run Tests</button>
             )}
             {prompt.status === "INTERNAL_TEST" && (
-              <button onClick={() => onLifecycleAction(prompt.id, 'submit_review')} className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all">Submit for Review</button>
+              <button
+                onClick={() => { if (!submitBlocked) onLifecycleAction(prompt.id, 'submit_review'); }}
+                disabled={submitBlocked}
+                title={submitBlocked ? "Resolve the blocking validation items above before submitting." : "Submit for review"}
+                className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >Submit for Review</button>
             )}
             {prompt.status === "APPROVED_STAGING" && (
               <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'deploy_production')} className="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Request Production Approval</button>
+            )}
+            {prompt.status === "PRODUCTION_PENDING" && (
+              <button onClick={() => onLifecycleAction(prompt.id, 'commission')} className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all flex items-center gap-1.5">
+                <ShieldCheck className="w-3 h-3" /> Commission
+              </button>
             )}
             {prompt.status === "PRODUCTION_ACTIVE" && (
               <>
@@ -1736,16 +2546,22 @@ export default function PromptsPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("ALL");
   const [filterRisk, setFilterRisk] = useState<FilterRisk>("ALL");
+  const [filterTest, setFilterTest] = useState<TestState>("ALL");
   const [activeTab, setActiveTab] = useState<ActiveTab>("registry");
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
   const [approvalStats, setApprovalStats] = useState<ApprovalStats | null>(null);
   const [hitlRules, setHitlRules] = useState<HitlRule[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<PromptRecord | null>(null);
+  const [centerTarget, setCenterTarget] = useState<{ promptId: string; versionId?: string } | null>(null);
   const [promptsLoading, setPromptsLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingPrompt, setCreatingPrompt] = useState(false);
   const [promptStats, setPromptStats] = useState<any>(null);
+  // A4 post-deployment confirmation state.
+  const [deployConfirm, setDeployConfirm] = useState<{ data: any; prompt: PromptRecord } | null>(null);
+  // A6 — only governance-override roles may waive review requirements.
+  const canWaive = ["ADMIN", "GOVERNANCE_ADMIN", "WORKSPACE_OWNER", "SUPERADMIN"].includes(String(role || "").toUpperCase().replace(/\s+/g, "_"));
 
   const fetchPrompts = useCallback(async () => {
     setPromptsLoading(true);
@@ -1769,16 +2585,52 @@ export default function PromptsPage() {
     }
   }, []);
 
-  const handleCreatePrompt = async (data: any) => {
+  // A1 — five governed create paths (Doc 3 §5 / §12). Returns a result so the
+  // modal can surface per-path validation errors (e.g. import schema failures)
+  // inline rather than only in the page banner.
+  const handleCreatePrompt = async (data: any): Promise<{ ok: boolean; error?: string }> => {
     setCreatingPrompt(true);
     try {
-      const res = await api.post("/api/v1/prompts", data);
-      if (res.success) {
+      const mode = data.mode || "scratch";
+      let res: any;
+      if (mode === "import") {
+        res = await api.post("/api/v1/prompts/import", { definition: data.definition });
+        if (res?.success === false) {
+          const errs = Array.isArray(res.errors) ? res.errors.join("\n") : res.error;
+          return { ok: false, error: errs || "Import validation failed." };
+        }
+      } else if (mode === "template") {
+        res = await api.post(`/api/v1/prompts/${data.source_id}/template`, {
+          name: data.name || undefined,
+          risk_tier: data.risk_tier,
+        });
+      } else if (mode === "clone") {
+        res = await api.post(`/api/v1/prompts/${data.source_id}/clone`, {});
+      } else if (mode === "workflow_node") {
+        res = await api.post("/api/v1/prompts", {
+          name: data.name,
+          description: data.description,
+          prompt_type: data.prompt_type,
+          risk_tier: data.risk_tier,
+          linked_workflow: data.linked_workflow,
+          linked_workflow_id: data.linked_workflow_id,
+        });
+      } else {
+        res = await api.post("/api/v1/prompts", {
+          name: data.name,
+          description: data.description,
+          prompt_type: data.prompt_type,
+          risk_tier: data.risk_tier,
+        });
+      }
+      if (res?.success) {
         setShowCreateModal(false);
         fetchPrompts();
+        return { ok: true };
       }
+      return { ok: false, error: res?.error || "Failed to create prompt." };
     } catch (e: any) {
-      setError(e.message || 'Failed to create prompt');
+      return { ok: false, error: e.message || "Failed to create prompt." };
     } finally {
       setCreatingPrompt(false);
     }
@@ -1794,6 +2646,7 @@ export default function PromptsPage() {
         submit_review: `/api/v1/prompts/${id}/submit-review`,
         rollback: `/api/v1/prompts/${id}/rollback`,
         clone: `/api/v1/prompts/${id}/clone`,
+        commission: `/api/v1/prompts/${id}/commission`,
       };
       const endpoint = endpointMap[action];
       if (!endpoint) return;
@@ -1819,13 +2672,22 @@ export default function PromptsPage() {
         : action === 'deploy_production' ? { environment: 'production' }
         : extra || {};
       const res = await api.post(endpoint, body);
-      if (res.success) fetchPrompts();
+      if (res.success) {
+        // A4: surface a structured post-deployment confirmation using real
+        // response data instead of an alert.
+        if ((action === 'deploy_staging' || action === 'deploy_production') && res.data && selectedPrompt) {
+          setDeployConfirm({ data: res.data, prompt: selectedPrompt });
+        }
+        fetchPrompts();
+      } else if (res?.error) {
+        setError(res.error);
+      }
     } catch (e: any) {
       setError(e.message || `Version action failed: ${action}`);
     }
   };
 
-  const handleApprovalAction = async (versionId: string, decision: string, comments?: string) => {
+  const handleApprovalAction = async (versionId: string, decision: string, comments?: string, reasonCategory?: string) => {
     try {
       const endpoint = decision === 'APPROVED'
         ? `/api/v1/prompts/versions/${versionId}/approve`
@@ -1833,15 +2695,41 @@ export default function PromptsPage() {
       const reviewer_role = role
         ? role.toUpperCase().replace(/\s+/g, '_')
         : 'PROMPT_OWNER';
-      const res = await api.post(endpoint, { comments, reviewer_role });
+      const payload: Record<string, unknown> = { comments, reviewer_role };
+      if (decision !== 'APPROVED' && reasonCategory) payload.reason_category = reasonCategory;
+      const res = await api.post(endpoint, payload);
       if (res.success) {
         fetchPrompts();
         setSelectedPrompt(null);
+      } else if (res?.error) {
+        setError(res.error);
       }
     } catch (e: any) {
       setError(e.message || `Approval action failed`);
     }
   };
+
+  // A6 — waive outstanding review requirements with justification (override roles only).
+  const handleWaive = async (versionId: string, justification: string) => {
+    try {
+      const reviewer_role = role ? role.toUpperCase().replace(/\s+/g, '_') : undefined;
+      const res = await api.post(`/api/v1/prompts/versions/${versionId}/waive`, { justification, reviewer_role });
+      if (res.success) {
+        fetchPrompts();
+        setSelectedPrompt(null);
+      } else if (res?.error) {
+        setError(res.error);
+      }
+    } catch (e: any) {
+      setError(e.message || `Waive failed`);
+    }
+  };
+
+  const handleOpenInCenter = useCallback((promptId: string, versionId?: string) => {
+    setCenterTarget({ promptId, versionId });
+    setActiveTab("center");
+    setSelectedPrompt(null);
+  }, []);
 
   const downloadJson = useCallback((filename: string, payload: unknown) => {
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -1856,15 +2744,26 @@ export default function PromptsPage() {
   }, []);
 
   const handleExportPromptEvidence = useCallback(
-    (prompt: PromptRecord, context: string) => {
-      downloadJson(`prompt-evidence-${prompt.id}.json`, {
-        exported_at: new Date().toISOString(),
-        export_context: context,
-        prompt,
-        audit_stats: auditStats,
-      });
+    async (prompt: PromptRecord, context: string) => {
+      const reason = window.prompt("Enter a reason for this evidence export:");
+      if (!reason || reason.length < 8) {
+        alert("A reason of at least 8 characters is required for evidence export.");
+        return;
+      }
+      try {
+        const res = await api.post(`/api/v1/prompts/${prompt.id}/evidence/export`, {
+          reason,
+          disclosure_mode: "governance_review",
+        });
+        if (res?.success === false) {
+          throw new Error(res.error || res.data?.error?.message || "Evidence export failed");
+        }
+        alert("Evidence export created successfully. Check the Evidence Vault for the sealed package.");
+      } catch (err: any) {
+        alert("Evidence export failed: " + (err?.message || "Unknown error"));
+      }
     },
-    [auditStats, downloadJson],
+    [],
   );
 
   const handleAuditExport = useCallback(() => {
@@ -1915,6 +2814,10 @@ export default function PromptsPage() {
     { id: "evidence", label: "Evidence", icon: History },
     { id: "runtime", label: "Runtime", icon: Network },
     { id: "auditor", label: "Auditor", icon: ShieldCheck },
+    { id: "evaluation", label: "Evaluation", icon: BarChart3 },
+    { id: "adversarial", label: "Adversarial", icon: ShieldAlert },
+    { id: "drift", label: "Drift", icon: Activity },
+    { id: "center", label: "Governance Center", icon: FileText },
   ];
 
   return (
@@ -1960,28 +2863,30 @@ export default function PromptsPage() {
         </div>
       )}
 
-      {/* Health summary strip */}
+      {/* Health summary strip — Doc 3 §4-B: clickable metrics filter the registry */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
-        {[
-          { label: "Total Prompts", value: prompts.length, icon: MessageSquareCode, color: "text-white" },
-          { label: "Production Active", value: productionCount, icon: Zap, color: "text-emerald-400" },
-          { label: "Drafts / Pending", value: draftsPending, icon: Clock, color: "text-amber-400" },
-          { label: "Failed Tests", value: failedTests, icon: AlertTriangle, color: "text-rose-400" },
-          { label: "Paused", value: paused, icon: PauseCircle, color: "text-orange-400" },
-          { label: "HITL Rules", value: hitlRules.filter((r) => r.enabled).length, icon: ShieldCheck, color: "text-indigo-400" },
-        ].map((stat) => {
+        {([
+          { label: "Total Prompts", value: prompts.length, icon: MessageSquareCode, color: "text-white", apply: () => { setFilterStatus("ALL"); setFilterTest("ALL"); } },
+          { label: "Production Active", value: productionCount, icon: Zap, color: "text-emerald-400", apply: () => { setFilterStatus("PRODUCTION_ACTIVE"); setFilterTest("ALL"); } },
+          { label: "Drafts / Pending", value: draftsPending, icon: Clock, color: "text-amber-400", apply: () => { setFilterStatus("REVIEW_REQUESTED"); setFilterTest("ALL"); } },
+          { label: "Failed Tests", value: failedTests, icon: AlertTriangle, color: "text-rose-400", apply: () => { setFilterStatus("ALL"); setFilterTest("FAIL"); } },
+          { label: "Paused", value: paused, icon: PauseCircle, color: "text-orange-400", apply: () => { setFilterStatus("PAUSED"); setFilterTest("ALL"); } },
+          { label: "HITL Rules", value: hitlRules.filter((r) => r.enabled).length, icon: ShieldCheck, color: "text-indigo-400", apply: () => setActiveTab("runtime") },
+        ] as const).map((stat) => {
           const Icon = stat.icon;
           return (
-            <div
+            <button
               key={stat.label}
-              className="bg-slate-950 border border-slate-900 rounded-2xl p-5 hover:border-indigo-500/30 transition-all cursor-pointer"
+              type="button"
+              onClick={() => { stat.apply(); if (stat.label !== "HITL Rules") setActiveTab("registry"); }}
+              className="text-left bg-slate-950 border border-slate-900 rounded-2xl p-5 hover:border-indigo-500/30 transition-all cursor-pointer focus:outline-none focus:border-indigo-500/50"
             >
               <div className="flex items-center justify-between mb-3">
                 <Icon className={`w-4 h-4 ${stat.color}`} />
                 <div className={`text-2xl font-black ${stat.color}`}>{stat.value}</div>
               </div>
               <div className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600">{stat.label}</div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -2018,6 +2923,8 @@ export default function PromptsPage() {
             setFilterStatus={setFilterStatus}
             filterRisk={filterRisk}
             setFilterRisk={setFilterRisk}
+            filterTest={filterTest}
+            setFilterTest={setFilterTest}
             onSelectPrompt={setSelectedPrompt}
           />
         )}
@@ -2028,7 +2935,7 @@ export default function PromptsPage() {
             onRunTests={(versionId) => handleVersionAction(versionId, "run_tests")}
           />
         )}
-        {activeTab === "approvals" && <ApprovalsTab prompts={prompts} approvalStats={approvalStats} onApprovalAction={handleApprovalAction} />}
+        {activeTab === "approvals" && <ApprovalsTab prompts={prompts} approvalStats={approvalStats} onApprovalAction={handleApprovalAction} canWaive={canWaive} onWaive={handleWaive} />}
         {activeTab === "evidence" && (
           <EvidenceTab
             prompts={prompts}
@@ -2044,6 +2951,16 @@ export default function PromptsPage() {
           />
         )}
         {activeTab === "auditor" && <AuditorTab />}
+        {activeTab === "evaluation" && <EvaluationDashboard embedded />}
+        {activeTab === "adversarial" && <AdversarialDashboard embedded />}
+        {activeTab === "drift" && <DriftDashboard embedded />}
+        {activeTab === "center" && (
+          <PromptGovernanceCenter
+            embedded
+            initialPromptId={centerTarget?.promptId}
+            initialVersionId={centerTarget?.versionId}
+          />
+        )}
       </div>
 
       {/* Prompt detail drawer */}
@@ -2054,11 +2971,23 @@ export default function PromptsPage() {
           onLifecycleAction={handleLifecycleAction}
           onVersionAction={handleVersionAction}
           onExportEvidence={handleExportPromptEvidence}
+          onOpenInCenter={handleOpenInCenter}
         />
       )}
 
       {/* Create prompt modal */}
-      {showCreateModal && <CreatePromptModal onClose={() => setShowCreateModal(false)} onCreate={handleCreatePrompt} creating={creatingPrompt} />}
+      {showCreateModal && <CreatePromptModal onClose={() => setShowCreateModal(false)} onCreate={handleCreatePrompt} creating={creatingPrompt} prompts={prompts} />}
+
+      {/* A4 — post-deployment confirmation */}
+      {deployConfirm && (
+        <DeploymentConfirmation
+          data={deployConfirm.data}
+          prompt={deployConfirm.prompt}
+          onClose={() => setDeployConfirm(null)}
+          onRollback={() => handleLifecycleAction(deployConfirm.prompt.id, "rollback")}
+          onOpenInCenter={handleOpenInCenter}
+        />
+      )}
     </div>
   );
 }

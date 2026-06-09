@@ -485,25 +485,59 @@ export class SuperAdminController {
     try {
       const { orgId } = req.params;
 
+      // Resolve the actual org_id — the route param may be an org or workspace id
+      let resolvedOrgId: string = String(orgId);
       const { data: ws } = await supabaseAdmin
         .from('workspaces')
         .select('org_id')
         .eq('id', orgId)
         .single();
 
-      if (ws?.org_id) {
-        await supabaseAdmin
-          .from('organizations')
-          .delete()
-          .eq('id', ws.org_id);
-      } else {
-        await supabaseAdmin
-          .from('workspaces')
-          .delete()
-          .eq('id', orgId);
+      if (ws?.org_id) resolvedOrgId = ws.org_id;
+
+      // 1. Collect all workspace_members user_ids for this org
+      const { data: workspaces } = await supabaseAdmin
+        .from('workspaces')
+        .select('id')
+        .eq('org_id', resolvedOrgId);
+
+      const workspaceIds = (workspaces ?? []).map((w: any) => w.id);
+
+      let authUserIds: string[] = [];
+      if (workspaceIds.length > 0) {
+        const { data: members } = await supabaseAdmin
+          .from('workspace_members')
+          .select('user_id')
+          .in('workspace_id', workspaceIds);
+
+        authUserIds = [...new Set((members ?? []).map((m: any) => m.user_id))];
       }
 
-      res.json({ success: true, message: 'Organization permanently deleted. All data has been purged.' });
+      // 2. Delete the organization — cascades to workspaces, workspace_members, etc.
+      await supabaseAdmin
+        .from('organizations')
+        .delete()
+        .eq('id', resolvedOrgId);
+
+      // 3. Delete each user from auth.users (also cascades to public.users via FK)
+      //    Only delete users who are not members of any other workspace
+      let deletedCount = 0;
+      for (const uid of authUserIds) {
+        const { count } = await supabaseAdmin
+          .from('workspace_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', uid);
+
+        if ((count ?? 0) === 0) {
+          await supabaseAdmin.auth.admin.deleteUser(uid);
+          deletedCount++;
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Organization permanently deleted. ${deletedCount} user(s) removed from auth.`,
+      });
     } catch (error) {
       next(error);
     }
@@ -621,4 +655,5 @@ export class SuperAdminController {
       next(error);
     }
   }
+
 }

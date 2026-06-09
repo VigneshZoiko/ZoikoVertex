@@ -1,6 +1,8 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { createAuditEvent } from './auditTrail.service';
 import { internalEventBus } from '../shared/internalEventBus';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 import * as crypto from 'crypto';
 import {
   submitAnchor,
@@ -195,7 +197,8 @@ async function emitVaultAuditEvent(
 
 // ─── Evidence Item Functions ────────────────────────────────────────────────────
 
-export async function preserveEvidence(params: PreserveParams): Promise<VaultEvidenceItem> {
+export async function preserveEvidence(params: PreserveParams, auth?: AuthContext): Promise<VaultEvidenceItem> {
+  requireAnyPermission(auth, 'evidence:view');
   const itemId = generateItemId();
   const now = new Date().toISOString();
 
@@ -407,7 +410,8 @@ export async function verifyEvidenceItem(itemId: string, actorId: string): Promi
 
 // ─── Collection Functions ───────────────────────────────────────────────────────
 
-export async function createCollection(params: CollectionParams): Promise<VaultCollection> {
+export async function createCollection(params: CollectionParams, auth?: AuthContext): Promise<VaultCollection> {
+  requireAnyPermission(auth, 'evidence:view');
   const collectionId = generateCollectionId();
   const itemHash = computeHash(JSON.stringify({
     title: params.title, scope: params.scope || {},
@@ -479,8 +483,9 @@ export async function getCollectionByCollectionId(collectionId: string): Promise
 
 export async function addItemsToCollection(
   collectionId: string, itemIds: string[],
-  addedBy: string, reason?: string,
+  addedBy: string, reason?: string, auth?: AuthContext,
 ): Promise<{ added: number }> {
+  requireAnyPermission(auth, 'evidence:view');
   const collection = await getCollection(collectionId);
   if (!collection) throw new Error('Collection not found');
 
@@ -655,7 +660,8 @@ interface CreatePackageParams {
   metadata?: any;
 }
 
-export async function createPackage(params: CreatePackageParams): Promise<VaultPackage> {
+export async function createPackage(params: CreatePackageParams, auth?: AuthContext): Promise<VaultPackage> {
+  requireAnyPermission(auth, 'evidence:view');
   const packageId = generatePackageId();
   const { data, error } = await supabaseAdmin.from('vault_packages').insert({
     package_id: packageId,
@@ -738,7 +744,8 @@ export async function listPackages(filters: {
   return { packages: data || [], total: count || 0 };
 }
 
-export async function sealPackage(packageId: string, actorId: string): Promise<VaultPackage> {
+export async function sealPackage(packageId: string, actorId: string, auth?: AuthContext): Promise<VaultPackage> {
+  requireAnyPermission(auth, 'evidence:view');
   const pkg = await getPackage(packageId);
   if (!pkg) throw new Error('Package not found');
 
@@ -865,7 +872,8 @@ interface CreateExportParams {
   expires_at?: string;
 }
 
-export async function createExport(params: CreateExportParams): Promise<VaultExport> {
+export async function createExport(params: CreateExportParams, auth?: AuthContext): Promise<VaultExport> {
+  requireAnyPermission(auth, 'evidence:view');
   const pkg = await getPackage(params.package_id);
   if (!pkg) throw new Error('Package not found');
   if (pkg.status !== 'sealed') throw new Error('Package must be sealed before export');
@@ -947,7 +955,8 @@ interface ApplyHoldParams {
   review_date?: string;
 }
 
-export async function applyHold(params: ApplyHoldParams): Promise<VaultHold> {
+export async function applyHold(params: ApplyHoldParams, auth?: AuthContext): Promise<VaultHold> {
+  requireAnyPermission(auth, 'evidence:view');
   const holdId = generateHoldId();
 
   const { data, error } = await supabaseAdmin.from('vault_holds').insert({
@@ -1020,10 +1029,20 @@ async function updateHoldOnItems(scopeType: string, scopeId: string | undefined,
   }
 }
 
-export async function releaseHold(holdId: string, releasedBy: string, reason: string): Promise<VaultHold | null> {
+export async function releaseHold(holdId: string, releasedBy: string, reason: string, authorizedBy?: string, auth?: AuthContext): Promise<VaultHold | null> {
+  requireAnyPermission(auth, 'evidence:view');
   const hold = await getHold(holdId);
   if (!hold) throw new Error('Hold not found');
   if (hold.released) throw new Error('Hold already released');
+
+  // Dual-authorization: the person releasing must differ from the original approver
+  if (hold.approver_id && releasedBy === hold.approver_id) {
+    throw new Error('Legal hold release requires dual-authorization: the releasing user must be different from the hold\'s original approver');
+  }
+  // If authorizedBy is provided, it must differ from releasedBy
+  if (authorizedBy && releasedBy === authorizedBy) {
+    throw new Error('Legal hold release requires dual-authorization: the releasing user must be different from the authorizing user');
+  }
 
   const now = new Date().toISOString();
   const { data, error } = await supabaseAdmin.from('vault_holds').update({
@@ -1031,6 +1050,7 @@ export async function releaseHold(holdId: string, releasedBy: string, reason: st
     released_at: now,
     released_reason: reason,
     released_by: releasedBy,
+    authorized_by: authorizedBy || null,
   }).eq('id', holdId).select().single();
 
   if (error) throw error;
@@ -1090,7 +1110,8 @@ interface CreateRedactionPolicyParams {
   created_by: string;
 }
 
-export async function createRedactionPolicy(params: CreateRedactionPolicyParams): Promise<VaultRedactionPolicy> {
+export async function createRedactionPolicy(params: CreateRedactionPolicyParams, auth?: AuthContext): Promise<VaultRedactionPolicy> {
+  requireAnyPermission(auth, 'evidence:view');
   const policyId = generateRedactionPolicyId();
 
   const { data, error } = await supabaseAdmin.from('vault_redaction_policies').insert({
@@ -1204,7 +1225,8 @@ interface CreateShareParams {
   created_by: string;
 }
 
-export async function createShare(params: CreateShareParams): Promise<VaultShare> {
+export async function createShare(params: CreateShareParams, auth?: AuthContext): Promise<VaultShare> {
+  requireAnyPermission(auth, 'evidence:view');
   const pkg = await getPackage(params.package_id);
   if (!pkg) throw new Error('Package not found');
   if (pkg.status !== 'sealed') throw new Error('Package must be sealed before sharing');
@@ -1277,7 +1299,8 @@ export async function listShares(filters: {
   return { shares: data || [], total: count || 0 };
 }
 
-export async function revokeShare(shareId: string, revokedBy: string): Promise<VaultShare | null> {
+export async function revokeShare(shareId: string, revokedBy: string, auth?: AuthContext): Promise<VaultShare | null> {
+  requireAnyPermission(auth, 'evidence:view');
   const share = await getShare(shareId);
   if (!share) throw new Error('Share not found');
   if (share.revoked) throw new Error('Share already revoked');
@@ -1336,7 +1359,7 @@ export async function logShareAccess(shareId: string, access: {
 
   // Increment view count
   const { data: share } = await supabaseAdmin.from('vault_shares')
-    .select('current_views').eq('id', shareId).single();
+    .select('current_views, workspace_id').eq('id', shareId).single();
   if (share) {
     await supabaseAdmin.from('vault_shares').update({
       current_views: (share.current_views || 0) + 1,
@@ -1344,13 +1367,13 @@ export async function logShareAccess(shareId: string, access: {
     }).eq('id', shareId);
   }
 
+  const workspaceId = share?.workspace_id || 'unknown';
   await emitVaultAuditEvent(
-    'evidence.share_viewed', 'WRK-001', 'external_viewer',
+    'evidence.share_viewed', workspaceId, 'external_viewer',
     `Share Viewed: ${shareId}`,
     `External share ${shareId} accessed. Section: ${access.package_section || 'overview'}.`,
     { object_type: 'vault_share', object_id: shareId },
   );
-  // Note: share_viewed uses hardcoded workspace — tenant_id omitted intentionally (external viewer lacks context)
 }
 
 export async function getShareAccessLogs(shareId: string): Promise<VaultShareAccessLog[]> {
@@ -1362,7 +1385,8 @@ export async function getShareAccessLogs(shareId: string): Promise<VaultShareAcc
 
 // ─── Phase 3: DLP Scanning ───────────────────────────────────────────────────────
 
-export async function runDlpScan(packageId: string, workerId?: string): Promise<VaultDlpScan> {
+export async function runDlpScan(packageId: string, workerId?: string, auth?: AuthContext): Promise<VaultDlpScan> {
+  requireAnyPermission(auth, 'evidence:view');
   const pkg = await getPackage(packageId);
   if (!pkg) throw new Error('Package not found');
 
@@ -1580,7 +1604,8 @@ export async function createAsyncJob(params: {
   tenant_id: string;
   created_by: string;
   idempotency_key?: string;
-}): Promise<VaultAsyncJob> {
+}, auth?: AuthContext): Promise<VaultAsyncJob> {
+  requireAnyPermission(auth, 'evidence:view');
   const jobId = generateJobId();
 
   const { data, error } = await supabaseAdmin.from('vault_async_jobs').insert({
@@ -1691,7 +1716,8 @@ export async function createChainAnchor(params: {
   anchor_provider: string;
   anchor_data?: any;
   created_by?: string;
-}): Promise<VaultChainAnchor> {
+}, auth?: AuthContext): Promise<VaultChainAnchor> {
+  requireAnyPermission(auth, 'evidence:view');
   const anchorId = generateAnchorId();
   const scope = await resolveChainAnchorScope(params);
   const provider = (['ethereum', 'opentimestamps', 'mock'].includes(params.anchor_provider)
@@ -1745,8 +1771,10 @@ export async function createChainAnchor(params: {
 
 export async function confirmChainAnchor(
   anchorId: string,
-  workspace_id: string
+  workspace_id: string,
+  auth?: AuthContext,
 ): Promise<VaultChainAnchor | null> {
+  requireAnyPermission(auth, 'evidence:view');
   const { data: anchor } = await supabaseAdmin
     .from('vault_chain_anchors')
     .select('*')
@@ -1855,7 +1883,8 @@ export async function createTemplateVersion(params: {
   template_version: string;
   schema: any;
   created_by: string;
-}): Promise<VaultTemplateVersion> {
+}, auth?: AuthContext): Promise<VaultTemplateVersion> {
+  requireAnyPermission(auth, 'evidence:view');
   const templateId = generateTemplateId();
 
   const { data, error } = await supabaseAdmin.from('vault_template_versions').insert({

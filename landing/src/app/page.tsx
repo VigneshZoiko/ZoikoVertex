@@ -1,39 +1,45 @@
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import PlatformSection from "@/components/Banner";
-import PlatformPainPoint from "@/components/PlatformPainPoint";
-import PlatformCategory from "@/components/PlatformCategory";
-import PlatformCapabilities from "@/components/PlatformCapabilitie";
-import RoleWorkspaces from "@/components/RoleWorkspace";
-import AIAgentsSection from "@/components/AIAgentsSection";
-import InboxEngagementSection from "@/components/InboxEngagementSection";
-import BrandLibrarySection from "@/components/BrandLibrarySection";
-import EvidenceCrisisSection from "@/components/EvidenceCrisisSection";
-import IntegrationsSection from "@/components/IntegrationsSection";
-import PricingSection from "@/components/PricingSection";
-import SecurityTrustSection from "@/components/SecurityTrustSection";
-import FAQSection from "@/components/FAQSection";
+import {
+  Navbar,
+  Hero,
+  TrustedBy,
+  Stats,
+  Pricing,
+  FeatureBlock,
+  Architecture,
+  PainPoints,
+  AgentsGrid,
+  Accountability,
+  EnterpriseBanner,
+  EnterpriseFeatures,
+  Industries,
+  StackComparison,
+  TrustModel,
+  Testimonials,
+  FooterCTA,
+  Footer,
+} from "@/components/landing";
 
 export default function LandingPage() {
   return (
-    <main>
+    <main className="min-h-screen">
       <Navbar />
-      <div className="pt-16">
-        <PlatformSection />
-        <PlatformPainPoint />
-        <PlatformCategory />
-        <PlatformCapabilities />
-        <RoleWorkspaces />
-        <AIAgentsSection />
-        <InboxEngagementSection />
-        <BrandLibrarySection />
-        <EvidenceCrisisSection />
-        <IntegrationsSection />
-        <PricingSection />
-        <SecurityTrustSection />
-        <FAQSection />
-      </div>
-      <Footer />
+      <Hero />        {/* dark  #152238 */}
+      <TrustedBy />   {/* dark  #0f1b2e */}
+      <Stats />       {/* light #F5F7FA */}
+      <FeatureBlock />{/* light #FFFFFF */}
+      <Pricing />     {/* dark  #080E1A */}
+      <Architecture />{/* light #FFFFFF */}
+      <PainPoints />  {/* dark  #080E1A */}
+      <AgentsGrid />  {/* light #FFFFFF */}
+      <Accountability />{/* dark  #152238 */}
+      <EnterpriseBanner />{/* dark  #0f1b2e */}
+      <EnterpriseFeatures />
+      <Industries />  {/* light #F5F7FA */}
+      <StackComparison />{/* dark  #0f1b2e */}
+      <TrustModel />  {/* light #F5F7FA */}
+      <Testimonials />{/* dark  #152238 */}
+      <FooterCTA />   {/* dark  gradient */}
+      <Footer />      {/* dark  #080f1e */}
     </main>
   );
 }

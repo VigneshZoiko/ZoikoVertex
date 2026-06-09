@@ -52,7 +52,7 @@ export async function getAgentLinkedResources(agentId: string): Promise<AgentLin
         ? supabaseAdmin.from('prompts').select('id, name, status, risk_level, version, owner_id').in('id', promptIds)
         : { data: [] },
       workflowIds.length > 0
-        ? supabaseAdmin.from('workflows').select('id, name, status, risk_level, version, owner_id').in('id', workflowIds)
+        ? supabaseAdmin.from('workflow_templates').select('id, name, status, risk_level, version, owner_id').in('id', workflowIds)
         : { data: [] },
       policyIds.length > 0
         ? supabaseAdmin.from('policies').select('id, name, status, risk_level, version, owner_id').in('id', policyIds)

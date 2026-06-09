@@ -4,10 +4,10 @@ export async function getWorkflowAnalytics(workspaceId: string) {
   const results = await Promise.all([
     supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'Active'),
     supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).in('status', ['RUNNING', 'RUNNING']),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'BLOCKED'),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'COMPLETED'),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'FAILED'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).in('status', ['running', 'pending']),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'blocked'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'completed'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
     supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).not('completed_at', 'is', null).gt('completed_at', 'due_at'),
     supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).not('completed_at', 'is', null),
     supabaseAdmin.from('approval_records').select('id, decided_at, created_at', { count: 'exact' }).not('decided_at', 'is', null),
@@ -35,6 +35,7 @@ export async function getWorkflowAnalytics(workspaceId: string) {
     sla_breach_rate: slaBreachRate,
     failure_rate: failureRate,
     evidence_completeness: 0,
+    evidence_completeness_unavailable: true,
     dependency_health: totalTemplates > 0 ? Math.round(((totalTemplates - unhealthyDeps) / totalTemplates) * 100) : 100,
   };
 }
@@ -43,8 +44,8 @@ export async function getControlStripData(workspaceId: string) {
   const [activeWf, pendingApprovals, blockedRuns, failedRuns, slaBreach, staleDeps, criticalRisk] = await Promise.all([
     supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).eq('status', 'Active'),
     supabaseAdmin.from('approval_records').select('id', { count: 'exact', head: true }).eq('decision', 'PENDING'),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'BLOCKED'),
-    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'FAILED'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'blocked'),
+    supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
     supabaseAdmin.from('workflow_instances').select('id', { count: 'exact', head: true }).not('completed_at', 'is', null).gt('completed_at', 'due_at'),
     supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).neq('health', 'Healthy'),
     supabaseAdmin.from('workflow_templates').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId).in('risk_level', ['high', 'critical']).eq('status', 'Active'),

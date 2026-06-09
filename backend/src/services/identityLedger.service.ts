@@ -2,6 +2,8 @@ import crypto from 'crypto';
 import { supabaseAdmin } from '../shared/supabase';
 import { getPermissionsForRole } from '../shared/rolePermissions';
 import { internalEventBus } from '../shared/internalEventBus';
+import type { AuthContext } from '../shared/serviceAuth';
+import { requireAnyPermission } from '../shared/serviceAuth';
 
 const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 const REDACTED_MARKER = 'REDACTED_BY_ACCESS_POLICY';
@@ -782,6 +784,58 @@ async function hydrateSeedFromSources(input: ResolveAuthorityBindingInput): Prom
       .maybeSingle();
 
     if (apiKey) seed = buildApiKeySeed(input.workspace_id, tenantId, apiKey as Record<string, unknown>);
+  } else if (actorType === 'system') {
+    seed = {
+      actor_id: input.actor.actor_id,
+      workspace_id: input.workspace_id,
+      tenant_id: tenantId,
+      actor_type: 'system',
+      display_name: input.actor.actor_name || `System:${input.actor.actor_id}`,
+      email: null,
+      state: 'active',
+      external_identity_id: input.actor.actor_id,
+      source_system: 'platform',
+      source_ref_id: input.actor.actor_id,
+      authority_class: 'system',
+      risk_level: 'low',
+      risk_flags: [],
+      current_roles: ['SYSTEM'],
+      current_permissions: ['system.*'],
+      last_activity_at: input.timestamp_utc || new Date().toISOString(),
+      profile: { seeded_from: 'hydrate_seed', actor_category: 'system_actor' },
+      policy_constraints: { workspace_id: input.workspace_id },
+      agent_context: null,
+      source_lineage: [{ source_type: 'system_registry', source_event_id: input.actor.actor_id }],
+      entry_type: 'identity.created',
+      entry_category: 'identity_assertion',
+      effective_from: input.timestamp_utc || new Date().toISOString(),
+    };
+  } else if (actorType === 'external_reviewer') {
+    seed = {
+      actor_id: input.actor.actor_id,
+      workspace_id: input.workspace_id,
+      tenant_id: tenantId,
+      actor_type: 'external_reviewer',
+      display_name: input.actor.actor_name || `External:${input.actor.actor_id}`,
+      email: null,
+      state: 'restricted',
+      external_identity_id: input.actor.actor_id,
+      source_system: 'external_portal',
+      source_ref_id: input.actor.actor_id,
+      authority_class: 'scoped',
+      risk_level: 'medium',
+      risk_flags: [],
+      current_roles: ['EXTERNAL_REVIEWER'],
+      current_permissions: ['evidence.review', 'evidence.comment'],
+      last_activity_at: input.timestamp_utc || new Date().toISOString(),
+      profile: { seeded_from: 'hydrate_seed', actor_category: 'external_reviewer' },
+      policy_constraints: { workspace_id: input.workspace_id },
+      agent_context: null,
+      source_lineage: [{ source_type: 'external_invitation', source_event_id: input.actor.actor_id }],
+      entry_type: 'identity.created',
+      entry_category: 'identity_assertion',
+      effective_from: input.timestamp_utc || new Date().toISOString(),
+    };
   }
 
   if (!seed) {
@@ -1246,7 +1300,9 @@ export async function createDelegation(params: {
   scope: Record<string, unknown>;
   expires_at: string;
   reason?: string;
+  auth?: AuthContext;
 }) {
+  requireAnyPermission(params.auth, 'identity-ledger:view');
   const { data, error } = await supabaseAdmin
     .from('identity_delegations')
     .insert({
@@ -1273,7 +1329,8 @@ export async function createDelegation(params: {
   return data;
 }
 
-export async function revokeDelegation(params: { id: string; revoked_by: string }) {
+export async function revokeDelegation(params: { id: string; revoked_by: string; auth?: AuthContext }) {
+  requireAnyPermission(params.auth, 'identity-ledger:view');
   const { data, error } = await supabaseAdmin
     .from('identity_delegations')
     .update({ status: 'REVOKED', revoked_at: new Date().toISOString(), revoked_by: params.revoked_by })
@@ -1301,14 +1358,16 @@ export async function listDelegations(params: { tenant_id: string; status?: stri
   return data;
 }
 
-export async function requestBreakGlass(params: { tenant_id: string; actor_id: string; reason: string; elevated_roles?: string[] }) {
+export async function requestBreakGlass(params: { tenant_id: string; actor_id: string; reason: string; elevated_roles?: string[]; auth?: AuthContext }) {
+  requireAnyPermission(params.auth, 'identity-ledger:view');
   const { data, error } = await supabaseAdmin
     .from('identity_break_glass_sessions')
     .insert({
       actor_id: params.actor_id,
       tenant_id: params.tenant_id,
       reason: params.reason,
-      status: 'ACTIVE',
+      status: 'PENDING',
+      review_status: 'AWAITING_REVIEW',
       elevated_roles: params.elevated_roles || ['SUPERADMIN'],
     })
     .select()
@@ -1318,7 +1377,19 @@ export async function requestBreakGlass(params: { tenant_id: string; actor_id: s
   return data;
 }
 
-export async function activateBreakGlass(params: { id: string }) {
+export async function activateBreakGlass(params: { id: string; auth?: AuthContext }) {
+  requireAnyPermission(params.auth, 'identity-ledger:view');
+  const { data: session } = await supabaseAdmin
+    .from('identity_break_glass_sessions')
+    .select('review_status')
+    .eq('id', params.id)
+    .single();
+
+  if (!session) throw new Error('Break-glass session not found');
+  if (session.review_status !== 'APPROVED') {
+    throw new Error('Break-glass session must be reviewed and approved before activation');
+  }
+
   const { data, error } = await supabaseAdmin
     .from('identity_break_glass_sessions')
     .update({ status: 'ACTIVE' })
@@ -1330,7 +1401,8 @@ export async function activateBreakGlass(params: { id: string }) {
   return data;
 }
 
-export async function endBreakGlass(params: { id: string }) {
+export async function endBreakGlass(params: { id: string; auth?: AuthContext }) {
+  requireAnyPermission(params.auth, 'identity-ledger:view');
   const { data, error } = await supabaseAdmin
     .from('identity_break_glass_sessions')
     .update({ status: 'ENDED', ends_at: new Date().toISOString() })
@@ -1358,7 +1430,8 @@ export async function listBreakGlassSessions(params: { tenant_id: string; status
   return data;
 }
 
-export async function reviewBreakGlass(params: { id: string; reviewer_id: string; status: 'APPROVED' | 'FLAGGED'; notes: string }) {
+export async function reviewBreakGlass(params: { id: string; reviewer_id: string; status: 'APPROVED' | 'FLAGGED'; notes: string; auth?: AuthContext }) {
+  requireAnyPermission(params.auth, 'identity-ledger:view');
   const { data, error } = await supabaseAdmin
     .from('identity_break_glass_sessions')
     .update({
@@ -1377,7 +1450,8 @@ export async function reviewBreakGlass(params: { id: string; reviewer_id: string
 
 // --- Phase 3: Evidence Integration ---
 
-export async function applyLegalHold(params: { workspace_id: string; ledger_entry_id: string; reason: string }) {
+export async function applyLegalHold(params: { workspace_id: string; ledger_entry_id: string; reason: string; auth?: AuthContext }) {
+  requireAnyPermission(params.auth, 'identity-ledger:view');
   const { data, error } = await supabaseAdmin
     .from('identity_ledger_entries')
     .update({ legal_hold_status: true, legal_hold_expiry: null })
@@ -1399,7 +1473,8 @@ export async function applyLegalHold(params: { workspace_id: string; ledger_entr
   return data;
 }
 
-export async function releaseLegalHold(params: { workspace_id: string; ledger_entry_id: string; reason: string }) {
+export async function releaseLegalHold(params: { workspace_id: string; ledger_entry_id: string; reason: string; auth?: AuthContext }) {
+  requireAnyPermission(params.auth, 'identity-ledger:view');
   const { data, error } = await supabaseAdmin
     .from('identity_ledger_entries')
     .update({ legal_hold_status: false })
@@ -1427,7 +1502,9 @@ export async function preserveToVault(params: {
   reason: string;
   tenant_id?: string;
   preserved_by?: string;
+  auth?: AuthContext;
 }) {
+  requireAnyPermission(params.auth, 'identity-ledger:view');
   const { data: entry, error: fetchError } = await supabaseAdmin
     .from('identity_ledger_entries')
     .select('*')
@@ -1530,11 +1607,13 @@ export interface ServiceAccountRegistration {
   permissions?: string[];
   expires_at?: string;
   created_by: string;
+  auth?: AuthContext;
 }
 
 export async function registerServiceAccount(
   params: ServiceAccountRegistration
 ): Promise<IdentityActor> {
+  requireAnyPermission(params.auth, 'identity-ledger:view');
   const { data: existing } = await supabaseAdmin
     .from('identity_actors')
     .select('actor_id')
@@ -1623,8 +1702,10 @@ export async function revokeServiceAccount(
   actorId: string,
   workspaceId: string,
   revokedBy: string,
-  reason?: string
+  reason?: string,
+  auth?: AuthContext
 ): Promise<IdentityActor | null> {
+  requireAnyPermission(auth, 'identity-ledger:view');
   const actor = await getActorByActorId(actorId, workspaceId);
   if (!actor) return null;
   if (actor.actor_type !== 'service_account') throw new Error('Actor is not a service account');
@@ -1840,13 +1921,15 @@ const RISK_FLAG_PATTERNS: Array<{
 
 export async function evaluateActorRiskFlags(
   actorId: string,
-  workspaceId: string
+  workspaceId: string,
+  auth?: AuthContext
 ): Promise<{
   actor_id: string;
   risk_flags: string[];
   risk_level: 'low' | 'medium' | 'high' | 'critical';
   flags: Array<{ flag: string; label: string; severity: string; active: boolean; description: string }>;
 }> {
+  requireAnyPermission(auth, 'identity-ledger:view');
   const actor = await getActorByActorId(actorId, workspaceId);
   if (!actor) throw new Error(`Actor ${actorId} not found`);
 
@@ -1896,7 +1979,9 @@ export async function setActorRiskFlags(params: {
   risk_level?: 'low' | 'medium' | 'high' | 'critical';
   reason?: string;
   set_by: string;
+  auth?: AuthContext;
 }): Promise<IdentityActor | null> {
+  requireAnyPermission(params.auth, 'identity-ledger:view');
   const actor = await getActorByActorId(params.actor_id, params.workspace_id);
   if (!actor) return null;
 

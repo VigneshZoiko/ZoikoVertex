@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   Zap, Globe, Database, DollarSign,
-  RefreshCw, Clock, AlertTriangle, Cpu,
+  RefreshCw, Clock, AlertTriangle, Cpu, HardDrive, CalendarClock,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -23,10 +23,17 @@ interface SummaryItem {
   unit: string;
 }
 
+interface BillingPeriod {
+  start: string;
+  end: string;
+  days_remaining: number;
+}
+
 const RESOURCE_META: Record<string, { label: string; icon: React.ElementType; color: string; iconBg: string }> = {
-  AI_TOKENS: { label: "AI Tokens", icon: Zap, color: "text-amber-500", iconBg: "bg-amber-500/10" },
-  SOCIAL_API_CALLS: { label: "Social API Calls", icon: Globe, color: "text-indigo-500", iconBg: "bg-indigo-500/10" },
-  STORAGE_MB: { label: "Storage", icon: Database, color: "text-emerald-500", iconBg: "bg-emerald-500/10" },
+  AI_TOKENS:      { label: "AI Tokens",        icon: Zap,       color: "text-amber-500",  iconBg: "bg-amber-500/10"  },
+  SOCIAL_API_CALLS: { label: "Social API Calls", icon: Globe,   color: "text-indigo-500", iconBg: "bg-indigo-500/10" },
+  STORAGE_MB:     { label: "Storage",           icon: Database,  color: "text-emerald-500",iconBg: "bg-emerald-500/10"},
+  MEDIA_ASSETS:   { label: "Media Vault",       icon: HardDrive, color: "text-teal-500",   iconBg: "bg-teal-500/10"  },
 };
 
 function getResourceMeta(type: string) {
@@ -34,13 +41,18 @@ function getResourceMeta(type: string) {
 }
 
 function Skeleton({ className }: { className: string }) {
-  return <div className={`animate-pulse bg-[var(--border)] rounded ${className}`} />;
+  return <span className={`animate-pulse bg-[var(--border)] rounded ${className} block`} />;
+}
+
+function formatCycleDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 export default function ResourceMonitoringPage() {
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<UsageLog[]>([]);
   const [summary, setSummary] = useState<Record<string, SummaryItem>>({});
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -51,6 +63,7 @@ export default function ResourceMonitoringPage() {
         if (result.success) {
           setLogs(result.data.recent_logs ?? []);
           setSummary(result.data.summary ?? {});
+          setBillingPeriod(result.data.billing_period ?? null);
         }
       }
     } catch (err) {
@@ -82,12 +95,25 @@ export default function ResourceMonitoringPage() {
           <p className="text-sm text-[var(--foreground-muted)] mt-1">
             Token consumption, API usage, storage, and infrastructure cost.
           </p>
+          {/* Billing cycle badge */}
+          {billingPeriod && (
+            <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] border border-[var(--border)] px-3 py-1 rounded-full">
+              <CalendarClock className="w-3.5 h-3.5 text-indigo-400" />
+              <span>
+                Cycle: <strong className="text-[var(--foreground)]">{formatCycleDate(billingPeriod.start)} – {formatCycleDate(billingPeriod.end)}</strong>
+              </span>
+              <span className="mx-1 opacity-30">·</span>
+              <span className={billingPeriod.days_remaining <= 5 ? "text-amber-400 font-medium" : ""}>
+                Resets in {billingPeriod.days_remaining}d
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl px-4 py-2.5 text-right">
-            <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wide">Est. Monthly Burn</p>
+            <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wide">This Cycle Spend</p>
             <p className="text-lg font-bold text-[var(--foreground)] tabular-nums">
-              {loading ? "—" : `$${totalCostMonthly.toFixed(2)}`}
+              {loading ? "—" : `$${totalCost.toFixed(4)}`}
             </p>
           </div>
           <button
@@ -101,7 +127,7 @@ export default function ResourceMonitoringPage() {
       </div>
 
       {/* Resource Type Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {summaryTypes.map((type) => {
           const meta = getResourceMeta(type);
           const Icon = meta.icon;
@@ -123,9 +149,9 @@ export default function ResourceMonitoringPage() {
               </div>
 
               <p className="text-sm text-[var(--foreground-muted)] mb-1">{meta.label}</p>
-              <p className="text-2xl font-bold text-[var(--foreground)] tabular-nums mb-1">
+              <div className="text-2xl font-bold text-[var(--foreground)] tabular-nums mb-1">
                 {loading ? <Skeleton className="h-7 w-24" /> : data ? data.quantity.toLocaleString() : "0"}
-              </p>
+              </div>
               <p className="text-xs text-[var(--foreground-muted)] mb-4">
                 {data?.unit ?? "units"}
               </p>
@@ -279,7 +305,7 @@ export default function ResourceMonitoringPage() {
                   })}
 
                 <div className="border-t border-[var(--border)] pt-4 flex justify-between items-center">
-                  <span className="text-sm font-medium text-[var(--foreground-muted)]">Today Total</span>
+                  <span className="text-sm font-medium text-[var(--foreground-muted)]">Cycle Total</span>
                   <span className="text-lg font-bold text-[var(--foreground)] tabular-nums">${totalCost.toFixed(4)}</span>
                 </div>
               </div>

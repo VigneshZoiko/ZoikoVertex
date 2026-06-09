@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -44,7 +44,7 @@ import {
   HeartPulse,
   Building2,
   CreditCard,
-  BadgeDollarSign,
+
   TrendingUp,
   FolderKanban,
   Inbox,
@@ -53,6 +53,8 @@ import {
   Bell,
   Eye,
   Lock,
+  Sparkles,
+  BarChart3,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -200,8 +202,24 @@ const NAV_GROUPS: NavGroup[] = [
     icon: ClipboardCheck,
     items: [
       {
+        name: "Approval Rules",
+        href: "/governance/rules",
+        icon: ListChecks,
+        // Approval rule configuration — governance admin only
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"],
+        plan: "approvals" as Feature,
+      },
+      {
+        name: "Validation Desk",
+        href: "/validation",
+        icon: ClipboardCheck,
+        // Higher-trust HITL validation — validators and approvers
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR","APPROVER"],
+        plan: "review_queue" as Feature,
+      },
+      {
         name: "Review Queue",
-        href: "/queue",
+        href: "/review-queue",
         icon: ClipboardList,
         // All review roles + compliance reviewers who need to monitor
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","REVIEWER","VALIDATOR","APPROVER","BRAND_REVIEWER","CAMPAIGN_MANAGER","COMPLIANCE_REVIEWER"],
@@ -215,38 +233,6 @@ const NAV_GROUPS: NavGroup[] = [
         // QA surface — validators, auditors, compliance
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR","AUDITOR","COMPLIANCE_REVIEWER"],
         plan: "review_queue" as Feature,
-      },
-      {
-        name: "Validation Desk",
-        href: "/validation",
-        icon: ClipboardCheck,
-        // Higher-trust HITL validation — validators and approvers
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR","APPROVER"],
-        plan: "review_queue" as Feature,
-      },
-      {
-        name: "Approvals",
-        href: "/governance/approvals",
-        icon: CheckSquare,
-        // Approval decisions — approvers, validators, compliance (read history), auditors (read)
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","APPROVER","VALIDATOR","COMPLIANCE_REVIEWER","AUDITOR"],
-        plan: "approvals" as Feature,
-      },
-      {
-        name: "Approval Rules",
-        href: "/governance/rules",
-        icon: ListChecks,
-        // Approval rule configuration — governance admin only
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"],
-        plan: "approvals" as Feature,
-      },
-      {
-        name: "Exceptions",
-        href: "/exceptions",
-        icon: AlertOctagon,
-        // Exception handling — governance admin only
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"],
-        plan: "approvals" as Feature,
       },
     ],
   },
@@ -285,7 +271,9 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Prompt Governance",
         href: "/agents/prompts",
         icon: MessageSquareCode,
-        // Prompt templates/versions — architects, governance admin (policy oversight)
+        // Single source of truth for the governed prompt lifecycle. The former
+        // standalone Prompt Governance Center, Evaluation, Adversarial, and
+        // Drift dashboards are now tabs inside this page.
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","AGENT_ARCHITECT"],
         plan: "agents" as Feature,
       },
@@ -381,7 +369,7 @@ const NAV_GROUPS: NavGroup[] = [
       },
       {
         name: "Identity Ledger",
-        href: "/integrations/identity-ledger",
+        href: "/evidence/identity-ledger",
         icon: Fingerprint,
         // Identity audit chain — developers (technical view), auditors (read)
         roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER","AUDITOR"],
@@ -465,12 +453,6 @@ const NAV_GROUPS: NavGroup[] = [
         roles: ["ADMIN","WORKSPACE_OWNER"],
       },
       {
-        name: "Agency Ad Accounts",
-        href: "/admin/ad-accounts",
-        icon: BadgeDollarSign,
-        roles: ["ADMIN", "WORKSPACE_OWNER", "SUPERADMIN"],
-      },
-      {
         name: "Billing & Usage",
         href: "/admin/billing",
         icon: CreditCard,
@@ -496,13 +478,6 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Activity,
         // Platform health — admins and developers
         roles: ["ADMIN","WORKSPACE_OWNER","DEVELOPER"],
-      },
-      {
-        name: "Security Center",
-        href: "/admin/security",
-        icon: Lock,
-        // SSO, MFA, IP rules — security admin manages
-        roles: ["ADMIN","WORKSPACE_OWNER","SECURITY_ADMIN"],
       },
       {
         name: "Support & Docs",
@@ -543,6 +518,7 @@ export default function Sidebar() {
 
   const [pendingCount, setPendingCount] = useState(0);
   const [supportTicketCount, setSupportTicketCount] = useState(0);
+  const prevRoleRef = useRef<string | null>(null);
 
   const { state } = useNotifications();
   const unreadCount = state?.notifications?.filter((n) => !n.read).length || 0;
@@ -575,9 +551,13 @@ export default function Sidebar() {
   }, []);
 
   useEffect(() => {
-    if (!roleLoading) {
-      setRoleLoaded(true);
-      if (role) fetchPendingCount(role);
+    if (roleLoading) return;
+    setRoleLoaded(true);
+    // Only fetch when the role value itself changes, not on every roleLoading toggle.
+    // The realtime channel below keeps the count live after the initial fetch.
+    if (role && role !== prevRoleRef.current) {
+      prevRoleRef.current = role;
+      fetchPendingCount(role);
     }
   }, [roleLoading, role, fetchPendingCount]);
 

@@ -2,11 +2,20 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  // Silence "multiple lockfiles" workspace root warning
   turbopack: {
     root: path.resolve(__dirname),
   },
   images: {
     remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**",
+      },
+      {
+        protocol: "http",
+        hostname: "**",
+      },
       {
         protocol: "https",
         hostname: "*.supabase.co",
@@ -54,6 +63,10 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     optimizePackageImports: ["lucide-react"],
+  },
+  onDemandEntries: {
+    maxInactiveAge: 30 * 1000,
+    pagesBufferLength: 5,
   },
   async headers() {
     return [

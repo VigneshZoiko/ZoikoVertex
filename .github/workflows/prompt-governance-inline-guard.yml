@@ -1,0 +1,29 @@
+name: Prompt Governance — Inline Prompt Guard
+# Phase 6.5 launch hardening (Audit Finding #2). Prevents re-introduction of
+# inline-prompt call sites outside the audited GovernedModelGate.ts rollout
+# hook. See backend/scripts/checkInlinePromptGuards.ts.
+
+on:
+  pull_request:
+    branches: [main, staging]
+  push:
+    branches: [main, staging]
+
+jobs:
+  inline-prompt-guard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ./backend/package-lock.json
+      - run: npm ci
+      - name: Scan for inline-prompt tokens
+        run: npx ts-node scripts/checkInlinePromptGuards.ts
+      - name: Run inline-prompt-guard unit tests
+        run: npx vitest run src/test/prompts/phase6.inlinePromptGuard.test.ts
