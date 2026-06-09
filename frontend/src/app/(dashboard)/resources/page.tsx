@@ -34,7 +34,7 @@ function getResourceMeta(type: string) {
 }
 
 function Skeleton({ className }: { className: string }) {
-  return <div className={`animate-pulse bg-[var(--border)] rounded ${className}`} />;
+  return <span className={`animate-pulse bg-[var(--border)] rounded ${className} block`} />;
 }
 
 export default function ResourceMonitoringPage() {
