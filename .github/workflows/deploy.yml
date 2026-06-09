@@ -2,6 +2,7 @@ name: Vercel Production Deployment
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 on:
@@ -28,5 +29,14 @@ jobs:
         run: npm run build
         working-directory: ./frontend
 
+      - name: Check Vercel token
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN secret is not set. Add it in repo Settings → Secrets and variables → Actions (and ensure the workflow runs in a context that has access to secrets — fork PRs do not)."
+            exit 1
+          fi
+
       - name: Deploy to Vercel
-        run: npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --cwd ./frontend --yes --archive=tgz
+        # Vercel CLI reads the token from the VERCEL_TOKEN env var (set above),
+        # so we don't pass --token= which crashes when the secret is empty.
+        run: npx vercel deploy --prod --token "$VERCEL_TOKEN" --cwd ./frontend --yes --archive=tgz
