@@ -1012,6 +1012,7 @@ const STAKEHOLDERS = [
     roleLabel: "CMO",
     name: "Marketing Leader",
     initials: "ML",
+    avatar: "/images/governance/avatar-cmo.png",
     avatarBg: "#1a2e4a",
     concern: "\"I need AI speed, but I cannot afford a brand incident.\"",
     answer: "Governed workflows accelerate output while keeping brand standards, approvals, and evidence attached to every release. Every approval is logged; every decision is traceable.",
@@ -1022,6 +1023,7 @@ const STAKEHOLDERS = [
     roleLabel: "GENERAL COUNSEL",
     name: "Legal Leader",
     initials: "LL",
+    avatar: "/images/governance/avatar-legal.png",
     avatarBg: "#1a2e4a",
     concern: "\"Show me who approved this, under what policy, and what changed after approval.\"",
     answer: "Signed approval chains, content-hash validation, versioned policy snapshots, and Evidence Vault exports — all available before and after any legal challenge.",
@@ -1032,6 +1034,7 @@ const STAKEHOLDERS = [
     roleLabel: "CIO / CTO",
     name: "Technology Leader",
     initials: "TL",
+    avatar: "/images/governance/avatar-cio.png",
     avatarBg: "#1a2e4a",
     concern: "\"Do not let AI create a shadow operating model outside our identity and access controls.\"",
     answer: "RBAC, ABAC, SSO-ready identity model, tenant isolation, event logs, and full administrative separation. Trust Center documentation available for security review.",
@@ -1042,6 +1045,7 @@ const STAKEHOLDERS = [
     roleLabel: "COMPLIANCE OFFICER",
     name: "Risk & Compliance",
     initials: "RC",
+    avatar: "/images/governance/avatar-compliance.png",
     avatarBg: "#1a2e4a",
     concern: "\"Claims and regulated content cannot depend on prompt discipline.\"",
     answer: "Policy-bound validation, claim libraries, jurisdictional rule packs, and compliance sign-off before release — structurally enforced, not reliant on individual behaviour.",
@@ -1052,6 +1056,7 @@ const STAKEHOLDERS = [
     roleLabel: "PROCUREMENT LEAD",
     name: "Procurement & Vendor",
     initials: "PV",
+    avatar: "/images/governance/avatar-procurement.png",
     avatarBg: "#1a2e4a",
     concern: "\"Give me the trust artifacts before the vendor call.\"",
     answer: "Security overview, DPA template, sub-processor list, retention policy, AI governance summary, and audit-log sample — available through the Trust Center without a sales call.",
@@ -1080,11 +1085,14 @@ function StakeholderAnswers() {
             <div key={s.roleLabel} className="bg-[#0D1829]/80 border border-white/8 rounded-2xl p-6 grid lg:grid-cols-[220px_1fr_1fr] gap-6 items-start">
               {/* Avatar + role */}
               <div className="flex items-center gap-3">
-                <div
-                  className="w-12 h-12 rounded-full shrink-0 flex items-center justify-center text-sm font-bold text-white/70"
-                  style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #0d1829 100%)", border: "1px solid rgba(255,255,255,0.1)" }}
-                >
-                  {s.initials}
+                <div className="w-12 h-12 rounded-full shrink-0 overflow-hidden relative" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+                  {s.avatar ? (
+                    <Image src={s.avatar} alt={s.name} fill sizes="48px" className="object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-sm font-bold text-white/70" style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #0d1829 100%)" }}>
+                      {s.initials}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <p className="text-[#20E7F2] text-[10px] font-bold tracking-widest font-mono mb-0.5">{s.roleLabel}</p>
