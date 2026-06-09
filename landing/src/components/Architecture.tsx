@@ -1,14 +1,13 @@
-﻿export default function Architecture() {
+export default function Architecture() {
   const layers = [
     {
       label: "STRATEGY",
       name: "LAYER 1 — STRATEGIC CONTROL",
-
-      bg: "bg-gradient-to-r from-[#6366F1]/20 to-[#00C8F0]/10",
-      border: "#A5B4FC",
+      bg: "rgba(99,102,241,0.06)",
+      border: "rgba(99,102,241,0.2)",
       labelColor: "#6366F1",
       nameColor: "#6366F1",
-      cardBorder: "#C7D2FE",
+      cardBorder: "rgba(99,102,241,0.2)",
       components: [
         { title: "Chief Strategy Agent",      desc: "Revenue & EBITDA alignment" },
         { title: "Business Context Engine",   desc: "ERP, inventory, pricing, margin" },
@@ -18,11 +17,11 @@
     {
       label: "EXECUTION",
       name: "LAYER 2 — EXECUTION INTELLIGENCE",
-      bg: "bg-gradient-to-r from-[#4C52E8]/15 to-[#818CF8]/10",
-      border: "#818CF8",
+      bg: "rgba(99,102,241,0.04)",
+      border: "rgba(99,102,241,0.15)",
       labelColor: "#6366F1",
       nameColor: "#6366F1",
-      cardBorder: "#e8e3f7",
+      cardBorder: "rgba(99,102,241,0.15)",
       components: [
         { title: "Creative Intelligence Lab", desc: "Platform-native content & copy" },
         { title: "Execution Agent",           desc: "Deploy, pace, sequence campaigns" },
@@ -33,11 +32,11 @@
     {
       label: "FINANCIAL",
       name: "LAYER 3 — FINANCIAL & OPTIMIZATION",
-      bg: "bg-[linear-gradient(90deg,rgba(0,200,240,0.15)_0%,rgba(99,102,241,0.08)_100%)]",
-      border: "#67E8F9",
-      labelColor: "#0097B5",
-      nameColor: "#0097B5",
-      cardBorder: "#c8eeea",
+      bg: "rgba(16,185,129,0.06)",
+      border: "rgba(16,185,129,0.2)",
+      labelColor: "#059669",
+      nameColor: "#059669",
+      cardBorder: "rgba(16,185,129,0.2)",
       components: [
         { title: "Quant Ad Spend Agent",      desc: "CPA / ROAS / marginal return" },
         { title: "Revenue Forensic Agent",    desc: "Multi-touch attribution" },
@@ -48,11 +47,11 @@
     {
       label: "GOVERNED",
       name: "LAYER 4 — GOVERNANCE & RISK",
-      bg: "bg-[linear-gradient(90deg,rgba(30,50,128,0.25)_0%,rgba(55,48,163,0.15)_100%)]",
-      border: "#818CF8",
-      labelColor: "#A5B4FC",
-      nameColor: "#0E7490",
-      cardBorder: "#818CF8",
+      bg: "rgba(139,92,246,0.05)",
+      border: "rgba(139,92,246,0.18)",
+      labelColor: "#7C3AED",
+      nameColor: "#7C3AED",
+      cardBorder: "rgba(139,92,246,0.18)",
       components: [
         { title: "Compliance Sentry",       desc: "Brand + legal + sector rules" },
         { title: "Governance Engine",       desc: "Confidence scoring + approvals" },
@@ -63,11 +62,11 @@
     {
       label: "SIMULATE",
       name: "LAYER 5 — SIMULATION",
-      bg: "bg-[linear-gradient(90deg,rgba(16,185,129,0.15)_0%,rgba(99,102,241,0.08)_100%)]",
-      border: "#6EE7B7",
-      labelColor: "#059669",
-      nameColor: "#059669",
-      cardBorder: "#6EE7B7",
+      bg: "rgba(217,119,6,0.05)",
+      border: "rgba(217,119,6,0.18)",
+      labelColor: "#B45309",
+      nameColor: "#B45309",
+      cardBorder: "rgba(217,119,6,0.18)",
       components: [
         { title: "Synthetic Audience Engine",   desc: "Predict response before spend" },
         { title: "Creative Scenario Modelling", desc: "Test before budget is committed" },
@@ -77,7 +76,7 @@
   ];
 
   return (
-    <section className="py-24 px-6" style={{ background: "#F8FAFC" }}>
+    <section className="py-24 px-6" style={{ background: "#FFFFFF" }}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
@@ -113,7 +112,7 @@
               {/* Row */}
               <div className="flex items-stretch">
 
-                {/* Vertical label — sits outside the tinted box */}
+                {/* Vertical label */}
                 <div
                   className="flex items-center justify-center flex-shrink-0"
                   style={{ width: 32 }}
@@ -140,10 +139,9 @@
                     padding: "14px 16px",
                   }}
                 >
-                  {/* Inner row: layer name LEFT | cards RIGHT */}
                   <div className="flex items-center gap-4">
 
-                    {/* Layer name — fixed width left column */}
+                    {/* Layer name */}
                     <div style={{ width: 210, flexShrink: 0 }}>
                       <p
                         className="text-[9px] font-bold tracking-widest uppercase leading-tight"
@@ -153,22 +151,21 @@
                       </p>
                     </div>
 
-                    {/* Cards — fill remaining space */}
+                    {/* Cards */}
                     <div className="flex flex-1 gap-2.5">
                       {layer.components.map((c) => (
                         <div
                           key={c.title}
-                          className="flex-1 bg-white rounded-xl px-3.5 py-3"
+                          className="flex-1 rounded-xl px-3.5 py-3 bg-white"
                           style={{
                             border: `1px solid ${layer.cardBorder}`,
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
                             minWidth: 0,
                           }}
                         >
-                          <p className=" font-bold text-[12px] mb-1 leading-snug" style={{ color: layer.nameColor  }}>
+                          <p className="font-bold text-[12px] mb-1 leading-snug text-gray-800">
                             {c.title}
                           </p>
-                          <p className="text-[11px] leading-snug" style={{ color: layer.nameColor  }}>
+                          <p className="text-[11px] leading-snug text-gray-500">
                             {c.desc}
                           </p>
                         </div>

@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { createAuditEvent } from '../../services/auditTrail.service';
 import { supabaseAdmin } from '../../shared/supabase';
+import { v4 as uuidv4 } from 'uuid';
 import * as reviewQueueService from '../../services/reviewQueue.service';
 import * as validationService from '../../services/validationDesk.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
@@ -61,6 +62,21 @@ export async function createItem(req: AuthRequest, res: Response, next: NextFunc
   }
 }
 
+async function resolveUserInfo(userIds: string[]): Promise<Record<string, { name: string; role: string }>> {
+  if (!userIds.length) return {};
+  const [usersRes, membersRes] = await Promise.all([
+    supabaseAdmin.from('users').select('id, full_name, email').in('id', userIds),
+    supabaseAdmin.from('workspace_members').select('user_id, role').in('user_id', userIds),
+  ]);
+  const roleMap: Record<string, string> = {};
+  (membersRes.data || []).forEach((m: any) => { roleMap[m.user_id] = m.role; });
+  const map: Record<string, { name: string; role: string }> = {};
+  (usersRes.data || []).forEach((u: any) => {
+    map[u.id] = { name: u.full_name || u.email || 'Unknown', role: roleMap[u.id] || 'Creator' };
+  });
+  return map;
+}
+
 export async function listItems(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const tenantId = await getTenantId(req);
@@ -82,7 +98,16 @@ export async function listItems(req: AuthRequest, res: Response, next: NextFunct
       offset: q.offset ? parseInt(q.offset, 10) : undefined,
     });
 
-    res.json({ success: true, ...result });
+    const rawItems: any[] = (result as any).items || [];
+    const userIds = [...new Set(rawItems.map((i: any) => i.submitted_by).filter(Boolean))] as string[];
+    const userMap = await resolveUserInfo(userIds);
+    const enrichedItems = rawItems.map((i: any) => ({
+      ...i,
+      submitter_name: userMap[i.submitted_by]?.name,
+      submitter_role: userMap[i.submitted_by]?.role,
+    }));
+
+    res.json({ success: true, ...(result as any), items: enrichedItems });
   } catch (error) {
     next(error);
   }
@@ -105,10 +130,32 @@ export async function getItem(req: AuthRequest, res: Response, next: NextFunctio
     const userRole = (req.user as any)?.role || 'REVIEWER';
     const eligibility = reviewQueueService.calculateEligibility(item, String(userRole).toUpperCase());
 
+    const submittedBy = (item as any).submitted_by;
+    const userMap = submittedBy ? await resolveUserInfo([submittedBy]) : {};
+
+    // Backfill content_snapshot from source validation item when it was not stored
+    let contentSnapshot = (item as any).content_snapshot || {};
+    const hasMedia = Array.isArray(contentSnapshot.urls) && contentSnapshot.urls.length > 0;
+    if (!hasMedia && (item as any).source_module === 'validation_desk' && (item as any).source_entity_id) {
+      try {
+        const sourceItem = await validationService.getValidationItem((item as any).source_entity_id);
+        if (sourceItem?.content_snapshot && Array.isArray((sourceItem.content_snapshot as any).urls)) {
+          contentSnapshot = sourceItem.content_snapshot as Record<string, unknown>;
+        }
+      } catch { /* non-blocking */ }
+    }
+
+    const enrichedItem = {
+      ...(item as any),
+      content_snapshot: contentSnapshot,
+      submitter_name: userMap[submittedBy]?.name,
+      submitter_role: userMap[submittedBy]?.role,
+    };
+
     res.json({
       success: true,
       data: {
-        item,
+        ...enrichedItem,
         decisions,
         notes,
         auditLog,
@@ -159,6 +206,17 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         review_item_id: id, decision_type: 'APPROVED', reason, note, decided_by: userId,
       }, auth);
 
+      // Notify creator of approval
+      await supabaseAdmin.from('notifications').insert({
+        id: uuidv4(),
+        user_id: item.submitted_by,
+        title: '✅ Media Approved by Reviewer',
+        body: `Your media "${item.title}" has been reviewed and approved. ${note ? 'Reviewer note: ' + note : ''}`,
+        type: 'GOVERNANCE',
+        link: '/library',
+        read: false,
+      });
+
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.approved',
         summary: `Review item "${item.title}" approved`,
@@ -178,6 +236,17 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         review_item_id: id, decision_type: 'REJECTED', reason, note, decided_by: userId,
       }, auth);
 
+      // Notify creator of rejection
+      await supabaseAdmin.from('notifications').insert({
+        id: uuidv4(),
+        user_id: item.submitted_by,
+        title: '❌ Media Rejected by Reviewer',
+        body: `Your media "${item.title}" was rejected. Reason: ${reason}. ${note ? 'Note: ' + note : ''}`,
+        type: 'GOVERNANCE',
+        link: '/library',
+        read: false,
+      });
+
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.rejected',
         summary: `Review item "${item.title}" rejected: ${reason}`,
@@ -196,6 +265,17 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
       await reviewQueueService.recordDecision({
         review_item_id: id, decision_type: 'REVISION_REQUESTED', reason, note, decided_by: userId,
       }, auth);
+
+      // Notify creator with revision instructions
+      await supabaseAdmin.from('notifications').insert({
+        id: uuidv4(),
+        user_id: item.submitted_by,
+        title: '🔄 Media Returned — Revision Required',
+        body: `Your media "${item.title}" was returned by the reviewer with revision instructions: ${note}. Please correct and resubmit.`,
+        type: 'GOVERNANCE',
+        link: '/library',
+        read: false,
+      });
 
       await logReviewAuditEvent({
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.revision_requested',
@@ -296,6 +376,48 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
       }, auth);
 
       return res.json({ success: true, data: result });
+    }
+
+    if (action === 'claim') {
+      // Reviewer claims the item — removes from others' view, sets assigned_to
+      if (item.assigned_to && item.assigned_to !== userId) {
+        return res.status(409).json({ error: 'Item already claimed by another reviewer' });
+      }
+      const updated = await reviewQueueService.updateReviewItemStatus({
+        id, tenant_id: tenantId, status: 'IN_REVIEW', userId,
+      }, auth);
+      // Set assigned_to
+      await supabaseAdmin
+        .from('review_items')
+        .update({ assigned_to: userId })
+        .eq('id', id)
+        .eq('tenant_id', tenantId);
+
+      await logReviewAuditEvent({
+        workspaceId: tenantId, userId, itemId: id, action: 'review.item.claimed',
+        summary: `Review item "${item.title}" claimed by reviewer`,
+        itemType: item.item_type, riskLevel: item.risk_level,
+      });
+      return res.json({ success: true, data: updated });
+    }
+
+    if (action === 'unclaim') {
+      // Reviewer releases item back to shared pool
+      if (item.assigned_to && item.assigned_to !== userId) {
+        return res.status(403).json({ error: 'You can only unclaim items assigned to you' });
+      }
+      await supabaseAdmin
+        .from('review_items')
+        .update({ assigned_to: null, status: 'PENDING_REVIEW' })
+        .eq('id', id)
+        .eq('tenant_id', tenantId);
+
+      await logReviewAuditEvent({
+        workspaceId: tenantId, userId, itemId: id, action: 'review.item.unclaimed',
+        summary: `Review item "${item.title}" returned to shared pool`,
+        itemType: item.item_type, riskLevel: item.risk_level,
+      });
+      return res.json({ success: true, message: 'Item released back to shared review queue' });
     }
 
     return res.status(400).json({ error: `Unknown action: ${action}` });

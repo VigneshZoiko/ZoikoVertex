@@ -201,6 +201,7 @@ RESPONSE (strict JSON, no markdown, no backticks):
     // governance block, audited fallback (fail-closed in production when
     // PROMPT_GOVERNANCE_ENFORCED) to the inline prompt so behavior is unchanged
     // while the flag is off.
+
     let text = '';
     const governed = await GovernedModelGate.execute({
       useCaseKey: 'scheduler_recommendation',

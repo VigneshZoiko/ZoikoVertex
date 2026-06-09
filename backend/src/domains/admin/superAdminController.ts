@@ -621,4 +621,5 @@ export class SuperAdminController {
       next(error);
     }
   }
+
 }

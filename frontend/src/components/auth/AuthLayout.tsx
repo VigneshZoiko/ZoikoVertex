@@ -3,8 +3,6 @@
 import React from "react";
 import Image from "next/image";
 import { ShieldCheck, Bot, FileCheck, Lock } from "lucide-react";
-import Navbar from "@/components/landing/Navbar";
-
 const TRUST_BULLETS = [
   { icon: ShieldCheck, text: "Role-based access control + immutable audit trail" },
   { icon: Bot,         text: "AI agents operating inside your policy boundaries" },
@@ -15,14 +13,13 @@ const TRUST_BULLETS = [
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#080E1A]">
-      <Navbar />
     <div className="flex pt-16">
       {/* Left brand panel */}
       <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0C1422] border-r border-white/10 w-[44%] shrink-0">
         <div className="max-w-sm">
           {/* Logo */}
           <Image
-            src="/images/logo-wordmark.svg"
+            src="/images/zoikovertexlogo.png"
             alt="ZoikoVertex"
             width={200}
             height={38}

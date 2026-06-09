@@ -53,6 +53,8 @@ import {
   Bell,
   Eye,
   Lock,
+  Sparkles,
+  BarChart3,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { api } from "@/lib/api";
@@ -200,8 +202,24 @@ const NAV_GROUPS: NavGroup[] = [
     icon: ClipboardCheck,
     items: [
       {
+        name: "Approval Rules",
+        href: "/governance/rules",
+        icon: ListChecks,
+        // Approval rule configuration — governance admin only
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"],
+        plan: "approvals" as Feature,
+      },
+      {
+        name: "Validation Desk",
+        href: "/validation",
+        icon: ClipboardCheck,
+        // Higher-trust HITL validation — validators and approvers
+        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR","APPROVER"],
+        plan: "review_queue" as Feature,
+      },
+      {
         name: "Review Queue",
-        href: "/queue",
+        href: "/review-queue",
         icon: ClipboardList,
         // All review roles + compliance reviewers who need to monitor
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","REVIEWER","VALIDATOR","APPROVER","BRAND_REVIEWER","CAMPAIGN_MANAGER","COMPLIANCE_REVIEWER"],
@@ -215,38 +233,6 @@ const NAV_GROUPS: NavGroup[] = [
         // QA surface — validators, auditors, compliance
         roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR","AUDITOR","COMPLIANCE_REVIEWER"],
         plan: "review_queue" as Feature,
-      },
-      {
-        name: "Validation Desk",
-        href: "/validation",
-        icon: ClipboardCheck,
-        // Higher-trust HITL validation — validators and approvers
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","VALIDATOR","APPROVER"],
-        plan: "review_queue" as Feature,
-      },
-      {
-        name: "Approvals",
-        href: "/governance/approvals",
-        icon: CheckSquare,
-        // Approval decisions — approvers, validators, compliance (read history), auditors (read)
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN","APPROVER","VALIDATOR","COMPLIANCE_REVIEWER","AUDITOR"],
-        plan: "approvals" as Feature,
-      },
-      {
-        name: "Approval Rules",
-        href: "/governance/rules",
-        icon: ListChecks,
-        // Approval rule configuration — governance admin only
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"],
-        plan: "approvals" as Feature,
-      },
-      {
-        name: "Exceptions",
-        href: "/exceptions",
-        icon: AlertOctagon,
-        // Exception handling — governance admin only
-        roles: ["ADMIN","WORKSPACE_OWNER","GOVERNANCE_ADMIN"],
-        plan: "approvals" as Feature,
       },
     ],
   },

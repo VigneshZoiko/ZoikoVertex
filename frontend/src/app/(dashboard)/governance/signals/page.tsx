@@ -172,7 +172,6 @@ export default function SignalsPage() {
     fetchTriageData();
     const interval = setInterval(safeFetch, 45000); // 45s auto-refresh
     return () => { cancelled = true; clearInterval(interval); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filter Signals implementation

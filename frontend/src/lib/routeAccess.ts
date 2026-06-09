@@ -52,7 +52,6 @@ export const ROUTE_RULES: RouteRule[] = [
   // ── Accountability Layer ──────────────────────────────────────────────────
   { prefix: '/queue',                         roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'REVIEWER', 'VALIDATOR', 'APPROVER', 'BRAND_REVIEWER', 'CAMPAIGN_MANAGER', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'],          plan: 'review_queue' },
   { prefix: '/validation',                    roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'VALIDATOR', 'APPROVER', 'COMPLIANCE_REVIEWER', 'SUPERADMIN'],                                               plan: 'review_queue' },
-  { prefix: '/exceptions',                    roles: ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN'],                                                                                               plan: 'approvals' },
 
   // ── Authority Layer / Agents ──────────────────────────────────────────────
   { prefix: '/agents',                        roles: ['AGENT_ARCHITECT', 'AGENT_OPERATOR', 'ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'KNOWLEDGE_MANAGER', 'SUPERADMIN'],                                     plan: 'agents' },

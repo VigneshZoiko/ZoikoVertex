@@ -1556,6 +1556,7 @@ export default function AgentOperationsPage() {
         confirmLabel: "Export Snapshot",
       } as typeof confirmAction);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 

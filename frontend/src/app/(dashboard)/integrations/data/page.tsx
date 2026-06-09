@@ -130,10 +130,10 @@ export default function DataPage() {
     }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchInitialData();
     return () => { if (syncIntervalRef.current) clearInterval(syncIntervalRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchConnectorsOnly = async () => {

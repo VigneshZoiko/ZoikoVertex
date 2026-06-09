@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Bricolage_Grotesque } from "next/font/google";
+import { Plus_Jakarta_Sans, Bricolage_Grotesque, JetBrains_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import CacheBuster from "@/components/CacheBuster";
 import "./globals.css";
@@ -19,6 +19,13 @@ const bricolage = Bricolage_Grotesque({
   display: "swap",
 });
 
+const jetbrains = JetBrains_Mono({
+  variable: "--font-jetbrains",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "ZoikoVertex | Enterprise Agentic Governance",
   description: "The world's first Governed Autonomous Intelligence network. Sovereign evidence, predictive risk management, and scaleable execution.",
@@ -32,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${jakarta.variable} ${bricolage.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`dark ${jakarta.variable} ${bricolage.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
         <Providers>
           <CacheBuster />

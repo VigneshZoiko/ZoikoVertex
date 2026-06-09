@@ -1,45 +1,5 @@
-import {
-  Navbar,
-  Hero,
-  TrustedBy,
-  Stats,
-  Pricing,
-  FeatureBlock,
-  Architecture,
-  PainPoints,
-  AgentsGrid,
-  Accountability,
-  EnterpriseBanner,
-  EnterpriseFeatures,
-  Industries,
-  StackComparison,
-  TrustModel,
-  Testimonials,
-  FooterCTA,
-  Footer,
-} from "@/components/landing";
+import { redirect } from "next/navigation";
 
-export default function LandingPage() {
-  return (
-    <main className="min-h-screen">
-      <Navbar />
-      <Hero />
-      <TrustedBy />
-      <Stats />
-      <Pricing />
-      <FeatureBlock />
-      <Architecture />
-      <PainPoints />
-      <AgentsGrid />
-      <Accountability />
-      <EnterpriseBanner />
-      <EnterpriseFeatures />
-      <Industries />
-      <StackComparison />
-      <TrustModel />
-      <Testimonials />
-      <FooterCTA />
-      <Footer />
-    </main>
-  );
+export default function RootPage() {
+  redirect("/login");
 }

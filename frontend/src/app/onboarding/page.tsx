@@ -444,7 +444,7 @@ export default function OnboardingPage() {
       {/* Top bar */}
       <header className="flex items-center justify-between px-6 sm:px-10 py-5 border-b border-neutral-100">
         <Image
-          src="/images/logo-wordmark.svg"
+          src="/images/zoikovertexlogo.png"
           alt="ZoikoVertex"
           width={136}
           height={28}

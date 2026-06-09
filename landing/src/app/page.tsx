@@ -1,43 +1,45 @@
-import Navbar from "@/components/Navbar";
-import Hero from "@/components/Hero";
-import TrustedBy from "@/components/TrustedBy";
-import Stats from "@/components/Stats";
-import Pricing from "@/components/Pricing";
-import FeatureBlock from "@/components/FeatureBlock";
-import Architecture from "@/components/Architecture";
-import PainPoints from "@/components/PainPoints";
-import AgentsGrid from "@/components/AgentsGrid";
-import Accountability from "@/components/Accountability";
-import EnterpriseBanner from "@/components/EnterpriseBanner";
-import EnterpriseFeatures from "@/components/EnterpriseFeatures";
-import Industries from "@/components/Industries";
-import StackComparison from "@/components/StackComparison";
-import TrustModel from "@/components/TrustModel";
-import Testimonials from "@/components/Testimonials";
-import FooterCTA from "@/components/FooterCTA";
-import Footer from "@/components/Footer";
+import {
+  Navbar,
+  Hero,
+  TrustedBy,
+  Stats,
+  Pricing,
+  FeatureBlock,
+  Architecture,
+  PainPoints,
+  AgentsGrid,
+  Accountability,
+  EnterpriseBanner,
+  EnterpriseFeatures,
+  Industries,
+  StackComparison,
+  TrustModel,
+  Testimonials,
+  FooterCTA,
+  Footer,
+} from "@/components/landing";
 
 export default function LandingPage() {
   return (
     <main className="min-h-screen">
       <Navbar />
-      <Hero />
-      <TrustedBy />
-      <Stats />
-      <Pricing />
-      <FeatureBlock />
-      <Architecture />
-      <PainPoints />
-      <AgentsGrid />
-      <Accountability />
-      <EnterpriseBanner />
+      <Hero />        {/* dark  #152238 */}
+      <TrustedBy />   {/* dark  #0f1b2e */}
+      <Stats />       {/* light #F5F7FA */}
+      <FeatureBlock />{/* light #FFFFFF */}
+      <Pricing />     {/* dark  #080E1A */}
+      <Architecture />{/* light #FFFFFF */}
+      <PainPoints />  {/* dark  #080E1A */}
+      <AgentsGrid />  {/* light #FFFFFF */}
+      <Accountability />{/* dark  #152238 */}
+      <EnterpriseBanner />{/* dark  #0f1b2e */}
       <EnterpriseFeatures />
-      <Industries />
-      <StackComparison />
-      <TrustModel />
-      <Testimonials />
-      <FooterCTA />
-      <Footer />
+      <Industries />  {/* light #F5F7FA */}
+      <StackComparison />{/* dark  #0f1b2e */}
+      <TrustModel />  {/* light #F5F7FA */}
+      <Testimonials />{/* dark  #152238 */}
+      <FooterCTA />   {/* dark  gradient */}
+      <Footer />      {/* dark  #080f1e */}
     </main>
   );
 }
