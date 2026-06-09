@@ -12,6 +12,9 @@ on:
 
 jobs:
   deploy:
+    # Only deploy from the upstream repo that holds the Vercel secrets.
+    # Forks (which lack VERCEL_TOKEN) skip this job instead of failing it.
+    if: github.repository == 'VigneshZoiko/ZoikoVertex'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
