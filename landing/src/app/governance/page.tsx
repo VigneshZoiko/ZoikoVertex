@@ -914,44 +914,91 @@ function RequestToEvidence() {
 
 /* ── Built for Procurement ── */
 const PROCUREMENT = [
-  { title: "Security Architecture Summary", desc: "Full RBAC/ABAC design, SSO/SAML/SCIM, MFA, and separation of duties documented.", img: "/images/governance-photo.png" },
-  { title: "SOC 2 Type II Ready", desc: "Controls mapped to SOC 2 criteria. Evidence available on request for trust review.", img: "/images/category-photo.png" },
-  { title: "GDPR Data Processing Addendum", desc: "DPA available on request. Data residency options and DSR workflows included.", img: "/images/WhatsApp Image 2026-05-12 at 2.59.29 PM (1).jpeg" },
-  { title: "Role Attestation Reports", desc: "Every role assignment logged, dated, and exportable for HR and compliance audit.", img: "/images/home-category.webp" },
+  {
+    title: "Security Overview",
+    desc: "Architecture overview, identity controls, encryption posture, logging, and administrative safeguards.",
+    badge: "Available on request",
+    img: "/images/governance/security-overview.png",
+  },
+  {
+    title: "Data Processing Addendum",
+    desc: "Standard DPA for enterprise review; negotiated terms available for Command customers.",
+    badge: "Template available",
+    img: "/images/governance/data-processing-addendum.png",
+  },
+  {
+    title: "Sub-processor List",
+    desc: "Clear list of infrastructure and processing providers with update cadence and notification rights.",
+    badge: "Published · Maintained",
+    img: "/images/governance/sub-processor-list.png",
+  },
+  {
+    title: "AI Governance Summary",
+    desc: "Human oversight, autonomy limits, evidence capture, model-use boundaries, and responsible AI posture.",
+    badge: "Available",
+    img: "/images/governance/ai-governance-summary.png",
+  },
+  {
+    title: "Audit Log Sample",
+    desc: "Sample event trail: recommendation, review, validation, approval, publish, and policy version shown.",
+    badge: "Available",
+    img: "/images/governance/audit-log-sample.png",
+  },
+  {
+    title: "Framework Alignment Summary",
+    desc: "GDPR Article 32-aligned controls, NIST AC-5/AC-6-aligned separation of duties, ISO 27001-aligned audit architecture.",
+    badge: "Available",
+    img: "/images/governance/framework-alignment.png",
+  },
 ];
 
 function BuiltForProcurement() {
   return (
     <section className="bg-[#080E1A] py-24 px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-12">
-          <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-4 flex items-center gap-2">
+        <div className="mb-12 text-center">
+          <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
             <span className="w-8 h-px bg-[#20E7F2]" /> ENTERPRISE TRUST
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
             Built for procurement,<br />not just demos.
           </h2>
-          <p className="text-white/50 max-w-xl text-sm leading-relaxed">
-            Trust evidence pre-staged. Every artifact named, every control documented, every question answered before the security review starts.
+          <p className="text-white/50 max-w-2xl mx-auto text-sm leading-relaxed">
+            Trust evidence pre-staged for security, legal, compliance, and procurement review — available through the ZoikoVertex Trust Center.
           </p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
           {PROCUREMENT.map((p) => (
             <div key={p.title} className="group bg-[#0D1829] border border-white/8 rounded-2xl overflow-hidden">
-              <div className="relative h-44 overflow-hidden">
-                <Image src={p.img} alt={p.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-[#0D1829]/50" />
+              <div className="relative h-48 overflow-hidden">
+                <Image
+                  src={p.img}
+                  alt={p.title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                />
               </div>
               <div className="p-5">
-                <h3 className="text-white font-black text-sm mb-2">{p.title}</h3>
-                <p className="text-white/40 text-xs leading-relaxed">{p.desc}</p>
+                <h3 className="text-white font-bold text-sm mb-2">{p.title}</h3>
+                <p className="text-white/45 text-xs leading-relaxed mb-4">{p.desc}</p>
+                <span className="inline-block text-[10px] font-mono text-white/50 border border-white/15 bg-white/5 rounded-full px-3 py-1">
+                  {p.badge}
+                </span>
               </div>
             </div>
           ))}
         </div>
-        <div className="mt-8 text-center">
-          <Link href="/request-demo" className="inline-flex items-center gap-2 border border-white/20 hover:border-[#20E7F240] text-white/60 hover:text-white text-sm rounded-xl px-6 py-3 transition-all">
-            Request Security Documentation →
+        <div className="text-center">
+          <Link
+            href="/request-demo"
+            className="inline-flex items-center gap-2 border border-white/20 hover:border-[#20E7F2]/40 text-white/60 hover:text-white text-sm rounded-full px-8 py-3 transition-all"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" />
+              <path d="M5.5 8h5M8.5 5.5L11 8l-2.5 2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Open Trust Center
           </Link>
         </div>
       </div>
