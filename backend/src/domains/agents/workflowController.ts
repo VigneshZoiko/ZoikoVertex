@@ -14,6 +14,7 @@ import * as builderService from '../../services/workflowBuilder.service';
 import * as threeKeyService from '../../services/workflowThreeKey.service';
 import * as exportService from '../../services/workflowExport.service';
 import * as notificationService from '../../services/workflowNotification.service';
+import { enrichPublishInstance, getRecentPublishedContent } from '../../services/workflowPublishLink.service';
 import { getParam, getQueryNumber, getQueryValue } from '../../shared/request';
 import { executeInstance } from '../../modules/workflow-engine/executor';
 
@@ -461,6 +462,20 @@ export const validateReadiness = async (req: AuthRequest, res: Response, next: N
   }
 };
 
+/** GET /api/v1/agents/workflows/published-content — Recent posts from the Publish Hub, tagged with the relevant agent. */
+export const getPublishedContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const limit = getQueryNumber(req, 'limit', 24);
+    const items = await getRecentPublishedContent(workspaceId, limit);
+    res.json({ success: true, data: items });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get published content');
+    next(err);
+  }
+};
+
 /** GET /api/v1/agents/workflows/active — List active workflow instances. */
 export const getActiveOrchestrations = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -472,7 +487,8 @@ export const getActiveOrchestrations = async (req: AuthRequest, res: Response, n
       limit: getQueryNumber(req, 'limit', 50),
       offset: getQueryNumber(req, 'offset', 0),
     });
-    res.json({ success: true, data: result.instances });
+    // Expand publish-hub-linked instances so the agent + post show in the UI.
+    res.json({ success: true, data: (result.instances || []).map(enrichPublishInstance) });
   } catch (err) {
     logger.error({ err }, 'Failed to get active orchestrations');
     next(err);
@@ -947,16 +963,21 @@ export const exportWorkflow = async (req: AuthRequest, res: Response, _next: Nex
       reason,
     });
 
-    // Audit log
-    await exportService.logExportAuditEvent({
-      workflowId: id,
-      workflowName: payload.workflow.name,
-      workspaceId,
-      userId,
-      userEmail,
-      exportType: 'full_json',
-      reason,
-    });
+    // Audit log — best-effort; never block the export on an audit-write failure
+    // (logExportAuditEvent already raises a SecOps alert on failure).
+    try {
+      await exportService.logExportAuditEvent({
+        workflowId: id,
+        workflowName: payload.workflow.name,
+        workspaceId,
+        userId,
+        userEmail,
+        exportType: 'full_json',
+        reason,
+      });
+    } catch (auditErr) {
+      logger.warn({ err: auditErr }, 'Export audit log failed (non-blocking)');
+    }
 
     res.json({ success: true, data: payload });
   } catch (err: any) {
@@ -989,15 +1010,19 @@ export const exportApprovals = async (req: AuthRequest, res: Response, _next: Ne
       .eq('id', id)
       .single();
 
-    await exportService.logExportAuditEvent({
-      workflowId: id,
-      workflowName: wf?.name || 'Unknown',
-      workspaceId,
-      userId,
-      userEmail: req.user?.email,
-      exportType: 'approvals_csv',
-      reason: req.query.reason as string | undefined,
-    });
+    try {
+      await exportService.logExportAuditEvent({
+        workflowId: id,
+        workflowName: wf?.name || 'Unknown',
+        workspaceId,
+        userId,
+        userEmail: req.user?.email,
+        exportType: 'approvals_csv',
+        reason: req.query.reason as string | undefined,
+      });
+    } catch (auditErr) {
+      logger.warn({ err: auditErr }, 'Approvals export audit log failed (non-blocking)');
+    }
 
     res.json({ success: true, data: csv });
   } catch (err: any) {

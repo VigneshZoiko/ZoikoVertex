@@ -27,7 +27,7 @@ export type Severity = "low" | "medium" | "high" | "critical";
 
 export type Verdict = "safe" | "review" | "block";
 
-export type ModerationSource = "local" | "gemini" | "hybrid";
+export type ModerationSource = "local" | "gemini" | "groq" | "hybrid";
 
 // ------------------------------------------------------------
 // Pattern definition (lives inside dictionary files)
@@ -61,7 +61,7 @@ export interface MatchResult {
   score: number;
   matchedText: string;
   position: { start: number; end: number };
-  source: "local" | "gemini";
+  source: "local" | "gemini" | "groq";
 }
 
 // ------------------------------------------------------------

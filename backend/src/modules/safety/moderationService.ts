@@ -16,18 +16,43 @@
 import crypto from "crypto";
 import { runLocalEngine } from "./localEngine";
 import { runGeminiModeration } from "./geminiModerator";
+import { runGroqModeration } from "./groqModerator";
 import { aggregateMatches } from "./riskScoring";
 import { DEFAULT_THRESHOLDS } from "./types";
 import type { ModerationInput, ModerationResult, MatchResult } from "./types";
 import { GovernedModelGate } from "../prompts/GovernedModelGate";
 
-// Minimum input length where semantic moderation is worth a Gemini call.
+// Minimum input length where semantic moderation is worth an LLM call.
 // Below this, the input is too short to convey context the local engine
 // missed; we accept the local verdict directly.
-const GEMINI_MIN_CHARS = 24;
+const AI_MIN_CHARS = 24;
 
 function newEvidenceId(): string {
   return `safety-${Date.now()}-${crypto.randomBytes(6).toString("hex")}`;
+}
+
+// Unified result shape from the LLM moderation step, regardless of provider.
+interface AiModerationResult {
+  matches: MatchResult[];
+  reason?: string;
+  modelUsed: string;
+  provider: "groq" | "gemini";
+}
+
+// AI fallback: runs when the local dictionary engine found nothing
+// conclusive. Prefers Groq (the designated fallback); if Groq is
+// unavailable or returns nothing usable, falls back to Gemini. Returns
+// null only when neither provider yields a verdict.
+async function runAiModeration(content: string): Promise<AiModerationResult | null> {
+  const groq = await runGroqModeration(content);
+  if (groq) {
+    return { matches: groq.matches, reason: groq.raw.reason, modelUsed: groq.modelUsed, provider: "groq" };
+  }
+  const gemini = await runGeminiModeration(content);
+  if (gemini) {
+    return { matches: gemini.matches, reason: gemini.raw.reason, modelUsed: gemini.modelUsed, provider: "gemini" };
+  }
+  return null;
 }
 
 export async function moderate(input: ModerationInput): Promise<ModerationResult> {
@@ -43,55 +68,59 @@ export async function moderate(input: ModerationInput): Promise<ModerationResult
   let allMatches: MatchResult[] = [...local.matches];
   let source: ModerationResult["source"] = "local";
   let modelUsed: string | undefined;
-  let geminiMs: number | undefined;
+  let aiMs: number | undefined;
   let reason: string | undefined;
 
-  // ----- Phase 2: gemini fallback (gated) -----
-  const shouldCallGemini =
+  // ----- Phase 2: AI fallback (gated) -----
+  // The local word-list runs first. We only reach for the LLM when the
+  // dictionary was NOT confident — i.e. it found nothing, or only weak
+  // signals — exactly the "if the word check can't find anything, ask
+  // the model" fallback. Groq is the primary provider (see runAiModeration).
+  const shouldCallAi =
     !input.localOnly &&
     !local.highConfidence &&
-    content.length >= GEMINI_MIN_CHARS;
+    content.length >= AI_MIN_CHARS;
 
   let governanceHardBlock = false;
   let governanceBlockReason: string | undefined;
 
-  if (shouldCallGemini) {
+  if (shouldCallAi) {
     const workspaceId = input.workspaceId || input.tenantId || "";
-    const geminiStart = Date.now();
+    const aiStart = Date.now();
     // The AI moderation step is a governed model call. A governed
     // 'safety_moderation' prompt authorizes it; if none resolves AND enforcement
     // is on in production, we MUST NOT fall back to a local verdict (which could
     // be "safe") — we hard-block. Local confidence cannot override this.
-    const cap: { result: Awaited<ReturnType<typeof runGeminiModeration>> } = { result: null };
+    const cap: { result: AiModerationResult | null } = { result: null };
     const governed = await GovernedModelGate.execute({
       useCaseKey: "safety_moderation",
       workspaceId,
       variables: { content },
-      modelProvider: "gemini",
+      modelProvider: "groq",
       invoke: async () => {
-        cap.result = await runGeminiModeration(content);
-        return cap.result ? cap.result.raw?.reason || "moderated" : "";
+        cap.result = await runAiModeration(content);
+        return cap.result ? cap.result.reason || "moderated" : "";
       },
     });
-    geminiMs = Date.now() - geminiStart;
+    aiMs = Date.now() - aiStart;
 
     if (governed.ok) {
       if (cap.result) {
         allMatches = [...allMatches, ...cap.result.matches];
-        source = local.matches.length > 0 ? "hybrid" : "gemini";
+        source = local.matches.length > 0 ? "hybrid" : cap.result.provider;
         modelUsed = cap.result.modelUsed;
-        reason = cap.result.raw.reason;
+        reason = cap.result.reason;
       }
     } else {
       try {
         // Not enforced ⇒ records an advisory bypass and preserves legacy behavior.
         await GovernedModelGate.legacyInlineFallback("safety_moderation", workspaceId, `governed safety prompt unavailable: ${governed.code}`);
-        const gemini = await runGeminiModeration(content);
-        if (gemini) {
-          allMatches = [...allMatches, ...gemini.matches];
-          source = local.matches.length > 0 ? "hybrid" : "gemini";
-          modelUsed = gemini.modelUsed;
-          reason = gemini.raw.reason;
+        const ai = await runAiModeration(content);
+        if (ai) {
+          allMatches = [...allMatches, ...ai.matches];
+          source = local.matches.length > 0 ? "hybrid" : ai.provider;
+          modelUsed = ai.modelUsed;
+          reason = ai.reason;
         }
       } catch {
         // Enforced production ⇒ hard block (fail-closed, not fail-open).
@@ -121,7 +150,7 @@ export async function moderate(input: ModerationInput): Promise<ModerationResult
       timestamp: new Date().toISOString(),
       reason: governanceBlockReason,
       modelUsed,
-      timings: { local: localMs, gemini: geminiMs, total: Date.now() - startedAt },
+      timings: { local: localMs, gemini: aiMs, total: Date.now() - startedAt },
     };
   }
 
@@ -140,7 +169,7 @@ export async function moderate(input: ModerationInput): Promise<ModerationResult
     modelUsed,
     timings: {
       local: localMs,
-      gemini: geminiMs,
+      gemini: aiMs,
       total: Date.now() - startedAt,
     },
   };

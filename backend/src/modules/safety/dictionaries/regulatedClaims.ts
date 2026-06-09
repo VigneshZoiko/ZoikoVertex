@@ -23,3 +23,4 @@ export const REGULATED_CLAIM_PATTERNS: SafetyPattern[] = [
   { pattern: "lose weight fast",   category: "regulated_claims", severity: "high",     score: 0.75 },
   { pattern: "permanent results",  category: "regulated_claims", severity: "medium",   score: 0.5 },
 ];
+     
