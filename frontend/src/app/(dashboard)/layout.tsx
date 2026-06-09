@@ -31,7 +31,8 @@ export default function DashboardLayout({
     | false
     | null
   >(null);
-  const verifyingRef = useRef(false);
+  const verifyingRef    = useRef(false);
+  const emailRetriedRef = useRef(false);
 
   // ── Auth guard — runs once on mount; RoleContext handles per-nav auth state ──
   useEffect(() => {
@@ -45,22 +46,40 @@ export default function DashboardLayout({
   }, []);
 
   // ── No workspace → verify API before redirecting (guards against stale RoleContext) ─
+  // Email-signup users always have a workspace created at signup time. If the API
+  // returns NO_WORKSPACE for them, it's likely a transient cache/timing issue — retry
+  // once before sending them to onboarding. SSO first-time users redirect immediately.
   useEffect(() => {
     if (isLoading || isSuperAdmin || orgStatus !== 'NO_WORKSPACE') return;
     if (verifyingRef.current) return;
     verifyingRef.current = true;
-    api.get('/api/v1/user/context').then(res => {
-      verifyingRef.current = false;
-      if (res?.success && res.data?.workspace_id) {
-        // Context was stale — refresh silently and stay on dashboard
-        refresh();
-      } else {
+
+    const doCheck = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const provider = session?.user?.app_metadata?.provider;
+        const res = await api.get('/api/v1/user/context');
+        verifyingRef.current = false;
+
+        if (res?.success && res.data?.workspace_id) {
+          // Stale RoleContext — workspace exists, refresh and stay on dashboard
+          refresh();
+        } else if (provider === 'email' && !emailRetriedRef.current) {
+          // Email-signup users always have a workspace. First miss may be a race condition
+          // (auth cache hasn't reflected the new membership yet). Retry once via full refresh.
+          emailRetriedRef.current = true;
+          refresh();
+        } else {
+          // SSO user with no workspace, or email user whose workspace genuinely wasn't created
+          router.replace('/onboarding');
+        }
+      } catch {
+        verifyingRef.current = false;
         router.replace('/onboarding');
       }
-    }).catch(() => {
-      verifyingRef.current = false;
-      router.replace('/onboarding');
-    });
+    };
+
+    doCheck();
   }, [isLoading, isSuperAdmin, orgStatus, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Role guard ──────────────────────────────────────────────────────────────

@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
-import { GitMerge, Loader2, Clock, CheckCircle2, AlertCircle, XCircle, Pause, ShieldAlert, BarChart2 } from 'lucide-react';
-import { api } from '@/lib/api';
-import ConfirmActionModal from '@/components/ConfirmActionModal';
+import React from 'react';
+import { GitMerge, Loader2, Clock, CheckCircle2, AlertCircle, XCircle, Pause, BarChart2 } from 'lucide-react';
 
 // Per doc section 8 — Runtime Operations Requirements
-// Visible data: workflow name, instance ID, current step, owner, SLA, risk score,
-// confidence score, status, blocker
-// User actions: Open, assign, pause, escalate, view evidence.
+// Read-only monitoring surface: workflow name, instance ID, current step, owner,
+// SLA, risk score, confidence score, status, blocker. Resolution of flagged
+// posts happens in the Review Queue, not here.
 
 interface Orchestration {
   id: string;
@@ -24,6 +22,7 @@ interface Orchestration {
   confidenceScore?: number;
   sla?: string;
   blocker?: string;
+  post?: { platform?: string; excerpt?: string };
 }
 
 const STATUS_MAP: Record<string, { cls: string; icon: React.ReactNode }> = {
@@ -85,64 +84,11 @@ const RiskBar = ({ score }: { score: number }) => {
 
 export default function ActiveOrchestrations({
   data,
-  onActionComplete,
 }: {
   data?: Orchestration[];
+  /** Retained for caller compatibility; this panel is read-only and takes no actions. */
   onActionComplete?: () => void;
 }) {
-  // Track per-instance loading state: key = `${instanceId}:pause` or `${instanceId}:escalate`
-  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [pauseTarget, setPauseTarget] = useState<Orchestration | null>(null);
-  const [escalateTarget, setEscalateTarget] = useState<Orchestration | null>(null);
-
-  const setLoading = (id: string, action: string, val: boolean) =>
-    setActionLoading((prev) => ({ ...prev, [`${id}:${action}`]: val }));
-
-  const handlePause = (orch: Orchestration) => {
-    setPauseTarget(orch);
-  };
-
-  const handleEscalate = (orch: Orchestration) => {
-    setEscalateTarget(orch);
-  };
-
-  const handlePauseConfirm = async () => {
-    if (!pauseTarget) return;
-    setLoading(pauseTarget.id, 'pause', true);
-    try {
-      const res = await api.transitionWorkflowInstance(pauseTarget.id, { status: 'PAUSED', reason: 'Manually paused from Live Orchestrations panel' });
-      if (res?.success) {
-        onActionComplete?.();
-      } else {
-        setErrorMessage(res?.error || 'Failed to pause instance. Please try again.');
-      }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Network error pausing instance.');
-    } finally {
-      setLoading(pauseTarget.id, 'pause', false);
-      setPauseTarget(null);
-    }
-  };
-
-  const handleEscalateConfirm = async (value?: string) => {
-    if (!escalateTarget || !value?.trim()) return;
-    setLoading(escalateTarget.id, 'escalate', true);
-    try {
-      const res = await api.escalateRun(escalateTarget.id, value.trim());
-      if (res?.success) {
-        onActionComplete?.();
-      } else {
-        setErrorMessage(res?.error || 'Failed to escalate instance. Please try again.');
-      }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Network error escalating instance.');
-    } finally {
-      setLoading(escalateTarget.id, 'escalate', false);
-      setEscalateTarget(null);
-    }
-  };
-
   if (!data) {
     return <div className="h-64 animate-pulse bg-[var(--surface)] rounded-2xl" />;
   }
@@ -177,16 +123,6 @@ export default function ActiveOrchestrations({
         </div>
       </div>
 
-      {errorMessage && (
-        <div className="px-6 py-3 border-b border-[var(--border)] bg-rose-500/5 flex items-center gap-2 text-xs text-rose-400">
-          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-          {typeof errorMessage === 'object' ? 'Unexpected error' : errorMessage}
-          <button onClick={() => setErrorMessage(null)} className="ml-auto opacity-60 hover:opacity-100">
-            <XCircle className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
@@ -199,13 +135,12 @@ export default function ActiveOrchestrations({
               <th className="px-5 py-3 font-medium">Confidence</th>
               <th className="px-5 py-3 font-medium">Time in Step</th>
               <th className="px-5 py-3 font-medium">Status</th>
-              <th className="px-5 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
             {data.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-12 text-center text-sm text-[var(--text-muted)]">
+                <td colSpan={7} className="px-5 py-12 text-center text-sm text-[var(--text-muted)]">
                   No active workflow instances. When workflows run, instances appear here in real time.
                 </td>
               </tr>
@@ -220,6 +155,18 @@ export default function ActiveOrchestrations({
                 <td className="px-5 py-4">
                   <p className="font-medium text-[var(--text-primary)] truncate max-w-[180px]">{orch.workflowName}</p>
                   <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{orch.id}</p>
+                  {orch.post && (orch.post.excerpt || orch.post.platform) && (
+                    <div className="mt-1 flex items-start gap-1.5 max-w-[220px]">
+                      {orch.post.platform && (
+                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] font-bold uppercase tracking-wide">
+                          {orch.post.platform}
+                        </span>
+                      )}
+                      {orch.post.excerpt && (
+                        <span className="text-[10px] text-[var(--text-secondary)] line-clamp-2">{orch.post.excerpt}</span>
+                      )}
+                    </div>
+                  )}
                   {orch.blocker && (
                     <p className="text-[10px] text-rose-400 mt-0.5 flex items-center gap-1">
                       <XCircle className="w-3 h-3" /> {orch.blocker}
@@ -266,59 +213,11 @@ export default function ActiveOrchestrations({
                 <td className="px-5 py-4">
                   <StatusBadge status={orch.status} />
                 </td>
-                <td className="px-5 py-4">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      title="Pause instance"
-                      disabled={actionLoading[`${orch.id}:pause`] || orch.status === 'Paused' || orch.status === 'Completed'}
-                      onClick={() => handlePause(orch)}
-                      className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {actionLoading[`${orch.id}:pause`]
-                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        : <Pause className="w-3.5 h-3.5" />}
-                    </button>
-                    <button
-                      title="Escalate instance"
-                      disabled={actionLoading[`${orch.id}:escalate`] || orch.status === 'Completed'}
-                      onClick={() => handleEscalate(orch)}
-                      className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-rose-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {actionLoading[`${orch.id}:escalate`]
-                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        : <ShieldAlert className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
-      <ConfirmActionModal
-        open={pauseTarget !== null}
-        mode="confirm"
-        variant="warning"
-        title="Pause Instance"
-        message={`Pause instance "${pauseTarget?.workflowName}" (${pauseTarget?.id})?\n\nThis will suspend execution at the current step. State is preserved and the run can be resumed.`}
-        confirmLabel="Pause"
-        loading={pauseTarget ? actionLoading[`${pauseTarget.id}:pause`] || false : false}
-        onConfirm={handlePauseConfirm}
-        onCancel={() => setPauseTarget(null)}
-      />
-      <ConfirmActionModal
-        open={escalateTarget !== null}
-        mode="prompt"
-        variant="warning"
-        title="Escalate Instance"
-        message={`Escalate instance "${escalateTarget?.workflowName}" (${escalateTarget?.id})?`}
-        promptPlaceholder="Enter escalation reason..."
-        confirmLabel="Escalate"
-        loading={escalateTarget ? actionLoading[`${escalateTarget.id}:escalate`] || false : false}
-        onConfirm={handleEscalateConfirm}
-        onCancel={() => setEscalateTarget(null)}
-      />
     </div>
   );
 }

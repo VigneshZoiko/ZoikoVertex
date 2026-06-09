@@ -72,9 +72,8 @@ function levenshteinDistance(a: string, b: string): number {
 }
 
 const REFERENCE_MODELS = [
-  { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-  { id: 'gpt-4o', name: 'GPT-4o' },
+  { id: 'llama-3.3-70b-versatile', name: 'Groq Llama 3.3 70B' },
+  { id: 'llama-3.1-8b-instant', name: 'Groq Llama 3.1 8B' },
 ];
 
 export class CrossModelComparisonService {
@@ -238,7 +237,7 @@ export class CrossModelComparisonService {
     if (!validationEnabled || registered.length === 0) {
       const skipReason = !validationEnabled
         ? 'Real model validation disabled (ENABLE_REAL_MODEL_VALIDATION=false)'
-        : 'No provider registered: set GEMINI_API_KEY and/or GROQ_API_KEY to enable real model validation';
+        : 'No provider registered: set GROQ_API_KEY to enable real model validation';
       logger.info(
         { promptVersionId, workspaceId, validationEnabled, registered, skipReason },
         '[CrossModelComparisonService] real comparison skipped'

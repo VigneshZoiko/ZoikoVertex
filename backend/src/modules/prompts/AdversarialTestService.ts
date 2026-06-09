@@ -373,7 +373,7 @@ export class AdversarialTestService {
     promptId: string;
     workspaceId: string;
     modelId?: string;
-    provider?: 'google' | 'groq';
+    provider?: ProviderId;
     riskTier?: string;
     customAttacks?: RealAttackInput[];
     actorId?: string;
@@ -401,7 +401,7 @@ export class AdversarialTestService {
     if (!validationEnabled || registered.length === 0) {
       const skipReason = !validationEnabled
         ? 'Real model validation disabled (ENABLE_REAL_MODEL_VALIDATION=false)'
-        : 'No provider registered: set GEMINI_API_KEY and/or GROQ_API_KEY to enable real model validation';
+        : 'No provider registered: set GROQ_API_KEY to enable real model validation';
       logger.info(
         { promptVersionId, workspaceId, validationEnabled, registered, skipReason },
         '[AdversarialTestService] real suite skipped'
@@ -426,10 +426,10 @@ export class AdversarialTestService {
     // caller did not specify one. This keeps the legacy contract (provider
     // is optional in the input) while restricting to registered providers
     // only.
-    const effectiveProvider: 'google' | 'groq' =
+    const effectiveProvider: ProviderId =
       (input.provider && registered.includes(input.provider as ProviderId))
-        ? (input.provider as 'google' | 'groq')
-        : ((registered[0] as 'google' | 'groq'));
+        ? (input.provider as ProviderId)
+        : (registered[0] as ProviderId);
 
     const attacks: RealAttackInput[] = input.customAttacks && input.customAttacks.length > 0
       ? input.customAttacks
@@ -504,7 +504,7 @@ export class AdversarialTestService {
     promptId: string;
     workspaceId: string;
     modelId: string;
-    provider: 'google' | 'groq';
+    provider: ProviderId;
     systemPrompt: string;
     attack: RealAttackInput;
     evaluatedAt: string;
