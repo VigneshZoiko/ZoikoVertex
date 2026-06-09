@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logAuditEvent } from './evidenceController';
 import { lockStore } from '../agents/autonomyController';
+import { sendMfaChallenge, verifyMfaCode } from '../../services/mfa.service';
 
 /**
  * Helper to determine user role in workspace.
@@ -201,7 +202,6 @@ export const getSafetyOverview = async (req: AuthRequest, res: Response, next: N
     };
     const agentBacklog = agentSafetyHealth !== 'healthy' ? Math.max(3, allIntents.filter(i => i.status === 'AGENT_HOLD').length) : 0;
     const componentHealth = [
-      { name: 'Safety Layer Overview',                         health: 'healthy',                                    backlog: 0,                        owner: 'Governance Admin' },
       { name: 'Risk Intake & Classification Engine',           health: healthFromBacklog(criticalHoldsCount),        backlog: criticalHoldsCount,        owner: 'Compliance Officer' },
       { name: 'Guardrail Rules Engine',                        health: healthFromBacklog(atRiskSla),                 backlog: atRiskSla,                 owner: 'Governance Admin' },
       { name: 'Action Decision Gate',                          health: healthFromBacklog(approvalRequiredCount),     backlog: approvalRequiredCount,     owner: 'Safety Operator' },
@@ -209,8 +209,6 @@ export const getSafetyOverview = async (req: AuthRequest, res: Response, next: N
       { name: 'Emergency Pause & Restricted Operations Mode',  health: activeWorkspaceLocks.length > 0 ? 'watch' : 'healthy', backlog: activeWorkspaceLocks.length, owner: 'Security Officer' },
       { name: 'Agent Behavior Safety Monitor',                 health: agentSafetyHealth,                           backlog: agentBacklog,              owner: 'Agent Architect' },
       { name: 'Escalation & Human Accountability Workflows',   health: healthFromBacklog(breachedSla),              backlog: breachedSla,               owner: 'Compliance Officer' },
-      { name: 'Safety Evidence Writer',                        health: 'healthy',                                    backlog: 0,                        owner: 'Legal Counsel' },
-      { name: 'Safety Settings & Policy Administration',       health: 'healthy',                                    backlog: 0,                        owner: 'Governance Admin' },
     ];
 
     // Derive tenant label from workspace name
@@ -499,7 +497,7 @@ export const reviewCriticalQueue = async (req: AuthRequest, res: Response, next:
 
 /**
  * 6. POST /api/safety/actions/request-emergency-pause
- * Submits emergency pause request or confirmation.
+ * Submits emergency pause request or confirmation — real MFA verification.
  */
 export const requestEmergencyPause = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -522,9 +520,10 @@ export const requestEmergencyPause = async (req: AuthRequest, res: Response, nex
       return res.status(400).json({ error: 'Reason text must be at least 10 characters long.' });
     }
 
-    // Mock MFA step-up validation
-    if (!mfa_code || mfa_code !== '123456') {
-      return res.status(400).json({ error: 'Invalid MFA verification code. Emergency pause rejected.' });
+    // Real MFA verification against Redis-backed challenge code
+    const mfaValid = await verifyMfaCode(userId, mfa_code || '');
+    if (!mfaValid) {
+      return res.status(400).json({ error: 'Invalid or expired MFA verification code. Please request a new code and try again.' });
     }
 
     // Emit audit event
@@ -543,6 +542,26 @@ export const requestEmergencyPause = async (req: AuthRequest, res: Response, nex
       success: true,
       message: `Emergency pause ${state === 'active' ? 'activated' : 'deactivated'} successfully. Operations suspended.`
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * 7. POST /api/safety/actions/send-mfa-challenge
+ * Sends an MFA challenge code to the user's email.
+ */
+export const sendMfaChallengeHandler = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const result = await sendMfaChallenge(userId);
+    if (!result.success) {
+      return res.status(503).json({ error: result.message });
+    }
+
+    res.json({ success: true, message: result.message });
   } catch (error) {
     next(error);
   }

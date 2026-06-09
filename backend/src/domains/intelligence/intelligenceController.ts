@@ -323,7 +323,7 @@ ${blocks.join('\n\n')}
 
     // ─── Tier-0 Safety Layer: Guardrail Interception ────────────────────────
     const workspaceId = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
-    const safetyCheck = evaluatePayloadAgainstPolicies(parsed, workspaceId);
+    const safetyCheck = await evaluatePayloadAgainstPolicies(parsed, workspaceId);
 
     if (['block', 'quarantine', 'hold_for_review'].includes(safetyCheck.outcome)) {
       logger.warn({ outcome: safetyCheck.outcome, rule: safetyCheck.rule_id }, '[Safety Layer] Payload intercepted and blocked by active policy.');

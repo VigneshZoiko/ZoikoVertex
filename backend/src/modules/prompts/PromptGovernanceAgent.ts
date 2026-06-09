@@ -438,7 +438,7 @@ Evidence records are:
       }
 
       // Check against platform policies (Safety/Compliance/Brand)
-      const policyCheckResult = evaluatePayloadAgainstPolicies({ content: aiOutput }, req.workspace_id);
+      const policyCheckResult = await evaluatePayloadAgainstPolicies({ content: aiOutput }, req.workspace_id);
       if (['block', 'quarantine', 'hold_for_review'].includes(policyCheckResult.outcome)) {
         return this.blockAndLog(
           req,

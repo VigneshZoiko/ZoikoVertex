@@ -43,7 +43,7 @@ import {
   updateSubscriptionRoute,
 } from './domains/evidence/auditTrailStreamingController';
 import { getRiskPulse, getActiveRiskFeed, getGovernanceGaps, triggerEmergencyPause } from './domains/governance/riskController';
-import { getSafetyOverview, getSafetyComponents, getSafetyQueueSummary, getSafetyRecentDecisions, reviewCriticalQueue, requestEmergencyPause } from './domains/governance/safetyController';
+import { getSafetyOverview, getSafetyComponents, getSafetyQueueSummary, getSafetyRecentDecisions, reviewCriticalQueue, requestEmergencyPause, sendMfaChallengeHandler } from './domains/governance/safetyController';
 import { getSafetySignals, getSafetySignalDetail, createManualSignal, classifySafetySignal, routeSafetySignal, mergeSafetySignals, splitSafetySignal, closeSafetySignal, getSafetyActionsHistory } from './domains/governance/signalsController';
 import { getPolicySummary, getPolicies, createPolicy, simulatePolicy, getEnforcementEvents } from './domains/governance/policyController';
 import { getReviewQueue, getReviewDetail, submitReviewDecision } from './domains/governance/reviewController';
@@ -675,6 +675,7 @@ app.get('/api/safety/queue/summary', authenticate, getSafetyQueueSummary);
 app.get('/api/safety/recent-decisions', authenticate, getSafetyRecentDecisions);
 app.post('/api/safety/actions/review-critical-queue', authenticate, reviewCriticalQueue);
 app.post('/api/safety/actions/request-emergency-pause', authenticate, requestEmergencyPause);
+app.post('/api/safety/actions/send-mfa-challenge', authenticate, sendMfaChallengeHandler);
 // Safety Layer Risk Intake & Triage (Document 02) endpoints
 app.get('/api/safety/signals', authenticate, getSafetySignals);
 app.get('/api/safety/signals/:id', authenticate, getSafetySignalDetail);
