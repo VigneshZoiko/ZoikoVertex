@@ -393,7 +393,7 @@ function ControlStrip({
           <p
             className={`text-2xl font-bold ${item.urgent ? "text-rose-400" : "text-[var(--text-primary)]"}`}
           >
-            {item.value}
+            {safeNum(item.value)}
           </p>
         </div>
       ))}
@@ -1508,7 +1508,9 @@ export default function WorkflowsPage() {
       />
 
       {/* ── Workflow Canvas ── */}
-      <WorkflowCanvas graph={graph} />
+      {/* Read-only: visualizes the agent-driven flow. Users inspect nodes to
+          learn the workflow; they cannot move, add, connect, or delete nodes. */}
+      <WorkflowCanvas graph={graph} readOnly />
 
       {/* ── Governance Panels Row ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
