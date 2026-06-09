@@ -5,7 +5,7 @@ import { Eye, EyeOff, Loader2, Mail, Lock, ArrowRight } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseReady } from "@/lib/supabase";
 
 function LoginForm() {
   const router = useRouter();
@@ -19,6 +19,7 @@ function LoginForm() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!isSupabaseReady) { setChecking(false); return; }
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         const next = searchParams.get("next");
@@ -37,6 +38,7 @@ function LoginForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isSupabaseReady) { setError("Authentication is not configured. Check environment variables."); return; }
     setLoading(true);
     setError("");
     try {
@@ -54,6 +56,7 @@ function LoginForm() {
   };
 
   const handleOAuth = async (provider: "google" | "azure") => {
+    if (!isSupabaseReady) { setError("Authentication is not configured. Check environment variables."); return; }
     try {
       setLoading(true);
       setError("");

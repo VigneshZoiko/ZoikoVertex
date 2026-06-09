@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, ReactNode } from "react";
 import { api } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseReady } from "@/lib/supabase";
 
 interface RoleContextType {
   role: string | null;
@@ -101,6 +101,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     try {
       if (!background) setIsLoading(true);
 
+      if (!isSupabaseReady) {
+        setRole(null);
+        setIsSuperAdmin(false);
+        setIsLoading(false);
+        return;
+      }
+
       // getSession() reads from localStorage — no network round-trip to Supabase Auth.
       // The backend's authenticate middleware still verifies the JWT server-side.
       const { data: sessionData } = await supabase.auth.getSession();
@@ -161,6 +168,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const cached = readCache();
     fetchUserRole(!!cached);
+
+    if (!isSupabaseReady) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
