@@ -375,12 +375,35 @@ export default function Navbar() {
             href="/request-demo"
             style={{
               fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+              fontWeight: 600,
+              fontSize: 13.4,
+              color: "#FFFFFF",
+              background: "transparent",
+              padding: "8px 20px",
+              borderRadius: 10,
+              border: "1.5px solid rgba(255,255,255,0.25)",
+              textDecoration: "none",
+              transition: "border-color 0.15s",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.borderColor = "rgba(255,255,255,0.5)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)")
+            }
+          >
+            Request a Demo
+          </Link>
+          <Link
+            href="/signup"
+            style={{
+              fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
               fontWeight: 700,
               fontSize: 13.4,
               color: "#000000",
               background: "#20E7F2",
               padding: "8px 20px",
-              borderRadius: 8,
+              borderRadius: 10,
               textDecoration: "none",
               transition: "background 0.15s",
             }}
