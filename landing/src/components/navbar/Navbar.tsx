@@ -316,11 +316,11 @@ function SolutionsMenu() {
 
 const NAV_ITEMS = [
   { label: "Platform", hasDropdown: true, href: "/platform" },
-  { label: "AI Agents", hasDropdown: false, href: "https://zoikovertex.com/ai-agents" },
+  { label: "AI Agents", hasDropdown: false, href: "/ai-agents" },
   { label: "Solutions", hasDropdown: true, href: "/solution" },
-  { label: "Governance", hasDropdown: false, href: "/governance" },
   { label: "Resources", hasDropdown: false, href: "/resources-hub" },
   { label: "About Us", hasDropdown: false, href: "/about" },
+  { label: "Pricing", hasDropdown: false, href: "/pricing" },
 ];
 
 export default function Navbar() {
