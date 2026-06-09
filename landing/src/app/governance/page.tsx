@@ -321,34 +321,64 @@ function ThreeKeyProtocol() {
 /* ── Six Controls ── */
 const SIX_CONTROLS = [
   {
-    title: "Brand Library Enforcement",
-    desc: "Every draft checked against approved claims, voice guidelines, and prohibited phrases before reaching review.",
+    pillar: "PILLAR 01",
+    badge: "RBAC + ABAC",
+    title: "Role & Permission Control",
+    subtitle: "Agents act only within the user's authority.",
+    desc: "RBAC with ABAC scoping by brand, region, workspace, channel, risk class, and tenant. Visibility does not equal authority.",
+    artifact: "Role attestation report",
     img: "/images/governance-photo.png",
+    badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
   },
   {
-    title: "Role-Based Access Control",
-    desc: "RBAC + ABAC enforcement. Visibility does not equal authority — actions are independently permissioned by role, brand, and region.",
-    img: "/images/category-photo.png",
-  },
-  {
-    title: "Approval Workflow Engine",
-    desc: "Multi-stage approval chains with separation of duties. Content is bound to its approved version.",
-    img: "/images/home-category.webp",
-  },
-  {
-    title: "Policy-as-Code Engine",
-    desc: "Customer-defined policies enforced as versioned code. Every policy change creates a new audit-trail entry.",
+    pillar: "PILLAR 02",
+    badge: "Policy-as-code",
+    title: "Policy-Bound Autonomy",
+    subtitle: "AI speed without unmanaged authority.",
+    desc: "Autonomy levels, policy-as-code, action gates, escalation triggers, and content-class restrictions applied before every agent action.",
+    artifact: "Autonomy policy snapshot",
     img: "/images/Platform.webp",
+    badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
   },
   {
-    title: "Immutable Audit Trail",
-    desc: "Every action written to an append-only ledger at runtime. Records cannot be edited, deleted, or back-dated.",
-    img: "/images/about-gei.webp",
+    pillar: "PILLAR 03",
+    badge: "Separation of Duties",
+    title: "Approval & Separation of Duties",
+    subtitle: "No sensitive action is self-authorized.",
+    desc: "Reviewer, Validator, Compliance Officer, Approver, Publisher chains enforced structurally — not by honour system.",
+    artifact: "Signed approval chain",
+    img: "/images/category-photo.png",
+    badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
   },
   {
-    title: "Evidence Vault",
-    desc: "Board-grade evidence packs exportable on demand. Every evidence item is timestamped, role-attributed, and signed.",
-    img: "/images/about-hero.webp",
+    pillar: "PILLAR 04",
+    badge: "Brand Library",
+    title: "Brand and Claims Control",
+    subtitle: "Brand standards become enforceable rules.",
+    desc: "Brand Library, approved claims, prohibited terms, source grounding, and jurisdictional rule packs enforced as policy checks before review.",
+    artifact: "Brand and claims review record",
+    img: "/images/home-category.webp",
+    badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
+  },
+  {
+    pillar: "PILLAR 05",
+    badge: "Evidence Vault",
+    title: "Evidence and Audit Trail",
+    subtitle: "Every action produces an inspectable record.",
+    desc: "Append-only event log, decision history, policy versioning, evidence export, and legal-hold readiness. Written at runtime — never reconstructed.",
+    artifact: "Evidence Vault export",
+    img: "/images/WhatsApp Image 2026-05-12 at 2.59.29 PM.jpeg",
+    badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
+  },
+  {
+    pillar: "PILLAR 06",
+    badge: "Crisis Console",
+    title: "Crisis & Exception Control",
+    subtitle: "Urgent situations are controlled, not improvised.",
+    desc: "Dual-authorization break-glass, time-boxed crisis mode, reason codes, escalation routing, and post-incident review workflow.",
+    artifact: "Exception and override log",
+    img: "/images/WhatsApp Image 2026-05-12 at 2.59.28 PM.jpeg",
+    badgeColor: "bg-[#20E7F215] text-[#20E7F2] border-[#20E7F230]",
   },
 ];
 
@@ -356,25 +386,46 @@ function SixControls() {
   return (
     <section className="bg-[#080E1A] py-24 px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-16">
+        <div className="mb-12">
           <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-4 flex items-center gap-2">
-            <span className="w-8 h-px bg-[#20E7F2]" /> GOVERNANCE CONTROLS
+            <span className="w-8 h-px bg-[#20E7F2]" /> GOVERNANCE PILLARS
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
             Six controls. Every agent action.
           </h2>
-          <p className="text-white/50 max-w-xl text-sm leading-relaxed">
-            Every AI-assisted action runs through six independent governance controls — simultaneously, not sequentially.
+          <p className="text-white/50 max-w-2xl text-sm leading-relaxed">
+            Each control names its mechanism, artifact, and commercial purpose.<br />
+            Governance is not added after execution — it is the execution model.
           </p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {SIX_CONTROLS.map((c) => (
-            <div key={c.title} className="group relative rounded-2xl overflow-hidden h-64 border border-white/8">
-              <Image src={c.img} alt={c.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#080E1A] via-[#080E1A]/60 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-5">
+            <div key={c.pillar} className="bg-[#0D1829] border border-white/8 rounded-2xl overflow-hidden flex flex-col">
+              {/* Image */}
+              <div className="relative h-48 overflow-hidden">
+                <Image
+                  src={c.img}
+                  alt={c.title}
+                  width={600}
+                  height={300}
+                  className="w-full h-full object-cover"
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                />
+                <div className="absolute inset-0 bg-[#080E1A]/40" />
+                {/* Badge overlay */}
+                <span className={`absolute bottom-3 left-3 text-[10px] font-mono font-bold px-2 py-1 rounded border ${c.badgeColor}`}>
+                  {c.badge}
+                </span>
+              </div>
+              {/* Content */}
+              <div className="p-5 flex flex-col flex-1">
+                <p className="text-white/30 text-[10px] font-mono tracking-widest mb-2">{c.pillar}</p>
                 <h3 className="text-white font-black text-lg mb-1">{c.title}</h3>
-                <p className="text-white/50 text-xs leading-relaxed">{c.desc}</p>
+                <p className="text-[#20E7F2] text-xs font-mono italic mb-3">{c.subtitle}</p>
+                <p className="text-white/50 text-sm leading-relaxed mb-4 flex-1">{c.desc}</p>
+                <div className="bg-white/5 border border-white/8 rounded-lg px-3 py-2 text-xs font-mono text-white/30 flex items-center gap-2">
+                  <span className="text-white/20">ARTIFACT</span> {c.artifact}
+                </div>
               </div>
             </div>
           ))}
