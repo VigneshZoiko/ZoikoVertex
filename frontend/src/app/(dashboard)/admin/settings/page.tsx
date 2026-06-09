@@ -43,7 +43,7 @@ export default function WorkspaceSettingsPage() {
       const res = await api.get("/api/v1/workspace/settings");
       if (res.success) {
         setSettings(res.data);
-        setName(res.data.name);
+        setName(res.data.name ?? "");
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load workspace settings");
@@ -158,7 +158,7 @@ export default function WorkspaceSettingsPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={handleSave}
-              disabled={saving || !name.trim() || name.trim() === settings?.name}
+              disabled={saving || !(name ?? "").trim() || (name ?? "").trim() === (settings?.name ?? "")}
               className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

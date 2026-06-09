@@ -62,6 +62,34 @@ export const submitIntent = async (
     // story/idea formats suppress captions — platform doesn't display them
     const NO_CAPTION_FORMATS = new Set(['story', 'idea', 'idea-pin', 'idea_pin']);
 
+    // Auto-assignment load balancing
+    const { data: reviewers } = await supabaseAdmin
+      .from('workspace_members')
+      .select('user_id')
+      .eq('workspace_id', targetWorkspaceId)
+      .eq('role', 'REVIEWER');
+
+    const reviewerIds = (reviewers || []).map(r => r.user_id);
+    const loadMap: Record<string, number> = {};
+    reviewerIds.forEach(id => { loadMap[id] = 0; });
+
+    if (reviewerIds.length > 0) {
+      const { data: countsData } = await supabaseAdmin
+        .from('publish_intents')
+        .select('reviewer_id')
+        .eq('workspace_id', targetWorkspaceId)
+        .eq('status', 'PENDING_REVIEW')
+        .in('reviewer_id', reviewerIds);
+
+      if (countsData) {
+        countsData.forEach((row: any) => {
+          if (row.reviewer_id && loadMap[row.reviewer_id] !== undefined) {
+            loadMap[row.reviewer_id]++;
+          }
+        });
+      }
+    }
+
     const intentsToCreate = accounts.flatMap((acc) => {
       // Case-insensitive lookup: DB stores platform as lowercase, frontend keys may vary
       const platformKey = Object.keys(content.platforms || {}).find(
@@ -78,18 +106,35 @@ export const submitIntent = async (
           ? [rawFormats]
           : [null];
 
-      return formats.map(postType => ({
-        workspace_id: targetWorkspaceId,
-        creator_id: userId,
-        target_account_ids: [acc.id],
-        content: (postType && NO_CAPTION_FORMATS.has(postType.toLowerCase())) ? '' : finalCaption,
-        media_urls: urlsToSave,
-        media_url: urlsToSave[0] || null,
-        status: 'PUBLISHED',
-        platform: acc.platform,
-        ...(campaign_id ? { campaign_id } : {}),
-        ...(boost_budget_override != null ? { boost_budget_override } : {}),
-      }));
+      return formats.map(postType => {
+        let assignedReviewerId: string | null = null;
+        if (reviewerIds.length > 0) {
+          let minReviewerId = reviewerIds[0];
+          let minLoad = loadMap[minReviewerId];
+          for (const rId of reviewerIds) {
+            if (loadMap[rId] < minLoad) {
+              minLoad = loadMap[rId];
+              minReviewerId = rId;
+            }
+          }
+          assignedReviewerId = minReviewerId;
+          loadMap[minReviewerId]++; // Increment workload load-balancing locally for batch items
+        }
+
+        return {
+          workspace_id: targetWorkspaceId,
+          creator_id: userId,
+          target_account_ids: [acc.id],
+          content: (postType && NO_CAPTION_FORMATS.has(postType.toLowerCase())) ? '' : finalCaption,
+          media_urls: urlsToSave,
+          media_url: urlsToSave[0] || null,
+          status: 'PENDING_REVIEW',
+          platform: acc.platform,
+          reviewer_id: assignedReviewerId,
+          ...(campaign_id ? { campaign_id } : {}),
+          ...(boost_budget_override != null ? { boost_budget_override } : {}),
+        };
+      });
     });
 
     const { data, error } = await supabaseAdmin
@@ -106,14 +151,7 @@ export const submitIntent = async (
       });
     }
 
-    // Fire execution immediately for all intents
-    for (const intent of data) {
-      internalEventBus.emit('execution.requested', { intentId: intent.id });
-    }
-
-    // Mirror each post into Agent Operations and run the policy checks against
-    // its caption. Non-blocking: recordPublishIntentRun swallows its own errors,
-    // so a recording/policy failure can never break publishing.
+    // Mirror each post into Agent Operations for policy checks (non-blocking).
     try {
       await Promise.all(data.map((intent: any) => recordPublishIntentRun(intent)));
     } catch (err) {
@@ -125,7 +163,7 @@ export const submitIntent = async (
         workspaceId: targetWorkspaceId,
         actorId: userId,
         actorType: 'USER',
-        action: `Directly publishing ${data.length} intents (testing mode)`,
+        action: `Submitted ${data.length} intent(s) for review`,
         objectType: 'PUBLISH_INTENT',
         module: 'Governance',
         metadata: { count: data.length },

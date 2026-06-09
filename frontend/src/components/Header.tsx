@@ -64,7 +64,6 @@ const allRoutes: SearchItem[] = [
   { label: "Validation", href: "/validation", icon: <Shield className="w-4 h-4" />, keywords: "validate verify test approve" },
   { label: "Approvals", href: "/governance/approvals", icon: <Shield className="w-4 h-4" />, keywords: "approve pending requests chain" },
   { label: "Rules Engine", href: "/governance/rules", icon: <Settings className="w-4 h-4" />, keywords: "automation conditions triggers logic" },
-  { label: "Exception Handler", href: "/exceptions", icon: <Shield className="w-4 h-4" />, keywords: "override bypass grant exception" },
   { label: "Audit Trail", href: "/governance/audit", icon: <FileText className="w-4 h-4" />, keywords: "logs history activity changes" },
   { label: "Forensic Hub", href: "/governance/forensic", icon: <Shield className="w-4 h-4" />, keywords: "investigation evidence analysis" },
   { label: "Evidence Vault", href: "/governance/evidence", icon: <FileText className="w-4 h-4" />, keywords: "store evidence secure proof records" },

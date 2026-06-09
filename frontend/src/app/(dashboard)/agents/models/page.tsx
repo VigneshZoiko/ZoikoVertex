@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
@@ -46,7 +46,6 @@ export default function ModelPerformancePage() {
     safeFetch();
     const interval = setInterval(safeFetch, 30000);
     return () => { cancelled = true; clearInterval(interval); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

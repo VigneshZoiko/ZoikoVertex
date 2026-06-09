@@ -24,6 +24,7 @@ export interface ApprovalRule {
   effective_at?: string;
   expires_at?: string;
   tags?: string[];
+  keyword_rules?: Array<{ keywords: string[]; action: 'BLOCK' | 'REQUEST_REVIEW'; scopes?: string[] }>;
   created_by: string;
   updated_by: string;
   created_at: string;
@@ -41,6 +42,7 @@ export interface ApprovalRuleInput {
   effective_at?: string;
   expires_at?: string;
   tags?: string[];
+  keyword_rules?: Array<{ keywords: string[]; action: 'BLOCK' | 'REQUEST_REVIEW'; scopes?: string[] }>;
   created_by: string;
 }
 
@@ -75,6 +77,7 @@ export async function createRule(input: ApprovalRuleInput, auth?: AuthContext): 
       effective_at: input.effective_at || null,
       expires_at: input.expires_at || null,
       tags: input.tags || [],
+      keyword_rules: input.keyword_rules || [],
     })
     .select()
     .single();
@@ -143,6 +146,20 @@ function isMissingTable(error: unknown): boolean {
   return code === '42P01' || code === '42703';
 }
 
+export async function deleteRule(id: string, tenant_id: string, deleted_by: string): Promise<void> {
+  if (!validUUID(id)) throw Object.assign(new Error('Invalid rule ID'), { statusCode: 400 });
+  const { error } = await supabaseAdmin
+    .from('approval_rules')
+    .delete()
+    .eq('id', id)
+    .eq('tenant_id', tenant_id);
+  if (error) {
+    if (isMissingTable(error)) throw Object.assign(new Error('Approval rules table not found. Run the migration.'), { statusCode: 503 });
+    throw error;
+  }
+  await createAuditLog({ tenant_id, approval_rule_id: id, action: 'rule.deleted', performed_by: deleted_by });
+}
+
 export async function getRule(id: string, tenant_id: string): Promise<ApprovalRule | null> {
   if (!validUUID(id)) return null;
   const { data, error } = await supabaseAdmin
@@ -169,6 +186,7 @@ export async function updateRule(params: {
   effective_at?: string;
   expires_at?: string;
   tags?: string[];
+  keyword_rules?: Array<{ keywords: string[]; action: 'BLOCK' | 'REQUEST_REVIEW'; scopes?: string[] }>;
   updated_by: string;
 }, auth?: AuthContext): Promise<ApprovalRule> {
   requireAnyPermission(auth, 'rules:manage');
@@ -184,6 +202,7 @@ export async function updateRule(params: {
   if (params.effective_at !== undefined) updateFields.effective_at = params.effective_at;
   if (params.expires_at !== undefined) updateFields.expires_at = params.expires_at;
   if (params.tags !== undefined) updateFields.tags = params.tags;
+  if (params.keyword_rules !== undefined) updateFields.keyword_rules = params.keyword_rules;
 
   // If rule is ACTIVE, editing creates a draft version (ACTIVE_WITH_DRAFT_CHANGES)
   if (current.rule_status === 'ACTIVE') {

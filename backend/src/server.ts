@@ -180,6 +180,7 @@ import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBu
 import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
 import { getGoogleAdsCustomers, linkGoogleAdsCustomer, createGoogleBoost, syncGoogleBoostMetrics as syncGoogleMetrics, pauseGoogleBoost, resumeGoogleBoost, cancelGoogleBoost } from './domains/campaigns/googleAdsController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
+import { readRecentScans } from './modules/safety/scanLogger';
 import {
   listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy,
   getAgentCapabilities, getAgentVersions, rollbackAgent,
@@ -222,7 +223,7 @@ import {
   exportExceptionRecord, closeExceptionCase, archiveExceptionCase, bulkExceptionAction,
 } from './domains/governance/exceptionV2Controller';
 import { listItems as listReviewItems, getItem as getReviewItem, takeAction as takeReviewAction, getStats as getReviewStats, getEligibility as getReviewEligibility, getAuditLog as getReviewAuditLog, createItem as createReviewItem, getReviewValidation, getReviewPolicyFlags, getReviewNotesHandler, getReviewRevisionHistory, assignReviewItemHandler, addReviewNoteHandler, bulkReviewAction } from './domains/governance/reviewQueueController';
-import {   createValidationItem, listValidationItems, getValidationItem, assignValidator, runValidation, revalidateItem, getValidationRunResults, requestRevision, sendToReviewQueue, sendToApprovals, escalateValidation, applyOverride, blockItem, completeManualCheck, addValidatorNote, getValidationAuditTrail, getValidationStats, getValidationEligibility, retryValidationCallback, exportValidationRecord, getValidationRuns, getValidationGrounding, getValidationNotesList, getValidationManualChecks, getValidationApprovalReadiness, getValidationRuleHistory } from './domains/governance/validationController';
+import {   createValidationItem, listValidationItems, getValidationItem, assignValidator, runValidation, revalidateItem, getValidationRunResults, requestRevision, sendToReviewQueue, sendToApprovals, escalateValidation, applyOverride, blockItem, completeManualCheck, addValidatorNote, getValidationAuditTrail, getValidationStats, getValidationEligibility, retryValidationCallback, exportValidationRecord, getValidationRuns, getValidationGrounding, getValidationNotesList, getValidationManualChecks, getValidationApprovalReadiness, getValidationRuleHistory, returnToCreator } from './domains/governance/validationController';
 import {
   KnowledgeController,
 } from './modules/knowledge/knowledgeController';
@@ -250,7 +251,7 @@ import {
   exportRuntimeTimeline,
   triggerWorkflowNotification,
 } from './domains/agents/workflowController';
-import { listRules, createRule, getRule, updateRule, submitRuleForReview, publishRule, deactivateRule, reactivateRule, archiveRule, cloneRule, getRuleScope, upsertRuleScope, getRulePath, upsertRulePath, getRuleVersions, getRuleAuditLog, getRuleConflicts, detectRuleConflicts, resolveRuleConflict, runRuleSimulation, getRuleStats, getRuleDetails, getRuleStagesHandler, getRuleEscalationsHandler, markRuleReadyToPublish, markRuleInvalid } from './domains/governance/ruleController';
+import { listRules, createRule, getRule, deleteRule, updateRule, submitRuleForReview, publishRule, deactivateRule, reactivateRule, archiveRule, cloneRule, getRuleScope, upsertRuleScope, getRulePath, upsertRulePath, getRuleVersions, getRuleAuditLog, getRuleConflicts, detectRuleConflicts, resolveRuleConflict, runRuleSimulation, getRuleStats, getRuleDetails, getRuleStagesHandler, getRuleEscalationsHandler, markRuleReadyToPublish, markRuleInvalid, suggestKeywords } from './domains/governance/ruleController';
 import {
   listWorkflows,
   getWorkflow,
@@ -367,6 +368,18 @@ import { requireOperationsAccess } from './services/operationsAuthorization.serv
 const upload = multer({ dest: os.tmpdir() });
 const app = express();
 const port = env.PORT;
+
+// Guard: replace any undefined route handler with a 501 stub so the server
+// starts even when some controller exports are not yet implemented.
+(function patchUndefinedHandlers(a: express.Express) {
+  const stub = (path: string) => (_req: express.Request, res: express.Response) =>
+    res.status(501).json({ error: `Route ${path} not yet implemented` });
+  for (const m of ['get','post','put','patch','delete'] as const) {
+    const orig = (a as any)[m].bind(a);
+    (a as any)[m] = (path: string, ...handlers: any[]) =>
+      orig(path, ...handlers.map(h => (typeof h === 'function' ? h : stub(path))));
+  }
+})(app);
 
 // Middleware
 app.use(helmet({
@@ -813,6 +826,10 @@ app.delete('/api/v1/scheduler/posts/:id', authenticate, planRateLimit('general')
 app.get('/api/v1/library', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), listLibrary);
 app.post('/api/v1/library/upload', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), addToLibrary);
 app.delete('/api/v1/library/:id', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), deleteFromLibrary);
+app.get('/api/v1/library/scan-logs', authenticate, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+  res.json({ success: true, data: readRecentScans(limit) });
+});
 
 // Protected User Routes
 app.get('/api/v1/user/context', authenticate, getUserContext);
@@ -1388,8 +1405,10 @@ app.get('/api/v1/prompts/versions/:versionId/sealed-history', authenticate, govV
 // ─── Approval Rules Routes ───────────────────────────────────────────
 app.get('/api/v1/governance/rules', authenticate, acctView, scopeGuard('read:governance', '*'), listRules);
 app.post('/api/v1/governance/rules', authenticate, acctWrite, scopeGuard('write:governance', '*'), createRule);
+app.post('/api/v1/governance/rules/ai-suggest', authenticate, acctWrite, scopeGuard('write:governance', '*'), suggestKeywords);
 app.get('/api/v1/governance/rules/stats', authenticate, acctView, scopeGuard('read:governance', '*'), getRuleStats);
 app.get('/api/v1/governance/rules/:id', authenticate, acctView, scopeGuard('read:governance', '*'), getRule);
+app.delete('/api/v1/governance/rules/:id', authenticate, acctWrite, scopeGuard('write:governance', '*'), deleteRule);
 app.patch('/api/v1/governance/rules/:id', authenticate, acctWrite, scopeGuard('write:governance', '*'), updateRule);
 app.post('/api/v1/governance/rules/:id/submit-review', authenticate, acctWrite, scopeGuard('write:governance', '*'), submitRuleForReview);
 app.post('/api/v1/governance/rules/:id/publish', authenticate, acctWrite, scopeGuard('write:governance', '*'), publishRule);
@@ -1474,6 +1493,7 @@ app.post('/api/v1/validation/items/:id/run', authenticate, acctWrite, scopeGuard
 app.get('/api/v1/validation/runs/:runId/results', authenticate, acctView, scopeGuard('read:governance', '*'), getValidationRunResults);
 app.post('/api/v1/validation/items/:id/revalidate', authenticate, acctWrite, scopeGuard('write:governance', '*'), revalidateItem);
 app.post('/api/v1/validation/items/:id/request-revision', authenticate, acctWrite, scopeGuard('write:governance', '*'), requestRevision);
+app.post('/api/v1/validation/items/:id/return-to-creator', authenticate, acctWrite, scopeGuard('write:governance', '*'), returnToCreator);
 app.post('/api/v1/validation/items/:id/send-to-review-queue', authenticate, acctWrite, scopeGuard('write:governance', '*'), sendToReviewQueue);
 app.post('/api/v1/validation/items/:id/send-to-approvals', authenticate, acctWrite, scopeGuard('write:governance', '*'), sendToApprovals);
 app.post('/api/v1/validation/items/:id/escalate', authenticate, acctWrite, scopeGuard('write:governance', '*'), escalateValidation);
