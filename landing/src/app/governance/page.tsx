@@ -549,22 +549,87 @@ function PermanentRecord() {
   );
 }
 
-/* ── Content Autonomy Table ── */
-const AUTONOMY_ROWS = [
-  { type: "Regulated financial claim", level: "MANUAL ONLY", risk: "critical", desc: "No AI draft — human-authored, compliance-reviewed" },
-  { type: "Pharmaceutical benefit statement", level: "MANUAL ONLY", risk: "critical", desc: "Medical review required before any publication" },
-  { type: "Campaign headline (regulated)", level: "AI ASSISTED", risk: "high", desc: "AI draft permitted — mandatory human review gate" },
-  { type: "Social caption (standard)", level: "AI ASSISTED", risk: "medium", desc: "AI draft with Brand Library check + one-step approval" },
-  { type: "Internal newsletter", level: "AI GOVERNED", risk: "low", desc: "AI generates within brand rules — streamlined review" },
-  { type: "Product description (evergreen)", level: "FULLY GOVERNED", risk: "low", desc: "AI within approved templates — auto brand-checked" },
+/* ── Content Autonomy Matrix ── */
+type AutonomyCell = { label: string; style: string } | null;
+
+const AUTONOMY_MATRIX: { contentClass: string; cells: AutonomyCell[] }[] = [
+  {
+    contentClass: "Organic low-risk social post",
+    cells: [
+      null,
+      { label: "Ideas only", style: "text-white/50 border-white/15 bg-white/5" },
+      { label: "Draft allowed", style: "text-[#20E7F2] border-[#20E7F2]/30 bg-[#20E7F2]/8" },
+      { label: "After approval", style: "text-amber-300 border-amber-400/30 bg-amber-400/10" },
+      { label: "Pre-approved", style: "text-green-400 border-green-500/30 bg-green-500/10" },
+      { label: "Disabled", style: "text-red-400 border-red-500/30 bg-red-500/10" },
+    ],
+  },
+  {
+    contentClass: "Regulated marketing claim",
+    cells: [
+      null,
+      { label: "Suggest sources", style: "text-white/50 border-white/15 bg-white/5" },
+      { label: "Draft w/ library", style: "text-[#20E7F2] border-[#20E7F2]/30 bg-[#20E7F2]/8" },
+      { label: "Validation req'd", style: "text-amber-300 border-amber-400/30 bg-amber-400/10" },
+      { label: "Not allowed", style: "text-red-400 border-red-500/30 bg-red-500/10" },
+      { label: "Not allowed", style: "text-red-400 border-red-500/30 bg-red-500/10" },
+    ],
+  },
+  {
+    contentClass: "Paid campaign asset",
+    cells: [
+      null,
+      { label: "Audience ideas", style: "text-white/50 border-white/15 bg-white/5" },
+      { label: "Draft variants", style: "text-[#20E7F2] border-[#20E7F2]/30 bg-[#20E7F2]/8" },
+      { label: "Route for approval", style: "text-amber-300 border-amber-400/30 bg-amber-400/10" },
+      { label: "Signed approval", style: "text-green-400 border-green-500/30 bg-green-500/10" },
+      { label: "Not allowed", style: "text-red-400 border-red-500/30 bg-red-500/10" },
+    ],
+  },
+  {
+    contentClass: "Community response",
+    cells: [
+      null,
+      { label: "Triage suggestion", style: "text-white/50 border-white/15 bg-white/5" },
+      { label: "Suggested reply", style: "text-[#20E7F2] border-[#20E7F2]/30 bg-[#20E7F2]/8" },
+      { label: "Human send", style: "text-amber-300 border-amber-400/30 bg-amber-400/10" },
+      { label: "Low-risk templates", style: "text-green-400 border-green-500/30 bg-green-500/10" },
+      { label: "Not allowed", style: "text-red-400 border-red-500/30 bg-red-500/10" },
+    ],
+  },
+  {
+    contentClass: "Crisis communication",
+    cells: [
+      null,
+      { label: "Summarize signals", style: "text-white/50 border-white/15 bg-white/5" },
+      { label: "Draft statement", style: "text-[#20E7F2] border-[#20E7F2]/30 bg-[#20E7F2]/8" },
+      { label: "Exec approval req'd", style: "text-amber-300 border-amber-400/30 bg-amber-400/10" },
+      { label: "Not allowed", style: "text-red-400 border-red-500/30 bg-red-500/10" },
+      { label: "Not allowed", style: "text-red-400 border-red-500/30 bg-red-500/10" },
+    ],
+  },
+  {
+    contentClass: "Revenue attribution report",
+    cells: [
+      null,
+      { label: "Insight prompt", style: "text-white/50 border-white/15 bg-white/5" },
+      { label: "Draft report", style: "text-[#20E7F2] border-[#20E7F2]/30 bg-[#20E7F2]/8" },
+      { label: "Internal dashboard", style: "text-amber-300 border-amber-400/30 bg-amber-400/10" },
+      { label: "Approved schedule", style: "text-green-400 border-green-500/30 bg-green-500/10" },
+      { label: "Gov review req'd", style: "text-red-400 border-red-500/30 bg-red-500/10" },
+    ],
+  },
 ];
 
-const LEVEL_STYLE: Record<string, string> = {
-  "MANUAL ONLY": "text-red-400 bg-red-950/40 border-red-500/20",
-  "AI ASSISTED": "text-amber-400 bg-amber-950/40 border-amber-500/20",
-  "AI GOVERNED": "text-yellow-400 bg-yellow-950/40 border-yellow-500/20",
-  "FULLY GOVERNED": "text-green-400 bg-green-950/40 border-green-500/20",
-};
+const MATRIX_HEADERS = [
+  { label: "CONTENT CLASS", highlight: false },
+  { label: "L0 OFF", highlight: false },
+  { label: "L1 SUGGEST", highlight: false },
+  { label: "L2 DRAFT", highlight: false },
+  { label: "L3 ASSISTED", highlight: true },
+  { label: "L4 GOVERNED", highlight: false },
+  { label: "L5 RESTRICTED", highlight: false },
+];
 
 function ContentAutonomy() {
   return (
@@ -572,33 +637,48 @@ function ContentAutonomy() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-12">
           <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-4 flex items-center gap-2">
-            <span className="w-8 h-px bg-[#20E7F2]" /> AUTONOMY TIERS
+            <span className="w-8 h-px bg-[#20E7F2]" /> AUTONOMY GOVERNANCE MATRIX
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
             Autonomy defined by content class —<br />not by a vague slider.
           </h2>
-          <p className="text-white/50 max-w-xl text-sm leading-relaxed">
-            Every content type has a defined autonomy tier. Risk class, not preference, determines how much AI involvement is permitted.
+          <p className="text-white/50 max-w-2xl text-sm leading-relaxed">
+            Six autonomy levels applied per content class. Level 5 is restricted by default and requires governance configuration and policy authorization to expand.
           </p>
         </div>
-        <div className="border border-white/8 rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-4 bg-[#0a0f1e] border-b border-white/8 px-6 py-3">
-            {["CONTENT TYPE", "AUTONOMY LEVEL", "RISK CLASS", "GOVERNANCE RULE"].map((h) => (
-              <span key={h} className="text-xs font-bold text-white/30 tracking-widest">{h}</span>
-            ))}
-          </div>
-          {AUTONOMY_ROWS.map((r, i) => (
-            <div key={i} className="grid grid-cols-4 items-center px-6 py-4 border-t border-white/5 hover:bg-white/2">
-              <span className="text-white/70 text-sm pr-4">{r.type}</span>
-              <span className={`inline-flex w-fit text-[10px] font-mono font-bold px-3 py-1 rounded-full border ${LEVEL_STYLE[r.level]}`}>
-                {r.level}
-              </span>
-              <span className={`inline-flex w-fit text-[10px] font-mono px-3 py-1 rounded-full border ${SEVERITY_STYLE[r.risk as keyof typeof SEVERITY_STYLE] || "text-white/30 border-white/10"}`}>
-                {r.risk.toUpperCase()}
-              </span>
-              <span className="text-white/40 text-xs pr-4">{r.desc}</span>
-            </div>
-          ))}
+        <div className="border border-white/8 rounded-2xl overflow-x-auto">
+          <table className="w-full min-w-[900px]">
+            <thead>
+              <tr className="bg-[#0a0f1e] border-b border-white/8">
+                {MATRIX_HEADERS.map((h) => (
+                  <th
+                    key={h.label}
+                    className={`px-4 py-3 text-left text-[10px] font-bold tracking-widest font-mono ${h.highlight ? "text-amber-300" : "text-white/30"}`}
+                  >
+                    {h.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {AUTONOMY_MATRIX.map((row, i) => (
+                <tr key={i} className="border-t border-white/5 hover:bg-white/[0.02]">
+                  <td className="px-4 py-4 text-white/80 text-sm font-semibold whitespace-nowrap pr-6">{row.contentClass}</td>
+                  {row.cells.map((cell, j) => (
+                    <td key={j} className="px-4 py-4">
+                      {cell === null ? (
+                        <span className="text-white/20 text-base">×</span>
+                      ) : (
+                        <span className={`inline-block text-[10px] font-mono font-medium px-2 py-1 rounded border whitespace-nowrap ${cell.style}`}>
+                          {cell.label}
+                        </span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -607,12 +687,102 @@ function ContentAutonomy() {
 
 /* ── Role Authority ── */
 const ROLES = [
-  { role: "Creator", sub: "Content Studio", authority: "Draft within brand rules", limit: "No approval or publish rights", icon: "✏️" },
-  { role: "Reviewer", sub: "Review Queue", authority: "Annotate and return drafts", limit: "Cannot self-approve", icon: "👁️" },
-  { role: "Brand Steward", sub: "Brand Library", authority: "Set brand standards and policies", limit: "No content execution rights", icon: "📖" },
-  { role: "Compliance Officer", sub: "Audit & Evidence", authority: "Regulated sign-off + audit export", limit: "Scoped to regulated content only", icon: "🛡️" },
-  { role: "Final Approver", sub: "Approval Chain", authority: "Final release signature", limit: "Cannot self-approve own content", icon: "✅" },
-  { role: "Publisher", sub: "Publishing Calendar", authority: "Execute signed, approved releases", limit: "No post-approval edits", icon: "📤" },
+  {
+    role: "Governance Admin",
+    desc: "Configure policies, risk classes, approval chains, and autonomy limits platform-wide.",
+    limit: "Cannot self-approve governed content",
+    highlight: true,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 2a2.667 2.667 0 100 5.333A2.667 2.667 0 0010 2zM3.667 10.833A1.167 1.167 0 014.833 9.667h10.334a1.167 1.167 0 011.166 1.166v.334a3.5 3.5 0 01-3.5 3.5H7.167a3.5 3.5 0 01-3.5-3.5v-.334z" fill="#20E7F2" fillOpacity="0.8" />
+        <circle cx="10" cy="10" r="2" stroke="#20E7F2" strokeWidth="1.2" fill="none" />
+        <path d="M10 7v1.5M10 11.5V13M7 10H8.5M11.5 10H13" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    role: "Brand Steward",
+    desc: "Maintain brand voice, approved claims, prohibited terms, and versioned policy rules.",
+    limit: "Cannot release regulated content without approval",
+    highlight: false,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <rect x="4" y="2" width="12" height="16" rx="2" stroke="#20E7F2" strokeWidth="1.2" fill="none" strokeOpacity="0.8" />
+        <path d="M7 7h6M7 10h6M7 13h4" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.8" />
+      </svg>
+    ),
+  },
+  {
+    role: "Compliance Officer",
+    desc: "Validate regulated claims, jurisdictional rules, evidence, and escalations.",
+    limit: "Cannot replace business approver unless configured",
+    highlight: false,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 2L4 4.5v5.5c0 3.5 2.5 6.5 6 7.5 3.5-1 6-4 6-7.5V4.5L10 2z" stroke="#20E7F2" strokeWidth="1.2" fill="none" strokeOpacity="0.8" />
+        <path d="M7.5 10l2 2 3-3" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.8" />
+      </svg>
+    ),
+  },
+  {
+    role: "Creator",
+    desc: "Draft content with AI assistance within brand policy boundaries and request review.",
+    limit: "Cannot approve, validate, or publish own work",
+    highlight: false,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M13.5 3.5l3 3-9 9H4.5v-3l9-9z" stroke="#20E7F2" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.8" />
+      </svg>
+    ),
+  },
+  {
+    role: "Reviewer",
+    desc: "Comment, request changes, and route content to the validation stage.",
+    limit: "Cannot final-approve high-risk content",
+    highlight: false,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <ellipse cx="10" cy="10" rx="8" ry="5" stroke="#20E7F2" strokeWidth="1.2" strokeOpacity="0.8" fill="none" />
+        <circle cx="10" cy="10" r="2" fill="#20E7F2" fillOpacity="0.8" />
+      </svg>
+    ),
+  },
+  {
+    role: "Validator",
+    desc: "Confirm claims, source grounding, and policy readiness before business approval.",
+    limit: "Cannot publish content directly",
+    highlight: false,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <rect x="5" y="2" width="10" height="16" rx="2" stroke="#20E7F2" strokeWidth="1.2" fill="none" strokeOpacity="0.8" />
+        <path d="M8 7h4M8 10h4M8 13h2" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round" strokeOpacity="0.8" />
+        <path d="M7 6.5l.5.5 1-1" stroke="#20E7F2" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.6" />
+      </svg>
+    ),
+  },
+  {
+    role: "Approver",
+    desc: "Approve content within assigned scope, risk class, and jurisdiction.",
+    limit: "Cannot approve outside assigned scope",
+    highlight: false,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="7" stroke="#20E7F2" strokeWidth="1.2" fill="none" strokeOpacity="0.8" />
+        <path d="M7 10l2 2 4-4" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.8" />
+      </svg>
+    ),
+  },
+  {
+    role: "Publisher",
+    desc: "Publish only eligible, signed, and version-current content.",
+    limit: "Cannot modify after approval without re-review",
+    highlight: false,
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M17 3L9 11M17 3l-5 14-3-6-6-3 14-5z" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.8" />
+      </svg>
+    ),
+  },
 ];
 
 function RoleAuthority() {
@@ -621,34 +791,36 @@ function RoleAuthority() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-12">
           <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-4 flex items-center gap-2">
-            <span className="w-8 h-px bg-[#20E7F2]" /> ROLE GOVERNANCE
+            <span className="w-8 h-px bg-[#20E7F2]" /> ROLE MAPPING
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
-            Every role has defined authority —<br />and defined limits.
+            Every role has defined authority<br />— and defined limits.
           </h2>
-          <p className="text-white/50 max-w-xl text-sm leading-relaxed">
-            The system enforces what each role can and cannot do. Access denial is explicit, explainable, and logged.
+          <p className="text-white/50 max-w-2xl text-sm leading-relaxed">
+            Governance is enforced structurally, not by policy alone. Each role does exactly what is needed — and nothing more.
           </p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {ROLES.map((r) => (
-            <div key={r.role} className="bg-[#0D1829] border border-white/8 rounded-2xl p-6">
-              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl mb-4">
+            <div
+              key={r.role}
+              className={`rounded-2xl p-5 flex flex-col gap-4 ${
+                r.highlight
+                  ? "bg-[#0D1829] border-2 border-[#20E7F2]/40"
+                  : "bg-[#0D1829] border border-white/8"
+              }`}
+            >
+              <div className="w-11 h-11 rounded-xl bg-[#20E7F2]/10 border border-[#20E7F2]/20 flex items-center justify-center">
                 {r.icon}
               </div>
-              <h3 className="text-white font-black text-lg">{r.role}</h3>
-              <p className="text-[#20E7F2] text-xs font-mono tracking-wider mb-4">→ {r.sub}</p>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-white/30 text-[10px] tracking-widest font-bold mb-1">AUTHORITY</p>
-                  <p className="text-white/70 text-sm flex items-start gap-2">
-                    <span className="text-[#20E7F2] mt-0.5">✓</span> {r.authority}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-white/30 text-[10px] tracking-widest font-bold mb-1">LIMIT</p>
-                  <p className="text-red-400 text-sm flex items-start gap-2">
-                    <span className="mt-0.5">✕</span> {r.limit}
+              <div>
+                <h3 className="text-white font-bold text-base mb-1">{r.role}</h3>
+                <p className="text-white/50 text-xs leading-relaxed">{r.desc}</p>
+              </div>
+              <div className="mt-auto">
+                <div className="bg-red-950/40 border border-red-500/20 rounded-lg px-3 py-2">
+                  <p className="text-red-400 text-[10px] font-mono leading-snug">
+                    × {r.limit}
                   </p>
                 </div>
               </div>
@@ -662,43 +834,75 @@ function RoleAuthority() {
 
 /* ── Request to Evidence ── */
 const STAGES = [
-  { num: "01", title: "Request", role: "Agent Operator", desc: "Brief submitted with policy context and brand scope" },
-  { num: "02", title: "Draft", role: "Content Agent", desc: "AI draft generated within Brand Library constraints" },
-  { num: "03", title: "Review", role: "Reviewer · Validator", desc: "Brand, compliance, and claim source checks" },
-  { num: "04", title: "Approve", role: "Three-Key Protocol", desc: "Three independent keys — each logged and bound" },
-  { num: "05", title: "Publish", role: "Publisher", desc: "Release only after signed, version-current approval" },
-  { num: "06", title: "Evidence", role: "Analyst · Auditor", desc: "Complete audit trail exported to Evidence Vault" },
+  {
+    num: "01", title: "Create Request", role: "Requester", decision: "Has authority?", decisionCyan: true,
+    icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 4v10M4 9h10" stroke="#20E7F2" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  },
+  {
+    num: "02", title: "Apply Context", role: "System", decision: "Which policy?", decisionCyan: true,
+    icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="2" stroke="#20E7F2" strokeWidth="1.2"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.1 4.1l1.4 1.4M12.5 12.5l1.4 1.4M4.1 13.9l1.4-1.4M12.5 5.5l1.4-1.4" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+  },
+  {
+    num: "03", title: "Generate / Assist", role: "Agent Operator", decision: "Within limits?", decisionCyan: false,
+    icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="3" y="5" width="12" height="8" rx="2" stroke="#20E7F2" strokeWidth="1.2"/><circle cx="6.5" cy="9" r="1" fill="#20E7F2" fillOpacity="0.7"/><circle cx="9" cy="9" r="1" fill="#20E7F2" fillOpacity="0.7"/><circle cx="11.5" cy="9" r="1" fill="#20E7F2" fillOpacity="0.7"/></svg>,
+  },
+  {
+    num: "04", title: "Review", role: "Reviewer", decision: "Return or validate?", decisionCyan: true,
+    icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><ellipse cx="9" cy="9" rx="7" ry="4.5" stroke="#20E7F2" strokeWidth="1.2"/><circle cx="9" cy="9" r="2" fill="#20E7F2" fillOpacity="0.8"/></svg>,
+  },
+  {
+    num: "05", title: "Validate", role: "Validator · Compliance", decision: "Approve or escalate?", decisionCyan: false,
+    icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="4" y="2" width="10" height="14" rx="2" stroke="#20E7F2" strokeWidth="1.2"/><path d="M7 7h4M7 10h4M7 13h2" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+  },
+  {
+    num: "06", title: "Approve", role: "Approver", decision: "Signature valid?", decisionCyan: true,
+    icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6.5" stroke="#20E7F2" strokeWidth="1.2"/><path d="M6 9l2 2 4-4" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    num: "07", title: "Publish / Execute", role: "Publisher", decision: "Content unchanged?", decisionCyan: false,
+    icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M16 2L8 10M16 2l-5 13-3-5.5-5.5-3L16 2z" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    num: "08", title: "Evidence", role: "Auditor · System", decision: "Export or hold?", decisionCyan: true,
+    icon: <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="3" y="3" width="12" height="12" rx="2" stroke="#20E7F2" strokeWidth="1.2"/><path d="M9 7v4M7 9h4" stroke="#20E7F2" strokeWidth="1.2" strokeLinecap="round"/><path d="M6 14v1M9 14v1M12 14v1" stroke="#20E7F2" strokeWidth="1" strokeLinecap="round" strokeOpacity="0.5"/></svg>,
+  },
 ];
 
 function RequestToEvidence() {
   return (
     <section className="bg-[#06060f] py-24 px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
-            <span className="w-8 h-px bg-[#20E7F2]" /> WORKFLOW
+        <div className="mb-16">
+          <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-4 flex items-center gap-2">
+            <span className="w-8 h-px bg-[#20E7F2]" /> GOVERNANCE OPERATING FLOW
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
             From request to evidence —<br />governed at every stage.
           </h2>
-          <p className="text-white/50 max-w-xl mx-auto text-sm">
-            Six stages from brief to evidence capture. Each stage has an owner, a governance checkpoint, and a control surface.
+          <p className="text-white/50 max-w-xl text-sm leading-relaxed">
+            Eight stages. Each has an owner role, a system action, and a decision point.<br />No stage bypasses the next.
           </p>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-8 gap-3">
           {STAGES.map((s, i) => (
             <div key={s.num} className="relative">
               {i < STAGES.length - 1 && (
-                <div className="hidden lg:block absolute top-8 left-full w-full h-px bg-gradient-to-r from-[#20E7F240] to-transparent z-10" />
+                <div className="hidden lg:block absolute top-[52px] left-full w-full h-px bg-gradient-to-r from-[#20E7F2]/20 to-transparent z-10" />
               )}
-              <div className="bg-[#0D1829] border border-white/8 rounded-2xl p-4 text-center">
-                <span className="text-white/20 text-xs font-mono block mb-3">{s.num}</span>
-                <div className="w-10 h-10 rounded-xl bg-[#20E7F210] border border-[#20E7F230] flex items-center justify-center mx-auto mb-3">
-                  <span className="text-[#20E7F2] text-sm font-black">{i + 1}</span>
+              <div className="bg-[#0D1829] border border-white/8 rounded-2xl p-4 flex flex-col gap-3 h-full">
+                <span className="text-white/25 text-[10px] font-mono">{s.num}</span>
+                <div className="w-10 h-10 rounded-xl bg-[#20E7F2]/10 border border-[#20E7F2]/20 flex items-center justify-center">
+                  {s.icon}
                 </div>
-                <p className="text-white font-black text-sm mb-1">{s.title}</p>
-                <p className="text-white/30 text-[10px] mb-2">{s.role}</p>
-                <p className="text-white/40 text-[10px] leading-relaxed">{s.desc}</p>
+                <div>
+                  <p className="text-white font-bold text-sm leading-snug">{s.title}</p>
+                  <p className="text-white/35 text-[10px] mt-0.5 leading-snug">{s.role}</p>
+                </div>
+                <div className={`mt-auto rounded-lg px-2.5 py-1.5 border ${s.decisionCyan ? "border-[#20E7F2]/25 bg-[#20E7F2]/8" : "border-white/10 bg-white/4"}`}>
+                  <p className={`text-[10px] font-mono leading-snug ${s.decisionCyan ? "text-[#20E7F2]" : "text-white/50"}`}>
+                    {s.decision}
+                  </p>
+                </div>
               </div>
             </div>
           ))}
