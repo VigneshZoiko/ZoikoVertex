@@ -4,7 +4,6 @@ import { logger } from '../../shared/logger';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { moderate } from '../../modules/safety/moderationService';
 import { scanImage, type KeywordRule } from '../../modules/safety/imageScanner';
-import * as validationService from '../../services/validationDesk.service';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
