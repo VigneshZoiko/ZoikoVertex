@@ -487,7 +487,7 @@ export class GovernanceDashboardService {
       .limit(20);
 
     const crossModelRankings: CrossModelRanking[] = [];
-    const providerWinCount: Record<ProviderId, number> = { google: 0, groq: 0 };
+    const providerWinCount: Record<ProviderId, number> = { groq: 0, groq_alt: 0 };
     for (const e of cmEvents || []) {
       const winner = (e.after_state as any)?.winner as ProviderId | null;
       if (winner) providerWinCount[winner] = (providerWinCount[winner] || 0) + 1;

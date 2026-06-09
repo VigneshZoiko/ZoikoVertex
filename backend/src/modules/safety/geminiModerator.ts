@@ -1,42 +1,35 @@
 // ============================================================
-// Gemini Semantic Moderation Adapter
+// Groq Semantic Moderation Adapter (replaces Gemini)
 //
 // Strict-JSON contract. Only invoked by the orchestrator when
 // the local engine returns no high-confidence hit and the
 // content is non-trivially long. Designed so that the system
-// degrades gracefully if Gemini is unavailable, rate-limited,
+// degrades gracefully if Groq is unavailable, rate-limited,
 // or returns malformed JSON — caller-side null guards required.
 // ============================================================
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import { env } from "../../config/env";
 import { logger } from "../../shared/logger";
 import type { MatchResult, SafetyCategory, Severity } from "./types";
 import { SAFETY_CATEGORIES } from "./types";
 
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
-const MODEL_ID = GEMINI_MODELS[0]; // primary, falls back in callGemini
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
-// What we ask Gemini to return. Kept very narrow on purpose —
-// every additional field is one more parse path that can break.
-interface GeminiVerdict {
+interface GroqVerdict {
   safe: boolean;
   categories: Partial<Record<SafetyCategory, number>>;
   severity: Severity;
   reason?: string;
 }
 
-export interface GeminiModerationResult {
+export interface GroqModerationResult {
   matches: MatchResult[];
-  raw: GeminiVerdict;
+  raw: GroqVerdict;
   modelUsed: string;
+  tokensUsed: number;
 }
 
-// ------------------------------------------------------------
-// Prompt builder. Pinned to a small, well-known set of category
-// names so the model can't invent buckets the rest of the system
-// doesn't recognize. The temperature is 0 to maximize determinism.
-// ------------------------------------------------------------
 function buildPrompt(content: string): string {
   return `You are a content-safety classifier for an enterprise governance platform.
 Analyze the CONTENT block below and return STRICT JSON only — no prose, no markdown, no code fences.
@@ -58,13 +51,7 @@ CONTENT:
 ${content}`;
 }
 
-// ------------------------------------------------------------
-// Tolerant JSON parser — Gemini occasionally wraps JSON in
-// markdown code fences despite instructions. Strip those before
-// parsing, then JSON.parse. Returns null on any failure so the
-// orchestrator can fall back to local-only mode.
-// ------------------------------------------------------------
-function parseStrict(text: string): GeminiVerdict | null {
+function parseStrict(text: string): GroqVerdict | null {
   if (!text) return null;
   const cleaned = text
     .trim()
@@ -76,7 +63,6 @@ function parseStrict(text: string): GeminiVerdict | null {
     if (typeof parsed !== "object" || parsed === null) return null;
     if (typeof parsed.safe !== "boolean") return null;
     if (!parsed.categories || typeof parsed.categories !== "object") return null;
-    // Filter category keys against allow-list; drop unknown.
     const allowed = new Set<string>(SAFETY_CATEGORIES);
     const filtered: Partial<Record<SafetyCategory, number>> = {};
     for (const [k, v] of Object.entries(parsed.categories)) {
@@ -100,11 +86,7 @@ function parseStrict(text: string): GeminiVerdict | null {
   }
 }
 
-// ------------------------------------------------------------
-// Map Gemini's probability map into MatchResult objects so the
-// orchestrator can merge them with local matches uniformly.
-// ------------------------------------------------------------
-function toMatches(verdict: GeminiVerdict): MatchResult[] {
+function toMatches(verdict: GroqVerdict): MatchResult[] {
   const out: MatchResult[] = [];
   for (const [cat, prob] of Object.entries(verdict.categories)) {
     if (prob && prob > 0) {
@@ -115,57 +97,44 @@ function toMatches(verdict: GeminiVerdict): MatchResult[] {
         score: prob,
         matchedText: verdict.reason || "<semantic moderation>",
         position: { start: 0, end: 0 },
-        source: "gemini",
+        source: "groq",
       });
     }
   }
   return out;
 }
 
-// ------------------------------------------------------------
-// Public API — returns null when Gemini is unavailable so the
-// orchestrator falls back to local-only confidence.
-// ------------------------------------------------------------
-export async function runGeminiModeration(
+export async function runGroqModeration(
   content: string,
-): Promise<GeminiModerationResult | null> {
-  if (!env.GEMINI_API_KEY) {
-    return null;
-  }
+): Promise<GroqModerationResult | null> {
+  if (!env.GROQ_API_KEY) return null;
+
+  const client = new OpenAI({
+    baseURL: "https://api.groq.com/openai/v1",
+    apiKey: env.GROQ_API_KEY,
+    timeout: 30_000,
+  });
 
   try {
-    const client = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    let text = '';
-    let usedModel = MODEL_ID;
-    for (const modelId of GEMINI_MODELS) {
-      try {
-        const model = client.getGenerativeModel({ model: modelId, generationConfig: { temperature: 0, maxOutputTokens: 256 } });
-        const resp = await model.generateContent(buildPrompt(content));
-        text = resp.response.text();
-        usedModel = modelId;
-        break;
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
-        if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
-          logger.warn(`[safety] ${modelId} unavailable, trying next model`);
-          continue;
-        }
-        throw e;
-      }
-    }
-    if (!text) return null; // All models unavailable — skip moderation gracefully
+    const completion = await client.chat.completions.create({
+      model: GROQ_MODEL,
+      messages: [{ role: "user", content: buildPrompt(content) }],
+      temperature: 0,
+      max_tokens: 256,
+    });
+    const text = completion.choices[0]?.message?.content || "";
+    if (!text) return null;
     const verdict = parseStrict(text);
     if (!verdict) {
-      logger.warn({ rawSnippet: text.slice(0, 120) }, "[safety] Gemini returned unparseable JSON");
+      logger.warn({ rawSnippet: text.slice(0, 120) }, "[safety] Groq moderation returned unparseable JSON");
       return null;
     }
-    return {
-      matches: toMatches(verdict),
-      raw: verdict,
-      modelUsed: usedModel,
-    };
+    return { matches: toMatches(verdict), raw: verdict, modelUsed: `groq/${GROQ_MODEL}`, tokensUsed: completion.usage?.total_tokens ?? 0 };
   } catch (err) {
-    logger.warn({ err }, "[safety] Gemini moderation failed; falling back to local-only");
+    logger.warn({ err }, "[safety] Groq moderation failed; falling back to local-only");
     return null;
   }
 }
+
+// Backward-compat alias — moderationService still imports this name
+export const runGeminiModeration = runGroqModeration;

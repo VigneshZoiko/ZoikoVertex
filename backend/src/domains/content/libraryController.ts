@@ -166,7 +166,7 @@ async function scanMediaUpload(
       logger.info({ url: url.slice(0, 80), label }, '[LibraryScan] Starting image scan');
 
       try {
-        const imgResult = await scanImage(url, keywordRules, mediaId);
+        const imgResult = await scanImage(url, keywordRules, mediaId, workspaceId);
 
         if (imgResult.skipped) {
           imageScanNotes.push(`[${label}] Scan skipped (Gemini unavailable or fetch failed). URL: ${url.slice(0, 80)}`);

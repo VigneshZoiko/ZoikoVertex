@@ -8,7 +8,7 @@ import { logger } from './shared/logger';
 import { errorHandler } from './shared/errorHandler';
 
 // Controllers
-import { provisionUser } from './domains/identity/identityController';
+import { provisionUser, resendVerificationEmail } from './domains/identity/identityController';
 import { generateContent, analyzeImage } from './domains/intelligence/intelligenceController';
 import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } from './domains/governance/governanceController';
 import {
@@ -424,6 +424,7 @@ app.get('/api/v1/health', (req, res) => {
 app.post('/api/v1/auth/signup-enterprise', enterpriseSignup);
 app.post('/api/v1/onboarding/setup', authenticate, setupWorkspace);
 app.post('/api/v1/users/provision', provisionGuard, provisionUser);
+app.post('/api/v1/users/resend-verification', resendVerificationEmail);
 
 // Protected Intelligence/AI
 const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'MANAGER', 'REVIEWER', 'SECURITY_ADMIN');

@@ -640,6 +640,7 @@ export default function InboxPage() {
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ synced: number; message: string } | null>(null);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [deleteRuleConfirm, setDeleteRuleConfirm] = useState<{ id: string } | null>(null);
@@ -1002,6 +1003,7 @@ export default function InboxPage() {
       if (res.errors?.length) console.warn('[Inbox sync errors]', res.errors);
       setSyncResult({ synced: res.synced ?? 0, message: res.message || 'Sync complete' });
       if ((res.synced ?? 0) > 0) await fetchMessages();
+      setLastSynced(new Date());
       setTimeout(() => setSyncResult(null), 4000);
     } catch (e: unknown) {
       setSyncResult({ synced: 0, message: e instanceof Error ? e.message : "Sync failed" });
@@ -1010,6 +1012,14 @@ export default function InboxPage() {
       setSyncing(false);
     }
   };
+
+  // Auto-sync on mount and every 2 minutes
+  useEffect(() => {
+    handleSync();
+    const id = setInterval(() => { handleSync(); }, 120_000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleCheck = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1086,13 +1096,21 @@ export default function InboxPage() {
               Reload
             </button>
           ) : (
-            <button
-              onClick={handleSync} disabled={syncing}
-              className="flex items-center gap-1.5 text-[11px] text-sky-400/60 hover:text-sky-400 bg-sky-400/[0.04] hover:bg-sky-400/10 border border-sky-400/10 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30"
-            >
-              {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCcw className="w-3 h-3" />}
-              {syncing ? "Syncing…" : "Sync"}
-            </button>
+            <div className="flex items-center gap-2">
+              {lastSynced && !syncing && (
+                <span className="flex items-center gap-1 text-[10px] text-green-500/70">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  Live · {timeAgo(lastSynced.toISOString())} ago
+                </span>
+              )}
+              <button
+                onClick={handleSync} disabled={syncing}
+                className="flex items-center gap-1.5 text-[11px] text-sky-400/60 hover:text-sky-400 bg-sky-400/[0.04] hover:bg-sky-400/10 border border-sky-400/10 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+              >
+                {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCcw className="w-3 h-3" />}
+                {syncing ? "Syncing…" : "Sync"}
+              </button>
+            </div>
           )}
           <button
             onClick={openSettings}

@@ -1,15 +1,14 @@
 // ============================================================
 // Image Safety Scanner
-// Primary:  Groq Vision (Llama 4 Scout / Llama 3.2 Vision)
-// Fallback: Gemini Vision (gemini-1.5-flash / gemini-2.0-flash)
-// Fails open — if all providers unavailable the image is safe.
+// Provider: Groq Vision (Llama 4 Scout / Llama 3.2 Vision)
+// Fails open — if all models unavailable the image is safe.
 // ============================================================
 
 import OpenAI from 'openai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../../config/env';
 import { logger } from '../../shared/logger';
 import { logScanResult } from './scanLogger';
+import { trackUsage } from '../../domains/monitoring/usageController';
 
 export interface KeywordRule {
   id: string;
@@ -36,20 +35,12 @@ export interface ImageScanResult {
   durationMs?: number;
 }
 
-// ── Model lists ──────────────────────────────────────────────
 const GROQ_MODELS = [
   'meta-llama/llama-4-scout-17b-16e-instruct',
   'llama-3.2-11b-vision-preview',
   'llama-3.2-90b-vision-preview',
 ];
 
-const GEMINI_MODELS = [
-  'gemini-1.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-exp',
-];
-
-// ── Shared prompt ─────────────────────────────────────────────
 const VISION_PROMPT = `You are an image safety classifier for an enterprise content governance platform.
 Analyze this image and return STRICT JSON only — no prose, no markdown, no code fences.
 
@@ -82,10 +73,8 @@ const SENSITIVE_THRESHOLDS: Record<string, { threshold: number; label: string }>
   graphic_content: { threshold: 0.6, label: 'Graphic Content' },
 };
 
-// ── Provider calls ────────────────────────────────────────────
-
-async function tryGroq(base64: string, mimeType: string): Promise<{ text: string; modelUsed: string }> {
-  if (!env.GROQ_API_KEY) return { text: '', modelUsed: '' };
+async function tryGroq(base64: string, mimeType: string): Promise<{ text: string; modelUsed: string; tokensUsed: number }> {
+  if (!env.GROQ_API_KEY) return { text: '', modelUsed: '', tokensUsed: 0 };
 
   const client = new OpenAI({
     baseURL: 'https://api.groq.com/openai/v1',
@@ -110,61 +99,31 @@ async function tryGroq(base64: string, mimeType: string): Promise<{ text: string
       const text = completion.choices[0]?.message?.content || '';
       if (text) {
         logger.info({ modelId, chars: text.length }, '[imageScanner] Groq Vision response received');
-        return { text, modelUsed: `groq/${modelId}` };
+        return { text, modelUsed: `groq/${modelId}`, tokensUsed: completion.usage?.total_tokens ?? 0 };
       }
     } catch (e: unknown) {
       const msg = (e instanceof Error ? e.message : String(e)).slice(0, 100);
       logger.warn(`[imageScanner] groq/${modelId} failed: ${msg}, trying next`);
     }
   }
-  return { text: '', modelUsed: '' };
+  return { text: '', modelUsed: '', tokensUsed: 0 };
 }
-
-async function tryGemini(base64: string, mimeType: string): Promise<{ text: string; modelUsed: string }> {
-  if (!env.GEMINI_API_KEY) return { text: '', modelUsed: '' };
-
-  const client = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-
-  for (const modelId of GEMINI_MODELS) {
-    try {
-      const model = client.getGenerativeModel({
-        model: modelId,
-        generationConfig: { temperature: 0, maxOutputTokens: 512 },
-      });
-      const res = await model.generateContent([
-        VISION_PROMPT,
-        { inlineData: { mimeType, data: base64 } },
-      ]);
-      const text = res.response.text();
-      if (text) {
-        logger.info({ modelId, chars: text.length }, '[imageScanner] Gemini Vision response received');
-        return { text, modelUsed: `gemini/${modelId}` };
-      }
-    } catch (e: unknown) {
-      const msg = (e instanceof Error ? e.message : String(e)).slice(0, 100);
-      logger.warn(`[imageScanner] gemini/${modelId} failed: ${msg}, trying next`);
-    }
-  }
-  return { text: '', modelUsed: '' };
-}
-
-// ── Main scanner ──────────────────────────────────────────────
 
 export async function scanImage(
   imageUrl: string,
   keywordRules: KeywordRule[] = [],
   mediaId?: string,
+  workspaceId?: string,
 ): Promise<ImageScanResult> {
   const empty: ImageScanResult = { violations: [], extractedText: '', sensitiveCategories: {}, safe: true };
   const startMs = Date.now();
 
-  if (!env.GROQ_API_KEY && !env.GEMINI_API_KEY) {
-    logger.warn('[imageScanner] No vision API key set — scan skipped');
+  if (!env.GROQ_API_KEY) {
+    logger.warn('[imageScanner] No GROQ_API_KEY set — scan skipped');
     return { ...empty, skipped: true };
   }
 
   try {
-    // Fetch image bytes
     const fetchRes = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
     if (!fetchRes.ok) {
       logger.warn({ imageUrl, status: fetchRes.status }, '[imageScanner] Could not fetch image');
@@ -174,24 +133,15 @@ export async function scanImage(
     const base64 = Buffer.from(buffer).toString('base64');
     const mimeType = (fetchRes.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
 
-    logger.info({ imageUrl: imageUrl.slice(0, 80), mimeType, bytes: buffer.byteLength }, '[imageScanner] Sending image to Vision API');
+    logger.info({ imageUrl: imageUrl.slice(0, 80), mimeType, bytes: buffer.byteLength }, '[imageScanner] Sending image to Groq Vision');
 
-    // Try Groq first, then Gemini
-    let rawText = '';
-    let modelUsed = '';
-
-    ({ text: rawText, modelUsed } = await tryGroq(base64, mimeType));
-    if (!rawText) {
-      logger.info('[imageScanner] Groq unavailable, trying Gemini fallback');
-      ({ text: rawText, modelUsed } = await tryGemini(base64, mimeType));
-    }
+    const { text: rawText, modelUsed, tokensUsed } = await tryGroq(base64, mimeType);
 
     if (!rawText) {
-      logger.warn('[imageScanner] All vision providers unavailable — treating as safe');
+      logger.warn('[imageScanner] All Groq vision models unavailable — treating as safe');
       return { ...empty, skipped: true };
     }
 
-    // Parse JSON response
     const cleaned = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     let parsed: any;
     try {
@@ -205,7 +155,6 @@ export async function scanImage(
     const sensitiveCategories: Record<string, number> = parsed.sensitive_content || {};
     const violations: ImageViolation[] = [];
 
-    // ── 1. Sensitive content violations ─────────────────────────
     for (const [category, score] of Object.entries(sensitiveCategories)) {
       const cfg = SENSITIVE_THRESHOLDS[category];
       if (cfg && typeof score === 'number' && score >= cfg.threshold) {
@@ -219,7 +168,6 @@ export async function scanImage(
       }
     }
 
-    // ── 2. Keyword matches against extracted text ────────────────
     if (extractedText.trim()) {
       const lower = extractedText.toLowerCase();
       for (const rule of keywordRules) {
@@ -241,7 +189,11 @@ export async function scanImage(
 
     const durationMs = Date.now() - startMs;
 
-    // ── 3. Write scan log ────────────────────────────────────────
+    if (workspaceId) {
+      const qty = tokensUsed > 0 ? tokensUsed : 512; // 512 = floor estimate when Groq vision omits usage
+      trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'image_scan', metadata: { model: modelUsed, estimated: tokensUsed === 0 } });
+    }
+
     logScanResult({
       ts: new Date().toISOString(),
       mediaId,

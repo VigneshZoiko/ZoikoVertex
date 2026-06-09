@@ -415,7 +415,7 @@ async function performAiScan(
       const status: validationService.GroundingStatus = match.score > 0.6 ? 'UNGROUNDED' : 'PARTIALLY_GROUNDED';
       sourceGrounding.push({
         claim_text: `Safety Check: Matched "${match.pattern}" in safety category "${match.category}"`,
-        source_reference: match.source === 'gemini' ? 'Gemini AI Auditor' : 'Local Verification Dictionary',
+        source_reference: match.source === 'groq' ? 'Groq AI Auditor' : 'Local Verification Dictionary',
         source_status: 'flagged',
         source_confidence: match.score.toFixed(2),
         grounding_status: status,
@@ -473,7 +473,7 @@ async function performAiScan(
     for (const url of imageUrls) {
       let imgResult;
       try {
-        imgResult = await scanImage(url, keywordRules);
+        imgResult = await scanImage(url, keywordRules, undefined, tenantId);
       } catch {
         continue;
       }

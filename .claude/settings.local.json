@@ -5,7 +5,8 @@
       "Bash(Get-ChildItem -Path \"frontend\\\\src\\\\app\" -Recurse -File)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(git add *)",
-      "Bash(git commit -m 'fix: correct HTTP method for workflow submitForApproval route \\(GET → POST\\) *)"
+      "Bash(git commit -m 'fix: correct HTTP method for workflow submitForApproval route \\(GET → POST\\) *)",
+      "Bash(npm run *)"
     ]
   }
 }
