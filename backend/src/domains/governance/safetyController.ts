@@ -277,7 +277,6 @@ export const getSafetyComponents = async (req: AuthRequest, res: Response, next:
     let quarantinedCount = 0;
     let breachedSla = 0;
     let atRiskSla = 0;
-    let onTrackSla = 0;
     let agentBacklog = 0;
     let agentSafetyHealth = 'healthy';
     let activeLockCount = 0;
@@ -297,7 +296,6 @@ export const getSafetyComponents = async (req: AuthRequest, res: Response, next:
             const ageHours = (Date.now() - new Date(intent.created_at).getTime()) / (1000 * 60 * 60);
             if (ageHours >= 24) breachedSla++;
             else if (ageHours >= 12) atRiskSla++;
-            else onTrackSla++;
           }
         });
       }
