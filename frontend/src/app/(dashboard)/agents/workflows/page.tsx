@@ -6,6 +6,7 @@ import ConfirmActionModal from "@/components/ConfirmActionModal";
 import RoutingStats from "./components/RoutingStats";
 import WorkflowCanvas from "./components/WorkflowCanvas";
 import ActiveOrchestrations from "./components/ActiveOrchestrations";
+import PublishedContentPanel from "./components/PublishedContentPanel";
 import EscalationPaths from "./components/EscalationPaths";
 import CreateWorkflowModal from "./components/CreateWorkflowModal";
 import {
@@ -197,6 +198,12 @@ function mapActiveInstance(instance: any) {
       const raw = instance.blocker || instance.reason_code;
       return raw && typeof raw === "string" ? raw : undefined;
     })(),
+    post: instance.post && typeof instance.post === "object"
+      ? {
+          platform: safeStr(instance.post.platform, ""),
+          excerpt: safeStr(instance.post.excerpt, ""),
+        }
+      : undefined,
   };
 }
 
@@ -393,7 +400,7 @@ function ControlStrip({
           <p
             className={`text-2xl font-bold ${item.urgent ? "text-rose-400" : "text-[var(--text-primary)]"}`}
           >
-            {item.value}
+            {safeNum(item.value)}
           </p>
         </div>
       ))}
@@ -1040,34 +1047,54 @@ function WorkflowDetailDrawer({
         setActionError(null);
         setActionLoading("Export Evidence");
         try {
+          // Prefer runtime evidence from a completed instance; otherwise fall
+          // back to the workflow's evidence bundles (no run required). Always
+          // produces a download instead of a hard error when nothing has run.
+          let evidencePayload: any = null;
+          let fileSuffix = workflow.id;
+
           const instancesRes = await api.get(
             `/api/v1/agents/workflows/instances?workflow_id=${workflow.id}&limit=1`,
           );
-          if (!instancesRes?.success || !instancesRes?.data?.length) {
-            setActionError(
-              "No workflow instances found. Run the workflow at least once to generate evidence.",
-            );
-            setActionLoading(null);
-            return;
+          if (instancesRes?.success && instancesRes?.data?.length) {
+            const instanceId = instancesRes.data[0].id as string;
+            const evidenceRes = await api.getWorkflowEvidence(instanceId);
+            const d = evidenceRes?.data;
+            const hasData = Array.isArray(d) ? d.length > 0 : !!d;
+            if (evidenceRes?.success && hasData) {
+              evidencePayload = d;
+              fileSuffix = `${workflow.id}-${instanceId}`;
+            }
           }
-          const instanceId = instancesRes.data[0].id as string;
-          const evidenceRes = await api.getWorkflowEvidence(instanceId);
-          if (evidenceRes?.success && evidenceRes?.data) {
-            const blob = new Blob([JSON.stringify(evidenceRes.data, null, 2)], {
-              type: "application/json",
-            });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `evidence-${workflow.id}-${instanceId}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-          } else {
-            setActionError(
-              evidenceRes?.error ||
-                "No evidence bundle available for this workflow.",
-            );
+
+          if (!evidencePayload) {
+            // Workflow-level evidence bundles (gathered by workflow_id).
+            const fullRes = await api.exportWorkflow(workflow.id);
+            if (!fullRes?.success || !fullRes?.data) {
+              setActionError(fullRes?.error || "Failed to export evidence.");
+              setActionLoading(null);
+              return;
+            }
+            const bundles = fullRes.data.evidence_bundles || [];
+            evidencePayload = {
+              workflow: fullRes.data.workflow,
+              evidence_bundles: bundles,
+              evidence_refs: fullRes.data.metrics?.evidence_refs || [],
+              note: bundles.length === 0
+                ? "No evidence captured yet — this workflow has no completed runs."
+                : undefined,
+            };
           }
+
+          const blob = new Blob([JSON.stringify(evidencePayload, null, 2)], {
+            type: "application/json",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `evidence-${fileSuffix}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
         } catch (err: any) {
           setActionError(err?.message || "Failed to export evidence.");
         } finally {
@@ -1338,6 +1365,7 @@ export default function WorkflowsPage() {
   const [stats, setStats] = useState<any>(undefined);
   const [graph, setGraph] = useState<any>(undefined);
   const [active, setActive] = useState<any[]>([]);
+  const [publishedContent, setPublishedContent] = useState<any[] | undefined>(undefined);
   const [escalations, setEscalations] = useState<any[] | undefined>(undefined);
   const [workflows, setWorkflows] = useState<WorkflowRecord[]>([]);
   const [approvalStats, setApprovalStats] = useState<ApprovalStats | null>(
@@ -1361,6 +1389,7 @@ export default function WorkflowsPage() {
       api.get("/api/v1/agents/workflows/escalations"),
       api.get("/api/v1/agents/workflows"),
       api.get("/api/v1/agents/workflows/approvals/stats"),
+      api.get("/api/v1/agents/workflows/published-content"),
     ]);
     const [
       statsRes,
@@ -1369,6 +1398,7 @@ export default function WorkflowsPage() {
       escalationsRes,
       workflowsRes,
       approvalsRes,
+      publishedRes,
     ] = responses.map((r) =>
       r.status === "fulfilled" ? r.value : { success: false, data: null },
     );
@@ -1381,6 +1411,8 @@ export default function WorkflowsPage() {
     if (workflowsRes.success)
       setWorkflows((workflowsRes.data || []).map(mapWorkflowRecord));
     if (approvalsRes.success) setApprovalStats(approvalsRes.data || null);
+    if (publishedRes.success) setPublishedContent(publishedRes.data || []);
+    else setPublishedContent([]);
     setLoading(false);
   }, []);
 
@@ -1508,7 +1540,9 @@ export default function WorkflowsPage() {
       />
 
       {/* ── Workflow Canvas ── */}
-      <WorkflowCanvas graph={graph} />
+      {/* Read-only: visualizes the agent-driven flow. Users inspect nodes to
+          learn the workflow; they cannot move, add, connect, or delete nodes. */}
+      <WorkflowCanvas graph={graph} readOnly />
 
       {/* ── Governance Panels Row ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -1522,6 +1556,9 @@ export default function WorkflowsPage() {
         <WorkflowLifecycle />
         <ReportingMetrics stats={stats} />
       </div>
+
+      {/* ── Published Content (from the Publish Hub) ── */}
+      <PublishedContentPanel data={publishedContent} />
 
       {/* ── Live Orchestrations + Escalations ── */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">

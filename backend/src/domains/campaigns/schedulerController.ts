@@ -10,6 +10,7 @@ import { logToDatabase } from '../../shared/databaseLogger';
 import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
 
 import { getQueue } from '../../workers/schedulerWorker';
+import { linkPublishToWorkflow } from '../../services/workflowPublishLink.service';
 import { trackUsage } from '../monitoring/usageController';
 
 // Timezone mapping for audience regions
@@ -339,6 +340,18 @@ export const schedulePost = async (req: AuthRequest, res: Response, next: NextFu
     } else {
       logger.warn('[Scheduler] Redis unavailable — skipping BullMQ enqueue. Post saved to DB only.');
     }
+
+    // Additively link this scheduled post to a governed Publishing Workflow
+    // instance (visible on the Workflows page). Best-effort — never blocks.
+    linkPublishToWorkflow({
+      workspaceId: member.workspace_id,
+      startedBy: creatorId,
+      platform,
+      content,
+      postId: post.id,
+      scheduled: true,
+      scheduledTime,
+    }).catch((err) => logger.warn({ err }, '[Scheduler] workflow link failed (non-blocking)'));
 
     res.status(201).json({ success: true, post });
   } catch (error) {
