@@ -502,8 +502,8 @@ function PermanentRecord() {
         {/* Left — image */}
         <div className="relative rounded-2xl overflow-hidden h-[480px]">
           <Image
-            src="/images/WhatsApp Image 2026-05-12 at 2.59.29 PM.jpeg"
-            alt="Governed team record"
+            src="/images/audit-trail-left.png"
+            alt="ZoikoVertex governed workspace"
             fill
             className="object-cover"
           />
