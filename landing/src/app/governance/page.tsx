@@ -8,21 +8,36 @@ import Footer from "@/components/footer/Footer";
 /* ── Ticker ── */
 function Ticker() {
   const items = [
-    { icon: "🔒", text: "POLICY-BOUND EXECUTION" },
-    { icon: "✓", text: "APPROVAL-GATED PUBLISHING" },
-    { icon: "📊", text: "BRAND STANDARD ENFORCEMENT" },
-    { icon: "🔒", text: "IMMUTABLE AUDIT EVIDENCE" },
-    { icon: "👤", text: "ROLE-SCOPED PERMISSIONS" },
+    {
+      text: "POLICY-BOUND EXECUTION",
+      icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+    },
+    {
+      text: "APPROVAL-GATED PUBLISHING",
+      icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>,
+    },
+    {
+      text: "BRAND STANDARD ENFORCEMENT",
+      icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>,
+    },
+    {
+      text: "IMMUTABLE AUDIT EVIDENCE",
+      icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+    },
+    {
+      text: "ROLE-SCOPED PERMISSIONS",
+      icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+    },
   ];
   return (
-    <div className="border-y border-white/10 bg-[#06060f] py-3 overflow-hidden">
-      <div className="flex gap-8 whitespace-nowrap">
-        <div className="flex gap-8 text-xs font-semibold tracking-widest text-white/40 animate-none">
+    <div className="border-y border-white/[0.08] bg-[#060914] py-6 my-8 overflow-hidden">
+      <div className="flex gap-0 whitespace-nowrap">
+        <div className="flex text-[10px] font-semibold tracking-[0.18em] text-white/35 animate-none">
           {[...items, ...items].map((item, i) => (
-            <span key={i} className="flex items-center gap-2">
+            <span key={i} className="flex items-center gap-2 px-8">
               <span className="text-[#20E7F2]">{item.icon}</span>
               {item.text}
-              <span className="text-white/20 ml-4">|</span>
+              <span className="text-white/15 ml-6">|</span>
             </span>
           ))}
         </div>
@@ -34,96 +49,117 @@ function Ticker() {
 /* ── Hero ── */
 function Hero() {
   return (
-    <section className="bg-[#080E1A] pt-32 pb-0 px-6 overflow-hidden">
-      <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+    <section className="bg-[#080E1A] pt-28 pb-0 px-6 overflow-hidden">
+      <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-center">
         {/* Left */}
         <div>
-          <div className="inline-flex items-center gap-2 border border-[#20E7F240] bg-[#20E7F20F] rounded-full px-4 py-1.5 mb-8">
+          <div className="inline-flex items-center gap-2 border border-[#20E7F2]/25 bg-[#20E7F2]/5 rounded-full px-4 py-1.5 mb-10">
             <span className="w-1.5 h-1.5 bg-[#20E7F2] rounded-full" />
-            <span className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase">
+            <span className="text-[#20E7F2] text-[11px] font-bold tracking-[0.2em] uppercase">
               Governance · Governed Agentic Execution™
             </span>
           </div>
-          <h1 className="text-5xl lg:text-6xl font-black text-white leading-[1.05] tracking-tight mb-4">
+          <h1 className="text-[56px] lg:text-[64px] font-black text-white leading-[1.0] tracking-[-0.02em] mb-0">
             AI marketing without an audit trail is not innovation.
           </h1>
-          <h1 className="text-5xl lg:text-6xl font-black text-[#20E7F2] leading-[1.05] tracking-tight mb-6">
+          <h1 className="text-[56px] lg:text-[64px] font-black text-[#20E7F2] leading-[1.0] tracking-[-0.02em] mb-8 mt-1">
             It is exposure.
           </h1>
-          <p className="text-white/50 text-base leading-relaxed mb-8 max-w-lg">
+          <p className="text-white/50 text-[15px] leading-[1.7] mb-10 max-w-[480px]">
             ZoikoVertex governs how AI-assisted marketing is planned, created, approved, published, and evidenced — so teams move faster without losing brand control, compliance accountability, or defensible proof.
           </p>
           <Link
             href="/request-demo"
-            className="inline-flex items-center gap-2 bg-[#20E7F2] hover:bg-cyan-300 text-[#080E1A] font-bold px-7 py-3.5 rounded-xl transition-all text-sm"
+            className="inline-flex items-center gap-3 bg-[#20E7F2] hover:bg-[#00d4df] text-[#080E1A] font-bold px-8 py-4 rounded-full transition-all text-[14px] tracking-wide"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
             Request a Gov Demo
           </Link>
         </div>
 
         {/* Right — Dashboard Mockup */}
-        <div className="relative">
-          <div className="bg-[#0D1829] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+        <div className="relative pb-8">
+          <div className="bg-[#0D1829] border border-white/10 rounded-2xl overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.6)]">
             {/* Window bar */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/8 bg-[#0a0f1e]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.07] bg-[#080e1c]">
               <div className="flex gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-red-500/60" />
-                <span className="w-3 h-3 rounded-full bg-yellow-500/60" />
-                <span className="w-3 h-3 rounded-full bg-green-500/60" />
+                <span className="w-3 h-3 rounded-full bg-[#ff5f57]" />
+                <span className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
+                <span className="w-3 h-3 rounded-full bg-[#28c840]" />
               </div>
-              <span className="text-white/40 text-xs font-mono">ZoikoVertex — Governance Command Center</span>
-              <span className="text-[#20E7F2] text-xs flex items-center gap-1">
+              <span className="text-white/35 text-[11px] font-mono tracking-wide">ZoikoVertex — Governance Command Center</span>
+              <span className="text-[#20E7F2] text-[11px] flex items-center gap-1.5 font-medium">
                 <span className="w-1.5 h-1.5 bg-[#20E7F2] rounded-full" /> Governed Mode
               </span>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 divide-x divide-white/8 border-b border-white/8">
+            <div className="grid grid-cols-3 divide-x divide-white/[0.07] border-b border-white/[0.07]">
               {[
                 { val: "4", label: "PENDING APPROVAL", color: "text-amber-400" },
                 { val: "Active", label: "POLICY ENGINE", color: "text-[#20E7F2]" },
                 { val: "247", label: "EVIDENCE EVENTS", color: "text-white" },
               ].map((s) => (
-                <div key={s.label} className="p-4 text-center">
-                  <p className={`text-2xl font-black ${s.color}`}>{s.val}</p>
-                  <p className="text-white/30 text-[10px] tracking-widest mt-1">{s.label}</p>
+                <div key={s.label} className="py-5 px-4 text-center">
+                  <p className={`text-[26px] font-black ${s.color} leading-none`}>{s.val}</p>
+                  <p className="text-white/30 text-[9px] tracking-[0.15em] mt-2 font-medium">{s.label}</p>
                 </div>
               ))}
             </div>
 
             {/* Approval chain */}
-            <div className="p-4">
-              <p className="text-white/30 text-[10px] font-mono tracking-wider mb-3">THREE-KEY APPROVAL — CAMPAIGN: Q3 LAUNCH</p>
+            <div className="p-5">
+              <p className="text-white/25 text-[9px] font-mono tracking-[0.18em] mb-4 uppercase">Three-Key Approval — Campaign: Q3 Launch</p>
               <div className="space-y-2">
                 {[
-                  { text: "Key 1: Technical authority verified · Policy v2.4", done: true },
-                  { text: "Key 2: Governance validation · Brand Library passed", done: true },
-                  { text: "Key 3: Approver signed · Content hash matched · Released", done: true, lock: true },
+                  { text: "Key 1: Technical authority verified · Policy v2.4", lock: false },
+                  { text: "Key 2: Governance validation · Brand Library passed", lock: false },
+                  { text: "Key 3: Approver signed · Content hash matched · Released", lock: true },
                 ].map((k, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-[#0a0f1e] border border-white/8 rounded-lg px-3 py-2.5 text-sm text-white/70">
-                    <span className="text-[#20E7F2]">{k.lock ? "🔒" : "✓"}</span>
+                  <div key={i} className="flex items-center gap-3 bg-[#080e1c] border border-white/[0.07] rounded-lg px-3 py-2.5 text-[12px] text-white/65">
+                    {k.lock ? (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#20E7F2" strokeWidth="2.5">
+                        <rect x="3" y="11" width="18" height="11" rx="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      </svg>
+                    ) : (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#20E7F2" strokeWidth="2.5">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    )}
                     {k.text}
                   </div>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-2 mt-3">
-                {["Evidence: AE-0041", "Policy: v2.4", "Approved: 09:41 UTC", "Audit: Recording"].map((tag) => (
-                  <span key={tag} className="text-[10px] border border-white/15 rounded-full px-2 py-0.5 text-white/40 font-mono">{tag}</span>
+              <div className="flex flex-wrap gap-2 mt-4">
+                {[
+                  { label: "Evidence: AE-0041", style: "bg-green-500/10 border-green-500/25 text-green-400" },
+                  { label: "Policy: v2.4",      style: "bg-green-500/10 border-green-500/25 text-green-400" },
+                  { label: "Approved: 09:41 UTC", style: "bg-green-500/10 border-green-500/25 text-green-400" },
+                  { label: "Audit: Recording",   style: "bg-white/[0.04] border-white/10 text-white/35" },
+                ].map((t) => (
+                  <span key={t.label} className={`text-[10px] border rounded-full px-2.5 py-0.5 font-mono ${t.style}`}>{t.label}</span>
                 ))}
               </div>
             </div>
           </div>
 
           {/* Float badge */}
-          <div className="absolute -bottom-4 -left-4 bg-[#0D1829] border border-[#20E7F240] rounded-xl px-4 py-3 flex items-center gap-3 shadow-xl">
-            <div className="w-8 h-8 rounded-full bg-[#20E7F215] border border-[#20E7F240] flex items-center justify-center text-sm">🔒</div>
+          <div className="absolute bottom-0 -left-6 bg-[#0D1829] border border-[#20E7F2]/20 rounded-2xl px-5 py-3.5 flex items-center gap-3 shadow-2xl">
+            <div className="w-9 h-9 rounded-full bg-[#20E7F2]/10 border border-[#20E7F2]/30 flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#20E7F2" strokeWidth="2.5">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
             <div>
-              <p className="text-white font-black text-lg">100%</p>
-              <p className="text-white/40 text-[10px] tracking-widest">APPROVAL-GATED</p>
+              <p className="text-white font-black text-[20px] leading-none">100%</p>
+              <p className="text-white/40 text-[9px] tracking-[0.18em] mt-0.5 font-medium uppercase">Approval-Gated</p>
             </div>
           </div>
         </div>
@@ -436,48 +472,104 @@ function SixControls() {
 }
 
 /* ── Enterprise Risk Table ── */
-const RISKS = [
-  { risk: "Unauthorised content publication", control: "Three-Key Approval Protocol", severity: "critical" },
-  { risk: "Off-brand or prohibited claims", control: "Brand Library policy enforcement", severity: "high" },
-  { risk: "Policy version mismatch", control: "Policy-as-code with version binding", severity: "high" },
-  { risk: "Post-approval content modification", control: "Content hash re-verification gate", severity: "critical" },
-  { risk: "Role escalation or privilege abuse", control: "RBAC + ABAC with separation of duties", severity: "high" },
-  { risk: "Unattributed AI-generated output", control: "Actor identity logged at every step", severity: "medium" },
-  { risk: "Evidence gap in regulatory review", control: "Evidence Vault with legal hold", severity: "critical" },
-  { risk: "Cross-brand data leakage", control: "Workspace isolation + brand-scoped roles", severity: "high" },
+const RISK_ROWS = [
+  {
+    risk: "Unapproved content reaches public channels",
+    control: "Publish eligibility gate",
+    controlStyle: "text-[#20E7F2] bg-[#20E7F2]/8 border-[#20E7F2]/30",
+    mechanism: "Publishing Agent verifies approval signature against content hash",
+    state: "Publish blocked",
+    stateStyle: "text-red-400 bg-red-500/8 border-red-500/30",
+  },
+  {
+    risk: "Regulated claim used without evidence",
+    control: "Claims validation",
+    controlStyle: "text-red-400 bg-red-500/8 border-red-500/30",
+    mechanism: "Content Agent routes to approved claim library or Compliance Officer",
+    state: "Requires validation",
+    stateStyle: "text-amber-400 bg-amber-500/8 border-amber-500/30",
+  },
+  {
+    risk: "User approves their own work",
+    control: "Separation of duties",
+    controlStyle: "text-amber-400 bg-amber-500/8 border-amber-500/30",
+    mechanism: "Workflow blocks same-user creator-to-approver path structurally",
+    state: "Action unavailable",
+    stateStyle: "text-red-400 bg-red-500/8 border-red-500/30",
+  },
+  {
+    risk: "Agency user sees another client's content",
+    control: "Tenant isolation",
+    controlStyle: "text-[#20E7F2] bg-[#20E7F2]/8 border-[#20E7F2]/30",
+    mechanism: "External Collaborator scoped by workspace, brand, client via ABAC",
+    state: "Content hidden",
+    stateStyle: "text-[#20E7F2] bg-[#20E7F2]/8 border-[#20E7F2]/30",
+  },
+  {
+    risk: "AI responds during a sensitive crisis",
+    control: "Crisis escalation rule",
+    controlStyle: "text-red-400 bg-red-500/8 border-red-500/30",
+    mechanism: "Engagement Agent flags crisis terms and routes to Crisis Console",
+    state: "Auto-response off",
+    stateStyle: "text-red-400 bg-red-500/8 border-red-500/30",
+  },
+  {
+    risk: "Content edited after approval",
+    control: "Hash-bound approval",
+    controlStyle: "text-amber-400 bg-amber-500/8 border-amber-500/30",
+    mechanism: "Edit changes content hash — prior approval signature voided automatically",
+    state: "Returns to Review",
+    stateStyle: "text-amber-400 bg-amber-500/8 border-amber-500/30",
+  },
+  {
+    risk: "Policy changes cannot be reconstructed",
+    control: "Versioned policy",
+    controlStyle: "text-[#20E7F2] bg-[#20E7F2]/8 border-[#20E7F2]/30",
+    mechanism: "Policy version pinned at recommendation, review, approval, and publish",
+    state: "Version visible",
+    stateStyle: "text-green-400 bg-green-500/8 border-green-500/30",
+  },
 ];
-
-const SEVERITY_STYLE: Record<string, string> = {
-  critical: "text-red-400 bg-red-950/40 border-red-500/20",
-  high: "text-amber-400 bg-amber-950/40 border-amber-500/20",
-  medium: "text-yellow-400 bg-yellow-950/40 border-yellow-500/20",
-};
 
 function EnterpriseRisk() {
   return (
-    <section className="bg-[#06060f] py-24 px-6">
+    <section className="bg-[#080E1A] py-24 px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-12">
-          <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-4 flex items-center gap-2">
-            <span className="w-8 h-px bg-[#20E7F2]" /> RISK CONTROLS
+        <div className="mb-14">
+          <p className="text-[#20E7F2] text-[11px] font-bold tracking-[0.2em] uppercase mb-5 flex items-center gap-2">
+            <span className="w-8 h-px bg-[#20E7F2]" /> RISK-TO-CONTROL MATRIX
           </p>
-          <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
+          <h2 className="text-4xl lg:text-[52px] font-black text-white leading-[1.05] tracking-tight mb-5">
             Every enterprise risk has<br />a named control mechanism.
           </h2>
+          <p className="text-white/40 text-[15px] leading-relaxed max-w-lg">
+            Translating governance claims into engineering mechanisms and observable system states.
+          </p>
         </div>
-        <div className="border border-white/8 rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-3 bg-[#0a0f1e] border-b border-white/8 px-6 py-3">
-            <span className="text-xs font-bold text-white/30 tracking-widest">RISK</span>
-            <span className="text-xs font-bold text-white/30 tracking-widest">CONTROL MECHANISM</span>
-            <span className="text-xs font-bold text-white/30 tracking-widest">SEVERITY</span>
+
+        <div className="border border-white/[0.08] rounded-2xl overflow-hidden bg-[#0a0f1c]">
+          {/* Header */}
+          <div className="grid grid-cols-[2fr_1.6fr_2.2fr_1.4fr] px-6 py-4 border-b border-white/[0.08]">
+            {["ENTERPRISE RISK", "CONTROL", "MECHANISM", "SYSTEM STATE"].map((h) => (
+              <span key={h} className="text-[10px] font-bold text-white/25 tracking-[0.18em]">{h}</span>
+            ))}
           </div>
-          {RISKS.map((r, i) => (
-            <div key={i} className="grid grid-cols-3 items-center px-6 py-4 border-t border-white/5 hover:bg-white/2">
-              <span className="text-white/70 text-sm pr-4">{r.risk}</span>
-              <span className="text-[#20E7F2] text-sm pr-4">{r.control}</span>
-              <span className={`inline-flex w-fit text-xs font-mono px-3 py-1 rounded-full border ${SEVERITY_STYLE[r.severity]}`}>
-                {r.severity.toUpperCase()}
-              </span>
+
+          {/* Rows */}
+          {RISK_ROWS.map((r, i) => (
+            <div key={i} className="grid grid-cols-[2fr_1.6fr_2.2fr_1.4fr] items-center px-6 py-5 border-t border-white/[0.06] hover:bg-white/[0.02] transition-colors">
+              <span className="text-white/70 text-[14px] leading-snug pr-6">{r.risk}</span>
+              <div className="pr-6">
+                <span className={`inline-flex text-[11px] font-mono px-3 py-1.5 rounded-lg border ${r.controlStyle}`}>
+                  {r.control}
+                </span>
+              </div>
+              <span className="text-white/50 text-[13px] leading-snug pr-6">{r.mechanism}</span>
+              <div>
+                <span className={`inline-flex text-[11px] font-mono px-3 py-1.5 rounded-lg border ${r.stateStyle}`}>
+                  {r.state}
+                </span>
+              </div>
             </div>
           ))}
         </div>
@@ -1139,7 +1231,7 @@ function GovernanceFAQ() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-16">
           <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
-            <span className="w-8 h-px bg-[#20E7F2]" /> FAQ
+            <span className="w-8 h-px bg-[#20E7F2]" /> ENTERPRISE FAQ
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
             The governance questions<br />before the demo.
@@ -1169,33 +1261,6 @@ function GovernanceFAQ() {
   );
 }
 
-/* ── CTA ── */
-function CTA() {
-  return (
-    <section className="py-24 px-6" style={{ background: "linear-gradient(160deg,#0d1a35 0%,#080e1a 100%)" }}>
-      <div className="max-w-3xl mx-auto text-center">
-        <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-6 flex items-center justify-center gap-2">
-          <span className="w-8 h-px bg-[#20E7F2]" /> GOVERNED FROM DAY ONE
-        </p>
-        <h2 className="text-4xl lg:text-6xl font-black text-white leading-tight mb-6">
-          Governance isn't a feature.<br />
-          <span className="text-[#20E7F2]">It's the foundation.</span>
-        </h2>
-        <p className="text-white/50 text-sm max-w-xl mx-auto mb-10">
-          Deploy in 72 hours. Every agent action logged, governed, and audit-ready from day one. No code required.
-        </p>
-        <div className="flex flex-wrap gap-4 justify-center">
-          <Link href="/request-demo" className="bg-[#20E7F2] hover:bg-cyan-300 text-[#080E1A] font-bold px-8 py-3.5 rounded-xl transition-all text-sm">
-            Request a Gov Demo →
-          </Link>
-          <Link href="/platform" className="border border-white/20 hover:border-white/40 text-white font-semibold px-8 py-3.5 rounded-xl transition-all hover:bg-white/5 text-sm">
-            Explore the Platform
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
 
 /* ── Page ── */
 export default function GovernancePage() {
@@ -1216,7 +1281,6 @@ export default function GovernancePage() {
         <BuiltForProcurement />
         <StakeholderAnswers />
         <GovernanceFAQ />
-        <CTA />
       </div>
       <Footer />
     </main>
