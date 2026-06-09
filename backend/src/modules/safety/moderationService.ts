@@ -15,44 +15,20 @@
 
 import crypto from "crypto";
 import { runLocalEngine } from "./localEngine";
-import { runGeminiModeration } from "./geminiModerator";
-import { runGroqModeration } from "./groqModerator";
+import { runGroqModeration } from "./geminiModerator";
 import { aggregateMatches } from "./riskScoring";
 import { DEFAULT_THRESHOLDS } from "./types";
 import type { ModerationInput, ModerationResult, MatchResult } from "./types";
 import { GovernedModelGate } from "../prompts/GovernedModelGate";
+import { trackUsage } from "../../domains/monitoring/usageController";
 
-// Minimum input length where semantic moderation is worth an LLM call.
+// Minimum input length where semantic moderation is worth a Groq call.
 // Below this, the input is too short to convey context the local engine
 // missed; we accept the local verdict directly.
-const AI_MIN_CHARS = 24;
+const SEMANTIC_MIN_CHARS = 24;
 
 function newEvidenceId(): string {
   return `safety-${Date.now()}-${crypto.randomBytes(6).toString("hex")}`;
-}
-
-// Unified result shape from the LLM moderation step, regardless of provider.
-interface AiModerationResult {
-  matches: MatchResult[];
-  reason?: string;
-  modelUsed: string;
-  provider: "groq" | "gemini";
-}
-
-// AI fallback: runs when the local dictionary engine found nothing
-// conclusive. Prefers Groq (the designated fallback); if Groq is
-// unavailable or returns nothing usable, falls back to Gemini. Returns
-// null only when neither provider yields a verdict.
-async function runAiModeration(content: string): Promise<AiModerationResult | null> {
-  const groq = await runGroqModeration(content);
-  if (groq) {
-    return { matches: groq.matches, reason: groq.raw.reason, modelUsed: groq.modelUsed, provider: "groq" };
-  }
-  const gemini = await runGeminiModeration(content);
-  if (gemini) {
-    return { matches: gemini.matches, reason: gemini.raw.reason, modelUsed: gemini.modelUsed, provider: "gemini" };
-  }
-  return null;
 }
 
 export async function moderate(input: ModerationInput): Promise<ModerationResult> {
@@ -68,59 +44,63 @@ export async function moderate(input: ModerationInput): Promise<ModerationResult
   let allMatches: MatchResult[] = [...local.matches];
   let source: ModerationResult["source"] = "local";
   let modelUsed: string | undefined;
-  let aiMs: number | undefined;
+  let groqMs: number | undefined;
   let reason: string | undefined;
 
-  // ----- Phase 2: AI fallback (gated) -----
-  // The local word-list runs first. We only reach for the LLM when the
-  // dictionary was NOT confident — i.e. it found nothing, or only weak
-  // signals — exactly the "if the word check can't find anything, ask
-  // the model" fallback. Groq is the primary provider (see runAiModeration).
-  const shouldCallAi =
+  // ----- Phase 2: groq semantic fallback (gated) -----
+  const shouldCallGroq =
     !input.localOnly &&
     !local.highConfidence &&
-    content.length >= AI_MIN_CHARS;
+    content.length >= SEMANTIC_MIN_CHARS;
 
   let governanceHardBlock = false;
   let governanceBlockReason: string | undefined;
 
-  if (shouldCallAi) {
+  if (shouldCallGroq) {
     const workspaceId = input.workspaceId || input.tenantId || "";
-    const aiStart = Date.now();
+    const groqStart = Date.now();
     // The AI moderation step is a governed model call. A governed
     // 'safety_moderation' prompt authorizes it; if none resolves AND enforcement
     // is on in production, we MUST NOT fall back to a local verdict (which could
     // be "safe") — we hard-block. Local confidence cannot override this.
-    const cap: { result: AiModerationResult | null } = { result: null };
+    const cap: { result: Awaited<ReturnType<typeof runGroqModeration>> } = { result: null };
     const governed = await GovernedModelGate.execute({
       useCaseKey: "safety_moderation",
       workspaceId,
       variables: { content },
       modelProvider: "groq",
       invoke: async () => {
-        cap.result = await runAiModeration(content);
-        return cap.result ? cap.result.reason || "moderated" : "";
+        cap.result = await runGroqModeration(content);
+        return cap.result ? cap.result.raw?.reason || "moderated" : "";
       },
     });
-    aiMs = Date.now() - aiStart;
+    groqMs = Date.now() - groqStart;
 
     if (governed.ok) {
       if (cap.result) {
         allMatches = [...allMatches, ...cap.result.matches];
-        source = local.matches.length > 0 ? "hybrid" : cap.result.provider;
+        source = local.matches.length > 0 ? "hybrid" : "groq";
         modelUsed = cap.result.modelUsed;
-        reason = cap.result.reason;
+        reason = cap.result.raw.reason;
+        if (workspaceId) {
+          const qty = cap.result.tokensUsed > 0 ? cap.result.tokensUsed : 384;
+          trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'safety_moderation', metadata: { model: 'llama-3.3-70b-versatile', estimated: cap.result.tokensUsed === 0 } });
+        }
       }
     } else {
       try {
         // Not enforced ⇒ records an advisory bypass and preserves legacy behavior.
         await GovernedModelGate.legacyInlineFallback("safety_moderation", workspaceId, `governed safety prompt unavailable: ${governed.code}`);
-        const ai = await runAiModeration(content);
-        if (ai) {
-          allMatches = [...allMatches, ...ai.matches];
-          source = local.matches.length > 0 ? "hybrid" : ai.provider;
-          modelUsed = ai.modelUsed;
-          reason = ai.reason;
+        const groq = await runGroqModeration(content);
+        if (groq) {
+          allMatches = [...allMatches, ...groq.matches];
+          source = local.matches.length > 0 ? "hybrid" : "groq";
+          modelUsed = groq.modelUsed;
+          reason = groq.raw.reason;
+          if (workspaceId) {
+            const qty = groq.tokensUsed > 0 ? groq.tokensUsed : 384;
+            trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'safety_moderation', metadata: { model: 'llama-3.3-70b-versatile', estimated: groq.tokensUsed === 0 } });
+          }
         }
       } catch {
         // Enforced production ⇒ hard block (fail-closed, not fail-open).
@@ -150,7 +130,7 @@ export async function moderate(input: ModerationInput): Promise<ModerationResult
       timestamp: new Date().toISOString(),
       reason: governanceBlockReason,
       modelUsed,
-      timings: { local: localMs, gemini: aiMs, total: Date.now() - startedAt },
+      timings: { local: localMs, groq: groqMs, total: Date.now() - startedAt },
     };
   }
 
@@ -169,7 +149,7 @@ export async function moderate(input: ModerationInput): Promise<ModerationResult
     modelUsed,
     timings: {
       local: localMs,
-      gemini: aiMs,
+      groq: groqMs,
       total: Date.now() - startedAt,
     },
   };

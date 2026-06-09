@@ -10,9 +10,11 @@ function initClient(): SupabaseClient {
 }
 
 let client: SupabaseClient;
+let initialized = false;
 
 try {
   client = initClient();
+  initialized = true;
 } catch (e) {
   console.warn("Supabase initialization failed. Check your environment variables.");
   
@@ -37,11 +39,12 @@ try {
 }
 
 export const supabase = client;
+export const isSupabaseReady = initialized;
 
 // Keep the zv_auth cookie in sync with the Supabase session so that
 // middleware can make lightweight routing decisions without needing @supabase/ssr.
-if (typeof window !== 'undefined') {
-  client.auth.onAuthStateChange((event, session) => {
+if (typeof window !== 'undefined' && initialized) {
+  client.auth.onAuthStateChange((_event, session) => {
     if (session) {
       document.cookie = 'zv_auth=1; path=/; SameSite=Lax; max-age=3600';
     } else {

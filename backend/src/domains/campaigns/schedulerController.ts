@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { env } from '../../config/env';
 import { logger } from '../../shared/logger';
 import { supabaseAdmin } from '../../shared/supabase';
@@ -11,6 +11,7 @@ import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
 
 import { getQueue } from '../../workers/schedulerWorker';
 import { linkPublishToWorkflow } from '../../services/workflowPublishLink.service';
+import { trackUsage } from '../monitoring/usageController';
 
 // Timezone mapping for audience regions
 const REGION_TIMEZONE_MAP: Record<string, string> = {
@@ -117,8 +118,8 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
     }
 
     // 2. AI Fallback (Dynamic Generation)
-    if (!env.GEMINI_API_KEY) {
-      logger.warn('[Scheduler] GEMINI_API_KEY missing, using generic fallback');
+    if (!env.GROQ_API_KEY) {
+      logger.warn('[Scheduler] GROQ_API_KEY missing, using generic fallback');
       return res.status(200).json({
         success: true,
         recommendations: [{
@@ -140,11 +141,7 @@ export const getRecommendations = async (req: AuthRequest, res: Response, next: 
 
     await logToDatabase('info', 'Scheduler', `Generating AI recommendations for: ${platform} / ${niche}`, { platform, audienceRegion, userTimezone });
 
-    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    // Try models in order — fall back if overloaded
-    const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-    let model = genAI.getGenerativeModel({ model: GEMINI_MODELS[0] });
-    // Model selection happens at generateContent — use retry wrapper below
+    const groqScheduler = new OpenAI({ baseURL: 'https://api.groq.com/openai/v1', apiKey: env.GROQ_API_KEY, timeout: 30_000 });
 
     const dayName = getDayName(resolvedDate);
 
@@ -179,23 +176,16 @@ RESPONSE (strict JSON, no markdown, no backticks):
 }`;
 
     const workspaceId = req.user?.workspace_id as string | undefined;
+    let schedulerTokensUsed = 0;
     const callModel = async (p: string): Promise<string> => {
-      let t = '';
-      for (const modelId of GEMINI_MODELS) {
-        try {
-          model = genAI.getGenerativeModel({ model: modelId });
-          const result = await model.generateContent(p);
-          t = (await result.response).text();
-          break;
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : String(e);
-          if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
-            continue;
-          }
-          throw e;
-        }
-      }
-      return t;
+      const completion = await groqScheduler.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: p }],
+        temperature: 0,
+        max_tokens: 1024,
+      });
+      schedulerTokensUsed += completion.usage?.total_tokens ?? 0;
+      return completion.choices[0]?.message?.content || '';
     };
 
     // Phase 4.D — prefer the governed 'scheduler_recommendation' prompt; on
@@ -215,7 +205,7 @@ RESPONSE (strict JSON, no markdown, no backticks):
         target_date: resolvedDate,
         day_name: dayName,
       },
-      modelProvider: 'gemini',
+      modelProvider: 'groq',
       actorId: req.user?.id,
       invoke: callModel,
     });
@@ -225,7 +215,12 @@ RESPONSE (strict JSON, no markdown, no backticks):
       await GovernedModelGate.legacyInlineFallback('scheduler_recommendation', workspaceId, `governed prompt unavailable: ${governed.code}`);
       text = await callModel(prompt);
     }
-    if (!text) throw new Error('All Gemini models unavailable — please try again shortly');
+    if (!text) throw new Error('Groq model unavailable — please try again shortly');
+
+    if (workspaceId) {
+      const qty = schedulerTokensUsed > 0 ? schedulerTokensUsed : 384;
+      trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'scheduler_recommendation', metadata: { model: 'llama-3.3-70b-versatile', platform, estimated: schedulerTokensUsed === 0 } });
+    }
     
     let parsed;
     try {

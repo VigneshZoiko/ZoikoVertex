@@ -4,13 +4,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Mail, ArrowRight, ArrowLeft, Loader2,
   Eye, EyeOff, Lock, User, Building2,
-  CheckCircle2, LayoutDashboard, Map,
+  CheckCircle2, LayoutDashboard,
 } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { api } from "@/lib/api";
+// Note: supabaseAdmin is only available on the backend, for frontend we'll use a different approach
+// We'll call a backend endpoint to resend verification emails
 
 /* ── Password strength ────────────────────────────────────────── */
 function calcStrength(pwd: string): number {
@@ -117,8 +118,9 @@ export default function SignupPage() {
   const strength                    = calcStrength(password);
 
   /* Step 3 */
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [resendTimer, setResendTimer] = useState(0);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState("");
 
   /* Resend countdown */
   useEffect(() => {
@@ -154,51 +156,95 @@ export default function SignupPage() {
     if (!agreedToS) { setError("Please agree to the Terms of Service and Privacy Policy"); return; }
     setLoading(true);
     try {
-      const res = await api.post("/api/v1/auth/signup-enterprise", {
-        fullName: `${firstName} ${lastName}`.trim(),
-        workEmail: email,
-        companyName: company,
-        workspaceName: company,
-        password,
+      // Public endpoint — no auth token required, use raw fetch
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+      const response = await fetch(`${backendUrl}/api/v1/auth/signup-enterprise`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: `${firstName} ${lastName}`.trim(),
+          workEmail: email,
+          companyName: company,
+          workspaceName: company,
+          password,
+        }),
       });
-      if (res.success) {
+      const res = await response.json().catch(() => ({}));
+      if (response.ok && res.success) {
         setStep(3);
         setResendTimer(60);
       } else {
-        setError("Signup failed. Please try again.");
+        const msg = res.error || res.message || `Signup failed (${response.status}). Please try again.`;
+        setError(msg);
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || "Signup failed. Please check your details.");
+      setError(err.message || "Network error. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ── Step 3 → 4 (sign in since email is auto-confirmed) ── */
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /* ── Step 3 → 4 (sign in to check if email is verified) ── */
+  const handleVerifyFromEmail = async () => {
+    setVerifying(true);
+    setVerifyError("");
     setLoading(true);
-    setError("");
     try {
-      const { data: { session }, error: signInErr } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Try to sign in with email/password - if email is verified, this will succeed
+      const { data: { session }, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
       });
-      if (signInErr) throw signInErr;
+
+      if (signInError) throw signInError;
+
       if (session) {
+        // Sign in successful - email is verified
         document.cookie = "zv_auth=1; path=/; SameSite=Strict; max-age=3600";
+        setStep(4);
+      } else {
+        // This shouldn't happen if there's no error, but handle just in case
+        setVerifyError("Unexpected verification state. Please try again.");
       }
-      setStep(4);
     } catch (err: any) {
-      setError(err.message || "Verification failed. Please try signing in.");
+      const msg = err.message || "Unknown error";
+      if (msg.includes("Email not confirmed")) {
+        setVerifyError("Please check your inbox and click the verification link before continuing.");
+      } else if (msg.includes("Invalid login credentials")) {
+        setVerifyError("Invalid email or password. Please try again.");
+      } else {
+        setVerifyError(msg);
+      }
     } finally {
+      setVerifying(false);
       setLoading(false);
     }
   };
 
-  const handleResend = () => {
-    setResendTimer(60);
-    // resend logic once OTP is configured in Supabase
+  const handleResend = async () => {
+    try {
+      setLoading(true);
+      // Public endpoint — no auth token required, use raw fetch
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+      const response = await fetch(`${backendUrl}/api/v1/users/resend-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email,
+        }),
+      });
+      const res = await response.json().catch(() => ({}));
+      if (response.ok && res.success) {
+        setResendTimer(60);
+      } else {
+        const msg = res.error || res.message || `Failed to resend verification email (${response.status})`;
+        setError(msg);
+      }
+    } catch (err: any) {
+      setError(err.message || "Network error. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   /* ── Input class ── */
@@ -387,48 +433,76 @@ export default function SignupPage() {
 
         {/* ── STEP 3: Verify email ── */}
         {step === 3 && (
-          <form onSubmit={handleVerify} className="text-center space-y-6">
-            <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-900/40 border border-emerald-500/30">
-              <Mail className="h-7 w-7 text-emerald-400" />
+          <div className="text-center space-y-6">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-900/40 border border-blue-500/30">
+              <Mail className="h-9 w-9 text-blue-400" />
             </div>
 
             <div>
               <div className="flex items-center justify-center gap-2 mb-3">
                 <div className="h-px w-5 bg-[#20E7F2]" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#20E7F2]">Verify your email</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#20E7F2]">Email Verification</span>
                 <div className="h-px w-5 bg-[#20E7F2]" />
               </div>
               <h2 className="text-[1.75rem] font-black text-white/90 mb-2">Check your inbox</h2>
               <p className="text-[14px] text-white/45">
-                We sent a 6-digit verification code to<br />
-                <span className="text-white/70 font-semibold">{email}</span>
+                We&apos;ve sent a verification link to<br />
+                <span className="text-white/70 font-semibold block">{email}</span>
+                <span className="text-[12px] text-white/40 block mt-1">
+                  Click the link in the email to verify your account, then click below
+                </span>
+              </p>
+
+              {/* Verification error */}
+              {verifyError && (
+                <div className="mb-4 p-4 bg-rose-900/30 rounded-xl border border-rose-500/30">
+                  <p className="text-rose-400">{verifyError}</p>
+                </div>
+              )}
+
+              <div className="mt-6 space-y-4">
+                <button
+                  onClick={handleVerifyFromEmail}
+                  disabled={verifying}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/60 transition hover:text-white hover:bg-[#111D2E]"
+                >
+                  {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4" /> I&apos;ve Verified My Email</>}
+                </button>
+
+                <button
+                  onClick={handleResend}
+                  disabled={verifying || resendTimer > 0}
+                  className="w-full flex items-center justify-center gap-2 text-[13px] font-semibold uppercase tracking-[0.2em] border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/60 transition hover:text-white hover:bg-[#111D2E]"
+                >
+                  {resendTimer > 0 ? (
+                    <span>Resend in {resendTimer}s</span>
+                  ) : (
+                    <>
+                      <ArrowRight className="h-3 w-3" /> Resend verification email
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <p className="text-[13px] text-white/35 mt-4">
+                Didn&apos;t receive the email?{" "}
+                {resendTimer > 0 ? (
+                  <span className="text-white/30">Please wait {resendTimer}s before resending</span>
+                ) : (
+                  <button type="button" onClick={handleResend} className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">
+                    Resend verification email
+                  </button>
+                )}
               </p>
             </div>
 
-            <OtpInput value={otp} onChange={setOtp} />
-
-            <button type="submit" disabled={loading} className={cyanBtn}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><CheckCircle2 className="h-4 w-4" /> Verify and continue</>}
-            </button>
-
-            <p className="text-[13px] text-white/35">
-              Didn&apos;t receive it?{" "}
-              {resendTimer > 0 ? (
-                <span className="text-white/30">Resend in {resendTimer}s</span>
-              ) : (
-                <button type="button" onClick={handleResend} className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">
-                  Resend code
-                </button>
-              )}
-            </p>
-
             <StepDots current={3} total={3} />
 
-            <p className="text-center text-[13px] text-white/40">
+            <p className="text-center text-[13px] text-white/40 mt-6">
               Already have an account?{" "}
               <Link href="/login" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">Sign in</Link>
             </p>
-          </form>
+          </div>
         )}
 
         {/* ── STEP 4: Welcome ── */}
@@ -457,13 +531,7 @@ export default function SignupPage() {
                 onClick={() => router.push("/dashboard")}
                 className={cyanBtn}
               >
-                <LayoutDashboard className="h-4 w-4" /> Go to Command Center
-              </button>
-              <button
-                onClick={() => router.push("/onboarding")}
-                className={darkBtn}
-              >
-                <Map className="h-4 w-4" /> Start guided setup
+                <LayoutDashboard className="h-4 w-4" /> Go to Dashboard
               </button>
             </div>
           </div>

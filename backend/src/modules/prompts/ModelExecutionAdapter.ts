@@ -27,8 +27,8 @@
 export interface ModelExecutionRequest {
   /** Provider-specific model identifier (e.g. "gemini-2.5-flash") */
   modelId: string;
-  /** Provider identifier — "google" or "groq" only */
-  provider: 'google' | 'groq';
+  /** Provider identifier — "groq" or "groq_alt" */
+  provider: 'groq' | 'groq_alt';
   /** System prompt / instructions */
   systemPrompt: string;
   /** User / attack message */

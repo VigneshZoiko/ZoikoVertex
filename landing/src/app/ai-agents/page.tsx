@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Navbar from "@/components/navbar/Navbar";
+import Footer from "@/components/footer/Footer";
 import {
   Brain, Pencil, Send, MessageCircle, TrendingUp,
   Users, CheckSquare, BookOpen, Code2, FileText, UserCheck,

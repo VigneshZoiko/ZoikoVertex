@@ -98,7 +98,7 @@ export const getReviewDetail = async (req: AuthRequest, res: Response, next: Nex
     const workspaceId = req.user?.workspace_id;
     const isSuperAdmin = req.user?.is_superadmin;
 
-    let query = supabaseAdmin
+    const query = supabaseAdmin
       .from('publish_intents')
       .select('*')
       .eq('id', id)
