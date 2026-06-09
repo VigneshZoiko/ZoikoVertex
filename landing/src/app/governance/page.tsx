@@ -1009,87 +1009,102 @@ function BuiltForProcurement() {
 /* ── Stakeholder Answers ── */
 const STAKEHOLDERS = [
   {
-    role: "CMO",
-    icon: "📊",
-    concern: "If AI publishes something wrong at scale, I own it. Can I prove what happened?",
-    answer: "Complete approval chain, brand policy enforcement, and an audit trail for every piece of content — exportable on demand.",
-    artifact: "Signed approval chain + audit export",
+    roleLabel: "CMO",
+    name: "Marketing Leader",
+    initials: "ML",
+    avatarBg: "#1a2e4a",
+    concern: "\"I need AI speed, but I cannot afford a brand incident.\"",
+    answer: "Governed workflows accelerate output while keeping brand standards, approvals, and evidence attached to every release. Every approval is logged; every decision is traceable.",
+    cta: "Request Governance Demo",
+    ctaHref: "/request-demo",
   },
   {
-    role: "Head of Brand",
-    icon: "📖",
-    concern: "Agencies and regional teams are generating content that doesn't match our standards.",
-    answer: "Brand Library policies enforced as code — not guidelines. Every draft checked before entering review.",
-    artifact: "Brand integrity scorecard",
+    roleLabel: "GENERAL COUNSEL",
+    name: "Legal Leader",
+    initials: "LL",
+    avatarBg: "#1a2e4a",
+    concern: "\"Show me who approved this, under what policy, and what changed after approval.\"",
+    answer: "Signed approval chains, content-hash validation, versioned policy snapshots, and Evidence Vault exports — all available before and after any legal challenge.",
+    cta: "View Approval Protocol",
+    ctaHref: "/request-demo",
   },
   {
-    role: "Compliance Leader",
-    icon: "🛡️",
-    concern: "I can't approve an AI tool I can't audit. How do I defend this to regulators?",
-    answer: "Every agent action is logged with actor identity, role, policy version, and timestamp. Evidence Vault for regulatory review.",
-    artifact: "Evidence Vault + policy version history",
+    roleLabel: "CIO / CTO",
+    name: "Technology Leader",
+    initials: "TL",
+    avatarBg: "#1a2e4a",
+    concern: "\"Do not let AI create a shadow operating model outside our identity and access controls.\"",
+    answer: "RBAC, ABAC, SSO-ready identity model, tenant isolation, event logs, and full administrative separation. Trust Center documentation available for security review.",
+    cta: "Open Trust Center",
+    ctaHref: "/request-demo",
   },
   {
-    role: "CIO / CTO",
-    icon: "🔒",
-    concern: "Another AI tool with vague security claims and no real identity architecture.",
-    answer: "RBAC + ABAC, SSO/SAML/SCIM, separation of duties, MFA. Security administration separated from identity management by design.",
-    artifact: "Security architecture summary",
+    roleLabel: "COMPLIANCE OFFICER",
+    name: "Risk & Compliance",
+    initials: "RC",
+    avatarBg: "#1a2e4a",
+    concern: "\"Claims and regulated content cannot depend on prompt discipline.\"",
+    answer: "Policy-bound validation, claim libraries, jurisdictional rule packs, and compliance sign-off before release — structurally enforced, not reliant on individual behaviour.",
+    cta: "See Control Matrix",
+    ctaHref: "/request-demo",
   },
   {
-    role: "CFO / Finance",
-    icon: "💼",
-    concern: "Marketing claims ROI from AI but can't show me the attribution evidence.",
-    answer: "Revenue Attribution Agent produces evidence-grade attribution with logged model assumptions that survives board scrutiny.",
-    artifact: "Board-grade attribution report",
-  },
-  {
-    role: "Legal Counsel",
-    icon: "⚖️",
-    concern: "I need to know what was published, when, by whom, and under what policy.",
-    answer: "Immutable audit trail with append-only ledger, legal hold on Command plans, and timestamped evidence exports.",
-    artifact: "Legal hold + full evidence chain",
+    roleLabel: "PROCUREMENT LEAD",
+    name: "Procurement & Vendor",
+    initials: "PV",
+    avatarBg: "#1a2e4a",
+    concern: "\"Give me the trust artifacts before the vendor call.\"",
+    answer: "Security overview, DPA template, sub-processor list, retention policy, AI governance summary, and audit-log sample — available through the Trust Center without a sales call.",
+    cta: "Request Security Pack",
+    ctaHref: "/request-demo",
   },
 ];
 
 function StakeholderAnswers() {
   return (
     <section className="bg-[#06060f] py-24 px-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-4 flex items-center justify-center gap-2">
-            <span className="w-8 h-px bg-[#20E7F2]" /> STAKEHOLDER ANSWERS
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-14">
+          <p className="text-[#20E7F2] text-xs font-bold tracking-widest uppercase mb-4 flex items-center gap-2">
+            <span className="w-8 h-px bg-[#20E7F2]" /> BUYER PERSONAS
           </p>
           <h2 className="text-4xl lg:text-5xl font-black text-white mb-4">
             Every stakeholder gets<br />their governance answer.
           </h2>
-          <p className="text-white/50 max-w-xl mx-auto text-sm">
-            Different roles carry different governance anxieties. Every leader sees their problem — and the evidence that resolves it.
+          <p className="text-white/50 max-w-lg text-sm leading-relaxed">
+            Different roles carry different governance anxieties. ZoikoVertex answers each one before the demo.
           </p>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {STAKEHOLDERS.map((s) => (
-            <div key={s.role} className="bg-[#0D1829] border border-white/8 rounded-2xl p-6 grid lg:grid-cols-3 gap-6 items-start">
+            <div key={s.roleLabel} className="bg-[#0D1829]/80 border border-white/8 rounded-2xl p-6 grid lg:grid-cols-[220px_1fr_1fr] gap-6 items-start">
+              {/* Avatar + role */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-xl shrink-0">
-                  {s.icon}
+                <div
+                  className="w-12 h-12 rounded-full shrink-0 flex items-center justify-center text-sm font-bold text-white/70"
+                  style={{ background: "linear-gradient(135deg, #1e3a5f 0%, #0d1829 100%)", border: "1px solid rgba(255,255,255,0.1)" }}
+                >
+                  {s.initials}
                 </div>
                 <div>
-                  <p className="text-[#20E7F2] font-black text-sm tracking-wider">{s.role}</p>
+                  <p className="text-[#20E7F2] text-[10px] font-bold tracking-widest font-mono mb-0.5">{s.roleLabel}</p>
+                  <p className="text-white font-bold text-sm">{s.name}</p>
                 </div>
               </div>
+              {/* Quote */}
+              <p className="text-white font-bold text-base leading-snug">{s.concern}</p>
+              {/* Answer + CTA */}
               <div>
-                <p className="text-white/30 text-[10px] tracking-widest font-bold mb-2">CONCERN</p>
-                <blockquote className="border-l-2 border-white/20 pl-3 text-white/60 text-sm leading-relaxed italic">
-                  "{s.concern}"
-                </blockquote>
-              </div>
-              <div>
-                <p className="text-white/30 text-[10px] tracking-widest font-bold mb-2">ANSWER</p>
-                <p className="text-white/70 text-sm leading-relaxed mb-3">{s.answer}</p>
-                <div className="border border-white/10 rounded-lg px-3 py-1.5 font-mono text-xs text-white/30 inline-flex items-center gap-2">
-                  <span className="text-white/20">ARTIFACT</span> {s.artifact}
-                </div>
+                <p className="text-white/50 text-sm leading-relaxed mb-3">{s.answer}</p>
+                <Link
+                  href={s.ctaHref}
+                  className="text-[#20E7F2] text-sm hover:text-white transition-colors inline-flex items-center gap-1"
+                >
+                  {s.cta}
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7h9M8 3.5l3.5 3.5L8 10.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
               </div>
             </div>
           ))}
