@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ShieldCheck, Bot, FileCheck, Lock } from "lucide-react";
 const TRUST_BULLETS = [
   { icon: ShieldCheck, text: "Role-based access control + immutable audit trail" },
@@ -13,6 +14,35 @@ const TRUST_BULLETS = [
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#080E1A]">
+      {/* Top navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#080E1A]/90 backdrop-blur-md border-b border-white/5 h-16 flex items-center px-6">
+        <div className="max-w-7xl w-full mx-auto flex items-center justify-between">
+          <Link href="https://zoikovertex.com" target="_blank" rel="noopener noreferrer">
+            <Image
+              src="/images/logo-wordmark.svg"
+              alt="ZoikoVertex"
+              width={180}
+              height={32}
+              className="h-8 w-auto"
+              priority
+            />
+          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="text-sm font-medium text-white/70 hover:text-white px-4 py-2 rounded-lg transition-colors hover:bg-white/5"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/signup"
+              className="text-sm font-bold bg-[#20E7F2] hover:bg-[#1bd4de] text-black px-4 py-2 rounded-lg transition-colors"
+            >
+              Get Started
+            </Link>
+          </div>
+        </div>
+      </nav>
     <div className="flex pt-16">
       {/* Left brand panel */}
       <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0C1422] border-r border-white/10 w-[44%] shrink-0">
