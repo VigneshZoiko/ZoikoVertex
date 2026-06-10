@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Response, NextFunction } from 'express';
 import OpenAI from 'openai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../../config/env';
 import { logger } from '../../shared/logger';
 import { AuthRequest } from '../../shared/authMiddleware';
@@ -35,38 +34,42 @@ export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(403).json({ error: 'Agent not authorized', reason: agentCheck.reason });
     }
 
-    if (!imageBase64 || !env.GEMINI_API_KEY) {
+    if (!imageBase64 || !env.GROQ_API_KEY) {
       return res.status(400).json({ success: false, message: 'Missing image or API key' });
     }
 
-    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
     const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
     const INLINE_VISION_PROMPT = "Extract text and summarize this image for a social media story. Focus on key themes and mood. Keep it concise.";
-    const VISION_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const GROQ_VISION_MODELS = [
+      'meta-llama/llama-4-scout-17b-16e-instruct',
+      'llama-3.2-11b-vision-preview',
+      'llama-3.2-90b-vision-preview',
+    ];
+    const groqVision = new OpenAI({ baseURL: 'https://api.groq.com/openai/v1', apiKey: env.GROQ_API_KEY, timeout: 30_000 });
+    let analyzeImageTokens = 0;
 
-    // Runs the (governed or inline) TEXT prompt with the image part appended —
-    // the multimodal payload is preserved regardless of which prompt is used.
     const callVision = async (textPrompt: string): Promise<string> => {
-      let out = '';
-      let lastErr: unknown;
-      for (const modelId of VISION_MODELS) {
+      for (const modelId of GROQ_VISION_MODELS) {
         try {
-          const visionModel = genAI.getGenerativeModel({ model: modelId });
-          const result = await visionModel.generateContent([textPrompt, { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }] as any);
-          out = (await result.response).text();
-          break;
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : String(e);
-          if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
-            logger.warn(`[Intelligence] ${modelId} unavailable, trying next model`);
-            lastErr = e;
-            continue;
+          const completion = await groqVision.chat.completions.create({
+            model: modelId,
+            messages: [{ role: 'user', content: [
+              { type: 'text', text: textPrompt },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Data}` } },
+            ]}],
+            temperature: 0,
+            max_tokens: 512,
+          });
+          const out = completion.choices[0]?.message?.content || '';
+          if (out) {
+            analyzeImageTokens += completion.usage?.total_tokens ?? 0;
+            return out;
           }
-          throw e; // Non-503 error — propagate immediately
+        } catch {
+          logger.warn(`[Intelligence] ${modelId} unavailable, trying next model`);
         }
       }
-      if (!out) throw lastErr || new Error('All vision models unavailable');
-      return out;
+      throw new Error('All Groq vision models unavailable');
     };
 
     // Phase 4.E — prefer the governed 'vision_image_summary' prompt; on governance
@@ -76,7 +79,7 @@ export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFu
       useCaseKey: 'vision_image_summary',
       workspaceId: (req.user?.workspace_id as string) || '',
       variables: {},
-      modelProvider: 'gemini',
+      modelProvider: 'groq',
       actorId: userId,
       invoke: callVision,
     });
@@ -88,6 +91,12 @@ export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFu
     }
     if (!analysis) throw new Error('Vision analysis returned empty');
     await logToDatabase('info', 'AI', `Vision analysis completed for user ${userId}`, { userId, agent_id: 'agent-content-gen-v1', agent_contract_version: 'v1' });
+
+    const analyzeWorkspaceId = req.user?.workspace_id as string | undefined;
+    if (analyzeWorkspaceId) {
+      const qty = analyzeImageTokens > 0 ? analyzeImageTokens : 512;
+      trackUsage({ workspaceId: analyzeWorkspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'image_analysis', metadata: { model: 'groq-vision', estimated: analyzeImageTokens === 0 } });
+    }
 
     res.status(200).json({ success: true, analysis });
   } catch (err) {
@@ -110,38 +119,46 @@ export const generateContent = async (req: AuthRequest, res: Response, next: Nex
     let imageAnalysis = "";
     
     // Phase 0: Vision Analysis if image provided
-    if (imageBase64 && env.GEMINI_API_KEY) {
+    if (imageBase64 && env.GROQ_API_KEY) {
       try {
-        const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
         const base64Data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
         const INLINE_STORY_PROMPT = "Analyze this image for storytelling context. Extract meaningful text if present, otherwise describe the mood, scene, and emotional depth. Be concise and story-ready.";
-        const VISION_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+        const GROQ_VISION_MODELS = [
+          'meta-llama/llama-4-scout-17b-16e-instruct',
+          'llama-3.2-11b-vision-preview',
+          'llama-3.2-90b-vision-preview',
+        ];
+        const groqStory = new OpenAI({ baseURL: 'https://api.groq.com/openai/v1', apiKey: env.GROQ_API_KEY, timeout: 30_000 });
+        let storyVisionTokens = 0;
         const callVision = async (textPrompt: string): Promise<string> => {
-          let out = '';
-          for (const modelId of VISION_MODELS) {
+          for (const modelId of GROQ_VISION_MODELS) {
             try {
-              const visionModel = genAI.getGenerativeModel({ model: modelId });
-              const result = await visionModel.generateContent([textPrompt, { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }] as any);
-              out = (await result.response).text();
-              logger.info(`[Intelligence] Image analysis completed with ${modelId}`);
-              break;
-            } catch (e: unknown) {
-              const msg = e instanceof Error ? e.message : String(e);
-              if (msg.includes('503') || msg.includes('overloaded') || msg.includes('high demand')) {
-                logger.warn(`[Intelligence] ${modelId} unavailable for vision, trying next`);
-                continue;
+              const completion = await groqStory.chat.completions.create({
+                model: modelId,
+                messages: [{ role: 'user', content: [
+                  { type: 'text', text: textPrompt },
+                  { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Data}` } },
+                ]}],
+                temperature: 0,
+                max_tokens: 512,
+              });
+              const out = completion.choices[0]?.message?.content || '';
+              if (out) {
+                storyVisionTokens += completion.usage?.total_tokens ?? 0;
+                logger.info(`[Intelligence] Image analysis completed with ${modelId}`);
+                return out;
               }
-              throw e;
+            } catch {
+              logger.warn(`[Intelligence] ${modelId} unavailable for vision, trying next`);
             }
           }
-          return out;
+          return '';
         };
-        // Phase 4.E — prefer the governed 'vision_story_context' prompt; image payload preserved.
         const governedStory = await GovernedModelGate.execute({
           useCaseKey: 'vision_story_context',
           workspaceId: (req.user?.workspace_id as string) || '',
           variables: {},
-          modelProvider: 'gemini',
+          modelProvider: 'groq',
           actorId: userId,
           invoke: callVision,
         });
@@ -150,6 +167,11 @@ export const generateContent = async (req: AuthRequest, res: Response, next: Nex
         } else {
           await GovernedModelGate.legacyInlineFallback('vision_story_context', req.user?.workspace_id as string | undefined, `governed prompt unavailable: ${governedStory.code}`);
           imageAnalysis = await callVision(INLINE_STORY_PROMPT);
+        }
+        const storyWsId = req.user?.workspace_id as string | undefined;
+        if (storyWsId) {
+          const qty = storyVisionTokens > 0 ? storyVisionTokens : 512;
+          trackUsage({ workspaceId: storyWsId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'story_vision', metadata: { model: 'groq-vision', estimated: storyVisionTokens === 0 } });
         }
       } catch (err) {
         logger.warn({ err }, '[Intelligence] Vision analysis failed — continuing without image context');
@@ -323,7 +345,7 @@ ${blocks.join('\n\n')}
 
     // ─── Tier-0 Safety Layer: Guardrail Interception ────────────────────────
     const workspaceId = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
-    const safetyCheck = evaluatePayloadAgainstPolicies(parsed, workspaceId);
+    const safetyCheck = await evaluatePayloadAgainstPolicies(parsed, workspaceId);
 
     if (['block', 'quarantine', 'hold_for_review'].includes(safetyCheck.outcome)) {
       logger.warn({ outcome: safetyCheck.outcome, rule: safetyCheck.rule_id }, '[Safety Layer] Payload intercepted and blocked by active policy.');

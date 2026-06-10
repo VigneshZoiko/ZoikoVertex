@@ -4,7 +4,6 @@ import { logger } from '../../shared/logger';
 import { preserveEvidence } from '../../services/evidenceVault.service';
 import { evaluatePayloadAgainstPolicies } from '../../domains/governance/policyController';
 import OpenAI from 'openai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../../config/env';
 
 export interface PromptGovernanceRequest {
@@ -400,14 +399,7 @@ Evidence records are:
 
       logger.info(`[PromptGovernanceAgent] Sending execution request to model ${chosenModel}`);
 
-      if (chosenModel.includes('gemini') && env.GEMINI_API_KEY) {
-        const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-        const modelInstance = genAI.getGenerativeModel({ model: chosenModel });
-        const result = await modelInstance.generateContent({
-          contents: [{ role: 'user', parts: [{ text: systemInstructions }] }],
-        });
-        aiOutput = (await result.response).text();
-      } else if (env.GROQ_API_KEY) {
+      if (env.GROQ_API_KEY) {
         const groq = new OpenAI({
           apiKey: env.GROQ_API_KEY,
           baseURL: 'https://api.groq.com/openai/v1',
@@ -438,7 +430,7 @@ Evidence records are:
       }
 
       // Check against platform policies (Safety/Compliance/Brand)
-      const policyCheckResult = evaluatePayloadAgainstPolicies({ content: aiOutput }, req.workspace_id);
+      const policyCheckResult = await evaluatePayloadAgainstPolicies({ content: aiOutput }, req.workspace_id);
       if (['block', 'quarantine', 'hold_for_review'].includes(policyCheckResult.outcome)) {
         return this.blockAndLog(
           req,

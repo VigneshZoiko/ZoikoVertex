@@ -2865,7 +2865,7 @@ export class PromptController {
 
       const body = (req.body || {}) as {
         model_id?: string;
-        provider?: 'google' | 'groq';
+        provider?: import('./crossModelProviders').ProviderId;
         attacks?: any[];
       };
       const report = await AdversarialTestService.runRealAdversarialSuite({

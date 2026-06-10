@@ -4,7 +4,45 @@ import { useState, useEffect } from "react";
 import {
   Sliders, Building2, Users, Link2, Calendar,
   Save, Loader2, CheckCircle2, AlertCircle, RefreshCw, PanelLeftClose,
+  Bell,
 } from "lucide-react";
+
+const NOTIF_PREF_KEY = 'zv_notification_prefs';
+
+interface NotificationPrefs {
+  approvalAlerts: boolean;
+  riskAlerts: boolean;
+  publishingReminders: boolean;
+  systemNotifications: boolean;
+  escalationAlerts: boolean;
+  integrationAlerts: boolean;
+  emailDigest: boolean;
+}
+
+const DEFAULT_PREFS: NotificationPrefs = {
+  approvalAlerts: true,
+  riskAlerts: true,
+  publishingReminders: true,
+  systemNotifications: true,
+  escalationAlerts: true,
+  integrationAlerts: true,
+  emailDigest: false,
+};
+
+function loadPrefs(): NotificationPrefs {
+  if (typeof window === 'undefined') return DEFAULT_PREFS;
+  try {
+    const raw = localStorage.getItem(NOTIF_PREF_KEY);
+    return raw ? { ...DEFAULT_PREFS, ...JSON.parse(raw) } : DEFAULT_PREFS;
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+function savePrefs(prefs: NotificationPrefs) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(NOTIF_PREF_KEY, JSON.stringify(prefs));
+}
 import { api } from "@/lib/api";
 import { useSidebarCollapse } from "@/lib/hooks/useSidebarCollapse";
 
@@ -35,6 +73,22 @@ export default function WorkspaceSettingsPage() {
   const [name, setName]           = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [error, setError]         = useState<string | null>(null);
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
+  const [notifSaved, setNotifSaved] = useState(false);
+
+  useEffect(() => {
+    setNotifPrefs(loadPrefs());
+  }, []);
+
+  const handleNotifToggle = (key: keyof NotificationPrefs) => {
+    setNotifPrefs(prev => {
+      const updated = { ...prev, [key]: !prev[key] };
+      savePrefs(updated);
+      setNotifSaved(true);
+      setTimeout(() => setNotifSaved(false), 2000);
+      return updated;
+    });
+  };
 
   const load = async () => {
     setLoading(true);
@@ -176,6 +230,54 @@ export default function WorkspaceSettingsPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Notification Preferences */}
+      <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
+        <div className="p-6 border-b border-zinc-800">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Bell className="w-5 h-5 text-indigo-400" />
+            Notification Preferences
+          </h2>
+          <p className="text-zinc-500 text-sm mt-0.5">Control which alerts you receive in-app.</p>
+        </div>
+        <div className="divide-y divide-zinc-800">
+          {([
+            { key: 'approvalAlerts',       label: 'Approval Alerts',        desc: 'Notified when content requires your approval or is approved/rejected.' },
+            { key: 'riskAlerts',           label: 'Risk Alerts',            desc: 'Notified when workspace risk posture becomes Elevated or Critical.' },
+            { key: 'publishingReminders',  label: 'Publishing Reminders',   desc: 'Notified when your post status changes in the publishing workflow.' },
+            { key: 'systemNotifications',  label: 'System Notifications',   desc: 'Platform-level alerts such as maintenance, usage limits, and updates.' },
+            { key: 'escalationAlerts',     label: 'Escalation Alerts',      desc: 'Notified when a review item is escalated to admin for urgent action.' },
+            { key: 'integrationAlerts',    label: 'Integration Alerts',     desc: 'Notified when a data connector sync fails or an integration disconnects.' },
+            { key: 'emailDigest',          label: 'Email Digest',           desc: 'Receive a daily summary of unread notifications by email.' },
+          ] as { key: keyof NotificationPrefs; label: string; desc: string }[]).map(({ key, label, desc }) => (
+            <div key={key} className="px-6 py-4 flex items-center justify-between gap-6">
+              <div>
+                <p className="text-white text-sm font-semibold">{label}</p>
+                <p className="text-zinc-500 text-xs mt-0.5">{desc}</p>
+              </div>
+              <button
+                onClick={() => handleNotifToggle(key)}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+                  notifPrefs[key] ? "bg-indigo-500" : "bg-zinc-700"
+                }`}
+                role="switch"
+                aria-checked={notifPrefs[key]}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                    notifPrefs[key] ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+          ))}
+        </div>
+        {notifSaved && (
+          <div className="px-6 py-3 border-t border-zinc-800 flex items-center gap-1.5 text-emerald-400 text-sm font-medium animate-in fade-in duration-300">
+            <CheckCircle2 className="w-4 h-4" /> Preferences saved
+          </div>
+        )}
       </div>
 
       {/* Interface Preferences */}

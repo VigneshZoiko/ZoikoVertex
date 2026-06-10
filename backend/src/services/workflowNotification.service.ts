@@ -1,6 +1,8 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../shared/logger';
+import { sendEmail } from './email.service';
+import { env } from '../config/env';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -163,7 +165,6 @@ export async function createWorkflowNotification(params: {
   const message = buildMessage(params.eventType, params.workflowName, params.metadata || {});
 
   for (const channel of params.channels) {
-    // in-app: create a notification row per user
     if (channel === 'in_app') {
       if (params.recipientUserIds?.length) {
         for (const userId of params.recipientUserIds) {
@@ -214,64 +215,210 @@ export async function createWorkflowNotification(params: {
       }
     }
 
-    // email: build placeholder payload (no provider integration)
     if (channel === 'email') {
-      events.push({
-        id: uuidv4(),
-        event_type: params.eventType,
-        workflow_id: params.workflowId,
-        workflow_name: params.workflowName,
-        version_id: params.versionId,
-        severity,
-        title,
-        message,
-        channel: 'email',
-        recipient_role: params.recipientRoles?.join(', '),
-        metadata: params.metadata || {},
-        created_at: now,
-        delivered: false,
-        delivery_error: 'Email provider not integrated — placeholder payload generated',
-      });
+      const userIds = params.recipientUserIds || [];
+      if (userIds.length > 0) {
+        const { data: users } = await supabaseAdmin
+          .from('users')
+          .select('id, email, full_name')
+          .in('id', userIds);
+
+        for (const user of users || []) {
+          try {
+            if (user.email) {
+              await sendEmail({
+                to: user.email,
+                subject: title,
+                text: `${title}\n\n${message}\n\nWorkflow: ${params.workflowName}\nType: ${params.eventType}\nSeverity: ${severity}`,
+              });
+            }
+            events.push({
+              id: uuidv4(),
+              event_type: params.eventType,
+              workflow_id: params.workflowId,
+              workflow_name: params.workflowName,
+              version_id: params.versionId,
+              severity,
+              title,
+              message,
+              channel: 'email',
+              recipient_user_id: user.id,
+              metadata: params.metadata || {},
+              created_at: now,
+              delivered: true,
+            });
+          } catch (err: any) {
+            logger.error({ err, userId: user.id }, 'Failed to send email notification');
+            events.push({
+              id: uuidv4(),
+              event_type: params.eventType,
+              workflow_id: params.workflowId,
+              workflow_name: params.workflowName,
+              version_id: params.versionId,
+              severity,
+              title,
+              message,
+              channel: 'email',
+              recipient_user_id: user.id,
+              metadata: params.metadata || {},
+              created_at: now,
+              delivered: false,
+              delivery_error: err?.message,
+            });
+          }
+        }
+      }
     }
 
-    // slack: build placeholder payload (no provider integration)
     if (channel === 'slack') {
-      events.push({
-        id: uuidv4(),
-        event_type: params.eventType,
-        workflow_id: params.workflowId,
-        workflow_name: params.workflowName,
-        version_id: params.versionId,
-        severity,
-        title,
-        message,
-        channel: 'slack',
-        recipient_role: params.recipientRoles?.join(', '),
-        metadata: params.metadata || {},
-        created_at: now,
-        delivered: false,
-        delivery_error: 'Slack provider not integrated — placeholder payload generated',
-      });
+      const webhookUrl = env.SLACK_WEBHOOK_URL;
+      if (webhookUrl) {
+        try {
+          const slackPayload = {
+            text: title,
+            blocks: [
+              { type: 'header', text: { type: 'plain_text', text: title } },
+              { type: 'section', text: { type: 'mrkdwn', text: message } },
+              { type: 'context', elements: [{ type: 'mrkdwn', text: `*Workflow:* ${params.workflowName} | *Type:* ${params.eventType} | *Severity:* ${severity}` }] },
+            ],
+          };
+          const resp = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(slackPayload),
+          });
+          if (!resp.ok) {
+            throw new Error(`Slack webhook responded with ${resp.status}`);
+          }
+          events.push({
+            id: uuidv4(),
+            event_type: params.eventType,
+            workflow_id: params.workflowId,
+            workflow_name: params.workflowName,
+            version_id: params.versionId,
+            severity,
+            title,
+            message,
+            channel: 'slack',
+            recipient_role: params.recipientRoles?.join(', '),
+            metadata: params.metadata || {},
+            created_at: now,
+            delivered: true,
+          });
+        } catch (err: any) {
+          logger.error({ err }, 'Failed to deliver Slack notification');
+          events.push({
+            id: uuidv4(),
+            event_type: params.eventType,
+            workflow_id: params.workflowId,
+            workflow_name: params.workflowName,
+            version_id: params.versionId,
+            severity,
+            title,
+            message,
+            channel: 'slack',
+            recipient_role: params.recipientRoles?.join(', '),
+            metadata: params.metadata || {},
+            created_at: now,
+            delivered: false,
+            delivery_error: err?.message,
+          });
+        }
+      } else {
+        logger.warn('[notifications] SLACK_WEBHOOK_URL not configured — skipping Slack delivery');
+        events.push({
+          id: uuidv4(),
+          event_type: params.eventType,
+          workflow_id: params.workflowId,
+          workflow_name: params.workflowName,
+          version_id: params.versionId,
+          severity,
+          title,
+          message,
+          channel: 'slack',
+          recipient_role: params.recipientRoles?.join(', '),
+          metadata: params.metadata || {},
+          created_at: now,
+          delivered: false,
+          delivery_error: 'Slack webhook URL not configured',
+        });
+      }
     }
 
-    // webhook: build placeholder payload (exists in integrations/webhooks)
     if (channel === 'webhook') {
-      events.push({
-        id: uuidv4(),
-        event_type: params.eventType,
-        workflow_id: params.workflowId,
-        workflow_name: params.workflowName,
-        version_id: params.versionId,
-        severity,
-        title,
-        message,
-        channel: 'webhook',
-        recipient_role: params.recipientRoles?.join(', '),
-        metadata: params.metadata || {},
-        created_at: now,
-        delivered: false,
-        delivery_error: 'Webhook delivery not integrated — placeholder payload generated',
-      });
+      const webhookUrl = (params.metadata?.webhook_url as string) || (params.metadata?.url as string);
+      if (webhookUrl) {
+        try {
+          const webhookPayload = {
+            event_type: params.eventType,
+            workflow_id: params.workflowId,
+            workflow_name: params.workflowName,
+            severity,
+            title,
+            message,
+            metadata: params.metadata || {},
+            timestamp: now,
+          };
+          const resp = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(webhookPayload),
+          });
+          if (!resp.ok) {
+            throw new Error(`Webhook responded with ${resp.status}`);
+          }
+          events.push({
+            id: uuidv4(),
+            event_type: params.eventType,
+            workflow_id: params.workflowId,
+            workflow_name: params.workflowName,
+            version_id: params.versionId,
+            severity,
+            title,
+            message,
+            channel: 'webhook',
+            recipient_role: params.recipientRoles?.join(', '),
+            metadata: params.metadata || {},
+            created_at: now,
+            delivered: true,
+          });
+        } catch (err: any) {
+          logger.error({ err }, 'Failed to deliver webhook notification');
+          events.push({
+            id: uuidv4(),
+            event_type: params.eventType,
+            workflow_id: params.workflowId,
+            workflow_name: params.workflowName,
+            version_id: params.versionId,
+            severity,
+            title,
+            message,
+            channel: 'webhook',
+            recipient_role: params.recipientRoles?.join(', '),
+            metadata: params.metadata || {},
+            created_at: now,
+            delivered: false,
+            delivery_error: err?.message,
+          });
+        }
+      } else {
+        events.push({
+          id: uuidv4(),
+          event_type: params.eventType,
+          workflow_id: params.workflowId,
+          workflow_name: params.workflowName,
+          version_id: params.versionId,
+          severity,
+          title,
+          message,
+          channel: 'webhook',
+          recipient_role: params.recipientRoles?.join(', '),
+          metadata: params.metadata || {},
+          created_at: now,
+          delivered: false,
+          delivery_error: 'No webhook URL provided in metadata',
+        });
+      }
     }
   }
 
@@ -309,6 +456,5 @@ export function buildSlackPayload(
 // ─── Get pending/undelivered notifications ──────────────────────────────────
 
 export async function listPendingEmailNotifications(): Promise<WorkflowNotificationEvent[]> {
-  // Returns placeholders that were never delivered
   return [];
 }

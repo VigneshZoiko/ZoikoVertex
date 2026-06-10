@@ -8,9 +8,9 @@ import { logger } from './shared/logger';
 import { errorHandler } from './shared/errorHandler';
 
 // Controllers
-import { provisionUser } from './domains/identity/identityController';
+import { provisionUser, resendVerificationEmail } from './domains/identity/identityController';
 import { generateContent, analyzeImage } from './domains/intelligence/intelligenceController';
-import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } from './domains/governance/governanceController';
+import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue, reviewActionIntent } from './domains/governance/governanceController';
 import {
   getAuditTrail, getAuditStats, 
   getEvidenceArtifacts, getEvidenceArtifactDetail, getEvidenceStats,
@@ -43,7 +43,7 @@ import {
   updateSubscriptionRoute,
 } from './domains/evidence/auditTrailStreamingController';
 import { getRiskPulse, getActiveRiskFeed, getGovernanceGaps, triggerEmergencyPause } from './domains/governance/riskController';
-import { getSafetyOverview, getSafetyComponents, getSafetyQueueSummary, getSafetyRecentDecisions, reviewCriticalQueue, requestEmergencyPause } from './domains/governance/safetyController';
+import { getSafetyOverview, getSafetyComponents, getSafetyQueueSummary, getSafetyRecentDecisions, reviewCriticalQueue, requestEmergencyPause, sendMfaChallengeHandler } from './domains/governance/safetyController';
 import { getSafetySignals, getSafetySignalDetail, createManualSignal, classifySafetySignal, routeSafetySignal, mergeSafetySignals, splitSafetySignal, closeSafetySignal, getSafetyActionsHistory } from './domains/governance/signalsController';
 import { getPolicySummary, getPolicies, createPolicy, simulatePolicy, getEnforcementEvents } from './domains/governance/policyController';
 import { getReviewQueue, getReviewDetail, submitReviewDecision } from './domains/governance/reviewController';
@@ -272,6 +272,7 @@ import {
   getWorkflowGraphGeneral,
   validateReadiness,
   getActiveOrchestrations,
+  getPublishedContent,
   getWorkflowStats,
   getWorkflowAnalytics,
   getControlStrip,
@@ -424,6 +425,7 @@ app.get('/api/v1/health', (req, res) => {
 app.post('/api/v1/auth/signup-enterprise', enterpriseSignup);
 app.post('/api/v1/onboarding/setup', authenticate, setupWorkspace);
 app.post('/api/v1/users/provision', provisionGuard, provisionUser);
+app.post('/api/v1/users/resend-verification', resendVerificationEmail);
 
 // Protected Intelligence/AI
 const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'MANAGER', 'REVIEWER', 'SECURITY_ADMIN');
@@ -474,6 +476,7 @@ app.post('/api/v1/governance/submit', authenticate, planRateLimit('general'), sc
 app.get('/api/v1/governance/intents', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), listIntents);
 app.get('/api/v1/governance/queue', authenticate, planRateLimit('general'), scopeGuard('read:content', 'read:governance', '*'), getQueue);
 app.delete('/api/v1/governance/intents/:id', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), deleteIntent);
+app.post('/api/v1/governance/intents/:id/review-action', authenticate, planRateLimit('general'), scopeGuard('write:content', 'write:publish', '*'), reviewActionIntent);
 
 // Protected Evidence Vault & Audit Trail
 app.get('/api/v1/governance/audit/trail', authenticate, govGuard, scopeGuard('read:governance', '*'), getAuditTrail);
@@ -675,6 +678,7 @@ app.get('/api/safety/queue/summary', authenticate, getSafetyQueueSummary);
 app.get('/api/safety/recent-decisions', authenticate, getSafetyRecentDecisions);
 app.post('/api/safety/actions/review-critical-queue', authenticate, reviewCriticalQueue);
 app.post('/api/safety/actions/request-emergency-pause', authenticate, requestEmergencyPause);
+app.post('/api/safety/actions/send-mfa-challenge', authenticate, sendMfaChallengeHandler);
 // Safety Layer Risk Intake & Triage (Document 02) endpoints
 app.get('/api/safety/signals', authenticate, getSafetySignals);
 app.get('/api/safety/signals/:id', authenticate, getSafetySignalDetail);
@@ -897,6 +901,7 @@ app.get('/api/v1/agents/workflows/stats', authenticate, workflowView, scopeGuard
 app.get('/api/v1/agents/workflows/control-strip', authenticate, workflowView, scopeGuard('read:agents', '*'), getControlStrip);
 app.get('/api/v1/agents/workflows/analytics', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflowAnalytics);
 app.get('/api/v1/agents/workflows/active', authenticate, workflowView, scopeGuard('read:agents', '*'), getActiveOrchestrations);
+app.get('/api/v1/agents/workflows/published-content', authenticate, workflowView, scopeGuard('read:agents', '*'), getPublishedContent);
 app.get('/api/v1/agents/workflows/graph', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflowGraphGeneral);
 app.get('/api/v1/agents/workflows/escalations', authenticate, workflowView, scopeGuard('read:agents', '*'), getEscalationPaths);
 app.get('/api/v1/agents/workflows/approvals', authenticate, workflowView, scopeGuard('read:agents', '*'), getApprovals);

@@ -14,6 +14,7 @@ import * as builderService from '../../services/workflowBuilder.service';
 import * as threeKeyService from '../../services/workflowThreeKey.service';
 import * as exportService from '../../services/workflowExport.service';
 import * as notificationService from '../../services/workflowNotification.service';
+import { enrichPublishInstance, getRecentPublishedContent } from '../../services/workflowPublishLink.service';
 import { getParam, getQueryNumber, getQueryValue } from '../../shared/request';
 import { executeInstance } from '../../modules/workflow-engine/executor';
 
@@ -37,6 +38,77 @@ function normalizeWorkflowGraph(steps: any[], edges: any[]) {
       label: edge.branch_label || edge.condition || undefined,
     })),
   };
+}
+
+/**
+ * Build a read-only, auto-generated governed flow from the workspace's agents.
+ *
+ * The flow is NOT authored or editable by users — it is derived from how the
+ * agents are actually configured (knowledge, policy, approval, publish, evidence)
+ * so users can SEE and LEARN the governed path agents move through. Stages appear
+ * only when at least one active agent requires them; agents render as inline
+ * Agent Action nodes in creation order. When no agents exist yet, a canonical
+ * illustrative flow is shown so the page still teaches the intended pipeline.
+ */
+function buildAgentDrivenGraph(agents: any[]) {
+  const colW = 170;
+  const startX = 120;
+  const y = 210;
+  const nodes: any[] = [];
+  const edges: any[] = [];
+  let col = 0;
+
+  const add = (type: string, label: string, idSuffix: string): string => {
+    const id = `flow_${idSuffix}`;
+    nodes.push({ id, type, label, x: startX + col * colW, y });
+    col += 1;
+    return id;
+  };
+
+  const active = (agents || []).filter((a) =>
+    ['ACTIVE', 'APPROVED', 'DEPLOYED'].includes(String(a?.status || '').toUpperCase()),
+  );
+  const arr = (v: unknown) => (Array.isArray(v) ? v : []);
+
+  // Governance stages are shown when ANY active agent requires them.
+  // approval_required / evidence_required default to true in the schema.
+  let anyKnowledge = active.some((a) => arr(a.linked_knowledge_sources).length > 0);
+  let anyPolicy    = active.some((a) => arr(a.linked_policies).length > 0);
+  let anyApproval  = active.some((a) => a.approval_required !== false);
+  let anyPublish   = active.some((a) => arr(a.platforms).length > 0 || arr(a.linked_channels).length > 0);
+  let anyEvidence  = active.some((a) => a.evidence_required !== false);
+
+  const shown = active.slice(0, 10); // cap to keep the flow readable
+
+  // No agents yet → show the full canonical governed flow as a teaching default.
+  if (shown.length === 0) {
+    anyKnowledge = anyPolicy = anyApproval = anyPublish = anyEvidence = true;
+  }
+
+  const seq: string[] = [];
+  seq.push(add('trigger', 'Trigger', 'trigger'));
+  if (anyKnowledge) seq.push(add('knowledge', 'Knowledge Lookup', 'knowledge'));
+
+  if (shown.length === 0) {
+    seq.push(add('agent', 'Agent Action', 'agent_default'));
+  } else {
+    shown.forEach((a, i) => {
+      const label = a.name || a.type || `Agent ${i + 1}`;
+      seq.push(add('agent', String(label), `agent_${a.id || i}`));
+    });
+  }
+
+  if (anyPolicy)   seq.push(add('policy', 'Policy Check', 'policy'));
+  if (anyApproval) seq.push(add('approval', 'Approval Gate', 'approval'));
+  if (anyPublish)  seq.push(add('publish', 'Publish', 'publish'));
+  if (anyEvidence) seq.push(add('evidence', 'Evidence Capture', 'evidence'));
+  seq.push(add('end', 'End', 'end'));
+
+  for (let i = 0; i < seq.length - 1; i += 1) {
+    edges.push({ id: `e_${seq[i]}_${seq[i + 1]}`, source: seq[i], target: seq[i + 1] });
+  }
+
+  return { nodes, edges };
 }
 
 // ─── helper: extract a human-readable message from any thrown value ───────────
@@ -328,32 +400,35 @@ export const retireWorkflow = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
-/** GET /api/v1/agents/workflows/graph — Get graph for the latest version across all workflows. */
+/**
+ * GET /api/v1/agents/workflows/graph — Auto-generated, read-only governed flow.
+ *
+ * The dashboard canvas is a view-only learning surface, not a builder. The flow
+ * is generated from the workspace's active agents and their governance config
+ * (see buildAgentDrivenGraph), so it always reflects how agents actually move
+ * through Trigger → Knowledge → Agent Action → Policy → Approval → Publish →
+ * Evidence → End. Users cannot edit or reorder it.
+ */
 export const getWorkflowGraphGeneral = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { data: versions, error: verErr } = await (await import('../../shared/supabase')).supabaseAdmin
-      .from('workflow_versions')
-      .select('id, workflow_id')
-      .order('created_at', { ascending: false })
-      .limit(1);
-    if (verErr) {
-      if ((verErr as any).code === '42P01') return res.json({ success: true, data: { nodes: [], edges: [] } });
-      throw verErr;
+    const workspaceId = req.user?.workspace_id;
+    const { supabaseAdmin } = await import('../../shared/supabase');
+
+    let query = supabaseAdmin
+      .from('agents')
+      .select('id, name, type, status, risk_level, autonomy_level, linked_knowledge_sources, linked_policies, linked_channels, platforms, approval_required, evidence_required, created_at')
+      .order('created_at', { ascending: true })
+      .limit(20);
+    if (workspaceId) query = query.eq('workspace_id', workspaceId);
+
+    const { data: agents, error } = await query;
+    // Missing table or query error → still return the canonical teaching flow.
+    if (error && (error as any).code !== '42P01') {
+      logger.warn({ err: error }, 'Agent fetch failed for workflow graph; using canonical default');
     }
-    if (!versions || versions.length === 0) {
-      return res.json({ success: true, data: { nodes: [], edges: [] } });
-    }
-    const latestVersionId = versions[0].id;
-    const [stepsResult, edgesResult] = await Promise.all([
-      (await import('../../shared/supabase')).supabaseAdmin.from('workflow_steps').select('*').eq('version_id', latestVersionId).order('sequence', { ascending: true }),
-      (await import('../../shared/supabase')).supabaseAdmin.from('workflow_edges').select('*').eq('version_id', latestVersionId),
-    ]);
-    if (stepsResult.error) throw stepsResult.error;
-    if (edgesResult.error) throw edgesResult.error;
-    res.json({ success: true, data: normalizeWorkflowGraph(stepsResult.data || [], edgesResult.data || []) });
+    res.json({ success: true, data: buildAgentDrivenGraph(agents || []) });
   } catch (err) {
-    const _logger = (await import('../../shared/logger')).logger;
-    _logger.error({ err }, 'Failed to get general workflow graph');
+    logger.error({ err }, 'Failed to build agent-driven workflow graph');
     next(err);
   }
 };
@@ -387,6 +462,20 @@ export const validateReadiness = async (req: AuthRequest, res: Response, next: N
   }
 };
 
+/** GET /api/v1/agents/workflows/published-content — Recent posts from the Publish Hub, tagged with the relevant agent. */
+export const getPublishedContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace not found' });
+    const limit = getQueryNumber(req, 'limit', 24);
+    const items = await getRecentPublishedContent(workspaceId, limit);
+    res.json({ success: true, data: items });
+  } catch (err) {
+    logger.error({ err }, 'Failed to get published content');
+    next(err);
+  }
+};
+
 /** GET /api/v1/agents/workflows/active — List active workflow instances. */
 export const getActiveOrchestrations = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -398,7 +487,8 @@ export const getActiveOrchestrations = async (req: AuthRequest, res: Response, n
       limit: getQueryNumber(req, 'limit', 50),
       offset: getQueryNumber(req, 'offset', 0),
     });
-    res.json({ success: true, data: result.instances });
+    // Expand publish-hub-linked instances so the agent + post show in the UI.
+    res.json({ success: true, data: (result.instances || []).map(enrichPublishInstance) });
   } catch (err) {
     logger.error({ err }, 'Failed to get active orchestrations');
     next(err);
@@ -873,16 +963,21 @@ export const exportWorkflow = async (req: AuthRequest, res: Response, _next: Nex
       reason,
     });
 
-    // Audit log
-    await exportService.logExportAuditEvent({
-      workflowId: id,
-      workflowName: payload.workflow.name,
-      workspaceId,
-      userId,
-      userEmail,
-      exportType: 'full_json',
-      reason,
-    });
+    // Audit log — best-effort; never block the export on an audit-write failure
+    // (logExportAuditEvent already raises a SecOps alert on failure).
+    try {
+      await exportService.logExportAuditEvent({
+        workflowId: id,
+        workflowName: payload.workflow.name,
+        workspaceId,
+        userId,
+        userEmail,
+        exportType: 'full_json',
+        reason,
+      });
+    } catch (auditErr) {
+      logger.warn({ err: auditErr }, 'Export audit log failed (non-blocking)');
+    }
 
     res.json({ success: true, data: payload });
   } catch (err: any) {
@@ -915,15 +1010,19 @@ export const exportApprovals = async (req: AuthRequest, res: Response, _next: Ne
       .eq('id', id)
       .single();
 
-    await exportService.logExportAuditEvent({
-      workflowId: id,
-      workflowName: wf?.name || 'Unknown',
-      workspaceId,
-      userId,
-      userEmail: req.user?.email,
-      exportType: 'approvals_csv',
-      reason: req.query.reason as string | undefined,
-    });
+    try {
+      await exportService.logExportAuditEvent({
+        workflowId: id,
+        workflowName: wf?.name || 'Unknown',
+        workspaceId,
+        userId,
+        userEmail: req.user?.email,
+        exportType: 'approvals_csv',
+        reason: req.query.reason as string | undefined,
+      });
+    } catch (auditErr) {
+      logger.warn({ err: auditErr }, 'Approvals export audit log failed (non-blocking)');
+    }
 
     res.json({ success: true, data: csv });
   } catch (err: any) {

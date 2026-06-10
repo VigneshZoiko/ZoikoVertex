@@ -3,6 +3,42 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { logAuditEvent } from './evidenceController';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { lockStore } from '../agents/autonomyController';
+import { v4 as uuidv4 } from 'uuid';
+
+async function fireRiskAlertNotification(params: {
+  workspaceId: string;
+  posture: string;
+  creditRating: string;
+  openCases: number;
+  criticalEvents: number;
+}): Promise<void> {
+  try {
+    if (params.posture !== 'CRITICAL' && params.posture !== 'ELEVATED') return;
+    const { data: adminMembers } = await supabaseAdmin
+      .from('workspace_members')
+      .select('user_id')
+      .eq('workspace_id', params.workspaceId)
+      .in('role', ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN']);
+    const adminIds: string[] = (adminMembers || []).map((m: any) => m.user_id).filter(Boolean);
+    if (!adminIds.length) return;
+    const isCritical = params.posture === 'CRITICAL';
+    await supabaseAdmin.from('notifications').insert(
+      adminIds.map((userId: string) => ({
+        id: uuidv4(),
+        user_id: userId,
+        title: isCritical
+          ? `🔴 Risk Alert: Workspace Posture is CRITICAL (${params.creditRating})`
+          : `🟠 Risk Alert: Elevated Risk Detected (${params.creditRating})`,
+        body: `Your workspace risk posture is ${params.posture}. Credit rating: ${params.creditRating}. Open risk cases: ${params.openCases}, critical events: ${params.criticalEvents}. Immediate review required.`,
+        type: 'WARNING',
+        category: 'SECURITY',
+        priority: isCritical ? 'URGENT' : 'HIGH',
+        link: '/governance/risk',
+        read: false,
+      }))
+    );
+  } catch { /* non-blocking */ }
+}
 
 /**
  * 1. Enterprise Risk Pulse (Stats)
@@ -81,6 +117,16 @@ export const getRiskPulse = async (req: AuthRequest, res: Response) => {
       creditRating = 'A'; posture = 'ELEVATED';
     } else if (openCases > 5 || totalGaps > 2) {
       creditRating = 'AA'; posture = 'SECURE';
+    }
+
+    if (finalWorkspaceId !== 'global' && (posture === 'CRITICAL' || posture === 'ELEVATED')) {
+      fireRiskAlertNotification({
+        workspaceId: finalWorkspaceId,
+        posture,
+        creditRating,
+        openCases,
+        criticalEvents,
+      });
     }
 
     res.json({

@@ -124,7 +124,7 @@ export async function exportWorkflowFull(params: {
   const { data: versions } = await supabaseAdmin
     .from('workflow_versions')
     .select('id, version_number, state, created_at, created_by')
-    .eq('template_id', workflowId)
+    .eq('workflow_id', workflowId)
     .order('version_number', { ascending: false });
 
   // Gather evidence bundles
@@ -232,13 +232,21 @@ export async function exportApprovalsCsv(params: {
     throw Object.assign(new Error('Workflow not found in this workspace'), { statusCode: 404 });
   }
 
+  // Column order for the export — also used as a header-only fallback so the
+  // CSV is always a valid, non-empty file (even when there are no approvals).
+  const APPROVAL_HEADERS = [
+    'chain_id', 'version_id', 'status', 'approval_sequence', 'required_role',
+    'approver_name', 'decision', 'decided_at', 'evidence_ref', 'note', 'created_at',
+  ];
+  const headerRow = APPROVAL_HEADERS.join(',');
+
   const { data: versions } = await supabaseAdmin
     .from('workflow_versions')
     .select('id, version_number')
-    .eq('template_id', workflowId);
+    .eq('workflow_id', workflowId);
 
   const versionIds = (versions || []).map((v: any) => v.id);
-  if (!versionIds.length) return '';
+  if (!versionIds.length) return headerRow;
 
   const { data: chains } = await supabaseAdmin
     .from('workflow_approval_chains')
@@ -266,7 +274,7 @@ export async function exportApprovalsCsv(params: {
     }
   }
 
-  return objectsToCsv(rows);
+  return rows.length ? objectsToCsv(rows) : headerRow;
 }
 
 export async function exportEvidenceByRef(params: {
@@ -316,7 +324,7 @@ export async function exportRuntimeTimelineCsv(params: {
   const { data: versions } = await supabaseAdmin
     .from('workflow_versions')
     .select('id, version_number')
-    .eq('template_id', workflowId);
+    .eq('workflow_id', workflowId);
 
   // Gather instances
   const { data: instances } = await supabaseAdmin
@@ -407,7 +415,10 @@ export async function logExportAuditEvent(params: {
     await createAuditEvent({
       workspace_id: params.workspaceId,
       event_category: 'evidence_legal',
-      event_type: 'workflow.exported',
+      // 'evidence.exported' is the registered canonical type for export actions
+      // (see auditExportWorker). 'workflow.exported' is not registered and the
+      // create_audit_event RPC rejects it.
+      event_type: 'evidence.exported',
       event_title: `Workflow Exported: ${params.workflowName}`,
       event_summary: `Export type: ${params.exportType}${params.reason ? `. Reason: ${params.reason}` : ''}`,
       actor: {

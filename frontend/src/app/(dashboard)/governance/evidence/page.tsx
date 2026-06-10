@@ -4,10 +4,8 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import {
   Archive,
-  ShieldCheck,
   Lock,
   Download,
-  FileText,
   AlertTriangle,
   CheckCircle,
   Search,
@@ -16,26 +14,13 @@ import {
   Clock,
   Filter,
   Package,
-  Eye,
   ChevronRight,
-  AlertOctagon,
   Gavel,
-  BarChart3,
   X
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface EvidenceStats {
-  total_artifacts: number;
-  defensible: number;
-  review_recommended: number;
-  governance_gaps: number;
-  defensibility_failures: number;
-  active_legal_holds: number;
-  evidence_packs: number;
-  avg_defensibility: number;
-}
 
 interface Artifact {
   id: string;
@@ -85,7 +70,6 @@ function defensibilityBar(score: number) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function EvidenceVaultPage() {
-  const [stats, setStats] = useState<EvidenceStats | null>(null);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [packs, setPacks] = useState<EvidencePack[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,14 +93,18 @@ export default function EvidenceVaultPage() {
 
   const fetchAll = async () => {
     try {
-      const [statsRes, artRes, packRes] = await Promise.allSettled([
-        api.get("/api/v1/governance/evidence/stats"),
+      const [artRes, packRes] = await Promise.allSettled([
         api.get("/api/v1/governance/evidence/artifacts"),
         api.get("/api/v1/governance/evidence/packs")
       ]);
-      if (statsRes.status === "fulfilled" && statsRes.value?.success) setStats(statsRes.value.data);
-      if (artRes.status === "fulfilled" && artRes.value?.success) setArtifacts(artRes.value.data);
-      if (packRes.status === "fulfilled" && packRes.value?.success) setPacks(packRes.value.data);
+      const arts: Artifact[] = artRes.status === "fulfilled" && artRes.value?.success
+        ? (Array.isArray(artRes.value.data) ? artRes.value.data : [])
+        : [];
+      const packsData: EvidencePack[] = packRes.status === "fulfilled" && packRes.value?.success
+        ? (Array.isArray(packRes.value.data) ? packRes.value.data : [])
+        : [];
+      setArtifacts(arts);
+      setPacks(packsData);
     } catch (err: any) {
       setError(err?.message || "Failed to load evidence data");
     } finally {
@@ -216,27 +204,6 @@ export default function EvidenceVaultPage() {
           </button>
         </div>
       </div>
-
-      {/* ── Stats Strip ────────────────────────────────────────────────────── */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
-          {[
-            { label: "Total Artifacts", value: stats.total_artifacts, icon: FileText, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
-            { label: "Defensible", value: stats.defensible, icon: ShieldCheck, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-            { label: "Review Recommended", value: stats.review_recommended, icon: Eye, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-            { label: "Governance Gaps", value: stats.governance_gaps, icon: AlertTriangle, color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/20" },
-            { label: "Def. Failures", value: stats.defensibility_failures, icon: AlertOctagon, color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20" },
-            { label: "Legal Holds", value: stats.active_legal_holds, icon: Lock, color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
-            { label: "Avg. Score", value: `${stats.avg_defensibility}%`, icon: BarChart3, color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/20" },
-          ].map(s => (
-            <div key={s.label} className={`p-4 rounded-xl border ${s.bg} flex flex-col gap-2`}>
-              <s.icon className={`w-4 h-4 ${s.color}`} />
-              <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
-              <div className="text-[9px] text-[#666] uppercase tracking-wider font-bold">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ── Evidence Pack Builder ────────────────────────────────────────── */}
       {showPackBuilder && (
@@ -469,11 +436,7 @@ export default function EvidenceVaultPage() {
             </h3>
             <div className="text-center py-10 text-[#666]">
               <Lock className="w-10 h-10 mx-auto mb-3 opacity-20" />
-              <p className="text-xs">
-                {stats?.active_legal_holds
-                  ? `${stats.active_legal_holds} active hold(s). Refresh to load.`
-                  : "No active legal holds in this workspace."}
-              </p>
+              <p className="text-xs">No active legal holds in this workspace.</p>
             </div>
           </div>
         </div>

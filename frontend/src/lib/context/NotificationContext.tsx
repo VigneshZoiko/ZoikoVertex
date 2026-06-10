@@ -85,13 +85,34 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       const response = await api.get('/api/v1/notifications');
       if (response.success) {
-        const formatted = response.data.map((n: any) => ({
-          ...n,
-          timestamp: new Date(n.created_at || n.timestamp),
-          // Ensure category and priority are correctly typed
-          category: n.category || 'SYSTEM',
-          priority: n.priority || 'MEDIUM',
-        }));
+        const typeToCategory = (t: string): NotificationCategory => {
+          if (t === 'APPROVAL' || t === 'GOVERNANCE') return 'WORKFLOW';
+          if (t === 'WARNING' || t === 'ERROR') return 'SECURITY';
+          if (t === 'SOCIAL') return 'SOCIAL';
+          return 'SYSTEM';
+        };
+        const typeToActions = (n: any): NotificationAction[] | undefined => {
+          if (n.link) return [{ label: 'View Details', href: n.link, primary: true }];
+          return undefined;
+        };
+        const typeToPriority = (t: string, cat: string): NotificationPriority => {
+          if (t === 'ERROR') return 'URGENT';
+          if (t === 'WARNING' || cat === 'ESCALATION') return 'HIGH';
+          if (t === 'APPROVAL' || t === 'GOVERNANCE') return 'MEDIUM';
+          return 'LOW';
+        };
+        const formatted = response.data.map((n: any) => {
+          const category = n.category || typeToCategory(n.type || '');
+          const priority = n.priority || typeToPriority(n.type || '', n.sub_type || '');
+          return {
+            ...n,
+            message: n.message || n.body || '',
+            timestamp: new Date(n.created_at || n.timestamp),
+            category,
+            priority,
+            actions: n.actions || typeToActions(n),
+          };
+        });
         dispatch({ type: 'SET_NOTIFICATIONS', payload: formatted });
       }
     } catch (err) {

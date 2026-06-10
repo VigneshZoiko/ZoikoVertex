@@ -564,9 +564,7 @@ export async function computeEvidenceStats(
   try {
     let query = supabaseAdmin
       .from('publish_intents')
-      .select(
-        'id, status, risk_level, risk_score, feedback, target_account_ids, platform, content, workspace_id, creator_id'
-      );
+      .select('*');
     if (!isSuperAdmin && workspaceId) {
       query = query.eq('workspace_id', workspaceId);
     }
