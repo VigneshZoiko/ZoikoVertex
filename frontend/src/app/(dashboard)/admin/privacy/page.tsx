@@ -46,11 +46,11 @@ export default function PrivacyDataPage() {
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+        <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
           <Eye className="w-8 h-8 text-indigo-500" />
           Privacy &amp; Data
         </h1>
-        <p className="text-zinc-400 mt-1 text-sm">
+        <p className="text-gray-500 dark:text-zinc-400 mt-1 text-sm">
           Manage data privacy, retention policies, and workspace exports.
         </p>
       </div>
@@ -63,10 +63,10 @@ export default function PrivacyDataPage() {
       )}
 
       {/* Data Export */}
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
-        <div className="p-6 border-b border-zinc-800">
-          <h2 className="text-lg font-bold text-white">Data Export</h2>
-          <p className="text-zinc-500 text-sm mt-0.5">
+      <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-zinc-800">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Data Export</h2>
+          <p className="text-gray-500 dark:text-zinc-500 text-sm mt-0.5">
             Download a full export of your workspace data — members, accounts, and audit trail.
           </p>
         </div>
@@ -77,10 +77,10 @@ export default function PrivacyDataPage() {
               { icon: Lock,     label: "Audit Trail",        desc: "Last 1,000 events" },
               { icon: Clock,    label: "Team Members",       desc: "Roles &amp; access log" },
             ].map(({ icon: Icon, label, desc }) => (
-              <div key={label} className="p-3 bg-zinc-950/50 rounded-xl border border-zinc-800/50">
+              <div key={label} className="p-3 bg-white dark:bg-zinc-950/50 rounded-xl border border-gray-200 dark:border-zinc-800/50">
                 <Icon className="w-4 h-4 text-indigo-400 mb-1.5" />
-                <p className="text-xs font-bold text-zinc-300">{label}</p>
-                <p className="text-xs text-zinc-600" dangerouslySetInnerHTML={{ __html: desc }} />
+                <p className="text-xs font-bold text-gray-700 dark:text-zinc-300">{label}</p>
+                <p className="text-xs text-gray-400 dark:text-zinc-600" dangerouslySetInnerHTML={{ __html: desc }} />
               </div>
             ))}
           </div>
@@ -100,7 +100,7 @@ export default function PrivacyDataPage() {
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all"
+            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 dark:text-white font-bold rounded-xl transition-all"
           >
             {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             {exporting ? "Exporting…" : "Export Workspace Data"}
@@ -109,11 +109,11 @@ export default function PrivacyDataPage() {
       </div>
 
       {/* Data Retention */}
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
-        <div className="p-6 border-b border-zinc-800">
-          <h2 className="text-lg font-bold text-white">Data Retention Policy</h2>
+      <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-zinc-800">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Data Retention Policy</h2>
         </div>
-        <div className="divide-y divide-zinc-800">
+        <div className="divide-y divide-gray-200 dark:divide-zinc-800">
           {[
             { label: "Audit Events",    value: "90 days",   desc: "Governance audit trail" },
             { label: "Content History", value: "12 months", desc: "Published content records" },
@@ -122,18 +122,18 @@ export default function PrivacyDataPage() {
           ].map(({ label, value, desc }) => (
             <div key={label} className="px-6 py-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-white">{label}</p>
-                <p className="text-xs text-zinc-500 mt-0.5">{desc}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
+                <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">{desc}</p>
               </div>
-              <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300">{value}</span>
+              <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300">{value}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Compliance */}
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-6">
-        <h2 className="text-lg font-bold text-white mb-4">Compliance &amp; Privacy</h2>
+      <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl p-6">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Compliance &amp; Privacy</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
             { title: "GDPR Compliant",     desc: "Data processed in accordance with EU regulations",   active: true,  action: null },
@@ -141,16 +141,16 @@ export default function PrivacyDataPage() {
             { title: "Data Encryption",    desc: "All data encrypted at rest and in transit",          active: true,  action: null },
             { title: "Right to Erasure",   desc: "Submit a deletion request via support",              active: false, action: "/support" },
           ].map(({ title, desc, active, action }) => (
-            <div key={title} className="flex items-start gap-3 p-4 bg-zinc-950/50 rounded-xl border border-zinc-800/50">
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${active ? "bg-emerald-500/20" : "bg-zinc-700/50"}`}>
+            <div key={title} className="flex items-start gap-3 p-4 bg-white dark:bg-zinc-950/50 rounded-xl border border-gray-200 dark:border-zinc-800/50">
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${active ? "bg-emerald-500/20" : "bg-gray-300 dark:bg-zinc-700/50"}`}>
                 {active
                   ? <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                  : <AlertCircle  className="w-3 h-3 text-zinc-500" />
+                  : <AlertCircle  className="w-3 h-3 text-gray-500 dark:text-zinc-500" />
                 }
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-white">{title}</p>
-                <p className="text-xs text-zinc-500 mt-0.5">{desc}</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">{title}</p>
+                <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">{desc}</p>
               </div>
               {action && (
                 <Link href={action} className="flex items-center gap-1 text-xs text-indigo-400 hover:underline font-medium shrink-0 mt-0.5">

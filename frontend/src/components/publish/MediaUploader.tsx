@@ -44,7 +44,7 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
           )}
           <button
             onClick={onClear}
-            className="absolute top-3 right-3 bg-zinc-950/80 hover:bg-rose-500 text-white p-2 rounded-xl backdrop-blur-md transition-all border border-white/10"
+            className="absolute top-3 right-3 bg-card/80 hover:bg-rose-500 text-foreground p-2 rounded-xl backdrop-blur-md transition-all border border-white/10"
             title="Remove Media"
           >
             <X className="w-4 h-4" />

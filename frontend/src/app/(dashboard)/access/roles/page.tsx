@@ -275,7 +275,7 @@ function UnitsTab() {
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-foreground text-sm font-semibold rounded-xl transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Unit
@@ -360,7 +360,7 @@ function UnitsTab() {
             <button
               onClick={handleCreate}
               disabled={submitting || !name.trim()}
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
+              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-foreground text-sm font-semibold rounded-xl transition-colors"
             >
               {submitting ? "Creating…" : "Create Unit"}
             </button>

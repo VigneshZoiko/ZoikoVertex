@@ -41,29 +41,29 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
   /* ── Plan Expired ─────────────────────────────────────────────────────────── */
   if (isPlanExpiry) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-zinc-950 flex items-center justify-center p-6">
+      <div className="fixed inset-0 z-[9999] bg-card flex items-center justify-center p-6">
         <div className="w-full max-w-[420px] space-y-8">
 
           {/* Icon + heading */}
           <div className="text-center space-y-5">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700">
-              <CreditCard className="w-5 h-5 text-zinc-300" />
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-surface-hover border border-border">
+              <CreditCard className="w-5 h-5 text-foreground-muted" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-2xl font-semibold text-white tracking-tight">
+              <h2 className="text-2xl font-semibold text-foreground tracking-tight">
                 Plan Expired
               </h2>
-              <p className="text-sm text-zinc-400 leading-relaxed">
+              <p className="text-sm text-foreground-muted leading-relaxed">
                 Your organization
-                {orgName && <span className="text-white font-medium"> {orgName}</span>}&apos;s{" "}
-                <span className="text-white font-medium">{planType ?? "paid"}</span> plan has expired.
+                {orgName && <span className="text-foreground font-medium"> {orgName}</span>}&apos;s{" "}
+                <span className="text-foreground font-medium">{planType ?? "paid"}</span> plan has expired.
                 Renew to restore full access or continue on the free tier.
               </p>
             </div>
           </div>
 
           {/* Divider */}
-          <div className="border-t border-zinc-800" />
+          <div className="border-t border-border" />
 
           {/* Actions */}
           <div className="space-y-3">
@@ -78,7 +78,7 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
             <button
               onClick={handleDowngradeToFree}
               disabled={downgrading}
-              className="w-full h-11 flex items-center justify-center gap-2 bg-zinc-900/50 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-600 rounded-lg transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-11 flex items-center justify-center gap-2 bg-card border border-border text-foreground-muted hover:text-white hover:border-border rounded-lg transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {downgrading && <Loader2 className="w-4 h-4 animate-spin" />}
               {downgrading ? "Switching…" : "Continue with Free Plan"}
@@ -89,7 +89,7 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
 
             <button
               onClick={handleLogout}
-              className="w-full h-11 flex items-center justify-center gap-2 border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 rounded-lg transition-colors text-sm font-medium"
+              className="w-full h-11 flex items-center justify-center gap-2 border border-border text-foreground-muted hover:text-foreground-muted hover:border-border rounded-lg transition-colors text-sm font-medium"
             >
               <LogOut className="w-4 h-4" />
               Sign Out
@@ -106,38 +106,38 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
   const isBanned  = type === "banned";
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-zinc-950 flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-[9999] bg-card flex items-center justify-center p-6">
       <div className="w-full max-w-[420px] space-y-8">
 
         <div className="text-center space-y-5">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-surface-hover border border-border">
             {isDeleted
-              ? <Trash2 className="w-5 h-5 text-zinc-300" />
-              : <PauseCircle className="w-5 h-5 text-zinc-300" />
+              ? <Trash2 className="w-5 h-5 text-foreground-muted" />
+              : <PauseCircle className="w-5 h-5 text-foreground-muted" />
             }
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-semibold text-white tracking-tight">
+            <h2 className="text-2xl font-semibold text-foreground tracking-tight">
               Organization {isDeleted ? "Permanently Banned" : "Banned"}
             </h2>
-            <p className="text-sm text-zinc-400 leading-relaxed">
+            <p className="text-sm text-foreground-muted leading-relaxed">
               Your organization
-              {orgName && <span className="text-white font-medium"> {orgName}</span>} has been{" "}
+              {orgName && <span className="text-foreground font-medium"> {orgName}</span>} has been{" "}
               {isDeleted ? "permanently banned" : "banned"}.
             </p>
             {isBanned && (
-              <p className="text-sm text-zinc-500 leading-relaxed pt-1">
+              <p className="text-sm text-foreground-muted leading-relaxed pt-1">
                 Please{" "}
                 <Link
                   href="/support"
-                  className="text-zinc-300 hover:text-white underline underline-offset-2 transition-colors"
+                  className="text-foreground-muted hover:text-white underline underline-offset-2 transition-colors"
                 >
                   contact support
                 </Link>{" "}
                 or visit our{" "}
                 <Link
                   href="/docs"
-                  className="text-zinc-300 hover:text-white underline underline-offset-2 transition-colors"
+                  className="text-foreground-muted hover:text-white underline underline-offset-2 transition-colors"
                 >
                   documentation
                 </Link>{" "}
@@ -147,7 +147,7 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
           </div>
         </div>
 
-        <div className="border-t border-zinc-800" />
+        <div className="border-t border-border" />
 
         <div className="space-y-3">
           <button
@@ -159,7 +159,7 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
           </button>
         </div>
 
-        <p className="text-center text-[10px] font-semibold text-zinc-700 uppercase tracking-[0.18em]">
+        <p className="text-center text-[10px] font-semibold text-foreground-muted uppercase tracking-[0.18em]">
           ZoikoVertex · Platform Protocol
         </p>
       </div>

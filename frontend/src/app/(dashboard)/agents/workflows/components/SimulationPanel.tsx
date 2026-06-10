@@ -72,7 +72,7 @@ export default function SimulationPanel({ versionId }: { versionId: string | nul
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Simulation Runs</p>
         <button onClick={runSimulation} disabled={running || !versionId}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-sky-500 hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-foreground bg-sky-500 hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
           {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
           {running ? 'Running…' : 'Run Simulation'}
         </button>

@@ -72,7 +72,7 @@ export default function CollusionMonitorPage() {
               <ShieldAlert className="w-4 h-4" />
               Human Accountability Layer
             </div>
-            <h1 className="text-6xl font-black text-white tracking-tighter leading-[0.85]">
+            <h1 className="text-6xl font-black text-foreground tracking-tighter leading-[0.85]">
               Collusion &amp; <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-amber-500 italic">Insider Risk.</span>
             </h1>
             <p className="text-lg text-slate-400 leading-relaxed font-medium tracking-tight">
@@ -137,7 +137,7 @@ export default function CollusionMonitorPage() {
                   </defs>
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center">
-                  <span className="text-5xl font-black text-white tracking-tighter">{data?.collusion_index}%</span>
+                  <span className="text-5xl font-black text-foreground tracking-tighter">{data?.collusion_index}%</span>
                   <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">Threat Level</span>
                 </div>
               </div>
@@ -160,7 +160,7 @@ export default function CollusionMonitorPage() {
                       <card.icon className={`w-5 h-5 ${card.color}`} />
                     </div>
                     <div>
-                      <div className="text-4xl font-black text-white tracking-tighter">{card.value}</div>
+                      <div className="text-4xl font-black text-foreground tracking-tighter">{card.value}</div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">{card.label}</div>
                     </div>
                   </div>
@@ -176,7 +176,7 @@ export default function CollusionMonitorPage() {
               <div className="flex items-center gap-3">
                 <ShieldAlert className="w-6 h-6 text-rose-400" />
                 <div>
-                  <h2 className="text-xl font-black text-white uppercase tracking-tighter">Live Incident Feed</h2>
+                  <h2 className="text-xl font-black text-foreground uppercase tracking-tighter">Live Incident Feed</h2>
                   <p className="text-xs text-[var(--foreground-muted)]">Real-time attestation scanner of abnormal human approval patterns.</p>
                 </div>
               </div>
@@ -188,7 +188,7 @@ export default function CollusionMonitorPage() {
                   <CheckCircle className="w-6 h-6 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-white font-bold text-sm">No Insider Risk Incidents Found</p>
+                  <p className="text-foreground font-bold text-sm">No Insider Risk Incidents Found</p>
                   <p className="text-slate-500 text-xs mt-1">All humans and agents are complying with defined HITL control boundaries.</p>
                 </div>
               </div>
@@ -206,7 +206,7 @@ export default function CollusionMonitorPage() {
                   <tbody>
                     {data.incidents.map((incident) => (
                       <tr key={incident.id} className="border-b border-slate-900/50 hover:bg-slate-950/40 transition-colors">
-                        <td className="py-5 px-6 font-bold text-white flex items-center gap-3">
+                        <td className="py-5 px-6 font-bold text-foreground flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                             incident.severity === 'CRITICAL' ? 'bg-rose-500/10 text-rose-400' :
                             incident.severity === 'HIGH' ? 'bg-amber-500/10 text-amber-400' : 'bg-sky-500/10 text-sky-400'
@@ -241,12 +241,12 @@ export default function CollusionMonitorPage() {
           {/* Section: Operational Mitigation controls */}
           <div className="bg-slate-950 border border-rose-500/20 rounded-[3rem] p-10 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="space-y-2 max-w-xl">
-              <h3 className="text-lg font-black text-white uppercase tracking-tighter">Emergency Autonomy Lock</h3>
+              <h3 className="text-lg font-black text-foreground uppercase tracking-tighter">Emergency Autonomy Lock</h3>
               <p className="text-xs text-slate-400 leading-relaxed font-medium">
                 In the event that the collusion index exceeds safe bounds (70%+), click here to trigger a global Level 3 lock suspending all autonomous model publication pipelines across the workspace.
               </p>
             </div>
-            <button className="bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-widest px-8 py-5 rounded-2xl flex items-center gap-3 transition-all shadow-xl shadow-rose-600/20">
+            <button className="bg-rose-600 hover:bg-rose-500 text-foreground font-black text-xs uppercase tracking-widest px-8 py-5 rounded-2xl flex items-center gap-3 transition-all shadow-xl shadow-rose-600/20">
               <Lock className="w-4 h-4" /> Lock Autonomous Pipelines
             </button>
           </div>

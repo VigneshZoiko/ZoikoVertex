@@ -383,7 +383,7 @@ export default function Header() {
               {formatRole(role || (isSuperAdmin ? 'SUPERADMIN' : ''))}-{orgName || 'ZoikoGroup'}
             </p>
           </div>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shrink-0 border-2 border-transparent group-hover:border-indigo-500/50 transition-all overflow-hidden shadow-lg flex items-center justify-center text-xs text-white font-bold uppercase">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shrink-0 border-2 border-transparent group-hover:border-indigo-500/50 transition-all overflow-hidden shadow-lg flex items-center justify-center text-xs text-foreground font-bold uppercase">
             {fullName ? fullName.split(' ').map(n => n[0]).join('') : "U"}
           </div>
         </Link>

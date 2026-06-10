@@ -254,7 +254,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
   return (
     <div ref={modalRef} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay)] backdrop-blur-md animate-in fade-in duration-500">
       <div className="bg-[var(--card)] border border-[var(--card-border)] w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-        <div className="px-8 py-6 border-b border-[var(--card-border)] bg-indigo-600 text-white flex items-center justify-between shrink-0">
+        <div className="px-8 py-6 border-b border-[var(--card-border)] bg-indigo-600 text-foreground flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <ShieldCheck className="w-8 h-8" />
             <div>
@@ -332,7 +332,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
               {!isCertified && !testing && (
                 <button
                   onClick={runSandbox}
-                  className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20"
+                  className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-foreground py-3 rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20"
                 >
                   <Play className="w-4 h-4" />
                   Run Adversarial Sandbox
@@ -373,7 +373,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
                     <button
                       onClick={handleFinalize}
                       disabled={finalizing}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-foreground py-3 rounded-xl font-bold transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {finalizing ? (
                         <>
@@ -411,7 +411,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
                   log.includes('[RUNNING]') ? "text-indigo-400" :
                   log.includes('[COMPLETE]') ? "text-amber-400" :
                   log.includes('[SYSTEM]') ? "text-cyan-400" :
-                  "text-zinc-500"
+                  "text-foreground-muted"
                 }`}>
                   <span className="opacity-30 shrink-0">[{i.toString().padStart(2, '0')}]</span>
                   <span className="break-all">{log}</span>

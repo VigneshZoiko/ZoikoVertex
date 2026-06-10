@@ -37,7 +37,7 @@ const RESOURCE_META: Record<string, { label: string; icon: React.ElementType; co
 };
 
 function getResourceMeta(type: string) {
-  return RESOURCE_META[type] ?? { label: type, icon: Cpu, color: "text-zinc-400", iconBg: "bg-zinc-500/10" };
+  return RESOURCE_META[type] ?? { label: type, icon: Cpu, color: "text-foreground-muted", iconBg: "bg-zinc-500/10" };
 }
 
 function Skeleton({ className }: { className: string }) {

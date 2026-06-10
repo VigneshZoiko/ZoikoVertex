@@ -128,7 +128,7 @@ export default function FullEventPage() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="bg-[#111] border border-[#222] rounded-xl p-12 text-center">
           <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-red-400" />
-          <h2 className="text-lg font-medium text-white mb-1">Failed to Load Event</h2>
+          <h2 className="text-lg font-medium text-foreground mb-1">Failed to Load Event</h2>
           <p className="text-sm text-[#888] mb-4">{error}</p>
           <div className="flex gap-3 justify-center">
             <button onClick={() => router.back()} className="text-amber-500 hover:text-amber-400 text-sm flex items-center gap-1 mx-auto">
@@ -148,7 +148,7 @@ export default function FullEventPage() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="bg-[#111] border border-[#222] rounded-xl p-12 text-center">
           <FileSearch className="w-12 h-12 mx-auto mb-3 text-[#444]" />
-          <h2 className="text-lg font-medium text-white mb-1">Event Not Found</h2>
+          <h2 className="text-lg font-medium text-foreground mb-1">Event Not Found</h2>
           <p className="text-sm text-[#888] mb-4">This event may not exist or you may not have permission to view it.</p>
           <button onClick={() => router.back()} className="text-amber-500 hover:text-amber-400 text-sm flex items-center gap-1 mx-auto">
             <ArrowLeft className="w-4 h-4" /> Back to Audit Trail
@@ -173,7 +173,7 @@ export default function FullEventPage() {
       <div className="bg-[#111] border border-[#222] rounded-xl p-6 mb-4">
         <div className="flex items-start justify-between mb-3">
           <div>
-            <h1 className="text-xl font-bold text-white">{event.event_title || event.event_type}</h1>
+            <h1 className="text-xl font-bold text-foreground">{event.event_title || event.event_type}</h1>
             <p className="text-sm text-[#888] mt-1">{event.event_summary}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -249,7 +249,7 @@ function OverviewTab({ event }: { event: AuditEvent }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
           <User className="w-4 h-4 text-amber-500" /> Actor
         </h3>
         <div className="space-y-2 text-sm">
@@ -260,7 +260,7 @@ function OverviewTab({ event }: { event: AuditEvent }) {
         </div>
       </div>
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
           <ExternalLink className="w-4 h-4 text-amber-500" /> Object
         </h3>
         <div className="space-y-2 text-sm">
@@ -270,7 +270,7 @@ function OverviewTab({ event }: { event: AuditEvent }) {
         </div>
       </div>
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
           <Shield className="w-4 h-4 text-amber-500" /> Authority
         </h3>
         <div className="space-y-2 text-sm">
@@ -280,7 +280,7 @@ function OverviewTab({ event }: { event: AuditEvent }) {
         </div>
       </div>
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
           <Hash className="w-4 h-4 text-amber-500" /> Chain
         </h3>
         <div className="space-y-2 text-sm">
@@ -303,7 +303,7 @@ function TimelineTab({ event, related }: { event: AuditEvent; related: AuditEven
 
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-      <h3 className="text-sm font-medium text-white mb-4">Event Timeline ({allEvents.length} events)</h3>
+      <h3 className="text-sm font-medium text-foreground mb-4">Event Timeline ({allEvents.length} events)</h3>
       {allEvents.length === 0 ? (
         <p className="text-sm text-[#888]">No related events found.</p>
       ) : (
@@ -318,7 +318,7 @@ function TimelineTab({ event, related }: { event: AuditEvent; related: AuditEven
                 </div>
                 <div className={`pb-4 flex-1 ${isTarget ? "bg-amber-500/5 -mx-3 px-3 rounded" : ""}`}>
                   <div className="text-xs text-[#888]">{fmt(evt.timestamp_utc)}</div>
-                  <div className="text-sm text-white font-medium">{evt.event_title || evt.event_type}</div>
+                  <div className="text-sm text-foreground font-medium">{evt.event_title || evt.event_type}</div>
                   <div className="text-xs text-[#666]">{evt.event_type} · {evt.actor?.actor_name || evt.actor?.actor_type}</div>
                 </div>
               </div>
@@ -345,12 +345,12 @@ function DiffTab({ event }: { event: AuditEvent }) {
 
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-      <h3 className="text-sm font-medium text-white mb-4">Field Changes</h3>
+      <h3 className="text-sm font-medium text-foreground mb-4">Field Changes</h3>
       <div className="space-y-3">
         {change.field_changed ? (
           <div className="border border-[#222] rounded-lg p-3">
             <div className="text-xs text-[#888] uppercase tracking-wider mb-2">Field Changed</div>
-            <div className="text-sm text-white font-mono">{String(change.field_changed)}</div>
+            <div className="text-sm text-foreground font-mono">{String(change.field_changed)}</div>
           </div>
         ) : null}
         {change.previous_value !== undefined ? (
@@ -394,7 +394,7 @@ function AuthorityTab({ event }: { event: AuditEvent }) {
   const auth = event.authority;
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-      <h3 className="text-sm font-medium text-white mb-4">Permission & Policy Context</h3>
+      <h3 className="text-sm font-medium text-foreground mb-4">Permission & Policy Context</h3>
       {!auth || Object.keys(auth).length === 0 ? (
         <p className="text-sm text-[#888]">No authority data for this event.</p>
       ) : (
@@ -441,7 +441,7 @@ function IntegrityTab({ event }: { event: AuditEvent }) {
 
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-      <h3 className="text-sm font-medium text-white mb-4">Cryptographic Proof</h3>
+      <h3 className="text-sm font-medium text-foreground mb-4">Cryptographic Proof</h3>
       <div className="space-y-3 mb-4">
         <Row label="Event Hash" value={event.hash} monospace small />
         <Row label="Previous Hash" value={event.prev_hash || "Genesis"} monospace small />
@@ -515,7 +515,7 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
     <div className="space-y-4">
       {/* Vault Status */}
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
           <Archive className="w-4 h-4 text-amber-500" /> Evidence Lifecycle
         </h3>
         <div className="grid grid-cols-2 gap-4">
@@ -574,7 +574,7 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
 
       {/* Custody Timeline */}
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
           <History className="w-4 h-4 text-amber-500" /> Custody Timeline
         </h3>
         <div className="space-y-3">
@@ -585,7 +585,7 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
             </div>
             <div>
               <div className="text-xs text-[#888]">{fmt(event.timestamp_utc)}</div>
-              <div className="text-sm text-white">Event Created</div>
+              <div className="text-sm text-foreground">Event Created</div>
               <div className="text-xs text-[#666]">{event.event_type} · Block #{event.block_number}</div>
             </div>
           </div>
@@ -597,7 +597,7 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
               </div>
               <div>
                 <div className="text-xs text-[#888]">{fmt(event.received_at || event.created_at)}</div>
-                <div className="text-sm text-white">Preserved to Vault</div>
+                <div className="text-sm text-foreground">Preserved to Vault</div>
                 <div className="text-xs text-[#666]">Evidence state: {event.evidence_state}</div>
               </div>
             </div>
@@ -619,7 +619,7 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
 
       {/* Exports */}
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
           <Download className="w-4 h-4 text-amber-500" /> Exports
         </h3>
         <p className="text-xs text-[#888]">
@@ -694,7 +694,7 @@ function AccessLogTab({ event }: { event: AuditEvent }) {
 
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-      <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
+      <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
         <EyeOff className="w-4 h-4 text-amber-500" /> Access Log
       </h3>
       <p className="text-xs text-[#888] mb-4">

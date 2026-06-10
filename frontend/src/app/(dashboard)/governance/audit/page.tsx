@@ -337,9 +337,9 @@ export default function QualityAuditPage() {
           <div className="w-14 h-14 bg-rose-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-7 h-7 text-rose-400" />
           </div>
-          <p className="text-white font-semibold mb-2">Failed to Load Quality Audit</p>
+          <p className="text-foreground font-semibold mb-2">Failed to Load Quality Audit</p>
           <p className="text-[#666] text-sm mb-6">{error}</p>
-          <button onClick={fetchAll} className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl text-xs font-bold transition-all">
+          <button onClick={fetchAll} className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-foreground rounded-xl text-xs font-bold transition-all">
             Retry
           </button>
         </div>
@@ -352,14 +352,14 @@ export default function QualityAuditPage() {
       {/* ── Header ─────────────────────────────────────────────────────────────── */}
       <div className="mb-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">Quality Audit</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-1">Quality Audit</h1>
           <p className="text-[#888] text-sm">Audit content, replies, agent outputs, and workflow decisions for accuracy, brand quality, compliance readiness, review integrity, and publication consistency.</p>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           <TooltipBtn disabled={!selectedItem || actionLoading !== null} tooltip="Select an audit item first">
             <button disabled={!selectedItem || actionLoading !== null}
               onClick={() => selectedItem && handleAction("start-audit", selectedItem.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-lg text-[10px] font-bold transition-all disabled:opacity-40 shadow-lg shadow-indigo-500/15">
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-foreground rounded-lg text-[10px] font-bold transition-all disabled:opacity-40 shadow-lg shadow-indigo-500/15">
               {actionLoading === "start-audit" ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}Start Audit
             </button>
           </TooltipBtn>
@@ -427,7 +427,7 @@ export default function QualityAuditPage() {
           }}
             className={`p-3 rounded-xl border transition-all text-left ${m.bg} hover:border-white/20`}>
             <div className={`${m.color} mb-1.5`}>{m.icon}</div>
-            <p className="text-lg font-bold text-white">
+            <p className="text-lg font-bold text-foreground">
               {m.key === "avg_quality_score" ? (stats ? `${Math.round(stats.avg_quality_score)}` : "—") : String(stats?.[m.key as keyof AuditStats] ?? 0)}
             </p>
             <p className="text-[10px] text-[#888] font-medium">{m.label}</p>
@@ -460,7 +460,7 @@ export default function QualityAuditPage() {
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#555]" />
             <input type="text" placeholder="Search audit items…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              className="w-48 pl-8 pr-3 py-1.5 bg-[var(--card)] border border-[var(--border)] rounded-lg text-xs text-white placeholder-[#555] outline-none focus:border-indigo-500/40" />
+              className="w-48 pl-8 pr-3 py-1.5 bg-[var(--card)] border border-[var(--border)] rounded-lg text-xs text-foreground placeholder-[#555] outline-none focus:border-indigo-500/40" />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
             className={`p-1.5 rounded-lg border transition-all ${showFilters ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" : "border-[var(--border)] text-[#666] hover:text-white"}`}>
@@ -524,14 +524,14 @@ export default function QualityAuditPage() {
           )}
           {filteredItems.length === 0 ? (
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-8 text-center">
-              {activeTab === "assigned_to_me" ? <><UserCheck className="w-6 h-6 text-indigo-400 mx-auto mb-3" /><p className="text-xs text-white font-semibold mb-1">No Assigned Items</p><p className="text-[10px] text-[#666]">Audit items assigned to you will appear here.</p></> :
-               activeTab === "passed" ? <><CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto mb-3" /><p className="text-xs text-white font-semibold mb-1">No Passed Audits</p><p className="text-[10px] text-[#666]">Items that passed quality audit will appear here.</p></> :
-               activeTab === "failed" ? <><XCircle className="w-6 h-6 text-rose-400 mx-auto mb-3" /><p className="text-xs text-white font-semibold mb-1">No Failed Audits</p><p className="text-[10px] text-[#666]">Items that failed quality audit will appear here with defect details.</p></> :
-               activeTab === "needs_correction" ? <><AlertTriangle className="w-6 h-6 text-orange-400 mx-auto mb-3" /><p className="text-xs text-white font-semibold mb-1">No Corrections Needed</p><p className="text-[10px] text-[#666]">Items requiring corrective action will appear here.</p></> :
-               activeTab === "high_severity" ? <><AlertCircle className="w-6 h-6 text-red-400 mx-auto mb-3" /><p className="text-xs text-white font-semibold mb-1">No High-Severity Defects</p><p className="text-[10px] text-[#666]">Items with Major or Critical defects will appear here.</p></> :
-               activeTab === "published_check" ? <><Send className="w-6 h-6 text-blue-400 mx-auto mb-3" /><p className="text-xs text-white font-semibold mb-1">No Published Checks</p><p className="text-[10px] text-[#666]">Published and sent items selected for version-matching review will appear here.</p></> :
-               activeTab === "completed" ? <><CheckCircle2 className="w-6 h-6 text-gray-400 mx-auto mb-3" /><p className="text-xs text-white font-semibold mb-1">No Completed Audits</p><p className="text-[10px] text-[#666]">Closed and archived audits will appear here.</p></> :
-               <><ShieldCheck className="w-6 h-6 text-emerald-400 mx-auto mb-3" /><p className="text-xs text-white font-semibold mb-1">No Items Selected for Audit</p><p className="text-[10px] text-[#666]">Generate a sample or select items from completed workflows to begin quality auditing.</p></>}
+              {activeTab === "assigned_to_me" ? <><UserCheck className="w-6 h-6 text-indigo-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Assigned Items</p><p className="text-[10px] text-[#666]">Audit items assigned to you will appear here.</p></> :
+               activeTab === "passed" ? <><CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Passed Audits</p><p className="text-[10px] text-[#666]">Items that passed quality audit will appear here.</p></> :
+               activeTab === "failed" ? <><XCircle className="w-6 h-6 text-rose-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Failed Audits</p><p className="text-[10px] text-[#666]">Items that failed quality audit will appear here with defect details.</p></> :
+               activeTab === "needs_correction" ? <><AlertTriangle className="w-6 h-6 text-orange-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Corrections Needed</p><p className="text-[10px] text-[#666]">Items requiring corrective action will appear here.</p></> :
+               activeTab === "high_severity" ? <><AlertCircle className="w-6 h-6 text-red-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No High-Severity Defects</p><p className="text-[10px] text-[#666]">Items with Major or Critical defects will appear here.</p></> :
+               activeTab === "published_check" ? <><Send className="w-6 h-6 text-blue-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Published Checks</p><p className="text-[10px] text-[#666]">Published and sent items selected for version-matching review will appear here.</p></> :
+               activeTab === "completed" ? <><CheckCircle2 className="w-6 h-6 text-gray-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Completed Audits</p><p className="text-[10px] text-[#666]">Closed and archived audits will appear here.</p></> :
+               <><ShieldCheck className="w-6 h-6 text-emerald-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Items Selected for Audit</p><p className="text-[10px] text-[#666]">Generate a sample or select items from completed workflows to begin quality auditing.</p></>}
             </div>
           ) : (
             <div className="space-y-2 max-h-[calc(100vh-360px)] overflow-y-auto pr-1">
@@ -545,7 +545,7 @@ export default function QualityAuditPage() {
                       <div className="flex items-center gap-1.5">
                         {bulkMode && (
                           <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isBulk ? "bg-indigo-500 border-indigo-500" : "border-[#555]"}`}>
-                            {isBulk && <CheckCircle2 className="w-3 h-3 text-white" />}
+                            {isBulk && <CheckCircle2 className="w-3 h-3 text-foreground" />}
                           </div>
                         )}
                         <span className="text-[#888]">{ITEM_TYPE_ICONS[item.item_type] || <FileText className="w-3.5 h-3.5" />}</span>
@@ -579,7 +579,7 @@ export default function QualityAuditPage() {
               <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <ShieldCheck className="w-7 h-7 text-emerald-400" />
               </div>
-              <p className="text-white font-semibold mb-1">Select an Audit Item</p>
+              <p className="text-foreground font-semibold mb-1">Select an Audit Item</p>
               <p className="text-[#666] text-sm">Choose an item from the audit queue to begin quality review.</p>
             </div>
           ) : (
@@ -587,7 +587,7 @@ export default function QualityAuditPage() {
               {/* Audit Header */}
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h3 className="text-sm font-bold text-white">{selectedItem.title}</h3>
+                  <h3 className="text-sm font-bold text-foreground">{selectedItem.title}</h3>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] text-[#888]">{selectedItem.item_type}</span>
                     <span className="text-[10px] text-[#666]">•</span>
@@ -630,7 +630,7 @@ export default function QualityAuditPage() {
                       defects.map(d => (
                         <div key={d.id} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-[11px] text-white font-medium">{d.category}</span>
+                            <span className="text-[11px] text-foreground font-medium">{d.category}</span>
                             <div className="flex items-center gap-1.5">
                               <span className={`w-1.5 h-1.5 rounded-full ${SEVERITY_DOT[d.severity] || "bg-gray-400"}`} />
                               <span className="text-[10px] text-[#888]">{d.severity}</span>
@@ -656,7 +656,7 @@ export default function QualityAuditPage() {
                       evidence.map(e => (
                         <div key={e.id} className="flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
                           <div>
-                            <span className="text-[11px] text-white font-medium">{e.evidence_type}</span>
+                            <span className="text-[11px] text-foreground font-medium">{e.evidence_type}</span>
                             <p className="text-[10px] text-[#555]">Source: {e.source_module}</p>
                           </div>
                           <span className="text-[9px] text-[#555]">{formatShortDate(e.captured_at)}</span>
@@ -673,7 +673,7 @@ export default function QualityAuditPage() {
                       correctiveActions.map(ca => (
                         <div key={ca.id} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-[11px] text-white font-medium">{ca.title}</span>
+                            <span className="text-[11px] text-foreground font-medium">{ca.title}</span>
                             <span className={`px-1.5 py-0.5 rounded border text-[8px] font-bold ${ca.status === "COMPLETED" ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/10" : ca.status === "OVERDUE" ? "text-red-400 border-red-500/20 bg-red-500/10" : "text-amber-400 border-amber-500/20 bg-amber-500/10"}`}>{ca.status}</span>
                           </div>
                           <p className="text-[10px] text-[#888]">{ca.required_action}</p>
@@ -709,7 +709,7 @@ export default function QualityAuditPage() {
                       <circle cx="36" cy="36" r="30" fill="none" stroke={score >= 90 ? "#10b981" : score >= 75 ? "#3b82f6" : score >= 60 ? "#f59e0b" : score >= 40 ? "#f97316" : "#ef4444"} strokeWidth="6" strokeDasharray={`${(score / 100) * 188.5} 188.5`} strokeLinecap="round" />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-lg font-bold text-white">{score}</span>
+                      <span className="text-lg font-bold text-foreground">{score}</span>
                     </div>
                   </div>
                   <div>
@@ -757,7 +757,7 @@ export default function QualityAuditPage() {
                 </div>
                 {actionLoading && (
                   <textarea placeholder="Reason (required for fail, correction, escalation)…" value={feedbackText} onChange={e => setFeedbackText(e.target.value)}
-                    className="w-full mt-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-[11px] text-white placeholder-[#555] outline-none focus:border-indigo-500/30 resize-none" rows={2} />
+                    className="w-full mt-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-[11px] text-foreground placeholder-[#555] outline-none focus:border-indigo-500/30 resize-none" rows={2} />
                 )}
               </div>
 
@@ -776,7 +776,7 @@ export default function QualityAuditPage() {
                         <span className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${SEVERITY_DOT[d.severity] || "bg-gray-400"}`} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-white font-medium truncate">{d.category}</span>
+                            <span className="text-[10px] text-foreground font-medium truncate">{d.category}</span>
                             <span className="text-[9px] text-[#555]">{d.severity}</span>
                           </div>
                           <p className="text-[9px] text-[#888] truncate">{d.description}</p>
@@ -800,7 +800,7 @@ export default function QualityAuditPage() {
                     {correctiveActions.map(ca => (
                       <div key={ca.id} className="p-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-white font-medium truncate">{ca.title}</span>
+                          <span className="text-[10px] text-foreground font-medium truncate">{ca.title}</span>
                           <span className={`text-[8px] px-1 py-0.5 rounded font-bold ${ca.status === "COMPLETED" ? "text-emerald-400 bg-emerald-500/10" : ca.status === "OVERDUE" ? "text-red-400 bg-red-500/10" : "text-amber-400 bg-amber-500/10"}`}>{ca.status}</span>
                         </div>
                         {ca.due_at && <p className="text-[9px] text-[#555]">Due: {formatShortDate(ca.due_at)}</p>}
@@ -823,7 +823,7 @@ export default function QualityAuditPage() {
                     {notes.map(n => (
                       <div key={n.id} className="p-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg">
                         <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-[10px] font-medium text-white">{n.created_by}</span>
+                          <span className="text-[10px] font-medium text-foreground">{n.created_by}</span>
                           <span className="text-[9px] text-[#555]">{timeAgo(n.created_at)}</span>
                         </div>
                         <p className="text-[10px] text-[#aaa]">{n.note_body}</p>
@@ -833,9 +833,9 @@ export default function QualityAuditPage() {
                 )}
                 <div className="flex gap-2">
                   <input type="text" placeholder="Add a note…" value={feedbackText} onChange={e => setFeedbackText(e.target.value)}
-                    className="flex-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-[11px] text-white placeholder-[#555] outline-none focus:border-indigo-500/30" />
+                    className="flex-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder-[#555] outline-none focus:border-indigo-500/30" />
                   <button onClick={handleAddNote} disabled={actionLoading === "add_note" || !feedbackText.trim()}
-                    className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-lg text-[10px] font-bold transition-all disabled:opacity-40">
+                    className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-foreground rounded-lg text-[10px] font-bold transition-all disabled:opacity-40">
                     <Send className="w-3 h-3" />
                   </button>
                 </div>
@@ -853,7 +853,7 @@ export default function QualityAuditPage() {
                     {evidence.map(e => (
                       <div key={e.id} className="flex items-center justify-between p-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-white">{e.evidence_type}</span>
+                          <span className="text-[10px] text-foreground">{e.evidence_type}</span>
                           <span className="text-[9px] text-[#555]">{e.source_module}</span>
                         </div>
                         <span className="text-[9px] text-[#555]">{formatShortDate(e.captured_at)}</span>

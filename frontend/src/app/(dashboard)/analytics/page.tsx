@@ -25,8 +25,8 @@ const PLATFORM_META: Record<string, { label: string; color: string; dot: string;
   linkedin:  { label: "LinkedIn",  color: "text-sky-400",    dot: "bg-sky-500",    iconBg: "bg-sky-500/15" },
   pinterest: { label: "Pinterest", color: "text-rose-400",   dot: "bg-rose-500",   iconBg: "bg-rose-500/15" },
   youtube:   { label: "YouTube",   color: "text-red-400",    dot: "bg-red-500",    iconBg: "bg-red-500/15" },
-  threads:   { label: "Threads",   color: "text-zinc-300",   dot: "bg-zinc-400",   iconBg: "bg-zinc-500/15" },
-  twitter:   { label: "Twitter/X", color: "text-zinc-400",   dot: "bg-zinc-500",   iconBg: "bg-zinc-500/15" },
+  threads:   { label: "Threads",   color: "text-foreground-muted",   dot: "bg-zinc-400",   iconBg: "bg-zinc-500/15" },
+  twitter:   { label: "Twitter/X", color: "text-foreground-muted",   dot: "bg-zinc-500",   iconBg: "bg-zinc-500/15" },
 };
 
 const PLATFORM_SVG: Record<string, string> = {
@@ -341,7 +341,7 @@ export default function AnalyticsPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {Object.entries(grouped).map(([platform, accounts]) => {
-                  const meta = PLATFORM_META[platform] ?? { label: platform, color: "text-zinc-400", dot: "bg-zinc-500" };
+                  const meta = PLATFORM_META[platform] ?? { label: platform, color: "text-foreground-muted", dot: "bg-zinc-500" };
                   const totalFollowers = accounts.reduce((a, p) => a + (p.followers ?? 0), 0);
                   const totalM1 = accounts.reduce((a, p) => a + (p.impressions_7d ?? 0), 0);
                   const totalM2 = accounts.reduce((a, p) => a + (p.reach_7d ?? 0), 0);
@@ -496,7 +496,7 @@ export default function AnalyticsPage() {
             onClick={() => setPeriod(p.key)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
               period === p.key
-                ? "bg-indigo-600 text-white shadow-sm"
+                ? "bg-indigo-600 text-foreground shadow-sm"
                 : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
             }`}
           >

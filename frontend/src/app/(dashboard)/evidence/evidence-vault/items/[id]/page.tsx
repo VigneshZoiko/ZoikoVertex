@@ -127,7 +127,7 @@ export default function EvidenceItemDetailPage() {
         <div className="flex items-center gap-3">
           <Archive className="w-5 h-5 text-[#888]" />
           <div>
-            <h1 className="text-lg font-semibold text-white font-mono">{item.item_id}</h1>
+            <h1 className="text-lg font-semibold text-foreground font-mono">{item.item_id}</h1>
             <p className="text-xs text-[#888]">{item.source_system}:{item.source_id}</p>
           </div>
           <Badge label={item.vault_state.replace(/_/g, ' ')} color={statusColor} />

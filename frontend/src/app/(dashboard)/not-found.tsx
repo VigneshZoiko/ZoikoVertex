@@ -28,7 +28,7 @@ export default function DashboardNotFound() {
       {/* Action */}
       <Link
         href="/dashboard"
-        className="flex items-center gap-2 px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95"
+        className="flex items-center gap-2 px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-foreground font-semibold rounded-xl transition-all shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95"
       >
         <Home className="w-4 h-4" />
         Go to Dashboard

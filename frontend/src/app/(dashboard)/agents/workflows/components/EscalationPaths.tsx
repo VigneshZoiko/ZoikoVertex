@@ -24,7 +24,7 @@ interface EscalationEvent {
 }
 
 const SEVERITY_STYLES: Record<EscalationSeverity, string> = {
-  Low:      'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
+  Low:      'bg-zinc-500/10 text-foreground-muted border-zinc-500/20',
   Medium:   'bg-amber-500/10 text-amber-400 border-amber-500/20',
   High:     'bg-orange-500/10 text-orange-400 border-orange-500/20',
   Critical: 'bg-rose-500/10 text-rose-400 border-rose-500/20',

@@ -327,7 +327,7 @@ export default function CreatorUploadPage() {
                             {/* Play icon overlay */}
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                               <div className="w-10 h-10 bg-black/60 rounded-full flex items-center justify-center backdrop-blur-sm">
-                                <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                                <Play className="w-4 h-4 text-foreground fill-white ml-0.5" />
                               </div>
                             </div>
                           </>
@@ -337,7 +337,7 @@ export default function CreatorUploadPage() {
 
                         {/* Type badge */}
                         <div className={`absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold backdrop-blur-sm ${
-                          isVideo(entry.file) ? 'bg-violet-600/80 text-white' : 'bg-sky-600/80 text-white'
+                          isVideo(entry.file) ? 'bg-violet-600/80 text-foreground' : 'bg-sky-600/80 text-foreground'
                         }`}>
                           {isVideo(entry.file) ? <Film className="w-2.5 h-2.5" /> : <ImageIcon className="w-2.5 h-2.5" />}
                           {isVideo(entry.file) ? 'VIDEO' : 'IMAGE'}
@@ -348,7 +348,7 @@ export default function CreatorUploadPage() {
                           <button
                             type="button"
                             onClick={() => removeEntry(idx)}
-                            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-all hover:bg-rose-500 hover:scale-110 shadow-lg z-10"
+                            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-rose-600 text-foreground flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-all hover:bg-rose-500 hover:scale-110 shadow-lg z-10"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -363,7 +363,7 @@ export default function CreatorUploadPage() {
                                 style={{ width: `${entry.progress}%` }}
                               />
                             </div>
-                            <div className="bg-black/60 backdrop-blur text-center text-[10px] text-white py-1">
+                            <div className="bg-black/60 backdrop-blur text-center text-[10px] text-foreground py-1">
                               {entry.progress}%
                             </div>
                           </div>
@@ -383,7 +383,7 @@ export default function CreatorUploadPage() {
 
                         {/* File info on hover */}
                         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover/thumb:opacity-100 transition-opacity pointer-events-none">
-                          <p className="text-[10px] text-white truncate font-medium">{entry.file.name}</p>
+                          <p className="text-[10px] text-foreground truncate font-medium">{entry.file.name}</p>
                           <p className="text-[9px] text-white/60">{formatMB(entry.file.size)} MB</p>
                         </div>
                       </div>
@@ -456,7 +456,7 @@ export default function CreatorUploadPage() {
             className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${
               isUploading || entries.length === 0 || !title.trim()
                 ? 'bg-[var(--surface)] text-[var(--foreground-muted)] cursor-not-allowed'
-                : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:shadow-lg hover:shadow-indigo-500/20 active:scale-[0.98]'
+                : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-foreground hover:shadow-lg hover:shadow-indigo-500/20 active:scale-[0.98]'
             }`}
           >
             {isUploading ? (

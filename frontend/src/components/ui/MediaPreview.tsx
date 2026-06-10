@@ -46,7 +46,7 @@ const MediaPreview: React.FC<MediaPreviewProps> = ({ url, alt = "Content", class
       {urls.length > 1 && (
         <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md border border-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5 shadow-xl">
           <Eye className="w-3 h-3 text-indigo-400" />
-          <span className="text-[9px] font-black text-white">{urls.length} Files</span>
+          <span className="text-[9px] font-black text-foreground">{urls.length} Files</span>
         </div>
       )}
 

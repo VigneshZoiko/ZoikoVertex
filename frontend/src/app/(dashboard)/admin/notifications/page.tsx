@@ -76,7 +76,7 @@ export default function NotificationsPage() {
           >
             Unread
             {state.notifications.filter(n => !n.read).length > 0 && (
-              <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${filter === 'UNREAD' ? 'bg-[var(--background)] text-[var(--foreground)]' : 'bg-indigo-500 text-white'}`}>
+              <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${filter === 'UNREAD' ? 'bg-[var(--background)] text-[var(--foreground)]' : 'bg-indigo-500 text-foreground'}`}>
                 {state.notifications.filter(n => !n.read).length}
               </span>
             )}

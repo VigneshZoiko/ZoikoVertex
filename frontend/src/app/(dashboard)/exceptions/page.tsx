@@ -154,7 +154,7 @@ export default function ExceptionsPage() {
       {/* ─── Header ─────────────────────────────────────────────────────────── */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white mb-1">Governance Exceptions</h1>
+          <h1 className="text-xl font-bold text-foreground mb-1">Governance Exceptions</h1>
           <p className="text-[11px] text-[#666]">Track rule overrides, webhook callback failures, and manual validation override requests.</p>
         </div>
         <button
@@ -184,7 +184,7 @@ export default function ExceptionsPage() {
             <AlertOctagon className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-base font-bold text-white">{openCount}</p>
+            <p className="text-base font-bold text-foreground">{openCount}</p>
             <p className="text-[9px] text-[#555] font-semibold uppercase tracking-wider leading-none">Open Exceptions</p>
           </div>
         </div>
@@ -193,7 +193,7 @@ export default function ExceptionsPage() {
             <ShieldAlert className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-base font-bold text-white">{criticalCount}</p>
+            <p className="text-base font-bold text-foreground">{criticalCount}</p>
             <p className="text-[9px] text-[#555] font-semibold uppercase tracking-wider leading-none">Critical Exceptions</p>
           </div>
         </div>
@@ -202,7 +202,7 @@ export default function ExceptionsPage() {
             <CheckCircle2 className="w-4 h-4" />
           </div>
           <div>
-            <p className="text-base font-bold text-white">{resolvedCount}</p>
+            <p className="text-base font-bold text-foreground">{resolvedCount}</p>
             <p className="text-[9px] text-[#555] font-semibold uppercase tracking-wider leading-none">Resolved Cases</p>
           </div>
         </div>
@@ -219,7 +219,7 @@ export default function ExceptionsPage() {
               placeholder="Search exceptions…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-[#111] border border-[var(--border)] text-white placeholder-[#555] focus:outline-none focus:border-indigo-500/40"
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-[#111] border border-[var(--border)] text-foreground placeholder-[#555] focus:outline-none focus:border-indigo-500/40"
             />
           </div>
 
@@ -263,7 +263,7 @@ export default function ExceptionsPage() {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                      <p className="text-xs font-semibold text-white truncate flex-1">{c.exception_title}</p>
+                      <p className="text-xs font-semibold text-foreground truncate flex-1">{c.exception_title}</p>
                     </div>
 
                     <div className="flex items-center gap-1.5 mb-1">
@@ -298,7 +298,7 @@ export default function ExceptionsPage() {
               {/* Header Info */}
               <div className="border-b border-[#2d2d2d] pb-3 flex justify-between items-start">
                 <div>
-                  <h3 className="text-sm font-bold text-white mb-0.5">{selectedCase.exception_title}</h3>
+                  <h3 className="text-sm font-bold text-foreground mb-0.5">{selectedCase.exception_title}</h3>
                   <div className="flex items-center gap-2 text-[10px] text-[#555]">
                     <span>{CATEGORY_LABEL[selectedCase.exception_category]}</span>
                     <span>•</span>
@@ -315,7 +315,7 @@ export default function ExceptionsPage() {
 
               {/* Blocker Analysis Box */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-xs text-[#ccc] leading-relaxed">
-                <p className="font-semibold text-white mb-1">Current Blocker / Exception Details</p>
+                <p className="font-semibold text-foreground mb-1">Current Blocker / Exception Details</p>
                 <p className="text-[#aaa]">{selectedCase.current_blocker || "No blocker logged for this case."}</p>
                 {selectedCase.workflow_impact && (
                   <p className="text-[10px] text-rose-300 mt-2 font-medium">
@@ -383,7 +383,7 @@ export default function ExceptionsPage() {
                   value={feedbackText}
                   onChange={e => setFeedbackText(e.target.value)}
                   rows={2}
-                  className="w-full bg-[#181818] border border-[#2d2d2d] rounded-lg p-2.5 text-xs text-white placeholder-[#555] focus:outline-none focus:border-indigo-500/40 resize-none mt-2"
+                  className="w-full bg-[#181818] border border-[#2d2d2d] rounded-lg p-2.5 text-xs text-foreground placeholder-[#555] focus:outline-none focus:border-indigo-500/40 resize-none mt-2"
                 />
               )}
             </div>
@@ -397,7 +397,7 @@ export default function ExceptionsPage() {
               <button
                 onClick={() => setDetailTab("details")}
                 className={`flex-1 py-1 text-[10px] font-bold rounded-lg transition-colors ${
-                  detailTab === "details" ? "bg-white/5 text-white" : "text-[#555]"
+                  detailTab === "details" ? "bg-white/5 text-foreground" : "text-[#555]"
                 }`}
               >
                 Summary
@@ -405,7 +405,7 @@ export default function ExceptionsPage() {
               <button
                 onClick={() => setDetailTab("remediation")}
                 className={`flex-1 py-1 text-[10px] font-bold rounded-lg transition-colors ${
-                  detailTab === "remediation" ? "bg-white/5 text-white" : "text-[#555]"
+                  detailTab === "remediation" ? "bg-white/5 text-foreground" : "text-[#555]"
                 }`}
               >
                 Remediation
@@ -413,7 +413,7 @@ export default function ExceptionsPage() {
               <button
                 onClick={() => setDetailTab("evidence")}
                 className={`flex-1 py-1 text-[10px] font-bold rounded-lg transition-colors ${
-                  detailTab === "evidence" ? "bg-white/5 text-white" : "text-[#555]"
+                  detailTab === "evidence" ? "bg-white/5 text-foreground" : "text-[#555]"
                 }`}
               >
                 Logs
@@ -424,18 +424,18 @@ export default function ExceptionsPage() {
               {detailTab === "details" && (
                 <div className="space-y-4">
                   <div className="space-y-2 text-[10px] text-[#888]">
-                    <div className="flex justify-between"><span>Category</span><span className="text-white font-medium">{CATEGORY_LABEL[selectedCase.exception_category]}</span></div>
-                    <div className="flex justify-between"><span>Source Module</span><span className="text-white font-medium">{selectedCase.source_module}</span></div>
-                    <div className="flex justify-between"><span>Owner ID</span><span className="text-white font-medium">{selectedCase.exception_owner_id || "Unassigned"}</span></div>
-                    <div className="flex justify-between"><span>Authority Level</span><span className="text-white font-medium">Stage {selectedCase.required_authority}</span></div>
-                    <div className="flex justify-between"><span>Created By</span><span className="text-white font-medium">{selectedCase.created_by}</span></div>
+                    <div className="flex justify-between"><span>Category</span><span className="text-foreground font-medium">{CATEGORY_LABEL[selectedCase.exception_category]}</span></div>
+                    <div className="flex justify-between"><span>Source Module</span><span className="text-foreground font-medium">{selectedCase.source_module}</span></div>
+                    <div className="flex justify-between"><span>Owner ID</span><span className="text-foreground font-medium">{selectedCase.exception_owner_id || "Unassigned"}</span></div>
+                    <div className="flex justify-between"><span>Authority Level</span><span className="text-foreground font-medium">Stage {selectedCase.required_authority}</span></div>
+                    <div className="flex justify-between"><span>Created By</span><span className="text-foreground font-medium">{selectedCase.created_by}</span></div>
                   </div>
                 </div>
               )}
 
               {detailTab === "remediation" && (
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-bold text-white uppercase tracking-wider">Recommended Route</h4>
+                  <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">Recommended Route</h4>
                   <div className="bg-white/[0.02] border border-white/5 p-2 rounded-lg text-[10px] text-[#ccc]">
                     <p>{selectedCase.recommended_route || "No standard recommendation available."}</p>
                   </div>
@@ -450,7 +450,7 @@ export default function ExceptionsPage() {
 
               {detailTab === "evidence" && (
                 <div className="space-y-3">
-                  <h4 className="text-[10px] font-bold text-white uppercase tracking-wider">Audit Log & Trace</h4>
+                  <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">Audit Log & Trace</h4>
                   <div className="space-y-3">
                     <div className="text-[10px] flex items-start gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1 shrink-0" />

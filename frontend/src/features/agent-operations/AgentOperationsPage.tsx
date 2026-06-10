@@ -550,7 +550,7 @@ export function AgentOperationsPage() {
             {ops.degradedRealtime ? <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-300">Degraded realtime · polling fallback</Badge> : <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">Realtime ready</Badge>}
             <span className="text-xs text-[var(--foreground-muted)]">Last refresh {ops.lastUpdated ? ops.lastUpdated.toLocaleTimeString() : "pending"}</span>
             <button onClick={ops.refresh} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm font-semibold"><RefreshCcw className="h-4 w-4" /> Refresh</button>
-            <button onClick={() => openAction(selectedRun, "create_incident")} className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-3 py-2 text-sm font-semibold text-white"><Siren className="h-4 w-4" /> Incident</button>
+            <button onClick={() => openAction(selectedRun, "create_incident")} className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-3 py-2 text-sm font-semibold text-foreground"><Siren className="h-4 w-4" /> Incident</button>
           </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">

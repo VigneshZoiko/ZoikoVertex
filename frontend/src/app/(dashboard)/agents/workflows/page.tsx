@@ -247,7 +247,7 @@ function safeNum(v: unknown, fallback = 0): number {
 // ── Status helpers ─────────────────────────────────────────────────────────
 
 const WORKFLOW_STATUS_STYLES: Record<WorkflowStatus, string> = {
-  Draft: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
+  Draft: "bg-zinc-500/10 text-foreground-muted border-zinc-500/20",
   Testing: "bg-sky-500/10 text-sky-400 border-sky-500/20",
   "Pending Approval": "bg-amber-500/10 text-amber-400 border-amber-500/20",
   Approved: "bg-teal-500/10 text-teal-400 border-teal-500/20",
@@ -1294,7 +1294,7 @@ function WorkflowDetailDrawer({
                         key={action.label}
                         disabled={actionLoading !== null || versionLoading}
                         onClick={action.fn}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${action.color}`}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${action.color}`}
                       >
                         {actionLoading === action.label && (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1490,7 +1490,7 @@ export default function WorkflowsPage() {
           </button>
           <button
             onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-xl text-sm font-semibold text-white transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-xl text-sm font-semibold text-foreground transition-all"
           >
             <Plus className="w-4 h-4" />
             Create Workflow

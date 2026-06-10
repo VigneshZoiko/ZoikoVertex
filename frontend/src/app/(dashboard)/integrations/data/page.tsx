@@ -267,35 +267,35 @@ export default function DataPage() {
         <div className="space-y-8 animate-in fade-in duration-200">
           
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-6">
+          <div className="flex items-center justify-between border-b border-border/80 pb-6">
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => { setShowCreateWizard(false); setWizardStep(1); }}
-                className="p-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                className="p-2 bg-surface border border-border hover:bg-surface-hover rounded-lg text-foreground-muted hover:text-white transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
               <div>
-                <h1 className="text-2xl font-semibold text-white tracking-tight">New Data Connection</h1>
-                <p className="text-zinc-400 text-sm mt-0.5">Connect a data source and choose where to save it — we&apos;ll handle the rest automatically.</p>
+                <h1 className="text-2xl font-semibold text-foreground tracking-tight">New Data Connection</h1>
+                <p className="text-foreground-muted text-sm mt-0.5">Connect a data source and choose where to save it — we&apos;ll handle the rest automatically.</p>
               </div>
             </div>
 
             {/* Stepper Progress */}
             <div className="hidden md:flex items-center gap-6 text-xs font-semibold">
               <div className="flex items-center gap-2">
-                <span className={`w-6 h-6 flex items-center justify-center rounded-full ${wizardStep >= 1 ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-500'}`}>1</span>
-                <span className={wizardStep >= 1 ? 'text-white' : 'text-zinc-500'}>Choose Source</span>
+                <span className={`w-6 h-6 flex items-center justify-center rounded-full ${wizardStep >= 1 ? 'bg-indigo-600 text-foreground' : 'bg-surface-hover text-foreground-muted'}`}>1</span>
+                <span className={wizardStep >= 1 ? 'text-foreground' : 'text-foreground-muted'}>Choose Source</span>
               </div>
               <ChevronRight className="w-4 h-4 text-zinc-650" />
               <div className="flex items-center gap-2">
-                <span className={`w-6 h-6 flex items-center justify-center rounded-full ${wizardStep >= 2 ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-500'}`}>2</span>
-                <span className={wizardStep >= 2 ? 'text-white' : 'text-zinc-500'}>Map Your Fields</span>
+                <span className={`w-6 h-6 flex items-center justify-center rounded-full ${wizardStep >= 2 ? 'bg-indigo-600 text-foreground' : 'bg-surface-hover text-foreground-muted'}`}>2</span>
+                <span className={wizardStep >= 2 ? 'text-foreground' : 'text-foreground-muted'}>Map Your Fields</span>
               </div>
               <ChevronRight className="w-4 h-4 text-zinc-650" />
               <div className="flex items-center gap-2">
-                <span className={`w-6 h-6 flex items-center justify-center rounded-full ${wizardStep >= 3 ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-500'}`}>3</span>
-                <span className={wizardStep >= 3 ? 'text-white' : 'text-zinc-500'}>Save Location & Schedule</span>
+                <span className={`w-6 h-6 flex items-center justify-center rounded-full ${wizardStep >= 3 ? 'bg-indigo-600 text-foreground' : 'bg-surface-hover text-foreground-muted'}`}>3</span>
+                <span className={wizardStep >= 3 ? 'text-foreground' : 'text-foreground-muted'}>Save Location & Schedule</span>
               </div>
             </div>
           </div>
@@ -304,41 +304,41 @@ export default function DataPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* Left Column: Form Settings (7 cols) */}
-            <div className="lg:col-span-7 bg-zinc-900/30 border border-zinc-800/80 rounded-xl p-8 space-y-6">
+            <div className="lg:col-span-7 bg-surface border border-border/80 rounded-xl p-8 space-y-6">
               
               {/* STEP 1: Define Connection Source */}
               {wizardStep === 1 && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-base font-semibold text-white">Where is your data coming from?</h3>
-                    <p className="text-xs text-zinc-400 mt-1">Give it a name so you can recognize it later, then pick the type of source.</p>
+                    <h3 className="text-base font-semibold text-foreground">Where is your data coming from?</h3>
+                    <p className="text-xs text-foreground-muted mt-1">Give it a name so you can recognize it later, then pick the type of source.</p>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Connection Name</label>
+                    <label className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider">Connection Name</label>
                     <input 
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Our Team Members, Product Catalog, Blog Articles"
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white placeholder:text-zinc-600 outline-none focus:border-indigo-600 text-sm transition-all"
+                      className="w-full bg-card border border-border rounded-lg px-4 py-2.5 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-600 text-sm transition-all"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Data Source Type</label>
+                    <label className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider">Data Source Type</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <button
                         type="button"
                         onClick={() => setType('SUPABASE_TABLE')}
                         className={`p-5 rounded-lg border text-left transition-all flex flex-col items-start ${
                           type === 'SUPABASE_TABLE' 
-                            ? 'bg-indigo-600/5 border-indigo-600 text-white' 
-                            : 'bg-zinc-950/20 border-zinc-850 text-zinc-400 hover:border-zinc-700'
+                            ? 'bg-indigo-600/5 border-indigo-600 text-foreground' 
+                            : 'bg-card/20 border-zinc-850 text-foreground-muted hover:border-border'
                         }`}
                       >
                         <Database className="w-5 h-5 text-indigo-400 mb-2" />
-                        <span className="font-semibold text-xs text-white">Organization Database</span>
-                        <span className="text-[10px] text-zinc-500 mt-1">Read data stored in your team&apos;s workspace database.</span>
+                        <span className="font-semibold text-xs text-foreground">Organization Database</span>
+                        <span className="text-[10px] text-foreground-muted mt-1">Read data stored in your team&apos;s workspace database.</span>
                       </button>
 
                       <button
@@ -346,24 +346,24 @@ export default function DataPage() {
                         onClick={() => setType('REST_API')}
                         className={`p-5 rounded-lg border text-left transition-all flex flex-col items-start ${
                           type === 'REST_API' 
-                            ? 'bg-indigo-600/5 border-indigo-600 text-white' 
-                            : 'bg-zinc-950/20 border-zinc-850 text-zinc-400 hover:border-zinc-700'
+                            ? 'bg-indigo-600/5 border-indigo-600 text-foreground' 
+                            : 'bg-card/20 border-zinc-850 text-foreground-muted hover:border-border'
                         }`}
                       >
                         <Globe className="w-5 h-5 text-emerald-400 mb-2" />
-                        <span className="font-semibold text-xs text-white">External Web URL</span>
-                        <span className="text-[10px] text-zinc-500 mt-1">Pull live content from any public web address.</span>
+                        <span className="font-semibold text-xs text-foreground">External Web URL</span>
+                        <span className="text-[10px] text-foreground-muted mt-1">Pull live content from any public web address.</span>
                       </button>
                     </div>
                   </div>
 
                   {type === 'SUPABASE_TABLE' ? (
                     <div className="space-y-1.5 animate-in fade-in duration-200">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Which data would you like to sync?</label>
+                      <label className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider">Which data would you like to sync?</label>
                       <select 
                         value={tableName}
                         onChange={(e) => setTableName(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white outline-none focus:border-indigo-600 text-sm transition-all"
+                        className="w-full bg-card border border-border rounded-lg px-4 py-2.5 text-foreground outline-none focus:border-indigo-600 text-sm transition-all"
                       >
                         <option value="users">Team Members</option>
                         <option value="agents">AI Agents</option>
@@ -371,19 +371,19 @@ export default function DataPage() {
                         <option value="connected_accounts">Connected Accounts</option>
                         <option value="evidence_packs">Evidence Packs</option>
                       </select>
-                      <div className="p-3 bg-zinc-950/45 border border-zinc-850 rounded-lg flex gap-2 text-zinc-500 text-[10px] leading-normal font-medium">
+                      <div className="p-3 bg-card/45 border border-zinc-850 rounded-lg flex gap-2 text-foreground-muted text-[10px] leading-normal font-medium">
                         <Info className="w-4 h-4 text-indigo-400 shrink-0" />
                         Only your organization&apos;s data is accessible. Your data is always kept separate from other organizations.
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-1.5 animate-in fade-in duration-200">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Web Address (URL)</label>
+                      <label className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider">Web Address (URL)</label>
                       <input 
                         value={apiUrl}
                         onChange={(e) => setApiUrl(e.target.value)}
                         placeholder="https://yoursite.com/api/products"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white placeholder:text-zinc-600 outline-none focus:border-indigo-600 text-sm transition-all"
+                        className="w-full bg-card border border-border rounded-lg px-4 py-2.5 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-600 text-sm transition-all"
                       />
                     </div>
                   )}
@@ -394,11 +394,11 @@ export default function DataPage() {
               {wizardStep === 2 && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-base font-semibold text-white">Which fields should we read?</h3>
-                    <p className="text-xs text-zinc-400 mt-1">Tell us which column or property name from your data source holds each piece of information.</p>
+                    <h3 className="text-base font-semibold text-foreground">Which fields should we read?</h3>
+                    <p className="text-xs text-foreground-muted mt-1">Tell us which column or property name from your data source holds each piece of information.</p>
                   </div>
 
-                  <div className="p-4 bg-zinc-950/40 border border-zinc-850 rounded-lg flex gap-3 text-zinc-400 text-xs leading-normal">
+                  <div className="p-4 bg-card/40 border border-zinc-850 rounded-lg flex gap-3 text-foreground-muted text-xs leading-normal">
                     <Info className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
                     <div>
                       For example, if your data has a column called &quot;product_name&quot;, enter that as your Title field. We&apos;ll use those values when saving entries.
@@ -407,32 +407,32 @@ export default function DataPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Title / Name Field</label>
+                      <label className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider">Title / Name Field</label>
                       <input 
                         value={titleKey}
                         onChange={(e) => setTitleKey(e.target.value)}
                         placeholder="e.g. name, title, product_name"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white placeholder:text-zinc-600 outline-none focus:border-indigo-600 text-xs"
+                        className="w-full bg-card border border-border rounded-lg px-4 py-2.5 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-600 text-xs"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Main Content / Description Field</label>
+                      <label className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider">Main Content / Description Field</label>
                       <input 
                         value={contentKey}
                         onChange={(e) => setContentKey(e.target.value)}
                         placeholder="e.g. description, bio, body, email"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white placeholder:text-zinc-600 outline-none focus:border-indigo-600 text-xs"
+                        className="w-full bg-card border border-border rounded-lg px-4 py-2.5 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-600 text-xs"
                       />
                     </div>
 
                     <div className="space-y-1.5 md:col-span-2">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Website / Link Field (Optional)</label>
+                      <label className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider">Website / Link Field (Optional)</label>
                       <input 
                         value={urlKey}
                         onChange={(e) => setUrlKey(e.target.value)}
                         placeholder="e.g. website, url, source_link"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white placeholder:text-zinc-600 outline-none focus:border-indigo-606 text-xs"
+                        className="w-full bg-card border border-border rounded-lg px-4 py-2.5 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-606 text-xs"
                       />
                     </div>
                   </div>
@@ -443,36 +443,36 @@ export default function DataPage() {
               {wizardStep === 3 && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-base font-semibold text-white">Where should the data be saved?</h3>
-                    <p className="text-xs text-zinc-400 mt-1">Choose which Knowledge Base to add this data to, and how often it should automatically refresh.</p>
+                    <h3 className="text-base font-semibold text-foreground">Where should the data be saved?</h3>
+                    <p className="text-xs text-foreground-muted mt-1">Choose which Knowledge Base to add this data to, and how often it should automatically refresh.</p>
                   </div>
 
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Save Data Into</label>
+                      <label className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider">Save Data Into</label>
                       {bases.length > 0 ? (
                         <select 
                           value={targetKb}
                           onChange={(e) => setTargetKb(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white outline-none focus:border-indigo-600 text-sm"
+                          className="w-full bg-card border border-border rounded-lg px-4 py-2.5 text-foreground outline-none focus:border-indigo-600 text-sm"
                         >
                           {bases.map(kb => (
                             <option key={kb.id} value={kb.id}>{kb.name} ({kb.type.replace('_', ' ')})</option>
                           ))}
                         </select>
                       ) : (
-                        <div className="p-4 bg-zinc-950/20 border border-dashed border-zinc-850 rounded-lg text-center text-zinc-500 text-xs font-semibold">
+                        <div className="p-4 bg-card/20 border border-dashed border-zinc-850 rounded-lg text-center text-foreground-muted text-xs font-semibold">
                         No knowledge bases found. Go to Agents → Knowledge Bases to create one first.
                         </div>
                       )}
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Sync Frequency</label>
+                      <label className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider">Sync Frequency</label>
                       <select 
                         value={schedule}
                         onChange={(e) => setSchedule(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white outline-none focus:border-indigo-600 text-sm"
+                        className="w-full bg-card border border-border rounded-lg px-4 py-2.5 text-foreground outline-none focus:border-indigo-600 text-sm"
                       >
                         <option value="manual">Update manually</option>
                         <option value="hourly">Every hour</option>
@@ -484,12 +484,12 @@ export default function DataPage() {
               )}
 
               {/* Navigation Controls */}
-              <div className="pt-6 border-t border-zinc-800/80 flex items-center justify-between gap-4">
+              <div className="pt-6 border-t border-border/80 flex items-center justify-between gap-4">
                 {wizardStep > 1 ? (
                   <button
                     type="button"
                     onClick={() => setWizardStep(wizardStep - 1)}
-                    className="px-5 py-2.5 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white rounded-lg text-xs font-semibold transition-all"
+                    className="px-5 py-2.5 border border-border hover:border-border text-foreground-muted hover:text-white rounded-lg text-xs font-semibold transition-all"
                   >
                     Go Back
                   </button>
@@ -502,7 +502,7 @@ export default function DataPage() {
                     type="button"
                     onClick={() => setWizardStep(wizardStep + 1)}
                     disabled={!name.trim() || (type === 'REST_API' && !apiUrl.trim())}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-foreground rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5"
                   >
                     <span>Next</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -512,7 +512,7 @@ export default function DataPage() {
                     type="button"
                     onClick={handleCreateConnector}
                     disabled={creating || !targetKb}
-                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-2"
+                    className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-foreground rounded-lg text-xs font-semibold transition-all flex items-center gap-2"
                   >
                     {creating ? (
                       <>
@@ -530,23 +530,23 @@ export default function DataPage() {
             </div>
 
             {/* Right Column: Live Pipeline Preview (5 cols) */}
-            <div className="lg:col-span-5 bg-zinc-900/10 border border-zinc-800/80 rounded-xl p-6 space-y-6">
-              <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+            <div className="lg:col-span-5 bg-surface/10 border border-border/80 rounded-xl p-6 space-y-6">
+              <h3 className="text-xs font-bold text-foreground-muted uppercase tracking-widest flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-indigo-400" />
                 Preview
               </h3>
 
-              <div className="space-y-5 text-xs text-zinc-400">
+              <div className="space-y-5 text-xs text-foreground-muted">
                 <p className="leading-relaxed">This shows a quick summary of what will be synced and where.</p>
                 
                 {/* Visual Flow diagram */}
-                <div className="p-4 bg-zinc-950/40 border border-zinc-850 rounded-lg space-y-5">
+                <div className="p-4 bg-card/40 border border-zinc-850 rounded-lg space-y-5">
                   
                   {/* Source Node */}
                   <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-                    <span className="font-semibold text-zinc-500">Source:</span>
+                    <span className="font-semibold text-foreground-muted">Source:</span>
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-zinc-850 text-zinc-300 rounded text-[10px] font-medium">
+                      <span className="px-2 py-0.5 bg-zinc-850 text-foreground-muted rounded text-[10px] font-medium">
                         {type === 'SUPABASE_TABLE' ? {
                           'users': 'Team Members',
                           'agents': 'AI Agents',
@@ -561,38 +561,38 @@ export default function DataPage() {
                   {/* Field Mappings visualization */}
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-zinc-500">{titleKey || 'undefined'}</span>
+                      <span className="font-mono text-foreground-muted">{titleKey || 'undefined'}</span>
                       <ArrowRight className="w-3.5 h-3.5 text-indigo-500" />
-                      <span className="text-white font-medium">Title</span>
+                      <span className="text-foreground font-medium">Title</span>
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-zinc-500">{contentKey || 'undefined'}</span>
+                      <span className="font-mono text-foreground-muted">{contentKey || 'undefined'}</span>
                       <ArrowRight className="w-3.5 h-3.5 text-indigo-500" />
-                      <span className="text-white font-medium">Content</span>
+                      <span className="text-foreground font-medium">Content</span>
                     </div>
 
                     {urlKey && (
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-zinc-500">{urlKey}</span>
+                        <span className="font-mono text-foreground-muted">{urlKey}</span>
                         <ArrowRight className="w-3.5 h-3.5 text-indigo-500" />
-                        <span className="text-white font-medium">Reference Link</span>
+                        <span className="text-foreground font-medium">Reference Link</span>
                       </div>
                     )}
                   </div>
 
                   {/* Target Node */}
                   <div className="flex items-center justify-between border-t border-zinc-900 pt-3">
-                    <span className="font-semibold text-zinc-500">Target:</span>
+                    <span className="font-semibold text-foreground-muted">Target:</span>
                     <span className="text-indigo-400 font-bold">
                       {targetKb ? activeBasesText(targetKb) : 'Choose a destination'}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-4 bg-zinc-900/25 border border-zinc-850 rounded-lg space-y-2">
-                  <h4 className="font-bold text-zinc-300 text-xs">Duplicate protection enabled</h4>
-                  <p className="text-[10px] text-zinc-500 leading-normal">
+                <div className="p-4 bg-surface/25 border border-zinc-850 rounded-lg space-y-2">
+                  <h4 className="font-bold text-foreground-muted text-xs">Duplicate protection enabled</h4>
+                  <p className="text-[10px] text-foreground-muted leading-normal">
                     We automatically skip items already saved, so your data remains clean.
                   </p>
                 </div>
@@ -605,14 +605,14 @@ export default function DataPage() {
         /* ─── CASE B: DEFAULT PIPELINES WORKSPACE (Active connectors + logs side by side) ─── */
         <>
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-6">
             <div>
-              <h1 className="text-2xl font-semibold text-white tracking-tight">Data Connections</h1>
-              <p className="text-zinc-400 text-sm mt-1">Connect data sources to ensure your AI agents have up-to-date information.</p>
+              <h1 className="text-2xl font-semibold text-foreground tracking-tight">Data Connections</h1>
+              <p className="text-foreground-muted text-sm mt-1">Connect data sources to ensure your AI agents have up-to-date information.</p>
             </div>
             <button 
               onClick={() => setShowCreateWizard(true)}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-all shadow-lg shadow-indigo-600/10 shrink-0"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-foreground rounded-lg font-medium text-sm transition-all shadow-lg shadow-indigo-600/10 shrink-0"
             >
               <Plus className="w-4 h-4" />
               Add Data Connection
@@ -621,35 +621,35 @@ export default function DataPage() {
 
           {/* Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-zinc-900/40 border border-zinc-800/60 p-5 rounded-xl flex items-center gap-4">
-              <div className="p-3 bg-zinc-800 text-indigo-400 rounded-lg">
+            <div className="bg-surface/40 border border-border/60 p-5 rounded-xl flex items-center gap-4">
+              <div className="p-3 bg-surface-hover text-indigo-400 rounded-lg">
                 <Database className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Active Connections</p>
-              <h4 className="text-xl font-bold text-white mt-0.5">{connectors.length} connected</h4>
+                <p className="text-xs text-foreground-muted font-semibold uppercase tracking-wider">Active Connections</p>
+              <h4 className="text-xl font-bold text-foreground mt-0.5">{connectors.length} connected</h4>
               </div>
             </div>
 
-            <div className="bg-zinc-900/40 border border-zinc-800/60 p-5 rounded-xl flex items-center gap-4">
-              <div className="p-3 bg-zinc-800 text-emerald-400 rounded-lg">
+            <div className="bg-surface/40 border border-border/60 p-5 rounded-xl flex items-center gap-4">
+              <div className="p-3 bg-surface-hover text-emerald-400 rounded-lg">
                 <Activity className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Current Status</p>
-                <h4 className="text-xl font-bold text-white mt-0.5">
+                <p className="text-xs text-foreground-muted font-semibold uppercase tracking-wider">Current Status</p>
+                <h4 className="text-xl font-bold text-foreground mt-0.5">
                   {connectors.some(c => c.status === 'SYNCING') ? 'Syncing...' : 'Idle'}
                 </h4>
               </div>
             </div>
 
-            <div className="bg-zinc-900/40 border border-zinc-800/60 p-5 rounded-xl flex items-center gap-4">
-              <div className="p-3 bg-zinc-800 text-zinc-400 rounded-lg">
+            <div className="bg-surface/40 border border-border/60 p-5 rounded-xl flex items-center gap-4">
+              <div className="p-3 bg-surface-hover text-foreground-muted rounded-lg">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Data Privacy</p>
-              <h4 className="text-xl font-bold text-white mt-0.5">Organization Isolated</h4>
+                <p className="text-xs text-foreground-muted font-semibold uppercase tracking-wider">Data Privacy</p>
+              <h4 className="text-xl font-bold text-foreground mt-0.5">Organization Isolated</h4>
               </div>
             </div>
           </div>
@@ -659,7 +659,7 @@ export default function DataPage() {
             
             {/* LEFT PANEL: Connectors (7 Columns) */}
             <div className="lg:col-span-7 space-y-4">
-              <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest px-1">Your Connections</h2>
+              <h2 className="text-xs font-bold text-foreground-muted uppercase tracking-widest px-1">Your Connections</h2>
 
               {connectors.length > 0 ? (
                 <div className="space-y-3">
@@ -672,8 +672,8 @@ export default function DataPage() {
                         onClick={() => handleSelectConnector(conn)}
                         className={`p-5 rounded-xl border transition-all cursor-pointer relative ${
                           isSelected 
-                            ? "bg-zinc-900/70 border-indigo-500/65 shadow-md" 
-                            : "bg-zinc-900/10 border-zinc-800 hover:bg-zinc-900/30 hover:border-zinc-700"
+                            ? "bg-surface/70 border-indigo-500/65 shadow-md" 
+                            : "bg-surface/10 border-border hover:bg-surface hover:border-border"
                         }`}
                       >
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -685,25 +685,25 @@ export default function DataPage() {
                             </div>
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-white text-sm">{conn.name}</h3>
-                                <span className="px-2 py-0.5 bg-zinc-800 text-zinc-400 rounded text-[9px] font-bold uppercase tracking-wider">
+                                <h3 className="font-semibold text-foreground text-sm">{conn.name}</h3>
+                                <span className="px-2 py-0.5 bg-surface-hover text-foreground-muted rounded text-[9px] font-bold uppercase tracking-wider">
                                 {conn.type === 'SUPABASE_TABLE' ? 'Database' : 'Web URL'}
                                 </span>
                               </div>
                               
-                              <p className="text-xs text-zinc-500 font-mono truncate max-w-[280px]">
+                              <p className="text-xs text-foreground-muted font-mono truncate max-w-[280px]">
                                 {conn.type === 'SUPABASE_TABLE' 
                                   ? `public."${conn.connection_config.table_name}"` 
                                   : conn.connection_config.url}
                               </p>
-                              <div className="flex items-center gap-x-4 mt-2 text-[10px] text-zinc-400 font-medium">
+                              <div className="flex items-center gap-x-4 mt-2 text-[10px] text-foreground-muted font-medium">
                               <span className="flex items-center gap-1">
                                 <Cpu className="w-3.5 h-3.5" />
-                                Saves to: <span className="text-zinc-300">{activeBasesText(conn.mapping_config.kb_id)}</span>
+                                Saves to: <span className="text-foreground-muted">{activeBasesText(conn.mapping_config.kb_id)}</span>
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="w-3.5 h-3.5" />
-                                Updates: <span className="text-zinc-300 capitalize">{conn.sync_schedule}</span>
+                                Updates: <span className="text-foreground-muted capitalize">{conn.sync_schedule}</span>
                               </span>
                             </div>
                             </div>
@@ -720,7 +720,7 @@ export default function DataPage() {
                               <button
                                 onClick={(e) => handleTriggerSync(conn.id, e)}
                                 disabled={syncingId !== null}
-                                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                                className="px-3 py-1.5 bg-surface-hover hover:bg-surface-hover text-foreground rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 disabled:opacity-50"
                               >
                                 <RefreshCw className="w-3 h-3" />
                                 <span>Sync</span>
@@ -729,7 +729,7 @@ export default function DataPage() {
 
                             <button 
                               onClick={(e) => handleDeleteConnector(conn.id, e)}
-                              className="p-1.5 bg-zinc-800/40 hover:bg-rose-500/10 text-zinc-500 hover:text-rose-400 border border-zinc-800 rounded-md transition-all"
+                              className="p-1.5 bg-surface-hover/40 hover:bg-rose-500/10 text-foreground-muted hover:text-rose-400 border border-border rounded-md transition-all"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -747,17 +747,17 @@ export default function DataPage() {
                   })}
                 </div>
               ) : (
-                <div className="border border-dashed border-zinc-800 rounded-xl p-12 text-center space-y-4 bg-zinc-900/10">
-                  <div className="w-12 h-12 bg-zinc-900 rounded-lg flex items-center justify-center text-zinc-500 mx-auto">
+                <div className="border border-dashed border-border rounded-xl p-12 text-center space-y-4 bg-surface/10">
+                  <div className="w-12 h-12 bg-surface rounded-lg flex items-center justify-center text-foreground-muted mx-auto">
                     <Database className="w-6 h-6" />
                   </div>
                   <div className="max-w-xs mx-auto space-y-1">
-                    <h3 className="text-sm font-semibold text-white">No data connections yet</h3>
-                    <p className="text-xs text-zinc-500">Connect a data source so your AI agents always have fresh, relevant information to work with.</p>
+                    <h3 className="text-sm font-semibold text-foreground">No data connections yet</h3>
+                    <p className="text-xs text-foreground-muted">Connect a data source so your AI agents always have fresh, relevant information to work with.</p>
                   </div>
                   <button
                     onClick={() => setShowCreateWizard(true)}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-md transition-all"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-foreground text-xs font-semibold rounded-md transition-all"
                   >
                     Add First Connection
                   </button>
@@ -768,45 +768,45 @@ export default function DataPage() {
             {/* RIGHT PANEL: Execution History & Activity log (5 Columns) */}
             <div className="lg:col-span-5 space-y-4">
               <div className="flex items-center justify-between px-1">
-                <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-                  <History className="w-4 h-4 text-zinc-400" />
+                <h2 className="text-xs font-bold text-foreground-muted uppercase tracking-widest flex items-center gap-1.5">
+                  <History className="w-4 h-4 text-foreground-muted" />
                   Sync History
                 </h2>
                 {selectedConnector && (
                   <button 
                     onClick={() => fetchLogs(selectedConnector.id)}
                     disabled={fetchingLogs}
-                    className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors"
+                    className="p-1 hover:bg-surface-hover rounded text-foreground-muted hover:text-white transition-colors"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${fetchingLogs ? 'animate-spin' : ''}`} />
                   </button>
                 )}
               </div>
 
-              <div className="bg-zinc-900/30 border border-zinc-800/80 rounded-xl p-5 min-h-[460px] flex flex-col">
+              <div className="bg-surface border border-border/80 rounded-xl p-5 min-h-[460px] flex flex-col">
                 {selectedConnector ? (
                   <div className="flex-1 flex flex-col space-y-5 overflow-y-auto max-h-[460px] pr-1">
                     
                     {/* Selected Item header */}
-                    <div className="border-b border-zinc-800 pb-3 flex items-center justify-between">
-                      <span className="text-sm font-medium text-white">{selectedConnector.name}</span>
-                      <span className="text-xs text-zinc-500 font-mono">ID: {selectedConnector.id.slice(0, 8)}</span>
+                    <div className="border-b border-border pb-3 flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">{selectedConnector.name}</span>
+                      <span className="text-xs text-foreground-muted font-mono">ID: {selectedConnector.id.slice(0, 8)}</span>
                     </div>
 
                     {fetchingLogs ? (
-                      <div className="flex-1 flex flex-col items-center justify-center gap-2 text-zinc-500 py-16">
+                      <div className="flex-1 flex flex-col items-center justify-center gap-2 text-foreground-muted py-16">
                         <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
                         <span className="text-xs font-medium">Updating...</span>
                       </div>
                     ) : logs.length > 0 ? (
                       <div className="space-y-5">
                         {logs.map((log, index) => (
-                          <div key={log.id} className="border border-zinc-800/80 rounded-lg p-4 bg-zinc-950/20 space-y-3">
+                          <div key={log.id} className="border border-border/80 rounded-lg p-4 bg-card/20 space-y-3">
                             
                             {/* Log card head */}
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-zinc-500">SYNC #{logs.length - index}</span>
-                              <span className="text-xs text-zinc-500 font-medium">
+                              <span className="text-xs font-bold text-foreground-muted">SYNC #{logs.length - index}</span>
+                              <span className="text-xs text-foreground-muted font-medium">
                                 {new Date(log.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
                               </span>
                             </div>
@@ -825,7 +825,7 @@ export default function DataPage() {
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[10px] text-zinc-500 font-semibold">
+                              <span className="text-[10px] text-foreground-muted font-semibold">
                                 {log.status === 'SUCCESS' 
                                   ? `${log.records_synced} items in ${log.duration_ms}ms`
                                   : `Failed: ${log.error_message}`}
@@ -833,12 +833,12 @@ export default function DataPage() {
                             </div>
 
                             {/* Logs list */}
-                            <div className="border-t border-zinc-900 pt-2.5 space-y-1.5 text-zinc-400 text-[11px] font-medium leading-relaxed font-mono bg-zinc-900/15 p-2 rounded">
+                            <div className="border-t border-zinc-900 pt-2.5 space-y-1.5 text-foreground-muted text-[11px] font-medium leading-relaxed font-mono bg-surface/15 p-2 rounded">
                               {log.logs && log.logs.map((line, lIdx) => {
                                 const cleanLine = line.replace(/^\[.*?\]\s*/, '');
                                 return (
                                   <div key={lIdx} className="flex gap-2 items-start">
-                                    <span className="text-zinc-600 font-bold select-none">•</span>
+                                    <span className="text-foreground-muted font-bold select-none">•</span>
                                     <span className="break-all">{cleanLine}</span>
                                   </div>
                                 );
@@ -848,22 +848,22 @@ export default function DataPage() {
                         ))}
                       </div>
                     ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-zinc-500 gap-2 py-16">
-                        <Clock className="w-8 h-8 text-zinc-700" />
+                      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-foreground-muted gap-2 py-16">
+                        <Clock className="w-8 h-8 text-foreground-muted" />
                         <div>
-                          <p className="font-semibold text-zinc-400 text-sm">No updates yet</p>
-                          <p className="text-xs text-zinc-500 mt-0.5">This connection hasn&apos;t run yet. Click &quot;Sync&quot; on the left to pull in data for the first time.</p>
+                          <p className="font-semibold text-foreground-muted text-sm">No updates yet</p>
+                          <p className="text-xs text-foreground-muted mt-0.5">This connection hasn&apos;t run yet. Click &quot;Sync&quot; on the left to pull in data for the first time.</p>
                         </div>
                       </div>
                     )}
 
                   </div>
                 ) : (
-                  <div className="flex-grow flex flex-col items-center justify-center p-6 text-center text-zinc-500 gap-3 py-16">
-                    <Clock className="w-8 h-8 text-zinc-700" />
+                  <div className="flex-grow flex flex-col items-center justify-center p-6 text-center text-foreground-muted gap-3 py-16">
+                    <Clock className="w-8 h-8 text-foreground-muted" />
                     <div>
-                      <h3 className="font-semibold text-zinc-400 text-sm">Select a connection</h3>
-                      <p className="text-xs text-zinc-500 mt-0.5 font-medium">Click on any data connection on the left to see its sync history and activity details.</p>
+                      <h3 className="font-semibold text-foreground-muted text-sm">Select a connection</h3>
+                      <p className="text-xs text-foreground-muted mt-0.5 font-medium">Click on any data connection on the left to see its sync history and activity details.</p>
                     </div>
                   </div>
                 )}

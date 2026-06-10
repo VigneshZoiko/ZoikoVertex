@@ -69,7 +69,7 @@ export default function ModelPerformancePage() {
             Refresh
           </button>
           
-          <button className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-indigo-500/20">
+          <button className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-foreground rounded-xl text-sm font-medium transition-all shadow-lg shadow-indigo-500/20">
             <Download className="w-4 h-4 mr-2" />
             Export Report
           </button>

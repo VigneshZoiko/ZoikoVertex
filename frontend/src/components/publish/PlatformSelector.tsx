@@ -444,11 +444,11 @@ function FormatChip({
       className={[
         'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all relative',
         isBlocked
-          ? 'opacity-35 cursor-not-allowed border-zinc-700/50 bg-zinc-800/30 text-zinc-600 line-through'
+          ? 'opacity-35 cursor-not-allowed border-border/50 bg-surface-hover text-foreground-muted line-through'
           : selected
           ? isWarning
             ? 'bg-amber-500/15 border-amber-500/60 text-amber-300'
-            : 'bg-indigo-600 border-indigo-500 text-white'
+            : 'bg-indigo-600 border-indigo-500 text-foreground'
           : isWarning
           ? 'bg-amber-500/5 border-amber-500/30 text-amber-400 hover:bg-amber-500/15'
           : 'bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-indigo-500/40 hover:text-[var(--foreground)]',
@@ -557,7 +557,7 @@ function PlatformDropdown({
         ].join(' ')}
       >
         {/* Platform icon */}
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0" style={{ backgroundColor: meta.color }}>
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center text-foreground shrink-0" style={{ backgroundColor: meta.color }}>
           <Icon className="w-3.5 h-3.5" />
         </div>
 
@@ -716,7 +716,7 @@ function PlatformDropdown({
                       )}
                     </div>
                     <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-[var(--border)]'}`}>
-                      {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                      {isSelected && <CheckCircle2 className="w-3 h-3 text-foreground" />}
                     </div>
                   </button>
                 );

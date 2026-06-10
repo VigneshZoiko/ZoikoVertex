@@ -54,7 +54,7 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel 
             </button>
             <button
               onClick={onConfirm}
-              className="flex-1 py-3 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-500 active:scale-[0.98] transition-all shadow-lg shadow-rose-500/20"
+              className="flex-1 py-3 rounded-xl bg-rose-600 text-foreground font-bold text-sm hover:bg-rose-500 active:scale-[0.98] transition-all shadow-lg shadow-rose-500/20"
             >
               Yes, Discard
             </button>

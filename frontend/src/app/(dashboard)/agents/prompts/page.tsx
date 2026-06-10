@@ -370,7 +370,7 @@ function RegistryTab({
               placeholder="Search by name, owner, or linked agent..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-black border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all"
+              className="w-full bg-black border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-xs text-foreground focus:outline-none focus:border-indigo-500 transition-all"
             />
           </div>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as FilterStatus)} className={FILTER_SELECT_CLS}>
@@ -442,7 +442,7 @@ function RegistryTab({
             {filtered.map((p) => (
               <tr key={p.id} className="hover:bg-slate-900/30 transition-colors group cursor-pointer" onClick={() => onSelectPrompt(p)}>
                 <td className="py-4 px-5">
-                  <div className="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors max-w-[200px] truncate">{p.name}</div>
+                  <div className="text-sm font-bold text-foreground group-hover:text-indigo-400 transition-colors max-w-[200px] truncate">{p.name}</div>
                   <div className="text-[10px] text-slate-500 max-w-[200px] truncate mt-0.5">{p.description}</div>
                 </td>
                 <td className="py-4 px-5">
@@ -516,7 +516,7 @@ function LifecycleTab({ prompts }: { prompts: PromptRecord[] }) {
               <div className="space-y-2">
                 {items.map((p) => (
                   <div key={p.id} className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
-                    <div className="text-[11px] font-bold text-white truncate">{p.name}</div>
+                    <div className="text-[11px] font-bold text-foreground truncate">{p.name}</div>
                     <div className="flex items-center gap-2 mt-1">
                       <RiskBadge tier={p.risk_tier} />
                     </div>
@@ -532,7 +532,7 @@ function LifecycleTab({ prompts }: { prompts: PromptRecord[] }) {
 
       {/* Lifecycle Rules Summary */}
       <div className="bg-slate-950 border border-slate-900 rounded-2xl p-6 space-y-4">
-        <h3 className="text-xs font-black text-white uppercase tracking-widest">Control Rules</h3>
+        <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Control Rules</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-slate-400">
           {[
             "Archived and retired prompts are immutable. Clone to draft to create a new version.",
@@ -582,7 +582,7 @@ function TestingTab({
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Tested Prompts", value: withTests.length, color: "text-white" },
+          { label: "Tested Prompts", value: withTests.length, color: "text-foreground" },
           { label: "Passing", value: passed, color: "text-emerald-400" },
           { label: "Failing", value: failed, color: "text-rose-400" },
         ].map((s) => (
@@ -595,7 +595,7 @@ function TestingTab({
 
       {/* Test Categories */}
       <div className="space-y-3">
-        <h3 className="text-xs font-black text-white uppercase tracking-widest">Required Test Suites by Category</h3>
+        <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Required Test Suites by Category</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {TEST_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
@@ -605,7 +605,7 @@ function TestingTab({
                   <Icon className="w-4 h-4 text-indigo-400" />
                 </div>
                 <div>
-                  <div className="text-[11px] font-bold text-white">{cat.label}</div>
+                  <div className="text-[11px] font-bold text-foreground">{cat.label}</div>
                   <div className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">{cat.desc}</div>
                 </div>
               </div>
@@ -616,12 +616,12 @@ function TestingTab({
 
       {/* Per-prompt test results */}
       <div className="space-y-3">
-        <h3 className="text-xs font-black text-white uppercase tracking-widest">Last Test Run — Per Prompt</h3>
+        <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Last Test Run — Per Prompt</h3>
         <div className="space-y-2">
           {prompts.map((p) => (
             <div key={p.id} className="flex items-center gap-4 p-4 bg-black border border-slate-900 rounded-2xl">
               <div className="flex-1 min-w-0">
-                <div className="text-[11px] font-bold text-white truncate">{p.name}</div>
+                <div className="text-[11px] font-bold text-foreground truncate">{p.name}</div>
                 <div className="text-[10px] text-slate-500">{p.last_test?.suite_name ?? "No suite assigned"}</div>
               </div>
               <RiskBadge tier={p.risk_tier} />
@@ -647,7 +647,7 @@ function TestingTab({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 text-rose-400" />
-          <h3 className="text-xs font-black text-white uppercase tracking-widest">Adversarial Validation — Attack Vector Coverage</h3>
+          <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Adversarial Validation — Attack Vector Coverage</h3>
         </div>
         <p className="text-[10px] text-slate-500 leading-relaxed max-w-2xl">
           Adversarial validation tests whether a prompt can be manipulated into violating policy, fabricating facts, bypassing approval workflow, impersonating unauthorized people, or leaking confidential information. All production-bound prompts must pass every vector below.
@@ -666,7 +666,7 @@ function TestingTab({
                 <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${v.severity === "CRITICAL" ? "text-rose-400 bg-rose-500/10 border border-rose-500/20" : v.severity === "HIGH" ? "text-orange-400 bg-orange-500/10 border border-orange-500/20" : "text-amber-400 bg-amber-500/10 border border-amber-500/20"}`}>{v.severity}</span>
               </div>
               <div>
-                <div className="text-[11px] font-bold text-white mb-1">{v.label}</div>
+                <div className="text-[11px] font-bold text-foreground mb-1">{v.label}</div>
                 <div className="text-[10px] text-slate-500 leading-relaxed">{v.desc}</div>
               </div>
             </div>
@@ -723,7 +723,7 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
       {/* Pending queue */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black text-white uppercase tracking-widest">Pending Approval Queue</h3>
+          <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Pending Approval Queue</h3>
           <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full font-black">
             {approvalStats?.counts?.total_pending ?? pending.length} Awaiting Action
           </span>
@@ -735,7 +735,7 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
             {pending.map((p) => (
               <div key={p.id} className="p-5 bg-black border border-amber-500/20 rounded-2xl space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-bold text-white">{p.name}</span>
+                  <span className="text-sm font-bold text-foreground">{p.name}</span>
                   <RiskBadge tier={p.risk_tier} />
                   <StatusBadge status={p.status} />
                 </div>
@@ -797,7 +797,7 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
 
       {/* Approval Matrix */}
       <div className="space-y-3">
-        <h3 className="text-xs font-black text-white uppercase tracking-widest">Risk-Based Approval Matrix</h3>
+        <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Risk-Based Approval Matrix</h3>
         <div className="space-y-2">
           {APPROVAL_MATRIX.map((row) => (
             <div key={row.tier} className="flex items-start gap-4 p-4 bg-black border border-slate-900 rounded-2xl">
@@ -883,7 +883,7 @@ function EvidenceTab({
       {/* Audit stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Events", value: auditStats?.total ?? 0, color: "text-white" },
+          { label: "Total Events", value: auditStats?.total ?? 0, color: "text-foreground" },
           { label: "Today", value: auditStats?.today ?? 0, color: "text-indigo-400" },
           { label: "Warnings", value: auditStats?.warnings ?? 0, color: "text-amber-400" },
           { label: "Errors", value: auditStats?.errors ?? 0, color: "text-rose-400" },
@@ -897,7 +897,7 @@ function EvidenceTab({
 
       {/* Evidence types */}
       <div className="space-y-3">
-        <h3 className="text-xs font-black text-white uppercase tracking-widest">Evidence Object Types</h3>
+        <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Evidence Object Types</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {EVIDENCE_TYPES.map((e) => {
             const Icon = e.icon;
@@ -907,7 +907,7 @@ function EvidenceTab({
                   <Icon className="w-4 h-4 text-indigo-400" />
                 </div>
                 <div>
-                  <div className="text-[11px] font-bold text-white">{e.label}</div>
+                  <div className="text-[11px] font-bold text-foreground">{e.label}</div>
                   <div className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">{e.desc}</div>
                 </div>
               </div>
@@ -918,12 +918,12 @@ function EvidenceTab({
 
       {/* Production evidence export */}
       <div className="space-y-3">
-        <h3 className="text-xs font-black text-white uppercase tracking-widest">Export Evidence Packages — Production Active</h3>
+        <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Export Evidence Packages — Production Active</h3>
         {productionPrompts.length === 0 && <p className="text-sm text-slate-600">No production-active prompts.</p>}
         {productionPrompts.map((p) => (
           <div key={p.id} className="flex items-center gap-4 p-4 bg-black border border-slate-900 rounded-2xl">
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-bold text-white truncate">{p.name}</div>
+              <div className="text-[11px] font-bold text-foreground truncate">{p.name}</div>
               <div className="text-[10px] text-slate-500">{p.active_version} · deployed {new Date(p.last_deployed).toLocaleDateString()}</div>
             </div>
             <RiskBadge tier={p.risk_tier} />
@@ -940,7 +940,7 @@ function EvidenceTab({
 
       {/* Governance Receipts */}
       <div className="space-y-3">
-        <h3 className="text-xs font-black text-white uppercase tracking-widest">Governance Receipts — Production Deployments</h3>
+        <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Governance Receipts — Production Deployments</h3>
         <p className="text-[10px] text-slate-500 leading-relaxed">Every production deployment, approval, rollback, or retirement generates a signed Governance Receipt stored in the Evidence Vault. The receipt carries the cryptographic prompt-body hash and the policy state in effect at deployment time. Open the Governance Center to view or regenerate the sealed receipt and its verifiable hash.</p>
         {productionPrompts.length === 0 ? (
           <div className="p-6 text-center text-sm text-slate-600 bg-black border border-slate-900 rounded-2xl">No production receipts yet. Receipts are generated when a prompt reaches Production Active status.</div>
@@ -951,7 +951,7 @@ function EvidenceTab({
                 <div className="flex items-center justify-between px-5 py-3 border-b border-slate-900 bg-indigo-500/5">
                   <div className="flex items-center gap-3">
                     <FileCheck className="w-3.5 h-3.5 text-indigo-400" />
-                    <span className="text-[11px] font-black text-white">{p.name}</span>
+                    <span className="text-[11px] font-black text-foreground">{p.name}</span>
                     <span className="text-[9px] font-black text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded uppercase tracking-widest">{p.active_version}</span>
                   </div>
                   <RiskBadge tier={p.risk_tier} />
@@ -1041,7 +1041,7 @@ function RuntimeTab({
           {paused.map((p) => (
             <div key={p.id} className="p-5 bg-orange-500/5 border border-orange-500/20 rounded-2xl flex flex-wrap items-center gap-4">
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-white">{p.name}</div>
+                <div className="text-sm font-bold text-foreground">{p.name}</div>
                 <div className="text-[10px] text-slate-400 mt-0.5">{p.description}</div>
               </div>
               <RiskBadge tier={p.risk_tier} />
@@ -1067,7 +1067,7 @@ function RuntimeTab({
 
       {/* HITL Rules */}
       <div className="space-y-3">
-        <h3 className="text-xs font-black text-white uppercase tracking-widest">Active HITL Rules — Runtime Routing</h3>
+        <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Active HITL Rules — Runtime Routing</h3>
         {hitlRules.length === 0 ? (
           <p className="text-sm text-slate-600">No HITL rules configured.</p>
         ) : (
@@ -1076,7 +1076,7 @@ function RuntimeTab({
               <div key={rule.id} className="flex items-center gap-4 p-4 bg-black border border-slate-900 rounded-2xl">
                 <div className={`w-2 h-2 rounded-full shrink-0 ${rule.enabled ? "bg-emerald-500" : "bg-slate-700"}`} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-[11px] font-bold text-white">{rule.trigger}</div>
+                  <div className="text-[11px] font-bold text-foreground">{rule.trigger}</div>
                   <div className="text-[10px] text-slate-500">{rule.action} → routed to <span className="text-slate-300 font-bold">{rule.route_to_role}</span></div>
                 </div>
                 <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${rule.enabled ? "text-emerald-400 bg-emerald-500/10" : "text-slate-600 bg-slate-900"}`}>
@@ -1119,7 +1119,7 @@ function RuntimeTab({
 
       {/* Runtime enforcement rules */}
       <div className="space-y-3">
-        <h3 className="text-xs font-black text-white uppercase tracking-widest">Runtime Enforcement Rules</h3>
+        <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Runtime Enforcement Rules</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {RUNTIME_RULES.map((rule, i) => (
             <div key={i} className="flex items-start gap-2 p-3 bg-black border border-slate-900 rounded-xl text-[10px] text-slate-400">
@@ -1329,7 +1329,7 @@ function AuditorTab() {
   return (
     <div className="space-y-8">
       <div className="space-y-1">
-        <h2 className="text-sm font-black text-white uppercase tracking-widest">Prompt Governance Auditor</h2>
+        <h2 className="text-sm font-black text-foreground uppercase tracking-widest">Prompt Governance Auditor</h2>
         <p className="text-[11px] text-slate-500">Evaluate any prompt against all 8 ZoikoVertex governance models and get a full compliance report.</p>
       </div>
 
@@ -1339,7 +1339,7 @@ function AuditorTab() {
           <div className="space-y-1 flex-1">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Risk Tier</label>
             <select value={tier} onChange={e => setTier(e.target.value as AuditRiskTier)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 transition-all">
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-foreground focus:outline-none focus:border-indigo-500 transition-all">
               {(["Tier 1 Low","Tier 2 Medium","Tier 3 High","Tier 4 Critical"] as AuditRiskTier[]).map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
@@ -1348,14 +1348,14 @@ function AuditorTab() {
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Prompt to Audit</label>
           <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={9}
             placeholder="Paste the prompt you want to audit here..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white placeholder:text-slate-700 focus:outline-none focus:border-indigo-500 resize-none font-mono transition-all leading-relaxed" />
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-foreground placeholder:text-slate-700 focus:outline-none focus:border-indigo-500 resize-none font-mono transition-all leading-relaxed" />
           <div className="flex justify-between text-[10px] text-slate-600">
             <span>{prompt.length} characters</span><span>{prompt.trim().split(/\s+/).filter(Boolean).length} words</span>
           </div>
         </div>
         <div className="flex gap-3">
           <button onClick={handleAudit} disabled={!prompt.trim() || running}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-foreground text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
             {running ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>Running...</> : <><ShieldCheck className="w-3.5 h-3.5"/>Run Audit</>}
           </button>
           {report && <button onClick={() => { setReport(null); setPrompt(""); setExpanded(null); }}
@@ -1369,7 +1369,7 @@ function AuditorTab() {
           {/* Score Summary */}
           <div className="bg-black border border-slate-800 rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-5">
-              <div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-white uppercase tracking-widest">Section 1 — Score Summary</span>
+              <div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 1 — Score Summary</span>
             </div>
             <div className="flex flex-col md:flex-row gap-6 items-center">
               <div className="flex flex-col items-center gap-2"><AuditScoreRing score={report.score}/><span className="text-[10px] text-slate-500 font-bold">Overall Score</span></div>
@@ -1390,7 +1390,7 @@ function AuditorTab() {
           {/* Model Findings */}
           <div className="bg-black border border-slate-800 rounded-2xl overflow-hidden">
             <div className="flex items-center gap-2 p-5 border-b border-slate-800">
-              <div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-white uppercase tracking-widest">Section 2 — Model Findings</span>
+              <div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 2 — Model Findings</span>
             </div>
             <div className="divide-y divide-slate-900">
               {report.models.map(m => {
@@ -1405,7 +1405,7 @@ function AuditorTab() {
                         <MIcon className={`w-3.5 h-3.5 ${cfg.color}`}/>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2"><span className="text-[10px] text-slate-600">M{m.id}</span><span className="text-xs font-bold text-white">{m.name}</span></div>
+                        <div className="flex items-center gap-2"><span className="text-[10px] text-slate-600">M{m.id}</span><span className="text-xs font-bold text-foreground">{m.name}</span></div>
                         <p className="text-[10px] text-slate-500 truncate mt-0.5">{m.finding}</p>
                       </div>
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black border ${cfg.bg} ${cfg.border} ${cfg.color} shrink-0`}>
@@ -1427,7 +1427,7 @@ function AuditorTab() {
 
           {/* Executive Summary */}
           <div className="bg-black border border-slate-800 rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-3"><div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-white uppercase tracking-widest">Section 3 — Executive Summary</span></div>
+            <div className="flex items-center gap-2 mb-3"><div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 3 — Executive Summary</span></div>
             <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 border border-slate-800 rounded-xl p-4">{report.summary}</p>
           </div>
 
@@ -1435,7 +1435,7 @@ function AuditorTab() {
           {report.rebuilt && (
             <div className="bg-black border border-rose-500/20 rounded-2xl overflow-hidden">
               <div className="flex items-center justify-between p-5 border-b border-slate-800">
-                <div className="flex items-center gap-2"><div className="w-1 h-5 rounded-full bg-rose-500"/><div><span className="text-[10px] font-black text-white uppercase tracking-widest">Section 4 — Rebuilt Prompt</span><p className="text-[10px] text-slate-500 mt-0.5">Score below 70 or a model failed — production-ready governed prompt generated.</p></div></div>
+                <div className="flex items-center gap-2"><div className="w-1 h-5 rounded-full bg-rose-500"/><div><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 4 — Rebuilt Prompt</span><p className="text-[10px] text-slate-500 mt-0.5">Score below 70 or a model failed — production-ready governed prompt generated.</p></div></div>
                 <button onClick={handleCopy} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-400 hover:text-white hover:border-slate-600 transition-all shrink-0">
                   {copied ? <><Check className="w-3.5 h-3.5 text-emerald-400"/>Copied!</> : <><Copy className="w-3.5 h-3.5"/>Copy</>}
                 </button>
@@ -1464,8 +1464,8 @@ function AuditorTab() {
           <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
             <ShieldCheck className="w-7 h-7 text-indigo-400"/>
           </div>
-          <h3 className="text-sm font-bold text-white mb-2">Ready to Audit</h3>
-          <p className="text-xs text-slate-500 max-w-sm leading-relaxed">Paste any prompt above, set the risk tier, and click <strong className="text-white">Run Audit</strong> to evaluate it against all 8 governance models.</p>
+          <h3 className="text-sm font-bold text-foreground mb-2">Ready to Audit</h3>
+          <p className="text-xs text-slate-500 max-w-sm leading-relaxed">Paste any prompt above, set the risk tier, and click <strong className="text-foreground">Run Audit</strong> to evaluate it against all 8 governance models.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             {["Instruction Adherence","Safety & Policy","Brand & Tone","Grounding","Tool-Use","Variables","Lifecycle","Auditability"].map(l => (
               <span key={l} className="px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-[10px] text-slate-500">{l}</span>
@@ -1562,13 +1562,13 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Type</label>
-        <select value={promptType} onChange={(e) => setPromptType(e.target.value as PromptType)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
+        <select value={promptType} onChange={(e) => setPromptType(e.target.value as PromptType)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
           {(["system","agent_role","task","channel","tool_use","escalation","refusal","safety","localization"] as const).map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
         </select>
       </div>
       <div className="space-y-2">
         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Risk Tier</label>
-        <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
+        <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
           {(Object.keys(RISK_META) as RiskTier[]).map((r) => <option key={r} value={r}>{RISK_META[r].label}</option>)}
         </select>
       </div>
@@ -1579,7 +1579,7 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-slate-950 border border-slate-800 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
         <div className="p-6 border-b border-slate-800 flex items-center justify-between shrink-0">
-          <h3 className="text-lg font-bold text-white">New Prompt</h3>
+          <h3 className="text-lg font-bold text-foreground">New Prompt</h3>
           <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
         </div>
 
@@ -1607,26 +1607,26 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
             <>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Prompt Name *</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Brand Voice — Content Lead" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Brand Voice — Content Lead" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
               </div>
               {mode === "workflow_node" && (
                 <>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Workflow *</label>
-                    <select value={workflowId} onChange={(e) => setWorkflowId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
+                    <select value={workflowId} onChange={(e) => setWorkflowId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
                       <option value="">{workflows.length ? "Select a workflow…" : "Loading workflows…"}</option>
                       {workflows.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Node Name / Execution Context</label>
-                    <input value={nodeName} onChange={(e) => setNodeName(e.target.value)} placeholder="e.g. caption-generation node" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
+                    <input value={nodeName} onChange={(e) => setNodeName(e.target.value)} placeholder="e.g. caption-generation node" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
                   </div>
                 </>
               )}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Description</label>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose and scope of this prompt..." className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all h-20 resize-none text-sm" />
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose and scope of this prompt..." className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all h-20 resize-none text-sm" />
               </div>
               {typeAndRisk}
             </>
@@ -1641,7 +1641,7 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{mode === "template" ? "Source (approved prompt) *" : "Source prompt *"}</label>
-                <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-indigo-500 transition-all text-xs">
+                <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
                   <option value="">Select a source…</option>
                   {(mode === "template" ? templateSources : prompts).map((p) => <option key={p.id} value={p.id}>{p.name} · {STATUS_META[normalizeStatus(p.status)].label}</option>)}
                 </select>
@@ -1653,7 +1653,7 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
                 <>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">New Prompt Name (optional)</label>
-                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Defaults to “<source> (From Template)”" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Defaults to “<source> (From Template)”" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
                   </div>
                   {typeAndRisk}
                 </>
@@ -1669,7 +1669,7 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
                 value={importJson}
                 onChange={(e) => setImportJson(e.target.value)}
                 placeholder={`{\n  "name": "Imported Prompt",\n  "prompt_type": "system",\n  "risk_tier": "tier_2_medium",\n  "body": "...",\n  "variables_json": {}\n}`}
-                className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all h-48 resize-none text-[11px] font-mono"
+                className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all h-48 resize-none text-[11px] font-mono"
               />
             </div>
           )}
@@ -1681,7 +1681,7 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
             </div>
           )}
 
-          <button onClick={submit} disabled={creating} className="w-full py-4 bg-indigo-500 text-white rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20">
+          <button onClick={submit} disabled={creating} className="w-full py-4 bg-indigo-500 text-foreground rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20">
             {creating ? <><Loader2 className="w-4 h-4 animate-spin" />CREATING...</> : <><Plus className="w-4 h-4" />{mode === "clone" ? "CLONE PROMPT" : mode === "import" ? "IMPORT PROMPT" : "CREATE PROMPT"}</>}
           </button>
         </div>
@@ -1812,7 +1812,7 @@ function VariableEditor({ versionId, editable }: { versionId?: string; editable:
           {rows.map((r, i) => (
             <div key={i} className="p-4 bg-black border border-slate-900 rounded-2xl space-y-3">
               <div className="flex items-center gap-2">
-                <input disabled={!editable} value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="variable_name" className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-indigo-500 disabled:opacity-60" />
+                <input disabled={!editable} value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="variable_name" className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-indigo-500 disabled:opacity-60" />
                 <select disabled={!editable} value={r.type} onChange={(e) => update(i, { type: e.target.value as VariableType })} className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-[11px] text-slate-300 outline-none focus:border-indigo-500 disabled:opacity-60">
                   {VARIABLE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
@@ -1820,10 +1820,10 @@ function VariableEditor({ versionId, editable }: { versionId?: string; editable:
                 {editable && <button onClick={() => remove(i)} className="p-1.5 text-rose-400/70 hover:text-rose-400 transition-colors" title="Delete variable"><XCircle className="w-4 h-4" /></button>}
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <input disabled={!editable} value={r.allowedValues} onChange={(e) => update(i, { allowedValues: e.target.value })} placeholder="Allowed values (comma-separated)" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-indigo-500 disabled:opacity-60" />
-                <input disabled={!editable} value={r.validationRule} onChange={(e) => update(i, { validationRule: e.target.value })} placeholder="Validation regex" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] font-mono text-white outline-none focus:border-indigo-500 disabled:opacity-60" />
-                <input disabled={!editable} value={r.fallbackValue} onChange={(e) => update(i, { fallbackValue: e.target.value })} placeholder="Fallback / default value" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-indigo-500 disabled:opacity-60" />
-                <input disabled={!editable} value={r.example} onChange={(e) => update(i, { example: e.target.value })} placeholder="Example" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-indigo-500 disabled:opacity-60" />
+                <input disabled={!editable} value={r.allowedValues} onChange={(e) => update(i, { allowedValues: e.target.value })} placeholder="Allowed values (comma-separated)" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-indigo-500 disabled:opacity-60" />
+                <input disabled={!editable} value={r.validationRule} onChange={(e) => update(i, { validationRule: e.target.value })} placeholder="Validation regex" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] font-mono text-foreground outline-none focus:border-indigo-500 disabled:opacity-60" />
+                <input disabled={!editable} value={r.fallbackValue} onChange={(e) => update(i, { fallbackValue: e.target.value })} placeholder="Fallback / default value" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-indigo-500 disabled:opacity-60" />
+                <input disabled={!editable} value={r.example} onChange={(e) => update(i, { example: e.target.value })} placeholder="Example" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-indigo-500 disabled:opacity-60" />
               </div>
             </div>
           ))}
@@ -1833,7 +1833,7 @@ function VariableEditor({ versionId, editable }: { versionId?: string; editable:
       {error && <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[11px] text-rose-400"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
       {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[11px] text-emerald-400"><Check className="w-4 h-4 shrink-0" /><span>{notice}</span></div>}
       {editable && rows.length > 0 && (
-        <button onClick={save} disabled={saving} className="w-full py-3 bg-indigo-500 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+        <button onClick={save} disabled={saving} className="w-full py-3 bg-indigo-500 text-foreground rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
           {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Check className="w-4 h-4" /> Save Variables</>}
         </button>
       )}
@@ -1942,7 +1942,7 @@ function GuardrailEditor({ promptId, versionId, editable }: { promptId: string; 
                   </>}
                 </div>
               </div>
-              <textarea disabled={!editable} value={r.rule} onChange={(e) => update(i, { rule: e.target.value })} placeholder="Guardrail rule text…" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-rose-500 h-16 resize-none disabled:opacity-60" />
+              <textarea disabled={!editable} value={r.rule} onChange={(e) => update(i, { rule: e.target.value })} placeholder="Guardrail rule text…" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-rose-500 h-16 resize-none disabled:opacity-60" />
             </div>
           ))}
         </div>
@@ -1950,7 +1950,7 @@ function GuardrailEditor({ promptId, versionId, editable }: { promptId: string; 
       {error && <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[11px] text-rose-400"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
       {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[11px] text-emerald-400"><Check className="w-4 h-4 shrink-0" /><span>{notice}</span></div>}
       {editable && rows.length > 0 && (
-        <button onClick={save} disabled={saving} className="w-full py-3 bg-rose-500 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+        <button onClick={save} disabled={saving} className="w-full py-3 bg-rose-500 text-foreground rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
           {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Check className="w-4 h-4" /> Save Guardrails</>}
         </button>
       )}
@@ -2078,20 +2078,20 @@ function DeploymentConfirmation({ data, prompt, onClose, onRollback, onOpenInCen
         <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-emerald-500/5">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <h3 className="text-lg font-bold text-white">Deployment Confirmed</h3>
+            <h3 className="text-lg font-bold text-foreground">Deployment Confirmed</h3>
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-5">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-white">{prompt.name}</span>
+            <span className="text-sm font-bold text-foreground">{prompt.name}</span>
             <RiskBadge tier={prompt.risk_tier} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             {rows.map((r) => (
               <div key={r.label} className="p-3 bg-black border border-slate-900 rounded-xl">
                 <div className="text-[9px] text-slate-600 uppercase tracking-widest">{r.label}</div>
-                <div className="text-[11px] text-white font-bold mt-1 break-words">{r.value}</div>
+                <div className="text-[11px] text-foreground font-bold mt-1 break-words">{r.value}</div>
               </div>
             ))}
           </div>
@@ -2153,25 +2153,25 @@ function RejectionModal({ title, promptName, onConfirm, onCancel }: {
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="bg-slate-950 border border-rose-500/25 rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden">
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-          <h3 className="text-base font-bold text-white">{title}</h3>
+          <h3 className="text-base font-bold text-foreground">{title}</h3>
           <button onClick={onCancel} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-4">
           <p className="text-[11px] text-slate-500">{promptName}</p>
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Reason Category *</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-white outline-none focus:border-rose-500 transition-all text-xs">
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-rose-500 transition-all text-xs">
               <option value="">Select a category…</option>
               {REJECTION_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Actionable Notes *</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Describe the specific change required…" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-700 outline-none focus:border-rose-500 transition-all h-24 resize-none text-sm" />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Describe the specific change required…" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-rose-500 transition-all h-24 resize-none text-sm" />
           </div>
           <div className="flex gap-2">
             <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-slate-800 text-slate-300 font-semibold text-sm hover:bg-slate-900 transition-all">Cancel</button>
-            <button onClick={() => onConfirm(category, notes.trim())} disabled={!valid} className="flex-1 py-3 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-500 disabled:opacity-50 transition-all">Submit</button>
+            <button onClick={() => onConfirm(category, notes.trim())} disabled={!valid} className="flex-1 py-3 rounded-xl bg-rose-600 text-foreground font-bold text-sm hover:bg-rose-500 disabled:opacity-50 transition-all">Submit</button>
           </div>
         </div>
       </div>
@@ -2269,7 +2269,7 @@ function PromptDetailDrawer({
         <div className="p-6 border-b border-slate-800 space-y-4 sticky top-0 bg-slate-950 z-10">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
-              <div className="text-lg font-black text-white">{prompt.name}</div>
+              <div className="text-lg font-black text-foreground">{prompt.name}</div>
               <div className="flex flex-wrap gap-2">
                 <StatusBadge status={prompt.status} />
                 <RiskBadge tier={prompt.risk_tier} />
@@ -2307,7 +2307,7 @@ function PromptDetailDrawer({
                 ].map((f) => (
                   <div key={f.label} className="p-3 bg-black border border-slate-900 rounded-xl">
                     <div className="text-[9px] text-slate-600 uppercase tracking-widest">{f.label}</div>
-                    <div className="text-xs text-white font-bold mt-1">{f.value}</div>
+                    <div className="text-xs text-foreground font-bold mt-1">{f.value}</div>
                   </div>
                 ))}
               </div>
@@ -2420,7 +2420,7 @@ function PromptDetailDrawer({
                 versions.map((v: any, i: number) => (
                   <div key={v.id || i} className="p-4 bg-black border border-slate-900 rounded-xl space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black text-white">
+                      <span className="text-[11px] font-black text-foreground">
                         {v.version || v.version_number || `Version ${versions.length - i}`}
                       </span>
                       <div className="flex items-center gap-2">
@@ -2832,7 +2832,7 @@ export default function PromptsPage() {
               <Lock className="w-3.5 h-3.5" />
               Prompt Governance Center — Layer 1 Authority Control
             </div>
-            <h1 className="text-5xl xl:text-6xl font-black text-white tracking-tighter leading-none">
+            <h1 className="text-5xl xl:text-6xl font-black text-foreground tracking-tighter leading-none">
               Prompt <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-rose-500 italic">Governance.</span>
             </h1>
             <p className="text-base text-slate-400 leading-relaxed font-medium">
@@ -2847,7 +2847,7 @@ export default function PromptsPage() {
               <Download className="w-4 h-4" />
               Audit Export
             </button>
-            <button onClick={() => setShowCreateModal(true)} className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-indigo-600/20 active:scale-95">
+            <button onClick={() => setShowCreateModal(true)} className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-foreground rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-indigo-600/20 active:scale-95">
               <Plus className="w-4 h-4" />
               New Prompt
             </button>
@@ -2866,7 +2866,7 @@ export default function PromptsPage() {
       {/* Health summary strip — Doc 3 §4-B: clickable metrics filter the registry */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
         {([
-          { label: "Total Prompts", value: prompts.length, icon: MessageSquareCode, color: "text-white", apply: () => { setFilterStatus("ALL"); setFilterTest("ALL"); } },
+          { label: "Total Prompts", value: prompts.length, icon: MessageSquareCode, color: "text-foreground", apply: () => { setFilterStatus("ALL"); setFilterTest("ALL"); } },
           { label: "Production Active", value: productionCount, icon: Zap, color: "text-emerald-400", apply: () => { setFilterStatus("PRODUCTION_ACTIVE"); setFilterTest("ALL"); } },
           { label: "Drafts / Pending", value: draftsPending, icon: Clock, color: "text-amber-400", apply: () => { setFilterStatus("REVIEW_REQUESTED"); setFilterTest("ALL"); } },
           { label: "Failed Tests", value: failedTests, icon: AlertTriangle, color: "text-rose-400", apply: () => { setFilterStatus("ALL"); setFilterTest("FAIL"); } },

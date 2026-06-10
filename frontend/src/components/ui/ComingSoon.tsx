@@ -55,7 +55,7 @@ export default function ComingSoon({
         </button>
         <button
           onClick={() => router.push('/')}
-          className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-500/25 active:scale-95"
+          className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-foreground font-bold rounded-2xl transition-all shadow-lg shadow-indigo-500/25 active:scale-95"
         >
           Return to Dashboard
         </button>
