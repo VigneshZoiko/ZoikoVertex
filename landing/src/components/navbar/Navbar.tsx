@@ -315,10 +315,10 @@ function SolutionsMenu() {
 }
 
 const NAV_ITEMS = [
-  { label: "Platform", hasDropdown: true, href: "/platform" },
-  { label: "AI Agents", hasDropdown: false, href: "/ai-agents" },
+  { label: "Platform", hasDropdown: false, href: "/platform" },
+  { label: "AI Agents", hasDropdown: true, href: "/ai-agents" },
   { label: "Solutions", hasDropdown: true, href: "/solution" },
-  { label: "Resources", hasDropdown: false, href: "/resources-hub" },
+  { label: "Resources", hasDropdown: true, href: "/resources-hub" },
   { label: "About Us", hasDropdown: false, href: "/about" },
   { label: "Pricing", hasDropdown: false, href: "/pricing" },
 ];
@@ -375,98 +375,54 @@ export default function Navbar() {
 
         {/* Nav links — Figma: Plus Jakarta Sans Regular 13.4px, letter-spacing 1%, #A9B8C7 */}
         <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-          {NAV_ITEMS.map((item) => (
-            <div key={item.label} style={{ position: "relative" }}>
-              {item.hasDropdown ? (
-                <button
-                  onClick={() =>
-                    setOpenMenu(openMenu === item.label ? null : item.label)
-                  }
-                  style={{
-                    fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
-                    fontWeight: 400,
-                    fontSize: 13.4,
-                    letterSpacing: "0.01em",
-                    color: openMenu === item.label ? "#FFFFFF" : "#A9B8C7",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: "25.6px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                    transition: "color 0.15s",
-                    height: 68,
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.color = "#FFFFFF")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.color =
-                      openMenu === item.label ? "#FFFFFF" : "#A9B8C7")
-                  }
-                >
-                  {item.label}
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 10 10"
-                    fill="none"
-                    style={{
-                      transform:
-                        openMenu === item.label
-                          ? "rotate(180deg)"
-                          : "rotate(0deg)",
-                      transition: "transform 0.2s",
-                      opacity: 0.6,
-                    }}
+          {NAV_ITEMS.map((item) => {
+            const hasPanel = item.label === "Solutions";
+            const linkStyle = {
+              fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
+              fontWeight: 400,
+              fontSize: 13.4,
+              letterSpacing: "0.01em",
+              color: "#A9B8C7",
+              textDecoration: "none",
+              padding: "25.6px 14px",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              height: 68,
+              transition: "color 0.15s",
+            };
+            const chevron = (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
+                style={{ transform: openMenu === item.label ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", opacity: 0.6 }}>
+                <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            );
+            return (
+              <div key={item.label} style={{ position: "relative" }}>
+                {item.hasDropdown && hasPanel ? (
+                  <button
+                    onClick={() => setOpenMenu(openMenu === item.label ? null : item.label)}
+                    style={{ ...linkStyle, background: "none", border: "none", cursor: "pointer", color: openMenu === item.label ? "#FFFFFF" : "#A9B8C7" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = openMenu === item.label ? "#FFFFFF" : "#A9B8C7")}
                   >
-                    <path
-                      d="M2 3.5l3 3 3-3"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              ) : (
-                <Link
-                  href={item.href}
-                  style={{
-                    fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
-                    fontWeight: 400,
-                    fontSize: 13.4,
-                    letterSpacing: "0.01em",
-                    color: "#A9B8C7",
-                    textDecoration: "none",
-                    padding: "25.6px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    height: 68,
-                    transition: "color 0.15s",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.color = "#FFFFFF")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.color = "#A9B8C7")
-                  }
-                >
-                  {item.label}
-                </Link>
-              )}
+                    {item.label}{chevron}
+                  </button>
+                ) : (
+                  <Link
+                    href={item.href}
+                    style={linkStyle}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#FFFFFF")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "#A9B8C7")}
+                  >
+                    {item.label}{item.hasDropdown && chevron}
+                  </Link>
+                )}
 
-              {/* Platform mega menu */}
-              {item.label === "Platform" && openMenu === "Platform" && (
-                <PlatformMenu />
-              )}
-              {/* Solutions mega menu */}
-              {item.label === "Solutions" && openMenu === "Solutions" && (
-                <SolutionsMenu />
-              )}
-            </div>
-          ))}
+                {item.label === "Solutions" && openMenu === "Solutions" && <SolutionsMenu />}
+              </div>
+            );
+          })}
         </div>
 
         {/* CTA buttons */}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
   title: "Terms of Service | ZoikoVertex",
@@ -231,19 +232,10 @@ Website: https://zoikovertex.com`,
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
-
-      {/* Header */}
-      <header className="border-b border-white/10 px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold tracking-tight text-white">
-            ZoikoVertex
-          </Link>
-          <span className="text-xs text-white/40 font-medium uppercase tracking-widest">Legal</span>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-6 py-16">
+      <main className="max-w-4xl mx-auto px-6 pt-[100px] pb-16">
 
         {/* Title */}
         <div className="mb-12">
