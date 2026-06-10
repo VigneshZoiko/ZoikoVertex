@@ -1126,6 +1126,7 @@ app.post('/api/v1/knowledge/sources/:id/activate', authenticate, scopeGuard('wri
 app.post('/api/v1/knowledge/sources/:id/publish', authenticate, scopeGuard('write:content', '*'), KnowledgeController.publishSource);
 app.post('/api/v1/knowledge/sources/:id/restrict', authenticate, scopeGuard('write:content', '*'), KnowledgeController.restrictSource);
 app.post('/api/v1/knowledge/sources/:id/quarantine', authenticate, scopeGuard('write:content', '*'), KnowledgeController.quarantineSource);
+app.post('/api/v1/knowledge/sources/:id/transfer/decision', authenticate, scopeGuard('write:content', '*'), KnowledgeController.decideSourceTransfer);
 
 // Stats
 app.get('/api/v1/knowledge/stats', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getStats);
@@ -1333,6 +1334,9 @@ app.get('/api/v1/prompts/versions/:versionId/tests/adversarial/runs', authentica
 app.get('/api/v1/prompts/versions/:versionId/tests/adversarial/runs/:runId', authenticate, govView, PromptController.getAdversarialResultDetail);
 // Phase 6.2 — Real adversarial attack execution
 app.post('/api/v1/prompts/versions/:versionId/tests/adversarial/real', authenticate, govEdit, PromptController.runRealAdversarialSuite);
+
+// Test Center — runtime governance classifier (post description → APPROVE/REVIEW/BLOCK)
+app.post('/api/v1/prompts/test-center/classify', authenticate, govView, PromptController.classifyTestDescription);
 
 // Policy Simulation (Phase 5D) — read-only what-if analysis
 app.post('/api/v1/prompts/simulate', authenticate, govView, PromptController.runPolicySimulation);

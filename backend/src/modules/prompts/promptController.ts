@@ -47,6 +47,9 @@ import { runPolicySimulationSchema } from './schemas/policySimulation.schema';
 import { getParam, getQueryValue, getQueryNumber } from '../../shared/request';
 import { logToDatabase } from '../../shared/databaseLogger';
 import { PROMPT_STATUS } from './PromptService';
+import { RiskClassifier } from '../../domains/decisions/riskClassifier';
+import { ENTERPRISE_POLICIES } from '../../domains/decisions/decisionEngine';
+import { KnowledgeRetrievalService } from '../knowledge/KnowledgeRetrievalService';
 
 const PROMPT_AUDIT_SERVICE = 'prompt-governance';
 
@@ -3009,6 +3012,192 @@ export class PromptController {
         actor_role: req.user?.role ?? undefined,
       });
       res.json({ success: true, data: report });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Test Center — Runtime Description Classifier ───────────────────────
+  //
+  // Takes an arbitrary post description and runs the governed runtime decision
+  // pipeline exactly as the publishing Workflow would, classifying the input
+  // into one of the five governance possibilities and returning an
+  // APPROVE / REVIEW / BLOCK decision with its reasoning, KB evidence, the
+  // governed prompt that would handle it, and an immutable evidence event id.
+  //
+  //   Step 1  Policy / safety check  → Policy Violation       (block / review)
+  //   Step 2  High-risk category     → High-Risk Claim        (review / block)
+  //   Step 3  Factual claim?         → no  → Basic Post       (approve)
+  //   Step 4  Claim + evidence req'd → Knowledge Base lookup  (approve/review/block)
+  //   Step 5  Return decision + reason + prompt + evidence event id
+  static async classifyTestDescription(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const description = String((req.body?.description ?? '')).trim();
+      const platform = String(req.body?.platform || 'linkedin').toLowerCase();
+      if (!description) {
+        return res.status(400).json({ error: 'A post description is required to run the governance test.' });
+      }
+
+      const POSSIBILITIES = {
+        BASIC: { id: 1, key: 'BASIC_POST', label: 'Basic Post', governed_prompt: 'Basic Content Generator' },
+        CLAIM_KB: { id: 2, key: 'FACTUAL_CLAIM_KB_FOUND', label: 'Factual Claim + Knowledge Found', governed_prompt: 'Knowledge Verification Prompt' },
+        CLAIM_NO_KB: { id: 3, key: 'FACTUAL_CLAIM_NO_KB', label: 'Factual Claim + No Knowledge', governed_prompt: 'Factual Claim Validator' },
+        HIGH_RISK: { id: 4, key: 'HIGH_RISK_CLAIM', label: 'High-Risk Claim', governed_prompt: 'High-Risk Review Prompt' },
+        POLICY: { id: 5, key: 'POLICY_VIOLATION', label: 'Policy Violation', governed_prompt: 'Policy Violation Prompt' },
+      } as const;
+
+      const steps: Array<{ step: number; name: string; result: string }> = [];
+
+      // ── Risk + safety assessment (local patterns + Groq semantic check) ──
+      const safety = await RiskClassifier.assessContentAdvanced(description, platform, workspaceId);
+      const assessment = safety.assessment;
+      const cats = assessment.categories;
+      const lower = description.toLowerCase();
+
+      const policyHits = ENTERPRISE_POLICIES
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          action: p.action,
+          triggered: p.triggerCondition(
+            { content: description, platform },
+            { level: assessment.level, score: assessment.score, factors: assessment.factors },
+          ),
+        }))
+        .filter((p) => p.triggered);
+
+      const jailbreak = assessment.factors.some((f) => /jailbreak|injection|override|bypass/i.test(f));
+      const policyViolation = jailbreak || assessment.level === 'RESTRICTED' || cats.controversial || cats.political;
+      const highRisk = cats.healthcare || cats.legal || cats.financial;
+
+      // Factual-claim heuristic: numbers/statistics, evidentiary or absolute
+      // language, or any regulated category implies an assertable claim.
+      const claimSignals = [
+        /\d/.test(description),
+        /\b(\d+%|percent|study|studies|research|proven|clinically|data|statistics?|survey|report|according to|evidence|results?|increase[ds]?|reduce[ds]?|guarantee|best|#1|number one|leading|fastest|most)\b/i.test(description),
+        highRisk,
+      ];
+      const claimDetected = claimSignals.some(Boolean);
+
+      let possibility: typeof POSSIBILITIES[keyof typeof POSSIBILITIES] = POSSIBILITIES.BASIC;
+      let decision: 'APPROVE' | 'REVIEW' | 'BLOCK' = 'APPROVE';
+      let reason = '';
+      let knowledge: Awaited<ReturnType<typeof KnowledgeRetrievalService.matchClaimEvidence>> | null = null;
+      let kbChecked = false;
+
+      // ── Step 1 — Policy / safety violation ──
+      if (policyViolation) {
+        possibility = POSSIBILITIES.POLICY;
+        const hardBlock = jailbreak || assessment.level === 'RESTRICTED';
+        decision = hardBlock ? 'BLOCK' : 'REVIEW';
+        reason = jailbreak
+          ? 'Prompt-injection / jailbreak pattern detected. Blocked by safety policy.'
+          : `Sensitive or prohibited content detected (${[cats.controversial && 'controversial', cats.political && 'political'].filter(Boolean).join(', ') || assessment.level}). Routed for human policy review.`;
+        steps.push({ step: 1, name: 'Policy & safety check', result: `VIOLATION → ${decision}` });
+      } else {
+        steps.push({ step: 1, name: 'Policy & safety check', result: 'PASS' });
+
+        // ── Step 2 — High-risk category (medical / legal / financial) ──
+        if (highRisk) {
+          steps.push({ step: 2, name: 'High-risk category check', result: 'HIGH-RISK detected' });
+          possibility = POSSIBILITIES.HIGH_RISK;
+          kbChecked = true;
+          knowledge = await KnowledgeRetrievalService.matchClaimEvidence(description, workspaceId);
+          if (knowledge.status === 'NONE') {
+            decision = 'BLOCK';
+            reason = `High-risk ${[cats.healthcare && 'medical', cats.legal && 'legal', cats.financial && 'financial'].filter(Boolean).join('/')} claim with no supporting knowledge source. Blocked pending evidence.`;
+          } else {
+            decision = 'REVIEW';
+            reason = `High-risk ${[cats.healthcare && 'medical', cats.legal && 'legal', cats.financial && 'financial'].filter(Boolean).join('/')} claim with ${knowledge.status === 'MATCH' ? 'supporting' : 'partial'} evidence. Routed to mandatory human review.`;
+          }
+          steps.push({ step: 4, name: 'Knowledge Base verification', result: `${knowledge.status} → ${decision}` });
+        } else {
+          steps.push({ step: 2, name: 'High-risk category check', result: 'none' });
+
+          // ── Step 3 — Factual claim detection ──
+          if (!claimDetected) {
+            possibility = POSSIBILITIES.BASIC;
+            decision = 'APPROVE';
+            reason = 'No factual claim or risk detected. Standard content — auto-approved.';
+            steps.push({ step: 3, name: 'Factual claim check', result: 'no claim → APPROVE' });
+          } else {
+            steps.push({ step: 3, name: 'Factual claim check', result: 'claim detected — evidence required' });
+
+            // ── Step 4 — Claim requires evidence → Knowledge Base ──
+            kbChecked = true;
+            knowledge = await KnowledgeRetrievalService.matchClaimEvidence(description, workspaceId);
+            if (knowledge.status === 'MATCH') {
+              possibility = POSSIBILITIES.CLAIM_KB;
+              decision = 'APPROVE';
+              reason = `Factual claim substantiated by ${knowledge.matches.length} knowledge source(s). Approved with citation.`;
+            } else if (knowledge.status === 'PARTIAL') {
+              possibility = POSSIBILITIES.CLAIM_KB;
+              decision = 'REVIEW';
+              reason = 'Factual claim only partially supported by the Knowledge Base. Routed to human review.';
+            } else {
+              possibility = POSSIBILITIES.CLAIM_NO_KB;
+              decision = 'BLOCK';
+              reason = 'Factual claim with no supporting Knowledge Base evidence. Blocked — add a cited source.';
+            }
+            steps.push({ step: 4, name: 'Knowledge Base verification', result: `${knowledge.status} → ${decision}` });
+          }
+        }
+      }
+
+      // Optional linkage to a specific governed prompt for the evidence record.
+      const promptId = (req.body?.prompt_id as string | undefined) || undefined;
+      let promptVersion: string | undefined;
+      if (promptId) {
+        const prompt = await PromptService.getById(promptId, workspaceId);
+        if (prompt) promptVersion = prompt.current_version || prompt.active_version || undefined;
+      }
+
+      // ── Step 5 — Persist an immutable evidence event for the test run ──
+      const evidenceEventId = await auditPromptEvent('prompt.governance.test_classified', {
+        prompt_id: promptId,
+        workspace_id: workspaceId,
+        actor_id: req.user?.id,
+        risk_tier: assessment.level,
+        reason,
+        after_state: {
+          possibility: possibility.key,
+          decision,
+          platform,
+          risk_score: assessment.score,
+          categories: cats,
+          knowledge_status: knowledge?.status ?? 'SKIPPED',
+        },
+      }, req);
+
+      const result = {
+        possibility,
+        decision,
+        reason,
+        risk: {
+          score: assessment.score,
+          level: assessment.level,
+          categories: cats,
+          factors: assessment.factors,
+          jailbreak_detected: jailbreak,
+        },
+        claim: { detected: claimDetected, evidence_required: claimDetected || highRisk },
+        knowledge: {
+          checked: kbChecked,
+          status: knowledge?.status ?? 'SKIPPED',
+          keywords: knowledge?.keywords ?? [],
+          matched_keywords: knowledge?.matched_keywords ?? [],
+          matches: knowledge?.matches ?? [],
+        },
+        policies_triggered: policyHits,
+        governed_prompt: { type: possibility.governed_prompt, label: possibility.governed_prompt },
+        prompt_id: promptId ?? null,
+        prompt_version: promptVersion ?? null,
+        evidence_event_id: evidenceEventId,
+        steps,
+      };
+
+      res.json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

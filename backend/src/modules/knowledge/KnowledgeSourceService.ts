@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../../shared/supabase';
 
 interface CreateSourceInput {
   collection_id: string;
+  workspace_id?: string;
   kb_id?: string;
   source_type?: string;
   title: string;
@@ -72,6 +73,7 @@ export class KnowledgeSourceService {
       .from('knowledge_sources')
       .insert({
         collection_id: input.collection_id,
+        workspace_id: input.workspace_id || null,
         kb_id: input.kb_id || input.collection_id,
         source_type: input.source_type || 'MANUAL_ARTICLE',
         title: input.title,

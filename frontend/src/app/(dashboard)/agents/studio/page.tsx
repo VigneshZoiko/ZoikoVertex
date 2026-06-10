@@ -1538,33 +1538,52 @@ export default function StudioPage() {
                             </button>
                           )}
 
-                          {/* Pause — ACTIVE */}
-                          {agent.status === "ACTIVE" && (
-                            <button
-                              disabled={!canManageAuthority || isBusy}
-                              onClick={() => runAgentAction(agent, "pause")}
-                              className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <PauseCircle className="h-3.5 w-3.5" />
-                              {actionLoading[agent.id] === "pause"
-                                ? "Pausing..."
-                                : "Pause"}
-                            </button>
-                          )}
-
-                          {/* Resume — PAUSED */}
-                          {agent.status === "PAUSED" && (
-                            <button
-                              disabled={!canManageAuthority || isBusy}
-                              onClick={() => runAgentAction(agent, "resume")}
-                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <PlayCircle className="h-3.5 w-3.5" />
-                              {actionLoading[agent.id] === "resume"
-                                ? "Resuming..."
-                                : "Resume"}
-                            </button>
-                          )}
+                          {/* Pause ⇄ Start toggle — ACTIVE pauses; PAUSED or
+                              SUSPENDED (e.g. halted by the Kill Switch) starts */}
+                          {["ACTIVE", "PAUSED", "SUSPENDED"].includes(
+                            agent.status,
+                          ) &&
+                            (() => {
+                              const isRunning = agent.status === "ACTIVE";
+                              const toggleAction = isRunning ? "pause" : "resume";
+                              const busyThis =
+                                actionLoading[agent.id] === toggleAction;
+                              return (
+                                <button
+                                  role="switch"
+                                  aria-checked={isRunning}
+                                  disabled={!canManageAuthority || isBusy}
+                                  onClick={() =>
+                                    runAgentAction(agent, toggleAction)
+                                  }
+                                  className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                    isRunning
+                                      ? "bg-rose-500 hover:bg-rose-400"
+                                      : "bg-emerald-600 hover:bg-emerald-500"
+                                  }`}
+                                >
+                                  {/* track */}
+                                  <span
+                                    className={`relative inline-flex h-3.5 w-6 items-center rounded-full transition ${
+                                      isRunning ? "bg-white/30" : "bg-white/30"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`absolute h-2.5 w-2.5 rounded-full bg-white transition-all ${
+                                        isRunning ? "left-3" : "left-0.5"
+                                      }`}
+                                    />
+                                  </span>
+                                  {busyThis
+                                    ? isRunning
+                                      ? "Pausing..."
+                                      : "Starting..."
+                                    : isRunning
+                                      ? "Pause"
+                                      : "Start"}
+                                </button>
+                              );
+                            })()}
 
                           {/* Rollback — ACTIVE or RESTRICTED */}
                           {["ACTIVE", "RESTRICTED"].includes(agent.status) && (

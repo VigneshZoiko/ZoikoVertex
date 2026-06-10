@@ -142,7 +142,7 @@ interface ApprovalStats {
   };
 }
 
-type ActiveTab = "registry" | "lifecycle" | "testing" | "approvals" | "evidence" | "runtime" | "auditor" | "evaluation" | "adversarial" | "drift" | "center";
+type ActiveTab = "registry" | "test_center" | "lifecycle" | "testing" | "approvals" | "evidence" | "runtime" | "auditor" | "evaluation" | "adversarial" | "drift" | "center";
 type FilterStatus = "ALL" | LifecycleStatus;
 type FilterRisk = "ALL" | RiskTier;
 
@@ -2518,6 +2518,201 @@ function PromptDetailDrawer({
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
+// ─── Test Center ────────────────────────────────────────────────────────────
+// Paste a post description → run it through the governed runtime decision
+// pipeline → see which of the five possibilities it lands in and whether the
+// system would APPROVE / REVIEW / BLOCK it, with KB evidence and reasoning.
+
+const DECISION_META: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
+  APPROVE: { label: "Approve", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30", icon: CheckCircle2 },
+  REVIEW: { label: "Review", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30", icon: AlertTriangle },
+  BLOCK: { label: "Block", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/30", icon: XCircle },
+};
+
+const TEST_PLATFORMS = ["linkedin", "twitter", "facebook", "instagram", "threads", "youtube"];
+
+function TestCenterTab({ prompts }: { prompts: PromptRecord[] }) {
+  const [description, setDescription] = useState("");
+  const [platform, setPlatform] = useState("linkedin");
+  const [promptId, setPromptId] = useState("");
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async () => {
+    if (!description.trim()) return;
+    setRunning(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await api.classifyTestDescription({
+        description: description.trim(),
+        platform,
+        prompt_id: promptId || undefined,
+      });
+      if (res?.success && res.data) setResult(res.data);
+      else setError(res?.error || "Governance test failed.");
+    } catch (e: any) {
+      setError(e.message || "Governance test failed.");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const decisionMeta = result ? DECISION_META[result.decision] || DECISION_META.REVIEW : null;
+  const DecisionIcon = decisionMeta?.icon || FlaskConical;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-black text-white tracking-tight">Test Center</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Simulate the runtime governance decision for any post. The engine classifies the description into one of five
+          governance possibilities and returns Approve, Review, or Block — exactly as the publishing workflow would.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Input */}
+        <div className="bg-slate-950 border border-slate-900 rounded-3xl p-6 space-y-4">
+          <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Post description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={8}
+            placeholder="e.g. Our new supplement cures diabetes in 30 days, clinically proven by 200 studies…"
+            className="w-full bg-black border border-slate-800 rounded-2xl px-4 py-3 text-sm text-slate-200 placeholder:text-slate-700 focus:outline-none focus:border-indigo-500/50 resize-none"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mb-2">Platform</label>
+              <select
+                value={platform}
+                onChange={(e) => setPlatform(e.target.value)}
+                className="w-full bg-black border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/50 capitalize"
+              >
+                {TEST_PLATFORMS.map((p) => <option key={p} value={p} className="capitalize">{p}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 mb-2">Linked prompt (optional)</label>
+              <select
+                value={promptId}
+                onChange={(e) => setPromptId(e.target.value)}
+                className="w-full bg-black border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/50"
+              >
+                <option value="">— none —</option>
+                {prompts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <button
+            onClick={run}
+            disabled={running || !description.trim()}
+            className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+          >
+            {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            {running ? "Running governance…" : "Run governance test"}
+          </button>
+          {error && (
+            <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[11px] text-rose-400">
+              <ShieldAlert className="w-4 h-4 shrink-0" /> {error}
+            </div>
+          )}
+        </div>
+
+        {/* Result */}
+        <div className="bg-slate-950 border border-slate-900 rounded-3xl p-6">
+          {!result ? (
+            <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center gap-3 text-slate-600">
+              <FlaskConical className="w-10 h-10" />
+              <p className="text-xs max-w-xs">Run a test to see the governance decision, the matched possibility, knowledge-base evidence, and the step-by-step reasoning.</p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {/* Decision + possibility */}
+              <div className={`rounded-2xl border ${decisionMeta!.border} ${decisionMeta!.bg} p-5 flex items-start gap-4`}>
+                <DecisionIcon className={`w-8 h-8 shrink-0 ${decisionMeta!.color}`} />
+                <div className="space-y-1">
+                  <div className={`text-2xl font-black tracking-tight ${decisionMeta!.color}`}>{decisionMeta!.label}</div>
+                  <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                    Possibility {result.possibility.id} — {result.possibility.label}
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed pt-1">{result.reason}</p>
+                </div>
+              </div>
+
+              {/* Governed prompt + risk */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-black border border-slate-900 rounded-xl p-4">
+                  <div className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600 mb-1.5">Governed Prompt</div>
+                  <div className="text-xs text-slate-200 font-bold">{result.governed_prompt.label}</div>
+                </div>
+                <div className="bg-black border border-slate-900 rounded-xl p-4">
+                  <div className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600 mb-1.5">Risk</div>
+                  <div className="text-xs text-slate-200 font-bold">{result.risk.level} · {Math.round(result.risk.score)}/100</div>
+                </div>
+              </div>
+
+              {/* Categories */}
+              {Object.entries(result.risk.categories || {}).some(([, v]) => v) && (
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(result.risk.categories).filter(([, v]) => v).map(([k]) => (
+                    <span key={k} className="px-2.5 py-1 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[9px] font-black uppercase tracking-widest">{k}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* Knowledge base */}
+              {result.knowledge.checked && (
+                <div className="bg-black border border-slate-900 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.25em] text-slate-600">
+                    <BookOpen className="w-3.5 h-3.5" /> Knowledge Base — {result.knowledge.status}
+                  </div>
+                  {result.knowledge.matches?.length > 0 ? (
+                    <ul className="space-y-1.5">
+                      {result.knowledge.matches.map((m: any) => (
+                        <li key={m.id} className="text-xs text-slate-300 flex items-start gap-2">
+                          <FileCheck className="w-3.5 h-3.5 mt-0.5 text-emerald-400 shrink-0" />
+                          <span>
+                            {m.title}
+                            {m.citation_reference && <span className="text-slate-500"> — {m.citation_reference}</span>}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-slate-500">No supporting knowledge source found for this claim.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Step trace */}
+              <div className="space-y-1.5">
+                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600">Decision trace</div>
+                {result.steps.map((s: any, i: number) => (
+                  <div key={i} className="flex items-center gap-3 text-[11px]">
+                    <span className="w-5 h-5 rounded-md bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 font-black text-[9px] shrink-0">{s.step}</span>
+                    <span className="text-slate-400">{s.name}</span>
+                    <ArrowRight className="w-3 h-3 text-slate-700" />
+                    <span className="text-slate-300 font-bold">{s.result}</span>
+                  </div>
+                ))}
+              </div>
+
+              {result.evidence_event_id && (
+                <div className="flex items-center gap-2 text-[10px] text-slate-600 pt-1 border-t border-slate-900">
+                  <History className="w-3.5 h-3.5" /> Evidence event recorded: <span className="font-mono text-slate-500">{String(result.evidence_event_id).slice(0, 18)}…</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function mapBackendPrompt(b: any): PromptRecord {
   return {
     id: b.id,
@@ -2548,6 +2743,7 @@ export default function PromptsPage() {
   const [filterRisk, setFilterRisk] = useState<FilterRisk>("ALL");
   const [filterTest, setFilterTest] = useState<TestState>("ALL");
   const [activeTab, setActiveTab] = useState<ActiveTab>("registry");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [auditStats, setAuditStats] = useState<AuditStats | null>(null);
   const [approvalStats, setApprovalStats] = useState<ApprovalStats | null>(null);
   const [hitlRules, setHitlRules] = useState<HitlRule[]>([]);
@@ -2806,12 +3002,17 @@ export default function PromptsPage() {
   const failedTests = prompts.filter((p) => p.last_test?.pass_fail === "FAIL").length;
   const paused = prompts.filter((p) => p.status === "PAUSED").length;
 
-  const TABS: { id: ActiveTab; label: string; icon: React.ElementType }[] = [
+  // Simplified navigation: the few day-to-day tabs stay primary; the deeper
+  // governance dashboards collapse under "Advanced" so the page reads cleanly.
+  const PRIMARY_TABS: { id: ActiveTab; label: string; icon: React.ElementType }[] = [
     { id: "registry", label: "Registry", icon: MessageSquareCode },
-    { id: "lifecycle", label: "Lifecycle", icon: Layers },
-    { id: "testing", label: "Testing", icon: FlaskConical },
+    { id: "test_center", label: "Test Center", icon: FlaskConical },
     { id: "approvals", label: "Approvals", icon: FileCheck },
     { id: "evidence", label: "Evidence", icon: History },
+  ];
+  const ADVANCED_TABS: { id: ActiveTab; label: string; icon: React.ElementType }[] = [
+    { id: "lifecycle", label: "Lifecycle", icon: Layers },
+    { id: "testing", label: "Test Suites", icon: FlaskConical },
     { id: "runtime", label: "Runtime", icon: Network },
     { id: "auditor", label: "Auditor", icon: ShieldCheck },
     { id: "evaluation", label: "Evaluation", icon: BarChart3 },
@@ -2819,6 +3020,7 @@ export default function PromptsPage() {
     { id: "drift", label: "Drift", icon: Activity },
     { id: "center", label: "Governance Center", icon: FileText },
   ];
+  const advancedActive = ADVANCED_TABS.some((t) => t.id === activeTab);
 
   return (
     <div className="p-6 xl:p-8 max-w-screen-2xl mx-auto space-y-8 pb-32 bg-black min-h-screen">
@@ -2891,25 +3093,60 @@ export default function PromptsPage() {
         })}
       </div>
 
-      {/* Tab navigation */}
-      <div className="flex items-center gap-1 overflow-x-auto">
-        {TABS.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
-                activeTab === tab.id
-                  ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/25"
-                  : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* Tab navigation — primary row + collapsible Advanced group */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-1 overflow-x-auto">
+          {PRIMARY_TABS.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+                  activeTab === tab.id
+                    ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/25"
+                    : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setAdvancedOpen((v) => !v)}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+              advancedActive
+                ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/25"
+                : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
+            }`}
+          >
+            <Wrench className="w-3.5 h-3.5" />
+            Advanced
+            {advancedOpen || advancedActive ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          </button>
+        </div>
+        {(advancedOpen || advancedActive) && (
+          <div className="flex items-center gap-1 overflow-x-auto pl-1 border-l-2 border-slate-900 ml-1">
+            {ADVANCED_TABS.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+                    activeTab === tab.id
+                      ? "bg-slate-800 text-slate-200 border border-slate-700"
+                      : "text-slate-600 hover:text-slate-400 hover:bg-slate-900"
+                  }`}
+                >
+                  <Icon className="w-3 h-3" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Tab content */}
@@ -2928,6 +3165,7 @@ export default function PromptsPage() {
             onSelectPrompt={setSelectedPrompt}
           />
         )}
+        {activeTab === "test_center" && <TestCenterTab prompts={prompts} />}
         {activeTab === "lifecycle" && <LifecycleTab prompts={prompts} />}
         {activeTab === "testing" && (
           <TestingTab

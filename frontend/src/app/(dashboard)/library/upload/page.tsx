@@ -140,8 +140,18 @@ export default function CreatorUploadPage() {
         xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
 
         xhr.open('PUT', data.signedUrl);
-        xhr.setRequestHeader('Content-Type', file.type);
-        xhr.send(file);
+        // The signed-upload endpoint expects the SAME multipart body that
+        // supabase-js's uploadToSignedUrl sends: a FormData with the file under
+        // an empty field name plus cacheControl. Sending the raw file with a
+        // plain Content-Type returns 2xx but does NOT persist the object,
+        // leaving a dangling URL that 404s ("Object not found") on read.
+        // Do NOT set Content-Type manually — the browser sets the multipart
+        // boundary header for FormData automatically.
+        xhr.setRequestHeader('x-upsert', 'true');
+        const form = new FormData();
+        form.append('cacheControl', '3600');
+        form.append('', file);
+        xhr.send(form);
       });
     });
   };

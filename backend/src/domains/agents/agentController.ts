@@ -462,10 +462,12 @@ export const resumeAgent = async (req: Request, res: Response, next: NextFunctio
     
     if (fetchError) throw fetchError;
     
-    if (agent.status !== 'PAUSED') {
+    // Resume covers both a manual pause and a kill-switch SUSPENDED state,
+    // so an operator can restart an agent the Global Kill Switch halted.
+    if (!['PAUSED', 'SUSPENDED'].includes(agent.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Agent must be in PAUSED state to resume.',
+        message: 'Agent must be in PAUSED or SUSPENDED state to resume.',
       });
     }
     

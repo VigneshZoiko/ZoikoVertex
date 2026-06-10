@@ -456,10 +456,33 @@ export function enrichPublishInstance(instance: any): any {
     return instance;
   }
   if (!meta || meta.src !== 'publish_hub') return instance;
+
+  // A publish-hub instance's real state is the agent's verdict, recorded in
+  // meta.check at link time. Derive the display status from it so flagged
+  // (blocked / waiting_review) and queued posts always surface correctly in
+  // Live Orchestrations — even if a global pause (e.g. the Kill Switch) left
+  // the stored status as 'paused'. Falls back to the stored status otherwise.
+  const verdict: string | undefined = meta.check?.verdict;
+  let displayStatus = instance.status;
+  if (verdict === 'block') displayStatus = 'blocked';
+  else if (verdict === 'review') displayStatus = 'waiting_review';
+  else if (instance.status === 'paused') {
+    // Safe post that got swept into 'paused' — restore to its scheduled/queued
+    // or completed display state.
+    displayStatus = meta.scheduled ? 'pending' : 'completed';
+  }
+
   return {
     ...instance,
+    status: displayStatus,
     assigned_agent_name: meta.agent_name || instance.assigned_agent_name,
     current_step_name: meta.step || instance.current_step_name,
+    risk_score:
+      typeof instance.risk_score === 'number'
+        ? instance.risk_score
+        : typeof meta.check?.risk === 'number'
+          ? meta.check.risk
+          : instance.risk_score,
     post: { id: meta.post_id, platform: meta.platform, excerpt: meta.excerpt },
   };
 }
