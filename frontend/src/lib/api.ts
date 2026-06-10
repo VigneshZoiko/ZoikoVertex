@@ -14,25 +14,42 @@ async function resolveAuth(): Promise<AuthResolution> {
     if (!session?.access_token) {
       return { ok: false, reason: "NO_SESSION" };
     }
+
+    // If the token has expired or expires within the next 60 seconds, force a
+    // refresh before sending it to the backend. getSession() reads from
+    // localStorage without re-validating, so stale tokens are common on
+    // cold-start or after long idle periods.
+    const expiresAt = (session.expires_at ?? 0) * 1000; // convert to ms
+    if (expiresAt < Date.now() + 60_000) {
+      const { data: refreshed, error } = await supabase.auth.refreshSession();
+      if (error || !refreshed.session?.access_token) {
+        clearStaleAuthState();
+        return { ok: false, reason: "REFRESH_FAILED", detail: error?.message };
+      }
+      return { ok: true, headers: { Authorization: `Bearer ${refreshed.session.access_token}` } };
+    }
+
     return { ok: true, headers: { Authorization: `Bearer ${session.access_token}` } };
   } catch (err) {
     console.warn(
       "[API Auth] Supabase session refresh failed — clearing stale local auth state.",
       err,
     );
-    if (typeof document !== "undefined") {
-      document.cookie = "zv_auth=; path=/; SameSite=Strict; max-age=0";
-    }
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.removeItem("zv_role_cache");
-      } catch {}
-    }
+    clearStaleAuthState();
     return {
       ok: false,
       reason: "REFRESH_FAILED",
       detail: err instanceof Error ? err.message : String(err),
     };
+  }
+}
+
+function clearStaleAuthState() {
+  if (typeof document !== "undefined") {
+    document.cookie = "zv_auth=; path=/; SameSite=Strict; max-age=0";
+  }
+  if (typeof window !== "undefined") {
+    try { localStorage.removeItem("zv_role_cache"); } catch {}
   }
 }
 
@@ -161,12 +178,15 @@ export const api = {
     return response.json();
   },
 
-  async delete(endpoint: string) {
+  async delete(endpoint: string, body?: Record<string, unknown>) {
     const auth = await resolveAuth();
     if (!auth.ok) return authExpiredResponse(auth.reason);
     const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: "DELETE",
-      headers: { ...auth.headers },
+      headers: body
+        ? { ...auth.headers, "Content-Type": "application/json" }
+        : { ...auth.headers },
+      ...(body ? { body: JSON.stringify(body) } : {}),
     });
     if (!response.ok) {
       return apiError(response, endpoint, "DELETE");

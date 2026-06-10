@@ -644,6 +644,50 @@ export const getWalletBalance = async (req: AuthRequest, res: Response, _next: N
 
 // â”€â”€ GET /api/v1/billing/spend-cap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+// ── GET /api/v1/billing/overcharge ────────────────────────────────────────────
+
+export const getOvercharge = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
+
+  try {
+    const [walletRes, wsRes] = await Promise.all([
+      supabaseAdmin.from('wallets').select('overcharge_enabled, balance').eq('workspace_id', workspaceId).maybeSingle(),
+      supabaseAdmin.from('workspaces').select('billing_status').eq('id', workspaceId).maybeSingle(),
+    ]);
+    return res.json({ success: true, data: {
+      overcharge_enabled: (walletRes.data as any)?.overcharge_enabled ?? false,
+      wallet_balance:     (walletRes.data as any)?.balance ?? 0,
+      billing_status:     (wsRes.data as any)?.billing_status ?? 'active',
+    }});
+  } catch {
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
+// ── PATCH /api/v1/billing/overcharge ──────────────────────────────────────────
+
+export const updateOvercharge = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
+
+  const { overcharge_enabled } = req.body as { overcharge_enabled?: boolean };
+  if (typeof overcharge_enabled !== 'boolean') {
+    return res.status(400).json({ success: false, error: 'overcharge_enabled must be a boolean' });
+  }
+
+  try {
+    const { error } = await supabaseAdmin
+      .from('wallets')
+      .upsert({ workspace_id: workspaceId, overcharge_enabled }, { onConflict: 'workspace_id', ignoreDuplicates: false });
+
+    if (error) throw error;
+    return res.json({ success: true, data: { overcharge_enabled } });
+  } catch {
+    return res.status(500).json({ success: false, error: 'Failed to update overcharge setting' });
+  }
+};
+
 export const getSpendCap = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;
   if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });

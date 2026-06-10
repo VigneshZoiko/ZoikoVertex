@@ -34,7 +34,7 @@ const allRoutes: SearchItem[] = [
   // Overview
   { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="w-4 h-4" />, keywords: "home overview main" },
   { label: "Analytics", href: "/analytics", icon: <BarChart3 className="w-4 h-4" />, keywords: "charts metrics stats reports" },
-  { label: "Operations", href: "/operations", icon: <Settings className="w-4 h-4" />, keywords: "manage control" },
+  { label: "Operations", href: "/agents/operations", icon: <Settings className="w-4 h-4" />, keywords: "manage control" },
 
   // Publishing
   { label: "Campaigns", href: "/campaigns", icon: <BarChart3 className="w-4 h-4" />, keywords: "create campaign new add marketing" },
@@ -42,7 +42,6 @@ const allRoutes: SearchItem[] = [
   { label: "Inbox & Engagement", href: "/inbox", icon: <MessageSquare className="w-4 h-4" />, keywords: "messages comments replies engage" },
   { label: "Media Vault", href: "/library", icon: <FileText className="w-4 h-4" />, keywords: "add new media upload assets images videos files" },
   { label: "Publishing Hub", href: "/publish", icon: <FileText className="w-4 h-4" />, keywords: "post publish schedule content" },
-  { label: "Manage Posts", href: "/manage-posts", icon: <FileText className="w-4 h-4" />, keywords: "edit posts draft scheduled published" },
 
   // Agents
   { label: "Agent Studio", href: "/agents/studio", icon: <Settings className="w-4 h-4" />, keywords: "create agent new build configure" },
@@ -59,7 +58,7 @@ const allRoutes: SearchItem[] = [
   { label: "Legal & Compliance", href: "/governance/legal", icon: <FileText className="w-4 h-4" />, keywords: "regulations law requirements" },
   { label: "Brand Library", href: "/governance/brand-library", icon: <FileText className="w-4 h-4" />, keywords: "brand guidelines assets identity" },
   { label: "Collusion Monitor", href: "/governance/collusion-monitor", icon: <Shield className="w-4 h-4" />, keywords: "detect fraud suspicious activity" },
-  { label: "Review Queue", href: "/queue", icon: <MessageSquare className="w-4 h-4" />, keywords: "approve reject pending review items" },
+  { label: "Review Queue", href: "/review-queue", icon: <MessageSquare className="w-4 h-4" />, keywords: "approve reject pending review items" },
   { label: "Quality Assurance", href: "/governance/qa", icon: <Shield className="w-4 h-4" />, keywords: "quality check audit verify" },
   { label: "Validation", href: "/validation", icon: <Shield className="w-4 h-4" />, keywords: "validate verify test approve" },
   { label: "Approvals", href: "/governance/approvals", icon: <Shield className="w-4 h-4" />, keywords: "approve pending requests chain" },
@@ -101,8 +100,6 @@ const allRoutes: SearchItem[] = [
   { label: "Support & Docs", href: "/support", icon: <HelpCircle className="w-4 h-4" />, keywords: "help raise ticket issue bug report" },
   { label: "Resources", href: "/resources", icon: <FileText className="w-4 h-4" />, keywords: "docs documentation guides help" },
   { label: "Profile", href: "/profile", icon: <Users className="w-4 h-4" />, keywords: "my account settings personal info avatar" },
-  { label: "Projects", href: "/projects", icon: <FileText className="w-4 h-4" />, keywords: "create project new manage organize" },
-  { label: "Review", href: "/review", icon: <FileText className="w-4 h-4" />, keywords: "feedback review analyze" },
   { label: "Privacy Policy", href: "/privacy", icon: <FileText className="w-4 h-4" />, keywords: "policy terms legal data" },
 ];
 

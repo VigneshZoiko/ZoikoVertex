@@ -86,7 +86,12 @@ export default function DashboardLayout({
   useEffect(() => {
     if (isLoading) return;
     if (!isSuperAdmin && orgStatus === 'NO_WORKSPACE') return;
-    if (role === null && !isSuperAdmin) return;
+    if (role === null && !isSuperAdmin) {
+      // Loading finished but no role resolved (auth failure, backend unreachable, etc.).
+      // Unblock the skeleton so the auth guard can redirect to /login; don't show content.
+      setAccessDenied(false);
+      return;
+    }
     const result = canAccess(pathname, role, isSuperAdmin, planType);
     setAccessDenied(result.allowed ? false : result);
   }, [pathname, isLoading, role, isSuperAdmin, orgStatus, planType]);

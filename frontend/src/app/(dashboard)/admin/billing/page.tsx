@@ -202,10 +202,9 @@ export default function BillingPage() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loadingWallet, setLoadingWallet] = useState(true);
 
-  // Spend cap
-  const [spendCapEnabled, setSpendCapEnabled]   = useState(false);
-  const [spendCapAmount,  setSpendCapAmount]    = useState("");
-  const [spendCapLoading, setSpendCapLoading]   = useState(false);
+  // Overcharge
+  const [overchargeEnabled, setOverchargeEnabled] = useState(false);
+  const [overchargeLoading, setOverchargeLoading] = useState(false);
 
   // Payment cards
   const [cards, setCards]               = useState<PaymentMethod[]>([]);
@@ -227,6 +226,9 @@ export default function BillingPage() {
   const [upgradeConfirm, setUpgradeConfirm] = useState<{ planId: string; planName: string; price: number } | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showCancelSub, setShowCancelSub] = useState(false);
+  const [spendCapEnabled, setSpendCapEnabled] = useState(false);
+  const [spendCapAmount, setSpendCapAmount] = useState("500");
+  const [spendCapLoading, setSpendCapLoading] = useState(false);
 
   // Load Data
   useEffect(() => {
@@ -246,10 +248,10 @@ export default function BillingPage() {
             setActivePlanId('starter');
           }
 
-          const [usageRes, walletRes, spendCapRes, cardsRes, settingsRes, subRes] = await Promise.allSettled([
+          const [usageRes, walletRes, overchargeRes, cardsRes, settingsRes, subRes] = await Promise.allSettled([
             api.get(`/api/v1/monitoring/usage?workspaceId=${ctx.data.workspace_id}`),
             api.get('/api/v1/billing/wallet'),
-            api.get('/api/v1/billing/spend-cap'),
+            api.get('/api/v1/billing/overcharge'),
             api.get('/api/v1/billing/payment-methods'),
             api.get('/api/v1/billing/settings'),
             api.get('/api/v1/billing/subscription'),
@@ -258,11 +260,10 @@ export default function BillingPage() {
           if (usageRes.status === 'fulfilled' && usageRes.value?.success)
             setSummary(usageRes.value.data?.summary || {});
 
-          if (spendCapRes.status === 'fulfilled' && spendCapRes.value?.success) {
-            setSpendCapEnabled(spendCapRes.value.data?.spend_cap_enabled ?? false);
-            if (spendCapRes.value.data?.spend_cap_amount != null) {
-              setSpendCapAmount(String(spendCapRes.value.data.spend_cap_amount));
-            }
+          if (overchargeRes.status === 'fulfilled' && overchargeRes.value?.success) {
+            const enabled = overchargeRes.value.data?.overcharge_enabled ?? false;
+            setOverchargeEnabled(enabled);
+            if (!enabled) setActiveTab('billing');
           }
 
           if (cardsRes.status === 'fulfilled' && cardsRes.value?.success) {
@@ -448,16 +449,20 @@ export default function BillingPage() {
     }
   };
 
-  const handleSpendCapSave = async () => {
-    setSpendCapLoading(true);
+  const handleOverchargeToggle = async () => {
+    const newVal = !overchargeEnabled;
+    setOverchargeEnabled(newVal);
+    if (!newVal) setActiveTab('billing');
+    setOverchargeLoading(true);
     try {
-      await api.patch('/api/v1/billing/spend-cap', {
-        spend_cap_enabled: spendCapEnabled,
-        spend_cap_amount:  spendCapAmount ? parseFloat(spendCapAmount) : null,
-      });
-      showToast("Spend cap updated", "success");
-    } catch { showToast("Failed to update spend cap", "error"); }
-    finally { setSpendCapLoading(false); }
+      await api.patch('/api/v1/billing/overcharge', { overcharge_enabled: newVal });
+      showToast(`Overcharge ${newVal ? 'enabled' : 'disabled'}`, 'success');
+    } catch {
+      setOverchargeEnabled(!newVal);
+      showToast('Failed to update overcharge setting', 'error');
+    } finally {
+      setOverchargeLoading(false);
+    }
   };
 
   const handleAddCard = async () => {
@@ -586,6 +591,17 @@ export default function BillingPage() {
     }
   };
 
+  const handleSpendCapSave = async () => {
+    setSpendCapLoading(true);
+    try {
+      await api.post("/api/v1/billing/spend-cap", {
+        enabled: spendCapEnabled,
+        amount: spendCapEnabled ? Number(spendCapAmount) : null,
+      });
+    } catch { /* non-blocking */ }
+    setSpendCapLoading(false);
+  };
+
   const handleDownloadCSV = () => {
     if (transactions.length === 0) return;
     const header = "Date,Description,Campaign,Type,Amount\n";
@@ -611,14 +627,16 @@ export default function BillingPage() {
 
       {/* â"€â"€ Tabs â"€â"€ */}
       <div className="flex items-center gap-6 border-b border-border">
-        <button type="button"
-          onClick={() => setActiveTab("credits")}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "credits" ? "border-white text-foreground" : "border-transparent text-foreground-muted hover:text-foreground-muted"
-          }`}
-        >
-          Credits
-        </button>
+        {overchargeEnabled && (
+          <button type="button"
+            onClick={() => setActiveTab("credits")}
+            className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === "credits" ? "border-white text-foreground" : "border-transparent text-foreground-muted hover:text-foreground-muted"
+            }`}
+          >
+            Credits
+          </button>
+        )}
         <button 
           onClick={() => {
             setActiveTab("billing");
@@ -879,7 +897,29 @@ export default function BillingPage() {
       {/* â"€â"€ Tab Content: Billing & Usage â"€â"€ */}
       {activeTab === "billing" && (
         <div className="space-y-6">
-          
+
+          {/* Enable Overcharge */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-white">Enable Overcharge</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">Allow usage beyond your plan quota — excess is charged automatically from your wallet.</p>
+              </div>
+              <button type="button" onClick={handleOverchargeToggle} disabled={overchargeLoading}
+                className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${overchargeEnabled ? "bg-white" : "bg-zinc-700"}`}>
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-zinc-900 shadow transition-transform ${overchargeEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+            {overchargeEnabled ? (
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4 text-xs text-amber-400 space-y-1">
+                <p className="font-medium">Overcharge active</p>
+                <p>Excess AI usage will be charged from your wallet. If balance hits $0, AI services suspend until you top up or your billing cycle resets.</p>
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-600">When disabled, AI features stop once your monthly quota is reached. No wallet charges apply. Enable to add credits and prevent service interruptions.</p>
+            )}
+          </div>
+
           {/* Active Plan Overview */}
           <div className="bg-card border border-border rounded-xl p-6">
             {loadingPlan ? (

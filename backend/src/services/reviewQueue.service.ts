@@ -404,7 +404,10 @@ export function calculateEligibility(item: ReviewItem, role: string, userId?: st
 
   const canApprove = ['ADMIN', 'WORKSPACE_OWNER', 'REVIEWER', 'MANAGER', 'GOVERNANCE_ADMIN'].includes(role);
   const isAssignedToMe = item.assigned_to === null || item.assigned_to === userId;
-  if (canApprove && isAssignedToMe && item.risk_level !== 'HIGH' && item.risk_level !== 'CRITICAL') {
+  // HIGH risk items that haven't truly FAILED (e.g. videos awaiting human review with
+  // MANUAL_CHECK_REQUIRED) are eligible for approval by authorized reviewers.
+  // Only CRITICAL items still require elevated approval (handled above).
+  if (canApprove && isAssignedToMe && item.risk_level !== 'CRITICAL') {
     return 'ELIGIBLE_FOR_APPROVAL';
   }
 
