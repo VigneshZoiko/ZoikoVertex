@@ -495,33 +495,35 @@ export default function Navbar() {
               fontSize: 13.4,
               color: "#FFFFFF",
               background: "transparent",
-              padding: "8px 20px",
-              borderRadius: 10,
-              border: "1.5px solid rgba(255,255,255,0.25)",
+              padding: "9px 22px",
+              borderRadius: 24,
+              border: "1.5px solid rgba(255,255,255,0.3)",
               textDecoration: "none",
               transition: "border-color 0.15s",
+              whiteSpace: "nowrap",
             }}
             onMouseEnter={(e) =>
-              (e.currentTarget.style.borderColor = "rgba(255,255,255,0.5)")
+              (e.currentTarget.style.borderColor = "rgba(255,255,255,0.6)")
             }
             onMouseLeave={(e) =>
-              (e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)")
+              (e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)")
             }
           >
             Request a Demo
           </Link>
           <Link
-            href="/signup"
+            href="/request-demo"
             style={{
               fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
               fontWeight: 700,
               fontSize: 13.4,
               color: "#000000",
               background: "#20E7F2",
-              padding: "8px 20px",
-              borderRadius: 10,
+              padding: "9px 22px",
+              borderRadius: 24,
               textDecoration: "none",
               transition: "background 0.15s",
+              whiteSpace: "nowrap",
             }}
             onMouseEnter={(e) =>
               (e.currentTarget.style.background = "#4AECF5")
