@@ -452,7 +452,7 @@ export default function TeamPage() {
                         {/* Name + email */}
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-gray-900 dark:text-white shadow-inner shrink-0">
+                            <div className="w-9 h-9 rounded-full bg-surface-hover flex items-center justify-center text-sm font-bold text-foreground shadow-inner shrink-0">
                               {(member.full_name || member.email || "Z").charAt(0).toUpperCase()}
                             </div>
                             <div>
@@ -549,7 +549,7 @@ export default function TeamPage() {
 
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 mb-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-gray-900 dark:text-white shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-xs font-bold text-foreground shrink-0">
                     {(target.full_name || target.email || "?").charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -579,7 +579,7 @@ export default function TeamPage() {
                 <button
                   onClick={() => handleDeleteMember(target.id)}
                   disabled={deleting === target.id}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-rose-500 hover:bg-rose-600 text-gray-900 dark:text-white rounded-xl transition-all disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-rose-500 hover:bg-rose-600 text-foreground rounded-xl transition-all disabled:opacity-50"
                 >
                   {deleting === target.id
                     ? <RefreshCw className="w-4 h-4 animate-spin" />

@@ -73,23 +73,23 @@ interface WorkflowCanvasProps {
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const NODE_STYLES: Record<string, { cls: string; shape: 'rect' | 'diamond' }> = {
-  trigger:   { cls: 'bg-indigo-500 text-gray-900 dark:text-white border-indigo-600 shadow-indigo-500/30',   shape: 'rect' },
-  agent:     { cls: 'bg-emerald-500 text-gray-900 dark:text-white border-emerald-600 shadow-emerald-500/30', shape: 'rect' },
-  prompt:    { cls: 'bg-sky-500 text-gray-900 dark:text-white border-sky-600 shadow-sky-500/30',             shape: 'rect' },
-  knowledge: { cls: 'bg-violet-500 text-gray-900 dark:text-white border-violet-600 shadow-violet-500/30',   shape: 'rect' },
-  policy:    { cls: 'bg-amber-500 text-gray-900 dark:text-white border-amber-600 shadow-amber-500/30',       shape: 'diamond' },
-  human:     { cls: 'bg-rose-500 text-gray-900 dark:text-white border-rose-600 shadow-rose-500/30',          shape: 'rect' },
-  approval:  { cls: 'bg-pink-500 text-gray-900 dark:text-white border-pink-600 shadow-pink-500/30',          shape: 'diamond' },
-  schedule:  { cls: 'bg-cyan-500 text-gray-900 dark:text-white border-cyan-600 shadow-cyan-500/30',          shape: 'rect' },
-  publish:   { cls: 'bg-teal-500 text-gray-900 dark:text-white border-teal-600 shadow-teal-500/30',          shape: 'rect' },
-  notify:    { cls: 'bg-blue-400 text-gray-900 dark:text-white border-blue-500 shadow-blue-400/30',          shape: 'rect' },
-  escalate:  { cls: 'bg-orange-500 text-gray-900 dark:text-white border-orange-600 shadow-orange-500/30',   shape: 'rect' },
-  evidence:  { cls: 'bg-cyan-600 text-gray-900 dark:text-white border-cyan-700 shadow-cyan-600/30',          shape: 'rect' },
-  branch:    { cls: 'bg-amber-500 text-gray-900 dark:text-white border-amber-600 shadow-amber-500/30',       shape: 'diamond' },
-  delay:     { cls: 'bg-gray-400 text-gray-900 dark:text-white border-gray-500 shadow-gray-400/30',          shape: 'rect' },
-  end:       { cls: 'bg-gray-600 text-gray-900 dark:text-white border-gray-700 shadow-gray-600/30',          shape: 'rect' },
-  condition: { cls: 'bg-amber-500 text-gray-900 dark:text-white border-amber-600 shadow-amber-500/30',       shape: 'diamond' },
-  action:    { cls: 'bg-teal-500 text-gray-900 dark:text-white border-teal-600 shadow-teal-500/30',          shape: 'rect' },
+  trigger:   { cls: 'bg-indigo-500 text-foreground border-indigo-600 shadow-indigo-500/30',   shape: 'rect' },
+  agent:     { cls: 'bg-emerald-500 text-foreground border-emerald-600 shadow-emerald-500/30', shape: 'rect' },
+  prompt:    { cls: 'bg-sky-500 text-foreground border-sky-600 shadow-sky-500/30',             shape: 'rect' },
+  knowledge: { cls: 'bg-violet-500 text-foreground border-violet-600 shadow-violet-500/30',   shape: 'rect' },
+  policy:    { cls: 'bg-amber-500 text-foreground border-amber-600 shadow-amber-500/30',       shape: 'diamond' },
+  human:     { cls: 'bg-rose-500 text-foreground border-rose-600 shadow-rose-500/30',          shape: 'rect' },
+  approval:  { cls: 'bg-pink-500 text-foreground border-pink-600 shadow-pink-500/30',          shape: 'diamond' },
+  schedule:  { cls: 'bg-cyan-500 text-foreground border-cyan-600 shadow-cyan-500/30',          shape: 'rect' },
+  publish:   { cls: 'bg-teal-500 text-foreground border-teal-600 shadow-teal-500/30',          shape: 'rect' },
+  notify:    { cls: 'bg-blue-400 text-foreground border-blue-500 shadow-blue-400/30',          shape: 'rect' },
+  escalate:  { cls: 'bg-orange-500 text-foreground border-orange-600 shadow-orange-500/30',   shape: 'rect' },
+  evidence:  { cls: 'bg-cyan-600 text-foreground border-cyan-700 shadow-cyan-600/30',          shape: 'rect' },
+  branch:    { cls: 'bg-amber-500 text-foreground border-amber-600 shadow-amber-500/30',       shape: 'diamond' },
+  delay:     { cls: 'bg-gray-400 text-foreground border-gray-500 shadow-gray-400/30',          shape: 'rect' },
+  end:       { cls: 'bg-gray-600 text-foreground border-gray-700 shadow-gray-600/30',          shape: 'rect' },
+  condition: { cls: 'bg-amber-500 text-foreground border-amber-600 shadow-amber-500/30',       shape: 'diamond' },
+  action:    { cls: 'bg-teal-500 text-foreground border-teal-600 shadow-teal-500/30',          shape: 'rect' },
 };
 
 const NODE_LABELS: Partial<Record<string, string>> = {
@@ -268,7 +268,7 @@ function EditableStepConfigDrawer({
       <div className="sticky top-0 bg-[var(--surface)] border-b border-[var(--border)] px-4 py-3 flex items-start justify-between gap-2 z-10">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className={`p-1.5 rounded-lg ${accentBg}/20 shrink-0`}>
-            <IconComponent className={`w-4 h-4 text-gray-900 dark:text-white`} />
+            <IconComponent className={`w-4 h-4 text-foreground`} />
           </div>
           <div className="min-w-0">
             <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
@@ -284,7 +284,7 @@ function EditableStepConfigDrawer({
 
       <div className="flex-1 px-4 py-4 space-y-4">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-gray-900 dark:text-white ${accentBg}`}>
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-foreground ${accentBg}`}>
             {NODE_LABELS[node.type] ?? node.type}
           </span>
           <span className="text-[10px] text-[var(--text-muted)] font-mono">{node.id}</span>
@@ -501,7 +501,7 @@ function NodePalette({ onAddNode }: { onAddNode: (type: NodeType) => void }) {
             <button
               key={item.type}
               onClick={() => onAddNode(item.type)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-gray-900 dark:text-white ${style.cls} hover:scale-105 transition-transform cursor-pointer shrink-0`}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-foreground ${style.cls} hover:scale-105 transition-transform cursor-pointer shrink-0`}
               title={`Add ${item.label} node`}
             >
               <IconComp className="w-3 h-3" />
@@ -747,7 +747,7 @@ export default function WorkflowCanvas({
 
   // ── Helpers ──
   const getNodeStyle = (type: string) =>
-    NODE_STYLES[type] ?? { cls: 'bg-gray-500 text-gray-900 dark:text-white border-gray-600', shape: 'rect' as const };
+    NODE_STYLES[type] ?? { cls: 'bg-gray-500 text-foreground border-gray-600', shape: 'rect' as const };
 
   const isDiamond = (type: string) => getNodeStyle(type).shape === 'diamond';
 
@@ -793,7 +793,7 @@ export default function WorkflowCanvas({
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 disabled:cursor-not-allowed text-xs font-semibold text-gray-900 dark:text-white transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 disabled:cursor-not-allowed text-xs font-semibold text-foreground transition-colors"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               {saving ? 'Saving...' : 'Save'}

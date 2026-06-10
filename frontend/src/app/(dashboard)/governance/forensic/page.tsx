@@ -41,7 +41,7 @@ export default function ForensicPage() {
               <Fingerprint className="w-4 h-4" />
               Forensic Performance Pulse
             </div>
-            <h1 className="text-6xl font-black text-gray-900 dark:text-white tracking-tighter leading-[0.85]">
+            <h1 className="text-6xl font-black text-foreground tracking-tighter leading-[0.85]">
               Predictive <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-rose-600 italic">Governance.</span>
             </h1>
             <p className="text-lg text-slate-400 leading-relaxed font-medium tracking-tight">
@@ -52,7 +52,7 @@ export default function ForensicPage() {
           
           <div className="flex gap-4">
              <div className="bg-black border border-slate-800 rounded-3xl p-8 text-center space-y-2 shadow-2xl">
-                <div className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter">{data?.trust_score}%</div>
+                <div className="text-5xl font-black text-foreground tracking-tighter">{data?.trust_score}%</div>
                 <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Aggregate Trust</div>
              </div>
           </div>
@@ -68,14 +68,14 @@ export default function ForensicPage() {
         ].map((stat, i) => (
           <div key={i} className="bg-[#050505] border border-slate-900 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group hover:border-indigo-500/40 transition-all">
              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                <stat.icon className="w-24 h-24 text-gray-900 dark:text-white" />
+                <stat.icon className="w-24 h-24 text-foreground" />
              </div>
              <div className="relative z-10 space-y-8">
                 <div className={`p-4 w-14 h-14 rounded-2xl bg-black border border-slate-800 flex items-center justify-center ${stat.color} shadow-inner`}>
                    <stat.icon className="w-6 h-6" />
                 </div>
                 <div>
-                   <div className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter">{stat.value}</div>
+                   <div className="text-4xl font-black text-foreground tracking-tighter">{stat.value}</div>
                    <div className="flex items-center gap-2 mt-2">
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</span>
                       <span className={`text-[8px] font-black px-2 py-0.5 rounded bg-white/5 border border-white/10 ${stat.color}`}>{stat.trend}</span>
@@ -93,7 +93,7 @@ export default function ForensicPage() {
            <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                  <Clock className="w-5 h-5 text-indigo-400" />
-                 <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter italic">Faithfulness History</h2>
+                 <h2 className="text-xl font-black text-foreground uppercase tracking-tighter italic">Faithfulness History</h2>
               </div>
               <div className="flex items-center gap-2 px-4 py-2 bg-black border border-slate-800 rounded-xl">
                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -108,7 +108,7 @@ export default function ForensicPage() {
                   className="flex-1 bg-indigo-500/20 rounded-t-xl group relative hover:bg-indigo-500 transition-all cursor-crosshair"
                   style={{ height: `${p.score}%` }}
                 >
-                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-indigo-600 text-gray-900 dark:text-white text-[8px] font-black px-2 py-1 rounded shadow-xl z-20">
+                   <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-indigo-600 text-foreground text-[8px] font-black px-2 py-1 rounded shadow-xl z-20">
                       Score: {p.score}
                    </div>
                 </div>
@@ -138,7 +138,7 @@ export default function ForensicPage() {
                  ))}
               </div>
 
-              <button className="w-full mt-10 bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.3em] shadow-xl transition-all shadow-indigo-600/20">
+              <button className="w-full mt-10 bg-indigo-600 hover:bg-indigo-500 text-foreground py-5 rounded-[1.5rem] font-black text-xs uppercase tracking-[0.3em] shadow-xl transition-all shadow-indigo-600/20">
                  Run Forensic Re-Audit
               </button>
            </div>

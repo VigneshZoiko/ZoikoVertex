@@ -270,7 +270,7 @@ export default function BrandLibraryPage() {
     return (
       <div className="max-w-md mx-auto py-24 px-8 text-center bg-red-950/20 border border-red-500/20 rounded-[2.5rem] mt-16 space-y-6">
         <XCircle className="w-12 h-12 text-red-500 mx-auto" />
-        <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-wider">Access Restrained</h3>
+        <h3 className="text-lg font-black text-foreground uppercase tracking-wider">Access Restrained</h3>
         <p className="text-red-400/70 text-xs leading-relaxed">
           You lack the required Governance credentials to manage linguistic sovereignty configurations. Please request Brand Manager or Governance Lead elevation.
         </p>
@@ -288,7 +288,7 @@ export default function BrandLibraryPage() {
             <Sparkle className="w-3 h-3 animate-pulse" />
             Linguistic Sovereignty Suite v4.2
           </div>
-          <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter flex items-center gap-3">
+          <h1 className="text-4xl font-black text-foreground tracking-tighter flex items-center gap-3">
             <Palette className="w-10 h-10 text-pink-500" />
             Brand Standards & Content Governance
           </h1>
@@ -298,7 +298,7 @@ export default function BrandLibraryPage() {
         </div>
         <button 
           onClick={fetchBrandData}
-          className="flex items-center justify-center gap-2 px-5 py-3 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all hover:bg-gray-100 dark:bg-zinc-800/50"
+          className="flex items-center justify-center gap-2 px-5 py-3 bg-surface border border-border hover:border-border text-foreground rounded-2xl text-xs font-black uppercase tracking-widest transition-all hover:bg-surface-hover"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-pink-500' : ''}`} />
           Reset Ledger
@@ -323,7 +323,7 @@ export default function BrandLibraryPage() {
         <div className="lg:col-span-7 space-y-8">
           
           {/* Active Brand Profiles */}
-          <div className="bg-white dark:bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-8 space-y-6">
+          <div className="bg-card border border-zinc-900 rounded-[2.5rem] p-8 space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-[#555] flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-pink-500" />
@@ -338,11 +338,11 @@ export default function BrandLibraryPage() {
               {profiles.map(prof => (
                 <div 
                   key={prof.id} 
-                  className="p-5 bg-gray-50 dark:bg-zinc-900/40 border border-zinc-900 hover:border-pink-500/20 rounded-2xl transition-all group relative overflow-hidden"
+                  className="p-5 bg-surface/40 border border-zinc-900 hover:border-pink-500/20 rounded-2xl transition-all group relative overflow-hidden"
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="text-base font-black text-gray-900 dark:text-white group-hover:text-pink-400 transition-colors flex items-center gap-2">
+                      <h4 className="text-base font-black text-foreground group-hover:text-pink-400 transition-colors flex items-center gap-2">
                         {prof.name}
                         {prof.status === "ACTIVE" && (
                           <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
@@ -355,15 +355,15 @@ export default function BrandLibraryPage() {
                     <span className={`text-[9px] font-black px-2 py-0.5 rounded border uppercase tracking-wider ${
                       prof.status === "ACTIVE" 
                         ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-                        : "bg-gray-200 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 border-gray-300 dark:border-zinc-700"
+                        : "bg-surface-hover text-foreground-muted border-border"
                     }`}>
                       {prof.status}
                     </span>
                   </div>
 
                   <div className="mt-4 pt-4 border-t border-zinc-900 flex justify-between items-center text-[10px] text-[#555] font-bold uppercase tracking-wider">
-                    <span>Target Audience: <strong className="text-gray-500 dark:text-zinc-400">{prof.audience}</strong></span>
-                    <button className="text-gray-400 dark:text-zinc-600 group-hover:text-pink-500 transition-colors flex items-center gap-1">
+                    <span>Target Audience: <strong className="text-foreground-muted">{prof.audience}</strong></span>
+                    <button className="text-foreground-muted group-hover:text-pink-500 transition-colors flex items-center gap-1">
                       Inspect Matrix <ArrowUpRight className="w-3 h-3" />
                     </button>
                   </div>
@@ -373,7 +373,7 @@ export default function BrandLibraryPage() {
           </div>
 
           {/* Factual Claims Ledger */}
-          <div className="bg-white dark:bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-8 space-y-6">
+          <div className="bg-card border border-zinc-900 rounded-[2.5rem] p-8 space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-[#555] flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -381,7 +381,7 @@ export default function BrandLibraryPage() {
               </h3>
               <button 
                 onClick={() => setShowClaimForm(!showClaimForm)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border hover:border-border text-foreground rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
               >
                 <Plus className="w-3.5 h-3.5 text-pink-500" />
                 Anchor Claim
@@ -389,26 +389,26 @@ export default function BrandLibraryPage() {
             </div>
 
             {showClaimForm && (
-              <div className="p-5 bg-white/60 dark:bg-zinc-900/60 border border-zinc-900 rounded-2xl space-y-3 animate-in slide-in-from-top duration-300">
-                <p className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-wider">Configure Substantive Claim</p>
+              <div className="p-5 bg-card border border-zinc-900 rounded-2xl space-y-3 animate-in slide-in-from-top duration-300">
+                <p className="text-xs font-black text-foreground uppercase tracking-wider">Configure Substantive Claim</p>
                 <textarea 
                   rows={2} 
                   placeholder="Exact assertional claim text (e.g. ZoikoVertex achieves 99.9% uptime)..."
                   value={newClaim.claim}
                   onChange={e => setNewClaim(f => ({ ...f, claim: e.target.value }))}
-                  className="w-full bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white placeholder-zinc-600 outline-none focus:border-pink-500/50 resize-none font-medium"
+                  className="w-full bg-black border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder-zinc-600 outline-none focus:border-pink-500/50 resize-none font-medium"
                 />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <input 
                     placeholder="Source Document / Anchor"
                     value={newClaim.anchor}
                     onChange={e => setNewClaim(f => ({ ...f, anchor: e.target.value }))}
-                    className="bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white placeholder-zinc-600 outline-none focus:border-pink-500/50"
+                    className="bg-black border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder-zinc-600 outline-none focus:border-pink-500/50"
                   />
                   <select 
                     value={newClaim.category}
                     onChange={e => setNewClaim(f => ({ ...f, category: e.target.value }))}
-                    className="bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:border-pink-500/50 uppercase tracking-widest font-black"
+                    className="bg-black border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-pink-500/50 uppercase tracking-widest font-black"
                   >
                     <option value="GENERAL">GENERAL</option>
                     <option value="TECHNICAL">TECHNICAL</option>
@@ -419,19 +419,19 @@ export default function BrandLibraryPage() {
                     type="date"
                     value={newClaim.expires}
                     onChange={e => setNewClaim(f => ({ ...f, expires: e.target.value }))}
-                    className="bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white outline-none focus:border-pink-500/50"
+                    className="bg-black border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-pink-500/50"
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button 
                     onClick={() => setShowClaimForm(false)}
-                    className="px-3 py-1.5 text-gray-500 dark:text-zinc-500 hover:text-white text-xs font-bold transition-all"
+                    className="px-3 py-1.5 text-foreground-muted hover:text-white text-xs font-bold transition-all"
                   >
                     Cancel
                   </button>
                   <button 
                     onClick={handleAddClaim}
-                    className="px-4 py-1.5 bg-pink-600 hover:bg-pink-500 text-gray-900 dark:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                    className="px-4 py-1.5 bg-pink-600 hover:bg-pink-500 text-foreground rounded-xl text-xs font-black uppercase tracking-wider transition-all"
                   >
                     Register Anchor
                   </button>
@@ -443,11 +443,11 @@ export default function BrandLibraryPage() {
               {claims.map(claim => (
                 <div 
                   key={claim.id} 
-                  className="p-5 bg-gray-50 dark:bg-zinc-900/20 border border-zinc-900 rounded-2xl flex items-start gap-4 hover:border-gray-200 dark:border-zinc-800/80 transition-all"
+                  className="p-5 bg-surface border border-zinc-900 rounded-2xl flex items-start gap-4 hover:border-border/80 transition-all"
                 >
                   <div className="flex-1 space-y-2 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[9px] font-black bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 px-2 py-0.5 rounded uppercase tracking-widest">
+                      <span className="text-[9px] font-black bg-surface border border-border text-foreground-muted px-2 py-0.5 rounded uppercase tracking-widest">
                         {claim.category}
                       </span>
                       <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${
@@ -458,17 +458,17 @@ export default function BrandLibraryPage() {
                         {claim.status}
                       </span>
                     </div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white leading-relaxed">
+                    <p className="text-sm font-semibold text-foreground leading-relaxed">
                       &ldquo;{claim.claim}&rdquo;
                     </p>
                     <div className="flex items-center gap-4 text-[10px] text-[#555] font-bold uppercase tracking-wider">
-                      <span>Anchor Source: <strong className="text-gray-500 dark:text-zinc-400">{claim.anchor}</strong></span>
-                      <span>Expires: <strong className="text-gray-500 dark:text-zinc-400">{claim.expires}</strong></span>
+                      <span>Anchor Source: <strong className="text-foreground-muted">{claim.anchor}</strong></span>
+                      <span>Expires: <strong className="text-foreground-muted">{claim.expires}</strong></span>
                     </div>
                   </div>
                   <button 
                     onClick={() => handleDeleteClaim(claim.id, claim.claim)}
-                    className="p-1.5 text-gray-400 dark:text-zinc-700 hover:text-rose-400 transition-colors shrink-0"
+                    className="p-1.5 text-foreground-muted hover:text-rose-400 transition-colors shrink-0"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -482,13 +482,13 @@ export default function BrandLibraryPage() {
         <div className="lg:col-span-5 space-y-8">
           
           {/* Linguistic Sovereignty Sliders */}
-          <div className="bg-white dark:bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-8 space-y-8">
+          <div className="bg-card border border-zinc-900 rounded-[2.5rem] p-8 space-y-8">
             <div>
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-[#555] flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-pink-500" />
                 Sovereign Voice Metrics
               </h3>
-              <p className="text-[10px] text-gray-500 dark:text-zinc-500 uppercase font-bold tracking-wider mt-2">
+              <p className="text-[10px] text-foreground-muted uppercase font-bold tracking-wider mt-2">
                 Calibrate thresholds evaluated by the Cognitive Safety Engine.
               </p>
             </div>
@@ -498,9 +498,9 @@ export default function BrandLibraryPage() {
               {/* Warmth */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest">
-                  <span className="text-gray-700 dark:text-zinc-300 flex items-center gap-1.5 cursor-help" title="Measures empathy, supportiveness, and informal brand tone.">
+                  <span className="text-foreground-muted flex items-center gap-1.5 cursor-help" title="Measures empathy, supportiveness, and informal brand tone.">
                     Warmth Index
-                    <HelpCircle className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-600" />
+                    <HelpCircle className="w-3.5 h-3.5 text-foreground-muted" />
                   </span>
                   <span className="text-pink-500 font-black">{linguistic.warmth}%</span>
                 </div>
@@ -511,7 +511,7 @@ export default function BrandLibraryPage() {
                   value={linguistic.warmth}
                   onChange={e => setLinguistic((prev: any) => ({ ...prev, warmth: parseInt(e.target.value) }))}
                   onMouseUp={e => handleSliderChange("warmth", parseInt((e.target as HTMLInputElement).value))}
-                  className="w-full h-1 bg-gray-50 dark:bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                  className="w-full h-1 bg-surface rounded-lg appearance-none cursor-pointer accent-pink-500"
                 />
                 <div className="flex justify-between text-[8px] text-[#555] font-black uppercase">
                   <span>Reserved</span>
@@ -522,9 +522,9 @@ export default function BrandLibraryPage() {
               {/* Authority */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest">
-                  <span className="text-gray-700 dark:text-zinc-300 flex items-center gap-1.5 cursor-help" title="Decisiveness, expert lexicon density, and technical posture.">
+                  <span className="text-foreground-muted flex items-center gap-1.5 cursor-help" title="Decisiveness, expert lexicon density, and technical posture.">
                     Authority Index
-                    <HelpCircle className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-600" />
+                    <HelpCircle className="w-3.5 h-3.5 text-foreground-muted" />
                   </span>
                   <span className="text-pink-500 font-black">{linguistic.authority}%</span>
                 </div>
@@ -535,7 +535,7 @@ export default function BrandLibraryPage() {
                   value={linguistic.authority}
                   onChange={e => setLinguistic((prev: any) => ({ ...prev, authority: parseInt(e.target.value) }))}
                   onMouseUp={e => handleSliderChange("authority", parseInt((e.target as HTMLInputElement).value))}
-                  className="w-full h-1 bg-gray-50 dark:bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                  className="w-full h-1 bg-surface rounded-lg appearance-none cursor-pointer accent-pink-500"
                 />
                 <div className="flex justify-between text-[8px] text-[#555] font-black uppercase">
                   <span>Inquisitive</span>
@@ -546,9 +546,9 @@ export default function BrandLibraryPage() {
               {/* Restraint */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest">
-                  <span className="text-gray-700 dark:text-zinc-300 flex items-center gap-1.5 cursor-help" title="Caution level, competitive non-disclosure, and compliance posture.">
+                  <span className="text-foreground-muted flex items-center gap-1.5 cursor-help" title="Caution level, competitive non-disclosure, and compliance posture.">
                     Restraint Index
-                    <HelpCircle className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-600" />
+                    <HelpCircle className="w-3.5 h-3.5 text-foreground-muted" />
                   </span>
                   <span className="text-pink-500 font-black">{linguistic.restraint}%</span>
                 </div>
@@ -559,7 +559,7 @@ export default function BrandLibraryPage() {
                   value={linguistic.restraint}
                   onChange={e => setLinguistic((prev: any) => ({ ...prev, restraint: parseInt(e.target.value) }))}
                   onMouseUp={e => handleSliderChange("restraint", parseInt((e.target as HTMLInputElement).value))}
-                  className="w-full h-1 bg-gray-50 dark:bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                  className="w-full h-1 bg-surface rounded-lg appearance-none cursor-pointer accent-pink-500"
                 />
                 <div className="flex justify-between text-[8px] text-[#555] font-black uppercase">
                   <span>Candid</span>
@@ -569,22 +569,22 @@ export default function BrandLibraryPage() {
 
             </div>
 
-            <div className="p-4 bg-gray-50 dark:bg-zinc-900/20 border border-zinc-900 rounded-2xl flex items-center gap-3">
+            <div className="p-4 bg-surface border border-zinc-900 rounded-2xl flex items-center gap-3">
               <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 animate-pulse" />
-              <p className="text-[10px] text-gray-500 dark:text-zinc-500 leading-relaxed font-bold uppercase tracking-widest">
+              <p className="text-[10px] text-foreground-muted leading-relaxed font-bold uppercase tracking-widest">
                 Linguistic checks execute asynchronously in <strong className="text-emerald-400">0.42ms</strong> prior to social routing.
               </p>
             </div>
           </div>
 
           {/* Lexicon lists */}
-          <div className="bg-white dark:bg-zinc-950 border border-zinc-900 rounded-[2.5rem] p-8 space-y-6">
+          <div className="bg-card border border-zinc-900 rounded-[2.5rem] p-8 space-y-6">
             <div>
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-[#555] flex items-center gap-2">
                 <Globe className="w-4 h-4 text-pink-500" />
                 Lexicon Guardrails
               </h3>
-              <p className="text-[10px] text-gray-500 dark:text-zinc-500 uppercase font-bold tracking-wider mt-2">
+              <p className="text-[10px] text-foreground-muted uppercase font-bold tracking-wider mt-2">
                 Add preferred brand terms and strictly prohibited vocabulary sets.
               </p>
             </div>
@@ -595,19 +595,19 @@ export default function BrandLibraryPage() {
                 placeholder="Enter term..."
                 value={newTerm}
                 onChange={e => setNewTerm(e.target.value)}
-                className="flex-1 bg-black border border-gray-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white placeholder-zinc-600 outline-none focus:border-pink-500/50"
+                className="flex-1 bg-black border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder-zinc-600 outline-none focus:border-pink-500/50"
               />
               <select 
                 value={termType}
                 onChange={e => setTermType(e.target.value as any)}
-                className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl px-2 text-xs text-gray-900 dark:text-white outline-none font-bold uppercase"
+                className="bg-surface border border-border rounded-xl px-2 text-xs text-foreground outline-none font-bold uppercase"
               >
                 <option value="prohibited">PROHIBIT</option>
                 <option value="allowed">ALLOW</option>
               </select>
               <button 
                 onClick={handleAddLexicon}
-                className="p-2.5 bg-pink-600 hover:bg-pink-500 text-gray-900 dark:text-white rounded-xl transition-all"
+                className="p-2.5 bg-pink-600 hover:bg-pink-500 text-foreground rounded-xl transition-all"
               >
                 <Plus className="w-4 h-4" />
               </button>

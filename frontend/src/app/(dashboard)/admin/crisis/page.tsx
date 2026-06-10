@@ -8,7 +8,7 @@ export default function CrisisConsolePage() {
       <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-6">
         <Siren className="w-8 h-8 text-red-400" />
       </div>
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">Crisis Console</h1>
+      <h1 className="text-3xl font-bold text-foreground mb-3">Crisis Console</h1>
       <p className="text-[#888888] text-base max-w-xl leading-relaxed mb-2">
         Emergency access surface for authorized crisis commanders — pause scheduled publishing, open crisis approvals, annotate crisis windows, and route post-incident review.
       </p>

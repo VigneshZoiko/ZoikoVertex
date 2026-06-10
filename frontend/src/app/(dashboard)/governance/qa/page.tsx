@@ -539,7 +539,7 @@ export default function QualityAuditPage() {
       {/* ─── Header ─────────────────────────────────────────────────────────── */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Quality Audit</h1>
+          <h1 className="text-xl font-bold text-foreground mb-1">Quality Audit</h1>
           <p className="text-[11px] text-[#666]">Audit content drafts, approval paths, and published checks to maintain high quality standards.</p>
         </div>
         <button
@@ -570,7 +570,7 @@ export default function QualityAuditPage() {
               <Activity className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-base font-bold text-gray-900 dark:text-white">{activeAudits}</p>
+              <p className="text-base font-bold text-foreground">{activeAudits}</p>
               <p className="text-[9px] text-[#555] font-semibold uppercase tracking-wider leading-none">Active Audits</p>
             </div>
           </div>
@@ -579,7 +579,7 @@ export default function QualityAuditPage() {
               <AlertTriangle className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-base font-bold text-gray-900 dark:text-white">{defectsFound}</p>
+              <p className="text-base font-bold text-foreground">{defectsFound}</p>
               <p className="text-[9px] text-[#555] font-semibold uppercase tracking-wider leading-none">Defects Found</p>
             </div>
           </div>
@@ -588,7 +588,7 @@ export default function QualityAuditPage() {
               <Star className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-base font-bold text-gray-900 dark:text-white">{avgScore}</p>
+              <p className="text-base font-bold text-foreground">{avgScore}</p>
               <p className="text-[9px] text-[#555] font-semibold uppercase tracking-wider leading-none">Average Score</p>
             </div>
           </div>
@@ -606,7 +606,7 @@ export default function QualityAuditPage() {
               placeholder="Search audit queue…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-[#111] border border-[var(--border)] text-gray-900 dark:text-white placeholder-[#555] focus:outline-none focus:border-indigo-500/40"
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-[#111] border border-[var(--border)] text-foreground placeholder-[#555] focus:outline-none focus:border-indigo-500/40"
             />
           </div>
 
@@ -650,7 +650,7 @@ export default function QualityAuditPage() {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                      <p className="text-xs font-semibold text-gray-900 dark:text-white truncate flex-1">{item.title}</p>
+                      <p className="text-xs font-semibold text-foreground truncate flex-1">{item.title}</p>
                       {item.quality_score !== null && (
                         <span className={`text-[10px] font-bold ${calculateScoreBand(item.quality_score).color}`}>
                           {item.quality_score}%
@@ -692,7 +692,7 @@ export default function QualityAuditPage() {
               {/* Header Info */}
               <div className="border-b border-[#2d2d2d] pb-3 flex justify-between items-start">
                 <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-0.5">{selectedItem.title}</h3>
+                  <h3 className="text-sm font-bold text-foreground mb-0.5">{selectedItem.title}</h3>
                   <div className="flex items-center gap-2 text-[10px] text-[#555]">
                     <span>{ITEM_TYPE_LABELS[selectedItem.item_type]}</span>
                     <span>•</span>
@@ -800,7 +800,7 @@ export default function QualityAuditPage() {
                     value={feedbackText}
                     onChange={e => setFeedbackText(e.target.value)}
                     rows={2}
-                    className="w-full bg-[#181818] border border-[#2d2d2d] rounded-lg p-2.5 text-xs text-gray-900 dark:text-white placeholder-[#555] focus:outline-none focus:border-indigo-500/40 resize-none"
+                    className="w-full bg-[#181818] border border-[#2d2d2d] rounded-lg p-2.5 text-xs text-foreground placeholder-[#555] focus:outline-none focus:border-indigo-500/40 resize-none"
                   />
                   <div className="flex gap-2 justify-end">
                     <button
@@ -827,14 +827,14 @@ export default function QualityAuditPage() {
                     <select
                       value={newDefect.defect_category}
                       onChange={e => setNewDefect(prev => ({ ...prev, defect_category: e.target.value as DefectCategory }))}
-                      className="p-1.5 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-gray-900 dark:text-white focus:outline-none"
+                      className="p-1.5 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-foreground focus:outline-none"
                     >
                       {DEFECT_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                     <select
                       value={newDefect.defect_severity}
                       onChange={e => setNewDefect(prev => ({ ...prev, defect_severity: e.target.value as DefectSeverity }))}
-                      className="p-1.5 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-gray-900 dark:text-white focus:outline-none"
+                      className="p-1.5 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-foreground focus:outline-none"
                     >
                       <option value="minor">Minor</option>
                       <option value="moderate">Moderate</option>
@@ -847,11 +847,11 @@ export default function QualityAuditPage() {
                     placeholder="Short description of the defect..."
                     value={newDefect.defect_description}
                     onChange={e => setNewDefect(prev => ({ ...prev, defect_description: e.target.value }))}
-                    className="w-full p-2 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-gray-900 dark:text-white"
+                    className="w-full p-2 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-foreground"
                   />
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => setShowDefectForm(false)} className="px-2.5 py-1 text-[9px] text-[#888] hover:text-white">Cancel</button>
-                    <button onClick={handleCreateDefect} className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-gray-900 dark:text-white rounded text-[9px] font-bold">Save Defect</button>
+                    <button onClick={handleCreateDefect} className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-foreground rounded text-[9px] font-bold">Save Defect</button>
                   </div>
                 </div>
               )}
@@ -865,14 +865,14 @@ export default function QualityAuditPage() {
                     placeholder="Action Item Title..."
                     value={newCorrective.title}
                     onChange={e => setNewCorrective(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full p-2 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-gray-900 dark:text-white"
+                    className="w-full p-2 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-foreground"
                   />
                   <textarea
                     placeholder="Describe what needs to be fixed..."
                     value={newCorrective.required_action}
                     onChange={e => setNewCorrective(prev => ({ ...prev, required_action: e.target.value }))}
                     rows={2}
-                    className="w-full p-2 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-gray-900 dark:text-white resize-none"
+                    className="w-full p-2 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-foreground resize-none"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <input
@@ -880,18 +880,18 @@ export default function QualityAuditPage() {
                       placeholder="Assignee (email or user ID)"
                       value={newCorrective.owner}
                       onChange={e => setNewCorrective(prev => ({ ...prev, owner: e.target.value }))}
-                      className="p-1.5 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-gray-900 dark:text-white"
+                      className="p-1.5 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-foreground"
                     />
                     <input
                       type="date"
                       value={newCorrective.due_at}
                       onChange={e => setNewCorrective(prev => ({ ...prev, due_at: e.target.value }))}
-                      className="p-1.5 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-gray-900 dark:text-white"
+                      className="p-1.5 bg-[#111] border border-[#2d2d2d] rounded text-[10px] text-foreground"
                     />
                   </div>
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => setShowCorrectiveForm(false)} className="px-2.5 py-1 text-[9px] text-[#888] hover:text-white">Cancel</button>
-                    <button onClick={handleCreateCorrective} className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-gray-900 dark:text-white rounded text-[9px] font-bold">Create Action</button>
+                    <button onClick={handleCreateCorrective} className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-foreground rounded text-[9px] font-bold">Create Action</button>
                   </div>
                 </div>
               )}
@@ -906,7 +906,7 @@ export default function QualityAuditPage() {
               <button
                 onClick={() => setComparisonTab("comparison")}
                 className={`flex-1 py-1 text-[10px] font-bold rounded-lg transition-colors ${
-                  comparisonTab === "comparison" ? "bg-white/5 text-gray-900 dark:text-white" : "text-[#555]"
+                  comparisonTab === "comparison" ? "bg-white/5 text-foreground" : "text-[#555]"
                 }`}
               >
                 Comparison
@@ -914,7 +914,7 @@ export default function QualityAuditPage() {
               <button
                 onClick={() => setComparisonTab("findings")}
                 className={`flex-1 py-1 text-[10px] font-bold rounded-lg transition-colors ${
-                  comparisonTab === "findings" ? "bg-white/5 text-gray-900 dark:text-white" : "text-[#555]"
+                  comparisonTab === "findings" ? "bg-white/5 text-foreground" : "text-[#555]"
                 }`}
               >
                 Findings
@@ -922,7 +922,7 @@ export default function QualityAuditPage() {
               <button
                 onClick={() => setComparisonTab("evidence")}
                 className={`flex-1 py-1 text-[10px] font-bold rounded-lg transition-colors ${
-                  comparisonTab === "evidence" ? "bg-white/5 text-gray-900 dark:text-white" : "text-[#555]"
+                  comparisonTab === "evidence" ? "bg-white/5 text-foreground" : "text-[#555]"
                 }`}
               >
                 Logs & Evid.
@@ -934,9 +934,9 @@ export default function QualityAuditPage() {
               {comparisonTab === "comparison" && (
                 <div className="space-y-3">
                   <div className="flex gap-1 bg-white/5 p-1 rounded-lg shrink-0">
-                    <button onClick={() => setVersionSubTab("ai")} className={`flex-1 text-[9px] py-1 font-semibold rounded ${versionSubTab === "ai" ? "bg-[#222] text-gray-900 dark:text-white" : "text-[#666]"}`}>AI Draft</button>
-                    <button onClick={() => setVersionSubTab("approved")} className={`flex-1 text-[9px] py-1 font-semibold rounded ${versionSubTab === "approved" ? "bg-[#222] text-gray-900 dark:text-white" : "text-[#666]"}`}>Approved</button>
-                    <button onClick={() => setVersionSubTab("published")} className={`flex-1 text-[9px] py-1 font-semibold rounded ${versionSubTab === "published" ? "bg-[#222] text-gray-900 dark:text-white" : "text-[#666]"}`}>Published</button>
+                    <button onClick={() => setVersionSubTab("ai")} className={`flex-1 text-[9px] py-1 font-semibold rounded ${versionSubTab === "ai" ? "bg-[#222] text-foreground" : "text-[#666]"}`}>AI Draft</button>
+                    <button onClick={() => setVersionSubTab("approved")} className={`flex-1 text-[9px] py-1 font-semibold rounded ${versionSubTab === "approved" ? "bg-[#222] text-foreground" : "text-[#666]"}`}>Approved</button>
+                    <button onClick={() => setVersionSubTab("published")} className={`flex-1 text-[9px] py-1 font-semibold rounded ${versionSubTab === "published" ? "bg-[#222] text-foreground" : "text-[#666]"}`}>Published</button>
                   </div>
 
                   <div className="bg-black/40 border border-[#2d2d2d] p-3 rounded-xl text-xs text-[#aaa] min-h-[120px] leading-relaxed">
@@ -969,7 +969,7 @@ export default function QualityAuditPage() {
                   {/* Scorecard Slider / Select */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-wider">Rubric Evaluation</h4>
+                      <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">Rubric Evaluation</h4>
                       {overallScore !== null && (
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${scoreBand.color} bg-white/5`}>
                           Score: {overallScore}/100
@@ -1003,7 +1003,7 @@ export default function QualityAuditPage() {
 
                   {/* Defects List */}
                   <div className="space-y-2 pt-2 border-t border-[#2d2d2d]">
-                    <h4 className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-wider">Logged Defects</h4>
+                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">Logged Defects</h4>
                     {defects.length === 0 ? (
                       <p className="text-[9px] text-[#444] italic">No defects identified.</p>
                     ) : (
@@ -1011,7 +1011,7 @@ export default function QualityAuditPage() {
                         {defects.map(d => (
                           <div key={d.id} className="bg-white/[0.02] border border-white/5 p-2 rounded-lg text-[10px] space-y-1">
                             <div className="flex justify-between">
-                              <span className="font-semibold text-gray-900 dark:text-white truncate max-w-[120px]">{DEFECT_CATEGORIES.find(c => c.value === d.defect_category)?.label || d.defect_category}</span>
+                              <span className="font-semibold text-foreground truncate max-w-[120px]">{DEFECT_CATEGORIES.find(c => c.value === d.defect_category)?.label || d.defect_category}</span>
                               <span className={`text-[8px] font-bold px-1 rounded ${SEVERITY_COLORS[d.defect_severity]}`}>{d.defect_severity}</span>
                             </div>
                             <p className="text-[#ccc]">{d.defect_description}</p>
@@ -1028,7 +1028,7 @@ export default function QualityAuditPage() {
                 <div className="space-y-4">
                   {/* Evidence Packages */}
                   <div className="space-y-2">
-                    <h4 className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-wider">Evidence Files</h4>
+                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">Evidence Files</h4>
                     {evidence.length === 0 ? (
                       <p className="text-[9px] text-[#444] italic">No evidence artifacts.</p>
                     ) : (
@@ -1048,7 +1048,7 @@ export default function QualityAuditPage() {
 
                   {/* Notes Feed */}
                   <div className="space-y-2 pt-3 border-t border-[#2d2d2d]">
-                    <h4 className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-wider">Internal Notes</h4>
+                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">Internal Notes</h4>
                     <div className="space-y-2 max-h-36 overflow-y-auto">
                       {notes.length === 0 ? (
                         <p className="text-[9px] text-[#444] italic">No audit notes.</p>
@@ -1070,7 +1070,7 @@ export default function QualityAuditPage() {
                         placeholder="Add quick audit note…"
                         value={feedbackText}
                         onChange={e => setFeedbackText(e.target.value)}
-                        className="flex-1 bg-[#181818] border border-[#2d2d2d] rounded-lg px-2 py-1 text-[10px] text-gray-900 dark:text-white placeholder-[#444] outline-none"
+                        className="flex-1 bg-[#181818] border border-[#2d2d2d] rounded-lg px-2 py-1 text-[10px] text-foreground placeholder-[#444] outline-none"
                       />
                       <button
                         onClick={handleAddNote}

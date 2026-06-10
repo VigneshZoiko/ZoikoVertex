@@ -155,7 +155,7 @@ export default function ForensicHubPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
             <Fingerprint className="w-6 h-6 text-amber-500" />
             Forensic Hub
           </h1>
@@ -174,7 +174,7 @@ export default function ForensicHubPage() {
       {/* Metric Strip */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
-          <StatCard label="Open Cases" value={stats.open_cases} color="text-gray-900 dark:text-white" />
+          <StatCard label="Open Cases" value={stats.open_cases} color="text-foreground" />
           <StatCard label="Critical" value={stats.critical_cases} color="text-red-400" />
           <StatCard label="Legal Hold" value={stats.legal_hold_cases} color="text-amber-400" />
           <StatCard label="Awaiting Info" value={stats.awaiting_info} color="text-blue-400" />
@@ -187,11 +187,11 @@ export default function ForensicHubPage() {
       {/* Create Case Form */}
       {showCreate && (
         <div className="bg-[#111] border border-[#222] rounded-xl p-6 mb-4 space-y-3">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-white">New Investigation Case</h3>
+          <h3 className="text-sm font-medium text-foreground">New Investigation Case</h3>
           <select
             value={createForm.case_type}
             onChange={e => setCreateForm(p => ({ ...p, case_type: e.target.value }))}
-            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
+            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground"
           >
             <option value="">Select case type...</option>
             {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -200,18 +200,18 @@ export default function ForensicHubPage() {
             placeholder="Case title"
             value={createForm.title}
             onChange={e => setCreateForm(p => ({ ...p, title: e.target.value }))}
-            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
+            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground"
           />
           <textarea
             placeholder="Summary"
             value={createForm.summary}
             onChange={e => setCreateForm(p => ({ ...p, summary: e.target.value }))}
-            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white resize-none h-20"
+            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground resize-none h-20"
           />
           <select
             value={createForm.severity}
             onChange={e => setCreateForm(p => ({ ...p, severity: e.target.value }))}
-            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
+            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground"
           >
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -232,7 +232,7 @@ export default function ForensicHubPage() {
             placeholder="Search cases by title or summary..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[#111] border border-[#222] rounded-lg pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-white"
+            className="w-full bg-[#111] border border-[#222] rounded-lg pl-9 pr-3 py-2 text-sm text-foreground"
           />
         </div>
         <select value={filterSeverity} onChange={e => setFilterSeverity(e.target.value)}
@@ -316,7 +316,7 @@ export default function ForensicHubPage() {
                     className="text-sm text-[#ccc] hover:bg-white/[0.02] cursor-pointer"
                   >
                     <td className="py-3 px-4">
-                      <div className="font-medium text-gray-900 dark:text-white">{c.title}</div>
+                      <div className="font-medium text-foreground">{c.title}</div>
                       <div className="text-[10px] text-[#666] font-mono">{c.case_id}</div>
                     </td>
                     <td className="py-3 px-4 text-xs">{TYPE_LABELS[c.case_type] || c.case_type}</td>

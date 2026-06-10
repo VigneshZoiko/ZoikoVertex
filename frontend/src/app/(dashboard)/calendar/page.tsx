@@ -60,7 +60,7 @@ function statusBadgeClass(status: string): string {
   if (status === "APPROVED")   return "bg-sky-500/20 text-sky-400";
   if (status.startsWith("PENDING_")) return "bg-amber-500/20 text-amber-400";
   if (status === "GOVERNANCE_BLOCKED" || status === "REJECTED") return "bg-rose-500/20 text-rose-400";
-  return "bg-zinc-500/20 text-gray-500 dark:text-zinc-400";
+  return "bg-zinc-500/20 text-foreground-muted";
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -361,7 +361,7 @@ export default function CalendarPage() {
                         });
                         setShowEditModal(true);
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white text-sm font-bold rounded-xl transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-foreground text-sm font-bold rounded-xl transition-colors"
                     >
                       <Edit3 className="w-4 h-4" />
                       Edit
@@ -480,7 +480,7 @@ export default function CalendarPage() {
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleUpdatePost}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-xl transition-colors"
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-foreground font-bold py-3 px-4 rounded-xl transition-colors"
                 >
                   Save Changes
                 </button>

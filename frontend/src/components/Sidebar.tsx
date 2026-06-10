@@ -764,17 +764,17 @@ export default function Sidebar() {
                       const badges = (
                         <>
                           {item.badge && pendingCount > 0 && (
-                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-black text-gray-900 dark:text-white shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-black text-foreground shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
                               {pendingCount}
                             </span>
                           )}
                           {item.name === "Support Queue" && supportTicketCount > 0 && (
-                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-gray-900 dark:text-white shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-foreground shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
                               {supportTicketCount > 9 ? "9+" : supportTicketCount}
                             </span>
                           )}
                           {item.name === "Notifications" && unreadCount > 0 && (
-                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-gray-900 dark:text-white shrink-0 animate-pulse transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-foreground shrink-0 animate-pulse transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
                               {unreadCount > 9 ? "9+" : unreadCount}
                             </span>
                           )}
@@ -788,13 +788,13 @@ export default function Sidebar() {
                             type="button"
                             title={isCollapsed ? `${item.name} — Upgrade required` : undefined}
                             onClick={() => setLockedFeature(item.plan!)}
-                            className="w-full flex items-center px-3 py-2 rounded-lg transition-colors text-gray-400 dark:text-zinc-600 hover:text-gray-500 dark:text-zinc-500 hover:bg-[var(--sidebar-hover)]/40 group"
+                            className="w-full flex items-center px-3 py-2 rounded-lg transition-colors text-foreground-muted hover:text-foreground-muted hover:bg-[var(--sidebar-hover)]/40 group"
                           >
-                            <Icon className="w-4 h-4 shrink-0 text-gray-400 dark:text-zinc-700" />
+                            <Icon className="w-4 h-4 shrink-0 text-foreground-muted" />
                             <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-300 ease-in-out text-sm text-left flex-1 ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[140px] opacity-100 ml-3"}`}>
                               {item.name}
                             </span>
-                            <Lock className={`w-3 h-3 text-gray-400 dark:text-zinc-700 shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[12px]"}`} />
+                            <Lock className={`w-3 h-3 text-foreground-muted shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[12px]"}`} />
                           </button>
                         );
                       }

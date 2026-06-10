@@ -32,7 +32,7 @@ const STATUS_STYLES: Record<string, { label: string; color: string; bg: string; 
   ok:       { label: "OK",          color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20", dot: "bg-emerald-400" },
   degraded: { label: "Degraded",    color: "text-amber-400",   bg: "bg-amber-400/10 border-amber-400/20",     dot: "bg-amber-400" },
   error:    { label: "Error",       color: "text-rose-400",    bg: "bg-rose-400/10 border-rose-400/20",       dot: "bg-rose-400" },
-  unknown:  { label: "Unknown",     color: "text-gray-500 dark:text-zinc-400",    bg: "bg-zinc-400/10 border-zinc-400/20",       dot: "bg-zinc-500" },
+  unknown:  { label: "Unknown",     color: "text-foreground-muted",    bg: "bg-zinc-400/10 border-zinc-400/20",       dot: "bg-zinc-500" },
 };
 
 function getStyle(status?: string) {
@@ -75,16 +75,16 @@ export default function SystemStatusPage() {
     <div className="p-8 max-w-4xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+          <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
             <Activity className="w-8 h-8 text-indigo-500" />
             System Status
           </h1>
-          <p className="text-gray-500 dark:text-zinc-400 mt-1 text-sm">Real-time health of all platform services and integrations.</p>
+          <p className="text-foreground-muted mt-1 text-sm">Real-time health of all platform services and integrations.</p>
         </div>
         <button
           onClick={load}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:bg-zinc-700 text-gray-700 dark:text-zinc-300 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-surface-hover hover:bg-surface-hover text-foreground-muted rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
           Refresh
@@ -99,10 +99,10 @@ export default function SystemStatusPage() {
             <p className={`font-bold ${overallStyle.color}`}>
               {health.status === "success" ? "All Systems Operational" : "System Issues Detected"}
             </p>
-            {health.message && <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">{health.message}</p>}
+            {health.message && <p className="text-xs text-foreground-muted mt-0.5">{health.message}</p>}
           </div>
           {lastChecked && (
-            <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-zinc-600 shrink-0">
+            <span className="flex items-center gap-1 text-xs text-foreground-muted shrink-0">
               <Clock className="w-3 h-3" />
               {lastChecked.toLocaleTimeString()}
             </span>
@@ -111,11 +111,11 @@ export default function SystemStatusPage() {
       )}
 
       {/* Core Services */}
-      <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-200 dark:border-zinc-800">
-          <h2 className="font-bold text-gray-900 dark:text-white">Core Services</h2>
+      <div className="bg-card border border-border rounded-3xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-border">
+          <h2 className="font-bold text-foreground">Core Services</h2>
         </div>
-        <div className="divide-y divide-gray-200 dark:divide-zinc-800/50">
+        <div className="divide-y divide-border">
           {loading ? (
             <div className="px-6 py-10 flex justify-center">
               <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
@@ -125,10 +125,10 @@ export default function SystemStatusPage() {
             return (
               <div key={name} className="px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Icon className="w-5 h-5 text-gray-500 dark:text-zinc-500 shrink-0" />
+                  <Icon className="w-5 h-5 text-foreground-muted shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{name}</p>
-                    <p className="text-xs text-gray-400 dark:text-zinc-600">{detail}</p>
+                    <p className="text-sm font-medium text-foreground">{name}</p>
+                    <p className="text-xs text-foreground-muted">{detail}</p>
                   </div>
                 </div>
                 <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${s.bg} ${s.color}`}>
@@ -143,24 +143,24 @@ export default function SystemStatusPage() {
 
       {/* Integration Health */}
       {integrations && (
-        <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
-          <div className="px-6 py-5 border-b border-gray-200 dark:border-zinc-800">
-            <h2 className="font-bold text-gray-900 dark:text-white">Integration Health</h2>
+        <div className="bg-card border border-border rounded-3xl overflow-hidden">
+          <div className="px-6 py-5 border-b border-border">
+            <h2 className="font-bold text-foreground">Integration Health</h2>
           </div>
-          <div className="divide-y divide-gray-200 dark:divide-zinc-800/50">
+          <div className="divide-y divide-border">
             {(!integrations.services || integrations.services.length === 0) ? (
-              <p className="px-6 py-8 text-center text-gray-400 dark:text-zinc-600 text-sm">No integration data available</p>
+              <p className="px-6 py-8 text-center text-foreground-muted text-sm">No integration data available</p>
             ) : integrations.services.map((svc, i) => {
               const s = getStyle(svc.status);
               return (
                 <div key={svc.name || i} className="px-6 py-4 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{svc.name}</p>
+                    <p className="text-sm font-medium text-foreground">{svc.name}</p>
                     {svc.error && <p className="text-xs text-rose-400 mt-0.5">{svc.error}</p>}
                   </div>
                   <div className="flex items-center gap-3">
                     {svc.latency !== undefined && (
-                      <span className="text-xs text-gray-400 dark:text-zinc-600">{svc.latency}ms</span>
+                      <span className="text-xs text-foreground-muted">{svc.latency}ms</span>
                     )}
                     <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${s.bg} ${s.color}`}>
                       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
@@ -176,19 +176,19 @@ export default function SystemStatusPage() {
 
       {/* Environment */}
       {health && (
-        <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
-          <div className="px-6 py-5 border-b border-gray-200 dark:border-zinc-800">
-            <h2 className="font-bold text-gray-900 dark:text-white">Environment</h2>
+        <div className="bg-card border border-border rounded-3xl overflow-hidden">
+          <div className="px-6 py-5 border-b border-border">
+            <h2 className="font-bold text-foreground">Environment</h2>
           </div>
-          <div className="divide-y divide-gray-200 dark:divide-zinc-800">
+          <div className="divide-y divide-border">
             {[
               { label: "Environment",   value: health.environment || "production" },
               { label: "Last Checked",  value: lastChecked?.toLocaleString() || "—" },
               { label: "API Timestamp", value: health.timestamp ? new Date(health.timestamp).toLocaleString() : "—" },
             ].map(({ label, value }) => (
               <div key={label} className="px-6 py-4 flex items-center justify-between">
-                <span className="text-gray-500 dark:text-zinc-500 text-sm">{label}</span>
-                <span className="text-gray-700 dark:text-zinc-300 text-sm font-mono">{value}</span>
+                <span className="text-foreground-muted text-sm">{label}</span>
+                <span className="text-foreground-muted text-sm font-mono">{value}</span>
               </div>
             ))}
           </div>

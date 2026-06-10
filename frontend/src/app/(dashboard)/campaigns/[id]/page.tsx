@@ -139,16 +139,16 @@ export default function CampaignDetailPage() {
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-full py-24 gap-3">
-      <Loader2 className="w-7 h-7 animate-spin text-gray-500 dark:text-zinc-500" />
-      <p className="text-gray-400 dark:text-zinc-600 text-sm">Loading campaign...</p>
+      <Loader2 className="w-7 h-7 animate-spin text-foreground-muted" />
+      <p className="text-foreground-muted text-sm">Loading campaign...</p>
     </div>
   );
 
   if (error || !campaign) return (
     <div className="flex flex-col items-center justify-center h-full py-24 gap-3">
-      <AlertCircle className="w-8 h-8 text-gray-400 dark:text-zinc-600" />
-      <p className="text-gray-500 dark:text-zinc-400 text-sm">{error || "Campaign not found"}</p>
-      <button onClick={() => router.push("/campaigns")} className="text-xs text-gray-500 dark:text-zinc-500 hover:text-white underline">
+      <AlertCircle className="w-8 h-8 text-foreground-muted" />
+      <p className="text-foreground-muted text-sm">{error || "Campaign not found"}</p>
+      <button onClick={() => router.push("/campaigns")} className="text-xs text-foreground-muted hover:text-white underline">
         Back to campaigns
       </button>
     </div>
@@ -168,13 +168,13 @@ export default function CampaignDetailPage() {
   const creative  = (campaign.creative  || {}) as Record<string, unknown>;
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-zinc-950 overflow-hidden">
+    <div className="h-full flex flex-col bg-card overflow-hidden">
 
       {/* ── Header ───────────────────────────────────────────── */}
-      <div className="shrink-0 px-6 py-3 border-b border-gray-200 dark:border-zinc-800/60 flex items-center justify-between">
+      <div className="shrink-0 px-6 py-3 border-b border-border/60 flex items-center justify-between">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm">
-          <button onClick={() => router.back()} className="p-1.5 text-gray-500 dark:text-zinc-500 hover:text-gray-700 dark:text-zinc-300 hover:bg-gray-200 dark:bg-zinc-800 rounded-lg transition-colors mr-1">
+          <button onClick={() => router.back()} className="p-1.5 text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover rounded-lg transition-colors mr-1">
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2">
               <path d="M19 12H5M12 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -187,8 +187,8 @@ export default function CampaignDetailPage() {
             </div>
             All ad campaigns
           </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-gray-400 dark:text-zinc-600" />
-          <span className="text-gray-900 dark:text-white font-semibold truncate max-w-xs">{campaign.name}</span>
+          <ChevronRight className="w-3.5 h-3.5 text-foreground-muted" />
+          <span className="text-foreground font-semibold truncate max-w-xs">{campaign.name}</span>
         </div>
 
         {/* Right: toggle + status + menu */}
@@ -200,12 +200,12 @@ export default function CampaignDetailPage() {
               onClick={handleToggle}
               disabled={toggling || ["DRAFT","COMPLETED","CANCELLED"].includes(campaign.status)}
               className={`relative shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed ${
-                isActive(campaign.status) ? "bg-zinc-500" : "bg-gray-200 dark:bg-zinc-800"
+                isActive(campaign.status) ? "bg-zinc-500" : "bg-surface-hover"
               }`}
               style={{ width: 36, height: 20 }}
             >
               {toggling ? (
-                <Loader2 className="w-3 h-3 text-gray-900 dark:text-white animate-spin absolute top-[3.5px] left-[10px]" />
+                <Loader2 className="w-3 h-3 text-foreground animate-spin absolute top-[3.5px] left-[10px]" />
               ) : (
                 <span style={{
                   position: "absolute", top: 3, width: 14, height: 14,
@@ -216,7 +216,7 @@ export default function CampaignDetailPage() {
                 }} />
               )}
             </button>
-            <span className={`text-sm font-semibold ${isActive(campaign.status) ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-zinc-500"}`}>
+            <span className={`text-sm font-semibold ${isActive(campaign.status) ? "text-foreground" : "text-foreground-muted"}`}>
               {campaign.status === "PAUSING" ? "Pausing..." :
                campaign.status.charAt(0) + campaign.status.slice(1).toLowerCase()}
             </span>
@@ -228,7 +228,7 @@ export default function CampaignDetailPage() {
             </span>
           )}
 
-          <button onClick={load} className="p-1.5 text-gray-400 dark:text-zinc-600 hover:text-gray-700 dark:text-zinc-300 rounded-lg hover:bg-gray-200 dark:bg-zinc-800 transition-colors">
+          <button onClick={load} className="p-1.5 text-foreground-muted hover:text-foreground-muted rounded-lg hover:bg-surface-hover transition-colors">
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
 
@@ -237,24 +237,24 @@ export default function CampaignDetailPage() {
             <button
               type="button"
               onClick={() => setMenu(m => !m)}
-              className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:bg-zinc-700 flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:text-white transition-colors"
+              className="w-8 h-8 rounded-full bg-surface-hover hover:bg-surface-hover flex items-center justify-center text-foreground-muted hover:text-white transition-colors"
             >
               <MoreHorizontal className="w-4 h-4" />
             </button>
             {menu && (
-              <div className="absolute right-0 top-9 z-50 w-56 bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-2xl overflow-hidden">
+              <div className="absolute right-0 top-9 z-50 w-56 bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
                 <button
                   onClick={() => { handleDelete(); setMenu(false); }}
-                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-rose-400 hover:bg-gray-50 dark:bg-zinc-900 transition-colors"
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-rose-400 hover:bg-surface transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />Delete campaign
                 </button>
-                <div className="border-t border-gray-200 dark:border-zinc-800" />
+                <div className="border-t border-border" />
                 <div className="flex items-start gap-2.5 px-4 py-3">
-                  <ExternalLink className="w-3.5 h-3.5 text-gray-500 dark:text-zinc-500 mt-0.5 shrink-0" />
+                  <ExternalLink className="w-3.5 h-3.5 text-foreground-muted mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-zinc-400">View on Facebook</p>
-                    <p className="text-[11px] text-gray-400 dark:text-zinc-600 mt-0.5">You&apos;ll need access to the ad account.</p>
+                    <p className="text-sm text-foreground-muted">View on Facebook</p>
+                    <p className="text-[11px] text-foreground-muted mt-0.5">You&apos;ll need access to the ad account.</p>
                   </div>
                 </div>
               </div>
@@ -264,11 +264,11 @@ export default function CampaignDetailPage() {
       </div>
 
       {/* ── Tabs ─────────────────────────────────────────────── */}
-      <div className="shrink-0 flex border-b border-gray-200 dark:border-zinc-800/60 px-6">
+      <div className="shrink-0 flex border-b border-border/60 px-6">
         {(["overview", "adset", "ads"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all capitalize ${
-              tab === t ? "border-zinc-300 text-gray-900 dark:text-white" : "border-transparent text-gray-500 dark:text-zinc-500 hover:text-gray-700 dark:text-zinc-300"
+              tab === t ? "border-zinc-300 text-foreground" : "border-transparent text-foreground-muted hover:text-foreground-muted"
             }`}>
             {t === "ads" ? `Ads (${boosts.length})` : t === "adset" ? "Ad Set" : "Overview"}
           </button>
@@ -284,17 +284,17 @@ export default function CampaignDetailPage() {
 
             {/* Campaign details */}
             <section>
-              <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-4">Campaign details</p>
+              <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-4">Campaign details</p>
               <div className="grid grid-cols-3 gap-x-12 gap-y-6">
 
                 {/* AD ACCOUNT */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Ad Account</p>
-                  <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium">
+                  <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Ad Account</p>
+                  <p className="text-sm text-foreground-muted font-medium">
                     {campaign.meta_account_name || "—"}
                   </p>
                   {campaign.meta_ad_account_name && (
-                    <p className="text-[11px] text-gray-500 dark:text-zinc-500 mt-0.5 font-mono">{campaign.meta_ad_account_name}</p>
+                    <p className="text-[11px] text-foreground-muted mt-0.5 font-mono">{campaign.meta_ad_account_name}</p>
                   )}
                   <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />Active
@@ -303,70 +303,70 @@ export default function CampaignDetailPage() {
 
                 {/* OBJECTIVE */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Objective</p>
-                  <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium capitalize">
+                  <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Objective</p>
+                  <p className="text-sm text-foreground-muted font-medium capitalize">
                     Main objective: {campaign.objective?.toLowerCase().replace(/_/g, " ")}
                   </p>
-                  <p className="text-[11px] text-gray-500 dark:text-zinc-500 mt-0.5">
+                  <p className="text-[11px] text-foreground-muted mt-0.5">
                     Type: {campaign.campaign_type?.replace(/_/g, " ")}
                   </p>
                 </div>
 
                 {/* DURATION */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Duration</p>
+                  <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Duration</p>
                   {campaign.status === "COMPLETED" ? (
-                    <p className="text-sm text-gray-700 dark:text-zinc-300">Campaign ended.{dur(campaign.start_at, campaign.end_at) ? ` It ran for ${dur(campaign.start_at, campaign.end_at)}.` : ""}</p>
+                    <p className="text-sm text-foreground-muted">Campaign ended.{dur(campaign.start_at, campaign.end_at) ? ` It ran for ${dur(campaign.start_at, campaign.end_at)}.` : ""}</p>
                   ) : (
-                    <p className="text-sm text-gray-700 dark:text-zinc-300">{dur(campaign.start_at, campaign.end_at) ? `Running for ${dur(campaign.start_at, campaign.end_at)}` : "No end date set"}</p>
+                    <p className="text-sm text-foreground-muted">{dur(campaign.start_at, campaign.end_at) ? `Running for ${dur(campaign.start_at, campaign.end_at)}` : "No end date set"}</p>
                   )}
                 </div>
 
                 {/* DATES */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Dates</p>
-                  <p className="text-sm text-gray-500 dark:text-zinc-400">
-                    <span className="text-gray-400 dark:text-zinc-600 text-[11px]">Start: </span>{fmt(campaign.start_at)}
+                  <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Dates</p>
+                  <p className="text-sm text-foreground-muted">
+                    <span className="text-foreground-muted text-[11px]">Start: </span>{fmt(campaign.start_at)}
                   </p>
-                  <p className="text-sm text-gray-500 dark:text-zinc-400 mt-0.5">
-                    <span className="text-gray-400 dark:text-zinc-600 text-[11px]">End: </span>{fmt(campaign.end_at)}
+                  <p className="text-sm text-foreground-muted mt-0.5">
+                    <span className="text-foreground-muted text-[11px]">End: </span>{fmt(campaign.end_at)}
                   </p>
                 </div>
 
                 {/* BUDGET */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Budget</p>
+                  <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Budget</p>
                   {(campaign.budget_total || campaign.budget_daily) ? (
                     <>
-                      {campaign.budget_daily && <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium">{currency}{campaign.budget_daily.toLocaleString()} / day</p>}
-                      {campaign.budget_total && !campaign.budget_daily && <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium">{currency}{campaign.budget_total.toLocaleString()} total</p>}
+                      {campaign.budget_daily && <p className="text-sm text-foreground-muted font-medium">{currency}{campaign.budget_daily.toLocaleString()} / day</p>}
+                      {campaign.budget_total && !campaign.budget_daily && <p className="text-sm text-foreground-muted font-medium">{currency}{campaign.budget_total.toLocaleString()} total</p>}
                     </>
-                  ) : <p className="text-sm text-gray-400 dark:text-zinc-600">Not set</p>}
+                  ) : <p className="text-sm text-foreground-muted">Not set</p>}
                 </div>
 
                 {/* AMOUNT SPENT */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Amount Spent</p>
-                  <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium">${spend.toFixed(2)}</p>
+                  <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Amount Spent</p>
+                  <p className="text-sm text-foreground-muted font-medium">${spend.toFixed(2)}</p>
                   {budget > 0 && (
                     <div className="mt-1.5">
-                      <div className="w-32 h-1.5 bg-gray-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="w-32 h-1.5 bg-surface-hover rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${spendPct >= 90 ? "bg-amber-500" : "bg-zinc-400"}`}
                           style={{ width: `${Math.min(100, spendPct)}%` }}
                         />
                       </div>
-                      <p className="text-[10px] text-gray-400 dark:text-zinc-600 mt-0.5">{spendPct}% of budget (estimated)</p>
+                      <p className="text-[10px] text-foreground-muted mt-0.5">{spendPct}% of budget (estimated)</p>
                     </div>
                   )}
                 </div>
 
                 {/* CAMPAIGN CREATED IN */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Campaign Created In</p>
-                  <p className="text-sm text-gray-700 dark:text-zinc-300">ZoikoVertex</p>
+                  <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Campaign Created In</p>
+                  <p className="text-sm text-foreground-muted">ZoikoVertex</p>
                   {campaign.created_at && (
-                    <p className="text-[11px] text-gray-400 dark:text-zinc-600 mt-0.5">
+                    <p className="text-[11px] text-foreground-muted mt-0.5">
                       on {new Date(campaign.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </p>
                   )}
@@ -374,11 +374,11 @@ export default function CampaignDetailPage() {
               </div>
             </section>
 
-            <div className="border-t border-gray-200 dark:border-zinc-800/60" />
+            <div className="border-t border-border/60" />
 
             {/* Performance */}
             <section>
-              <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-4">Performance</p>
+              <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-4">Performance</p>
               <div className="grid grid-cols-5 gap-6">
                 {[
                   { label: "MAIN RESULT",           value: clicks > 0 ? clicks.toLocaleString() : (impr > 0 ? impr.toLocaleString() : "0"), sub: "Link clicks" },
@@ -388,14 +388,14 @@ export default function CampaignDetailPage() {
                   { label: "REACH",                 value: reach > 0 ? reach.toLocaleString() : "--", sub: "" },
                 ].map(({ label, value, sub }) => (
                   <div key={label}>
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">{label}</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
-                    {sub && <p className="text-[11px] text-gray-500 dark:text-zinc-500 mt-0.5">{sub}</p>}
+                    <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">{label}</p>
+                    <p className="text-2xl font-bold text-foreground">{value}</p>
+                    {sub && <p className="text-[11px] text-foreground-muted mt-0.5">{sub}</p>}
                   </div>
                 ))}
               </div>
               {cpm > 0 || cpc > 0 ? (
-                <div className="grid grid-cols-5 gap-6 mt-6 pt-4 border-t border-gray-200 dark:border-zinc-800/40">
+                <div className="grid grid-cols-5 gap-6 mt-6 pt-4 border-t border-border/40">
                   {[
                     { label: "CPM",   value: cpm > 0 ? `$${cpm.toFixed(2)}` : "--" },
                     { label: "CPC",   value: cpc > 0 ? `$${cpc.toFixed(2)}` : "--" },
@@ -404,8 +404,8 @@ export default function CampaignDetailPage() {
                     { label: "TOTAL SPEND", value: `$${spend.toFixed(2)}` },
                   ].map(({ label, value }) => (
                     <div key={label}>
-                      <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">{label}</p>
-                      <p className="text-lg font-semibold text-gray-700 dark:text-zinc-300">{value}</p>
+                      <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">{label}</p>
+                      <p className="text-lg font-semibold text-foreground-muted">{value}</p>
                     </div>
                   ))}
                 </div>
@@ -415,28 +415,28 @@ export default function CampaignDetailPage() {
             {/* Placements — from creative/targeting */}
             {(campaign.platforms?.length > 0 || !!(targeting?.geography)) && (
               <>
-                <div className="border-t border-gray-200 dark:border-zinc-800/60" />
+                <div className="border-t border-border/60" />
                 <section>
-                  <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-4">Placements</p>
+                  <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-4">Placements</p>
                   <div className="space-y-3">
                     {campaign.platforms?.length > 0 && (
                       <div className="flex items-start gap-6">
-                        <p className="text-xs text-gray-400 dark:text-zinc-600 w-36 shrink-0 pt-0.5">Publisher platforms:</p>
+                        <p className="text-xs text-foreground-muted w-36 shrink-0 pt-0.5">Publisher platforms:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {campaign.platforms.map(p => (
-                            <span key={p} className="px-2.5 py-1 bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-700 dark:text-zinc-300">{p}</span>
+                            <span key={p} className="px-2.5 py-1 bg-surface border border-border rounded text-xs text-foreground-muted">{p}</span>
                           ))}
                         </div>
                       </div>
                     )}
                     {(targeting?.geography as any[])?.length > 0 && (
                       <div className="flex items-start gap-6">
-                        <p className="text-xs text-gray-400 dark:text-zinc-600 w-36 shrink-0 pt-0.5">Locations:</p>
+                        <p className="text-xs text-foreground-muted w-36 shrink-0 pt-0.5">Locations:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {(targeting.geography as any[]).map((g: any, i: number) => {
                             const label = typeof g === "object" ? (g.display_name || g.key || JSON.stringify(g)) : String(g);
                             return (
-                              <span key={i} className="px-2.5 py-1 bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-700 dark:text-zinc-300">{label}</span>
+                              <span key={i} className="px-2.5 py-1 bg-surface border border-border rounded text-xs text-foreground-muted">{label}</span>
                             );
                           })}
                         </div>
@@ -450,30 +450,30 @@ export default function CampaignDetailPage() {
             {/* Audience — from targeting */}
             {Object.keys(targeting).length > 0 && (
               <>
-                <div className="border-t border-gray-200 dark:border-zinc-800/60" />
+                <div className="border-t border-border/60" />
                 <section>
-                  <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-4">Audience</p>
+                  <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-4">Audience</p>
                   <div className="space-y-3">
                     {(targeting.age_min != null || targeting.age_max != null) && (
                       <div className="flex items-center gap-6">
-                        <p className="text-xs text-gray-400 dark:text-zinc-600 w-36 shrink-0">Age:</p>
-                        <p className="text-sm text-gray-700 dark:text-zinc-300">{String(targeting.age_min ?? 18)}–{String(targeting.age_max ?? 65)}</p>
+                        <p className="text-xs text-foreground-muted w-36 shrink-0">Age:</p>
+                        <p className="text-sm text-foreground-muted">{String(targeting.age_min ?? 18)}–{String(targeting.age_max ?? 65)}</p>
                       </div>
                     )}
                     {!!targeting.gender && String(targeting.gender) !== "ALL" && (
                       <div className="flex items-center gap-6">
-                        <p className="text-xs text-gray-400 dark:text-zinc-600 w-36 shrink-0">Gender:</p>
-                        <p className="text-sm text-gray-700 dark:text-zinc-300 capitalize">{String(targeting.gender)}</p>
+                        <p className="text-xs text-foreground-muted w-36 shrink-0">Gender:</p>
+                        <p className="text-sm text-foreground-muted capitalize">{String(targeting.gender)}</p>
                       </div>
                     )}
                     {(targeting.interests as any[])?.length > 0 && (
                       <div className="flex items-start gap-6">
-                        <p className="text-xs text-gray-400 dark:text-zinc-600 w-36 shrink-0 pt-0.5">Interests:</p>
+                        <p className="text-xs text-foreground-muted w-36 shrink-0 pt-0.5">Interests:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {(targeting.interests as any[]).map((t: any, i: number) => {
                             const label = typeof t === "object" ? (t.name || t.id || JSON.stringify(t)) : String(t);
                             return (
-                              <span key={i} className="px-2.5 py-1 bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-700 dark:text-zinc-300">{label}</span>
+                              <span key={i} className="px-2.5 py-1 bg-surface border border-border rounded text-xs text-foreground-muted">{label}</span>
                             );
                           })}
                         </div>
@@ -481,10 +481,10 @@ export default function CampaignDetailPage() {
                     )}
                     {(targeting.keywords as string[])?.length > 0 && (
                       <div className="flex items-start gap-6">
-                        <p className="text-xs text-gray-400 dark:text-zinc-600 w-36 shrink-0 pt-0.5">Keywords:</p>
+                        <p className="text-xs text-foreground-muted w-36 shrink-0 pt-0.5">Keywords:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {(targeting.keywords as string[]).map((k: string) => (
-                            <span key={k} className="px-2.5 py-1 bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-700 dark:text-zinc-300">{k}</span>
+                            <span key={k} className="px-2.5 py-1 bg-surface border border-border rounded text-xs text-foreground-muted">{k}</span>
                           ))}
                         </div>
                       </div>
@@ -496,11 +496,11 @@ export default function CampaignDetailPage() {
 
             {/* ── Meta Verification Panel ── */}
             {(campaign as any).meta_campaign_id && (
-              <div className="border-t border-gray-200 dark:border-zinc-800/60 pt-6">
+              <div className="border-t border-border/60 pt-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest">Meta Verification</p>
-                    <p className="text-[11px] text-gray-400 dark:text-zinc-600 mt-0.5">Confirm every field actually reached Meta correctly.</p>
+                    <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest">Meta Verification</p>
+                    <p className="text-[11px] text-foreground-muted mt-0.5">Confirm every field actually reached Meta correctly.</p>
                   </div>
                   <button
                     onClick={async () => {
@@ -510,7 +510,7 @@ export default function CampaignDetailPage() {
                       setVerifying(false);
                     }}
                     disabled={verifying}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 text-xs font-semibold rounded-xl transition-all disabled:opacity-50">
+                    className="flex items-center gap-2 px-4 py-2 bg-surface-hover hover:bg-surface-hover border border-border text-foreground-muted text-xs font-semibold rounded-xl transition-all disabled:opacity-50">
                     {verifying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                     {verifying ? "Fetching from Meta…" : "Verify on Meta"}
                   </button>
@@ -519,29 +519,29 @@ export default function CampaignDetailPage() {
                 {verify && !verify.error && (
                   <div className="space-y-4">
                     {/* Summary bar */}
-                    <div className="flex items-center gap-4 px-4 py-3 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl">
+                    <div className="flex items-center gap-4 px-4 py-3 bg-surface border border-border rounded-xl">
                       <span className="text-xs font-bold text-emerald-400">{verify.summary.passed} / {verify.summary.total} fields confirmed</span>
                       {verify.summary.failed > 0 && <span className="text-xs font-bold text-rose-400">{verify.summary.failed} mismatch{verify.summary.failed > 1 ? "es" : ""}</span>}
-                      <span className="ml-auto text-[10px] text-gray-400 dark:text-zinc-600">Campaign: {verify.meta_ids.campaign_id} · Ad Set: {verify.meta_ids.adset_id}</span>
+                      <span className="ml-auto text-[10px] text-foreground-muted">Campaign: {verify.meta_ids.campaign_id} · Ad Set: {verify.meta_ids.adset_id}</span>
                     </div>
 
                     {/* Field-by-field table */}
-                    <div className="border border-gray-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+                    <div className="border border-border rounded-xl overflow-hidden">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="border-b border-gray-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60">
-                            <th className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest w-40">Field</th>
-                            <th className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest">Sent from Vertex</th>
-                            <th className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest">Live on Meta</th>
-                            <th className="px-4 py-2.5 text-center text-[10px] font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest w-16">Status</th>
+                          <tr className="border-b border-border bg-card">
+                            <th className="px-4 py-2.5 text-left text-[10px] font-bold text-foreground-muted uppercase tracking-widest w-40">Field</th>
+                            <th className="px-4 py-2.5 text-left text-[10px] font-bold text-foreground-muted uppercase tracking-widest">Sent from Vertex</th>
+                            <th className="px-4 py-2.5 text-left text-[10px] font-bold text-foreground-muted uppercase tracking-widest">Live on Meta</th>
+                            <th className="px-4 py-2.5 text-center text-[10px] font-bold text-foreground-muted uppercase tracking-widest w-16">Status</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-zinc-800/60">
+                        <tbody className="divide-y divide-border/60">
                           {verify.checks.map((c: MetaVerifyCheck) => (
                             <tr key={c.field} className={c.match ? "" : "bg-rose-500/5"}>
-                              <td className="px-4 py-2.5 text-gray-500 dark:text-zinc-400 font-medium">{c.field}</td>
-                              <td className="px-4 py-2.5 text-gray-700 dark:text-zinc-300 font-mono text-[11px] max-w-xs truncate">{c.intended ?? "—"}</td>
-                              <td className="px-4 py-2.5 text-gray-700 dark:text-zinc-300 font-mono text-[11px] max-w-xs truncate">{c.on_meta ?? <span className="text-gray-400 dark:text-zinc-600">not found</span>}</td>
+                              <td className="px-4 py-2.5 text-foreground-muted font-medium">{c.field}</td>
+                              <td className="px-4 py-2.5 text-foreground-muted font-mono text-[11px] max-w-xs truncate">{c.intended ?? "—"}</td>
+                              <td className="px-4 py-2.5 text-foreground-muted font-mono text-[11px] max-w-xs truncate">{c.on_meta ?? <span className="text-foreground-muted">not found</span>}</td>
                               <td className="px-4 py-2.5 text-center">
                                 {c.match
                                   ? <span className="text-emerald-400 text-sm">✓</span>
@@ -555,12 +555,12 @@ export default function CampaignDetailPage() {
 
                     {/* Creative preview */}
                     {verify.live_on_meta.creative?.thumbnail && (
-                      <div className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl">
-                        <Image src={verify.live_on_meta.creative.thumbnail} alt="Ad thumbnail from Meta" width={96} height={64} className="w-24 h-16 object-cover rounded-lg border border-gray-300 dark:border-zinc-700 shrink-0" unoptimized />
+                      <div className="flex items-start gap-4 p-4 bg-surface border border-border rounded-xl">
+                        <Image src={verify.live_on_meta.creative.thumbnail} alt="Ad thumbnail from Meta" width={96} height={64} className="w-24 h-16 object-cover rounded-lg border border-border shrink-0" unoptimized />
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-gray-500 dark:text-zinc-400 mb-1">Ad thumbnail from Meta</p>
-                          <p className="text-sm text-gray-900 dark:text-white font-semibold truncate">{verify.live_on_meta.creative.headline ?? "—"}</p>
-                          <p className="text-[11px] text-gray-500 dark:text-zinc-500 mt-0.5 line-clamp-2">{verify.live_on_meta.creative.body_text ?? "—"}</p>
+                          <p className="text-xs font-bold text-foreground-muted mb-1">Ad thumbnail from Meta</p>
+                          <p className="text-sm text-foreground font-semibold truncate">{verify.live_on_meta.creative.headline ?? "—"}</p>
+                          <p className="text-[11px] text-foreground-muted mt-0.5 line-clamp-2">{verify.live_on_meta.creative.body_text ?? "—"}</p>
                           {verify.live_on_meta.creative.landing_url && (
                             <a href={verify.live_on_meta.creative.landing_url} target="_blank" rel="noopener noreferrer"
                               className="text-[11px] text-blue-400 hover:underline mt-1 block truncate">
@@ -623,37 +623,37 @@ export default function CampaignDetailPage() {
             <div className="space-y-8 max-w-5xl">
               {/* Ad Set Identity */}
               <section>
-                <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-4">Ad Set Details</p>
+                <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-4">Ad Set Details</p>
                 <div className="grid grid-cols-3 gap-x-12 gap-y-6">
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Ad Set Name</p>
-                    <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium">{campaign.name} — Ad Set</p>
+                    <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Ad Set Name</p>
+                    <p className="text-sm text-foreground-muted font-medium">{campaign.name} — Ad Set</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Optimization Goal</p>
-                    <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium">{optimization}</p>
-                    <p className="text-[11px] text-gray-500 dark:text-zinc-500 mt-0.5">Billing: {billing}</p>
+                    <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Optimization Goal</p>
+                    <p className="text-sm text-foreground-muted font-medium">{optimization}</p>
+                    <p className="text-[11px] text-foreground-muted mt-0.5">Billing: {billing}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Bid Strategy</p>
-                    <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium">Lowest Cost</p>
-                    <p className="text-[11px] text-gray-500 dark:text-zinc-500 mt-0.5">No bid cap</p>
+                    <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Bid Strategy</p>
+                    <p className="text-sm text-foreground-muted font-medium">Lowest Cost</p>
+                    <p className="text-[11px] text-foreground-muted mt-0.5">No bid cap</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Budget</p>
+                    <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Budget</p>
                     {budgetDaily
-                      ? <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium">{currency} {budgetDaily.toLocaleString()} / day</p>
+                      ? <p className="text-sm text-foreground-muted font-medium">{currency} {budgetDaily.toLocaleString()} / day</p>
                       : budgetTotal
-                      ? <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium">{currency} {budgetTotal.toLocaleString()} total</p>
-                      : <p className="text-sm text-gray-400 dark:text-zinc-600">Not set</p>}
+                      ? <p className="text-sm text-foreground-muted font-medium">{currency} {budgetTotal.toLocaleString()} total</p>
+                      : <p className="text-sm text-foreground-muted">Not set</p>}
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Start Date</p>
-                    <p className="text-sm text-gray-700 dark:text-zinc-300">{fmt(campaign.start_at)}</p>
+                    <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Start Date</p>
+                    <p className="text-sm text-foreground-muted">{fmt(campaign.start_at)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">End Date</p>
-                    <p className="text-sm text-gray-700 dark:text-zinc-300">{fmt(campaign.end_at)}</p>
+                    <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">End Date</p>
+                    <p className="text-sm text-foreground-muted">{fmt(campaign.end_at)}</p>
                   </div>
                 </div>
 
@@ -661,51 +661,51 @@ export default function CampaignDetailPage() {
                 {(metaCampaignId || metaAdsetId) && (
                   <div className="mt-6 flex flex-wrap gap-3">
                     {metaCampaignId && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-[11px] text-gray-500 dark:text-zinc-400 font-mono">
-                        <span className="text-gray-400 dark:text-zinc-600">Campaign ID:</span> {metaCampaignId}
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg text-[11px] text-foreground-muted font-mono">
+                        <span className="text-foreground-muted">Campaign ID:</span> {metaCampaignId}
                       </span>
                     )}
                     {metaAdsetId && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg text-[11px] text-gray-500 dark:text-zinc-400 font-mono">
-                        <span className="text-gray-400 dark:text-zinc-600">Ad Set ID:</span> {metaAdsetId}
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-lg text-[11px] text-foreground-muted font-mono">
+                        <span className="text-foreground-muted">Ad Set ID:</span> {metaAdsetId}
                       </span>
                     )}
                   </div>
                 )}
               </section>
 
-              <div className="border-t border-gray-200 dark:border-zinc-800/60" />
+              <div className="border-t border-border/60" />
 
               {/* Targeting */}
               <section>
-                <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-4">Targeting</p>
+                <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-4">Targeting</p>
                 <div className="space-y-4">
                   {/* Age & Gender */}
                   <div className="grid grid-cols-3 gap-x-12">
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Age Range</p>
-                      <p className="text-sm text-gray-700 dark:text-zinc-300">{String(targeting?.age_min ?? 18)}–{String(targeting?.age_max ?? 65)}</p>
+                      <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Age Range</p>
+                      <p className="text-sm text-foreground-muted">{String(targeting?.age_min ?? 18)}–{String(targeting?.age_max ?? 65)}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Gender</p>
-                      <p className="text-sm text-gray-700 dark:text-zinc-300 capitalize">
+                      <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Gender</p>
+                      <p className="text-sm text-foreground-muted capitalize">
                         {!targeting?.gender || targeting.gender === "ALL" ? "All genders" : String(targeting.gender)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Advantage Audience</p>
-                      <p className="text-sm text-gray-700 dark:text-zinc-300">Off</p>
+                      <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Advantage Audience</p>
+                      <p className="text-sm text-foreground-muted">Off</p>
                     </div>
                   </div>
 
                   {/* Geography */}
                   {geo.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-2">Locations</p>
+                      <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-2">Locations</p>
                       <div className="flex flex-wrap gap-1.5">
                         {geo.map((g: any, i: number) => {
                           const label = typeof g === "object" ? (g.display_name || g.key || JSON.stringify(g)) : String(g);
-                          return <span key={i} className="px-2.5 py-1 bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-700 dark:text-zinc-300">{label}</span>;
+                          return <span key={i} className="px-2.5 py-1 bg-surface border border-border rounded text-xs text-foreground-muted">{label}</span>;
                         })}
                       </div>
                     </div>
@@ -714,31 +714,31 @@ export default function CampaignDetailPage() {
                   {/* Interests */}
                   {interests.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mb-2">Interests</p>
+                      <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-2">Interests</p>
                       <div className="flex flex-wrap gap-1.5">
                         {interests.map((t: any, i: number) => {
                           const label = typeof t === "object" ? (t.name || t.id || JSON.stringify(t)) : String(t);
-                          return <span key={i} className="px-2.5 py-1 bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded text-xs text-gray-700 dark:text-zinc-300">{label}</span>;
+                          return <span key={i} className="px-2.5 py-1 bg-surface border border-border rounded text-xs text-foreground-muted">{label}</span>;
                         })}
                       </div>
                     </div>
                   )}
 
                   {geo.length === 0 && interests.length === 0 && (
-                    <p className="text-sm text-gray-400 dark:text-zinc-600">Worldwide, all audiences</p>
+                    <p className="text-sm text-foreground-muted">Worldwide, all audiences</p>
                   )}
                 </div>
               </section>
 
-              <div className="border-t border-gray-200 dark:border-zinc-800/60" />
+              <div className="border-t border-border/60" />
 
               {/* Status */}
               <section>
-                <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-4">Status</p>
+                <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-4">Status</p>
                 <div className="flex items-center gap-3">
                   <span className={`w-2 h-2 rounded-full ${campaign.status === "ACTIVE" ? "bg-emerald-400" : "bg-zinc-500"}`} />
-                  <p className="text-sm text-gray-700 dark:text-zinc-300 font-medium capitalize">{campaign.status.toLowerCase()}</p>
-                  <span className="text-gray-400 dark:text-zinc-600 text-xs">— Ad set is paused until campaign is activated</span>
+                  <p className="text-sm text-foreground-muted font-medium capitalize">{campaign.status.toLowerCase()}</p>
+                  <span className="text-foreground-muted text-xs">— Ad set is paused until campaign is activated</span>
                 </div>
               </section>
             </div>
@@ -749,16 +749,16 @@ export default function CampaignDetailPage() {
         {tab === "ads" && (
           boosts.length === 0 ? (
             <div className="py-20 flex flex-col items-center text-center">
-              <p className="text-gray-500 dark:text-zinc-400 font-semibold mb-1">No ads yet</p>
-              <p className="text-gray-400 dark:text-zinc-600 text-sm">Ads will appear here once this campaign has active boosts.</p>
+              <p className="text-foreground-muted font-semibold mb-1">No ads yet</p>
+              <p className="text-foreground-muted text-sm">Ads will appear here once this campaign has active boosts.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm" style={{ minWidth: 1000 }}>
                 <thead>
-                  <tr className="border-b border-gray-200 dark:border-zinc-800">
+                  <tr className="border-b border-border">
                     {["AD", "STATUS", "AD SET NAME", "MAIN RESULT", "COST PER RESULT", "AMOUNT SPENT", "CPP", "CPM", "CPC"].map(h => (
-                      <th key={h} className={`px-4 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest whitespace-nowrap ${h === "AD" ? "text-left min-w-[280px]" : "text-right"}`}>
+                      <th key={h} className={`px-4 py-3 text-[10px] font-bold text-foreground-muted uppercase tracking-widest whitespace-nowrap ${h === "AD" ? "text-left min-w-[280px]" : "text-right"}`}>
                         {h}
                       </th>
                     ))}
@@ -772,22 +772,22 @@ export default function CampaignDetailPage() {
                     const isAdActive = ["ACTIVE"].includes(b.status);
                     return (
                       <tr key={b.id}
-                        className={`border-b border-gray-200 dark:border-zinc-800/40 transition-colors ${
-                          isAdActive ? "bg-amber-500/3 hover:bg-amber-500/5" : "hover:bg-gray-50 dark:bg-zinc-900/40"
+                        className={`border-b border-border/40 transition-colors ${
+                          isAdActive ? "bg-amber-500/3 hover:bg-amber-500/5" : "hover:bg-surface/40"
                         } ${i < boosts.length - 1 ? "" : "border-b-0"}`}>
 
                         {/* AD */}
                         <td className="px-4 py-4 min-w-[280px]">
                           <div className="flex items-start gap-3">
                             {b.ad_image_url ? (
-                              <Image src={b.ad_image_url} alt="Ad creative" width={64} height={48} className="w-16 h-12 object-cover rounded shrink-0 bg-gray-200 dark:bg-zinc-800" unoptimized />
+                              <Image src={b.ad_image_url} alt="Ad creative" width={64} height={48} className="w-16 h-12 object-cover rounded shrink-0 bg-surface-hover" unoptimized />
                             ) : (
-                              <div className="w-16 h-12 bg-gray-200 dark:bg-zinc-800 rounded shrink-0 flex items-center justify-center text-gray-400 dark:text-zinc-600 text-xs">No img</div>
+                              <div className="w-16 h-12 bg-surface-hover rounded shrink-0 flex items-center justify-center text-foreground-muted text-xs">No img</div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{b.ad_headline || `${b.boost_type.replace(/_/g, " ")} Ad`}</p>
-                              {b.ad_body && <p className="text-[11px] text-gray-500 dark:text-zinc-500 line-clamp-2 mt-0.5">{b.ad_body}</p>}
-                              <p className="text-[10px] text-gray-400 dark:text-zinc-600 mt-1 flex items-center gap-1">
+                              <p className="text-sm font-semibold text-foreground truncate">{b.ad_headline || `${b.boost_type.replace(/_/g, " ")} Ad`}</p>
+                              {b.ad_body && <p className="text-[11px] text-foreground-muted line-clamp-2 mt-0.5">{b.ad_body}</p>}
+                              <p className="text-[10px] text-foreground-muted mt-1 flex items-center gap-1">
                                 <span>📷</span>
                                 {b.boost_type === "POST" ? "Post boost" :
                                  b.boost_type === "IMAGE_AD" ? "Single image ad" :
@@ -814,7 +814,7 @@ export default function CampaignDetailPage() {
                                 transform: isAdActive ? "translateX(15px)" : "translateX(2px)",
                               }} />
                             </div>
-                            <span className={`text-xs font-medium ${isAdActive ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-zinc-400"}`}>
+                            <span className={`text-xs font-medium ${isAdActive ? "text-foreground" : "text-foreground-muted"}`}>
                               {b.status.charAt(0) + b.status.slice(1).toLowerCase()}
                             </span>
                           </div>
@@ -822,43 +822,43 @@ export default function CampaignDetailPage() {
 
                         {/* AD SET NAME */}
                         <td className="px-4 py-4 text-right">
-                          <p className="text-xs text-gray-700 dark:text-zinc-300">{campaign.name}</p>
-                          <p className="text-[10px] text-gray-400 dark:text-zinc-600 mt-0.5">Ad Set</p>
+                          <p className="text-xs text-foreground-muted">{campaign.name}</p>
+                          <p className="text-[10px] text-foreground-muted mt-0.5">Ad Set</p>
                         </td>
 
                         {/* MAIN RESULT */}
                         <td className="px-4 py-4 text-right">
                           {bClicks > 0 ? (
-                            <><p className="text-sm text-gray-900 dark:text-white font-medium">{bClicks.toLocaleString()}</p>
-                            <p className="text-[10px] text-gray-500 dark:text-zinc-500">Link clicks</p></>
+                            <><p className="text-sm text-foreground font-medium">{bClicks.toLocaleString()}</p>
+                            <p className="text-[10px] text-foreground-muted">Link clicks</p></>
                           ) : b.impressions > 0 ? (
-                            <><p className="text-sm text-gray-900 dark:text-white font-medium">{b.impressions.toLocaleString()}</p>
-                            <p className="text-[10px] text-gray-500 dark:text-zinc-500">Impressions</p></>
-                          ) : <p className="text-gray-400 dark:text-zinc-600 text-xs">--</p>}
+                            <><p className="text-sm text-foreground font-medium">{b.impressions.toLocaleString()}</p>
+                            <p className="text-[10px] text-foreground-muted">Impressions</p></>
+                          ) : <p className="text-foreground-muted text-xs">--</p>}
                         </td>
 
                         {/* COST PER RESULT */}
                         <td className="px-4 py-4 text-right">
                           {cpr ? (
-                            <><p className="text-sm text-gray-900 dark:text-white">${cpr}</p>
-                            <p className="text-[10px] text-gray-500 dark:text-zinc-500">per link click</p></>
-                          ) : <p className="text-gray-400 dark:text-zinc-600 text-xs">--</p>}
+                            <><p className="text-sm text-foreground">${cpr}</p>
+                            <p className="text-[10px] text-foreground-muted">per link click</p></>
+                          ) : <p className="text-foreground-muted text-xs">--</p>}
                         </td>
 
                         {/* AMOUNT SPENT */}
                         <td className="px-4 py-4 text-right">
-                          <p className="text-sm text-gray-900 dark:text-white">${bSpend.toFixed(2)}</p>
+                          <p className="text-sm text-foreground">${bSpend.toFixed(2)}</p>
                           {b.budget_daily && (
-                            <p className="text-[10px] text-gray-500 dark:text-zinc-500 mt-0.5">
+                            <p className="text-[10px] text-foreground-muted mt-0.5">
                               {b.budget_total ? Math.round((bSpend / b.budget_total) * 100) : 0}% of campaign&apos;s daily budget
                             </p>
                           )}
                         </td>
 
                         {/* CPP / CPM / CPC */}
-                        <td className="px-4 py-4 text-right"><p className="text-xs text-gray-500 dark:text-zinc-400">--</p></td>
-                        <td className="px-4 py-4 text-right"><p className="text-xs text-gray-500 dark:text-zinc-400">{cpm > 0 ? `$${cpm.toFixed(2)}` : "--"}</p></td>
-                        <td className="px-4 py-4 text-right"><p className="text-xs text-gray-500 dark:text-zinc-400">{cpc > 0 ? `$${cpc.toFixed(2)}` : "--"}</p></td>
+                        <td className="px-4 py-4 text-right"><p className="text-xs text-foreground-muted">--</p></td>
+                        <td className="px-4 py-4 text-right"><p className="text-xs text-foreground-muted">{cpm > 0 ? `$${cpm.toFixed(2)}` : "--"}</p></td>
+                        <td className="px-4 py-4 text-right"><p className="text-xs text-foreground-muted">{cpc > 0 ? `$${cpc.toFixed(2)}` : "--"}</p></td>
                       </tr>
                     );
                   })}

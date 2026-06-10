@@ -44,7 +44,7 @@ interface NKS {
 
 const LEVEL_CONFIG: Record<Level, { name: string; color: string; bg: string; border: string; dot: string; minTrust: number }> = {
   L0: { name: "Disabled",                     color: "text-[#555]",     bg: "bg-[#333]/20",      border: "border-[#444]",      dot: "bg-[#555]",     minTrust: 0  },
-  L1: { name: "Assistive",                     color: "text-gray-500 dark:text-zinc-400",   bg: "bg-zinc-500/10",    border: "border-zinc-500/30", dot: "bg-zinc-400",   minTrust: 0  },
+  L1: { name: "Assistive",                     color: "text-foreground-muted",   bg: "bg-zinc-500/10",    border: "border-zinc-500/30", dot: "bg-zinc-400",   minTrust: 0  },
   L2: { name: "Creative",                      color: "text-blue-400",   bg: "bg-blue-500/10",    border: "border-blue-500/30", dot: "bg-blue-400",   minTrust: 0  },
   L3: { name: "Guided",                        color: "text-amber-400",  bg: "bg-amber-500/10",   border: "border-amber-500/30",dot: "bg-amber-400",  minTrust: 60 },
   L4: { name: "Validated",                     color: "text-emerald-400",bg: "bg-emerald-500/10", border: "border-emerald-500/30",dot:"bg-emerald-400",minTrust: 70 },
@@ -271,7 +271,7 @@ export default function AutonomyPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Autonomy Control Center</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-1">Autonomy Control Center</h1>
           <p className="text-[#888] text-sm">Govern, limit, monitor, and revoke agent autonomy across the workspace.</p>
         </div>
         <button onClick={fetchAll} className="p-2.5 bg-[var(--card)] border border-[var(--border)] rounded-xl text-[#888] hover:text-white transition-all group">
@@ -291,7 +291,7 @@ export default function AutonomyPage() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "Total Agents",  val: stats.total,      color: "text-gray-900 dark:text-white" },
+            { label: "Total Agents",  val: stats.total,      color: "text-foreground" },
             { label: "Active",        val: stats.active,     color: "text-emerald-400" },
             { label: "Suspended",     val: stats.suspended,  color: "text-rose-400" },
             { label: "Avg Trust",     val: `${stats.avg_trust}%`, color: stats.avg_trust >= 80 ? "text-emerald-400" : stats.avg_trust >= 60 ? "text-amber-400" : "text-rose-400" },
@@ -327,7 +327,7 @@ export default function AutonomyPage() {
             key={t.key}
             onClick={() => setTab(t.key as typeof tab)}
             className={`px-4 py-2.5 text-sm font-semibold transition-all border-b-2 flex items-center gap-2 ${
-              tab === t.key ? "border-indigo-500 text-gray-900 dark:text-white" : "border-transparent text-[#666] hover:text-[#aaa]"
+              tab === t.key ? "border-indigo-500 text-foreground" : "border-transparent text-[#666] hover:text-[#aaa]"
             }`}
           >
             {t.label}
@@ -370,7 +370,7 @@ export default function AutonomyPage() {
 
                       {/* Name + type */}
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{agent.name}</p>
+                        <p className="text-sm font-semibold text-foreground truncate">{agent.name}</p>
                         <p className="text-[10px] text-[#555] uppercase font-bold tracking-wider">{agent.type}</p>
                       </div>
 
@@ -450,7 +450,7 @@ export default function AutonomyPage() {
                             placeholder="Reason for change (required for audit)"
                             value={levelReason[agent.id] || ""}
                             onChange={e => setLevelReason(prev => ({ ...prev, [agent.id]: e.target.value }))}
-                            className="mt-2 w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white placeholder-[#444] outline-none focus:border-indigo-500/50"
+                            className="mt-2 w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50"
                           />
                         </div>
 
@@ -513,12 +513,12 @@ export default function AutonomyPage() {
                 })}
               </div>
               <input placeholder="Scope (e.g. Workspace, Campaign Name, Agent ID)" value={lockForm.scope} onChange={e => setLockForm(f => ({...f,scope:e.target.value}))}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] outline-none focus:border-rose-500/50" />
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-rose-500/50" />
               <textarea rows={3} placeholder="Reason for emergency lock (required for audit record)…" value={lockForm.reason} onChange={e => setLockForm(f => ({...f,reason:e.target.value}))}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] outline-none focus:border-rose-500/50 resize-none" />
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-rose-500/50 resize-none" />
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowLockForm(false)} className="px-3 py-1.5 text-[#666] hover:text-white text-xs font-bold transition-all"><X className="w-4 h-4" /></button>
-                <button onClick={handleCreateLock} disabled={actionId === "lock" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-rose-500 hover:bg-rose-400 text-gray-900 dark:text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50">
+                <button onClick={handleCreateLock} disabled={actionId === "lock" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-rose-500 hover:bg-rose-400 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "lock" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
                   Apply Lock
                 </button>
@@ -540,7 +540,7 @@ export default function AutonomyPage() {
                   <div key={lock.id} className="bg-[var(--card)] border border-rose-500/20 rounded-2xl p-4 flex items-start gap-4">
                     <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border ${lcfg.color} shrink-0`}>{lcfg.label}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{lock.scope}</p>
+                      <p className="text-sm font-semibold text-foreground">{lock.scope}</p>
                       <p className="text-xs text-[#888] mt-0.5">{lock.reason}</p>
                       <p className="text-[10px] text-[#555] mt-1">{new Date(lock.created_at).toLocaleString()}</p>
                     </div>
@@ -572,15 +572,15 @@ export default function AutonomyPage() {
               <p className="text-sm font-bold text-indigo-400">New HITL Rule</p>
               <div className="grid grid-cols-3 gap-3">
                 <input placeholder="Trigger (e.g. RISK_HIGH)" value={hitlForm.trigger} onChange={e => setHitlForm(f => ({...f,trigger:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
                 <input placeholder="Action (e.g. ROUTE_TO_REVIEW)" value={hitlForm.action} onChange={e => setHitlForm(f => ({...f,action:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
                 <input placeholder="Route to Role (e.g. VALIDATOR)" value={hitlForm.route_to_role} onChange={e => setHitlForm(f => ({...f,route_to_role:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
               </div>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowHITLForm(false)} className="p-1.5 text-[#666] hover:text-white transition-all"><X className="w-4 h-4" /></button>
-                <button onClick={handleCreateHITL} disabled={actionId === "hitl" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-gray-900 dark:text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50">
+                <button onClick={handleCreateHITL} disabled={actionId === "hitl" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "hitl" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                   Create
                 </button>
@@ -627,23 +627,23 @@ export default function AutonomyPage() {
               <p className="text-sm font-bold text-indigo-400">New Negative Knowledge Set</p>
               <div className="grid grid-cols-2 gap-3">
                 <input placeholder="Set Name" value={nksForm.name} onChange={e => setNksForm(f => ({...f,name:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
                 <input placeholder="Scope (e.g. Healthcare Division, USA)" value={nksForm.scope} onChange={e => setNksForm(f => ({...f,scope:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
               </div>
               <textarea rows={2} placeholder="Prohibited terms (comma-separated): cure, guaranteed, FDA-approved, …" value={nksForm.terms} onChange={e => setNksForm(f => ({...f,terms:e.target.value}))}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] outline-none focus:border-indigo-500/50 resize-none" />
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50 resize-none" />
               <div className="grid grid-cols-2 gap-3">
                 <select value={nksForm.severity} onChange={e => setNksForm(f => ({...f,severity:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-indigo-500/50">
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500/50">
                   {["BLOCK","ESCALATE","WARN","REQUIRE_APPROVAL"].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <input placeholder="Owner Role" value={nksForm.owner_role} onChange={e => setNksForm(f => ({...f,owner_role:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
               </div>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowNKSForm(false)} className="p-1.5 text-[#666] hover:text-white"><X className="w-4 h-4" /></button>
-                <button onClick={handleCreateNKS} disabled={actionId === "nks" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-gray-900 dark:text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50">
+                <button onClick={handleCreateNKS} disabled={actionId === "nks" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "nks" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                   Create Set
                 </button>
@@ -663,7 +663,7 @@ export default function AutonomyPage() {
                 <div key={nks.id} className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 flex items-start gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{nks.name}</p>
+                      <p className="text-sm font-semibold text-foreground">{nks.name}</p>
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${SEVERITY_COLORS[nks.severity] ?? "bg-white/5 text-[#888] border-white/10"}`}>{nks.severity}</span>
                     </div>
                     <div className="flex flex-wrap gap-1 mb-2">

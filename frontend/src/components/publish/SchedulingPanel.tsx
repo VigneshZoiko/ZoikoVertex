@@ -47,7 +47,7 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
         <button
           onClick={onMagicSchedule}
           disabled={isFetchingRecommendations}
-          className="bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white text-xs font-bold py-2 px-4 rounded-xl flex items-center gap-2 transition-colors shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+          className="bg-indigo-600 hover:bg-indigo-500 text-foreground text-xs font-bold py-2 px-4 rounded-xl flex items-center gap-2 transition-colors shadow-lg shadow-indigo-600/20 disabled:opacity-50"
         >
           {isFetchingRecommendations ? (
             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -64,7 +64,7 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
           <select 
             value={audienceRegion} 
             onChange={(e) => setAudienceRegion(e.target.value)}
-            className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-xs outline-none focus:border-indigo-500"
+            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-xs outline-none focus:border-indigo-500"
           >
             <option value="Global">Global</option>
             <option value="US (EST)">US (EST)</option>
@@ -78,7 +78,7 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
           <select 
             value={audienceAgeGroup} 
             onChange={(e) => setAudienceAgeGroup(e.target.value)}
-            className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-xs outline-none focus:border-indigo-500"
+            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-xs outline-none focus:border-indigo-500"
           >
             <option value="All Ages">All Ages</option>
             <option value="18-24">18-24 (Gen Z)</option>

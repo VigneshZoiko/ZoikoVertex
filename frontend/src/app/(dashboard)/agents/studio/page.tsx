@@ -889,7 +889,7 @@ export default function StudioPage() {
               {/* "Hire New Agent" per spec Section 3 Layer 1 header */}
               <button
                 onClick={() => setIsWizardOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-600 px-4 py-2 text-sm font-semibold text-gray-900 dark:text-white transition hover:bg-indigo-500"
+                className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-600 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-indigo-500"
               >
                 <Plus className="h-4 w-4" />
                 Hire New Agent
@@ -1244,7 +1244,7 @@ export default function StudioPage() {
           </div>
           <button
             onClick={() => setIsWizardOpen(true)}
-            className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-gray-900 dark:text-white transition hover:bg-indigo-500"
+            className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-indigo-500"
           >
             <Plus className="h-4 w-4" />
             Hire New Agent
@@ -1513,7 +1513,7 @@ export default function StudioPage() {
                             <button
                               disabled={!canManageAuthority || isBusy}
                               onClick={() => runAgentAction(agent, "approval")}
-                              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-xs font-semibold text-gray-900 dark:text-white transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <FileCheck className="h-3.5 w-3.5" />
                               {actionLoading[agent.id] === "approval"
@@ -1529,7 +1529,7 @@ export default function StudioPage() {
                               onClick={() =>
                                 checkGovernanceGatesAndDeploy(agent)
                               }
-                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-gray-900 dark:text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <PlayCircle className="h-3.5 w-3.5" />
                               {actionLoading[agent.id] === "deploy"
@@ -1543,7 +1543,7 @@ export default function StudioPage() {
                             <button
                               disabled={!canManageAuthority || isBusy}
                               onClick={() => runAgentAction(agent, "pause")}
-                              className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-3 py-2 text-xs font-semibold text-gray-900 dark:text-white transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <PauseCircle className="h-3.5 w-3.5" />
                               {actionLoading[agent.id] === "pause"
@@ -1557,7 +1557,7 @@ export default function StudioPage() {
                             <button
                               disabled={!canManageAuthority || isBusy}
                               onClick={() => runAgentAction(agent, "resume")}
-                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-gray-900 dark:text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <PlayCircle className="h-3.5 w-3.5" />
                               {actionLoading[agent.id] === "resume"

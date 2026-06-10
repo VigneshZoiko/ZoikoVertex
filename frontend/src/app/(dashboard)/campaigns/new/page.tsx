@@ -112,12 +112,12 @@ type FieldErrors = Partial<Record<keyof WizardData, string>>;
 
 // ── Styles ─────────────────────────────────────────────────────────────────
 
-const inp   = "w-full bg-gray-50 dark:bg-zinc-900 border rounded-xl px-4 py-2.5 text-gray-900 dark:text-white text-sm placeholder:text-gray-400 dark:text-zinc-600 focus:outline-none transition-all";
-const ok    = "border-gray-200 dark:border-zinc-800 focus:border-white/30";
+const inp   = "w-full bg-surface border rounded-xl px-4 py-2.5 text-foreground text-sm placeholder:text-foreground-muted focus:outline-none transition-all";
+const ok    = "border-border focus:border-white/30";
 const err   = "border-rose-500/60 focus:border-rose-500";
-const lbl   = "block text-[11px] font-semibold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-1.5";
+const lbl   = "block text-[11px] font-semibold text-foreground-muted uppercase tracking-widest mb-1.5";
 const selChip = "bg-white text-zinc-900 border-white/20 font-semibold";
-const unChip  = "bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-500 hover:border-gray-300 dark:border-zinc-700 hover:text-gray-700 dark:text-zinc-300";
+const unChip  = "bg-surface border-border text-foreground-muted hover:border-border hover:text-foreground-muted";
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
@@ -365,10 +365,10 @@ export default function NewCampaignPage() {
   // ── UI ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col">
+    <div className="min-h-screen bg-card flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-4 px-6 py-4 border-b border-gray-200 dark:border-zinc-800">
-        <button onClick={() => router.push("/campaigns")} className="p-2 hover:bg-gray-200 dark:bg-zinc-800 rounded-lg transition-colors text-gray-500 dark:text-zinc-400 hover:text-white">
+      <div className="flex items-center gap-4 px-6 py-4 border-b border-border">
+        <button onClick={() => router.push("/campaigns")} className="p-2 hover:bg-surface-hover rounded-lg transition-colors text-foreground-muted hover:text-white">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex items-center gap-1">
@@ -376,13 +376,13 @@ export default function NewCampaignPage() {
             <div key={s.id} className="flex items-center gap-1">
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 step === s.id ? "bg-white text-zinc-900" :
-                step > s.id  ? "bg-gray-200 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400" :
-                               "text-gray-400 dark:text-zinc-600"
+                step > s.id  ? "bg-surface-hover text-foreground-muted" :
+                               "text-foreground-muted"
               }`}>
                 {step > s.id ? <CheckCircle2 className="w-3 h-3" /> : <s.icon className="w-3 h-3" />}
                 {s.label}
               </div>
-              {i < STEPS.length - 1 && <div className="w-4 h-px bg-gray-200 dark:bg-zinc-800" />}
+              {i < STEPS.length - 1 && <div className="w-4 h-px bg-surface-hover" />}
             </div>
           ))}
         </div>
@@ -390,14 +390,14 @@ export default function NewCampaignPage() {
 
       {/* Form body */}
       <div className="flex-1 flex items-start justify-center px-4 py-8">
-        <div className="w-full max-w-xl bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-2xl overflow-hidden">
+        <div className="w-full max-w-xl bg-card border border-border rounded-2xl overflow-hidden">
 
           {/* ── STEP 1 — Campaign ── */}
           {step === 1 && (
             <div className="p-6 space-y-6">
               <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">New Campaign</h2>
-                <p className="text-sm text-gray-500 dark:text-zinc-500 mt-0.5">What are you trying to achieve?</p>
+                <h2 className="text-lg font-bold text-foreground">New Campaign</h2>
+                <p className="text-sm text-foreground-muted mt-0.5">What are you trying to achieve?</p>
               </div>
 
               {/* Name */}
@@ -423,10 +423,10 @@ export default function NewCampaignPage() {
                       title={!p.available ? "Google Ads publishing is not yet available" : undefined}
                       className={`flex-1 p-4 rounded-xl border text-left transition-all ${
                         !p.available
-                          ? "bg-gray-50 dark:bg-zinc-900/30 border-gray-200 dark:border-zinc-800 text-gray-400 dark:text-zinc-600 cursor-not-allowed opacity-60"
+                          ? "bg-surface border-border text-foreground-muted cursor-not-allowed opacity-60"
                           : data.platforms.includes(p.id)
                             ? "bg-white border-white/20 text-zinc-900"
-                            : "bg-white dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 hover:border-gray-300 dark:border-zinc-700"
+                            : "bg-card border-border text-foreground-muted hover:border-border"
                       }`}>
                       <p className="text-sm font-bold">{p.label}</p>
                       <p className="text-[11px] opacity-70 mt-0.5">{p.sub}</p>
@@ -444,10 +444,10 @@ export default function NewCampaignPage() {
                       className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
                         data.objective === g.value
                           ? "bg-white border-white/20 text-zinc-900"
-                          : "bg-white dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 hover:border-gray-300 dark:border-zinc-700 hover:text-gray-700 dark:text-zinc-300"
+                          : "bg-card border-border text-foreground-muted hover:border-border hover:text-foreground-muted"
                       }`}>
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        data.objective === g.value ? "bg-gray-50 dark:bg-zinc-900/10" : "bg-gray-200 dark:bg-zinc-800"
+                        data.objective === g.value ? "bg-surface/10" : "bg-surface-hover"
                       }`}>
                         <g.icon className="w-4 h-4" />
                       </div>
@@ -468,8 +468,8 @@ export default function NewCampaignPage() {
           {step === 2 && (
             <div className="p-6 space-y-5">
               <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Budget & Schedule</h2>
-                <p className="text-sm text-gray-500 dark:text-zinc-500 mt-0.5">How much will you spend and when?</p>
+                <h2 className="text-lg font-bold text-foreground">Budget & Schedule</h2>
+                <p className="text-sm text-foreground-muted mt-0.5">How much will you spend and when?</p>
               </div>
 
               {/* Budget */}
@@ -516,7 +516,7 @@ export default function NewCampaignPage() {
 
               {/* Budget owner */}
               <div>
-                <label className={lbl}>Budget Owner <span className="text-gray-400 dark:text-zinc-600 normal-case font-normal">(who approves this spend)</span></label>
+                <label className={lbl}>Budget Owner <span className="text-foreground-muted normal-case font-normal">(who approves this spend)</span></label>
                 <select value={data.budget_owner_id}
                   onChange={e => {
                     const m = members.find(x => x.id === e.target.value);
@@ -535,14 +535,14 @@ export default function NewCampaignPage() {
           {step === 3 && (
             <div className="p-6 space-y-6">
               <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Audience & Creative</h2>
-                <p className="text-sm text-gray-500 dark:text-zinc-500 mt-0.5">Who should see this and what will it say?</p>
+                <h2 className="text-lg font-bold text-foreground">Audience & Creative</h2>
+                <p className="text-sm text-foreground-muted mt-0.5">Who should see this and what will it say?</p>
               </div>
 
               {/* Target countries */}
               <div>
                 <label className={lbl}>Target Countries</label>
-                <div className="flex flex-wrap gap-2 p-4 bg-white/60 dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-800 rounded-xl max-h-40 overflow-y-auto">
+                <div className="flex flex-wrap gap-2 p-4 bg-card border border-border rounded-xl max-h-40 overflow-y-auto">
                   {Object.entries(COUNTRIES).map(([code, name]) => (
                     <button key={code} type="button" onClick={() => toggleArr("geography", code)}
                       className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
@@ -552,7 +552,7 @@ export default function NewCampaignPage() {
                     </button>
                   ))}
                 </div>
-                {data.geography.length === 0 && <p className="text-[11px] text-gray-400 dark:text-zinc-600 mt-1">No selection = global audience</p>}
+                {data.geography.length === 0 && <p className="text-[11px] text-foreground-muted mt-1">No selection = global audience</p>}
               </div>
 
               {/* Age + Gender */}
@@ -563,7 +563,7 @@ export default function NewCampaignPage() {
                     <input type="number" min="13" max="65" value={data.age_min}
                       onChange={e => set("age_min", e.target.value)}
                       className={`${inp} ${ok} text-center`} placeholder="18" />
-                    <span className="text-gray-400 dark:text-zinc-600 shrink-0">–</span>
+                    <span className="text-foreground-muted shrink-0">–</span>
                     <input type="number" min="13" max="65" value={data.age_max}
                       onChange={e => set("age_max", e.target.value)}
                       className={`${inp} ${ok} text-center`} placeholder="65" />
@@ -579,7 +579,7 @@ export default function NewCampaignPage() {
                     ].map(g => (
                       <button key={g.value} type="button" onClick={() => set("gender", g.value)}
                         className={`flex-1 rounded-xl text-xs font-semibold border transition-all ${
-                          data.gender === g.value ? "bg-white text-zinc-900 border-white/20" : "bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-500 hover:border-gray-300 dark:border-zinc-700"
+                          data.gender === g.value ? "bg-white text-zinc-900 border-white/20" : "bg-surface border-border text-foreground-muted hover:border-border"
                         }`}>
                         {g.label}
                       </button>
@@ -590,10 +590,10 @@ export default function NewCampaignPage() {
 
               {/* Interests */}
               <div>
-                <label className={lbl}>Interests <span className="normal-case font-normal text-gray-400 dark:text-zinc-600">(optional, comma-separated)</span></label>
+                <label className={lbl}>Interests <span className="normal-case font-normal text-foreground-muted">(optional, comma-separated)</span></label>
                 <input value={data.interests} onChange={e => set("interests", e.target.value)}
                   className={`${inp} ${ok}`} placeholder="e.g. Fashion, Luxury, Travel" />
-                <p className="text-[11px] text-gray-400 dark:text-zinc-600 mt-1.5">For detailed interest targeting with Meta audience IDs, use the Advanced campaign modal instead.</p>
+                <p className="text-[11px] text-foreground-muted mt-1.5">For detailed interest targeting with Meta audience IDs, use the Advanced campaign modal instead.</p>
               </div>
 
               {/* Landing URL — not needed for lead ads or awareness/engagement */}
@@ -679,11 +679,11 @@ export default function NewCampaignPage() {
                       <label className={lbl}>Lead Form ID</label>
                       <input value={data.lead_form_id} onChange={e => set("lead_form_id", e.target.value)}
                         className={`${inp} ${ok}`} placeholder="Paste your Meta Lead Gen Form ID" />
-                      <p className="text-[11px] text-gray-400 dark:text-zinc-600 mt-1.5">Create in Meta Ads Manager → Lead Ads Forms</p>
+                      <p className="text-[11px] text-foreground-muted mt-1.5">Create in Meta Ads Manager → Lead Ads Forms</p>
                     </div>
                   )}
                   {data.meta_ad_type === "post_boost" && (
-                    <p className="text-xs text-gray-500 dark:text-zinc-500">Boost an existing published post — select the post to boost after launching the campaign.</p>
+                    <p className="text-xs text-foreground-muted">Boost an existing published post — select the post to boost after launching the campaign.</p>
                   )}
                 </div>
               )}
@@ -730,7 +730,7 @@ export default function NewCampaignPage() {
                   )}
                   {data.google_ad_type === "search" && (
                     <div>
-                      <label className={lbl}>Keywords <span className="normal-case font-normal text-gray-400 dark:text-zinc-600">(one per line)</span></label>
+                      <label className={lbl}>Keywords <span className="normal-case font-normal text-foreground-muted">(one per line)</span></label>
                       <textarea rows={4} value={data.keywords} onChange={e => set("keywords", e.target.value)}
                         className={`${inp} ${ok} resize-none font-mono text-xs`}
                         placeholder={"running shoes\nbuy sneakers online\nbest trainers 2026"} />
@@ -745,8 +745,8 @@ export default function NewCampaignPage() {
           {step === 4 && (
             <div className="p-6 space-y-5">
               <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Review & Submit</h2>
-                <p className="text-sm text-gray-500 dark:text-zinc-500 mt-0.5">Confirm everything looks right before requesting approval.</p>
+                <h2 className="text-lg font-bold text-foreground">Review & Submit</h2>
+                <p className="text-sm text-foreground-muted mt-0.5">Confirm everything looks right before requesting approval.</p>
               </div>
 
               {submitError && (
@@ -788,8 +788,8 @@ export default function NewCampaignPage() {
                 </ReviewSection>
               </div>
 
-              <div className="p-4 bg-gray-100 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-800 rounded-xl">
-                <p className="text-xs text-gray-500 dark:text-zinc-400 leading-relaxed">
+              <div className="p-4 bg-surface-hover border border-border rounded-xl">
+                <p className="text-xs text-foreground-muted leading-relaxed">
                   Your campaign will be launched immediately and published to Meta. You can pause or cancel it at any time from the campaigns list.
                 </p>
               </div>
@@ -800,7 +800,7 @@ export default function NewCampaignPage() {
           <div className="flex gap-3 px-6 pb-6">
             {step > 1 && (
               <button onClick={handleBack}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:bg-zinc-700 text-gray-700 dark:text-zinc-300 text-sm font-semibold rounded-xl transition-all">
+                className="flex items-center gap-2 px-4 py-2.5 bg-surface-hover hover:bg-surface-hover text-foreground-muted text-sm font-semibold rounded-xl transition-all">
                 <ArrowLeft className="w-4 h-4" />Back
               </button>
             )}
@@ -872,22 +872,22 @@ function WizardImageUpload({ label, hint, value, onChange }: {
     } finally { setUploading(false); }
   }
 
-  const lbl = "block text-[11px] font-semibold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-1.5";
+  const lbl = "block text-[11px] font-semibold text-foreground-muted uppercase tracking-widest mb-1.5";
 
   return (
     <div>
-      <label className={lbl}>{label}{hint && <span className="normal-case font-normal text-gray-400 dark:text-zinc-600 ml-1">— {hint}</span>}</label>
+      <label className={lbl}>{label}{hint && <span className="normal-case font-normal text-foreground-muted ml-1">— {hint}</span>}</label>
       {value ? (
-        <div className="relative w-full h-28 rounded-xl overflow-hidden border border-gray-300 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900">
+        <div className="relative w-full h-28 rounded-xl overflow-hidden border border-border bg-surface">
           <Image src={value} alt="" fill className="object-cover" unoptimized />
           <button type="button" onClick={() => onChange("")}
-            className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-gray-900 dark:text-white hover:bg-black">
+            className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-foreground hover:bg-black">
             <X className="w-3 h-3" />
           </button>
         </div>
       ) : (
         <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-          className="w-full h-20 border border-dashed border-gray-300 dark:border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1.5 text-gray-500 dark:text-zinc-500 hover:border-gray-400 dark:hover:border-zinc-500 hover:text-gray-500 dark:text-zinc-400 transition-all disabled:opacity-50">
+          className="w-full h-20 border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1.5 text-foreground-muted hover:border-border hover:text-foreground-muted transition-all disabled:opacity-50">
           {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
           <span className="text-xs">{uploading ? "Uploading…" : "Click to upload"}</span>
         </button>
@@ -903,8 +903,8 @@ function WizardImageUpload({ label, hint, value, onChange }: {
 
 function ReviewSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="p-4 bg-white/60 dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-800 rounded-xl">
-      <p className="text-[10px] font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-3">{title}</p>
+    <div className="p-4 bg-card border border-border rounded-xl">
+      <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-3">{title}</p>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -913,8 +913,8 @@ function ReviewSection({ title, children }: { title: string; children: React.Rea
 function ReviewRow({ label, value, missing }: { label: string; value: string; missing?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <span className="text-xs text-gray-500 dark:text-zinc-500 shrink-0">{label}</span>
-      <span className={`text-xs text-right ${missing ? "text-amber-400 flex items-center gap-1" : "text-gray-700 dark:text-zinc-300"}`}>
+      <span className="text-xs text-foreground-muted shrink-0">{label}</span>
+      <span className={`text-xs text-right ${missing ? "text-amber-400 flex items-center gap-1" : "text-foreground-muted"}`}>
         {missing && <AlertCircle className="w-3 h-3 shrink-0" />}{value}
       </span>
     </div>

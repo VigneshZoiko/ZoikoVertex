@@ -209,7 +209,7 @@ export default function PolicyControlMatrixPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-gray-900 dark:text-white">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-foreground">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500 mb-4"></div>
         <p className="text-[#888] font-medium tracking-wide">Syncing Policy Control Matrix...</p>
       </div>
@@ -261,7 +261,7 @@ export default function PolicyControlMatrixPage() {
           <div>
             <div className="flex items-center gap-2.5">
               <Scale className="w-8 h-8 text-amber-500" />
-              <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Policy Control Matrix</h1>
+              <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Policy Control Matrix</h1>
             </div>
             <p className="text-[#888] text-sm mt-1">
               Tier-0 Guardrail Enforcement Engine & Structural Validation
@@ -273,7 +273,7 @@ export default function PolicyControlMatrixPage() {
               onClick={() => fetchDashboardData(true)}
               className="p-2.5 bg-[#141414] hover:bg-[#1f1f1f] border border-[#2d2d2d] hover:border-[#444] rounded-xl transition-all flex items-center justify-center text-[#888] hover:text-white"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-gray-900 dark:text-white" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-foreground" : ""}`} />
             </button>
             {canManagePolicies && (
               <button
@@ -294,7 +294,7 @@ export default function PolicyControlMatrixPage() {
               <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest">Active Rules</span>
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
             </div>
-            <h3 className="text-2xl font-black text-gray-900 dark:text-white mt-2">{summary?.active_rules_count || 0}</h3>
+            <h3 className="text-2xl font-black text-foreground mt-2">{summary?.active_rules_count || 0}</h3>
           </div>
           
           <div className="bg-[#111] hover:bg-[#141414] border border-[#222] hover:border-[#333] rounded-2xl p-4 cursor-pointer transition-all">
@@ -302,7 +302,7 @@ export default function PolicyControlMatrixPage() {
               <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest">Blocked (24h)</span>
               <ShieldAlert className="w-4 h-4 text-rose-500" />
             </div>
-            <h3 className="text-2xl font-black text-gray-900 dark:text-white mt-2">{summary?.blocked_last_24h || 0}</h3>
+            <h3 className="text-2xl font-black text-foreground mt-2">{summary?.blocked_last_24h || 0}</h3>
           </div>
           
           <div className="bg-[#111] hover:bg-[#141414] border border-[#222] hover:border-[#333] rounded-2xl p-4 cursor-pointer transition-all">
@@ -310,7 +310,7 @@ export default function PolicyControlMatrixPage() {
               <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest">Escalations</span>
               <AlertTriangle className="w-4 h-4 text-orange-500" />
             </div>
-            <h3 className="text-2xl font-black text-gray-900 dark:text-white mt-2">{summary?.escalations_pending || 0}</h3>
+            <h3 className="text-2xl font-black text-foreground mt-2">{summary?.escalations_pending || 0}</h3>
           </div>
           
           <div className="bg-[#111] hover:bg-[#141414] border border-rose-500/30 rounded-2xl p-4 cursor-pointer transition-all">
@@ -326,7 +326,7 @@ export default function PolicyControlMatrixPage() {
               <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest">Sim Failures</span>
               <Cpu className="w-4 h-4 text-amber-500" />
             </div>
-            <h3 className="text-2xl font-black text-gray-900 dark:text-white mt-2">{summary?.simulation_failures || 0}</h3>
+            <h3 className="text-2xl font-black text-foreground mt-2">{summary?.simulation_failures || 0}</h3>
           </div>
 
           <div className="bg-[#111] hover:bg-[#141414] border border-[#222] hover:border-[#333] rounded-2xl p-4 cursor-pointer transition-all">
@@ -334,7 +334,7 @@ export default function PolicyControlMatrixPage() {
               <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest">Drafts</span>
               <FileText className="w-4 h-4 text-[#555]" />
             </div>
-            <h3 className="text-2xl font-black text-gray-900 dark:text-white mt-2">{summary?.draft_changes || 0}</h3>
+            <h3 className="text-2xl font-black text-foreground mt-2">{summary?.draft_changes || 0}</h3>
           </div>
         </div>
 
@@ -342,7 +342,7 @@ export default function PolicyControlMatrixPage() {
         <div className="bg-[#111] border border-[#222] rounded-2xl overflow-hidden shadow-xl flex-1 flex flex-col">
           <div className="p-4 border-b border-[#222] flex flex-wrap justify-between items-center gap-4 bg-[#141414]">
             <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider">Operational Matrix</span>
+              <span className="text-xs font-bold text-foreground uppercase tracking-wider">Operational Matrix</span>
               <span className="px-2 py-0.5 bg-[#222] text-[#888] rounded text-[10px] font-mono">{totalRecords} Rules</span>
             </div>
             <div className="flex items-center gap-2">
@@ -351,10 +351,10 @@ export default function PolicyControlMatrixPage() {
                 <input 
                   type="text" 
                   placeholder="Search Rule ID or condition..." 
-                  className="bg-black border border-[#2d2d2d] focus:border-[#555] rounded-lg pl-9 pr-4 py-1.5 text-xs text-gray-900 dark:text-white focus:outline-none w-64"
+                  className="bg-black border border-[#2d2d2d] focus:border-[#555] rounded-lg pl-9 pr-4 py-1.5 text-xs text-foreground focus:outline-none w-64"
                 />
               </div>
-              <button className="px-3 py-1.5 bg-[#222] hover:bg-[#333] border border-[#333] rounded-lg text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5 transition-colors">
+              <button className="px-3 py-1.5 bg-[#222] hover:bg-[#333] border border-[#333] rounded-lg text-xs font-bold text-foreground flex items-center gap-1.5 transition-colors">
                 <Filter className="w-3.5 h-3.5" /> Filters
               </button>
             </div>
@@ -380,7 +380,7 @@ export default function PolicyControlMatrixPage() {
                 {policies.length > 0 ? policies.map(pol => (
                   <tr key={pol.id} className="hover:bg-[#161616] transition-colors group">
                     <td className="p-4 font-mono font-bold text-amber-500/80 group-hover:text-amber-400">{pol.rule_id}</td>
-                    <td className="p-4 text-gray-900 dark:text-white">{pol.domain}</td>
+                    <td className="p-4 text-foreground">{pol.domain}</td>
                     <td className="p-4 text-[#aaa]">{pol.risk_category}</td>
                     <td className="p-4">
                       <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${getSeverityColor(pol.severity)}`}>
@@ -411,7 +411,7 @@ export default function PolicyControlMatrixPage() {
                           <Play className="w-3 h-3" /> Simulate
                         </button>
                         {canManagePolicies && (
-                          <button className="px-2 py-1 bg-[#222] hover:bg-[#333] border border-[#333] text-gray-900 dark:text-white rounded font-bold text-[10px]">
+                          <button className="px-2 py-1 bg-[#222] hover:bg-[#333] border border-[#333] text-foreground rounded font-bold text-[10px]">
                             Edit
                           </button>
                         )}
@@ -458,7 +458,7 @@ export default function PolicyControlMatrixPage() {
             <span className="p-1.5 bg-[#222] rounded-lg">
               <Activity className="w-3.5 h-3.5 text-amber-500" />
             </span>
-            <span className="text-xs font-black uppercase text-gray-900 dark:text-white tracking-widest">Enforcement Engine Telemetry</span>
+            <span className="text-xs font-black uppercase text-foreground tracking-widest">Enforcement Engine Telemetry</span>
             <span className="text-[10px] text-[#666]">(Live Decisions)</span>
           </div>
 
@@ -469,7 +469,7 @@ export default function PolicyControlMatrixPage() {
                 className="bg-[#1a1a1a] border border-[#2c2d2d] px-3.5 py-1.5 rounded-xl inline-flex items-center gap-2 text-[10px] select-none"
               >
                 <span className={`font-bold uppercase ${getActionColor(evt.decision)}`}>[{evt.decision}]</span>
-                <span className="text-gray-900 dark:text-white font-mono">{evt.rule_id}</span>
+                <span className="text-foreground font-mono">{evt.rule_id}</span>
                 <ArrowRight className="w-3 h-3 text-[#555]" />
                 <span className="text-[#888] font-medium">{evt.actor}</span>
                 <span className="text-[9px] font-mono text-[#555] ml-1">Ref: {evt.output_reference}</span>
@@ -489,7 +489,7 @@ export default function PolicyControlMatrixPage() {
               <div className="flex justify-between items-start mb-8">
                 <div>
                   <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest">Workspace Builder</span>
-                  <h3 className="text-2xl font-black text-gray-900 dark:text-white mt-1">Guardrail Configuration</h3>
+                  <h3 className="text-2xl font-black text-foreground mt-1">Guardrail Configuration</h3>
                 </div>
                 <button
                   onClick={() => setIsBuilderOpen(false)}
@@ -511,10 +511,10 @@ export default function PolicyControlMatrixPage() {
                 
                 {builderStep === 1 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><Filter className="w-4 h-4 text-amber-500"/> 1. Scope & Domain</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Filter className="w-4 h-4 text-amber-500"/> 1. Scope & Domain</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Policy Domain</label>
-                      <select value={formData.domain} onChange={e => setFormData({...formData, domain: e.target.value})} className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-gray-900 dark:text-white">
+                      <select value={formData.domain} onChange={e => setFormData({...formData, domain: e.target.value})} className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-foreground">
                         <option value="Compliance">Compliance</option>
                         <option value="Brand">Brand Standards</option>
                         <option value="Security">Security</option>
@@ -523,17 +523,17 @@ export default function PolicyControlMatrixPage() {
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Risk Category</label>
-                      <input type="text" value={formData.risk_category} onChange={e => setFormData({...formData, risk_category: e.target.value})} placeholder="e.g. Financial Claims, Tone Drift" className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-gray-900 dark:text-white" />
+                      <input type="text" value={formData.risk_category} onChange={e => setFormData({...formData, risk_category: e.target.value})} placeholder="e.g. Financial Claims, Tone Drift" className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-foreground" />
                     </div>
                   </div>
                 )}
 
                 {builderStep === 2 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500"/> 2. Base Severity</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500"/> 2. Base Severity</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Severity Rating</label>
-                      <select value={formData.severity} onChange={e => setFormData({...formData, severity: e.target.value})} className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-gray-900 dark:text-white">
+                      <select value={formData.severity} onChange={e => setFormData({...formData, severity: e.target.value})} className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-foreground">
                         <option value="Low">Low</option>
                         <option value="Medium">Medium</option>
                         <option value="High">High</option>
@@ -545,10 +545,10 @@ export default function PolicyControlMatrixPage() {
 
                 {builderStep === 3 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><Search className="w-4 h-4 text-amber-500"/> 3. Trigger Condition</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Search className="w-4 h-4 text-amber-500"/> 3. Trigger Condition</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Condition Expression (Regex or Natural Logic)</label>
-                      <textarea value={formData.trigger_condition} onChange={e => setFormData({...formData, trigger_condition: e.target.value})} placeholder="e.g. Payload matches regex: /(guaranteed returns|100% ROI)/i" className="w-full h-32 bg-black border border-[#333] rounded-xl p-4 text-xs text-gray-900 dark:text-white font-mono resize-none" />
+                      <textarea value={formData.trigger_condition} onChange={e => setFormData({...formData, trigger_condition: e.target.value})} placeholder="e.g. Payload matches regex: /(guaranteed returns|100% ROI)/i" className="w-full h-32 bg-black border border-[#333] rounded-xl p-4 text-xs text-foreground font-mono resize-none" />
                       <p className="text-[10px] text-[#666] mt-2">Natural language allowed. System will map to deterministic structure.</p>
                     </div>
                   </div>
@@ -556,10 +556,10 @@ export default function PolicyControlMatrixPage() {
 
                 {builderStep === 4 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><Shield className="w-4 h-4 text-amber-500"/> 4. Enforcement Action</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Shield className="w-4 h-4 text-amber-500"/> 4. Enforcement Action</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Action Outcome</label>
-                      <select value={formData.enforcement_action} onChange={e => setFormData({...formData, enforcement_action: e.target.value})} className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-gray-900 dark:text-white">
+                      <select value={formData.enforcement_action} onChange={e => setFormData({...formData, enforcement_action: e.target.value})} className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-foreground">
                         <option value="Allow">Allow (No restriction)</option>
                         <option value="Warn">Warn (Proceed with logged alert)</option>
                         <option value="Require Review">Require Review (HITL Queue)</option>
@@ -575,21 +575,21 @@ export default function PolicyControlMatrixPage() {
 
                 {builderStep === 5 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><FileText className="w-4 h-4 text-amber-500"/> 5. Rationale</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><FileText className="w-4 h-4 text-amber-500"/> 5. Rationale</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Business Rationale</label>
-                      <textarea value={formData.rationale} onChange={e => setFormData({...formData, rationale: e.target.value})} placeholder="Provide exact reasoning for this rule implementation..." className="w-full h-24 bg-black border border-[#333] rounded-xl p-4 text-xs text-gray-900 dark:text-white resize-none" />
+                      <textarea value={formData.rationale} onChange={e => setFormData({...formData, rationale: e.target.value})} placeholder="Provide exact reasoning for this rule implementation..." className="w-full h-24 bg-black border border-[#333] rounded-xl p-4 text-xs text-foreground resize-none" />
                     </div>
                   </div>
                 )}
 
                 {builderStep === 6 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><Archive className="w-4 h-4 text-amber-500"/> 6. Evidence</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Archive className="w-4 h-4 text-amber-500"/> 6. Evidence</h4>
                     <div className="flex items-center gap-3 bg-[#141414] border border-[#222] p-4 rounded-xl">
                       <input type="checkbox" checked={formData.evidence_required} onChange={e => setFormData({...formData, evidence_required: e.target.checked})} className="w-4 h-4 rounded text-amber-500 bg-black border-[#333]" />
                       <div>
-                        <label className="block text-xs font-bold text-gray-900 dark:text-white">Require Evidence Snapshot</label>
+                        <label className="block text-xs font-bold text-foreground">Require Evidence Snapshot</label>
                         <p className="text-[10px] text-[#888]">Capture immutable forensic snapshot to Evidence Vault when triggered.</p>
                       </div>
                     </div>
@@ -598,14 +598,14 @@ export default function PolicyControlMatrixPage() {
 
                 {builderStep === 7 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><Users className="w-4 h-4 text-amber-500"/> 7. Approval & Escalation</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Users className="w-4 h-4 text-amber-500"/> 7. Approval & Escalation</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Escalation Path (Queue/Role)</label>
-                      <input type="text" value={formData.escalation_path} onChange={e => setFormData({...formData, escalation_path: e.target.value})} placeholder="e.g. Legal Counsel, Security Operations" className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-gray-900 dark:text-white" />
+                      <input type="text" value={formData.escalation_path} onChange={e => setFormData({...formData, escalation_path: e.target.value})} placeholder="e.g. Legal Counsel, Security Operations" className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-foreground" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Designated Approver ID (Mandatory for High/Critical)</label>
-                      <input type="text" value={formData.approver_id} onChange={e => setFormData({...formData, approver_id: e.target.value})} placeholder="e.g. USR-042" className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-gray-900 dark:text-white font-mono" />
+                      <input type="text" value={formData.approver_id} onChange={e => setFormData({...formData, approver_id: e.target.value})} placeholder="e.g. USR-042" className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-foreground font-mono" />
                       <p className="text-[10px] text-rose-400 mt-2 flex items-center gap-1"><Lock className="w-3 h-3"/> Author cannot be sole approver for production deployment.</p>
                     </div>
                   </div>
@@ -613,12 +613,12 @@ export default function PolicyControlMatrixPage() {
 
                 {builderStep === 8 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500"/> 8. Deployment Review</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500"/> 8. Deployment Review</h4>
                     <div className="bg-[#141414] border border-[#222] rounded-xl p-5 space-y-3 font-mono text-xs text-[#888]">
-                      <div className="flex justify-between"><span className="text-[#666]">Domain:</span> <span className="text-gray-900 dark:text-white">{formData.domain}</span></div>
+                      <div className="flex justify-between"><span className="text-[#666]">Domain:</span> <span className="text-foreground">{formData.domain}</span></div>
                       <div className="flex justify-between"><span className="text-[#666]">Severity:</span> <span className={getSeverityColor(formData.severity)}>{formData.severity}</span></div>
-                      <div className="flex justify-between"><span className="text-[#666]">Action:</span> <span className="text-gray-900 dark:text-white font-bold">{formData.enforcement_action}</span></div>
-                      <div className="flex justify-between"><span className="text-[#666]">Trigger:</span> <span className="text-gray-900 dark:text-white text-right max-w-[200px] truncate">{formData.trigger_condition || 'MISSING'}</span></div>
+                      <div className="flex justify-between"><span className="text-[#666]">Action:</span> <span className="text-foreground font-bold">{formData.enforcement_action}</span></div>
+                      <div className="flex justify-between"><span className="text-[#666]">Trigger:</span> <span className="text-foreground text-right max-w-[200px] truncate">{formData.trigger_condition || 'MISSING'}</span></div>
                     </div>
 
                     {builderError && (
@@ -645,7 +645,7 @@ export default function PolicyControlMatrixPage() {
               {builderStep < 8 ? (
                 <button
                   onClick={handleNextStep}
-                  className="px-6 py-2 bg-[#222] hover:bg-[#333] border border-[#333] text-gray-900 dark:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2"
+                  className="px-6 py-2 bg-[#222] hover:bg-[#333] border border-[#333] text-foreground rounded-xl text-xs font-bold transition-all flex items-center gap-2"
                 >
                   Next Step <ArrowRight className="w-4 h-4" />
                 </button>
@@ -672,7 +672,7 @@ export default function PolicyControlMatrixPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <span className="text-[10px] font-mono text-blue-400 uppercase tracking-widest flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5"/> Simulation Engine</span>
-                  <h3 className="text-xl font-black text-gray-900 dark:text-white mt-1">Rule: {selectedSimRule.rule_id}</h3>
+                  <h3 className="text-xl font-black text-foreground mt-1">Rule: {selectedSimRule.rule_id}</h3>
                 </div>
                 <button onClick={() => setIsSimulatorOpen(false)} className="p-1.5 hover:bg-[#222] border border-[#2d2d2d] rounded-lg text-[#666]"><X className="w-4 h-4" /></button>
               </div>
@@ -680,13 +680,13 @@ export default function PolicyControlMatrixPage() {
               <div className="p-4 bg-[#141414] border border-[#222] rounded-xl flex flex-col gap-2">
                 <span className="text-[10px] text-[#666] font-bold uppercase">Trigger Condition Active</span>
                 <code className="text-xs text-amber-400 bg-black p-2 rounded border border-[#333]">{selectedSimRule.trigger_condition}</code>
-                <span className="text-[10px] text-[#666] font-bold uppercase mt-2">Configured Action: <span className="text-gray-900 dark:text-white">{selectedSimRule.enforcement_action}</span></span>
+                <span className="text-[10px] text-[#666] font-bold uppercase mt-2">Configured Action: <span className="text-foreground">{selectedSimRule.enforcement_action}</span></span>
               </div>
 
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-[#888] mb-1.5">Simulation Type</label>
-                  <select value={simType} onChange={e => setSimType(e.target.value)} className="w-full bg-black border border-[#333] rounded-xl px-4 py-2 text-xs text-gray-900 dark:text-white">
+                  <select value={simType} onChange={e => setSimType(e.target.value)} className="w-full bg-black border border-[#333] rounded-xl px-4 py-2 text-xs text-foreground">
                     <option>Sample Payload Test</option>
                     <option>Historical Replay</option>
                     <option>Agent Workflow Test</option>
@@ -706,7 +706,7 @@ export default function PolicyControlMatrixPage() {
                 <button
                   onClick={runSimulation}
                   disabled={runningSim}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-900/50 text-gray-900 dark:text-white font-black text-xs rounded-xl transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-900/50 text-foreground font-black text-xs rounded-xl transition-colors flex items-center justify-center gap-2"
                 >
                   {runningSim ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                   {runningSim ? "Computing Deterministic Outcome..." : "Execute Simulation"}
@@ -736,7 +736,7 @@ export default function PolicyControlMatrixPage() {
                   </div>
 
                   <div className="p-4 bg-black border border-[#222] rounded-xl font-mono text-[10px] text-[#aaa] space-y-2">
-                    <p><span className="text-[#666]">Reason:</span> <span className="text-gray-900 dark:text-white">{simResult.reason}</span></p>
+                    <p><span className="text-[#666]">Reason:</span> <span className="text-foreground">{simResult.reason}</span></p>
                     <p><span className="text-[#666]">Exec Time:</span> {simResult.execution_time_ms}ms</p>
                     <p><span className="text-[#666]">Sim ID:</span> {simResult.simulation_id}</p>
                   </div>

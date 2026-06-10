@@ -113,7 +113,7 @@ export default function SupportInbox() {
             onClick={() => setShowLog(!showLog)}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
               showLog
-                ? 'bg-[var(--accent)] text-gray-900 dark:text-white'
+                ? 'bg-[var(--accent)] text-foreground'
                 : 'bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
             }`}
           >

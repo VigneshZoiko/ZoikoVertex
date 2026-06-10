@@ -267,7 +267,7 @@ export default function HealthPage() {
                       </div>
                     ) : (
                       <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-gray-900 dark:text-white text-xs font-bold shrink-0"
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-foreground text-xs font-bold shrink-0"
                         style={{ backgroundColor: meta.color }}
                       >
                         {acc.platform.charAt(0).toUpperCase()}
@@ -327,7 +327,7 @@ export default function HealthPage() {
                     <div className="flex items-center justify-between mb-2.5">
                       <div className="flex items-center gap-2.5">
                         <div
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-900 dark:text-white text-[11px] font-bold shrink-0"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-foreground text-[11px] font-bold shrink-0"
                           style={{ backgroundColor: meta.color }}
                         >
                           {platform.charAt(0).toUpperCase()}
@@ -436,7 +436,7 @@ export default function HealthPage() {
               return (
                 <div key={i} className="flex items-start gap-4 px-5 py-3.5">
                   <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-900 dark:text-white text-[10px] font-bold shrink-0 mt-0.5"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-foreground text-[10px] font-bold shrink-0 mt-0.5"
                     style={{ backgroundColor: meta.color }}
                   >
                     {job.post ? job.post.platform.charAt(0).toUpperCase() : "?"}

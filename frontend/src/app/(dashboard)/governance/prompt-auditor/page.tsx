@@ -549,7 +549,7 @@ export default function PromptAuditorPage() {
           <button
             onClick={handleAudit}
             disabled={!prompt.trim() || isRunning}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-gray-900 dark:text-white text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-foreground text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isRunning ? (
               <>

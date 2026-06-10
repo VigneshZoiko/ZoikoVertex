@@ -359,7 +359,7 @@ export default function ProfilePage() {
             <button
               onClick={saveProfile}
               disabled={saving}
-              className="px-6 py-2 bg-[#1a365d] hover:bg-[#1e3a8a] disabled:opacity-60 text-gray-900 dark:text-white text-sm font-bold rounded-lg transition-all active:scale-95 shadow-md"
+              className="px-6 py-2 bg-[#1a365d] hover:bg-[#1e3a8a] disabled:opacity-60 text-foreground text-sm font-bold rounded-lg transition-all active:scale-95 shadow-md"
             >
               {saving ? "Saving..." : "Save Changes"}
             </button>
@@ -419,7 +419,7 @@ export default function ProfilePage() {
             {/* Profile Picture Footer (Screenshot Style) */}
             <div className="flex items-center gap-6 pt-8 border-t border-[var(--border)]">
               <div className="relative group cursor-pointer" onClick={() => fileRef.current?.click()}>
-                <div className="w-16 h-16 rounded-full overflow-hidden bg-[#002b4e] flex items-center justify-center text-gray-900 dark:text-white text-2xl font-bold border-2 border-[var(--border)] shadow-inner">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-[#002b4e] flex items-center justify-center text-foreground text-2xl font-bold border-2 border-[var(--border)] shadow-inner">
                   {avatarPreview ? (
                     <Image src={avatarPreview} alt="Avatar" fill className="object-cover" />
                   ) : (
@@ -427,7 +427,7 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Camera className="w-5 h-5 text-gray-900 dark:text-white" />
+                  <Camera className="w-5 h-5 text-foreground" />
                 </div>
               </div>
               <div>
@@ -485,7 +485,7 @@ export default function ProfilePage() {
                   <button
                     onClick={changePassword}
                     disabled={pwSaving}
-                    className="px-6 py-2.5 bg-[#8b949e] hover:bg-indigo-500 text-gray-900 dark:text-white text-sm font-bold rounded-lg transition-all active:scale-95 shadow-sm"
+                    className="px-6 py-2.5 bg-[#8b949e] hover:bg-indigo-500 text-foreground text-sm font-bold rounded-lg transition-all active:scale-95 shadow-sm"
                   >
                     {pwSaving ? "Updating..." : "Update Password"}
                   </button>

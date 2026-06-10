@@ -67,11 +67,11 @@ const PendingPostItem: React.FC<PendingPostItemProps> = ({
               className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-xs text-[var(--foreground)] outline-none focus:border-amber-500/50 min-h-[70px] transition-all"
             />
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => onAction('APPROVED')} className="flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-gray-900 dark:text-white text-[10px] font-bold rounded-xl uppercase tracking-wider transition-all">
+              <button onClick={() => onAction('APPROVED')} className="flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-bold rounded-xl uppercase tracking-wider transition-all">
                 <CheckCircle2 className="w-3 h-3" />
                 Approve
               </button>
-              <button onClick={() => onAction('REJECTED')} className="flex items-center justify-center gap-2 py-2.5 bg-rose-600 hover:bg-rose-500 text-gray-900 dark:text-white text-[10px] font-bold rounded-xl uppercase tracking-wider transition-all">
+              <button onClick={() => onAction('REJECTED')} className="flex items-center justify-center gap-2 py-2.5 bg-rose-600 hover:bg-rose-500 text-foreground text-[10px] font-bold rounded-xl uppercase tracking-wider transition-all">
                 <XCircle className="w-3 h-3" />
                 Reject
               </button>
@@ -95,7 +95,7 @@ const PendingPostItem: React.FC<PendingPostItemProps> = ({
               onChange={(e) => onReviewCommentChange(e.target.value)}
               className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-xs text-[var(--foreground)] outline-none focus:border-indigo-500/50 min-h-[70px] transition-all"
             />
-            <button onClick={() => onAction('RETURNED')} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white text-[10px] font-bold rounded-xl uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/20">
+            <button onClick={() => onAction('RETURNED')} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-foreground text-[10px] font-bold rounded-xl uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/20">
               <RefreshCcw className="w-3.5 h-3.5" />
               Return for Revision
             </button>

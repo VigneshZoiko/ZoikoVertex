@@ -58,7 +58,7 @@ export default function AuditorViewPage() {
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white mb-1">External Audit Ledger</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground mb-1">External Audit Ledger</h1>
           <p className="text-[var(--foreground-muted,#a0a0a0)] text-sm">
             Read-only, PII-redacted cryptographic view of the Identity Ledger.
           </p>

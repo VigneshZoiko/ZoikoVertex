@@ -250,7 +250,7 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
             <button
               type="submit"
               disabled={submitting || !name.trim()}
-              className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-500/50 disabled:cursor-not-allowed text-sm font-semibold text-gray-900 dark:text-white transition-colors flex items-center gap-2"
+              className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-500/50 disabled:cursor-not-allowed text-sm font-semibold text-foreground transition-colors flex items-center gap-2"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               Create Draft

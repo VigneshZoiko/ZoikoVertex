@@ -56,7 +56,7 @@ export default function NotificationPanel() {
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-indigo-500 text-gray-900 dark:text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[var(--header-bg)] animate-pulse">
+          <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-indigo-500 text-foreground text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[var(--header-bg)] animate-pulse">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -107,7 +107,7 @@ export default function NotificationPanel() {
                   >
                     {tab.charAt(0) + tab.slice(1).toLowerCase()}
                     {tab === 'UNREAD' && unreadCount > 0 && (
-                      <span className="ml-1.5 bg-indigo-500 text-gray-900 dark:text-white px-1.5 py-0.5 rounded-full text-[9px]">{unreadCount}</span>
+                      <span className="ml-1.5 bg-indigo-500 text-foreground px-1.5 py-0.5 rounded-full text-[9px]">{unreadCount}</span>
                     )}
                   </button>
                 ))}

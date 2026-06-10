@@ -152,7 +152,7 @@ export default function SupportPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-gray-900 dark:text-white text-sm font-medium rounded-md transition-colors flex items-center justify-center"
+              className="w-full py-2.5 bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-foreground text-sm font-medium rounded-md transition-colors flex items-center justify-center"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

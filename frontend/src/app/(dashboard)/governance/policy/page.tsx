@@ -61,7 +61,7 @@ export default function PolicyPage() {
             Define the legal and ethical guardrails that govern your autonomous workforce.
           </p>
         </div>
-        <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-lg shadow-indigo-600/20 active:scale-95 group">
+        <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-foreground px-5 py-2.5 rounded-xl font-semibold transition-all shadow-lg shadow-indigo-600/20 active:scale-95 group">
           <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
           Create Policy Tier
         </button>
@@ -76,7 +76,7 @@ export default function PolicyPage() {
           <h3 className="text-sm font-bold text-amber-700">Pending Policy Review</h3>
           <p className="text-xs text-amber-700/70 mt-1">3 agents are currently operating under &quot;Experimental&quot; policies while handling production data. This exceeds the recommended risk threshold.</p>
         </div>
-        <button className="px-4 py-2 bg-amber-500 text-gray-900 dark:text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all self-center">
+        <button className="px-4 py-2 bg-amber-500 text-foreground rounded-xl text-xs font-bold hover:bg-amber-600 transition-all self-center">
           REVIEW RISK
         </button>
       </div>
@@ -152,7 +152,7 @@ export default function PolicyPage() {
           <div className="space-y-6">
             <div className="p-6 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl space-y-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500 rounded-lg text-gray-900 dark:text-white">
+                <div className="p-2 bg-indigo-500 rounded-lg text-foreground">
                   <Lock className="w-4 h-4" />
                 </div>
                 <div>
@@ -167,7 +167,7 @@ export default function PolicyPage() {
 
             <div className="p-6 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl space-y-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-500 rounded-lg text-gray-900 dark:text-white">
+                <div className="p-2 bg-emerald-500 rounded-lg text-foreground">
                   <Globe className="w-4 h-4" />
                 </div>
                 <div>

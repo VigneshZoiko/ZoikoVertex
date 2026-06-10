@@ -242,8 +242,8 @@ export default function ApprovalRulesPage() {
       {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Approval Rules</h1>
-          <p className="text-[11px] text-gray-500 dark:text-zinc-500">Define keyword rules used by the Validation Desk to scan media titles, descriptions, and image content.</p>
+          <h1 className="text-xl font-bold text-foreground mb-1">Approval Rules</h1>
+          <p className="text-[11px] text-foreground-muted">Define keyword rules used by the Validation Desk to scan media titles, descriptions, and image content.</p>
         </div>
         <div className="flex items-center gap-2">
           {canManage && (
@@ -257,7 +257,7 @@ export default function ApprovalRulesPage() {
           )}
           <button
             onClick={fetchRules}
-            className="p-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg text-gray-500 dark:text-zinc-500 hover:text-white transition-all"
+            className="p-2 bg-surface border border-border rounded-lg text-foreground-muted hover:text-white transition-all"
           >
             <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-indigo-400" : ""}`} />
           </button>
@@ -283,24 +283,24 @@ export default function ApprovalRulesPage() {
         {/* â”€â”€ Left: rule list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="w-[280px] shrink-0 flex flex-col gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-600" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-muted" />
             <input
               type="text"
               placeholder="Search rulesâ€¦"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/40"
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-surface border border-border text-foreground placeholder-zinc-600 focus:outline-none focus:border-indigo-500/40"
             />
           </div>
 
           <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1 scrollbar-none">
             {loading ? (
-              <div className="flex flex-col items-center py-10 text-gray-400 dark:text-zinc-600 gap-2">
+              <div className="flex flex-col items-center py-10 text-foreground-muted gap-2">
                 <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                 <p className="text-[10px]">Loading...</p>
               </div>
             ) : filtered.length === 0 ? (
-              <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-6 text-center text-gray-400 dark:text-zinc-600 text-xs">
+              <div className="bg-surface border border-border rounded-lg p-6 text-center text-foreground-muted text-xs">
                 No rules yet.
               </div>
             ) : (
@@ -310,16 +310,16 @@ export default function ApprovalRulesPage() {
                   <button
                     key={rule.id}
                     onClick={() => selectRule(rule)}
-                    className={`w-full text-left bg-gray-50 dark:bg-zinc-900 border rounded-lg p-3 hover:border-gray-300 dark:border-zinc-700 transition-all border-l-4 ${
-                      isSelected ? "border-indigo-500 bg-indigo-500/[0.03] border-l-indigo-500" : "border-gray-200 dark:border-zinc-800 border-l-slate-700"
+                    className={`w-full text-left bg-surface border rounded-lg p-3 hover:border-border transition-all border-l-4 ${
+                      isSelected ? "border-indigo-500 bg-indigo-500/[0.03] border-l-indigo-500" : "border-border border-l-slate-700"
                     }`}
                   >
-                    <p className="text-xs font-semibold text-gray-900 dark:text-white truncate mb-1.5">{rule.name}</p>
+                    <p className="text-xs font-semibold text-foreground truncate mb-1.5">{rule.name}</p>
                     <div className="flex items-center gap-2">
                       <span className={`px-1.5 py-0.5 rounded border text-[8px] font-bold ${ACTION_COLOR[rule.action]}`}>
                         {ACTION_LABELS[rule.action]}
                       </span>
-                      <span className="text-[9px] text-gray-400 dark:text-zinc-600">{rule.keywords.length} keyword{rule.keywords.length !== 1 ? "s" : ""}</span>
+                      <span className="text-[9px] text-foreground-muted">{rule.keywords.length} keyword{rule.keywords.length !== 1 ? "s" : ""}</span>
                     </div>
                   </button>
                 );
@@ -329,9 +329,9 @@ export default function ApprovalRulesPage() {
         </div>
 
         {/* â”€â”€ Right: editor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <div className="flex-1 min-w-0 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-6 min-h-[420px]">
+        <div className="flex-1 min-w-0 bg-surface border border-border rounded-lg p-6 min-h-[420px]">
           {!selectedRule ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-10 text-gray-400 dark:text-zinc-600">
+            <div className="h-full flex flex-col items-center justify-center text-center p-10 text-foreground-muted">
               <SlidersHorizontal className="w-8 h-8 opacity-20 mb-2" />
               <p className="text-xs font-semibold">Select a rule or create a new one</p>
             </div>
@@ -341,14 +341,14 @@ export default function ApprovalRulesPage() {
               {/* Rule Name + Delete */}
               <div className="flex items-center justify-between gap-4 pb-4 border-b border-[#222]">
                 <div className="flex-1">
-                  <label className="text-[9px] text-gray-400 dark:text-zinc-600 font-bold uppercase tracking-wider block mb-1">Rule Name</label>
+                  <label className="text-[9px] text-foreground-muted font-bold uppercase tracking-wider block mb-1">Rule Name</label>
                   <input
                     type="text"
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
                     disabled={!canManage}
                     placeholder="Rule nameâ€¦"
-                    className="w-full bg-transparent text-sm font-bold text-gray-900 dark:text-white focus:outline-none border-b border-transparent focus:border-indigo-500/40 transition-colors"
+                    className="w-full bg-transparent text-sm font-bold text-foreground focus:outline-none border-b border-transparent focus:border-indigo-500/40 transition-colors"
                   />
                 </div>
                 {canManage && (
@@ -365,7 +365,7 @@ export default function ApprovalRulesPage() {
 
               {/* Action */}
               <div>
-                <label className="text-[9px] text-gray-400 dark:text-zinc-600 font-bold uppercase tracking-wider block mb-2">Action When Triggered</label>
+                <label className="text-[9px] text-foreground-muted font-bold uppercase tracking-wider block mb-2">Action When Triggered</label>
                 <div className="flex gap-2">
                   {(["BLOCK", "REQUEST_REVIEW"] as KeywordAction[]).map(a => (
                     <button
@@ -375,7 +375,7 @@ export default function ApprovalRulesPage() {
                       className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${
                         editAction === a
                           ? ACTION_COLOR[a] + " border-current"
-                          : "bg-white/[0.02] text-gray-400 dark:text-zinc-600 border-[#222] hover:text-white hover:border-gray-300 dark:border-zinc-700"
+                          : "bg-white/[0.02] text-foreground-muted border-[#222] hover:text-white hover:border-border"
                       }`}
                     >
                       {ACTION_LABELS[a]}
@@ -388,7 +388,7 @@ export default function ApprovalRulesPage() {
               {/* â”€â”€ Keywords section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-[9px] text-gray-400 dark:text-zinc-600 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <label className="text-[9px] text-foreground-muted font-bold uppercase tracking-wider flex items-center gap-1.5">
                     <Tag className="w-3 h-3" />
                     Keywords
                     {editKeywords.length > 0 && (
@@ -424,7 +424,7 @@ export default function ApprovalRulesPage() {
                       <div>
                         <p className="text-[11px] font-bold text-violet-200">AI Keyword Generator</p>
                       </div>
-                      <button onClick={() => setShowAiPanel(false)} className="ml-auto text-gray-400 dark:text-zinc-600 hover:text-white">
+                      <button onClick={() => setShowAiPanel(false)} className="ml-auto text-foreground-muted hover:text-white">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -440,12 +440,12 @@ export default function ApprovalRulesPage() {
                           onChange={e => setAiTopic(e.target.value)}
                           onKeyDown={e => { if (e.key === "Enter" && !aiGenerating) handleAiGenerate(); }}
                           placeholder="e.g. profanity, competitor brands, violence, gamblingâ€¦"
-                          className="flex-1 px-3 py-2 bg-[#0d0d0d] border border-gray-200 dark:border-zinc-800 rounded-lg text-xs text-gray-900 dark:text-white placeholder-[#444] focus:outline-none focus:border-violet-500/40 transition-colors"
+                          className="flex-1 px-3 py-2 bg-[#0d0d0d] border border-border rounded-lg text-xs text-foreground placeholder-[#444] focus:outline-none focus:border-violet-500/40 transition-colors"
                         />
                         <button
                           onClick={handleAiGenerate}
                           disabled={!aiTopic.trim() || aiGenerating}
-                          className="px-4 py-2 bg-violet-500 hover:bg-violet-400 disabled:opacity-40 text-gray-900 dark:text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all"
+                          className="px-4 py-2 bg-violet-500 hover:bg-violet-400 disabled:opacity-40 text-foreground text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all"
                         >
                           {aiGenerating
                             ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
@@ -458,13 +458,13 @@ export default function ApprovalRulesPage() {
                     {/* Example chips */}
                     {!aiSuggested.length && !aiGenerating && (
                       <div>
-                        <p className="text-[9px] text-gray-400 dark:text-zinc-600 mb-1.5">Quick examples:</p>
+                        <p className="text-[9px] text-foreground-muted mb-1.5">Quick examples:</p>
                         <div className="flex flex-wrap gap-1.5">
                           {AI_EXAMPLES.map(ex => (
                             <button
                               key={ex}
                               onClick={() => setAiTopic(ex)}
-                              className="px-2 py-0.5 bg-gray-200 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-500 hover:text-white hover:border-violet-500/30 rounded-full text-[9px] transition-colors"
+                              className="px-2 py-0.5 bg-surface-hover border border-border text-foreground-muted hover:text-white hover:border-violet-500/30 rounded-full text-[9px] transition-colors"
                             >
                               {ex}
                             </button>
@@ -477,7 +477,7 @@ export default function ApprovalRulesPage() {
                     {!aiSuggested.length && !aiGenerating && (
                       <button
                         onClick={() => setShowAiContext(p => !p)}
-                        className="flex items-center gap-1.5 text-[9px] text-gray-400 dark:text-zinc-600 hover:text-violet-400 transition-colors"
+                        className="flex items-center gap-1.5 text-[9px] text-foreground-muted hover:text-violet-400 transition-colors"
                       >
                         {showAiContext ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         Add context (platform, audience, industryâ€¦)
@@ -488,7 +488,7 @@ export default function ApprovalRulesPage() {
                         value={aiContext}
                         onChange={e => setAiContext(e.target.value)}
                         placeholder="e.g. children's education platform, luxury brand, B2B SaaSâ€¦"
-                        className="w-full px-3 py-2 bg-[#0d0d0d] border border-gray-200 dark:border-zinc-800 rounded-lg text-xs text-gray-900 dark:text-white placeholder-[#444] focus:outline-none focus:border-violet-500/40"
+                        className="w-full px-3 py-2 bg-[#0d0d0d] border border-border rounded-lg text-xs text-foreground placeholder-[#444] focus:outline-none focus:border-violet-500/40"
                       />
                     )}
 
@@ -517,7 +517,7 @@ export default function ApprovalRulesPage() {
                             <span className="text-[#444]">Â·</span>
                             <button
                               onClick={() => setAiSelected(new Set())}
-                              className="text-[9px] text-gray-400 dark:text-zinc-600 hover:text-white"
+                              className="text-[9px] text-foreground-muted hover:text-white"
                             >
                               None
                             </button>
@@ -538,11 +538,11 @@ export default function ApprovalRulesPage() {
                                     ? "bg-white/[0.02] text-[#444] border-white/5 cursor-default"
                                     : selected
                                       ? "bg-violet-500/20 text-violet-200 border-violet-500/40 hover:bg-violet-500/30"
-                                      : "bg-white/[0.03] text-gray-500 dark:text-zinc-500 border-white/10 line-through hover:no-underline hover:text-white"
+                                      : "bg-white/[0.03] text-foreground-muted border-white/10 line-through hover:no-underline hover:text-white"
                                 }`}
                               >
                                 {kw}
-                                {alreadyExists && <span className="ml-1 text-[7px] text-gray-400 dark:text-zinc-600">exists</span>}
+                                {alreadyExists && <span className="ml-1 text-[7px] text-foreground-muted">exists</span>}
                               </button>
                             );
                           })}
@@ -552,20 +552,20 @@ export default function ApprovalRulesPage() {
                           <button
                             onClick={addAiKeywords}
                             disabled={aiSelected.size === 0}
-                            className="px-4 py-1.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-40 text-gray-900 dark:text-white text-xs font-bold rounded-lg transition-all"
+                            className="px-4 py-1.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-40 text-foreground text-xs font-bold rounded-lg transition-all"
                           >
                             Add {aiSelected.size} keyword{aiSelected.size !== 1 ? "s" : ""}
                           </button>
                           <button
                             onClick={() => handleAiGenerate()}
                             disabled={aiGenerating}
-                            className="px-3 py-1.5 bg-white/[0.04] border border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-500 hover:text-white text-xs rounded-lg transition-colors flex items-center gap-1.5"
+                            className="px-3 py-1.5 bg-white/[0.04] border border-border text-foreground-muted hover:text-white text-xs rounded-lg transition-colors flex items-center gap-1.5"
                           >
                             <RefreshCcw className="w-3 h-3" /> Regenerate
                           </button>
                           <button
                             onClick={() => { setAiSuggested([]); setAiSelected(new Set()); setAiTopic(""); }}
-                            className="text-[9px] text-gray-400 dark:text-zinc-600 hover:text-white ml-auto transition-colors"
+                            className="text-[9px] text-foreground-muted hover:text-white ml-auto transition-colors"
                           >
                             Clear
                           </button>
@@ -576,7 +576,7 @@ export default function ApprovalRulesPage() {
                 )}
 
                 {/* Keyword chips */}
-                <div className="flex flex-wrap gap-2 min-h-[36px] mb-3 p-3 bg-[#0d0d0d] border border-gray-200 dark:border-zinc-800 rounded-lg">
+                <div className="flex flex-wrap gap-2 min-h-[36px] mb-3 p-3 bg-[#0d0d0d] border border-border rounded-lg">
                   {editKeywords.length === 0 ? (
                     <span className="text-[10px] text-[#333] italic self-center">No keywords yet â€” add manually or use AI Suggest.</span>
                   ) : (
@@ -605,7 +605,7 @@ export default function ApprovalRulesPage() {
                       onChange={e => setKwInput(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addKeyword(); } }}
                       placeholder="Type keyword and press Enter or comma to addâ€¦"
-                      className="flex-1 px-3 py-2 bg-[#0d0d0d] border border-[#222] rounded-lg text-xs text-gray-900 dark:text-white placeholder-[#444] focus:outline-none focus:border-indigo-500/40 transition-colors"
+                      className="flex-1 px-3 py-2 bg-[#0d0d0d] border border-[#222] rounded-lg text-xs text-foreground placeholder-[#444] focus:outline-none focus:border-indigo-500/40 transition-colors"
                     />
                     <button
                       onClick={addKeyword}

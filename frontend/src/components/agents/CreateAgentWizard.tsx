@@ -804,7 +804,7 @@ export default function CreateAgentWizard({
         {/* ── Header ── */}
         <div className="px-6 py-4 border-b border-[var(--card-border)] flex items-center justify-between bg-[var(--surface)]/50 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-gray-900 dark:text-white">
+            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-foreground">
               <Bot className="w-5 h-5" />
             </div>
             <div>
@@ -832,9 +832,9 @@ export default function CreateAgentWizard({
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all ${
                     done
-                      ? "bg-emerald-500 border-emerald-500 text-gray-900 dark:text-white"
+                      ? "bg-emerald-500 border-emerald-500 text-foreground"
                       : active
-                        ? "bg-indigo-500 border-indigo-500 text-gray-900 dark:text-white"
+                        ? "bg-indigo-500 border-indigo-500 text-foreground"
                         : "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground-muted)]"
                   }`}
                 >
@@ -1327,7 +1327,7 @@ export default function CreateAgentWizard({
                           addManualResource(key, manualInputs[key])
                         }
                         disabled={!manualInputs[key].trim()}
-                        className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                        className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-foreground text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                       >
                         Add
                       </button>
@@ -1426,7 +1426,7 @@ export default function CreateAgentWizard({
                     <div
                       className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
                         item.done
-                          ? "bg-emerald-500 text-gray-900 dark:text-white"
+                          ? "bg-emerald-500 text-foreground"
                           : "bg-[var(--surface)] border border-[var(--border)]"
                       }`}
                     >
@@ -1743,7 +1743,7 @@ export default function CreateAgentWizard({
                 (currentStep === 3 && formData.linked_channels.length === 0) ||
                 (currentStep === 4 && !formData.primary_dri_id)
               }
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white px-6 py-2 rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-foreground px-6 py-2 rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50"
             >
               Continue
               <ChevronRight className="w-4 h-4" />
@@ -1771,7 +1771,7 @@ export default function CreateAgentWizard({
               <button
                 onClick={() => handleSubmit("approval")}
                 disabled={loading || !!submitSuccess}
-                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-gray-900 dark:text-white px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-600/20 disabled:opacity-50"
+                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-foreground px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-600/20 disabled:opacity-50"
               >
                 {loading && submitAction === "approval" ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1788,7 +1788,7 @@ export default function CreateAgentWizard({
                 <button
                   onClick={() => handleSubmit("deploy")}
                   disabled={loading || !allChecklistDone || !!submitSuccess}
-                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-gray-900 dark:text-white px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-foreground px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading && submitAction === "deploy" ? (
                     <>
