@@ -51,6 +51,7 @@ export const getPerformanceSummary = async (req: Request, res: Response, next: N
         hallucinationTrend: 0,
         escalationRate,
         escalationTrend: 0,
+        activeAgents,
       }
     });
   } catch (error) {
