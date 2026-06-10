@@ -23,15 +23,15 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen">
       <Navbar />
-      <Hero />           {/* dark  #080812  — page 1 */}
+      <Hero />           {/* dark  #080812 */}
       <TrustedBy />      {/* dark  #0f1b2e */}
-      <Stats />          {/* light #F5F7FA  — page 2/3 */}
-      <Pricing />        {/* dark  #080E1A  — page 4/5 */}
-      <PainPoints />     {/* dark  #080812  — page 6 */}
-      <AgentsGrid />     {/* light #FFFFFF  — page 7 */}
-      <Accountability /> {/* dark  #152238  — page 8 */}
+      <Stats />          {/* light #F5F7FA */}
+      <Pricing />        {/* dark  #080E1A */}
       <FeatureBlock />   {/* light #FFFFFF */}
       <Architecture />   {/* light #FFFFFF */}
+      <PainPoints />     {/* dark  #080812 */}
+      <AgentsGrid />     {/* light #FFFFFF */}
+      <Accountability /> {/* dark  #152238 */}
       <EnterpriseBanner />{/* dark  #0f1b2e */}
       <EnterpriseFeatures />
       <Industries />  {/* light #F5F7FA */}
