@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import Navbar from "@/components/Navbar";
 import { ShieldCheck, Bot, FileCheck, Lock } from "lucide-react";
 
 const TRUST_BULLETS = [
@@ -13,7 +14,9 @@ const TRUST_BULLETS = [
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#0B1120] flex">
+    <div className="min-h-screen bg-[#0B1120] flex flex-col">
+      <Navbar />
+      <div className="flex flex-1 pt-[68px]">
       {/* Left brand panel */}
       <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0B1120] w-[48%] shrink-0">
         <div className="max-w-[380px]">
@@ -57,6 +60,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* Right form panel */}
       <div className="flex flex-1 items-center justify-center px-6 py-12 bg-[#0D1628]">
         {children}
+      </div>
       </div>
     </div>
   );
