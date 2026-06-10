@@ -2,8 +2,8 @@
 
 import React from "react";
 import Image from "next/image";
-import Navbar from "@/components/Navbar";
 import { ShieldCheck, Bot, FileCheck, Lock } from "lucide-react";
+
 const TRUST_BULLETS = [
   { icon: ShieldCheck, text: "Role-based access control + immutable audit trail" },
   { icon: Bot,         text: "AI agents operating inside your policy boundaries" },
@@ -13,12 +13,10 @@ const TRUST_BULLETS = [
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#080E1A]">
-      <Navbar />
-    <div className="flex pt-[68px]">
+    <div className="min-h-screen bg-[#0B1120] flex">
       {/* Left brand panel */}
-      <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0C1422] border-r border-white/10 w-[44%] shrink-0">
-        <div className="max-w-sm">
+      <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0B1120] w-[48%] shrink-0">
+        <div className="max-w-[380px]">
           {/* Logo */}
           <Image
             src="/images/zoikovertexlogo.png"
@@ -30,7 +28,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           />
 
           {/* Headline */}
-          <h1 className="text-[2.1rem] leading-[1.15] font-black text-white/90 mb-6">
+          <h1 className="text-[2.1rem] leading-[1.15] font-black text-white mb-6">
             Governed AI marketing.<br />
             <span className="text-[#20E7F2]">Built for accountability.</span>
           </h1>
@@ -46,7 +44,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="space-y-4">
             {TRUST_BULLETS.map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-4">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[rgba(32,231,242,0.1)] border border-[rgba(32,231,242,0.18)]">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[rgba(32,231,242,0.08)] border border-[rgba(32,231,242,0.15)]">
                   <Icon className="h-4 w-4 text-[#20E7F2]" />
                 </div>
                 <span className="text-[14px] text-white/50">{text}</span>
@@ -57,10 +55,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       {/* Right form panel */}
-      <div className="flex flex-1 items-center justify-center px-6 py-12">
+      <div className="flex flex-1 items-center justify-center px-6 py-12 bg-[#0D1628]">
         {children}
       </div>
-    </div>
     </div>
   );
 }

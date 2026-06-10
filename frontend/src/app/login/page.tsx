@@ -29,7 +29,8 @@ function MicrosoftIcon() {
   );
 }
 
-const inputCls = "w-full rounded-xl border border-[#1E2F55] bg-[#0C1529] py-3.5 text-sm text-white/80 placeholder-white/20 outline-none transition focus:border-[#20E7F2]/50 focus:ring-1 focus:ring-[#20E7F2]/20";
+const inputCls =
+  "w-full rounded-xl border border-[#1E2F55] bg-[#0C1529] py-3.5 text-sm text-white/80 placeholder-white/20 outline-none transition focus:border-[#20E7F2]/50 focus:ring-1 focus:ring-[#20E7F2]/20";
 
 function LoginForm() {
   const router = useRouter();
@@ -100,25 +101,16 @@ function LoginForm() {
     }
   };
 
-  if (checking) return <div className="min-h-screen bg-[#080E1A]" />;
+  if (checking) return <div className="min-h-screen bg-[#0B1120]" />;
 
   return (
     <AuthLayout>
       <div className="w-full max-w-[420px]">
 
         {/* Header */}
-        <div className="mb-7">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-px w-5 bg-[#20E7F2]" />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#20E7F2]">Welcome back</span>
-          </div>
-          <h1 className="text-[1.75rem] font-black text-white/90 mb-2">Sign in to ZoikoVertex</h1>
-          <p className="text-[13px] text-white/45">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">
-              Create one free
-            </Link>
-          </p>
+        <div className="mb-8">
+          <h1 className="text-[1.75rem] font-bold text-white mb-1.5">Sign in to ZoikoVertex</h1>
+          <p className="text-[14px] text-white/50">Access your corporate workspace.</p>
         </div>
 
         {error && (
@@ -126,33 +118,6 @@ function LoginForm() {
             {error}
           </div>
         )}
-
-        {/* Social buttons — full width, stacked */}
-        <div className="space-y-3 mb-6">
-          <button
-            type="button"
-            onClick={() => handleOAuth("google")}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-[#111D2E] hover:text-white disabled:opacity-60"
-          >
-            <GoogleIcon /> Google
-          </button>
-          <button
-            type="button"
-            onClick={() => handleOAuth("azure")}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-[#111D2E] hover:text-white disabled:opacity-60"
-          >
-            <MicrosoftIcon /> Microsoft
-          </button>
-        </div>
-
-        {/* Divider */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="h-px flex-1 bg-white/10" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/25">or continue with email</span>
-          <div className="h-px flex-1 bg-white/10" />
-        </div>
 
         {/* Email + password form */}
         <form onSubmit={handleLogin} className="space-y-5">
@@ -208,7 +173,7 @@ function LoginForm() {
               onChange={(e) => setRemember(e.target.checked)}
               className="h-4 w-4 rounded border-[#1E2F55] bg-[#0C1529] accent-[#20E7F2]"
             />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/40">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/40">
               Keep me signed in on this device
             </span>
           </label>
@@ -223,12 +188,47 @@ function LoginForm() {
           </button>
         </form>
 
+        {/* Divider */}
+        <div className="flex items-center gap-3 my-6">
+          <div className="h-px flex-1 bg-white/10" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/25">or continue with</span>
+          <div className="h-px flex-1 bg-white/10" />
+        </div>
+
+        {/* Social buttons — side by side */}
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => handleOAuth("google")}
+            disabled={loading}
+            className="flex items-center justify-center gap-2.5 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-[#111D2E] hover:text-white disabled:opacity-60"
+          >
+            <GoogleIcon /> Google
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOAuth("azure")}
+            disabled={loading}
+            className="flex items-center justify-center gap-2.5 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-[#111D2E] hover:text-white disabled:opacity-60"
+          >
+            <MicrosoftIcon /> Microsoft
+          </button>
+        </div>
+
         {/* ToS */}
-        <p className="mt-5 text-center text-[12px] text-white/30 leading-relaxed">
+        <p className="mt-6 text-center text-[12px] text-white/30 leading-relaxed">
           By signing in you agree to our{" "}
           <Link href="/terms" className="underline hover:text-white/50 transition">Terms of Service</Link>
           {" "}and{" "}
-          <Link href="/privacy" className="underline hover:text-white/50 transition">Privacy Policy</Link>.
+          <Link href="/privacy" className="underline hover:text-white/50 transition">Privacy Policy</Link>
+        </p>
+
+        {/* Sign up link */}
+        <p className="mt-6 text-center text-[14px] text-white/40">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">
+            Create one free
+          </Link>
         </p>
       </div>
     </AuthLayout>

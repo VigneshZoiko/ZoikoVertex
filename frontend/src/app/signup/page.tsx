@@ -400,10 +400,10 @@ export default function SignupPage() {
             </div>
 
             {/* ToS checkbox */}
-            <label className="flex items-start gap-3 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={agreedToS} onChange={(e) => setAgreedToS(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#1E2F55] bg-[#0C1529] accent-[#20E7F2]" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/40 leading-relaxed">
+                className="h-4 w-4 shrink-0 rounded border-[#1E2F55] bg-[#0C1529] accent-[#20E7F2]" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
                 I agree to the{" "}
                 <Link href="/terms" className="underline text-[#20E7F2] hover:text-[#20E7F2]/80">Terms of Service</Link>
                 {" "}and{" "}
@@ -500,21 +500,24 @@ export default function SignupPage() {
               <CheckCircle2 className="h-8 w-8 text-emerald-400" />
             </div>
             <div>
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <div className="h-px w-5 bg-[#20E7F2]" />
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#20E7F2]">You&apos;re in</span>
-                <div className="h-px w-5 bg-[#20E7F2]" />
-              </div>
-              <h2 className="text-[1.75rem] font-black text-white/90 mb-3">Welcome to ZoikoVertex</h2>
-              <p className="text-[14px] text-white/45 leading-relaxed">
+              <h2 className="text-[1.75rem] font-bold text-white mb-2">Welcome to ZoikoVertex</h2>
+              <p className="text-[14px] text-white/50 leading-relaxed">
                 Your governed workspace is ready. Start with<br />
                 the guided setup or go directly to the<br />
                 Command Center.
               </p>
             </div>
-            <button onClick={() => router.push("/dashboard")} className={cyanBtn}>
-              <LayoutDashboard className="h-4 w-4" /> Go to Dashboard
-            </button>
+            <div className="space-y-3">
+              <button onClick={() => router.push("/dashboard")} className={cyanBtn}>
+                <LayoutDashboard className="h-4 w-4" /> Go to Command Center
+              </button>
+              <button
+                onClick={() => router.push("/dashboard?tour=1")}
+                className="w-full py-2 text-sm text-white/40 hover:text-white/70 transition"
+              >
+                Start quick tour
+              </button>
+            </div>
           </div>
         )}
       </div>
