@@ -643,7 +643,7 @@ export default function BillingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Balance Card */}
-            <div className="bg-white dark:bg-surface/50 border border-border rounded-xl p-6 flex flex-col justify-between">
+            <div className="bg-card border border-border rounded-xl p-6 flex flex-col justify-between">
               <div>
                 <h3 className="text-sm font-medium text-foreground-muted mb-2">Available Balance</h3>
                 <div className="flex items-baseline gap-2">
@@ -669,7 +669,7 @@ export default function BillingPage() {
             </div>
 
             {/* Auto Top-up Settings */}
-            <div className="bg-white dark:bg-surface/50 border border-border rounded-xl p-6">
+            <div className="bg-card border border-border rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-foreground">Auto Top-up</h3>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -723,7 +723,7 @@ export default function BillingPage() {
             </div>
 
             {/* Quick Stats or Instructions */}
-            <div className="bg-white dark:bg-surface/50 border border-border rounded-xl p-6">
+            <div className="bg-card border border-border rounded-xl p-6">
               <h3 className="text-sm font-medium text-foreground mb-4">How Credits Work</h3>
               <p className="text-sm text-foreground-muted leading-relaxed mb-4">
                 Credits fund your active campaigns and execution channels. Your balance is drawn down automatically as campaigns accrue spend. 
@@ -736,7 +736,7 @@ export default function BillingPage() {
           </div>
 
           {/* Spend Cap */}
-          <div className="bg-white dark:bg-surface/50 border border-border rounded-xl p-6 space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-medium text-foreground">Spend Cap</h3>
@@ -776,7 +776,7 @@ export default function BillingPage() {
           </div>
 
           {/* Transactions Table */}
-          <div className="bg-white dark:bg-surface/50 border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
             <div className="p-5 border-b border-border flex items-center justify-between">
               <h3 className="text-sm font-medium text-foreground">Transaction History</h3>
               <button type="button"
@@ -790,7 +790,7 @@ export default function BillingPage() {
             
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-white dark:bg-surface/50 text-foreground-muted">
+                <thead className="bg-card text-foreground-muted">
                   <tr>
                     <th className="px-5 py-3 font-medium">Date</th>
                     <th className="px-5 py-3 font-medium">Description</th>
@@ -816,7 +816,7 @@ export default function BillingPage() {
                     </tr>
                   ) : (
                     transactions.map(tx => (
-                      <tr key={tx.id} className={`hover:bg-gray-100 dark:bg-surface-hover/30 transition-colors ${tx.status === "PROCESSING" ? "bg-amber-500/3" : ""}`}>
+                      <tr key={tx.id} className={`hover:bg-surface-hover transition-colors ${tx.status === "PROCESSING" ? "bg-amber-500/3" : ""}`}>
                         <td className="px-5 py-3 whitespace-nowrap text-foreground-muted">
                           <div>{new Date(tx.created_at).toLocaleDateString()}</div>
                           {tx.status === "PROCESSING" && tx.available_at && (
@@ -881,7 +881,7 @@ export default function BillingPage() {
         <div className="space-y-6">
           
           {/* Active Plan Overview */}
-          <div className="bg-white dark:bg-surface/50 border border-border rounded-xl p-6">
+          <div className="bg-card border border-border rounded-xl p-6">
             {loadingPlan ? (
               <div className="flex items-center gap-3 animate-pulse">
                 <div className="w-10 h-10 rounded-lg bg-surface-hover" />
@@ -926,7 +926,7 @@ export default function BillingPage() {
                       { label: "Brands/Workspaces", value: PLAN_STATS[activePlan.id]?.brands   ?? "--" },
                       { label: "AI Agents",         value: PLAN_STATS[activePlan.id]?.agents   ?? "--" },
                     ].map(stat => (
-                      <div key={stat.label} className="bg-gray-100 dark:bg-surface-hover/50 rounded-lg px-3 py-2.5 border border-border">
+                      <div key={stat.label} className="bg-surface-hover rounded-lg px-3 py-2.5 border border-border">
                         <p className="text-[10px] text-foreground-muted uppercase tracking-wider mb-1">{stat.label}</p>
                         <p className="text-sm font-semibold text-gray-900 dark:text-foreground">{stat.value}</p>
                       </div>
@@ -998,7 +998,7 @@ export default function BillingPage() {
                 { key: "CONTENT_POSTS",   icon: FileText, label: "Content Published", unit: "posts",    fmt: (v: number) => v.toLocaleString() },
                 { key: "AGENT_RUNS",      icon: Activity, label: "Agent Runs",        unit: "runs",     fmt: (v: number) => v.toLocaleString() },
               ].map(({ key, icon: Icon, label, unit, fmt }) => (
-                <div key={key} className="bg-white dark:bg-surface/50 border border-border rounded-xl p-5">
+                <div key={key} className="bg-card border border-border rounded-xl p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <Icon className="w-4 h-4 text-foreground-muted" />
                     <span className="text-sm font-medium text-foreground-muted">{label}</span>
@@ -1024,13 +1024,13 @@ export default function BillingPage() {
             </div>
 
             {invoices.length === 0 && !loadingInvoices ? (
-              <div className="bg-white dark:bg-surface/50 border border-border rounded-xl p-8 text-center">
+              <div className="bg-card border border-border rounded-xl p-8 text-center">
                 <FileText className="w-8 h-8 text-foreground-muted mx-auto mb-3" />
                 <p className="text-sm font-medium text-foreground-muted">No invoices yet</p>
                 <p className="text-xs text-foreground-muted mt-1">Plan subscription invoices will appear here after your first billing cycle.</p>
               </div>
             ) : (
-              <div className="bg-white dark:bg-surface/50 border border-border rounded-xl overflow-hidden">
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border">
@@ -1043,7 +1043,7 @@ export default function BillingPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-border">
                     {invoices.map(inv => (
-                      <tr key={inv.id} className="hover:bg-gray-50 dark:bg-surface-hover/20 transition-colors">
+                      <tr key={inv.id} className="hover:bg-surface transition-colors">
                         <td className="px-5 py-3 text-foreground-muted whitespace-nowrap">
                           {new Date(inv.created * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </td>
@@ -1095,7 +1095,7 @@ export default function BillingPage() {
             </div>
             {cardError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{cardError}</p>}
             {cards.length === 0 ? (
-              <div className="bg-white dark:bg-surface/50 border border-border rounded-xl p-6 text-center">
+              <div className="bg-card border border-border rounded-xl p-6 text-center">
                 <CreditCard className="w-7 h-7 text-foreground-muted mx-auto mb-2" />
                 <p className="text-sm text-foreground-muted">No cards saved yet</p>
                 <p className="text-xs text-foreground-muted mt-1">Add a card to enable automatic top-ups and faster deposits.</p>
@@ -1108,7 +1108,7 @@ export default function BillingPage() {
                     <div key={card.id} className={`flex items-center justify-between p-4 border rounded-xl transition-all ${
                       card.is_default
                         ? 'bg-surface border-border ring-1 ring-border'
-                        : 'bg-white dark:bg-surface/50 border-border'
+                        : 'bg-card border-border'
                     }`}>
                       <div className="flex items-center gap-3">
                         <div className={`w-9 h-6 rounded flex items-center justify-center ${card.is_default ? 'bg-white/10' : 'bg-surface-hover'}`}>
@@ -1173,7 +1173,7 @@ export default function BillingPage() {
                   {cards.map(card => (
                     <div key={card.id}
                       onClick={() => setSelectedCardId(card.id)}
-                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedCardId === card.id ? 'border-white/40 bg-surface-hover ring-1 ring-border' : 'border-border bg-white dark:bg-surface/50 hover:border-border'}`}>
+                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedCardId === card.id ? 'border-white/40 bg-surface-hover ring-1 ring-border' : 'border-border bg-card hover:border-border'}`}>
                       <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedCardId === card.id ? 'border-white' : 'border-border'}`}>
                         {selectedCardId === card.id && <div className="w-2 h-2 rounded-full bg-white" />}
                       </div>
@@ -1415,7 +1415,7 @@ export default function BillingPage() {
                 const isActive = plan.id === activePlanId;
                 const isChanging = changingPlan === plan.id;
                 return (
-                  <div key={plan.id} className={`p-5 rounded-xl border flex flex-col ${isActive ? 'bg-surface border-border ring-1 ring-border' : 'bg-white dark:bg-surface/50 border-border'}`}>
+                  <div key={plan.id} className={`p-5 rounded-xl border flex flex-col ${isActive ? 'bg-surface border-border ring-1 ring-border' : 'bg-card border-border'}`}>
                     <Icon className="w-6 h-6 text-foreground-muted mb-4" />
                     <h3 className="text-lg font-semibold text-foreground">{plan.name}</h3>
                     <p className="text-2xl font-bold text-foreground mt-2">
