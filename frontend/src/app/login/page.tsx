@@ -20,7 +20,13 @@ function LoginForm() {
 
   useEffect(() => {
     if (!isSupabaseReady) { setChecking(false); return; }
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Stale/revoked refresh token — clear it so the login form shows cleanly
+        supabase.auth.signOut();
+        setChecking(false);
+        return;
+      }
       if (session) {
         const next = searchParams.get("next");
         router.replace(next && next.startsWith("/") ? next : "/dashboard");
