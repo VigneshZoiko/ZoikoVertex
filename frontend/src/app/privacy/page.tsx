@@ -128,7 +128,7 @@ You may configure your browser to block cookies, but this may affect your abilit
 
 **ZoikoVertex**
 Email: privacy@zoikogroup.com
-Website: https://zoikovertex.vercel.app`,
+Website: https://zoikovertex.com`,
   },
 ];
 
@@ -209,7 +209,7 @@ export default function PrivacyPage() {
         <div className="mt-16 p-6 bg-indigo-500/5 border border-indigo-500/20 rounded-2xl text-center">
           <p className="text-sm text-white/50">
             This policy applies to the ZoikoVertex platform available at{" "}
-            <span className="text-indigo-400">zoikovertex.vercel.app</span> and any associated subdomains or services.
+            <span className="text-indigo-400">zoikovertex.com</span> and any associated subdomains or services.
           </p>
         </div>
       </main>
