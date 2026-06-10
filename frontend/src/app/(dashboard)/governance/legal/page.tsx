@@ -58,7 +58,7 @@ export default function BrandStandardsPage() {
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-white">{mainBrand?.name || "Enterprise Brand"}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{mainBrand?.name || "Enterprise Brand"}</h1>
               <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase tracking-widest border border-emerald-500/20">
                 {mainBrand?.status || "ACTIVE"}
               </span>
@@ -70,7 +70,7 @@ export default function BrandStandardsPage() {
           </div>
         </div>
         <div className="flex gap-3">
-          <button className="px-4 py-2 bg-[#1a1a1a] hover:bg-[#222] border border-[#333] text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2">
+          <button className="px-4 py-2 bg-[#1a1a1a] hover:bg-[#222] border border-[#333] text-gray-900 dark:text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2">
             <Settings className="w-4 h-4" />
             Governance Settings
           </button>
@@ -88,7 +88,7 @@ export default function BrandStandardsPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`pb-3 text-sm font-semibold transition-colors border-b-2 ${activeTab === tab.id ? 'border-indigo-500 text-white' : 'border-transparent text-[#666] hover:text-[#999]'}`}
+            className={`pb-3 text-sm font-semibold transition-colors border-b-2 ${activeTab === tab.id ? 'border-indigo-500 text-gray-900 dark:text-white' : 'border-transparent text-[#666] hover:text-[#999]'}`}
           >
             {tab.label}
           </button>
@@ -104,7 +104,7 @@ export default function BrandStandardsPage() {
                 <div className="absolute top-0 right-0 p-3">
                   <ShieldCheck className="w-5 h-5 text-emerald-500/50" />
                 </div>
-                <h3 className="text-lg font-bold text-white mb-1">{p.name}</h3>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{p.name}</h3>
                 <div className="text-xs text-indigo-400 font-medium mb-4">{p.type}</div>
                 <div className="space-y-2 text-sm text-[#888]">
                   <div className="flex justify-between"><span>Markets:</span><span className="text-[#ccc]">{p.markets?.join(", ")}</span></div>
@@ -119,7 +119,7 @@ export default function BrandStandardsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-6">
               <div className="bg-[#111] border border-[#222] rounded-xl p-6">
-                <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                   <Scale className="w-5 h-5 text-indigo-400" />
                   Voice Indices
                 </h3>
@@ -178,11 +178,11 @@ export default function BrandStandardsPage() {
         {activeTab === "claims" && (
           <div className="bg-[#111] border border-[#222] rounded-xl overflow-hidden">
             <div className="p-5 border-b border-[#222] flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <FileText className="w-5 h-5 text-indigo-400" />
                 Atomic Claims Registry
               </h2>
-              <button className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium transition-colors">
+              <button className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-gray-900 dark:text-white rounded-md text-sm font-medium transition-colors">
                 + Register Claim
               </button>
             </div>
@@ -232,7 +232,7 @@ export default function BrandStandardsPage() {
         {activeTab === "code" && (
           <div className="bg-[#111] border border-[#222] rounded-xl overflow-hidden flex flex-col h-[500px]">
             <div className="p-5 border-b border-[#222] flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Code className="w-5 h-5 text-indigo-400" />
                 Brand-as-Code Configuration
               </h2>

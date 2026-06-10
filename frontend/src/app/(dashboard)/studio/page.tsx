@@ -8,7 +8,7 @@ export default function ContentStudioPage() {
       <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-6">
         <Pencil className="w-8 h-8 text-emerald-400" />
       </div>
-      <h1 className="text-3xl font-bold text-white mb-3">Content Studio</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">Content Studio</h1>
       <p className="text-[#888888] text-base max-w-xl leading-relaxed mb-2">
         Draft, iterate, and refine AI-assisted content with brand-safe guardrails before submission for review.
       </p>

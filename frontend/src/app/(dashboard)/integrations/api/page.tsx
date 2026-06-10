@@ -225,7 +225,7 @@ function ApiKeysTab() {
 
       {showCreate && (
         <div className="border border-[#222] rounded-xl p-4 bg-[#0d0d0d] space-y-4">
-          <p className="text-sm font-medium text-white">Create API Key</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">Create API Key</p>
           {error && <p className="text-xs text-red-400">{error}</p>}
           <div>
             <label className="text-xs text-[#666] mb-1 block">Key Name</label>
@@ -233,7 +233,7 @@ function ApiKeysTab() {
               value={newName}
               onChange={e => setNewName(e.target.value)}
               placeholder="e.g. Production CMS Integration"
-              className="w-full bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-sm text-white placeholder-[#444] focus:outline-none focus:border-[#444]"
+              className="w-full bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] focus:outline-none focus:border-[#444]"
             />
           </div>
           <div>
@@ -245,7 +245,7 @@ function ApiKeysTab() {
                   onClick={() => toggleScope(s.value)}
                   className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
                     newScopes.includes(s.value)
-                      ? "bg-white/10 border-white/30 text-white"
+                      ? "bg-white/10 border-white/30 text-gray-900 dark:text-white"
                       : "border-[#222] text-[#555] hover:border-[#333] hover:text-[#888]"
                   }`}
                 >
@@ -260,7 +260,7 @@ function ApiKeysTab() {
               type="date"
               value={newExpiry}
               onChange={e => setNewExpiry(e.target.value)}
-              className="bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#444]"
+              className="bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#444]"
             />
           </div>
           <div className="flex gap-2">
@@ -297,7 +297,7 @@ function ApiKeysTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium text-white">{key.name}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{key.name}</span>
                   <StatusBadge active={key.is_active} />
                 </div>
                 <div className="flex items-center gap-3 text-xs text-[#555]">
@@ -460,7 +460,7 @@ function WebhooksTab() {
 
       {showCreate && (
         <div className="border border-[#222] rounded-xl p-4 bg-[#0d0d0d] space-y-4">
-          <p className="text-sm font-medium text-white">Register Webhook Endpoint</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">Register Webhook Endpoint</p>
           {error && <p className="text-xs text-red-400">{error}</p>}
           <div>
             <label className="text-xs text-[#666] mb-1 block">Name</label>
@@ -468,7 +468,7 @@ function WebhooksTab() {
               value={newName}
               onChange={e => setNewName(e.target.value)}
               placeholder="e.g. Slack Notifications"
-              className="w-full bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-sm text-white placeholder-[#444] focus:outline-none focus:border-[#444]"
+              className="w-full bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] focus:outline-none focus:border-[#444]"
             />
           </div>
           <div>
@@ -477,7 +477,7 @@ function WebhooksTab() {
               value={newUrl}
               onChange={e => setNewUrl(e.target.value)}
               placeholder="https://your-server.com/webhook"
-              className="w-full bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-sm text-white placeholder-[#444] focus:outline-none focus:border-[#444] font-mono"
+              className="w-full bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-[#444] focus:outline-none focus:border-[#444] font-mono"
             />
           </div>
           <div>
@@ -489,7 +489,7 @@ function WebhooksTab() {
                   onClick={() => toggleEvent(e.value)}
                   className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
                     newEvents.includes(e.value)
-                      ? "bg-white/10 border-white/30 text-white"
+                      ? "bg-white/10 border-white/30 text-gray-900 dark:text-white"
                       : "border-[#222] text-[#555] hover:border-[#333] hover:text-[#888]"
                   }`}
                 >
@@ -533,7 +533,7 @@ function WebhooksTab() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium text-white">{wh.name}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{wh.name}</span>
                     <StatusBadge active={wh.is_active} failCount={wh.failure_count} />
                   </div>
                   <div className="flex items-center gap-3 text-xs text-[#555] mb-2">
@@ -631,9 +631,9 @@ export default function ApiWebhooksPage() {
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">
           <div className="p-2 rounded-lg bg-[#111] border border-[#1e1e1e]">
-            <Zap size={18} className="text-white" />
+            <Zap size={18} className="text-gray-900 dark:text-white" />
           </div>
-          <h1 className="text-xl font-semibold text-white">API & Webhooks</h1>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">API & Webhooks</h1>
         </div>
         <p className="text-sm text-[#666] ml-11">
           Generate API keys for programmatic access and configure webhooks to receive real-time event notifications.

@@ -140,15 +140,15 @@ export default function WorkspaceSettingsPage() {
     <div className="p-8 max-w-4xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+          <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
             <Sliders className="w-8 h-8 text-indigo-500" />
             Workspace Settings
           </h1>
-          <p className="text-zinc-400 mt-1 text-sm">Manage your workspace configuration and identity.</p>
+          <p className="text-gray-500 dark:text-zinc-400 mt-1 text-sm">Manage your workspace configuration and identity.</p>
         </div>
         <button
           onClick={load}
-          className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:bg-zinc-700 text-gray-700 dark:text-zinc-300 rounded-xl text-sm font-medium transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
           Refresh
@@ -168,52 +168,52 @@ export default function WorkspaceSettingsPage() {
           { label: "Plan",     value: planKey,                                                            icon: Building2, color: planColor },
           { label: "Members",  value: settings?.member_count ?? 0,                                        icon: Users,     color: "text-indigo-400 bg-indigo-400/10 border-indigo-400/20" },
           { label: "Accounts", value: settings?.account_count ?? 0,                                       icon: Link2,     color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20" },
-          { label: "Created",  value: settings?.created_at ? new Date(settings.created_at).toLocaleDateString() : "—", icon: Calendar,  color: "text-zinc-400 bg-zinc-400/10 border-zinc-400/20" },
+          { label: "Created",  value: settings?.created_at ? new Date(settings.created_at).toLocaleDateString() : "—", icon: Calendar,  color: "text-gray-500 dark:text-zinc-400 bg-zinc-400/10 border-zinc-400/20" },
         ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
+          <div key={label} className="p-4 bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-2xl">
             <div className={`inline-flex p-2 rounded-lg border ${color} mb-3`}>
               <Icon className="w-4 h-4" />
             </div>
-            <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">{label}</p>
-            <p className="text-lg font-bold text-white mt-0.5">{value}</p>
+            <p className="text-xs text-gray-500 dark:text-zinc-500 font-medium uppercase tracking-wider">{label}</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{value}</p>
           </div>
         ))}
       </div>
 
       {/* Workspace Name */}
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
-        <div className="p-6 border-b border-zinc-800">
-          <h2 className="text-lg font-bold text-white">Workspace Identity</h2>
-          <p className="text-zinc-500 text-sm mt-0.5">Update your workspace display name.</p>
+      <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-zinc-800">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Workspace Identity</h2>
+          <p className="text-gray-500 dark:text-zinc-500 text-sm mt-0.5">Update your workspace display name.</p>
         </div>
         <div className="p-6 space-y-5">
           <div>
-            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Workspace Name</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-2">Workspace Name</label>
             <input
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSave()}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-colors"
               placeholder="Your workspace name"
               minLength={2}
               maxLength={100}
             />
           </div>
           <div>
-            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Organization</label>
+            <label className="block text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-widest mb-2">Organization</label>
             <input
               type="text"
               value={settings?.org_name || "Not available"}
               disabled
-              className="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl px-4 py-3 text-zinc-600 cursor-not-allowed"
+              className="w-full bg-white dark:bg-zinc-950/50 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-gray-400 dark:text-zinc-600 cursor-not-allowed"
             />
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleSave}
               disabled={saving || !(name ?? "").trim() || (name ?? "").trim() === (settings?.name ?? "")}
-              className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all"
+              className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 dark:text-white font-bold rounded-xl transition-all"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Changes
@@ -233,15 +233,15 @@ export default function WorkspaceSettingsPage() {
       </div>
 
       {/* Notification Preferences */}
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
-        <div className="p-6 border-b border-zinc-800">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+      <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-zinc-800">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Bell className="w-5 h-5 text-indigo-400" />
             Notification Preferences
           </h2>
-          <p className="text-zinc-500 text-sm mt-0.5">Control which alerts you receive in-app.</p>
+          <p className="text-gray-500 dark:text-zinc-500 text-sm mt-0.5">Control which alerts you receive in-app.</p>
         </div>
-        <div className="divide-y divide-zinc-800">
+        <div className="divide-y divide-gray-200 dark:divide-zinc-800">
           {([
             { key: 'approvalAlerts',       label: 'Approval Alerts',        desc: 'Notified when content requires your approval or is approved/rejected.' },
             { key: 'riskAlerts',           label: 'Risk Alerts',            desc: 'Notified when workspace risk posture becomes Elevated or Critical.' },
@@ -253,13 +253,13 @@ export default function WorkspaceSettingsPage() {
           ] as { key: keyof NotificationPrefs; label: string; desc: string }[]).map(({ key, label, desc }) => (
             <div key={key} className="px-6 py-4 flex items-center justify-between gap-6">
               <div>
-                <p className="text-white text-sm font-semibold">{label}</p>
-                <p className="text-zinc-500 text-xs mt-0.5">{desc}</p>
+                <p className="text-gray-900 dark:text-white text-sm font-semibold">{label}</p>
+                <p className="text-gray-500 dark:text-zinc-500 text-xs mt-0.5">{desc}</p>
               </div>
               <button
                 onClick={() => handleNotifToggle(key)}
                 className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
-                  notifPrefs[key] ? "bg-indigo-500" : "bg-zinc-700"
+                  notifPrefs[key] ? "bg-indigo-500" : "bg-gray-300 dark:bg-zinc-700"
                 }`}
                 role="switch"
                 aria-checked={notifPrefs[key]}
@@ -274,33 +274,33 @@ export default function WorkspaceSettingsPage() {
           ))}
         </div>
         {notifSaved && (
-          <div className="px-6 py-3 border-t border-zinc-800 flex items-center gap-1.5 text-emerald-400 text-sm font-medium animate-in fade-in duration-300">
+          <div className="px-6 py-3 border-t border-gray-200 dark:border-zinc-800 flex items-center gap-1.5 text-emerald-400 text-sm font-medium animate-in fade-in duration-300">
             <CheckCircle2 className="w-4 h-4" /> Preferences saved
           </div>
         )}
       </div>
 
       {/* Interface Preferences */}
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
-        <div className="p-6 border-b border-zinc-800">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+      <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-zinc-800">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <PanelLeftClose className="w-5 h-5 text-indigo-400" />
             Interface Preferences
           </h2>
-          <p className="text-zinc-500 text-sm mt-0.5">Customise your workspace layout and display behaviour.</p>
+          <p className="text-gray-500 dark:text-zinc-500 text-sm mt-0.5">Customise your workspace layout and display behaviour.</p>
         </div>
         <div className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white text-sm font-semibold">Auto-collapse sidebar</p>
-              <p className="text-zinc-500 text-xs mt-0.5">
+              <p className="text-gray-900 dark:text-white text-sm font-semibold">Auto-collapse sidebar</p>
+              <p className="text-gray-500 dark:text-zinc-500 text-xs mt-0.5">
                 Collapses the sidebar to icons only. Hover over it to expand temporarily.
               </p>
             </div>
             <button
               onClick={() => setCollapse(!collapseEnabled)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                collapseEnabled ? "bg-indigo-500" : "bg-zinc-700"
+                collapseEnabled ? "bg-indigo-500" : "bg-gray-300 dark:bg-zinc-700"
               }`}
               role="switch"
               aria-checked={collapseEnabled}
@@ -316,11 +316,11 @@ export default function WorkspaceSettingsPage() {
       </div>
 
       {/* Workspace Details */}
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl overflow-hidden">
-        <div className="p-6 border-b border-zinc-800">
-          <h2 className="text-lg font-bold text-white">Workspace Details</h2>
+      <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-zinc-800">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Workspace Details</h2>
         </div>
-        <div className="divide-y divide-zinc-800">
+        <div className="divide-y divide-gray-200 dark:divide-zinc-800">
           {[
             { label: "Workspace ID",        value: settings?.id },
             { label: "Organization ID",     value: settings?.org_id },
@@ -328,8 +328,8 @@ export default function WorkspaceSettingsPage() {
             { label: "Created At",          value: settings?.created_at ? new Date(settings.created_at).toLocaleString() : "—" },
           ].map(({ label, value }) => (
             <div key={label} className="px-6 py-4 flex items-center justify-between">
-              <span className="text-zinc-500 text-sm">{label}</span>
-              <span className="text-zinc-300 text-sm font-mono break-all max-w-[60%] text-right">{value}</span>
+              <span className="text-gray-500 dark:text-zinc-500 text-sm">{label}</span>
+              <span className="text-gray-700 dark:text-zinc-300 text-sm font-mono break-all max-w-[60%] text-right">{value}</span>
             </div>
           ))}
         </div>

@@ -103,7 +103,7 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
           <select 
             value={styleMode} 
             onChange={(e) => onStyleModeChange(e.target.value)} 
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-xs outline-none focus:border-indigo-500"
+            className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white text-xs outline-none focus:border-indigo-500"
           >
             <option value="">Standard</option>
             <option value="MrBeast">MrBeast (Viral)</option>
@@ -134,7 +134,7 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
         <div>
           <button 
             onClick={onGenerate} disabled={generating || !topic}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 text-sm flex items-center justify-center gap-2"
           >
             {generating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
             Generate Magic

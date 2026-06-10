@@ -24,7 +24,7 @@ export default function DeveloperConsolePage() {
           <Terminal className="w-6 h-6 text-indigo-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">Developer Console</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Developer Console</h1>
           <p className="text-[#888] text-sm mt-1">Advanced platform management and technical integration tools.</p>
         </div>
       </div>
@@ -44,7 +44,7 @@ export default function DeveloperConsolePage() {
                 </div>
                 <span className="text-[10px] font-bold text-emerald-500/80 bg-emerald-500/5 px-2 py-0.5 rounded-full uppercase tracking-wider">{opt.status}</span>
               </div>
-              <h3 className="text-white font-semibold text-sm mb-2">{opt.name}</h3>
+              <h3 className="text-gray-900 dark:text-white font-semibold text-sm mb-2">{opt.name}</h3>
               <p className="text-[#666] text-xs leading-relaxed">{opt.desc}</p>
             </div>
           );
@@ -55,7 +55,7 @@ export default function DeveloperConsolePage() {
         <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center mb-4">
           <Activity className="w-5 h-5 text-indigo-400 animate-pulse" />
         </div>
-        <h4 className="text-white font-medium mb-2">Live System Health</h4>
+        <h4 className="text-gray-900 dark:text-white font-medium mb-2">Live System Health</h4>
         <p className="text-[#888] text-sm max-w-lg mb-4">All core platform services are operational. Latency for Decision Engine is currently 124ms.</p>
         <button className="text-xs font-bold text-indigo-400 hover:text-white transition-colors uppercase tracking-widest">View Status Page &rarr;</button>
       </div>

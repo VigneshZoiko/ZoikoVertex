@@ -293,7 +293,7 @@ function ReviewActionBar({
       title={disabled && eligibility?.reason ? eligibility.reason : ""}
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
         style === "primary"
-          ? "bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg shadow-indigo-500/20"
+          ? "bg-indigo-500 hover:bg-indigo-400 text-gray-900 dark:text-white shadow-lg shadow-indigo-500/20"
           : style === "danger"
           ? "bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20"
           : style === "warning"
@@ -351,7 +351,7 @@ function ReviewActionBar({
           value={feedback}
           onChange={e => onFeedbackChange(e.target.value)}
           rows={2}
-          className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5 text-xs text-white placeholder-[#555] outline-none focus:border-indigo-500/50 resize-none"
+          className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2.5 text-xs text-gray-900 dark:text-white placeholder-[#555] outline-none focus:border-indigo-500/50 resize-none"
         />
       )}
     </div>
@@ -651,27 +651,27 @@ export default function ReviewQueuePage() {
       case "Agent Action":
         return (
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-xs"><span className="text-[#888]">Agent:</span><span className="text-white">{(item.content_snapshot?.agent_name as string) || "—"}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[#888]">Task:</span><span className="text-white">{(item.content_snapshot?.task as string) || "—"}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[#888]">Proposed Action:</span><span className="text-white">{(item.content_snapshot?.proposed_action as string) || "—"}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[#888]">Affected Module:</span><span className="text-white">{item.source_module}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-[#888]">Agent:</span><span className="text-gray-900 dark:text-white">{(item.content_snapshot?.agent_name as string) || "—"}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-[#888]">Task:</span><span className="text-gray-900 dark:text-white">{(item.content_snapshot?.task as string) || "—"}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-[#888]">Proposed Action:</span><span className="text-gray-900 dark:text-white">{(item.content_snapshot?.proposed_action as string) || "—"}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-[#888]">Affected Module:</span><span className="text-gray-900 dark:text-white">{item.source_module}</span></div>
           </div>
         );
       case "Campaign Asset":
         return (
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-xs"><span className="text-[#888]">Campaign:</span><span className="text-white">{item.campaign || "—"}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[#888]">Objective:</span><span className="text-white">{(item.content_snapshot?.objective as string) || "—"}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[#888]">Audience:</span><span className="text-white">{(item.content_snapshot?.audience as string) || "—"}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[#888]">CTA:</span><span className="text-white">{(item.content_snapshot?.cta as string) || "—"}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-[#888]">Campaign:</span><span className="text-gray-900 dark:text-white">{item.campaign || "—"}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-[#888]">Objective:</span><span className="text-gray-900 dark:text-white">{(item.content_snapshot?.objective as string) || "—"}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-[#888]">Audience:</span><span className="text-gray-900 dark:text-white">{(item.content_snapshot?.audience as string) || "—"}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-[#888]">CTA:</span><span className="text-gray-900 dark:text-white">{(item.content_snapshot?.cta as string) || "—"}</span></div>
           </div>
         );
       case "Workflow Output":
         return (
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-xs"><span className="text-[#888]">Workflow:</span><span className="text-white">{item.source_module}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[#888]">Trigger:</span><span className="text-white">{(item.content_snapshot?.triggering_event as string) || "—"}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-[#888]">Output:</span><span className="text-white">{(item.content_snapshot?.output as string) || item.title}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-[#888]">Workflow:</span><span className="text-gray-900 dark:text-white">{item.source_module}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-[#888]">Trigger:</span><span className="text-gray-900 dark:text-white">{(item.content_snapshot?.triggering_event as string) || "—"}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-[#888]">Output:</span><span className="text-gray-900 dark:text-white">{(item.content_snapshot?.output as string) || item.title}</span></div>
           </div>
         );
       default:
@@ -771,12 +771,12 @@ export default function ReviewQueuePage() {
           <div className="w-14 h-14 bg-rose-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-7 h-7 text-rose-400" />
           </div>
-          <p className="text-white font-semibold mb-1">Review Queue could not be loaded</p>
+          <p className="text-gray-900 dark:text-white font-semibold mb-1">Review Queue could not be loaded</p>
           <p className="text-[#666] text-sm mb-4">Try again or contact support if the issue persists.</p>
           <p className="text-[#555] text-xs mb-4">Error: {error}</p>
           <button
             onClick={fetchAll}
-            className="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white rounded-lg text-sm font-semibold transition-all"
+            className="px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-gray-900 dark:text-white rounded-lg text-sm font-semibold transition-all"
           >
             Try Again
           </button>
@@ -790,7 +790,7 @@ export default function ReviewQueuePage() {
       {/* ─── Header ─────────────────────────────────────────────────────────── */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">Review Queue</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Review Queue</h1>
           <p className="text-[#888] text-sm">Review, approve, reject, revise, or escalate AI-generated outputs, campaign assets, engagement replies, and policy-sensitive work before they move forward.</p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -900,7 +900,7 @@ export default function ReviewQueuePage() {
               placeholder="Search items, campaigns, reviewers…"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 text-xs rounded-xl bg-[var(--card)] border border-[var(--border)] text-white placeholder-[#555] outline-none focus:border-indigo-500/40"
+              className="w-full pl-9 pr-3 py-2.5 text-xs rounded-xl bg-[var(--card)] border border-[var(--border)] text-gray-900 dark:text-white placeholder-[#555] outline-none focus:border-indigo-500/40"
             />
           </div>
 
@@ -947,7 +947,7 @@ export default function ReviewQueuePage() {
                 <div className="w-12 h-12 bg-rose-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <AlertCircle className="w-6 h-6 text-rose-400" />
                 </div>
-                <p className="text-white font-semibold text-sm mb-1">Failed to load queue</p>
+                <p className="text-gray-900 dark:text-white font-semibold text-sm mb-1">Failed to load queue</p>
                 <p className="text-[#666] text-[11px] mb-3">{error}</p>
                 <button onClick={fetchAll} className="px-3 py-1.5 bg-indigo-500/20 border border-indigo-500/30 rounded-lg text-[10px] font-bold text-indigo-300 hover:bg-indigo-500/30 transition-all">
                   Retry
@@ -962,7 +962,7 @@ export default function ReviewQueuePage() {
                    filter === "escalated" ? <AlertTriangle className="w-6 h-6 text-amber-400" /> :
                    <CheckCircle2 className="w-6 h-6 text-[#555]" />}
                 </div>
-                <p className="text-white font-semibold text-sm mb-1">
+                <p className="text-gray-900 dark:text-white font-semibold text-sm mb-1">
                   {metricFilter === "assigned_to_me" ? "No items assigned to you." :
                    filter === "assigned_to_me" ? "No items assigned to you." :
                    metricFilter === "high_critical_risk" ? "No high-risk items in review." :
@@ -1052,12 +1052,12 @@ export default function ReviewQueuePage() {
                         <div className={`w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
                           isBulkChecked ? "bg-indigo-500 border-indigo-500" : "border-[#555]"
                         }`}>
-                          {isBulkChecked && <CheckCircle2 className="w-3 h-3 text-white" />}
+                          {isBulkChecked && <CheckCircle2 className="w-3 h-3 text-gray-900 dark:text-white" />}
                         </div>
                       )}
                       <span className="shrink-0 mt-0.5 text-[#666]">{ITEM_TYPE_ICONS[item.item_type] || <FileText className="w-3.5 h-3.5" />}</span>
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-white truncate">{item.title}</p>
+                        <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{item.title}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-[9px] text-[#555]">{item.item_type}</span>
                           <span className="text-[9px] text-[#555]">•</span>
@@ -1165,7 +1165,7 @@ export default function ReviewQueuePage() {
               <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mb-4">
                 <Eye className="w-7 h-7 text-[#555]" />
               </div>
-              <p className="text-white font-semibold mb-1">Select an item to review</p>
+              <p className="text-gray-900 dark:text-white font-semibold mb-1">Select an item to review</p>
               <p className="text-[#666] text-sm">Choose an item from the queue to view its content, validation, and governance details.</p>
             </div>
           ) : detailLoading ? (
@@ -1179,7 +1179,7 @@ export default function ReviewQueuePage() {
               <div className="p-4 border-b border-[var(--border)]/50">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <h3 className="text-sm font-bold text-white mb-0.5">{detailItem?.title}</h3>
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-0.5">{detailItem?.title}</h3>
                     <div className="flex items-center gap-2 flex-wrap text-[10px] text-[#666]">
                       <span>{detailItem?.item_type}</span>
                       <span>•</span>
@@ -1286,31 +1286,31 @@ export default function ReviewQueuePage() {
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
-                <h4 className="text-[11px] font-bold text-white uppercase tracking-wider">Risk Summary</h4>
+                <h4 className="text-[11px] font-bold text-gray-900 dark:text-white uppercase tracking-wider">Risk Summary</h4>
               </div>
               <div className="space-y-2 text-[11px]">
                 <div className="flex justify-between items-center">
                   <span className="text-[#888]">Overall Risk</span>
-                  <span className={`font-bold ${RISK_CONFIG[(detailItem as ReviewItem).risk_level as keyof typeof RISK_CONFIG]?.color || "text-white"}`}>
+                  <span className={`font-bold ${RISK_CONFIG[(detailItem as ReviewItem).risk_level as keyof typeof RISK_CONFIG]?.color || "text-gray-900 dark:text-white"}`}>
                     {(detailItem as ReviewItem).risk_level || "Unknown"}
                   </span>
                 </div>
                 {detailItem.risk_category && (
                   <div className="flex justify-between">
                     <span className="text-[#888]">Category</span>
-                    <span className="text-white text-right max-w-[180px]">{detailItem.risk_category}</span>
+                    <span className="text-gray-900 dark:text-white text-right max-w-[180px]">{detailItem.risk_category}</span>
                   </div>
                 )}
                 {detailItem.confidence_score !== undefined && (
                   <div className="flex justify-between">
                     <span className="text-[#888]">Confidence</span>
-                    <span className="text-white">{(detailItem.confidence_score * 100).toFixed(0)}%</span>
+                    <span className="text-gray-900 dark:text-white">{(detailItem.confidence_score * 100).toFixed(0)}%</span>
                   </div>
                 )}
                 {eligibility?.state && (
                   <div className="flex justify-between">
                     <span className="text-[#888]">Eligibility</span>
-                    <span className="text-white text-right max-w-[180px]">{eligibility.state}</span>
+                    <span className="text-gray-900 dark:text-white text-right max-w-[180px]">{eligibility.state}</span>
                   </div>
                 )}
               </div>
@@ -1334,7 +1334,7 @@ export default function ReviewQueuePage() {
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <ClipboardList className="w-3.5 h-3.5 text-cyan-400" />
-                <h4 className="text-[11px] font-bold text-white uppercase tracking-wider">Validation Summary</h4>
+                <h4 className="text-[11px] font-bold text-gray-900 dark:text-white uppercase tracking-wider">Validation Summary</h4>
               </div>
               <div className="space-y-1.5">
                 {VALIDATION_AREAS.map(va => {
@@ -1363,22 +1363,22 @@ export default function ReviewQueuePage() {
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
-                <h4 className="text-[11px] font-bold text-white uppercase tracking-wider">Assignment</h4>
+                <h4 className="text-[11px] font-bold text-gray-900 dark:text-white uppercase tracking-wider">Assignment</h4>
               </div>
               <div className="space-y-2 text-[11px]">
                 <div className="flex justify-between">
                   <span className="text-[#888]">Assigned To</span>
-                  <span className="text-white">{detailItem.assigned_to?.slice(0, 12) || "Unassigned"}</span>
+                  <span className="text-gray-900 dark:text-white">{detailItem.assigned_to?.slice(0, 12) || "Unassigned"}</span>
                 </div>
                 {detailItem.assigned_team && (
                   <div className="flex justify-between">
                     <span className="text-[#888]">Team</span>
-                    <span className="text-white">{detailItem.assigned_team}</span>
+                    <span className="text-gray-900 dark:text-white">{detailItem.assigned_team}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span className="text-[#888]">Submitted By</span>
-                  <span className="text-white">{detailItem.submitted_by?.slice(0, 12)}</span>
+                  <span className="text-gray-900 dark:text-white">{detailItem.submitted_by?.slice(0, 12)}</span>
                 </div>
                 {detailItem.due_at && (
                   <div className="flex justify-between">
@@ -1407,7 +1407,7 @@ export default function ReviewQueuePage() {
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
-                <h4 className="text-[11px] font-bold text-white uppercase tracking-wider">Reviewer Notes</h4>
+                <h4 className="text-[11px] font-bold text-gray-900 dark:text-white uppercase tracking-wider">Reviewer Notes</h4>
               </div>
               <div className="space-y-2 max-h-40 overflow-y-auto mb-3">
                 {notes.length === 0 ? (
@@ -1440,12 +1440,12 @@ export default function ReviewQueuePage() {
                   value={feedback}
                   onChange={e => setFeedback(e.target.value)}
                   rows={2}
-                  className="flex-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-[11px] text-white placeholder-[#555] outline-none focus:border-indigo-500/50 resize-none"
+                  className="flex-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-[11px] text-gray-900 dark:text-white placeholder-[#555] outline-none focus:border-indigo-500/50 resize-none"
                 />
                 <button
                   onClick={handleAddNote}
                   disabled={actionLoading === "note" || !feedback.trim()}
-                  className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white rounded-lg text-[10px] font-bold transition-all shrink-0 self-end"
+                  className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-gray-900 dark:text-white rounded-lg text-[10px] font-bold transition-all shrink-0 self-end"
                 >
                   {actionLoading === "note" ? <RefreshCcw className="w-3 h-3 animate-spin" /> : "Send"}
                 </button>
@@ -1458,7 +1458,7 @@ export default function ReviewQueuePage() {
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <History className="w-3.5 h-3.5 text-purple-400" />
-                <h4 className="text-[11px] font-bold text-white uppercase tracking-wider">Audit Timeline</h4>
+                <h4 className="text-[11px] font-bold text-gray-900 dark:text-white uppercase tracking-wider">Audit Timeline</h4>
               </div>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {auditTrail.length === 0 ? (
@@ -1494,7 +1494,7 @@ export default function ReviewQueuePage() {
               <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-3">
                 <ShieldCheck className="w-5 h-5 text-[#555]" />
               </div>
-              <p className="text-white text-xs font-semibold mb-1">No Item Selected</p>
+              <p className="text-gray-900 dark:text-white text-xs font-semibold mb-1">No Item Selected</p>
               <p className="text-[#666] text-[10px]">Select an item from the queue to view governance details.</p>
             </div>
           )}
@@ -1505,13 +1505,13 @@ export default function ReviewQueuePage() {
       {noteDialogItemId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setNoteDialogItemId(null); setNoteDialogText(""); }}>
           <div className="bg-[#0a0a0a] border border-[#2d2d2d] rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-white mb-4">Add Note</h3>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Add Note</h3>
             <textarea value={noteDialogText} onChange={e => setNoteDialogText(e.target.value)}
-              rows={4} className="w-full p-3 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40 resize-none"
+              rows={4} className="w-full p-3 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-gray-900 dark:text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40 resize-none"
               placeholder="Enter your note..." />
             <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-[#2d2d2d]">
               <button onClick={() => { setNoteDialogItemId(null); setNoteDialogText(""); }} className="px-4 py-2 bg-[#161616] hover:bg-[#1a1a1a] text-[#888] rounded-lg text-xs font-medium">Cancel</button>
-              <button onClick={() => { if (noteDialogText.trim() && noteDialogItemId) { handleAction("add-note", noteDialogItemId); setNoteDialogItemId(null); setNoteDialogText(""); } }} disabled={!noteDialogText.trim() || actionLoading === "add-note"} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded-lg text-xs font-medium">Add Note</button>
+              <button onClick={() => { if (noteDialogText.trim() && noteDialogItemId) { handleAction("add-note", noteDialogItemId); setNoteDialogItemId(null); setNoteDialogText(""); } }} disabled={!noteDialogText.trim() || actionLoading === "add-note"} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-gray-900 dark:text-white rounded-lg text-xs font-medium">Add Note</button>
             </div>
           </div>
         </div>

@@ -259,7 +259,7 @@ export default function EvidenceVaultPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-white flex items-center gap-2">
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Archive className="w-5 h-5 text-[#888]" /> Evidence Vault
           </h1>
           <p className="text-xs text-[#888] mt-1">Preserved evidence, integrity verification, and legal-grade export</p>
@@ -270,22 +270,22 @@ export default function EvidenceVaultPage() {
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
           {activeTab === "items" && (
-            <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-white rounded-lg hover:bg-blue-700">
+            <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-gray-900 dark:text-white rounded-lg hover:bg-blue-700">
               <Plus className="w-3.5 h-3.5" /> Preserve
             </button>
           )}
           {activeTab === "packages" && (
-            <button onClick={() => setShowCreatePackage(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-white rounded-lg hover:bg-blue-700">
+            <button onClick={() => setShowCreatePackage(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-gray-900 dark:text-white rounded-lg hover:bg-blue-700">
               <Plus className="w-3.5 h-3.5" /> Create Package
             </button>
           )}
           {activeTab === "shares" && (
-            <button onClick={() => setShowCreateShare(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-white rounded-lg hover:bg-blue-700">
+            <button onClick={() => setShowCreateShare(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-gray-900 dark:text-white rounded-lg hover:bg-blue-700">
               <Plus className="w-3.5 h-3.5" /> New Share
             </button>
           )}
           {activeTab === "scans" && (
-            <button onClick={() => setShowRunScan(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-white rounded-lg hover:bg-blue-700">
+            <button onClick={() => setShowRunScan(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-gray-900 dark:text-white rounded-lg hover:bg-blue-700">
               <Scan className="w-3.5 h-3.5" /> Run Scan
             </button>
           )}
@@ -295,7 +295,7 @@ export default function EvidenceVaultPage() {
       {/* Metric Cards */}
       {activeTab === "items" && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-          <StatCard label="Total Preserved" value={health?.total_items || 0} color="text-white" />
+          <StatCard label="Total Preserved" value={health?.total_items || 0} color="text-gray-900 dark:text-white" />
           <StatCard label="Legal Holds" value={health?.legal_hold_count || 0} color="text-red-400" />
           <StatCard label="Needs Verify" value={health?.failed_verifications || 0} color={health?.failed_verifications ? "text-amber-400" : "text-green-400"} />
           <StatCard label="Quarantined" value={health?.quarantined || 0} color="text-amber-400" />
@@ -370,7 +370,7 @@ export default function EvidenceVaultPage() {
                   {items.map(item => (
                     <tr key={item.id} className="border-b border-[#1a1a1a] hover:bg-[#1a1a1a] cursor-pointer"
                       onClick={() => router.push(`/evidence/evidence-vault/items/${item.id}`)}>
-                      <td className="p-3 text-white font-mono text-[11px]">{item.item_id}</td>
+                      <td className="p-3 text-gray-900 dark:text-white font-mono text-[11px]">{item.item_id}</td>
                       <td className="p-3">
                         <span className="text-[#aaa]">{item.source_type}</span>
                         <span className="text-[#666] ml-1">:{item.source_id.substring(0, 12)}</span>
@@ -450,7 +450,7 @@ export default function EvidenceVaultPage() {
               <tbody>
                 {packages.map(pkg => (
                   <tr key={pkg.id} className="border-b border-[#1a1a1a] hover:bg-[#1a1a1a]">
-                    <td className="p-3 text-white font-mono text-[11px]">{pkg.package_id}</td>
+                    <td className="p-3 text-gray-900 dark:text-white font-mono text-[11px]">{pkg.package_id}</td>
                     <td className="p-3 text-[#ccc]">{pkg.title}</td>
                     <td className="p-3 text-[#aaa]">{pkg.package_type.replace(/_/g, ' ')}</td>
                     <td className="p-3">
@@ -493,7 +493,7 @@ export default function EvidenceVaultPage() {
               <tbody>
                 {shares.map(share => (
                   <tr key={share.id} className="border-b border-[#1a1a1a]">
-                    <td className="p-3 text-white font-mono text-[11px]">{share.share_id}</td>
+                    <td className="p-3 text-gray-900 dark:text-white font-mono text-[11px]">{share.share_id}</td>
                     <td className="p-3 text-[#ccc]">{share.recipient_email}</td>
                     <td className="p-3 text-[#aaa] text-[10px]">{share.disclosure_mode.replace(/_/g, ' ')}</td>
                     <td className="p-3 text-[#888] text-[11px]">{fmtDate(share.expires_at)}</td>
@@ -536,7 +536,7 @@ export default function EvidenceVaultPage() {
               <tbody>
                 {scans.map(scan => (
                   <tr key={scan.id} className="border-b border-[#1a1a1a]">
-                    <td className="p-3 text-white font-mono text-[11px]">{scan.id.substring(0, 8)}</td>
+                    <td className="p-3 text-gray-900 dark:text-white font-mono text-[11px]">{scan.id.substring(0, 8)}</td>
                     <td className="p-3 text-[#aaa] font-mono text-[11px]">{scan.package_id.substring(0, 8)}</td>
                     <td className="p-3">
                       <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${SCAN_STATUS_COLORS[scan.scan_status] || 'text-slate-400'}`}>
@@ -614,7 +614,7 @@ function CreatePreservationModal({ onClose, onCreated }: { onClose: () => void; 
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="bg-[#151515] border border-[#333] rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2"><Archive className="w-4 h-4" /> Preserve Evidence</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Archive className="w-4 h-4" /> Preserve Evidence</h2>
           <button onClick={onClose}><X className="w-4 h-4 text-[#666] hover:text-white" /></button>
         </div>
         <div className="space-y-3">
@@ -631,17 +631,17 @@ function CreatePreservationModal({ onClose, onCreated }: { onClose: () => void; 
           <div>
             <label className="text-xs text-[#888] mb-1 block">Source ID</label>
             <input value={sourceId} onChange={e => setSourceId(e.target.value)} placeholder="AUD-2026-00018492"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
           </div>
           <div>
             <label className="text-xs text-[#888] mb-1 block">Source System</label>
             <input value={sourceSystem} onChange={e => setSourceSystem(e.target.value)} placeholder="audit_trail"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
           </div>
           <div>
             <label className="text-xs text-[#888] mb-1 block">Preservation Reason</label>
             <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason for preservation"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" rows={2} />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" rows={2} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -669,7 +669,7 @@ function CreatePreservationModal({ onClose, onCreated }: { onClose: () => void; 
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-4 py-2 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-xs text-gray-900 dark:text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
               {saving ? "Preserving..." : "Preserve"}
             </button>
           </div>
@@ -704,7 +704,7 @@ function CreatePackageModal({ onClose, onCreated }: { onClose: () => void; onCre
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="bg-[#151515] border border-[#333] rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2"><Package className="w-4 h-4" /> Create Package</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Package className="w-4 h-4" /> Create Package</h2>
           <button onClick={onClose}><X className="w-4 h-4 text-[#666] hover:text-white" /></button>
         </div>
         <div className="space-y-3">
@@ -723,18 +723,18 @@ function CreatePackageModal({ onClose, onCreated }: { onClose: () => void; onCre
           <div>
             <label className="text-xs text-[#888] mb-1 block">Title</label>
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Package title"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
           </div>
           <div>
             <label className="text-xs text-[#888] mb-1 block">Description</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" rows={2} />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" rows={2} />
           </div>
           {error && <div className="text-xs text-red-400">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-4 py-2 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-xs text-gray-900 dark:text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
               {saving ? "Creating..." : "Create"}
             </button>
           </div>
@@ -780,40 +780,40 @@ function CreateShareModal({ onClose, onCreated }: { onClose: () => void; onCreat
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="bg-[#151515] border border-[#333] rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2"><Share2 className="w-4 h-4" /> Create External Share</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Share2 className="w-4 h-4" /> Create External Share</h2>
           <button onClick={onClose}><X className="w-4 h-4 text-[#666] hover:text-white" /></button>
         </div>
         <div className="space-y-3">
           <div>
             <label className="text-xs text-[#888] mb-1 block">Package ID</label>
             <input value={packageId} onChange={e => setPackageId(e.target.value)} placeholder="Sealed package UUID"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
           </div>
           <div>
             <label className="text-xs text-[#888] mb-1 block">Recipient Email</label>
             <input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder="auditor@example.com"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
           </div>
           <div>
             <label className="text-xs text-[#888] mb-1 block">Recipient Name</label>
             <input value={recipientName} onChange={e => setRecipientName(e.target.value)} placeholder="Optional"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
           </div>
           <div>
             <label className="text-xs text-[#888] mb-1 block">Expires At</label>
             <input type="datetime-local" value={expiresAt} onChange={e => setExpiresAt(e.target.value)}
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-[#888] mb-1 block">Max Views</label>
               <input type="number" value={maxViews} onChange={e => setMaxViews(parseInt(e.target.value) || 0)} placeholder="0 = unlimited"
-                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
             </div>
             <div>
               <label className="text-xs text-[#888] mb-1 block">Watermark</label>
               <input value={watermark} onChange={e => setWatermark(e.target.value)} placeholder="e.g. Confidential"
-                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
             </div>
           </div>
           <label className="flex items-center gap-2 text-xs text-[#888]">
@@ -825,7 +825,7 @@ function CreateShareModal({ onClose, onCreated }: { onClose: () => void; onCreat
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-4 py-2 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-xs text-gray-900 dark:text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
               {saving ? "Creating..." : "Create Share"}
             </button>
           </div>
@@ -858,20 +858,20 @@ function RunScanModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="bg-[#151515] border border-[#333] rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2"><Scan className="w-4 h-4" /> Run DLP Scan</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Scan className="w-4 h-4" /> Run DLP Scan</h2>
           <button onClick={onClose}><X className="w-4 h-4 text-[#666] hover:text-white" /></button>
         </div>
         <div className="space-y-3">
           <div>
             <label className="text-xs text-[#888] mb-1 block">Package ID</label>
             <input value={packageId} onChange={e => setPackageId(e.target.value)} placeholder="Sealed package UUID"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
           </div>
           {error && <div className="text-xs text-red-400">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-4 py-2 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-xs text-gray-900 dark:text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
               {saving ? "Scanning..." : "Run Scan"}
             </button>
           </div>

@@ -424,7 +424,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                       return (
                         <div key={item.key} className="flex items-center gap-3 p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                           <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                            done ? "bg-emerald-500 text-white" : "bg-[var(--surface)] border border-[var(--border)]"
+                            done ? "bg-emerald-500 text-gray-900 dark:text-white" : "bg-[var(--surface)] border border-[var(--border)]"
                           }`}>
                             {done && <Check className="w-3.5 h-3.5" />}
                           </div>
@@ -724,7 +724,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                       });
                       if (result.success) onUpdate();
                     }}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all">
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white text-[10px] font-bold rounded-lg transition-all">
                     Save
                   </button>
                 </div>

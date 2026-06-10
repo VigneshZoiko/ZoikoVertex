@@ -156,7 +156,7 @@ export default function MediaLibraryPage() {
             <button
               key={t}
               onClick={() => setFilter(t)}
-              className={`px-6 py-3 rounded-xl text-sm font-medium transition-all ${filter === t ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+              className={`px-6 py-3 rounded-xl text-sm font-medium transition-all ${filter === t ? 'bg-indigo-600 text-gray-900 dark:text-white shadow-lg shadow-indigo-500/20' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                 }`}
             >
               {t.charAt(0).toUpperCase() + t.slice(1)}s
@@ -204,7 +204,7 @@ export default function MediaLibraryPage() {
                         </div>
                       )}
                       {allUrls.length > 1 && (
-                        <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1">
+                        <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-sm text-gray-900 dark:text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1">
                           <ImageIcon className="w-3 h-3" />
                           {allUrls.length}
                         </div>

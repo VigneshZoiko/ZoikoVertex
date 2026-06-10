@@ -189,7 +189,7 @@ export default function AuditTrailPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <FileSearch className="w-6 h-6 text-amber-500" />
             Audit Trail
           </h1>
@@ -482,7 +482,7 @@ function EventsTab() {
         {/* Risk Summary Strip */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3 mb-4">
-            <StatCard label="Today" value={stats.events_today} color="text-white" />
+            <StatCard label="Today" value={stats.events_today} color="text-gray-900 dark:text-white" />
             <StatCard label="High Risk" value={stats.high_risk_events} color="text-orange-400" />
             <StatCard label="Critical" value={stats.critical_events} color="text-red-400" />
             <StatCard label="AI Events" value={stats.ai_events} color="text-purple-400" />
@@ -504,14 +504,14 @@ function EventsTab() {
                 placeholder="Search event_id, title, summary, actor, object, type..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg pl-10 pr-4 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-amber-500"
               />
             </div>
 
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+              className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-amber-500"
             >
               <option value="1h">Last Hour</option>
               <option value="24h">Last 24 Hours</option>
@@ -524,11 +524,11 @@ function EventsTab() {
               <div className="flex items-center gap-2">
                 <input type="datetime-local" value={customDateFrom}
                   onChange={e => setCustomDateFrom(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-2 py-2 text-xs text-white" />
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-2 py-2 text-xs text-gray-900 dark:text-white" />
                 <span className="text-[#666] text-xs">to</span>
                 <input type="datetime-local" value={customDateTo}
                   onChange={e => setCustomDateTo(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-2 py-2 text-xs text-white" />
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-2 py-2 text-xs text-gray-900 dark:text-white" />
               </div>
             )}
 
@@ -562,27 +562,27 @@ function EventsTab() {
             <div className="px-3 pb-3 border-t border-[#222] pt-3 space-y-3">
               <div className="flex gap-3 flex-wrap">
                 <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[140px]">
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[140px]">
                   <option value="">All Categories</option>
                   {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
                 <input placeholder="Event Type (e.g. content.published)" value={selectedEventType}
                   onChange={e => setSelectedEventType(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[140px]" />
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[140px]" />
                 <select value={selectedRisk} onChange={e => setSelectedRisk(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[100px]">
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[100px]">
                   <option value="">All Risks</option>
                   {RISK_LEVELS.map(r => <option key={r} value={r}>{r.toUpperCase()}</option>)}
                 </select>
                 <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[100px]">
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[100px]">
                   <option value="">All Statuses</option>
                   {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                 </select>
               </div>
               <div className="flex gap-3 flex-wrap">
                 <select value={selectedEvidenceState} onChange={e => setSelectedEvidenceState(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[120px]">
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[120px]">
                   <option value="">All Evidence States</option>
                   <option value="not_preserved">Not Preserved</option>
                   <option value="preserved">Preserved</option>
@@ -591,7 +591,7 @@ function EventsTab() {
                   <option value="legal_hold">Legal Hold</option>
                 </select>
                 <select value={selectedRetentionClass} onChange={e => setSelectedRetentionClass(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[100px]">
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[100px]">
                   <option value="">All Retention</option>
                   <option value="STANDARD">Standard</option>
                   <option value="EXTENDED">Extended</option>
@@ -600,23 +600,23 @@ function EventsTab() {
                 </select>
                 <input placeholder="Actor ID" value={selectedActorId}
                   onChange={e => setSelectedActorId(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[120px]" />
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[120px]" />
                 <input placeholder="Object ID" value={selectedObjectId}
                   onChange={e => setSelectedObjectId(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[120px]" />
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[120px]" />
               </div>
               <div className="flex gap-3 flex-wrap">
                 <input placeholder="Workflow Run ID" value={workflowRunId}
                   onChange={e => setWorkflowRunId(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[130px]" />
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[130px]" />
                 <input placeholder="Approval Chain ID" value={approvalChainId}
                   onChange={e => setApprovalChainId(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[130px]" />
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[130px]" />
                 <input placeholder="Policy Rule ID" value={policyRuleId}
                   onChange={e => setPolicyRuleId(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[130px]" />
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[130px]" />
                 <select value={selectedDataResidency} onChange={e => setSelectedDataResidency(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[100px]">
+                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white flex-1 min-w-[100px]">
                   <option value="">All Regions</option>
                   <option value="auto">Auto</option>
                   <option value="us">US</option>
@@ -709,7 +709,7 @@ function EventsTab() {
                           <div className="text-[#555]">#{event.block_number}</div>
                         </td>
                         <td className="py-3 px-3 text-sm">
-                          <div className="text-white font-medium">{event.event_title || event.event_type}</div>
+                          <div className="text-gray-900 dark:text-white font-medium">{event.event_title || event.event_type}</div>
                           <div className="text-[#666] text-xs font-mono">{event.event_type}</div>
                         </td>
                         <td className="py-3 px-3 text-sm">
@@ -831,7 +831,7 @@ function EventsTab() {
       {selectedEvent && (
         <div className="w-96 bg-[#111] border border-[#222] rounded-xl overflow-hidden flex-shrink-0 max-h-[800px] flex flex-col">
           <div className="p-4 border-b border-[#222] flex items-center justify-between">
-            <h3 className="text-sm font-medium text-white">Event Details</h3>
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white">Event Details</h3>
             <button onClick={() => { setSelectedEvent(null); setRelatedEvents([]); }} className="text-[#666] hover:text-white">
               <X className="w-4 h-4" />
             </button>
@@ -839,7 +839,7 @@ function EventsTab() {
           <div className="flex-1 overflow-auto p-4 space-y-4">
             {/* Event Header */}
             <div>
-              <h4 className="text-base font-semibold text-white">{selectedEvent.event_title}</h4>
+              <h4 className="text-base font-semibold text-gray-900 dark:text-white">{selectedEvent.event_title}</h4>
               <p className="text-xs text-[#666] font-mono mt-0.5">{selectedEvent.event_type}</p>
             </div>
 
@@ -1115,7 +1115,7 @@ function SavedViewsTab() {
     <div className="bg-[#111] border border-[#222] rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-medium text-white">Saved Views</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Saved Views</h3>
           <p className="text-sm text-[#888]">Create and manage saved filter configurations.</p>
         </div>
         <button
@@ -1133,7 +1133,7 @@ function SavedViewsTab() {
             value={viewName}
             onChange={e => setViewName(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleCreate()}
-            className="flex-1 bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-white"
+            className="flex-1 bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
           />
           <button onClick={handleCreate} className="px-4 py-2 bg-amber-500 text-black rounded-lg text-sm font-medium hover:bg-amber-400">
             Save
@@ -1160,7 +1160,7 @@ function SavedViewsTab() {
             <tbody className="divide-y divide-[#222]">
               {views.map(v => (
                 <tr key={v.id} className="text-sm text-[#ccc]">
-                  <td className="py-2 px-3 font-medium text-white">{v.name}</td>
+                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">{v.name}</td>
                   <td className="py-2 px-3 text-xs text-[#888]">{formatTimestamp(v.createdAt)}</td>
                   <td className="py-2 px-3">
                     <button onClick={() => handleDelete(v.id)} className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1">
@@ -1203,7 +1203,7 @@ function ExportsTab() {
     <div className="bg-[#111] border border-[#222] rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-medium text-white">Export Jobs</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Export Jobs</h3>
           <p className="text-sm text-[#888]">Async export jobs with download and notification path.</p>
         </div>
         {loading && <RefreshCw className="w-4 h-4 animate-spin text-[#888]" />}
@@ -1293,7 +1293,7 @@ function IntegrityTab() {
       <div className="bg-[#111] border border-[#222] rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-medium text-white">Chain Integrity</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Chain Integrity</h3>
             <p className="text-sm text-[#888]">Verify the cryptographic hash chain of audit events.</p>
           </div>
           <button
@@ -1314,7 +1314,7 @@ function IntegrityTab() {
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-[#0a0a0a] border border-[#222] rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-white">{verifyResult.total_blocks}</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{verifyResult.total_blocks}</div>
                 <div className="text-xs text-[#888]">Total Blocks</div>
               </div>
               <div className="bg-[#0a0a0a] border border-emerald-500/20 rounded-lg p-3 text-center">
@@ -1385,7 +1385,7 @@ function RetentionTab() {
     <div className="space-y-4">
       {/* Retention Policy Summary */}
       <div className="bg-[#111] border border-[#222] rounded-xl p-6">
-        <h3 className="text-lg font-medium text-white mb-4">Retention Policies</h3>
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Retention Policies</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: "Standard", duration: "2 years", color: "text-emerald-400", desc: "Default retention for routine audit events", badge: "bg-emerald-400/10 border-emerald-400/20" },
@@ -1406,7 +1406,7 @@ function RetentionTab() {
       <div className="bg-[#111] border border-[#222] rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-medium text-white">Seal Expired Records</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Seal Expired Records</h3>
             <p className="text-sm text-[#888]">
               Seal records whose retention period has expired. Sealed records are locked from modification and can only be viewed by ADMIN, SECURITY, COMPLIANCE, and LEGAL roles, with all access logged.
             </p>
@@ -1432,7 +1432,7 @@ function RetentionTab() {
       <div className="bg-[#111] border border-[#222] rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-medium text-white">Active Legal Holds</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Active Legal Holds</h3>
             <p className="text-sm text-[#888]">Records under legal hold have their retention expiration suspended indefinitely.</p>
           </div>
         </div>
@@ -1529,7 +1529,7 @@ function StreamingTab() {
       <div className="bg-[#111] border border-[#222] rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-medium text-white">Real‑Time Event Streaming</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Real‑Time Event Streaming</h3>
             <p className="text-sm text-[#888]">
               Subscribe to audit events via SSE or webhook for real‑time monitoring, SIEM ingestion, and automated responses.
             </p>
@@ -1548,19 +1548,19 @@ function StreamingTab() {
               placeholder="Subscription name"
               value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-              className="w-full bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-white"
+              className="w-full bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
             />
             <input
               placeholder="Webhook endpoint URL"
               value={form.endpoint_url}
               onChange={e => setForm(p => ({ ...p, endpoint_url: e.target.value }))}
-              className="w-full bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-white"
+              className="w-full bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
             />
             <input
               placeholder='Event filters (JSON, e.g. {"risk_levels":["critical","high"]})'
               value={form.event_filters}
               onChange={e => setForm(p => ({ ...p, event_filters: e.target.value }))}
-              className="w-full bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-white font-mono"
+              className="w-full bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white font-mono"
             />
             <div className="flex gap-2 text-xs text-[#888]">
               <span className="px-2 py-1 bg-[#111] rounded">SSE: <code className="text-amber-400">GET /api/audit-events/subscribe</code></span>

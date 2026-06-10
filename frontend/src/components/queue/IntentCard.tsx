@@ -73,7 +73,7 @@ const IntentCard: React.FC<IntentCardProps> = ({
 
           <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]/50">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-indigo-500/10">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-bold text-gray-900 dark:text-white shadow-lg shadow-indigo-500/10">
                 {intent.creator?.full_name?.charAt(0) || "U"}
               </div>
               <div className="text-xs">
@@ -106,7 +106,7 @@ const IntentCard: React.FC<IntentCardProps> = ({
                   </button>
                   <button 
                     onClick={() => onUpdateStatus(intent.id, 'APPROVED')}
-                    className="px-4 py-1.5 bg-indigo-500 text-white hover:bg-indigo-400 rounded-lg text-[10px] font-bold transition-all shadow-lg shadow-indigo-500/20 uppercase"
+                    className="px-4 py-1.5 bg-indigo-500 text-gray-900 dark:text-white hover:bg-indigo-400 rounded-lg text-[10px] font-bold transition-all shadow-lg shadow-indigo-500/20 uppercase"
                   >
                     Approve
                   </button>
@@ -143,7 +143,7 @@ const IntentCard: React.FC<IntentCardProps> = ({
                   </button>
                   <button 
                     onClick={() => onUpdateStatus(intent.id, 'PENDING_ADMIN', feedbackText)}
-                    className="px-5 py-2 bg-indigo-600 text-white hover:bg-indigo-500 rounded-xl text-[10px] font-bold transition-all shadow-lg shadow-indigo-500/20 uppercase"
+                    className="px-5 py-2 bg-indigo-600 text-gray-900 dark:text-white hover:bg-indigo-500 rounded-xl text-[10px] font-bold transition-all shadow-lg shadow-indigo-500/20 uppercase"
                   >
                     Approve & Escalate
                   </button>

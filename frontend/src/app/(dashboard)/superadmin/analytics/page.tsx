@@ -529,7 +529,7 @@ export default function PlatformAnalytics() {
               <button
                 onClick={handleUpgradePlan}
                 disabled={!!actionLoading}
-                className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-gray-900 dark:text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
                 {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUpCircle className="w-3.5 h-3.5" />}
                 Upgrade
@@ -577,8 +577,8 @@ export default function PlatformAnalytics() {
                 disabled={!!actionLoading}
                 className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
                   confirmDialog.type === 'delete'
-                    ? 'bg-red-600 hover:bg-red-500 text-white'
-                    : 'bg-amber-600 hover:bg-amber-500 text-white'
+                    ? 'bg-red-600 hover:bg-red-500 text-gray-900 dark:text-white'
+                    : 'bg-amber-600 hover:bg-amber-500 text-gray-900 dark:text-white'
                 }`}
               >
                 {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}

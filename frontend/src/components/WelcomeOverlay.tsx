@@ -54,14 +54,14 @@ export default function WelcomeOverlay() {
               />
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter mb-4">
+            <h1 className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white tracking-tighter mb-4">
               Welcome to <span className="text-indigo-500">{BRAND.name}</span>
             </h1>
 
-            <h2 className="text-4xl font-black text-white tracking-tighter mb-2">
+            <h2 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mb-2">
               Vertex Identity Verified
             </h2>
-            <p className="text-zinc-400 text-lg max-w-md mx-auto">
+            <p className="text-gray-500 dark:text-zinc-400 text-lg max-w-md mx-auto">
               Your governance workspace is now live and secured. Welcome to the
               future of execution.
             </p>

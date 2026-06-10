@@ -429,7 +429,7 @@ export default function CaseDetailPage() {
         <div className="flex items-start justify-between mb-3">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-xl font-bold text-white">{c.title}</h1>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">{c.title}</h1>
               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border ${SEVERITY_COLORS[c.severity]}`}>
                 {c.severity}
               </span>
@@ -485,7 +485,7 @@ export default function CaseDetailPage() {
         <div className="bg-[#111] border border-[#222] rounded-xl p-4 mb-4">
           <div className="flex items-center gap-3">
             <select value={newStatus} onChange={e => setNewStatus(e.target.value)}
-              className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white">
+              className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white">
               <option value="">Update status...</option>
               {["triage", "active_investigation", "awaiting_information", "legal_review", "remediation", "validation"].map(s => (
                 <option key={s} value={s}>{STATUS_LABELS[s] || s}</option>
@@ -493,7 +493,7 @@ export default function CaseDetailPage() {
             </select>
             <input placeholder="Reason for change"
               value={updateReason} onChange={e => setUpdateReason(e.target.value)}
-              className="flex-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              className="flex-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
             <button onClick={handleStatusUpdate} disabled={!newStatus || !updateReason}
               className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 disabled:opacity-50">
               Update
@@ -529,7 +529,7 @@ export default function CaseDetailPage() {
             <div className="flex items-center gap-3">
               <input placeholder="Reason for legal hold"
                 value={legalHoldReason} onChange={e => setLegalHoldReason(e.target.value)}
-                className="flex-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+                className="flex-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
               <button onClick={handleApplyLegalHold} disabled={!legalHoldReason}
                 className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 disabled:opacity-50">
                 <Lock className="w-3 h-3 inline mr-1" /> Apply Legal Hold
@@ -559,9 +559,9 @@ export default function CaseDetailPage() {
         <div className="space-y-4">
           {c.closure && (
             <div className="bg-[#111] border border-[#222] rounded-xl p-4">
-              <h3 className="text-sm font-medium text-white mb-2">Case Closure</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Case Closure</h3>
               <div className="text-xs text-[#888] space-y-1">
-                <p>Outcome: <span className="text-white">{c.closure.outcome}</span></p>
+                <p>Outcome: <span className="text-gray-900 dark:text-white">{c.closure.outcome}</span></p>
                 <p>Rationale: {c.closure.rationale}</p>
                 {c.closure.findings && <p>Findings: {c.closure.findings}</p>}
               </div>
@@ -569,7 +569,7 @@ export default function CaseDetailPage() {
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-[#111] border border-[#222] rounded-xl p-4">
-              <h3 className="text-sm font-medium text-white mb-2">Case Info</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Case Info</h3>
               <dl className="space-y-2 text-xs">
                 {[
                   ["Case ID", c.case_id], ["Type", c.case_type.replace(/_/g, " ")],
@@ -587,7 +587,7 @@ export default function CaseDetailPage() {
               </dl>
             </div>
             <div className="bg-[#111] border border-[#222] rounded-xl p-4">
-              <h3 className="text-sm font-medium text-white mb-2">Quick Actions</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Quick Actions</h3>
               <div className="space-y-2">
                 {c.status !== "closed" ? (
                   <button onClick={() => setActiveTab("close")}
@@ -613,7 +613,7 @@ export default function CaseDetailPage() {
           </div>
           {c.source_event_ids && c.source_event_ids.length > 0 && (
             <div className="bg-[#111] border border-[#222] rounded-xl p-4">
-              <h3 className="text-sm font-medium text-white mb-2">Source Events</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Source Events</h3>
               <div className="flex flex-wrap gap-2">
                 {c.source_event_ids.map((eid: string) => (
                   <span key={eid} className="px-2 py-1 bg-[#0a0a0a] border border-[#222] rounded text-xs font-mono text-[#888]">
@@ -627,7 +627,7 @@ export default function CaseDetailPage() {
           {/* Phase 4: AI Recommendations */}
           <div className="bg-gradient-to-r from-purple-500/5 to-transparent border border-purple-500/20 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-white flex items-center gap-2">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
                 <Lightbulb className="w-4 h-4 text-purple-400" /> AI Recommendations
               </h3>
               <button onClick={handleGenerateRecommendations} disabled={generatingRecommendations}
@@ -652,7 +652,7 @@ export default function CaseDetailPage() {
           {/* Phase 4: Anomalies */}
           <div className="bg-gradient-to-r from-red-500/5 to-transparent border border-red-500/20 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-white flex items-center gap-2">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-400" /> Anomaly Detection
               </h3>
               <button onClick={handleDetectAnomalies} disabled={generatingAnomalies}
@@ -670,7 +670,7 @@ export default function CaseDetailPage() {
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${
                         a.severity === "high" ? "bg-red-400/10 text-red-400" : "bg-amber-400/10 text-amber-400"
                       }`}>{a.anomaly_type}</span>
-                      <span className="text-xs text-white">{a.label}</span>
+                      <span className="text-xs text-gray-900 dark:text-white">{a.label}</span>
                     </div>
                     {a.description && <p className="text-[10px] text-[#888]">{a.description}</p>}
                   </div>
@@ -684,7 +684,7 @@ export default function CaseDetailPage() {
       {/* ======== TIMELINE TAB (Phase 2 Enhanced) ======== */}
       {activeTab === "timeline" && (
         <div className="bg-[#111] border border-[#222] rounded-xl p-6">
-          <h3 className="text-sm font-medium text-white mb-4">Reconstructed Timeline</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Reconstructed Timeline</h3>
           <p className="text-xs text-[#888] mb-4">
             Deterministic correlation from audit event keys. Confidence labels: <span className="text-emerald-400">Deterministic</span>, <span className="text-blue-400">High</span>, <span className="text-amber-400">Medium</span>, <span className="text-[#666]">Suggestive</span>.
           </p>
@@ -705,7 +705,7 @@ export default function CaseDetailPage() {
                   </div>
                   <div className="flex-1 pb-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-medium text-white">{item.label}</span>
+                      <span className="text-xs font-medium text-gray-900 dark:text-white">{item.label}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${
                         item.confidence === "deterministic" ? "text-emerald-400 bg-emerald-400/10" :
                         item.confidence === "high" ? "text-blue-400 bg-blue-400/10" :
@@ -772,7 +772,7 @@ export default function CaseDetailPage() {
           {showEvidenceForm && (
             <div className="bg-[#111] border border-[#222] rounded-xl p-4 space-y-3">
               <select value={evidenceForm.source_type} onChange={e => setEvidenceForm(p => ({ ...p, source_type: e.target.value }))}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white">
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white">
                 <option value="audit_event">Audit Event</option>
                 <option value="vault_item">Vault Item</option>
                 <option value="file">File</option>
@@ -781,10 +781,10 @@ export default function CaseDetailPage() {
               </select>
               <input placeholder="Source ID (event_id, file_id, etc.)"
                 value={evidenceForm.source_id} onChange={e => setEvidenceForm(p => ({ ...p, source_id: e.target.value }))}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
               <input placeholder="Reason for adding"
                 value={evidenceForm.added_reason} onChange={e => setEvidenceForm(p => ({ ...p, added_reason: e.target.value }))}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
               <button onClick={handleAddEvidence}
                 className="px-4 py-2 bg-amber-500 text-black rounded-lg text-xs font-medium hover:bg-amber-400">
                 Add to Case
@@ -879,14 +879,14 @@ export default function CaseDetailPage() {
         <div className="space-y-4">
           <div className="bg-[#111] border border-[#222] rounded-xl p-4 space-y-3">
             <select value={noteClass} onChange={e => setNoteClass(e.target.value)}
-              className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white">
+              className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white">
               <option value="internal_investigation">Internal Investigation Note</option>
               <option value="legal_privileged">Legal Privileged Note</option>
               <option value="external_shareable">External Shareable Note</option>
             </select>
             <textarea placeholder="Note content"
               value={noteContent} onChange={e => setNoteContent(e.target.value)}
-              className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white resize-none h-24" />
+              className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white resize-none h-24" />
             <button onClick={handleAddNote}
               className="px-4 py-2 bg-amber-500 text-black rounded-lg text-xs font-medium hover:bg-amber-400">
               Add Note
@@ -935,13 +935,13 @@ export default function CaseDetailPage() {
             <div className="bg-[#111] border border-[#222] rounded-xl p-4 space-y-3">
               <input placeholder="Task title" value={taskForm.title}
                 onChange={e => setTaskForm(p => ({ ...p, title: e.target.value }))}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
               <input placeholder="Description" value={taskForm.description}
                 onChange={e => setTaskForm(p => ({ ...p, description: e.target.value }))}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
               <input placeholder="Owner ID" value={taskForm.owner_id}
                 onChange={e => setTaskForm(p => ({ ...p, owner_id: e.target.value }))}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
               <button onClick={handleAddTask}
                 className="px-4 py-2 bg-amber-500 text-black rounded-lg text-xs font-medium hover:bg-amber-400">
                 Create Task
@@ -959,7 +959,7 @@ export default function CaseDetailPage() {
               {tasks.map(t => (
                 <div key={t.id} className="bg-[#111] border border-[#222] rounded-xl p-4 flex items-center justify-between">
                   <div>
-                    <div className="text-sm text-white">{t.title}</div>
+                    <div className="text-sm text-gray-900 dark:text-white">{t.title}</div>
                     {t.description && <p className="text-xs text-[#888] mt-0.5">{t.description}</p>}
                     <div className="flex gap-3 text-[10px] text-[#555] mt-1">
                       <span>Owner: {t.owner_id}</span>
@@ -982,7 +982,7 @@ export default function CaseDetailPage() {
       {activeTab === "actions" && (
         <div className="bg-[#111] border border-[#222] rounded-xl overflow-hidden">
           <div className="px-4 py-3 border-b border-[#222]">
-            <h3 className="text-sm font-medium text-white">Case Action Log</h3>
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white">Case Action Log</h3>
           </div>
           {actions.length === 0 ? (
             <div className="p-8 text-center text-xs text-[#888]">No actions recorded.</div>
@@ -1022,7 +1022,7 @@ export default function CaseDetailPage() {
       {activeTab === "export" && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-medium text-white">Export Packages</h3>
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white">Export Packages</h3>
             <button onClick={() => setShowExportForm(!showExportForm)}
               className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 flex items-center gap-1.5">
               <Plus className="w-3.5 h-3.5" /> {showExportForm ? "Cancel" : "New Export"}
@@ -1032,7 +1032,7 @@ export default function CaseDetailPage() {
           {showExportForm && (
             <div className="bg-[#111] border border-[#222] rounded-xl p-4 space-y-3">
               <select value={exportForm.package_type} onChange={e => setExportForm(p => ({ ...p, package_type: e.target.value }))}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white">
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white">
                 <option value="internal_investigation">Internal Investigation Pack</option>
                 <option value="legal">Legal Pack</option>
                 <option value="regulator">Regulator Pack</option>
@@ -1041,14 +1041,14 @@ export default function CaseDetailPage() {
               </select>
               <div className="flex gap-3">
                 <select value={exportForm.format} onChange={e => setExportForm(p => ({ ...p, format: e.target.value }))}
-                  className="flex-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white">
+                  className="flex-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white">
                   <option value="json">JSON</option>
                   <option value="pdf">PDF</option>
                   <option value="csv">CSV</option>
                   <option value="zip">ZIP</option>
                 </select>
                 <select value={exportForm.redaction_profile} onChange={e => setExportForm(p => ({ ...p, redaction_profile: e.target.value }))}
-                  className="flex-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white">
+                  className="flex-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white">
                   <option value="none">No Redaction</option>
                   <option value="standard">Standard</option>
                   <option value="legal">Legal</option>
@@ -1059,7 +1059,7 @@ export default function CaseDetailPage() {
               </div>
               <input placeholder="Reason for export"
                 value={exportForm.reason} onChange={e => setExportForm(p => ({ ...p, reason: e.target.value }))}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
               <button onClick={handleCreateExport} disabled={!exportForm.reason}
                 className="px-4 py-2 bg-amber-500 text-black rounded-lg text-xs font-medium hover:bg-amber-400">
                 Request Export
@@ -1079,7 +1079,7 @@ export default function CaseDetailPage() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-amber-400" />
-                      <span className="text-sm font-medium text-white">{exp.package_type.replace(/_/g, " ")}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{exp.package_type.replace(/_/g, " ")}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${
                         exp.status === "ready" ? "text-emerald-400 bg-emerald-400/10" :
                         exp.status === "generating" ? "text-blue-400 bg-blue-400/10" :
@@ -1128,7 +1128,7 @@ export default function CaseDetailPage() {
       {activeTab === "graph" && (
         <div className="bg-[#111] border border-[#222] rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-white">Entity Graph</h3>
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white">Entity Graph</h3>
             <button onClick={fetchGraph} disabled={graphLoading}
               className="px-3 py-1.5 bg-[#0a0a0a] border border-[#333] text-[#888] rounded text-[10px] hover:text-white flex items-center gap-1">
               <RefreshCw className={`w-3 h-3 ${graphLoading ? "animate-spin" : ""}`} /> Refresh
@@ -1160,7 +1160,7 @@ export default function CaseDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Nodes by type */}
                 <div className="bg-[#0a0a0a] border border-[#222] rounded-xl p-4">
-                  <h4 className="text-xs font-medium text-white mb-3">Nodes by Type</h4>
+                  <h4 className="text-xs font-medium text-gray-900 dark:text-white mb-3">Nodes by Type</h4>
                   {Object.entries(
                     graphData.nodes.reduce((acc: Record<string, number>, n: any) => {
                       acc[n.type] = (acc[n.type] || 0) + 1;
@@ -1169,14 +1169,14 @@ export default function CaseDetailPage() {
                   ).map(([type, count]) => (
                     <div key={type} className="flex justify-between text-xs py-1">
                       <span className="text-[#888]">{type}</span>
-                      <span className="text-white font-mono">{count}</span>
+                      <span className="text-gray-900 dark:text-white font-mono">{count}</span>
                     </div>
                   ))}
                 </div>
 
                 {/* Node list */}
                 <div className="bg-[#0a0a0a] border border-[#222] rounded-xl p-4 max-h-64 overflow-y-auto">
-                  <h4 className="text-xs font-medium text-white mb-3">All Nodes</h4>
+                  <h4 className="text-xs font-medium text-gray-900 dark:text-white mb-3">All Nodes</h4>
                   {graphData.nodes.map((node: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 text-xs py-1">
                       <span className={`w-2 h-2 rounded-full ${
@@ -1186,7 +1186,7 @@ export default function CaseDetailPage() {
                         node.type === "audit_event" ? "bg-purple-400" :
                         "bg-[#555]"
                       }`} />
-                      <span className="text-white flex-1 truncate">{node.label}</span>
+                      <span className="text-gray-900 dark:text-white flex-1 truncate">{node.label}</span>
                       <span className="text-[10px] text-[#555]">{node.type}</span>
                     </div>
                   ))}
@@ -1195,7 +1195,7 @@ export default function CaseDetailPage() {
 
               {/* Edge list */}
               <div className="bg-[#0a0a0a] border border-[#222] rounded-xl p-4">
-                <h4 className="text-xs font-medium text-white mb-3">Relationships ({graphData.edges.length})</h4>
+                <h4 className="text-xs font-medium text-gray-900 dark:text-white mb-3">Relationships ({graphData.edges.length})</h4>
                 <div className="max-h-48 overflow-y-auto space-y-1">
                   {graphData.edges.map((edge: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 text-[11px]">
@@ -1217,7 +1217,7 @@ export default function CaseDetailPage() {
           {/* AI Case Summary */}
           <div className="bg-gradient-to-r from-purple-500/5 to-transparent border border-purple-500/20 rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-white flex items-center gap-2">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-purple-400" /> AI Case Summary
               </h3>
               <button onClick={handleGenerateSummary} disabled={generatingSummary}
@@ -1234,7 +1234,7 @@ export default function CaseDetailPage() {
                   <div key={s.id} className="bg-[#0a0a0a] border border-[#222] rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-medium text-white">{s.summary_type.replace(/_/g, " ")}</span>
+                        <span className="text-[10px] font-medium text-gray-900 dark:text-white">{s.summary_type.replace(/_/g, " ")}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded ${
                           s.status === "approved" ? "bg-emerald-400/10 text-emerald-400" :
                           s.status === "rejected" ? "bg-red-400/10 text-red-400" :
@@ -1274,7 +1274,7 @@ export default function CaseDetailPage() {
           {/* Timeline Explanation */}
           <div className="bg-[#111] border border-[#222] rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-white flex items-center gap-2">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
                 <Activity className="w-4 h-4 text-blue-400" /> Timeline Explanation
               </h3>
               <button onClick={handleGenerateExplanation} disabled={generatingExplanation}
@@ -1294,7 +1294,7 @@ export default function CaseDetailPage() {
       {/* ======== CLOSE TAB ======== */}
       {activeTab === "close" && (
         <div className="bg-[#111] border border-[#222] rounded-xl p-6 space-y-4">
-          <h3 className="text-sm font-medium text-white">Close Investigation Case</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">Close Investigation Case</h3>
           {c.status === "closed" ? (
             <div className="text-center py-8">
               <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-emerald-400" />
@@ -1306,7 +1306,7 @@ export default function CaseDetailPage() {
           ) : (
             <>
               <select value={closeForm.outcome} onChange={e => setCloseForm(p => ({ ...p, outcome: e.target.value }))}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white">
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white">
                 <option value="substantiated">Substantiated</option>
                 <option value="unsubstantiated">Unsubstantiated</option>
                 <option value="no_action">No Action Taken</option>
@@ -1315,10 +1315,10 @@ export default function CaseDetailPage() {
               </select>
               <textarea placeholder="Rationale (required)"
                 value={closeForm.rationale} onChange={e => setCloseForm(p => ({ ...p, rationale: e.target.value }))}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white resize-none h-20" />
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white resize-none h-20" />
               <textarea placeholder="Findings"
                 value={closeForm.findings} onChange={e => setCloseForm(p => ({ ...p, findings: e.target.value }))}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white resize-none h-20" />
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white resize-none h-20" />
               <button onClick={handleClose} disabled={!closeForm.outcome || !closeForm.rationale}
                 className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/20 disabled:opacity-50">
                 Close Case

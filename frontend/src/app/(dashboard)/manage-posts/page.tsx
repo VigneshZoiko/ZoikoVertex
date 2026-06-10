@@ -167,7 +167,7 @@ export default function ManagePostsPage() {
           <p className="text-[var(--foreground-muted)] max-w-sm mb-6">You haven&apos;t authored any posts. Head to the Media Library to pick an asset and start publishing!</p>
           <button 
             onClick={() => router.push('/library')}
-            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20"
+            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20"
           >
             Browse Library
           </button>

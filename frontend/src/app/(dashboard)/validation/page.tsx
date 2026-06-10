@@ -316,16 +316,16 @@ export default function ValidationDeskPage() {
             <div className="w-7 h-7 bg-indigo-500/15 rounded-lg flex items-center justify-center">
               <Shield className="w-4 h-4 text-indigo-400" />
             </div>
-            <h1 className="text-lg font-bold text-white">Validation Desk</h1>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-white">Validation Desk</h1>
           </div>
-          <p className="text-[11px] text-zinc-600 ml-9">
+          <p className="text-[11px] text-gray-400 dark:text-zinc-600 ml-9">
             Automated media safety scanning. Violations are blocked from vault and returned to creator.
           </p>
         </div>
         <button
           onClick={fetchData}
           disabled={loading}
-          className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-500 hover:text-white hover:border-zinc-700 transition-all disabled:opacity-50"
+          className="p-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg text-gray-500 dark:text-zinc-500 hover:text-white hover:border-gray-300 dark:border-zinc-700 transition-all disabled:opacity-50"
         >
           <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-indigo-400" : ""}`} />
         </button>
@@ -340,7 +340,7 @@ export default function ValidationDeskPage() {
         }`}>
           {message.type === "success" ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
           {message.text}
-          <button onClick={() => setMessage(null)} className="ml-auto text-zinc-600 hover:text-white">
+          <button onClick={() => setMessage(null)} className="ml-auto text-gray-400 dark:text-zinc-600 hover:text-white">
             <X className="w-3 h-3" />
           </button>
         </div>
@@ -355,11 +355,11 @@ export default function ValidationDeskPage() {
             { label: "Blocked",       value: stats.blocked,                                   icon: <Ban className="w-4 h-4" />,           color: "text-red-400",     bg: "bg-red-500/10" },
             { label: "Returned",      value: (stats.failed || 0) + (stats.needs_revision ?? 0), icon: <RotateCcw className="w-4 h-4" />, color: "text-orange-400",  bg: "bg-orange-500/10" },
           ].map(stat => (
-            <div key={stat.label} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3.5 flex items-center gap-3">
+            <div key={stat.label} className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-3.5 flex items-center gap-3">
               <div className={`w-9 h-9 ${stat.bg} ${stat.color} rounded-lg flex items-center justify-center shrink-0`}>{stat.icon}</div>
               <div>
-                <p className="text-lg font-bold text-white leading-none">{stat.value}</p>
-                <p className="text-[9px] text-zinc-600 font-semibold uppercase tracking-wider mt-0.5">{stat.label}</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-white leading-none">{stat.value}</p>
+                <p className="text-[9px] text-gray-400 dark:text-zinc-600 font-semibold uppercase tracking-wider mt-0.5">{stat.label}</p>
               </div>
             </div>
           ))}
@@ -372,15 +372,15 @@ export default function ValidationDeskPage() {
           <Zap className="w-3.5 h-3.5" />
           <span className="text-[10px] font-bold uppercase tracking-wider">Automated Workflow</span>
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-zinc-500 flex-1 flex-wrap">
-          <span className="px-2 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-zinc-400">Upload</span>
-          <ArrowRight className="w-3 h-3 text-zinc-700" />
-          <span className="px-2 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-zinc-400">AI Scan</span>
-          <ArrowRight className="w-3 h-3 text-zinc-700" />
+        <div className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-zinc-500 flex-1 flex-wrap">
+          <span className="px-2 py-0.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded text-gray-500 dark:text-zinc-400">Upload</span>
+          <ArrowRight className="w-3 h-3 text-gray-400 dark:text-zinc-700" />
+          <span className="px-2 py-0.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded text-gray-500 dark:text-zinc-400">AI Scan</span>
+          <ArrowRight className="w-3 h-3 text-gray-400 dark:text-zinc-700" />
           <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-emerald-400">Safe â†’ Vault</span>
-          <span className="text-zinc-700">or</span>
+          <span className="text-gray-400 dark:text-zinc-700">or</span>
           <span className="px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded text-red-400">Violations â†’ Blocked</span>
-          <ArrowRight className="w-3 h-3 text-zinc-700" />
+          <ArrowRight className="w-3 h-3 text-gray-400 dark:text-zinc-700" />
           <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded text-amber-400">Review Queue (human)</span>
         </div>
       </div>
@@ -391,13 +391,13 @@ export default function ValidationDeskPage() {
         {/* â•â•â• Left Panel: Item List â•â•â• */}
         <div className="w-[290px] shrink-0 flex flex-col gap-3">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-600" />
             <input
               type="text"
               placeholder="Search validations..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/40 transition-colors"
+              className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg text-xs text-gray-900 dark:text-white placeholder-zinc-600 focus:outline-none focus:border-indigo-500/40 transition-colors"
             />
           </div>
 
@@ -409,13 +409,13 @@ export default function ValidationDeskPage() {
                 className={`flex-1 px-2 py-1.5 text-[10px] font-bold rounded-lg transition-all relative ${
                   activeTab === tab.key
                     ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/25"
-                    : "text-zinc-600 hover:text-zinc-500 border border-transparent"
+                    : "text-gray-400 dark:text-zinc-600 hover:text-gray-500 dark:text-zinc-500 border border-transparent"
                 }`}
               >
                 {tab.label}
                 {tabCounts[tab.key as keyof typeof tabCounts] > 0 && (
                   <span className={`ml-1 px-1 rounded text-[8px] font-bold ${
-                    activeTab === tab.key ? "bg-indigo-500/30 text-indigo-300" : "bg-white/5 text-zinc-500"
+                    activeTab === tab.key ? "bg-indigo-500/30 text-indigo-300" : "bg-white/5 text-gray-500 dark:text-zinc-500"
                   }`}>
                     {tabCounts[tab.key as keyof typeof tabCounts]}
                   </span>
@@ -426,19 +426,19 @@ export default function ValidationDeskPage() {
 
           <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1 scrollbar-none">
             {loading ? (
-              <div className="flex flex-col items-center py-12 text-zinc-600 gap-3">
+              <div className="flex flex-col items-center py-12 text-gray-400 dark:text-zinc-600 gap-3">
                 <div className="w-6 h-6 border-2 border-indigo-500/50 border-t-indigo-500 rounded-full animate-spin" />
                 <p className="text-[10px]">Loading validations...</p>
               </div>
             ) : sortedItems.length === 0 ? (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center">
-                <Shield className="w-5 h-5 text-zinc-700 mx-auto mb-3" />
-                <p className="text-[11px] text-zinc-600 font-medium">No items in this queue</p>
+              <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-8 text-center">
+                <Shield className="w-5 h-5 text-gray-400 dark:text-zinc-700 mx-auto mb-3" />
+                <p className="text-[11px] text-gray-400 dark:text-zinc-600 font-medium">No items in this queue</p>
               </div>
             ) : (
               sortedItems.map(item => {
                 const isSelected = selectedItem?.id === item.id;
-                const status = STATUS_CONFIG[item.validation_status] || { label: item.validation_status, color: "bg-white/5 text-zinc-500 border-white/10", icon: null };
+                const status = STATUS_CONFIG[item.validation_status] || { label: item.validation_status, color: "bg-white/5 text-gray-500 dark:text-zinc-500 border-white/10", icon: null };
                 const isItemRejected = item.validation_status === "FAILED" || item.validation_status === "BLOCKED" || item.validation_status === "NEEDS_REVISION";
                 const isItemPassed   = item.validation_status === "PASSED"  || item.validation_status === "COMPLETED" || item.validation_status === "PASSED_WITH_OVERRIDE";
                 return (
@@ -448,22 +448,22 @@ export default function ValidationDeskPage() {
                     className={`w-full text-left rounded-lg p-3 transition-all border ${
                       isSelected
                         ? "bg-indigo-500/[0.04] border-indigo-500/30"
-                        : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
+                        : "bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:border-zinc-700"
                     } ${isItemRejected ? "border-l-2 border-l-red-500/40" : isItemPassed ? "border-l-2 border-l-emerald-500/40" : "border-l-2 border-l-blue-500/30"}`}
                   >
                     <div className="flex items-start gap-2 mb-2">
-                      <span className="text-zinc-700 mt-0.5 shrink-0">{ITEM_TYPE_ICONS[item.item_type] || <Layers className="w-3 h-3" />}</span>
-                      <p className="text-[11px] font-semibold text-white leading-tight line-clamp-2 flex-1">{item.title}</p>
+                      <span className="text-gray-400 dark:text-zinc-700 mt-0.5 shrink-0">{ITEM_TYPE_ICONS[item.item_type] || <Layers className="w-3 h-3" />}</span>
+                      <p className="text-[11px] font-semibold text-gray-900 dark:text-white leading-tight line-clamp-2 flex-1">{item.title}</p>
                     </div>
                     <div className="flex items-center gap-1.5 mb-2">
                       <span className={`inline-flex items-center gap-1 px-1.5 py-[0.5px] rounded-md border text-[8px] font-bold ${status.color}`}>
                         {status.icon}{status.label}
                       </span>
-                      <span className={`px-1.5 py-[0.5px] rounded border text-[8px] font-bold ${RISK_CONFIG[item.risk_level]?.badge || "bg-white/5 text-zinc-500 border-white/10"}`}>
+                      <span className={`px-1.5 py-[0.5px] rounded border text-[8px] font-bold ${RISK_CONFIG[item.risk_level]?.badge || "bg-white/5 text-gray-500 dark:text-zinc-500 border-white/10"}`}>
                         {item.risk_level}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-[9px] text-zinc-700">
+                    <div className="flex items-center justify-between text-[9px] text-gray-400 dark:text-zinc-700">
                       <span>{item.submitter_name || item.submitted_by?.slice(0, 10) || "Unknown"}</span>
                       <span>{formatRelativeTime(item.submitted_at)}</span>
                     </div>
@@ -477,26 +477,26 @@ export default function ValidationDeskPage() {
         {/* â•â•â• Right Panel: Item Detail â•â•â• */}
         <div className="flex-1 min-w-0">
           {!selectedItem ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-16 text-center">
+            <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-16 text-center">
               <Eye className="w-7 h-7 text-zinc-800 mx-auto mb-4" />
-              <p className="text-[13px] font-semibold text-zinc-700">Select an item to view</p>
-              <p className="text-[11px] text-zinc-700 mt-1">Choose a validation item from the list</p>
+              <p className="text-[13px] font-semibold text-gray-400 dark:text-zinc-700">Select an item to view</p>
+              <p className="text-[11px] text-gray-400 dark:text-zinc-700 mt-1">Choose a validation item from the list</p>
             </div>
           ) : (
             <div className="space-y-3">
 
               {/* â”€â”€ Instagram PC card: left info | right media â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+              <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg overflow-hidden">
                 <div className={`flex items-stretch ${hasMedia ? "" : "flex-col"}`}>
 
                   {/* Left: info pane */}
-                  <div className={`p-4 flex flex-col gap-3 ${hasMedia ? "w-[230px] shrink-0 border-r border-zinc-800" : "w-full"}`}>
+                  <div className={`p-4 flex flex-col gap-3 ${hasMedia ? "w-[230px] shrink-0 border-r border-gray-200 dark:border-zinc-800" : "w-full"}`}>
 
                     {/* Title + badges */}
                     <div>
-                      <h3 className="text-sm font-bold text-white mb-2 leading-snug">{selectedItem.title}</h3>
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-2 leading-snug">{selectedItem.title}</h3>
                       <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[8px] font-bold ${STATUS_CONFIG[selectedItem.validation_status]?.color || "bg-white/5 text-zinc-500 border-white/10"}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[8px] font-bold ${STATUS_CONFIG[selectedItem.validation_status]?.color || "bg-white/5 text-gray-500 dark:text-zinc-500 border-white/10"}`}>
                           {STATUS_CONFIG[selectedItem.validation_status]?.icon}
                           {STATUS_CONFIG[selectedItem.validation_status]?.label || selectedItem.validation_status}
                         </span>
@@ -504,10 +504,10 @@ export default function ValidationDeskPage() {
                           {selectedItem.risk_level}
                         </span>
                       </div>
-                      <div className="space-y-0.5 text-[9px] text-zinc-600">
+                      <div className="space-y-0.5 text-[9px] text-gray-400 dark:text-zinc-600">
                         <div className="flex items-center gap-1.5">
                           <User className="w-3 h-3 shrink-0" />
-                          <span className="text-white font-medium">{selectedItem.submitter_name || selectedItem.submitted_by?.slice(0, 10) || "Unknown"}</span>
+                          <span className="text-gray-900 dark:text-white font-medium">{selectedItem.submitter_name || selectedItem.submitted_by?.slice(0, 10) || "Unknown"}</span>
                           {selectedItem.submitter_role && (
                             <span className="px-1 py-[1px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[7px] font-bold rounded capitalize">
                               {selectedItem.submitter_role.toLowerCase()}
@@ -517,7 +517,7 @@ export default function ValidationDeskPage() {
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3 h-3 shrink-0" />
                           <span>{formatDate(selectedItem.submitted_at)}</span>
-                          <span className="text-zinc-700">{new Date(selectedItem.submitted_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+                          <span className="text-gray-400 dark:text-zinc-700">{new Date(selectedItem.submitted_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
                         </div>
                         {selectedItem.item_type && (
                           <p className="capitalize">{selectedItem.item_type.replace(/_/g, " ")} Â· {selectedItem.source_module}</p>
@@ -528,7 +528,7 @@ export default function ValidationDeskPage() {
                     {/* Copy text */}
                     {mediaCopy && (
                       <div className="bg-white/[0.03] border border-white/5 rounded-lg p-2.5">
-                        <p className="text-[10px] text-zinc-300 leading-relaxed">{mediaCopy}</p>
+                        <p className="text-[10px] text-gray-700 dark:text-zinc-300 leading-relaxed">{mediaCopy}</p>
                       </div>
                     )}
 
@@ -546,7 +546,7 @@ export default function ValidationDeskPage() {
 
                     {/* No media + no copy placeholder */}
                     {!hasMedia && !mediaCopy && !mediaViolation && (
-                      <div className="flex items-center gap-2 text-zinc-600 py-2">
+                      <div className="flex items-center gap-2 text-gray-400 dark:text-zinc-600 py-2">
                         <FileText className="w-4 h-4" />
                         <p className="text-xs">{mediaFt || "unknown type"}</p>
                       </div>
@@ -590,7 +590,7 @@ export default function ValidationDeskPage() {
                             </div>
                           )}
                           {mediaUrls.length > 1 && (
-                            <span className="absolute top-2 right-2 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                            <span className="absolute top-2 right-2 bg-black/60 text-gray-900 dark:text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
                               {activeMediaIdx + 1} / {mediaUrls.length}
                             </span>
                           )}
@@ -619,7 +619,7 @@ export default function ValidationDeskPage() {
 
                       {/* Thumbnail strip (multiple images) */}
                       {isImageMedia && mediaUrls.length > 1 && (
-                        <div className="flex gap-1 p-1.5 bg-zinc-950 border-t border-zinc-800 overflow-x-auto scrollbar-none">
+                        <div className="flex gap-1 p-1.5 bg-white dark:bg-zinc-950 border-t border-gray-200 dark:border-zinc-800 overflow-x-auto scrollbar-none">
                           {mediaUrls.map((url, idx) => (
                             <button
                               key={idx}
@@ -627,7 +627,7 @@ export default function ValidationDeskPage() {
                               className={`relative h-12 w-12 shrink-0 rounded overflow-hidden border-2 transition-all ${
                                 activeMediaIdx === idx
                                   ? "border-indigo-500"
-                                  : "border-zinc-800 opacity-60 hover:opacity-100"
+                                  : "border-gray-200 dark:border-zinc-800 opacity-60 hover:opacity-100"
                               }`}
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -696,8 +696,8 @@ export default function ValidationDeskPage() {
                   <div className="space-y-2 max-h-36 overflow-y-auto scrollbar-none">
                     {notes.map(note => (
                       <div key={note.id} className="border-l-2 border-orange-500/30 pl-3 space-y-0.5">
-                        <p className="text-xs text-zinc-200 leading-relaxed">{note.note_body}</p>
-                        <p className="text-[9px] text-zinc-600">
+                        <p className="text-xs text-gray-800 dark:text-zinc-200 leading-relaxed">{note.note_body}</p>
+                        <p className="text-[9px] text-gray-400 dark:text-zinc-600">
                           {note.created_by === "system" ? "âš¡ System" : `Validator ${note.created_by?.slice(0, 8)}`}
                           {" â€¢ "}{formatShortDate(note.created_at)}
                         </p>
@@ -709,10 +709,10 @@ export default function ValidationDeskPage() {
 
               {/* â”€â”€ Automated Scan Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
               {ruleResults.length > 0 && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <ShieldAlert className="w-3.5 h-3.5 text-indigo-400" />
-                    <h4 className="text-[11px] font-bold text-white">Automated Scan Results</h4>
+                    <h4 className="text-[11px] font-bold text-gray-900 dark:text-white">Automated Scan Results</h4>
                     <div className="ml-auto flex gap-1.5">
                       {failedRules.length > 0 && (
                         <span className="text-[9px] px-1.5 py-0.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded font-bold">
@@ -728,30 +728,30 @@ export default function ValidationDeskPage() {
                   </div>
                   {failedRules.length > 0 && (
                     <div className="mb-3 space-y-2">
-                      <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-wider">Violations Detected</p>
+                      <p className="text-[9px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-wider">Violations Detected</p>
                       {failedRules.map(rr => (
                         <div key={rr.id} className="p-3 rounded-lg bg-red-500/[0.04] border border-red-500/15">
                           <div className="flex justify-between items-center mb-1">
-                            <span className="text-[11px] font-semibold text-white">{rr.rule_name}</span>
+                            <span className="text-[11px] font-semibold text-gray-900 dark:text-white">{rr.rule_name}</span>
                             <span className={`text-[8px] px-2 py-0.5 rounded font-bold border ${
                               rr.result === "BLOCKED"
                                 ? "bg-red-600/15 border-red-600/25 text-red-400"
                                 : "bg-rose-500/15 border-rose-500/25 text-rose-400"
                             }`}>{rr.result}</span>
                           </div>
-                          {rr.explanation && <p className="text-[10px] text-zinc-400 leading-relaxed">{rr.explanation}</p>}
-                          <p className="text-[9px] text-zinc-600 mt-1">{rr.rule_category.replace(/_/g, " ")}</p>
+                          {rr.explanation && <p className="text-[10px] text-gray-500 dark:text-zinc-400 leading-relaxed">{rr.explanation}</p>}
+                          <p className="text-[9px] text-gray-400 dark:text-zinc-600 mt-1">{rr.rule_category.replace(/_/g, " ")}</p>
                         </div>
                       ))}
                     </div>
                   )}
                   {passedRules.length > 0 && (
                     <div className="space-y-1.5">
-                      <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-wider">Checks Passed</p>
+                      <p className="text-[9px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-wider">Checks Passed</p>
                       {passedRules.map(rr => (
                         <div key={rr.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/[0.03] border border-emerald-500/10">
                           <CheckCircle2 className="w-3 h-3 text-emerald-500/60 shrink-0" />
-                          <span className="text-[10px] text-zinc-500">{rr.rule_name}</span>
+                          <span className="text-[10px] text-gray-500 dark:text-zinc-500">{rr.rule_name}</span>
                           {rr.result === "WARNING" && <AlertTriangle className="w-3 h-3 text-amber-500/60 ml-auto" />}
                         </div>
                       ))}
@@ -762,15 +762,15 @@ export default function ValidationDeskPage() {
 
               {/* â”€â”€ Audit Timeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
               {timeline.length > 0 && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-3">Audit History</p>
+                <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-4">
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-wider mb-3">Audit History</p>
                   <div className="space-y-2">
                     {timeline.slice(0, 5).map((entry, i) => (
                       <div key={entry.id || i} className="flex items-start gap-2 text-[10px]">
                         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500/40 mt-1.5 shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-zinc-500 leading-snug">{entry.action?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</p>
-                          <p className="text-[9px] text-zinc-700">
+                          <p className="text-gray-500 dark:text-zinc-500 leading-snug">{entry.action?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</p>
+                          <p className="text-[9px] text-gray-400 dark:text-zinc-700">
                             {formatShortDate(entry.performed_at)} â€” {entry.performed_by === "system" ? "System (Automated)" : entry.performed_by?.slice(0, 10)}
                           </p>
                         </div>

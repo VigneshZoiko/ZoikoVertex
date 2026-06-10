@@ -370,7 +370,7 @@ export default function ApprovalsPage() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#2d2d2d] shrink-0">
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-lg font-bold text-white">Approvals</h1>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-white">Approvals</h1>
             <p className="text-[11px] text-[#888]">Review and authorize content, actions, and workflow outputs</p>
           </div>
         </div>
@@ -471,7 +471,7 @@ export default function ApprovalsPage() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#555]" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by title, source module..."
-            className="w-full bg-[#111] border border-[#2d2d2d] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
+            className="w-full bg-[#111] border border-[#2d2d2d] rounded-lg pl-8 pr-3 py-1.5 text-xs text-gray-900 dark:text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
         </div>
         <button onClick={() => setShowFilters(!showFilters)}
           className={`p-1.5 rounded-lg border text-xs flex items-center gap-1.5 transition-colors ${
@@ -556,7 +556,7 @@ export default function ApprovalsPage() {
                     <div className="flex items-start gap-2">
                       {bulkMode && (
                         <div className={`w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isBulkChecked ? "bg-indigo-500 border-indigo-500" : "border-[#555]"}`}>
-                          {isBulkChecked && <CheckCircle2 className="w-3 h-3 text-white" />}
+                          {isBulkChecked && <CheckCircle2 className="w-3 h-3 text-gray-900 dark:text-white" />}
                         </div>
                       )}
                       <RiskDot risk={item.risk_level} />
@@ -601,7 +601,7 @@ export default function ApprovalsPage() {
                 <div className="flex items-center gap-3">
                   <RiskDot risk={selectedItem.risk_level} />
                   <div>
-                    <h2 className="text-sm font-bold text-white">{selectedItem.title}</h2>
+                    <h2 className="text-sm font-bold text-gray-900 dark:text-white">{selectedItem.title}</h2>
                     <p className="text-[10px] text-[#555]">
                       {ITEM_TYPE_LABEL[selectedItem.item_type]} · {selectedItem.source_module}
                       {selectedItem.platform && <> · {selectedItem.platform}</>}
@@ -718,7 +718,7 @@ export default function ApprovalsPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-white">{d.approver_name || d.approver_id}</span>
+                                <span className="text-xs font-bold text-gray-900 dark:text-white">{d.approver_name || d.approver_id}</span>
                                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                                   d.decision === "APPROVED" ? "text-emerald-400 bg-emerald-500/10" :
                                   d.decision === "REJECTED" ? "text-rose-400 bg-rose-500/10" : "text-orange-400 bg-orange-500/10"
@@ -741,7 +741,7 @@ export default function ApprovalsPage() {
                     <div className="flex gap-2 mb-4">
                       <input value={commentText} onChange={e => setCommentText(e.target.value)}
                         placeholder="Add a comment..."
-                        className="flex-1 bg-[#0a0a0a] border border-[#2d2d2d] rounded-lg px-3 py-2 text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
+                        className="flex-1 bg-[#0a0a0a] border border-[#2d2d2d] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
                       <button onClick={() => {
                         if (commentText.trim() && selectedId) {
                           api.post(`/api/v1/approvals-v2/items/${selectedId}/comments`, { body: commentText, visibility: 'internal_only' })
@@ -759,7 +759,7 @@ export default function ApprovalsPage() {
                         {selectedComments.map(c => (
                           <div key={c.id} className="p-3 bg-[#0a0a0a] rounded-lg border border-[#2d2d2d]">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-bold text-white">{c.creator?.full_name || c.creator?.email || c.created_by}</span>
+                              <span className="text-xs font-bold text-gray-900 dark:text-white">{c.creator?.full_name || c.creator?.email || c.created_by}</span>
                               <span className="text-[9px] text-[#555]">{timeAgo(c.created_at)}</span>
                             </div>
                             <p className="text-[11px] text-[#888]">{c.comment_body}</p>

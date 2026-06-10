@@ -141,7 +141,7 @@ function platformColor(platform: string): string {
     case "TWITTER":   return "text-sky-400 bg-sky-400/10";
     case "LINKEDIN":  return "text-blue-400 bg-blue-400/10";
     case "FACEBOOK":  return "text-blue-500 bg-blue-500/10";
-    case "THREADS":   return "text-white bg-white/10";
+    case "THREADS":   return "text-gray-900 dark:text-white bg-white/10";
     case "YOUTUBE":   return "text-red-400 bg-red-400/10";
     default:          return "text-[#888] bg-white/5";
   }
@@ -286,7 +286,7 @@ function DmBubble({ body, time, isMine, status, replyType, sending, retryCount, 
                 ? "bg-red-900/30 text-red-200/70 rounded-br-sm border border-red-500/20"
                 : sending
                   ? "bg-sky-700/50 text-sky-200/80 rounded-br-sm"
-                  : "bg-sky-600 text-white rounded-br-sm"
+                  : "bg-sky-600 text-gray-900 dark:text-white rounded-br-sm"
             : "bg-[#161616] text-[#d4d4d4] rounded-bl-sm border border-[#202020]"
         }`}>
           {body}
@@ -495,7 +495,7 @@ function PostContextCard({ msg, preview, loading }: { msg: InboxMessage; preview
             {isVideo && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-5 h-5 rounded-full bg-black/60 flex items-center justify-center">
-                  <svg className="w-2.5 h-2.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 8 10">
+                  <svg className="w-2.5 h-2.5 text-gray-900 dark:text-white ml-0.5" fill="currentColor" viewBox="0 0 8 10">
                     <path d="M0 0l8 5-8 5V0z" />
                   </svg>
                 </div>
@@ -609,7 +609,7 @@ function ComposeBar({
             className={`flex items-center justify-center p-2 rounded-xl transition-colors disabled:opacity-25 disabled:cursor-not-allowed ${
               commentMode
                 ? "bg-[#161616] hover:bg-[#1e1e1e] border border-[#222] text-[#777] hover:text-white"
-                : "bg-sky-600 hover:bg-sky-500 text-white"
+                : "bg-sky-600 hover:bg-sky-500 text-gray-900 dark:text-white"
             }`}
           >
             {sendingReply ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

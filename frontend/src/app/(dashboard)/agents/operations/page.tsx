@@ -394,7 +394,7 @@ function ConfirmModal({ title, description, impactPreview, requireReason = true,
     >
       <div ref={cardRef} tabIndex={-1} className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
         <div className="p-5 border-b border-[#2a2a2a]">
-          <h3 className="text-base font-bold text-white">{title}</h3>
+          <h3 className="text-base font-bold text-gray-900 dark:text-white">{title}</h3>
           <p className="text-sm text-[#888] mt-1">{description}</p>
         </div>
         <div className="p-5 space-y-4">
@@ -411,7 +411,7 @@ function ConfirmModal({ title, description, impactPreview, requireReason = true,
                 ref={textareaRef}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-white h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-[#2a2a2a] focus:border-[#444]"}`}
+                className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-[#2a2a2a] focus:border-[#444]"}`}
                 placeholder="Describe reason for this action (at least 8 characters)..."
               />
               <p className={`mt-1 text-xs ${reason.trim().length < 8 ? "text-amber-400" : "text-emerald-400"}`}>
@@ -429,7 +429,7 @@ function ConfirmModal({ title, description, impactPreview, requireReason = true,
           <button
             onClick={() => onConfirm(reason)}
             disabled={(requireReason && reason.trim().length < 8) || loading}
-            className={`px-4 py-1.5 text-white rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2 ${confirmClass}`}
+            className={`px-4 py-1.5 text-gray-900 dark:text-white rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2 ${confirmClass}`}
           >
             {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {confirmLabel}
@@ -464,7 +464,7 @@ function EvidenceExportModal({ bundleId, onConfirm, onCancel, loading }: { bundl
     >
       <div ref={cardRef} tabIndex={-1} className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
         <div className="p-5 border-b border-[#2a2a2a]">
-          <h3 className="text-base font-bold text-white flex items-center gap-2"><Download className="w-4 h-4 text-indigo-400" /> Export Evidence Bundle</h3>
+          <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2"><Download className="w-4 h-4 text-indigo-400" /> Export Evidence Bundle</h3>
           <p className="text-xs text-[#888] mt-1 font-mono">Bundle: {shortId(bundleId)}</p>
         </div>
         <div className="p-5 space-y-4">
@@ -477,7 +477,7 @@ function EvidenceExportModal({ bundleId, onConfirm, onCancel, loading }: { bundl
               ref={textareaRef}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-white h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-[#2a2a2a] focus:border-[#444]"}`}
+              className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-[#2a2a2a] focus:border-[#444]"}`}
               placeholder="Legal review, audit request, incident investigation..."
             />
             <p className={`mt-1 text-xs ${reason.trim().length < 8 ? "text-amber-400" : "text-emerald-400"}`}>
@@ -491,7 +491,7 @@ function EvidenceExportModal({ bundleId, onConfirm, onCancel, loading }: { bundl
             <button
               onClick={() => onConfirm(reason)}
               disabled={reason.trim().length < 8 || loading}
-              className="px-4 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2"
+              className="px-4 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-gray-900 dark:text-white rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2"
             >
             {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Export Bundle
@@ -584,7 +584,7 @@ function RunDetailDrawer({
               <PolicyBadge result={run.policy_result} />
               <EvidenceBadge status={run.evidence_status} />
             </div>
-            <h3 className="text-base font-bold text-white truncate">{run.agent_name}</h3>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white truncate">{run.agent_name}</h3>
             <p className="text-xs text-[#666] truncate mt-0.5">{run.task_objective || run.workflow_name}</p>
             <div className="flex items-center gap-2 mt-2">
               <span className="text-[10px] font-mono text-[#444] bg-[#1a1a1a] px-1.5 py-0.5 rounded">{shortId(run.id)}</span>
@@ -606,7 +606,7 @@ function RunDetailDrawer({
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${
-                activeTab === t.id ? "border-indigo-500 text-white" : "border-transparent text-[#555] hover:text-[#aaa]"
+                activeTab === t.id ? "border-indigo-500 text-gray-900 dark:text-white" : "border-transparent text-[#555] hover:text-[#aaa]"
               }`}
             >
               {t.icon}
@@ -642,7 +642,7 @@ function RunDetailDrawer({
                     {row.link ? (
                       <a href={row.link} className="text-xs text-indigo-400 hover:text-indigo-300 font-medium truncate underline underline-offset-2 decoration-[#333] hover:decoration-indigo-500/40 block">{row.value}</a>
                     ) : (
-                      <p className="text-xs text-white font-medium truncate">{row.value}</p>
+                      <p className="text-xs text-gray-900 dark:text-white font-medium truncate">{row.value}</p>
                     )}
                   </div>
                 ))}
@@ -650,7 +650,7 @@ function RunDetailDrawer({
               {run.next_action && (
                 <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
                   <p className="text-[10px] text-indigo-400 mb-0.5 font-semibold uppercase tracking-wide">Next Action</p>
-                  <p className="text-sm text-white">{run.next_action}</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{run.next_action}</p>
                 </div>
               )}
             </div>
@@ -676,7 +676,7 @@ function RunDetailDrawer({
                       </div>
                       <div className="flex-1 bg-[#1a1a1a] rounded-xl p-3 border border-[#2a2a2a]">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-xs text-white font-semibold">{event.event_type.replace(/\./g, " → ")}</p>
+                          <p className="text-xs text-gray-900 dark:text-white font-semibold">{event.event_type.replace(/\./g, " → ")}</p>
                           <div className="flex items-center gap-1 shrink-0">
                             <span className="text-[10px] font-mono text-[#444]">{shortId(event.id)}</span>
                             <CopyButton text={event.id} />
@@ -708,7 +708,7 @@ function RunDetailDrawer({
                 Object.entries(detail.inputs).map(([key, val]) => (
                   <div key={key} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3">
                     <p className="text-[10px] text-[#555] mb-1 capitalize">{key.replace(/_/g, " ")}</p>
-                    <p className="text-xs text-white whitespace-pre-wrap">{typeof val === "string" ? val : JSON.stringify(val, null, 2)}</p>
+                    <p className="text-xs text-gray-900 dark:text-white whitespace-pre-wrap">{typeof val === "string" ? val : JSON.stringify(val, null, 2)}</p>
                   </div>
                 ))
               ) : (
@@ -729,7 +729,7 @@ function RunDetailDrawer({
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Hash className="w-4 h-4 text-indigo-400" />
-                      <span className="text-sm font-semibold text-white">Prompt Template</span>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-white">Prompt Template</span>
                     </div>
                     {detail.prompt_version && (
                       <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">v{detail.prompt_version}</span>
@@ -762,7 +762,7 @@ function RunDetailDrawer({
                 detail.knowledge_sources.map((ks, i) => (
                   <div key={i} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-semibold text-white">{ks.name}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{ks.name}</p>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${ks.confidence >= 80 ? "bg-emerald-500/10 text-emerald-400" : ks.confidence >= 60 ? "bg-amber-500/10 text-amber-400" : "bg-rose-500/10 text-rose-400"}`}>
                         {ks.confidence}% confidence
                       </span>
@@ -827,13 +827,13 @@ function RunDetailDrawer({
                         <span className="text-[10px] text-[#555]">{new Date(pr.created_at).toLocaleString()}</span>
                       </div>
                       {pr.failed_rule && (
-                        <p className="text-xs text-white mb-1"><span className="text-[#555]">Failed rule:</span> {pr.failed_rule}</p>
+                        <p className="text-xs text-gray-900 dark:text-white mb-1"><span className="text-[#555]">Failed rule:</span> {pr.failed_rule}</p>
                       )}
                       {pr.check_category && (
-                        <p className="text-xs text-white mb-1"><span className="text-[#555]">Category:</span> {pr.check_category}</p>
+                        <p className="text-xs text-gray-900 dark:text-white mb-1"><span className="text-[#555]">Category:</span> {pr.check_category}</p>
                       )}
                       {pr.platform && (
-                        <p className="text-xs text-white mb-1"><span className="text-[#555]">Platform:</span> {pr.platform}</p>
+                        <p className="text-xs text-gray-900 dark:text-white mb-1"><span className="text-[#555]">Platform:</span> {pr.platform}</p>
                       )}
                       {pr.remediation_path && (
                         <p className="text-xs text-amber-300 mb-1"><span className="text-[#555]">Remediation:</span> {pr.remediation_path}</p>
@@ -874,7 +874,7 @@ function RunDetailDrawer({
               ) : detail?.output_snapshot ? (
                 <>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-white">Generated Output</span>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">Generated Output</span>
                     {detail.output_status && (
                       <span className="text-[10px] px-2 py-0.5 rounded bg-[#1f1f1f] text-[#888] border border-[#2a2a2a]">{detail.output_status}</span>
                     )}
@@ -933,7 +933,7 @@ function RunDetailDrawer({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Lock className="w-4 h-4 text-indigo-400" />
-                          <span className="text-sm font-semibold text-white">Evidence Bundle</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white">Evidence Bundle</span>
                         </div>
                         <EvidenceBadge status={detail.evidence_bundle.status} />
                       </div>
@@ -979,7 +979,7 @@ function RunDetailDrawer({
                           <div key={i} className="flex items-start gap-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3">
                             <UserCheck className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
                             <div>
-                              <p className="text-xs text-white">{a.actor} <span className="text-[#555]">·</span> <span className="text-emerald-400">{a.action}</span></p>
+                              <p className="text-xs text-gray-900 dark:text-white">{a.actor} <span className="text-[#555]">·</span> <span className="text-emerald-400">{a.action}</span></p>
                               {a.reason && <p className="text-[10px] text-[#555] mt-0.5">{a.reason}</p>}
                               <p className="text-[10px] text-[#3a3a3a] mt-0.5">{new Date(a.timestamp).toLocaleString()}</p>
                             </div>
@@ -1676,7 +1676,7 @@ export default function AgentOperationsPage() {
       {/* ── Top Command Bar ── */}
       <div className="mb-5 flex flex-col md:flex-row md:items-center gap-3 justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-0.5">Agent Operations</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-0.5">Agent Operations</h1>
           <p className="text-[#666] text-sm">Live supervision · Runtime intervention · Incident response · Evidence capture</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -1726,7 +1726,7 @@ export default function AgentOperationsPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search runs by agent name, objective, or Run ID…"
-          className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-[#444] focus:outline-none focus:border-[#444] transition-colors"
+          className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-[#444] focus:outline-none focus:border-[#444] transition-colors"
         />
       </div>
 
@@ -1803,7 +1803,7 @@ export default function AgentOperationsPage() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id as typeof activeTab)}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === tab.id ? "border-indigo-500 text-white" : "border-transparent text-[#555] hover:text-[#aaa]"
+              activeTab === tab.id ? "border-indigo-500 text-gray-900 dark:text-white" : "border-transparent text-[#555] hover:text-[#aaa]"
             }`}
           >
             {tab.icon}
@@ -1914,8 +1914,8 @@ export default function AgentOperationsPage() {
                 <Download className="w-3.5 h-3.5" /> Export
               </button>
               <div className="flex items-center border border-[#2a2a2a] rounded-xl overflow-hidden">
-                <button onClick={() => setViewMode("list")} className={`p-1.5 ${viewMode === "list" ? "bg-[#2a2a2a] text-white" : "text-[#555] hover:text-[#aaa]"} transition-colors`}><List className="w-3.5 h-3.5" /></button>
-                <button onClick={() => setViewMode("card")} className={`p-1.5 ${viewMode === "card" ? "bg-[#2a2a2a] text-white" : "text-[#555] hover:text-[#aaa]"} transition-colors`}><LayoutGrid className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setViewMode("list")} className={`p-1.5 ${viewMode === "list" ? "bg-[#2a2a2a] text-gray-900 dark:text-white" : "text-[#555] hover:text-[#aaa]"} transition-colors`}><List className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setViewMode("card")} className={`p-1.5 ${viewMode === "card" ? "bg-[#2a2a2a] text-gray-900 dark:text-white" : "text-[#555] hover:text-[#aaa]"} transition-colors`}><LayoutGrid className="w-3.5 h-3.5" /></button>
               </div>
             </div>
           </div>
@@ -1958,7 +1958,7 @@ export default function AgentOperationsPage() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <SeverityDot severity={statusCfg.severity} />
-                          <span className="text-sm font-semibold text-white truncate">{run.agent_name}</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">{run.agent_name}</span>
                           <span className="text-[10px] font-mono text-[#3a3a3a] shrink-0">{shortId(run.id)}</span>
                           <CopyButton text={run.id} />
                         </div>
@@ -2070,7 +2070,7 @@ export default function AgentOperationsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <SeverityDot severity={STATUS_CONFIG[run.status]?.severity || "normal"} />
-                          <p className="text-sm font-bold text-white truncate">{run.agent_name}</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{run.agent_name}</p>
                         </div>
                         <p className="text-xs text-[#555] truncate pl-4">{run.task_objective || run.workflow_name}</p>
                       </div>
@@ -2179,12 +2179,12 @@ export default function AgentOperationsPage() {
                   return (
                     <div key={item.id} className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${item.sla_breached ? "border-l-2 border-l-rose-500/50" : ""}`}>
                       <div>
-                        <p className="text-sm font-medium text-white">{item.queue_type.replace(/_/g, " ")}</p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{item.queue_type.replace(/_/g, " ")}</p>
                         <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${resolved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
                           {item.status}
                         </span>
                       </div>
-                      <span className="text-xs font-semibold text-white px-2 py-0.5 rounded bg-[#1f1f1f] border border-[#2a2a2a]">{item.priority}</span>
+                      <span className="text-xs font-semibold text-gray-900 dark:text-white px-2 py-0.5 rounded bg-[#1f1f1f] border border-[#2a2a2a]">{item.priority}</span>
                       <div>
                         {item.assignee_name ? (
                           <span className="text-xs text-[#888]">{item.assignee_name}</span>
@@ -2248,7 +2248,7 @@ export default function AgentOperationsPage() {
                         <div className="flex items-start gap-3 flex-1 min-w-0">
                           <AlertTriangle className={`w-4 h-4 ${sevCfg.color} shrink-0 mt-0.5`} />
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-white">{incident.category.replace(/_/g, " ")}</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{incident.category.replace(/_/g, " ")}</p>
                             <p className="text-xs text-[#555] mt-0.5">
                               {incident.run_name} · Created by {incident.created_by_name} · {timeAgo(incident.created_at)}
                             </p>
@@ -2400,7 +2400,7 @@ export default function AgentOperationsPage() {
         >
           <div ref={incidentModalRef} tabIndex={-1} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
             <div className="p-5 border-b border-[#2a2a2a]">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Siren className="w-4 h-4 text-rose-400" /> Create Incident
               </h3>
               {selectedRun && <p className="text-xs text-[#555] mt-1">Linked to: {selectedRun.agent_name}</p>}
@@ -2411,7 +2411,7 @@ export default function AgentOperationsPage() {
                 <select
                   value={incidentForm.severity}
                   onChange={(e) => setIncidentForm({ ...incidentForm, severity: e.target.value })}
-                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#444]"
+                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#444]"
                 >
                   <option value="critical">Critical</option>
                   <option value="high">High</option>
@@ -2424,7 +2424,7 @@ export default function AgentOperationsPage() {
                 <select
                   value={incidentForm.category}
                   onChange={(e) => setIncidentForm({ ...incidentForm, category: e.target.value })}
-                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#444]"
+                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#444]"
                 >
                   <option value="critical_failure">Critical Failure</option>
                   <option value="platform_rule_breach">Platform Rule Breach</option>
@@ -2441,7 +2441,7 @@ export default function AgentOperationsPage() {
                 <textarea
                   value={incidentForm.root_cause}
                   onChange={(e) => setIncidentForm({ ...incidentForm, root_cause: e.target.value })}
-                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-white h-20 resize-none focus:outline-none focus:border-[#444] placeholder-[#3a3a3a]"
+                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white h-20 resize-none focus:outline-none focus:border-[#444] placeholder-[#3a3a3a]"
                   placeholder="Describe what failed and why…"
                 />
               </div>
@@ -2450,7 +2450,7 @@ export default function AgentOperationsPage() {
                 <textarea
                   value={incidentForm.remediation}
                   onChange={(e) => setIncidentForm({ ...incidentForm, remediation: e.target.value })}
-                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-white h-16 resize-none focus:outline-none focus:border-[#444] placeholder-[#3a3a3a]"
+                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-gray-900 dark:text-white h-16 resize-none focus:outline-none focus:border-[#444] placeholder-[#3a3a3a]"
                   placeholder="Initial remediation steps…"
                 />
               </div>
@@ -2462,7 +2462,7 @@ export default function AgentOperationsPage() {
               <button
                 onClick={handleCreateIncident}
                 disabled={!incidentForm.root_cause.trim() || incidentLoading}
-                className="px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2"
+                className="px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-gray-900 dark:text-white rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2"
               >
                 {incidentLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Create Incident

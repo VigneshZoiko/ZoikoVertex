@@ -292,15 +292,15 @@ export default function ReviewQueuePage() {
       <div className="mb-8 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-8 h-8 bg-zinc-800 border border-zinc-700 rounded-lg flex items-center justify-center">
-              <Layers className="w-4 h-4 text-zinc-300" />
+            <div className="w-8 h-8 bg-gray-200 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg flex items-center justify-center">
+              <Layers className="w-4 h-4 text-gray-700 dark:text-zinc-300" />
             </div>
-            <h1 className="text-xl font-bold text-white">Review Queue</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Review Queue</h1>
           </div>
-          <p className="text-sm text-zinc-500 ml-11">Human review pool. Claim an item, then approve, reject, or return to creator.</p>
+          <p className="text-sm text-gray-500 dark:text-zinc-500 ml-11">Human review pool. Claim an item, then approve, reject, or return to creator.</p>
         </div>
         <button onClick={fetchData} disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg text-zinc-400 text-xs font-medium transition-colors disabled:opacity-50">
+          className="flex items-center gap-2 px-3 py-2 bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-700 rounded-lg text-gray-500 dark:text-zinc-400 text-xs font-medium transition-colors disabled:opacity-50">
           <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </button>
@@ -315,7 +315,7 @@ export default function ReviewQueuePage() {
         }`}>
           {message.type === "success" ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
           {message.text}
-          <button onClick={() => setMessage(null)} className="ml-auto text-zinc-600 hover:text-zinc-300"><X className="w-3 h-3" /></button>
+          <button onClick={() => setMessage(null)} className="ml-auto text-gray-400 dark:text-zinc-600 hover:text-gray-700 dark:text-zinc-300"><X className="w-3 h-3" /></button>
         </div>
       )}
 
@@ -328,30 +328,30 @@ export default function ReviewQueuePage() {
             { label: "Approved",     value: stats.approved,                                   color: "text-emerald-400" },
             { label: "Returned",     value: stats.rejected + stats.awaiting_revision,          color: "text-rose-400" },
           ].map(s => (
-            <div key={s.label} className="p-4 bg-zinc-900 border border-zinc-800 rounded-lg">
+            <div key={s.label} className="p-4 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg">
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-zinc-500 font-medium mt-0.5">{s.label}</p>
+              <p className="text-xs text-gray-500 dark:text-zinc-500 font-medium mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
       )}
 
       {/* Workflow Banner */}
-      <div className="mb-6 p-3 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center gap-3">
-        <Zap className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-        <div className="flex items-center gap-2 text-[10px] text-zinc-600 flex-1 flex-wrap">
+      <div className="mb-6 p-3 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg flex items-center gap-3">
+        <Zap className="w-3.5 h-3.5 text-gray-500 dark:text-zinc-500 shrink-0" />
+        <div className="flex items-center gap-2 text-[10px] text-gray-400 dark:text-zinc-600 flex-1 flex-wrap">
           {["Upload", "AI Scan Flags", "Review Queue (shared)"].map((step, i, arr) => (
             <span key={step} className="flex items-center gap-2">
-              <span className={`px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-400 ${step.includes("shared") ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : ""}`}>{step}</span>
-              {i < arr.length - 1 && <ArrowRight className="w-3 h-3 text-zinc-700" />}
+              <span className={`px-2 py-0.5 bg-gray-200 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded text-gray-500 dark:text-zinc-400 ${step.includes("shared") ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : ""}`}>{step}</span>
+              {i < arr.length - 1 && <ArrowRight className="w-3 h-3 text-gray-400 dark:text-zinc-700" />}
             </span>
           ))}
-          <ArrowRight className="w-3 h-3 text-zinc-700" />
-          <span className="text-zinc-600">Reviewer →</span>
+          <ArrowRight className="w-3 h-3 text-gray-400 dark:text-zinc-700" />
+          <span className="text-gray-400 dark:text-zinc-600">Reviewer →</span>
           <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-emerald-400">Approve</span>
-          <span className="text-zinc-700">|</span>
+          <span className="text-gray-400 dark:text-zinc-700">|</span>
           <span className="px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded text-red-400">Reject</span>
-          <span className="text-zinc-700">|</span>
+          <span className="text-gray-400 dark:text-zinc-700">|</span>
           <span className="px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 rounded text-orange-400">Return</span>
         </div>
       </div>
@@ -362,22 +362,22 @@ export default function ReviewQueuePage() {
         {/* Left: Item List */}
         <div className="w-[260px] shrink-0 flex flex-col gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-600" />
             <input type="text" placeholder="Search..." value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 transition-colors" />
+              className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg text-xs text-gray-900 dark:text-white placeholder-zinc-600 focus:outline-none focus:border-gray-400 dark:border-zinc-600 transition-colors" />
           </div>
 
-          <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
+          <div className="flex gap-1 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-0.5">
             {TABS.map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                 className={`flex-1 px-2 py-1.5 text-[10px] font-semibold rounded transition-all ${
-                  activeTab === tab.key ? "bg-white text-black" : "text-zinc-500 hover:text-zinc-300"
+                  activeTab === tab.key ? "bg-white text-black" : "text-gray-500 dark:text-zinc-500 hover:text-gray-700 dark:text-zinc-300"
                 }`}>
                 {tab.label}
                 {counts[tab.key as keyof typeof counts] > 0 && (
                   <span className={`ml-1 px-1 rounded text-[8px] font-bold ${
-                    activeTab === tab.key ? "bg-black/10 text-black" : "bg-zinc-800 text-zinc-500"
+                    activeTab === tab.key ? "bg-black/10 text-black" : "bg-gray-200 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500"
                   }`}>
                     {counts[tab.key as keyof typeof counts]}
                   </span>
@@ -388,29 +388,29 @@ export default function ReviewQueuePage() {
 
           <div className="space-y-1.5 max-h-[600px] overflow-y-auto scrollbar-none">
             {loading ? (
-              <div className="flex flex-col items-center py-12 text-zinc-600 gap-3">
-                <div className="w-5 h-5 border-2 border-zinc-700 border-t-zinc-400 rounded-full animate-spin" />
+              <div className="flex flex-col items-center py-12 text-gray-400 dark:text-zinc-600 gap-3">
+                <div className="w-5 h-5 border-2 border-gray-300 dark:border-zinc-700 border-t-zinc-400 rounded-full animate-spin" />
                 <p className="text-[10px]">Loading...</p>
               </div>
             ) : sorted.length === 0 ? (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center">
-                <CheckCircle2 className="w-6 h-6 text-zinc-700 mx-auto mb-2" />
-                <p className="text-xs text-zinc-600">No items</p>
+              <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-8 text-center">
+                <CheckCircle2 className="w-6 h-6 text-gray-400 dark:text-zinc-700 mx-auto mb-2" />
+                <p className="text-xs text-gray-400 dark:text-zinc-600">No items</p>
               </div>
             ) : sorted.map(item => {
               const isSelected = selectedItem?.id === item.id;
-              const status = STATUS_CONFIG[item.status] || { label: item.status, color: "bg-zinc-800 text-zinc-400 border-zinc-700" };
+              const status = STATUS_CONFIG[item.status] || { label: item.status, color: "bg-gray-200 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700" };
               return (
                 <button key={item.id} onClick={() => handleSelect(item)}
                   className={`w-full text-left rounded-lg p-3 transition-all border ${
-                    isSelected ? "bg-zinc-800 border-zinc-600" : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
+                    isSelected ? "bg-gray-200 dark:bg-zinc-800 border-gray-400 dark:border-zinc-600" : "bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:border-zinc-700"
                   }`}>
-                  <p className="text-[11px] font-semibold text-white line-clamp-2 mb-1.5">{item.title}</p>
+                  <p className="text-[11px] font-semibold text-gray-900 dark:text-white line-clamp-2 mb-1.5">{item.title}</p>
                   <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                     <span className={`px-1.5 py-[1px] rounded border text-[8px] font-bold ${status.color}`}>{status.label}</span>
                     <span className={`px-1.5 py-[1px] rounded border text-[8px] font-bold ${RISK_CONFIG[item.risk_level] || ""}`}>{item.risk_level}</span>
                   </div>
-                  <div className="flex items-center justify-between text-[9px] text-zinc-600">
+                  <div className="flex items-center justify-between text-[9px] text-gray-400 dark:text-zinc-600">
                     <span>{item.submitter_name || item.submitted_by?.slice(0, 12)}</span>
                     <span>{formatRelative(item.submitted_at)}</span>
                   </div>
@@ -423,54 +423,54 @@ export default function ReviewQueuePage() {
         {/* Right: Detail */}
         <div className="flex-1 min-w-0">
           {!selectedItem ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-16 text-center">
-              <Eye className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-zinc-500">Select an item to review</p>
-              <p className="text-xs text-zinc-700 mt-1">Choose from the queue on the left</p>
+            <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-16 text-center">
+              <Eye className="w-8 h-8 text-gray-400 dark:text-zinc-700 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-gray-500 dark:text-zinc-500">Select an item to review</p>
+              <p className="text-xs text-gray-400 dark:text-zinc-700 mt-1">Choose from the queue on the left</p>
             </div>
           ) : (
             <div className="space-y-3">
 
               {/* Instagram PC Card */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+              <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg overflow-hidden">
                 <div className={`flex items-stretch ${hasMedia ? "" : "flex-col"}`}>
 
                   {/* Left info pane */}
-                  <div className={`flex flex-col gap-3 ${hasMedia ? "w-[230px] shrink-0 border-r border-zinc-800 p-4" : "w-full p-5"}`}>
+                  <div className={`flex flex-col gap-3 ${hasMedia ? "w-[230px] shrink-0 border-r border-gray-200 dark:border-zinc-800 p-4" : "w-full p-5"}`}>
 
                     {/* Title + badges */}
-                    <div className="pb-3 border-b border-zinc-800">
-                      <h3 className="text-sm font-bold text-white leading-snug mb-2">{selectedItem.title}</h3>
+                    <div className="pb-3 border-b border-gray-200 dark:border-zinc-800">
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white leading-snug mb-2">{selectedItem.title}</h3>
                       <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                        <span className={`px-2 py-0.5 rounded border text-[8px] font-bold ${STATUS_CONFIG[selectedItem.status]?.color || "bg-zinc-800 text-zinc-400 border-zinc-700"}`}>
+                        <span className={`px-2 py-0.5 rounded border text-[8px] font-bold ${STATUS_CONFIG[selectedItem.status]?.color || "bg-gray-200 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700"}`}>
                           {STATUS_CONFIG[selectedItem.status]?.label || selectedItem.status}
                         </span>
                         <span className={`px-2 py-0.5 rounded border text-[8px] font-bold ${RISK_CONFIG[selectedItem.risk_level] || ""}`}>
                           {selectedItem.risk_level}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-[9px] text-zinc-500">
+                      <div className="flex items-center gap-1.5 text-[9px] text-gray-500 dark:text-zinc-500">
                         <User className="w-3 h-3 shrink-0" />
-                        <span className="text-zinc-300 font-medium truncate">
+                        <span className="text-gray-700 dark:text-zinc-300 font-medium truncate">
                           {selectedItem.submitter_name || selectedItem.submitted_by?.slice(0, 16)}
                         </span>
                         {selectedItem.submitter_role && (
-                          <span className="px-1 py-[1px] bg-zinc-800 border border-zinc-700 text-zinc-500 text-[7px] font-bold rounded capitalize">
+                          <span className="px-1 py-[1px] bg-gray-200 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-500 dark:text-zinc-500 text-[7px] font-bold rounded capitalize">
                             {selectedItem.submitter_role.toLowerCase()}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-1.5 text-[9px] text-zinc-600 mt-0.5">
+                      <div className="flex items-center gap-1.5 text-[9px] text-gray-400 dark:text-zinc-600 mt-0.5">
                         <Calendar className="w-3 h-3 shrink-0" />
                         <span>{formatDateTime(selectedItem.submitted_at)}</span>
                       </div>
-                      <p className="text-[9px] text-zinc-600 mt-1">{selectedItem.item_type} · {selectedItem.source_module}</p>
+                      <p className="text-[9px] text-gray-400 dark:text-zinc-600 mt-1">{selectedItem.item_type} · {selectedItem.source_module}</p>
                     </div>
 
                     {/* Copy text */}
                     {snapCopy && (
-                      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5">
-                        <p className="text-[10px] text-zinc-400 leading-relaxed">{snapCopy}</p>
+                      <div className="bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg p-2.5">
+                        <p className="text-[10px] text-gray-500 dark:text-zinc-400 leading-relaxed">{snapCopy}</p>
                       </div>
                     )}
 
@@ -495,11 +495,11 @@ export default function ReviewQueuePage() {
                             Approve &amp; Publish
                           </button>
                           <button onClick={() => { setShowActionDrawer("reject"); setDrawerText(""); }} disabled={actionLoading !== null}
-                            className="w-full px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-red-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
+                            className="w-full px-3 py-2 bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-700 text-red-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
                             <XCircle className="w-3.5 h-3.5" /> Reject
                           </button>
                           <button onClick={() => { setShowActionDrawer("return"); setDrawerText(""); }} disabled={actionLoading !== null}
-                            className="w-full px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-orange-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
+                            className="w-full px-3 py-2 bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-700 text-orange-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
                             <RotateCcw className="w-3.5 h-3.5" /> Return to Creator
                           </button>
                         </>
@@ -528,15 +528,15 @@ export default function ReviewQueuePage() {
                             Approve
                           </button>
                           <button onClick={() => { setShowActionDrawer("reject"); setDrawerText(""); }} disabled={actionLoading !== null}
-                            className="w-full px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-red-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
+                            className="w-full px-3 py-2 bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-700 text-red-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
                             <XCircle className="w-3.5 h-3.5" /> Reject
                           </button>
                           <button onClick={() => { setShowActionDrawer("return"); setDrawerText(""); }} disabled={actionLoading !== null}
-                            className="w-full px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-orange-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
+                            className="w-full px-3 py-2 bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-700 text-orange-400 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
                             <RotateCcw className="w-3.5 h-3.5" /> Return to Creator
                           </button>
                           <button onClick={() => handleAction("unclaim")} disabled={actionLoading !== null}
-                            className="w-full px-2 py-1.5 text-[10px] text-zinc-600 hover:text-zinc-400 flex items-center justify-center gap-1 transition-colors">
+                            className="w-full px-2 py-1.5 text-[10px] text-gray-400 dark:text-zinc-600 hover:text-gray-500 dark:text-zinc-400 flex items-center justify-center gap-1 transition-colors">
                             <X className="w-3 h-3" /> Release to pool
                           </button>
                         </>
@@ -575,7 +575,7 @@ export default function ReviewQueuePage() {
                             </div>
                           )}
                           {mediaUrls.length > 1 && (
-                            <span className="absolute top-2 right-2 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
+                            <span className="absolute top-2 right-2 bg-black/60 text-gray-900 dark:text-white text-[9px] font-bold px-2 py-0.5 rounded-full">
                               {activeMediaIdx + 1} / {mediaUrls.length}
                             </span>
                           )}
@@ -596,11 +596,11 @@ export default function ReviewQueuePage() {
                         </div>
                       )}
                       {isImage && mediaUrls.length > 1 && (
-                        <div className="flex gap-1.5 p-2 bg-zinc-950 border-t border-zinc-800 overflow-x-auto scrollbar-none">
+                        <div className="flex gap-1.5 p-2 bg-white dark:bg-zinc-950 border-t border-gray-200 dark:border-zinc-800 overflow-x-auto scrollbar-none">
                           {mediaUrls.map((url, idx) => (
                             <button key={idx} onClick={() => setActiveMediaIdx(idx)}
                               className={`relative h-12 w-12 shrink-0 rounded overflow-hidden bg-black border-2 transition-all ${
-                                activeMediaIdx === idx ? "border-white" : "border-zinc-700 opacity-50 hover:opacity-80"
+                                activeMediaIdx === idx ? "border-white" : "border-gray-300 dark:border-zinc-700 opacity-50 hover:opacity-80"
                               }`}>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={url} alt={`${idx + 1}`} className="w-full h-full object-cover"
@@ -623,20 +623,20 @@ export default function ReviewQueuePage() {
                     <p className={`text-xs font-bold ${showActionDrawer === "reject" ? "text-red-300" : "text-orange-300"}`}>
                       {showActionDrawer === "reject" ? "Rejection Reason" : "Return Instructions"}
                     </p>
-                    <button onClick={() => setShowActionDrawer(null)} className="text-zinc-600 hover:text-zinc-400">
+                    <button onClick={() => setShowActionDrawer(null)} className="text-gray-400 dark:text-zinc-600 hover:text-gray-500 dark:text-zinc-400">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   <textarea
                     placeholder={showActionDrawer === "reject" ? "Reason for rejection..." : "Instructions for the creator..."}
                     value={drawerText} onChange={e => setDrawerText(e.target.value)} rows={3}
-                    className={`w-full bg-zinc-950 rounded-lg p-3 text-xs text-white placeholder-zinc-600 focus:outline-none resize-none border ${
+                    className={`w-full bg-white dark:bg-zinc-950 rounded-lg p-3 text-xs text-gray-900 dark:text-white placeholder-zinc-600 focus:outline-none resize-none border ${
                       showActionDrawer === "reject" ? "border-red-500/20 focus:border-red-500/40" : "border-orange-500/20 focus:border-orange-500/40"
                     }`}
                   />
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setShowActionDrawer(null)}
-                      className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-xs font-semibold rounded-lg text-zinc-400">
+                      className="px-3 py-1.5 bg-gray-200 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 hover:bg-gray-300 dark:bg-zinc-700 text-xs font-semibold rounded-lg text-gray-500 dark:text-zinc-400">
                       Cancel
                     </button>
                     <button
@@ -653,13 +653,13 @@ export default function ReviewQueuePage() {
 
               {/* Notes */}
               {notes.length > 0 && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-3">Review Notes</p>
+                <div className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-4">
+                  <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-wider mb-3">Review Notes</p>
                   <div className="space-y-2">
                     {notes.map(note => (
-                      <div key={note.id} className="border-l-2 border-zinc-700 pl-3">
-                        <p className="text-xs text-zinc-300 leading-relaxed">{note.note_body}</p>
-                        <p className="text-[9px] text-zinc-600 mt-0.5">{note.created_by} · {formatRelative(note.created_at)}</p>
+                      <div key={note.id} className="border-l-2 border-gray-300 dark:border-zinc-700 pl-3">
+                        <p className="text-xs text-gray-700 dark:text-zinc-300 leading-relaxed">{note.note_body}</p>
+                        <p className="text-[9px] text-gray-400 dark:text-zinc-600 mt-0.5">{note.created_by} · {formatRelative(note.created_at)}</p>
                       </div>
                     ))}
                   </div>

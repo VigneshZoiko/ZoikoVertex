@@ -122,7 +122,7 @@ export default function IdentityLedgerDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <Fingerprint className="w-6 h-6 text-amber-500" />
             Identity Ledger
           </h1>
@@ -174,7 +174,7 @@ export default function IdentityLedgerDashboard() {
                       placeholder="Search actors by name or ID..."
                       value={search}
                       onChange={e => setSearch(e.target.value)}
-                      className="w-full bg-[#111] border border-[#222] rounded-lg pl-9 pr-3 py-2 text-sm text-white"
+                      className="w-full bg-[#111] border border-[#222] rounded-lg pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-white"
                     />
                   </div>
                   <select value={filterType} onChange={e => setFilterType(e.target.value)}
@@ -220,7 +220,7 @@ export default function IdentityLedgerDashboard() {
                           <tr key={actor.id} className="hover:bg-white/[0.02] cursor-pointer"
                             onClick={() => loadActorDetails(actor.actor_id)}>
                             <td className="p-3">
-                              <div className="text-sm font-medium text-white">{actor.display_name}</div>
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">{actor.display_name}</div>
                               <div className="text-[10px] text-[#666] font-mono">{actor.actor_id}</div>
                             </td>
                             <td className="p-3 text-[#aaa] text-[11px] uppercase tracking-wider">{actor.actor_type.replace(/_/g, ' ')}</td>
@@ -349,7 +349,7 @@ export default function IdentityLedgerDashboard() {
               <div className="bg-[#111] border border-[#222] rounded-xl p-10 space-y-8 text-center max-w-3xl mx-auto">
                 <ShieldCheck className="w-16 h-16 text-amber-500/20 mx-auto" />
                 <div className="space-y-3">
-                  <h2 className="text-xl font-bold text-white">Ledger Chain Integrity Verification</h2>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Ledger Chain Integrity Verification</h2>
                   <p className="text-sm text-[#888]">
                     Verify the unbroken chain of authority snapshots and ledger entries to assure zero tampering in the identity state.
                   </p>
@@ -398,7 +398,7 @@ export default function IdentityLedgerDashboard() {
           <div className="bg-[#151515] border border-[#333] rounded-xl p-6 w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-sm font-semibold text-white">{actorDetails.actor?.display_name || selectedActor}</h2>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{actorDetails.actor?.display_name || selectedActor}</h2>
                 <p className="text-[10px] text-[#666] font-mono mt-0.5">{selectedActor}</p>
               </div>
               <button onClick={() => setSelectedActor(null)}>

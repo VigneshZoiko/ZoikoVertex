@@ -39,7 +39,7 @@
 //       <div className="bg-[var(--card)] border-2 border-rose-500/50 w-full max-w-md rounded-[2.5rem] shadow-[0_0_50px_rgba(244,63,94,0.3)] overflow-hidden flex flex-col">
         
 //         {/* Header */}
-//         <div className="p-8 bg-rose-500 text-white text-center space-y-2">
+//         <div className="p-8 bg-rose-500 text-gray-900 dark:text-white text-center space-y-2">
 //           <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-2 animate-pulse">
 //             <ZapOff className="w-8 h-8" />
 //           </div>
@@ -69,7 +69,7 @@
 //               <button 
 //                 onClick={() => setStep(2)}
 //                 disabled={confirmationCode !== "SUSPEND"}
-//                 className="w-full py-4 bg-rose-600 hover:bg-rose-500 disabled:opacity-30 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-600/30"
+//                 className="w-full py-4 bg-rose-600 hover:bg-rose-500 disabled:opacity-30 text-gray-900 dark:text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-600/30"
 //               >
 //                 INITIALIZE SUSPENSION
 //               </button>
@@ -93,7 +93,7 @@
 //               </div>
 //               <button 
 //                 onClick={handleActivate}
-//                 className="w-full py-4 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest animate-pulse"
+//                 className="w-full py-4 bg-rose-600 text-gray-900 dark:text-white rounded-2xl font-black uppercase tracking-widest animate-pulse"
 //               >
 //                 CONFIRM FINAL HALT
 //               </button>
@@ -223,7 +223,7 @@ export default function KillSwitchModal({
       <div className="bg-[var(--card)] border-2 border-rose-500/50 w-full max-w-md rounded-[2.5rem] shadow-[0_0_60px_rgba(244,63,94,0.25)] overflow-hidden flex flex-col">
 
         {/* Header */}
-        <div className="p-8 bg-gradient-to-br from-rose-600 to-rose-700 text-white text-center space-y-2">
+        <div className="p-8 bg-gradient-to-br from-rose-600 to-rose-700 text-gray-900 dark:text-white text-center space-y-2">
           <div className="w-16 h-16 bg-white/15 border border-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3 animate-pulse">
             <ZapOff className="w-8 h-8" />
           </div>
@@ -325,7 +325,7 @@ export default function KillSwitchModal({
                   <button
                     onClick={handleConfirmHalt}
                     disabled={loading}
-                    className="w-full py-4 bg-rose-600 hover:bg-rose-500 disabled:opacity-60 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-600/20 animate-pulse"
+                    className="w-full py-4 bg-rose-600 hover:bg-rose-500 disabled:opacity-60 text-gray-900 dark:text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-600/20 animate-pulse"
                   >
                     {loading ? "APPLYING EMERGENCY PAUSE..." : "CONFIRM FINAL HALT"}
                   </button>
@@ -401,7 +401,7 @@ function SuspendInput({
       <button
         onClick={onValid}
         disabled={!isMatch || disabled}
-        className="w-full py-4 bg-rose-600 hover:bg-rose-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-600/20"
+        className="w-full py-4 bg-rose-600 hover:bg-rose-500 disabled:opacity-30 disabled:cursor-not-allowed text-gray-900 dark:text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-rose-600/20"
       >
         {disabled ? "Enter suspension reason first" : !isMatch ? "Type SUSPEND to unlock" : "INITIALIZE SUSPENSION"}
       </button>

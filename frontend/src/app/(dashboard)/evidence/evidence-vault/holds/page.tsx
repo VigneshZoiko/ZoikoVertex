@@ -66,7 +66,7 @@ export default function VaultHoldsPage() {
           <button onClick={() => router.push('/evidence/evidence-vault')} className="flex items-center gap-1 text-xs text-[#888] hover:text-white mb-2">
             <ChevronLeft className="w-3.5 h-3.5" /> Back to Vault
           </button>
-          <h1 className="text-xl font-semibold text-white flex items-center gap-2">
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Gavel className="w-5 h-5 text-[#888]" /> Legal Holds
           </h1>
           <p className="text-xs text-[#888] mt-1">Apply, manage, and release legal holds on evidence</p>
@@ -75,7 +75,7 @@ export default function VaultHoldsPage() {
           <button onClick={fetchHolds} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#222] text-xs text-[#aaa] rounded-lg hover:bg-[#333]">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
-          <button onClick={() => setShowApply(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-xs text-white rounded-lg hover:bg-red-700">
+          <button onClick={() => setShowApply(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-xs text-gray-900 dark:text-white rounded-lg hover:bg-red-700">
             <Plus className="w-3.5 h-3.5" /> Apply Hold
           </button>
         </div>
@@ -108,7 +108,7 @@ export default function VaultHoldsPage() {
           <tbody>
             {holds.map(hold => (
               <tr key={hold.id} className="border-b border-[#1a1a1a] hover:bg-[#1a1a1a]">
-                <td className="p-3 text-white font-mono text-[11px]">{hold.hold_id}</td>
+                <td className="p-3 text-gray-900 dark:text-white font-mono text-[11px]">{hold.hold_id}</td>
                 <td className="p-3 text-[#ccc] font-mono text-[11px]">{hold.matter_ref}</td>
                 <td className="p-3 text-[#aaa] text-[10px]">{hold.scope_type}{hold.scope_id ? `:${hold.scope_id.substring(0, 8)}` : ''}</td>
                 <td className="p-3 text-[#888]">{hold.jurisdiction || '—'}</td>
@@ -165,7 +165,7 @@ function ApplyHoldModal({ onClose, onCreated }: { onClose: () => void; onCreated
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="bg-[#151515] border border-[#333] rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-white flex items-center gap-2"><Gavel className="w-4 h-4" /> Apply Legal Hold</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Gavel className="w-4 h-4" /> Apply Legal Hold</h2>
           <button onClick={onClose}><X className="w-4 h-4 text-[#666] hover:text-white" /></button>
         </div>
         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
@@ -185,40 +185,40 @@ function ApplyHoldModal({ onClose, onCreated }: { onClose: () => void; onCreated
           <div>
             <label className="text-xs text-[#888] mb-1 block">Scope ID</label>
             <input value={scopeId} onChange={e => setScopeId(e.target.value)}
-              placeholder="UUID of the item/collection/package" className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              placeholder="UUID of the item/collection/package" className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
           </div>
           <div>
             <label className="text-xs text-[#888] mb-1 block">Matter Reference *</label>
             <input value={matterRef} onChange={e => setMatterRef(e.target.value)}
-              placeholder="e.g. MATTER-2026-001" className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              placeholder="e.g. MATTER-2026-001" className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-[#888] mb-1 block">Jurisdiction</label>
               <input value={jurisdiction} onChange={e => setJurisdiction(e.target.value)} placeholder="e.g. GB"
-                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
             </div>
             <div>
               <label className="text-xs text-[#888] mb-1 block">Review Date</label>
               <input type="date" value={reviewDate} onChange={e => setReviewDate(e.target.value)}
-                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
             </div>
           </div>
           <div>
             <label className="text-xs text-[#888] mb-1 block">Reason *</label>
             <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Legal basis for hold"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" rows={2} />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" rows={2} />
           </div>
           <div>
             <label className="text-xs text-[#888] mb-1 block">Effective Date *</label>
             <input type="date" value={effectiveDate} onChange={e => setEffectiveDate(e.target.value)}
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-white" />
+              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-gray-900 dark:text-white" />
           </div>
           {error && <div className="text-xs text-red-400">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-4 py-2 text-xs text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50">
+              className="px-4 py-2 text-xs text-gray-900 dark:text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50">
               {saving ? "Applying..." : "Apply Hold"}
             </button>
           </div>

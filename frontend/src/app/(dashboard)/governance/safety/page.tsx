@@ -185,7 +185,7 @@ export default function SafetyOverviewPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-white p-8">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-gray-900 dark:text-white p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500 mb-4"></div>
         <p className="text-[#888] font-medium tracking-wide">Assembling safety telemetry...</p>
       </div>
@@ -221,10 +221,10 @@ export default function SafetyOverviewPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="text-xs font-mono px-2.5 py-1 bg-[#1a1a1a] border border-[#333] rounded text-[#888]">
-              Tenant: <span className="text-white font-bold">{data?.tenant_id}</span>
+              Tenant: <span className="text-gray-900 dark:text-white font-bold">{data?.tenant_id}</span>
             </span>
             <span className="text-xs font-mono px-2.5 py-1 bg-[#1a1a1a] border border-[#333] rounded text-[#888]">
-              Workspace: <span className="text-white font-bold">{data?.workspace_id?.substring(0, 8)}</span>
+              Workspace: <span className="text-gray-900 dark:text-white font-bold">{data?.workspace_id?.substring(0, 8)}</span>
             </span>
           </div>
 
@@ -262,8 +262,8 @@ export default function SafetyOverviewPage() {
               onClick={() => setIsPauseModalOpen(true)}
               className={`text-xs font-bold px-3 py-1 rounded flex items-center gap-1.5 transition-all shadow-md ${
                 isEmergencyPaused
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/10"
-                  : "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-900/10"
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-gray-900 dark:text-white shadow-emerald-900/10"
+                  : "bg-rose-600 hover:bg-rose-700 text-gray-900 dark:text-white shadow-rose-900/10"
               }`}
             >
               <Power className="w-3.5 h-3.5" />
@@ -297,7 +297,7 @@ export default function SafetyOverviewPage() {
           <div>
             <div className="flex items-center gap-2.5">
               <Layers className="w-8 h-8 text-amber-500" />
-              <h1 className="text-3xl font-extrabold text-white tracking-tight">Safety Layer Overview</h1>
+              <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Safety Layer Overview</h1>
             </div>
             <p className="text-[#888] text-sm mt-1">
               Document 01 Command Surface · Tier-0 Real-Time Operational Controls
@@ -310,7 +310,7 @@ export default function SafetyOverviewPage() {
               className="p-2.5 bg-[#141414] hover:bg-[#1f1f1f] border border-[#2d2d2d] hover:border-[#444] rounded-xl transition-all flex items-center justify-center"
               aria-label="Refresh telemetry data"
             >
-              <RefreshCw className={`w-4 h-4 text-white ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 text-gray-900 dark:text-white ${isRefreshing ? "animate-spin" : ""}`} />
             </button>
 
             <button
@@ -329,7 +329,7 @@ export default function SafetyOverviewPage() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-[#888] uppercase tracking-wider">Safety Posture Score</p>
-                <h3 className="text-4xl font-black text-white mt-2">{data?.posture_score}%</h3>
+                <h3 className="text-4xl font-black text-gray-900 dark:text-white mt-2">{data?.posture_score}%</h3>
               </div>
               <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${getStatusColor(data?.posture_status || "healthy")}`}>
                 {data?.posture_status}
@@ -352,7 +352,7 @@ export default function SafetyOverviewPage() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-[#888] uppercase tracking-wider">Critical Holds</p>
-                <h3 className={`text-4xl font-black mt-2 ${data?.critical_holds_count && data.critical_holds_count > 0 ? "text-rose-400" : "text-white"}`}>
+                <h3 className={`text-4xl font-black mt-2 ${data?.critical_holds_count && data.critical_holds_count > 0 ? "text-rose-400" : "text-gray-900 dark:text-white"}`}>
                   {data?.critical_holds_count || 0}
                 </h3>
               </div>
@@ -366,7 +366,7 @@ export default function SafetyOverviewPage() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-xs font-bold text-[#888] uppercase tracking-wider">Agent Safety Health</p>
-                <h3 className="text-4xl font-black text-white mt-2 capitalize">{data?.agent_safety_health || "healthy"}</h3>
+                <h3 className="text-4xl font-black text-gray-900 dark:text-white mt-2 capitalize">{data?.agent_safety_health || "healthy"}</h3>
               </div>
               <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${getStatusColor(data?.agent_safety_health || "healthy")}`}>
                 {data?.agent_safety_health}
@@ -397,7 +397,7 @@ export default function SafetyOverviewPage() {
           
           {/* Component Registry Card Grid */}
           <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <Layers className="w-5 h-5 text-amber-500" />
               Component Registry
             </h2>
@@ -411,15 +411,15 @@ export default function SafetyOverviewPage() {
                   <div className="flex justify-between items-start w-full">
                     <div>
                       <span className="text-[10px] font-mono text-[#555]">Component 0{idx + 1}</span>
-                      <h4 className="text-sm font-extrabold text-white mt-1 line-clamp-1">{component.name}</h4>
+                      <h4 className="text-sm font-extrabold text-gray-900 dark:text-white mt-1 line-clamp-1">{component.name}</h4>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${getStatusColor(component.health)}`}>
                       {component.health}
                     </span>
                   </div>
                   <div className="flex items-center justify-between mt-4 w-full">
-                    <span className="text-[10px] text-[#666]">Backlog: <strong className="text-white font-semibold">{component.backlog}</strong></span>
-                    <span className="text-[10px] text-[#666]">Owner: <strong className="text-white font-semibold">{component.owner}</strong></span>
+                    <span className="text-[10px] text-[#666]">Backlog: <strong className="text-gray-900 dark:text-white font-semibold">{component.backlog}</strong></span>
+                    <span className="text-[10px] text-[#666]">Owner: <strong className="text-gray-900 dark:text-white font-semibold">{component.owner}</strong></span>
                   </div>
                 </div>
               ))}
@@ -428,14 +428,14 @@ export default function SafetyOverviewPage() {
 
           {/* Live Safety Queue Summary */}
           <div className="space-y-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <ShieldAlert className="w-5 h-5 text-amber-500" />
               Live Safety Queue
             </h2>
 
             <div className="bg-[#111] border border-[#222] rounded-2xl flex flex-col h-[525px] overflow-hidden">
               <div className="p-4 border-b border-[#222] flex justify-between items-center">
-                <span className="text-xs font-bold text-white">Telemetry Stream</span>
+                <span className="text-xs font-bold text-gray-900 dark:text-white">Telemetry Stream</span>
                 <span className="text-[10px] text-[#666]">Sorted by criticality & recency</span>
               </div>
 
@@ -489,7 +489,7 @@ export default function SafetyOverviewPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Top Rule Hits widget */}
           <div className="bg-[#111] border border-[#222] rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <Activity className="w-5 h-5 text-amber-500" />
               Top Rule Hits
             </h3>
@@ -498,7 +498,7 @@ export default function SafetyOverviewPage() {
                 <div key={rule.rule_name} className="flex items-center justify-between p-3.5 bg-[#141414] border border-[#222] rounded-xl hover:border-[#333] transition-colors">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-bold text-white">{rule.rule_name}</h4>
+                      <h4 className="text-xs font-bold text-gray-900 dark:text-white">{rule.rule_name}</h4>
                       <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
                         rule.severity === 'CRITICAL' ? 'bg-rose-500/10 text-rose-400' : 'bg-amber-500/10 text-amber-400'
                       }`}>
@@ -510,7 +510,7 @@ export default function SafetyOverviewPage() {
 
                   <div className="flex items-center gap-3 text-right">
                     <div>
-                      <span className="text-sm font-black text-white">{rule.count}</span>
+                      <span className="text-sm font-black text-gray-900 dark:text-white">{rule.count}</span>
                       <p className="text-[9px] text-[#666]">Hits</p>
                     </div>
                     <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-[#222]">
@@ -530,7 +530,7 @@ export default function SafetyOverviewPage() {
 
           {/* Containment Modes widget */}
           <div className="bg-[#111] border border-[#222] rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
               <Power className="w-5 h-5 text-amber-500" />
               Containment & Operations Modes
             </h3>
@@ -543,7 +543,7 @@ export default function SafetyOverviewPage() {
               }`}>
                 <Unlock className="w-5 h-5 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="text-xs font-bold text-white">Normal Operations</h4>
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Normal Operations</h4>
                   <p className="text-[10px] text-[#666] mt-1">Full autonomous scheduling and publishing enabled within guardrails.</p>
                 </div>
               </div>
@@ -555,7 +555,7 @@ export default function SafetyOverviewPage() {
               }`}>
                 <Info className="w-5 h-5 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="text-xs font-bold text-white">Elevated Watch</h4>
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Elevated Watch</h4>
                   <p className="text-[10px] text-[#666] mt-1">Heightened safety evaluation latency and enhanced operational telemetry active.</p>
                 </div>
               </div>
@@ -567,7 +567,7 @@ export default function SafetyOverviewPage() {
               }`}>
                 <Power className="w-5 h-5 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="text-xs font-bold text-white">Restricted Operations Mode</h4>
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Restricted Operations Mode</h4>
                   <p className="text-[10px] text-[#666] mt-1">Publishing limited. Only authorized pre-approved campaigns proceed.</p>
                 </div>
               </div>
@@ -579,7 +579,7 @@ export default function SafetyOverviewPage() {
               }`}>
                 <Lock className="w-5 h-5 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="text-xs font-bold text-white">Emergency Pause</h4>
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white">Emergency Pause</h4>
                   <p className="text-[10px] text-[#666] mt-1">Immediate halt to all autonomous releases. Human clearance required.</p>
                 </div>
               </div>
@@ -601,7 +601,7 @@ export default function SafetyOverviewPage() {
       {isPauseModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" role="dialog" aria-modal="true">
           <div className="bg-[#111] border border-[#222] w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <Power className="w-5 h-5 text-rose-500" />
               {isEmergencyPaused ? "Deactivate Emergency Pause" : "Request Emergency Pause"}
             </h3>
@@ -619,7 +619,7 @@ export default function SafetyOverviewPage() {
                   value={pauseReason}
                   onChange={(e) => setPauseReason(e.target.value)}
                   placeholder="Describe why this change is being requested (minimum 10 characters)..."
-                  className="w-full h-24 bg-black border border-[#333] focus:border-[#555] rounded-xl p-3 text-xs text-white placeholder-[#555] focus:outline-none resize-none"
+                  className="w-full h-24 bg-black border border-[#333] focus:border-[#555] rounded-xl p-3 text-xs text-gray-900 dark:text-white placeholder-[#555] focus:outline-none resize-none"
                   required
                 />
               </div>
@@ -636,7 +636,7 @@ export default function SafetyOverviewPage() {
                     type="button"
                     onClick={handleSendMfaCode}
                     disabled={sendingMfa}
-                    className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-neutral-700 text-white font-bold rounded-xl px-4 py-2.5 text-xs transition-colors"
+                    className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-neutral-700 text-gray-900 dark:text-white font-bold rounded-xl px-4 py-2.5 text-xs transition-colors"
                   >
                     {sendingMfa ? "Sending..." : "Send MFA Code to Email"}
                   </button>
@@ -647,7 +647,7 @@ export default function SafetyOverviewPage() {
                     onChange={(e) => setMfaCode(e.target.value)}
                     placeholder="Enter 6-digit code"
                     maxLength={6}
-                    className="w-full bg-black border border-[#333] focus:border-[#555] rounded-xl px-4 py-2.5 text-sm text-center text-white tracking-widest focus:outline-none"
+                    className="w-full bg-black border border-[#333] focus:border-[#555] rounded-xl px-4 py-2.5 text-sm text-center text-gray-900 dark:text-white tracking-widest focus:outline-none"
                     required
                   />
                 )}
@@ -668,14 +668,14 @@ export default function SafetyOverviewPage() {
                     setModalError(null);
                     setMfaSent(false);
                   }}
-                  className="px-4 py-2 bg-neutral-900 border border-[#333] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition-colors"
+                  className="px-4 py-2 bg-neutral-900 border border-[#333] hover:bg-neutral-800 text-gray-900 dark:text-white rounded-xl text-xs font-bold transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingPause}
-                  className={`px-4 py-2 text-xs font-bold rounded-xl text-white transition-all shadow-md ${
+                  className={`px-4 py-2 text-xs font-bold rounded-xl text-gray-900 dark:text-white transition-all shadow-md ${
                     isEmergencyPaused 
                       ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-950/20"
                       : "bg-rose-600 hover:bg-rose-700 shadow-rose-950/20"

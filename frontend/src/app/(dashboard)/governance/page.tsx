@@ -20,7 +20,7 @@ export default function GovernanceCenterPage() {
           <Scale className="w-6 h-6 text-amber-400" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-white">Governance Center</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Governance Center</h1>
           <p className="text-[#888888] text-sm mt-1">Platform trust layer — policies, risk, audit, and compliance.</p>
         </div>
       </div>
@@ -35,7 +35,7 @@ export default function GovernanceCenterPage() {
             <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center mb-4">
               <Icon className="w-5 h-5 text-amber-400" />
             </div>
-            <h3 className="text-white font-semibold mb-2 group-hover:text-amber-300 transition-colors">{label}</h3>
+            <h3 className="text-gray-900 dark:text-white font-semibold mb-2 group-hover:text-amber-300 transition-colors">{label}</h3>
             <p className="text-[#888888] text-sm leading-relaxed">{desc}</p>
           </Link>
         ))}

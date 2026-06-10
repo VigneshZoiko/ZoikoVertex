@@ -401,7 +401,7 @@ export default function SignalsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-white p-8">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-gray-900 dark:text-white p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500 mb-4"></div>
         <p className="text-[#888] font-medium tracking-wide">Syncing risk triage registry...</p>
       </div>
@@ -481,7 +481,7 @@ export default function SignalsPage() {
               </span>
               <div>
                 <p className="text-[10px] font-bold text-[#666] uppercase tracking-wider">Critical Open</p>
-                <h3 className="text-xl font-black text-white">{criticalCount}</h3>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white">{criticalCount}</h3>
               </div>
             </div>
 
@@ -491,7 +491,7 @@ export default function SignalsPage() {
               </span>
               <div>
                 <p className="text-[10px] font-bold text-[#666] uppercase tracking-wider">High Open</p>
-                <h3 className="text-xl font-black text-white">{highCount}</h3>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white">{highCount}</h3>
               </div>
             </div>
 
@@ -524,7 +524,7 @@ export default function SignalsPage() {
               onClick={() => setIsFilterRailOpen(!isFilterRailOpen)}
               className={`px-4 py-2 text-xs font-bold border rounded-xl transition-all flex items-center gap-1.5 ${
                 isFilterRailOpen 
-                  ? "bg-[#222] border-[#444] text-white" 
+                  ? "bg-[#222] border-[#444] text-gray-900 dark:text-white" 
                   : "bg-[#141414] border-[#222] hover:border-[#333] text-[#888]"
               }`}
             >
@@ -534,7 +534,7 @@ export default function SignalsPage() {
 
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="px-4 py-2 bg-[#141414] border border-[#222] hover:border-[#333] text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+              className="px-4 py-2 bg-[#141414] border border-[#222] hover:border-[#333] text-gray-900 dark:text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5 text-amber-500" />
               Manual Signal
@@ -565,7 +565,7 @@ export default function SignalsPage() {
           {isFilterRailOpen && (
             <div className="lg:col-span-1 bg-[#111] border border-[#222] rounded-2xl p-5 space-y-6 shadow-xl">
               <div className="flex justify-between items-center pb-3 border-b border-[#222]">
-                <h4 className="text-xs font-black uppercase text-white tracking-widest flex items-center gap-1.5">
+                <h4 className="text-xs font-black uppercase text-gray-900 dark:text-white tracking-widest flex items-center gap-1.5">
                   <Filter className="w-3.5 h-3.5 text-amber-500" />
                   Triage Filter Rail
                 </h4>
@@ -590,7 +590,7 @@ export default function SignalsPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Case ID, title or description..."
-                  className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                  className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white focus:outline-none"
                 />
               </div>
 
@@ -600,7 +600,7 @@ export default function SignalsPage() {
                 <select
                   value={filterSeverity}
                   onChange={(e) => setFilterSeverity(e.target.value)}
-                  className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
+                  className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white focus:outline-none cursor-pointer"
                 >
                   <option value="">All Severities</option>
                   <option value="Critical">Critical</option>
@@ -616,7 +616,7 @@ export default function SignalsPage() {
                 <select
                   value={filterDomain}
                   onChange={(e) => setFilterDomain(e.target.value)}
-                  className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
+                  className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white focus:outline-none cursor-pointer"
                 >
                   <option value="">All Domains</option>
                   <option value="Brand">Brand Standards</option>
@@ -634,7 +634,7 @@ export default function SignalsPage() {
                 <select
                   value={filterSource}
                   onChange={(e) => setFilterSource(e.target.value)}
-                  className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-white focus:outline-none cursor-pointer"
+                  className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white focus:outline-none cursor-pointer"
                 >
                   <option value="">All Ingestion Feeds</option>
                   <option value="AI Agent Runtime">AI Agent Runtime</option>
@@ -647,7 +647,7 @@ export default function SignalsPage() {
 
               {/* Static Metadata Details for Compliance Reviewers */}
               <div className="p-3.5 bg-black/50 border border-[#2d2d2d] rounded-xl space-y-2 text-[10px] text-[#666]">
-                <p className="text-white font-bold mb-1 block">Triage Operational Guide</p>
+                <p className="text-gray-900 dark:text-white font-bold mb-1 block">Triage Operational Guide</p>
                 <p>1. Low/Medium triage utilizes automated auto-routing (confidence {`>`} 0.85).</p>
                 <p>2. High/Critical cases are restricted; downgrading or silent closure is forbidden.</p>
               </div>
@@ -659,14 +659,14 @@ export default function SignalsPage() {
             
             <div className="p-5 border-b border-[#222] flex justify-between items-center">
               <div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Risk Intake Stream Queue</h2>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Risk Intake Stream Queue</h2>
                 <p className="text-[10px] text-[#666] mt-0.5">Real-time incoming security and content violations</p>
               </div>
               <button
                 onClick={() => fetchTriageData()}
                 className="p-1.5 bg-[#1a1a1a] hover:bg-[#252525] border border-[#2d2d2d] rounded-lg transition-colors flex items-center justify-center"
               >
-                <RefreshCw className={`w-3.5 h-3.5 text-white ${isRefreshing ? "animate-spin" : ""}`} />
+                <RefreshCw className={`w-3.5 h-3.5 text-gray-900 dark:text-white ${isRefreshing ? "animate-spin" : ""}`} />
               </button>
             </div>
 
@@ -706,13 +706,13 @@ export default function SignalsPage() {
                           <td className="py-4 px-4">
                             <div className="flex items-center gap-1.5">
                               <span className={`w-1.5 h-1.5 rounded-full ${statusIndicatorColor(sig.status)}`} />
-                              <span className="text-[10px] font-bold text-white capitalize">{sig.status}</span>
+                              <span className="text-[10px] font-bold text-gray-900 dark:text-white capitalize">{sig.status}</span>
                             </div>
                           </td>
 
                           {/* Title */}
                           <td className="py-4 px-4 max-w-[200px]">
-                            <div className="font-bold text-white truncate" title={sig.title}>{sig.title}</div>
+                            <div className="font-bold text-gray-900 dark:text-white truncate" title={sig.title}>{sig.title}</div>
                             <div className="text-[9px] text-[#666] font-mono mt-0.5">{sig.signal_id}</div>
                           </td>
 
@@ -720,7 +720,7 @@ export default function SignalsPage() {
                           <td className="py-4 px-4 text-[#888] font-medium">{sig.source_type}</td>
 
                           {/* Confidence */}
-                          <td className="py-4 px-4 font-mono font-bold text-white">
+                          <td className="py-4 px-4 font-mono font-bold text-gray-900 dark:text-white">
                             {(sig.confidence * 100).toFixed(0)}%
                           </td>
 
@@ -749,7 +749,7 @@ export default function SignalsPage() {
                           <td className="py-4 px-5 text-right">
                             <button
                               onClick={() => handleOpenSignal(sig)}
-                              className="px-2.5 py-1 bg-[#1a1a1a] hover:bg-[#2c2c2c] border border-[#2d2d2d] hover:border-[#444] rounded text-white text-[10px] font-bold transition-all"
+                              className="px-2.5 py-1 bg-[#1a1a1a] hover:bg-[#2c2c2c] border border-[#2d2d2d] hover:border-[#444] rounded text-gray-900 dark:text-white text-[10px] font-bold transition-all"
                             >
                               Inspect
                             </button>
@@ -783,7 +783,7 @@ export default function SignalsPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest">{selectedSignal.signal_id} · Triage T-0</span>
-                  <h3 className="text-xl font-extrabold text-white mt-1 leading-tight">{selectedSignal.title}</h3>
+                  <h3 className="text-xl font-extrabold text-gray-900 dark:text-white mt-1 leading-tight">{selectedSignal.title}</h3>
                 </div>
                 <button
                   onClick={() => setSelectedSignal(null)}
@@ -802,7 +802,7 @@ export default function SignalsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-[#141414] border border-[#222] p-3 rounded-xl">
                   <span className="text-[9px] text-[#666] uppercase block font-bold">Ingested At</span>
-                  <span className="text-xs font-bold text-white block mt-0.5">{new Date(selectedSignal.ingested_at).toLocaleTimeString()}</span>
+                  <span className="text-xs font-bold text-gray-900 dark:text-white block mt-0.5">{new Date(selectedSignal.ingested_at).toLocaleTimeString()}</span>
                 </div>
                 <div className="bg-[#141414] border border-[#222] p-3 rounded-xl">
                   <span className="text-[9px] text-[#666] uppercase block font-bold">Original Severity</span>
@@ -824,15 +824,15 @@ export default function SignalsPage() {
                 <div className="flex items-center gap-4 text-xs">
                   <div>
                     <span className="text-[9px] text-[#666] block">Confidence</span>
-                    <strong className="text-white">{(selectedSignal.confidence * 100).toFixed(0)}%</strong>
+                    <strong className="text-gray-900 dark:text-white">{(selectedSignal.confidence * 100).toFixed(0)}%</strong>
                   </div>
                   <div>
                     <span className="text-[9px] text-[#666] block">Suggested Domain</span>
-                    <strong className="text-white">{selectedSignal.primary_domain}</strong>
+                    <strong className="text-gray-900 dark:text-white">{selectedSignal.primary_domain}</strong>
                   </div>
                   <div>
                     <span className="text-[9px] text-[#666] block">Signal Trace</span>
-                    <span className="text-white font-mono text-[9px]">TR-SIG-{selectedSignal.id.substring(0, 6).toUpperCase()}</span>
+                    <span className="text-gray-900 dark:text-white font-mono text-[9px]">TR-SIG-{selectedSignal.id.substring(0, 6).toUpperCase()}</span>
                   </div>
                 </div>
               </div>
@@ -840,7 +840,7 @@ export default function SignalsPage() {
               {/* Deterministic Scoring Toggle */}
               <div className="border-t border-[#222] pt-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-white">Manual Triage Controls</span>
+                  <span className="text-xs font-bold text-gray-900 dark:text-white">Manual Triage Controls</span>
                   <button
                     onClick={() => setShowScoreCalc(!showScoreCalc)}
                     className="text-[10px] font-bold text-amber-500 hover:text-amber-400 transition-colors"
@@ -853,12 +853,12 @@ export default function SignalsPage() {
                 {showScoreCalc ? (
                   <div className="mt-4 p-4 bg-[#141414] border border-[#2d2d2d] rounded-xl space-y-3.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-white uppercase">Severity Calculator</span>
+                      <span className="text-[10px] font-bold text-gray-900 dark:text-white uppercase">Severity Calculator</span>
                       <div className="text-right">
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${severityColor(getCalculatedScore().sev)}`}>
                           {getCalculatedScore().sev}
                         </span>
-                        <span className="text-xs font-extrabold text-white ml-2">{getCalculatedScore().score}%</span>
+                        <span className="text-xs font-extrabold text-gray-900 dark:text-white ml-2">{getCalculatedScore().score}%</span>
                       </div>
                     </div>
 
@@ -866,7 +866,7 @@ export default function SignalsPage() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-[10px] text-[#888]">
                         <span>Impact (30%)</span>
-                        <span className="text-white font-mono">{impactScore}%</span>
+                        <span className="text-gray-900 dark:text-white font-mono">{impactScore}%</span>
                       </div>
                       <input
                         type="range" min={0} max={100} value={impactScore}
@@ -876,7 +876,7 @@ export default function SignalsPage() {
 
                       <div className="flex justify-between text-[10px] text-[#888] pt-1">
                         <span>Likelihood (20%)</span>
-                        <span className="text-white font-mono">{likelihoodScore}%</span>
+                        <span className="text-gray-900 dark:text-white font-mono">{likelihoodScore}%</span>
                       </div>
                       <input
                         type="range" min={0} max={100} value={likelihoodScore}
@@ -886,7 +886,7 @@ export default function SignalsPage() {
 
                       <div className="flex justify-between text-[10px] text-[#888] pt-1">
                         <span>Exposure (20%)</span>
-                        <span className="text-white font-mono">{exposureScore}%</span>
+                        <span className="text-gray-900 dark:text-white font-mono">{exposureScore}%</span>
                       </div>
                       <input
                         type="range" min={0} max={100} value={exposureScore}
@@ -896,7 +896,7 @@ export default function SignalsPage() {
 
                       <div className="flex justify-between text-[10px] text-[#888] pt-1">
                         <span>Control Failure (15%)</span>
-                        <span className="text-white font-mono">{controlFailureScore}%</span>
+                        <span className="text-gray-900 dark:text-white font-mono">{controlFailureScore}%</span>
                       </div>
                       <input
                         type="range" min={0} max={100} value={controlFailureScore}
@@ -906,7 +906,7 @@ export default function SignalsPage() {
 
                       <div className="flex justify-between text-[10px] text-[#888] pt-1">
                         <span>Regulatory Sensitivity (15%)</span>
-                        <span className="text-white font-mono">{regSensitivityScore}%</span>
+                        <span className="text-gray-900 dark:text-white font-mono">{regSensitivityScore}%</span>
                       </div>
                       <input
                         type="range" min={0} max={100} value={regSensitivityScore}
@@ -922,7 +922,7 @@ export default function SignalsPage() {
                       <select
                         value={overrideSeverity}
                         onChange={(e) => setOverrideSeverity(e.target.value)}
-                        className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
+                        className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2.5 text-xs text-gray-900 dark:text-white focus:outline-none"
                       >
                         <option value="Low">Low</option>
                         <option value="Medium">Medium</option>
@@ -936,7 +936,7 @@ export default function SignalsPage() {
                       <select
                         value={overrideDomain}
                         onChange={(e) => setOverrideDomain(e.target.value)}
-                        className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
+                        className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2.5 text-xs text-gray-900 dark:text-white focus:outline-none"
                       >
                         <option value="Brand">Brand Standards</option>
                         <option value="Compliance">Compliance Check</option>
@@ -957,7 +957,7 @@ export default function SignalsPage() {
                   value={justificationReason}
                   onChange={(e) => setJustificationReason(e.target.value)}
                   placeholder="State the justification narrative for override classification (minimum 10 chars)..."
-                  className="w-full h-20 bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl p-3 text-xs text-white focus:outline-none resize-none placeholder-[#555]"
+                  className="w-full h-20 bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl p-3 text-xs text-gray-900 dark:text-white focus:outline-none resize-none placeholder-[#555]"
                   required
                 />
               </div>
@@ -1024,7 +1024,7 @@ export default function SignalsPage() {
             <span className="p-1.5 bg-[#222] rounded-lg">
               <FileText className="w-3.5 h-3.5 text-amber-500" />
             </span>
-            <span className="text-xs font-black uppercase text-white tracking-widest">Zone E: Audit Trail Chronology</span>
+            <span className="text-xs font-black uppercase text-gray-900 dark:text-white tracking-widest">Zone E: Audit Trail Chronology</span>
             <span className="text-[10px] text-[#666]">(Last 20 operations logs)</span>
           </div>
 
@@ -1038,7 +1038,7 @@ export default function SignalsPage() {
                   <span className={`w-1.5 h-1.5 rounded-full ${
                     act.action_type === 'classify' ? 'bg-amber-500' : act.action_type === 'close' ? 'bg-rose-500' : 'bg-blue-500'
                   }`} />
-                  <span className="font-bold text-white uppercase">{act.action_type}</span>
+                  <span className="font-bold text-gray-900 dark:text-white uppercase">{act.action_type}</span>
                   <span className="text-[#888] font-medium">{act.agent_safety_signals?.signal_id || "Case"}</span>
                    <span className="text-[#666] truncate max-w-[150px]" title={act.reason}>{"\u201C"}{act.reason}{"\u201D"}</span>
                   <span className="text-[9px] font-mono text-[#555] ml-1">{act.audit_event_id}</span>
@@ -1059,7 +1059,7 @@ export default function SignalsPage() {
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" role="dialog" aria-modal="true">
           <div className="bg-[#111] border border-[#222] w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <Plus className="w-5 h-5 text-amber-500" />
               Manual Signal Intake
             </h3>
@@ -1076,7 +1076,7 @@ export default function SignalsPage() {
                   value={manualTitle}
                   onChange={(e) => setManualTitle(e.target.value)}
                   placeholder="e.g. Inbound comments show high profanity drift"
-                  className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none"
+                  className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-4 py-2.5 text-xs text-gray-900 dark:text-white focus:outline-none"
                   required
                 />
               </div>
@@ -1087,7 +1087,7 @@ export default function SignalsPage() {
                   value={manualDesc}
                   onChange={(e) => setManualDesc(e.target.value)}
                   placeholder="Provide all context details, affected agents or channels, and compliance standard violation info..."
-                  className="w-full h-24 bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl p-3 text-xs text-white focus:outline-none resize-none"
+                  className="w-full h-24 bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl p-3 text-xs text-gray-900 dark:text-white focus:outline-none resize-none"
                   required
                 />
               </div>
@@ -1098,7 +1098,7 @@ export default function SignalsPage() {
                   <select
                     value={manualSeverity}
                     onChange={(e) => setManualSeverity(e.target.value as any)}
-                    className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                    className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white focus:outline-none"
                   >
                     <option value="Low">Low</option>
                     <option value="Medium">Medium</option>
@@ -1112,7 +1112,7 @@ export default function SignalsPage() {
                   <select
                     value={manualDomain}
                     onChange={(e) => setManualDomain(e.target.value)}
-                    className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                    className="w-full bg-black border border-[#2d2d2d] focus:border-[#444] rounded-xl px-3 py-2 text-xs text-gray-900 dark:text-white focus:outline-none"
                   >
                     <option value="Brand">Brand Standards</option>
                     <option value="Compliance">Compliance Check</option>
@@ -1133,7 +1133,7 @@ export default function SignalsPage() {
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 bg-neutral-900 border border-[#2d2d2d] hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition-all"
+                  className="px-4 py-2 bg-neutral-900 border border-[#2d2d2d] hover:bg-neutral-800 text-gray-900 dark:text-white rounded-xl text-xs font-bold transition-all"
                 >
                   Cancel
                 </button>

@@ -82,7 +82,7 @@ export default function RiskCommandCenterPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <ShieldAlert className="w-6 h-6 text-rose-500" />
             Risk & Compliance Command Center
           </h1>
@@ -91,7 +91,7 @@ export default function RiskCommandCenterPage() {
         <div className="flex gap-3">
           <button 
             onClick={fetchRiskData} 
-            className="px-4 py-2 bg-[#1a1a1a] border border-[#333] hover:border-[#555] text-white rounded-lg flex items-center gap-2 transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-[#1a1a1a] border border-[#333] hover:border-[#555] text-gray-900 dark:text-white rounded-lg flex items-center gap-2 transition-colors text-sm font-medium"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh Pulse
@@ -99,7 +99,7 @@ export default function RiskCommandCenterPage() {
           <button 
             onClick={handleEmergencyPause}
             disabled={pausing || pulse?.restricted_operations}
-            className={`px-4 py-2 font-bold rounded-lg flex items-center gap-2 transition-colors text-sm ${pulse?.restricted_operations ? 'bg-red-500/20 text-red-400 cursor-not-allowed border border-red-500/20' : 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20'}`}
+            className={`px-4 py-2 font-bold rounded-lg flex items-center gap-2 transition-colors text-sm ${pulse?.restricted_operations ? 'bg-red-500/20 text-red-400 cursor-not-allowed border border-red-500/20' : 'bg-red-600 hover:bg-red-700 text-gray-900 dark:text-white shadow-lg shadow-red-600/20'}`}
           >
             <Power className="w-4 h-4" />
             {pausing ? "Initiating..." : pulse?.restricted_operations ? "RESTRICTED MODE ACTIVE" : "EMERGENCY PAUSE"}
@@ -120,24 +120,24 @@ export default function RiskCommandCenterPage() {
           <div className="bg-[#111] border border-[#222] rounded-xl p-5 relative overflow-hidden">
             <div className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full opacity-20 ${pulse.posture === 'SECURE' ? 'bg-emerald-500' : pulse.posture === 'ELEVATED' ? 'bg-amber-500' : 'bg-red-500'}`} />
             <div className="text-[#888888] text-xs font-bold uppercase tracking-wider mb-2">Credit Rating</div>
-            <div className="text-3xl font-black text-white">{pulse.credit_rating}</div>
+            <div className="text-3xl font-black text-gray-900 dark:text-white">{pulse.credit_rating}</div>
             <div className={`text-xs mt-2 font-medium ${pulse.posture === 'SECURE' ? 'text-emerald-400' : pulse.posture === 'ELEVATED' ? 'text-amber-400' : 'text-red-400'}`}>
               Posture: {pulse.posture}
             </div>
           </div>
           <div className="bg-[#111] border border-[#222] rounded-xl p-5">
             <div className="text-[#888888] text-xs font-bold uppercase tracking-wider mb-2">Critical Risk Events</div>
-            <div className={`text-3xl font-black ${pulse.critical_events > 0 ? 'text-red-400' : 'text-white'}`}>{pulse.critical_events}</div>
+            <div className={`text-3xl font-black ${pulse.critical_events > 0 ? 'text-red-400' : 'text-gray-900 dark:text-white'}`}>{pulse.critical_events}</div>
             <div className="text-[#666] text-xs mt-2 font-medium">Requiring immediate action</div>
           </div>
           <div className="bg-[#111] border border-[#222] rounded-xl p-5">
             <div className="text-[#888888] text-xs font-bold uppercase tracking-wider mb-2">Open Risk Cases</div>
-            <div className={`text-3xl font-black ${pulse.open_risk_cases > 0 ? 'text-amber-400' : 'text-white'}`}>{pulse.open_risk_cases}</div>
+            <div className={`text-3xl font-black ${pulse.open_risk_cases > 0 ? 'text-amber-400' : 'text-gray-900 dark:text-white'}`}>{pulse.open_risk_cases}</div>
             <div className="text-[#666] text-xs mt-2 font-medium">Active investigations</div>
           </div>
           <div className="bg-[#111] border border-[#222] rounded-xl p-5">
             <div className="text-[#888888] text-xs font-bold uppercase tracking-wider mb-2">Defensibility Gaps</div>
-            <div className={`text-3xl font-black ${pulse.governance_gaps > 0 ? 'text-orange-400' : 'text-white'}`}>{pulse.governance_gaps}</div>
+            <div className={`text-3xl font-black ${pulse.governance_gaps > 0 ? 'text-orange-400' : 'text-gray-900 dark:text-white'}`}>{pulse.governance_gaps}</div>
             <div className="text-[#666] text-xs mt-2 font-medium">Missing required evidence</div>
           </div>
         </div>
@@ -148,7 +148,7 @@ export default function RiskCommandCenterPage() {
         <div className="bg-[#111] border border-[#222] rounded-xl flex flex-col h-[500px]">
           <div className="p-5 border-b border-[#222] flex items-center gap-2">
             <Activity className="w-5 h-5 text-amber-500" />
-            <h2 className="text-lg font-bold text-white">Active Risk Feed</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Active Risk Feed</h2>
           </div>
           <div className="flex-1 overflow-auto p-2">
             {loading ? (
@@ -174,8 +174,8 @@ export default function RiskCommandCenterPage() {
                       </div>
                       <p className="text-sm text-[#ddd] mb-3">{event.message}</p>
                       <div className="flex gap-2">
-                        <button className="px-3 py-1 bg-[#222] hover:bg-[#333] rounded text-xs font-medium text-white transition-colors">Acknowledge</button>
-                        <button className="px-3 py-1 bg-[#222] hover:bg-[#333] rounded text-xs font-medium text-white transition-colors">Create Case</button>
+                        <button className="px-3 py-1 bg-[#222] hover:bg-[#333] rounded text-xs font-medium text-gray-900 dark:text-white transition-colors">Acknowledge</button>
+                        <button className="px-3 py-1 bg-[#222] hover:bg-[#333] rounded text-xs font-medium text-gray-900 dark:text-white transition-colors">Create Case</button>
                       </div>
                     </div>
                   );
@@ -189,7 +189,7 @@ export default function RiskCommandCenterPage() {
         <div className="bg-[#111] border border-[#222] rounded-xl flex flex-col h-[500px]">
           <div className="p-5 border-b border-[#222] flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-orange-500" />
-            <h2 className="text-lg font-bold text-white">Governance Gap Monitor</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Governance Gap Monitor</h2>
           </div>
           <div className="flex-1 overflow-auto p-2">
             {loading ? (

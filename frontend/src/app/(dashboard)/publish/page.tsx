@@ -73,7 +73,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   twitter:   'bg-black',
   x:         'bg-black',
   linkedin:  'bg-blue-700',
-  threads:   'bg-zinc-900',
+  threads:   'bg-gray-50 dark:bg-zinc-900',
   youtube:   'bg-red-600',
   pinterest: 'bg-red-600',
 };
@@ -153,7 +153,7 @@ function PostPreview({
             onClick={() => setActivePlatform(p)}
             className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all border ${
               activePlatform === p
-                ? 'bg-indigo-600 text-white border-indigo-600'
+                ? 'bg-indigo-600 text-gray-900 dark:text-white border-indigo-600'
                 : 'bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)] hover:border-indigo-500/50'
             }`}
           >
@@ -167,29 +167,29 @@ function PostPreview({
       {isYouTube && (
         <div className="rounded-xl overflow-hidden border border-zinc-200 bg-white text-zinc-900">
           {/* Video thumbnail */}
-          <div className="relative w-full aspect-video bg-zinc-900">
+          <div className="relative w-full aspect-video bg-gray-50 dark:bg-zinc-900">
             {currentMedia ? (
               currentMedia.match(/\.(mp4|mov|webm)$/i)
                 ? <video src={currentMedia} className="w-full h-full object-cover" muted />
                 : <Image src={currentMedia} alt="thumbnail" fill className="object-cover" unoptimized />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-zinc-800">
+              <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-zinc-800">
                 <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center">
                   <div className="w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[18px] border-l-white ml-1" />
                 </div>
               </div>
             )}
-            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded font-bold">0:00</div>
+            <div className="absolute bottom-2 right-2 bg-black/80 text-gray-900 dark:text-white text-[10px] px-1.5 py-0.5 rounded font-bold">0:00</div>
           </div>
           {/* Video info */}
           <div className="flex gap-3 p-3">
-            <div className="w-9 h-9 rounded-full bg-red-600 flex items-center justify-center text-white text-xs font-bold shrink-0">{initials}</div>
+            <div className="w-9 h-9 rounded-full bg-red-600 flex items-center justify-center text-gray-900 dark:text-white text-xs font-bold shrink-0">{initials}</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold leading-snug line-clamp-2">{caption || 'Your video title'}</p>
-              <p className="text-[11px] text-zinc-500 mt-1">{displayName}</p>
-              <p className="text-[11px] text-zinc-500">0 views · Just now</p>
+              <p className="text-[11px] text-gray-500 dark:text-zinc-500 mt-1">{displayName}</p>
+              <p className="text-[11px] text-gray-500 dark:text-zinc-500">0 views · Just now</p>
             </div>
-            <MoreHorizontal className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+            <MoreHorizontal className="w-4 h-4 text-gray-500 dark:text-zinc-400 shrink-0 mt-0.5" />
           </div>
         </div>
       )}
@@ -205,11 +205,11 @@ function PostPreview({
                 : <Image src={currentMedia} alt="pin" fill className="object-cover" unoptimized />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-zinc-100">
-                <p className="text-xs text-zinc-400">No image</p>
+                <p className="text-xs text-gray-500 dark:text-zinc-400">No image</p>
               </div>
             )}
             {/* Save button overlay */}
-            <button className="absolute top-2.5 right-2.5 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full hover:bg-red-700 transition-colors">
+            <button className="absolute top-2.5 right-2.5 bg-red-600 text-gray-900 dark:text-white text-xs font-bold px-3 py-1.5 rounded-full hover:bg-red-700 transition-colors">
               Save
             </button>
           </div>
@@ -221,8 +221,8 @@ function PostPreview({
           )}
           {/* Creator */}
           <div className="flex items-center gap-2 px-3 pb-3">
-            <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">{initials}</div>
-            <p className="text-[11px] text-zinc-500 truncate">{displayName}</p>
+            <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center text-gray-900 dark:text-white text-[10px] font-bold shrink-0">{initials}</div>
+            <p className="text-[11px] text-gray-500 dark:text-zinc-500 truncate">{displayName}</p>
           </div>
         </div>
       )}
@@ -230,21 +230,21 @@ function PostPreview({
       {/* ── All other platforms ──────────────────────────────── */}
       {!isYouTube && !isPinterest && <div className={`rounded-xl overflow-hidden border text-sm ${
         isTwitter || isThreads
-          ? 'bg-zinc-950 border-zinc-800 text-white'
+          ? 'bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-white'
           : 'bg-white border-zinc-200 text-zinc-900'
       }`}>
 
         {/* ── Facebook / LinkedIn header ── */}
         {(isFacebook || isLinkedIn) && (
           <div className="flex items-start gap-2.5 p-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 ${PLATFORM_COLORS[activePlatform] || 'bg-zinc-400'}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-gray-900 dark:text-white text-sm font-bold shrink-0 ${PLATFORM_COLORS[activePlatform] || 'bg-zinc-400'}`}>
               {initials}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-sm leading-tight">{displayName}</p>
-              <p className="text-[11px] text-zinc-500">Just now · <Globe className="w-2.5 h-2.5 inline mb-0.5" /></p>
+              <p className="text-[11px] text-gray-500 dark:text-zinc-500">Just now · <Globe className="w-2.5 h-2.5 inline mb-0.5" /></p>
             </div>
-            <MoreHorizontal className="w-4 h-4 text-zinc-400 shrink-0 mt-1" />
+            <MoreHorizontal className="w-4 h-4 text-gray-500 dark:text-zinc-400 shrink-0 mt-1" />
           </div>
         )}
 
@@ -257,38 +257,38 @@ function PostPreview({
               </div>
             </div>
             <p className="font-bold text-sm flex-1">{handle || displayName}</p>
-            <MoreHorizontal className="w-4 h-4 text-zinc-400 shrink-0" />
+            <MoreHorizontal className="w-4 h-4 text-gray-500 dark:text-zinc-400 shrink-0" />
           </div>
         )}
 
         {/* ── Twitter/X header ── */}
         {isTwitter && (
           <div className="flex items-start gap-2.5 p-3">
-            <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-white text-sm font-bold shrink-0">
+            <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-zinc-700 flex items-center justify-center text-gray-900 dark:text-white text-sm font-bold shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
                 <span className="font-bold text-sm">{displayName}</span>
-                <span className="text-zinc-500 text-[11px]">{handle}</span>
+                <span className="text-gray-500 dark:text-zinc-500 text-[11px]">{handle}</span>
               </div>
-              {caption && <p className="text-sm mt-1 leading-relaxed text-white">{caption}</p>}
+              {caption && <p className="text-sm mt-1 leading-relaxed text-gray-900 dark:text-white">{caption}</p>}
             </div>
-            <MoreHorizontal className="w-4 h-4 text-zinc-500 shrink-0" />
+            <MoreHorizontal className="w-4 h-4 text-gray-500 dark:text-zinc-500 shrink-0" />
           </div>
         )}
 
         {/* ── Threads header ── */}
         {isThreads && (
           <div className="flex items-start gap-2.5 p-3">
-            <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-white text-sm font-bold shrink-0">
+            <div className="w-9 h-9 rounded-full bg-gray-300 dark:bg-zinc-700 flex items-center justify-center text-gray-900 dark:text-white text-sm font-bold shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm text-white">{handle || displayName}</p>
-              {caption && <p className="text-sm mt-1 text-zinc-200 leading-relaxed">{caption}</p>}
+              <p className="font-bold text-sm text-gray-900 dark:text-white">{handle || displayName}</p>
+              {caption && <p className="text-sm mt-1 text-gray-800 dark:text-zinc-200 leading-relaxed">{caption}</p>}
             </div>
-            <MoreHorizontal className="w-4 h-4 text-zinc-500 shrink-0 mt-1" />
+            <MoreHorizontal className="w-4 h-4 text-gray-500 dark:text-zinc-500 shrink-0 mt-1" />
           </div>
         )}
 
@@ -314,20 +314,20 @@ function PostPreview({
         {/* No media placeholder */}
         {!currentMedia && (
           <div className={`w-full bg-zinc-100 flex items-center justify-center ${isInstagram ? 'aspect-square' : 'aspect-video'}`}>
-            <p className="text-xs text-zinc-400">No media</p>
+            <p className="text-xs text-gray-500 dark:text-zinc-400">No media</p>
           </div>
         )}
 
         {/* ── Facebook action bar ── */}
         {isFacebook && (
           <>
-            <div className="px-3 py-1.5 flex items-center justify-between text-[11px] text-zinc-500 border-b border-zinc-100">
+            <div className="px-3 py-1.5 flex items-center justify-between text-[11px] text-gray-500 dark:text-zinc-500 border-b border-zinc-100">
               <span>👍 Like</span>
               <span>0 comments · 0 shares</span>
             </div>
             <div className="flex divide-x divide-zinc-100">
               {[['👍', 'Like'], ['💬', 'Comment'], ['↗', 'Share']].map(([icon, label]) => (
-                <button key={label} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors">
+                <button key={label} className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-semibold text-gray-400 dark:text-zinc-600 hover:bg-zinc-50 transition-colors">
                   <span>{icon}</span>{label}
                 </button>
               ))}
@@ -350,7 +350,7 @@ function PostPreview({
 
         {/* ── Twitter/X action bar ── */}
         {isTwitter && (
-          <div className="flex items-center justify-between px-3 py-2 text-zinc-500">
+          <div className="flex items-center justify-between px-3 py-2 text-gray-500 dark:text-zinc-500">
             {[MessageCircle, Repeat2, Heart, Share2].map((Icon, i) => (
               <div key={i} className="flex items-center gap-1 hover:text-blue-400 transition-colors cursor-pointer">
                 <Icon className="w-4 h-4" />
@@ -364,7 +364,7 @@ function PostPreview({
         {isLinkedIn && (
           <div className="flex divide-x divide-zinc-100 border-t border-zinc-100 mt-1">
             {[['👍', 'Like'], ['💬', 'Comment'], ['↗', 'Repost'], ['📤', 'Send']].map(([icon, label]) => (
-              <button key={label} className="flex-1 flex items-center justify-center gap-1 py-2 text-[11px] font-semibold text-zinc-500 hover:bg-zinc-50 transition-colors">
+              <button key={label} className="flex-1 flex items-center justify-center gap-1 py-2 text-[11px] font-semibold text-gray-500 dark:text-zinc-500 hover:bg-zinc-50 transition-colors">
                 <span>{icon}</span><span className="hidden sm:inline">{label}</span>
               </button>
             ))}
@@ -373,7 +373,7 @@ function PostPreview({
 
         {/* ── Threads action bar ── */}
         {isThreads && (
-          <div className="flex items-center gap-4 px-3 py-2.5 text-zinc-400">
+          <div className="flex items-center gap-4 px-3 py-2.5 text-gray-500 dark:text-zinc-400">
             <Heart className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
             <MessageCircle className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
             <Repeat2 className="w-5 h-5 hover:text-white cursor-pointer transition-colors" />
@@ -388,7 +388,7 @@ function PostPreview({
 // ── AccountDropdown component ─────────────────────────────────────────────────
 const PLATFORM_DOT: Record<string, string> = {
   facebook: 'bg-blue-500', instagram: 'bg-pink-500', twitter: 'bg-sky-400',
-  x: 'bg-black border border-zinc-700', linkedin: 'bg-blue-700', threads: 'bg-zinc-800',
+  x: 'bg-black border border-gray-300 dark:border-zinc-700', linkedin: 'bg-blue-700', threads: 'bg-gray-200 dark:bg-zinc-800',
   youtube: 'bg-red-600', pinterest: 'bg-red-500',
 };
 
@@ -513,7 +513,7 @@ function AccountDropdown({
                             : 'hover:bg-[var(--surface)]'
                       }`}
                     >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${PLATFORM_DOT[a.platform] || 'bg-zinc-500'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-gray-900 dark:text-white text-xs font-bold shrink-0 ${PLATFORM_DOT[a.platform] || 'bg-zinc-500'}`}>
                         {(a.account_name || a.platform)?.charAt(0)?.toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -530,7 +530,7 @@ function AccountDropdown({
                         <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
                       ) : (
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isSel ? 'bg-indigo-600 border-indigo-600' : 'border-[var(--border)]'}`}>
-                          {isSel && <CheckCircle2 className="w-3 h-3 text-white" />}
+                          {isSel && <CheckCircle2 className="w-3 h-3 text-gray-900 dark:text-white" />}
                         </div>
                       )}
                     </button>
@@ -1824,7 +1824,7 @@ function PublishPageInner() {
                           setCarouselIndex(ni);
                           setMediaPreview(selectedUrls[ni]);
                         }}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black text-white rounded-full w-9 h-9 flex items-center justify-center transition-all z-10"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black text-gray-900 dark:text-white rounded-full w-9 h-9 flex items-center justify-center transition-all z-10"
                       >
                         <ChevronLeft className="w-5 h-5" />
                       </button>
@@ -1839,7 +1839,7 @@ function PublishPageInner() {
                           setCarouselIndex(ni);
                           setMediaPreview(selectedUrls[ni]);
                         }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black text-white rounded-full w-9 h-9 flex items-center justify-center transition-all z-10"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black text-gray-900 dark:text-white rounded-full w-9 h-9 flex items-center justify-center transition-all z-10"
                       >
                         <ChevronRight className="w-5 h-5" />
                       </button>
@@ -1861,7 +1861,7 @@ function PublishPageInner() {
                     </div>
 
                     {/* Swipe hint */}
-                    <div className="absolute top-3 right-3 bg-black/50 text-white text-[10px] px-2 py-1 rounded-lg font-medium opacity-60">
+                    <div className="absolute top-3 right-3 bg-black/50 text-gray-900 dark:text-white text-[10px] px-2 py-1 rounded-lg font-medium opacity-60">
                       {carouselIndex + 1} / {selectedUrls.length}
                     </div>
                   </div>
@@ -1954,7 +1954,7 @@ function PublishPageInner() {
                       setIsPlatformSpecific(true);
                       if (!activePlatformTab) setActivePlatformTab("Instagram");
                     }}
-                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/20" : "text-[var(--foreground-muted)] hover:text-[var(--foreground-muted)]"}`}
+                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? "bg-indigo-600 text-gray-900 dark:text-white shadow-sm shadow-indigo-500/20" : "text-[var(--foreground-muted)] hover:text-[var(--foreground-muted)]"}`}
                   >
                     Per Platform
                   </button>
@@ -2016,7 +2016,7 @@ function PublishPageInner() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setShowAIWriter(!showAIWriter)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${showAIWriter ? "bg-indigo-600 text-white" : "bg-[var(--surface)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"}`}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${showAIWriter ? "bg-indigo-600 text-gray-900 dark:text-white" : "bg-[var(--surface)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"}`}
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       AI Studio
@@ -2296,7 +2296,7 @@ function PublishPageInner() {
             onClick={handleSubmitIntent}
             disabled={submitting || !canPublish}
             title={!canPublish ? "Your role cannot publish content" : undefined}
-            className="w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-indigo-600 text-white hover:bg-indigo-500"
+            className="w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-indigo-600 text-gray-900 dark:text-white hover:bg-indigo-500"
           >
             {submitting ? (
               <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -2674,7 +2674,7 @@ function PublishPageInner() {
                       }}
                       className={`w-full py-1.5 text-[10px] font-bold rounded-lg transition-colors ${
                         selectedTime === rec.time
-                          ? 'bg-emerald-600 text-white'
+                          ? 'bg-emerald-600 text-gray-900 dark:text-white'
                           : 'bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400'
                       }`}
                     >
@@ -2741,7 +2741,7 @@ function PublishPageInner() {
                 onClick={handleManualSchedule}
                 disabled={submitting || !manualScheduleDate || !manualScheduleTime || selectedAccountIds.length === 0 || !canPublish}
                 title={!canPublish ? "Your role cannot schedule posts" : undefined}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-gray-900 dark:text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
               >
                 {submitting ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -2829,7 +2829,7 @@ function PublishPageInner() {
                       new Date(newTime).toISOString(),
                     );
                   }}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-gray-900 dark:text-white font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                 >
                   <Edit3 className="w-4 h-4" />
                   Save Changes

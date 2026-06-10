@@ -56,8 +56,8 @@ const VARIANT_STYLES: Record<Variant, { icon: typeof AlertTriangle; iconBg: stri
   default: {
     icon: AlertCircle,
     iconBg: 'bg-zinc-500/10 border-zinc-500/20',
-    iconColor: 'text-zinc-400',
-    btnBg: 'bg-zinc-700',
+    iconColor: 'text-gray-500 dark:text-zinc-400',
+    btnBg: 'bg-gray-300 dark:bg-zinc-700',
     btnHover: 'hover:bg-zinc-600',
     btnShadow: 'shadow-lg shadow-zinc-500/20',
   },
@@ -182,7 +182,7 @@ export default function ConfirmActionModal({
             <button
               onClick={handleConfirm}
               disabled={loading || !canConfirm}
-              className={`flex-1 py-3 rounded-xl ${styles.btnBg} text-white font-bold text-sm ${styles.btnHover} active:scale-[0.98] transition-all ${styles.btnShadow} disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2`}
+              className={`flex-1 py-3 rounded-xl ${styles.btnBg} text-gray-900 dark:text-white font-bold text-sm ${styles.btnHover} active:scale-[0.98] transition-all ${styles.btnShadow} disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2`}
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               {confirmLabel || (mode === 'prompt' ? 'Submit' : 'Confirm')}
