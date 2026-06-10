@@ -472,7 +472,7 @@ export default function Navbar() {
         {/* CTA buttons */}
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <Link
-            href="/login"
+            href="https://getzoikovertex.com/login"
             style={{
               fontFamily: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
               fontWeight: 400,
