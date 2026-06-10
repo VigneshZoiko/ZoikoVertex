@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
   title: "Documentation | ZoikoVertex",
@@ -48,16 +49,9 @@ const SECTIONS = [
 export default function DocsPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <header className="border-b border-white/10 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold tracking-tight text-white">
-            ZoikoVertex
-          </Link>
-          <span className="text-xs text-white/40 font-medium uppercase tracking-widest">Documentation</span>
-        </div>
-      </header>
+      <Navbar />
 
-      <main className="max-w-5xl mx-auto px-6 py-16">
+      <main className="max-w-5xl mx-auto px-6 pt-[100px] pb-16">
         <div className="mb-14">
           <p className="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-3">Docs</p>
           <h1 className="text-4xl font-black tracking-tight text-white mb-4">ZoikoVertex Documentation</h1>
