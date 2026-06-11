@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Bricolage_Grotesque, JetBrains_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import CacheBuster from "@/components/CacheBuster";
+import Navbar from "@/components/Navbar";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -43,7 +44,10 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <Providers>
           <CacheBuster />
-          {children}
+          <Navbar />
+          <div className="pt-[68px] min-h-[calc(100vh-68px)]">
+            {children}
+          </div>
         </Providers>
       </body>
     </html>
