@@ -1,4 +1,3 @@
-import Navbar from "@/components/navbar/Navbar";
 import Footer from "@/components/footer/Footer";
 import { 
   ResourcesHero, 
@@ -11,7 +10,6 @@ import {
 export default function ResourcesPage() {
   return (
     <main>
-      <Navbar />
       <ResourcesHero />
       <ResourcesEditorPick />
       <ResourcesTrustLibrary />
