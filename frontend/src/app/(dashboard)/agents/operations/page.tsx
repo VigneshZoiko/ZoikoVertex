@@ -22,14 +22,14 @@ import {
   XCircle,
   Filter,
   Eye,
-  BarChart3,
+  Clock3,
+  Download,
   Ticket,
   Ban,
   ShieldX,
   Trash2,
   Search,
   ChevronDown,
-  Download,
   Users,
   Building2,
   Globe,
@@ -46,8 +46,6 @@ import {
   Hash,
   ArrowRight,
   Info,
-  TrendingUp,
-  TrendingDown,
   Minus,
   Lock,
   Unlock,
@@ -184,31 +182,14 @@ interface OperationsStats {
   active_runs: number;
   queued_tasks: number;
   failed_runs: number;
-  open_incidents: number;
   policy_blocks: number;
   avg_trust_score: number;
   operations_health_score?: number;
   total_runs?: number;
   quarantined_runs?: number;
-  sla_breaches?: number;
-  escalations?: number;
 }
 
-type NumericMetric = number | Record<string, number | undefined> | null | undefined;
 type RuntimeActionType = "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "restricted_mode" | "export_evidence" | "hold" | "release_hold";
-
-interface AnalyticsMetrics {
-  failure_rate?: NumericMetric;
-  retry_success_rate?: NumericMetric;
-  policy_block_rate?: NumericMetric;
-  avg_review_time_minutes?: NumericMetric;
-  sla_breach_rate?: NumericMetric;
-  incident_closure_time_hours?: NumericMetric;
-  evidence_completeness_pct?: NumericMetric;
-  evidence_completeness?: NumericMetric;
-  throughput_per_day?: NumericMetric;
-  throughput?: NumericMetric;
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -276,30 +257,6 @@ function formatTimeRemaining(dueAt: string | null): { label: string; overdue: bo
 
 function shortId(id: string): string {
   return id.slice(0, 8).toUpperCase();
-}
-
-function metricNumber(metric: NumericMetric, period = "30d"): number | null {
-  if (typeof metric === "number") {
-    return Number.isFinite(metric) ? metric : null;
-  }
-  if (metric && typeof metric === "object") {
-    const value = metric[period] ?? metric["7d"] ?? metric["24h"];
-    return typeof value === "number" && Number.isFinite(value) ? value : null;
-  }
-  return null;
-}
-
-function formatPercentMetric(metric: NumericMetric, period = "30d"): string {
-  const value = metricNumber(metric, period);
-  if (value === null) return "—";
-  const percent = Math.abs(value) <= 1 ? value * 100 : value;
-  return `${percent.toFixed(1)}%`;
-}
-
-function formatUnitMetric(metric: NumericMetric, suffix = "", period = "30d"): string {
-  const value = metricNumber(metric, period);
-  if (value === null) return "—";
-  return `${value}${suffix}`;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -1019,7 +976,6 @@ export default function AgentOperationsPage() {
   const [runs, setRuns] = useState<AgentRun[]>([]);
   const [queues, setQueues] = useState<QueueItem[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [analytics, setAnalytics] = useState<AnalyticsMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -1039,7 +995,7 @@ export default function AgentOperationsPage() {
   const [envFilter, setEnvFilter] = useState("");
 
   // ── Tabs and filters ──
-  const [activeTab, setActiveTab] = useState<"runs" | "queues" | "incidents" | "analytics">("runs");
+  const [activeTab, setActiveTab] = useState<"runs" | "queues" | "incidents">("runs");
   const [statusFilter, setStatusFilter] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   // Doc 6 §2/§3: queue segmentation by type (approval, failed, retry, human-review, publishing, exception …)
@@ -1159,12 +1115,11 @@ export default function AgentOperationsPage() {
         params.date_to = end.toISOString();
       }
 
-      const [statsRes, runsRes, queuesRes, incidentsRes, analyticsRes] = await Promise.allSettled([
+      const [statsRes, runsRes, queuesRes, incidentsRes] = await Promise.allSettled([
         api.getOperationsStatsScoped(scopedParams).catch(() => null),
         api.listAgentRuns(params).catch(() => null),
         api.listQueues(scopedParams).catch(() => null),
         api.listIncidents(scopedParams).catch(() => null),
-        api.getOperationsAnalytics(scopedParams).catch(() => null),
       ]);
 
       if (statsRes.status === "fulfilled" && statsRes.value) setStats(statsRes.value);
@@ -1180,7 +1135,6 @@ export default function AgentOperationsPage() {
       }
       if (queuesRes.status === "fulfilled" && queuesRes.value?.items) setQueues(queuesRes.value.items);
       if (incidentsRes.status === "fulfilled" && incidentsRes.value?.incidents) setIncidents(incidentsRes.value.incidents);
-      if (analyticsRes.status === "fulfilled" && analyticsRes.value) setAnalytics(analyticsRes.value);
 
       setLastRefreshed(new Date());
     } catch {
@@ -1560,28 +1514,6 @@ export default function AgentOperationsPage() {
     [],
   );
 
-  const handleExportAnalyticsCSV = async () => {
-    const reason = window.prompt("Reason for exporting analytics CSV:");
-    if (!reason || reason.trim().length < 8) {
-      setError("A reason of at least 8 characters is required.");
-      return;
-    }
-    try {
-      const blob = await api.exportAnalyticsCSV(reason.trim());
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `operations-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      flashNotice("Analytics CSV exported with audit trail.");
-    } catch {
-      setError("Failed to export analytics CSV. Check permissions.");
-    }
-  };
-
   // Doc 6 §2 — export the currently filtered operational run log to CSV.
   const handleExportFilteredRuns = () => {
     if (!filteredRuns.length) {
@@ -1699,13 +1631,7 @@ export default function AgentOperationsPage() {
               <option value="development">Development</option>
             </select>
           </div>
-          {/* Incident shortcut */}
-          <button
-            onClick={() => setShowIncidentModal(true)}
-            className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"
-          >
-            <Siren className="w-3.5 h-3.5" /> New Incident
-          </button>
+
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10px] text-emerald-400">
             <Radio className="w-3 h-3" />
             <span className="hidden sm:inline">Auto-refresh 30s</span>
@@ -1760,9 +1686,7 @@ export default function AgentOperationsPage() {
             { label: "Queued",         val: stats.queued_tasks,   icon: <Clock className="w-3.5 h-3.5" />,    color: "text-amber-400",   bg: "bg-amber-500/10"  },
             { label: "Failed",         val: stats.failed_runs,    icon: <XCircle className="w-3.5 h-3.5" />, color: "text-red-400",      bg: "bg-red-500/10"    },
             { label: "Policy Blocks",  val: stats.policy_blocks,  icon: <Ban className="w-3.5 h-3.5" />,     color: "text-rose-400",     bg: "bg-rose-500/10"   },
-            { label: "Open Incidents", val: stats.open_incidents, icon: <Ticket className="w-3.5 h-3.5" />,  color: "text-orange-400",   bg: "bg-orange-500/10" },
-            { label: "Escalations",    val: stats.escalations ?? 0, icon: <ArrowUpRight className="w-3.5 h-3.5" />, color: "text-purple-400", bg: "bg-purple-500/10" },
-            { label: "SLA Breaches",   val: stats.sla_breaches ?? 0, icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "text-rose-400", bg: "bg-rose-500/10" },
+
             { label: "Ops Health",     val: `${stats.operations_health_score ?? stats.avg_trust_score ?? 0}%`, icon: <ShieldCheck className="w-3.5 h-3.5" />, color: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "text-emerald-400" : "text-amber-400", bg: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "bg-emerald-500/10" : "bg-amber-500/10" },
           ].map((card) => (
             <div key={card.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3 flex items-center gap-2.5">
@@ -1797,7 +1721,7 @@ export default function AgentOperationsPage() {
           { id: "runs",      label: "Agent Runs",  icon: <Bot className="w-3.5 h-3.5" />,           count: runs.length         },
           { id: "queues",    label: "Task Queue",  icon: <Clock className="w-3.5 h-3.5" />,          count: queues.length       },
           { id: "incidents", label: "Incidents",   icon: <AlertTriangle className="w-3.5 h-3.5" />,  count: incidents.length    },
-          { id: "analytics", label: "Analytics",   icon: <BarChart3 className="w-3.5 h-3.5" />,      count: 0                   },
+
         ].map((tab) => (
           <button
             key={tab.id}
@@ -2286,52 +2210,7 @@ export default function AgentOperationsPage() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: ANALYTICS
-      ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "analytics" && (
-        <div className="space-y-4">
-          {analytics ? (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[
-                  { label: "Failure Rate",           val: formatPercentMetric(analytics.failure_rate),                                       icon: <XCircle className="w-4 h-4" />,        color: "text-red-400",    bg: "bg-red-500/10",    trend: "down"    },
-                  { label: "Retry Success Rate",     val: formatPercentMetric(analytics.retry_success_rate),                                 icon: <RotateCcw className="w-4 h-4" />,    color: "text-blue-400",   bg: "bg-blue-500/10",   trend: "up"      },
-                  { label: "Policy Block Rate",      val: formatPercentMetric(analytics.policy_block_rate),                                  icon: <Ban className="w-4 h-4" />,          color: "text-rose-400",   bg: "bg-rose-500/10",   trend: "down"    },
-                  { label: "Avg Review Time",        val: formatUnitMetric(analytics.avg_review_time_minutes, "m"),                          icon: <Clock className="w-4 h-4" />,        color: "text-amber-400",  bg: "bg-amber-500/10",  trend: "down"    },
-                  { label: "SLA Breach Rate",        val: formatPercentMetric(analytics.sla_breach_rate),                                    icon: <AlertTriangle className="w-4 h-4" />, color: "text-orange-400", bg: "bg-orange-500/10", trend: "down"    },
-                  { label: "Incident Closure Time",  val: formatUnitMetric(analytics.incident_closure_time_hours, "h"),                      icon: <Ticket className="w-4 h-4" />,       color: "text-purple-400", bg: "bg-purple-500/10", trend: "down"    },
-                  { label: "Evidence Completeness",  val: formatPercentMetric(analytics.evidence_completeness_pct ?? analytics.evidence_completeness), icon: <Lock className="w-4 h-4" />,         color: "text-indigo-400", bg: "bg-indigo-500/10", trend: "up"      },
-                  { label: "Throughput / Day",       val: formatUnitMetric(analytics.throughput_per_day ?? analytics.throughput, ""),         icon: <Activity className="w-4 h-4" />,     color: "text-emerald-400",bg: "bg-emerald-500/10",trend: "up"      },
-                ].map((m) => (
-                  <div key={m.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className={`w-7 h-7 ${m.bg} rounded-lg flex items-center justify-center ${m.color}`}>{m.icon}</div>
-                      {m.trend === "up" ? <TrendingUp className="w-3.5 h-3.5 text-emerald-400/50" /> : <TrendingDown className="w-3.5 h-3.5 text-rose-400/50" />}
-                    </div>
-                    <p className={`text-xl font-bold ${m.color}`}>{m.val}</p>
-                    <p className="text-[10px] text-[#555] mt-0.5">{m.label}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-end">
-                <button
-                  onClick={handleExportAnalyticsCSV}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#888] rounded-xl text-xs hover:text-white hover:border-[#444] transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" /> Export CSV (audited)
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">
-              <BarChart3 className="w-12 h-12 text-[#2a2a2a] mx-auto mb-3" />
-              <p className="text-[#555] font-medium mb-1">Analytics loading…</p>
-              <p className="text-[#3a3a3a] text-sm">Throughput, failure rates, SLA metrics, evidence completeness, and escalation trends will appear here.</p>
-            </div>
-          )}
-        </div>
-      )}
+
 
       {/* ══════════════════════════════════════════════════════════════════════
           RUN DETAIL DRAWER

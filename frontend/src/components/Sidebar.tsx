@@ -129,14 +129,7 @@ const NAV_GROUPS: NavGroup[] = [
       // "Operations Feed" (/operations) was a duplicate of the Agent Operations
       // control room (see "Agent Operations" entry -> /agents/operations).
       // Consolidated to a single canonical page; /operations now redirects there.
-      {
-        name: "Insights & ROI",
-        href: "/analytics",
-        icon: TrendingUp,
-        // Analytics access: managers, auditors, compliance, publishers
-        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","AUDITOR","COMPLIANCE_REVIEWER","PUBLISHER"],
-      },
-      {
+{
         name: "Resource Monitoring",
         href: "/resources",
         icon: Cpu,

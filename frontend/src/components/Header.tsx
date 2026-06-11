@@ -33,7 +33,6 @@ interface SearchItem {
 const allRoutes: SearchItem[] = [
   // Overview
   { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="w-4 h-4" />, keywords: "home overview main" },
-  { label: "Analytics", href: "/analytics", icon: <BarChart3 className="w-4 h-4" />, keywords: "charts metrics stats reports" },
   { label: "Operations", href: "/agents/operations", icon: <Settings className="w-4 h-4" />, keywords: "manage control" },
 
   // Publishing
