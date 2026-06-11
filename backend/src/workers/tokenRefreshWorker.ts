@@ -111,12 +111,18 @@ async function refreshMeta(account: any): Promise<void> {
     return;
   }
 
-  // Facebook / Instagram — same fb_exchange_token endpoint
-  const url = new URL('https://graph.facebook.com/v18.0/oauth/access_token');
+  // Facebook / Instagram — extend the long-lived User Access Token (stored in refresh_token).
+  // Page Access Tokens (access_token) cannot be extended with fb_exchange_token.
+  const userToken = account.refresh_token;
+  if (!userToken) {
+    throw new Error('Meta: no user token (refresh_token) — reconnect Facebook');
+  }
+
+  const url = new URL('https://graph.facebook.com/v21.0/oauth/access_token');
   url.searchParams.set('grant_type', 'fb_exchange_token');
   url.searchParams.set('client_id', env.META_APP_ID || '');
   url.searchParams.set('client_secret', env.META_APP_SECRET || '');
-  url.searchParams.set('fb_exchange_token', account.access_token);
+  url.searchParams.set('fb_exchange_token', userToken);
 
   const res = await fetch(url.toString());
   const data = await res.json();
@@ -124,11 +130,16 @@ async function refreshMeta(account: any): Promise<void> {
     throw new Error(`Meta: ${data.error?.message || 'refresh failed'}`);
   }
 
-  await persistToken(
-    account.id,
-    data.access_token,
-    expiresAt(data.expires_in ?? 5184000),
-  );
+  // Write extended user token back to refresh_token (not access_token — that holds the page token)
+  const { error } = await supabaseAdmin
+    .from('connected_accounts')
+    .update({
+      refresh_token:    data.access_token,
+      token_expires_at: expiresAt(data.expires_in ?? 5184000),
+      token_status:     'active',
+    })
+    .eq('id', account.id);
+  if (error) throw error;
 }
 
 async function refreshLinkedIn(account: any): Promise<void> {

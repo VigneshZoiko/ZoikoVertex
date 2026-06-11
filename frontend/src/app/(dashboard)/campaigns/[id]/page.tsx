@@ -44,6 +44,10 @@ interface Campaign {
   selected_meta_account_id?: string | null;
   meta_account_name?: string | null;
   meta_ad_account_name?: string | null;
+  meta_campaign_id?: string | null;
+  meta_adset_id?: string | null;
+  meta_ad_id?: string | null;
+  meta_error?: string | null;
 }
 
 interface Boost {
@@ -249,14 +253,24 @@ export default function CampaignDetailPage() {
                 >
                   <Trash2 className="w-3.5 h-3.5" />Delete campaign
                 </button>
-                <div className="border-t border-border" />
-                <div className="flex items-start gap-2.5 px-4 py-3">
-                  <ExternalLink className="w-3.5 h-3.5 text-foreground-muted mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm text-foreground-muted">View on Facebook</p>
-                    <p className="text-[11px] text-foreground-muted mt-0.5">You&apos;ll need access to the ad account.</p>
-                  </div>
-                </div>
+                {campaign.meta_campaign_id && (
+                  <>
+                    <div className="border-t border-border" />
+                    <a
+                      href={`https://adsmanager.facebook.com/adsmanager/manage/campaigns?selected_campaign_ids=${campaign.meta_campaign_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMenu(false)}
+                      className="flex items-start gap-2.5 px-4 py-3 hover:bg-surface transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-foreground-muted mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm text-foreground-muted">View on Facebook</p>
+                        <p className="text-[11px] text-foreground-muted mt-0.5">You&apos;ll need access to the ad account.</p>
+                      </div>
+                    </a>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -281,6 +295,17 @@ export default function CampaignDetailPage() {
         {/* ════ OVERVIEW ════ */}
         {tab === "overview" && (
           <div className="space-y-8 max-w-5xl">
+
+            {/* Meta sync error banner */}
+            {campaign.meta_error && (
+              <div className="flex items-start gap-3 p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl">
+                <AlertCircle className="w-4 h-4 text-rose-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-rose-400">Meta sync error</p>
+                  <p className="text-[12px] text-rose-300 mt-0.5">{campaign.meta_error}</p>
+                </div>
+              </div>
+            )}
 
             {/* Campaign details */}
             <section>
@@ -495,7 +520,7 @@ export default function CampaignDetailPage() {
             )}
 
             {/* ── Meta Verification Panel ── */}
-            {(campaign as any).meta_campaign_id && (
+            {campaign.meta_campaign_id && (
               <div className="border-t border-border/60 pt-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -583,8 +608,8 @@ export default function CampaignDetailPage() {
 
         {/* ════ AD SET ════ */}
         {tab === "adset" && (() => {
-          const metaAdsetId = (campaign as any).meta_adset_id || null;
-          const metaCampaignId = (campaign as any).meta_campaign_id || null;
+          const metaAdsetId = campaign.meta_adset_id || null;
+          const metaCampaignId = campaign.meta_campaign_id || null;
           const obj = (campaign.objective || "").toUpperCase().replace(/ /g, "_");
           const rawOptimize = (campaign as any).boost_settings?.optimize || "";
           const optimizeLabelMap: Record<string, string> = {

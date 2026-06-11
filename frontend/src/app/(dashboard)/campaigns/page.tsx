@@ -5,6 +5,7 @@ import {
   Plus, Loader2, AlertCircle, RefreshCw, MoreHorizontal,
   Eye, Edit3, Trash2, ExternalLink, Zap, ChevronDown,
   TrendingUp, Link2, Check, X, Settings, ImageIcon,
+  CheckCircle2, Clock, Info,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -332,6 +333,496 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
   );
 }
 
+// ── PixelsPanel ────────────────────────────────────────────────────────────
+
+interface MetaPixelItem {
+  id: string; name: string;
+  creation_time: string | null; last_fired_time: string | null;
+}
+
+interface PixelStats {
+  events_24h: number;
+  by_event:   { event: string; count: number }[];
+  by_day:     { date: string | number | null; count: number }[];
+  meta_error?: string;
+}
+
+function timeAgo(v: string | null): string {
+  if (!v) return "Never";
+  const ms = /^\d+$/.test(v) ? parseInt(v) * 1000 : new Date(v).getTime();
+  const d  = Date.now() - ms;
+  if (d < 60_000)    return "Just now";
+  if (d < 3_600_000)  return `${Math.floor(d / 60_000)}m ago`;
+  if (d < 86_400_000) return `${Math.floor(d / 3_600_000)}h ago`;
+  return `${Math.floor(d / 86_400_000)}d ago`;
+}
+
+function formatDate(v: string | number | null): string {
+  if (!v) return "";
+  const ms = typeof v === "number" ? v * 1000 : /^\d+$/.test(String(v)) ? parseInt(String(v)) * 1000 : new Date(v).getTime();
+  return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function pixelStatus(lf: string | null, events24h: number | undefined) {
+  // If we have real 24h event data, use it for more accurate status
+  if (events24h !== undefined) {
+    if (events24h > 0) return { label: "Active",       icon: "check" as const };
+  }
+  if (!lf) return { label: "Waiting for activity", icon: "dot" as const };
+  const days = (Date.now() - (/^\d+$/.test(lf) ? parseInt(lf) * 1000 : new Date(lf).getTime())) / 86_400_000;
+  if (days < 7)  return { label: "Active",       icon: "check" as const };
+  if (days < 30) return { label: "Issues found", icon: "warn"  as const };
+  return              { label: "Inactive",        icon: "dot"   as const };
+}
+
+function PixelsPanel() {
+  const [pixels,       setPixels]       = useState<MetaPixelItem[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [apiError,     setApiError]     = useState<string | null>(null);
+  const [adAcctId,     setAdAcctId]     = useState<string | null>(null);
+  const [openMenu,     setOpenMenu]     = useState<string | null>(null);
+  const [expanded,     setExpanded]     = useState<string | null>(null);
+  const [statsMap,     setStatsMap]     = useState<Record<string, PixelStats>>({});
+  const [statsLoading, setStatsLoading] = useState<Record<string, boolean>>({});
+  // Create pixel modal
+  const [showCreate,   setShowCreate]   = useState(false);
+  const [createName,   setCreateName]   = useState("");
+  const [creating,     setCreating]     = useState(false);
+  const [createErr,    setCreateErr]    = useState<string | null>(null);
+  // Rename
+  const [renamingId,   setRenamingId]   = useState<string | null>(null);
+  const [renameVal,    setRenameVal]    = useState("");
+  const [renaming,     setRenaming]     = useState(false);
+  // Delete
+  const [deleteModal,  setDeleteModal]  = useState<{ id: string; name: string } | null>(null);
+  const [deleting,     setDeleting]     = useState(false);
+  const [deleteResult, setDeleteResult] = useState<{ needs_events_manager?: boolean; events_manager_url?: string; error?: string } | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true); setApiError(null);
+    try {
+      const r = await api.get("/api/v1/campaigns/meta/pixels");
+      const pxList: MetaPixelItem[] = r.data?.pixels || [];
+      setPixels(pxList);
+      setAdAcctId(r.data?.ad_account_id || null);
+      if (r.data?.error) setApiError(r.data.error);
+
+      // Auto-load 24h event counts for all pixels in parallel (background)
+      if (pxList.length > 0) {
+        pxList.forEach(px => {
+          setStatsLoading(s => ({ ...s, [px.id]: true }));
+          api.get(`/api/v1/campaigns/meta/pixels/${px.id}/stats`)
+            .then(sr => {
+              if (sr.data) setStatsMap(m => ({ ...m, [px.id]: sr.data }));
+            })
+            .catch(() => {/* non-fatal */})
+            .finally(() => setStatsLoading(s => ({ ...s, [px.id]: false })));
+        });
+      }
+    } catch { setApiError("Failed to load pixels. Check your Meta account connection."); }
+    finally  { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const loadStats = (pixelId: string) => {
+    if (statsMap[pixelId] || statsLoading[pixelId]) return;
+    setStatsLoading(s => ({ ...s, [pixelId]: true }));
+    api.get(`/api/v1/campaigns/meta/pixels/${pixelId}/stats`)
+      .then(r => { if (r.data) setStatsMap(m => ({ ...m, [pixelId]: r.data })); })
+      .catch(() => {})
+      .finally(() => setStatsLoading(s => ({ ...s, [pixelId]: false })));
+  };
+
+  const toggleExpand = (pixelId: string) => {
+    const next = expanded === pixelId ? null : pixelId;
+    setExpanded(next);
+    if (next) loadStats(next);
+  };
+
+  const evUrl = adAcctId
+    ? `https://business.facebook.com/events_manager2/list/pixel/${adAcctId}`
+    : "https://business.facebook.com/events_manager";
+
+  // Create pixel
+  const handleCreate = async () => {
+    if (!createName.trim()) return;
+    setCreating(true); setCreateErr(null);
+    try {
+      const r = await api.post("/api/v1/campaigns/meta/pixels", { name: createName.trim() });
+      if (!r.success) throw new Error(r.error || "Failed");
+      setPixels(p => [r.data, ...p]);
+      setShowCreate(false);
+      setCreateName("");
+    } catch (e: any) { setCreateErr(e?.response?.data?.error || e?.message || "Failed to create pixel"); }
+    finally { setCreating(false); }
+  };
+
+  // Rename pixel
+  const startRename = (px: MetaPixelItem) => {
+    setRenamingId(px.id); setRenameVal(px.name); setOpenMenu(null);
+  };
+  const commitRename = async (pixelId: string) => {
+    if (!renameVal.trim()) { setRenamingId(null); return; }
+    setRenaming(true);
+    try {
+      await api.patch(`/api/v1/campaigns/meta/pixels/${pixelId}`, { name: renameVal.trim() });
+      setPixels(p => p.map(x => x.id === pixelId ? { ...x, name: renameVal.trim() } : x));
+      setRenamingId(null);
+    } catch { /* keep editing on error */ }
+    finally { setRenaming(false); }
+  };
+
+  // Delete pixel
+  const confirmDelete = async () => {
+    if (!deleteModal) return;
+    setDeleting(true); setDeleteResult(null);
+    try {
+      const r = await api.delete(`/api/v1/campaigns/meta/pixels/${deleteModal.id}`);
+      if (r.success) {
+        setPixels(p => p.filter(x => x.id !== deleteModal.id));
+        setDeleteModal(null);
+      } else {
+        setDeleteResult(r);
+      }
+    } catch (e: any) {
+      const body = e?.response?.data || {};
+      setDeleteResult(body.needs_events_manager
+        ? body
+        : { error: body.error || "Failed to delete pixel." });
+    } finally { setDeleting(false); }
+  };
+
+  const inp = "w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-white/30";
+
+  return (
+    <div className="space-y-4">
+
+      {/* CAPI info banner */}
+      <div className="flex items-start gap-3 p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-sm text-blue-300">
+        <Info className="w-4 h-4 shrink-0 mt-0.5" />
+        <span>
+          <span className="font-semibold text-blue-200">Conversions API (CAPI)</span>
+          {" — "}For server-side event accuracy past ad blockers and iOS privacy.{" "}
+          <a href="https://business.facebook.com/business/help/2041148702652490" target="_blank" rel="noopener noreferrer"
+            className="underline hover:text-blue-200">Set up in Events Manager →</a>
+        </span>
+      </div>
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-foreground-muted">
+          Pixels linked to your Meta ad account.{" "}
+          <a href={evUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">View in Events Manager →</a>
+        </p>
+        <div className="flex items-center gap-2">
+          <button onClick={load} className="p-1.5 rounded-lg border border-border hover:bg-surface text-foreground-muted" title="Refresh">
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <button onClick={() => { setShowCreate(true); setCreateErr(null); setCreateName(""); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1877F2] hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">
+            <Plus className="w-4 h-4" />Create Pixel
+          </button>
+        </div>
+      </div>
+
+      {apiError && (
+        <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-sm text-rose-400">
+          <AlertCircle className="w-4 h-4 shrink-0" />{apiError}
+        </div>
+      )}
+
+      {/* Pixels table */}
+      <div className="bg-surface border border-border rounded-2xl overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-16 gap-3 text-foreground-muted">
+            <RefreshCw className="w-5 h-5 animate-spin" /><span className="text-sm">Loading pixels…</span>
+          </div>
+        ) : pixels.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+              <Zap className="w-6 h-6 text-blue-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">No pixels yet</p>
+              <p className="text-sm text-foreground-muted mt-1">Create your first Meta Pixel to track conversions.</p>
+            </div>
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-[#1877F2] hover:bg-blue-500 text-white text-sm font-medium rounded-xl">
+              <Plus className="w-4 h-4" />Create Pixel
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Table header */}
+            <div className="grid grid-cols-[auto_2fr_1fr_1fr_1fr_auto] gap-3 px-5 py-3 border-b border-border bg-background/40 text-[11px] font-semibold uppercase tracking-widest text-foreground-muted">
+              <span className="w-4" />
+              <span>Meta Pixel</span>
+              <span>Last Active</span>
+              <span>Events (24h)</span>
+              <span>Status</span>
+              <span className="w-8" />
+            </div>
+
+            {pixels.map(px => {
+              const stats  = statsMap[px.id];
+              const stLoad = statsLoading[px.id];
+              const st     = pixelStatus(px.last_fired_time, stats?.events_24h);
+              const isOpen = expanded === px.id;
+
+              return (
+                <div key={px.id} className="border-b border-border last:border-0">
+                  {/* Main row */}
+                  <div className="grid grid-cols-[auto_2fr_1fr_1fr_1fr_auto] gap-3 items-center px-5 py-4 hover:bg-white/[0.02] cursor-pointer"
+                    onClick={() => toggleExpand(px.id)}>
+
+                    {/* Expand chevron */}
+                    <ChevronDown className={`w-4 h-4 text-foreground-muted transition-transform shrink-0 ${isOpen ? "rotate-180" : ""}`} />
+
+                    {/* Name + ID */}
+                    <div onClick={e => e.stopPropagation()}>
+                      {renamingId === px.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            className="bg-background border border-border rounded-lg px-2 py-1 text-sm text-foreground focus:outline-none focus:border-white/30 w-48"
+                            value={renameVal}
+                            onChange={e => setRenameVal(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") commitRename(px.id); if (e.key === "Escape") setRenamingId(null); }}
+                            autoFocus
+                          />
+                          <button onClick={() => commitRename(px.id)} disabled={renaming}
+                            className="text-xs px-2 py-1 bg-white text-zinc-900 rounded-lg font-medium disabled:opacity-50">
+                            {renaming ? "…" : "Save"}
+                          </button>
+                          <button onClick={() => setRenamingId(null)} className="text-xs text-foreground-muted hover:text-foreground">Cancel</button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-medium text-foreground text-sm">{px.name}</p>
+                          <p className="text-xs text-foreground-muted mt-0.5">ID {px.id}</p>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Last active */}
+                    <div className="flex items-center gap-1.5 text-sm text-foreground-muted">
+                      <Clock className="w-3.5 h-3.5 shrink-0" />{timeAgo(px.last_fired_time)}
+                    </div>
+
+                    {/* Events 24h */}
+                    <div className="text-sm">
+                      {stLoad ? (
+                        <span className="text-foreground-muted text-xs">Loading…</span>
+                      ) : stats ? (
+                        <span className={stats.events_24h > 0 ? "text-foreground font-medium" : "text-foreground-muted"}>
+                          {stats.events_24h > 0 ? stats.events_24h.toLocaleString() : "—"}
+                        </span>
+                      ) : (
+                        <span className="text-foreground-muted">—</span>
+                      )}
+                    </div>
+
+                    {/* Status */}
+                    <div className="flex items-center gap-1.5 text-sm">
+                      {st.icon === "check" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                      {st.icon === "warn"  && <AlertCircle  className="w-3.5 h-3.5 text-amber-400 shrink-0"   />}
+                      {st.icon === "dot"   && <div className="w-3 h-3 rounded-full border-2 border-zinc-600 shrink-0" />}
+                      <span className={st.icon === "check" ? "text-emerald-400" : st.icon === "warn" ? "text-amber-400" : "text-zinc-400"}>
+                        {st.label}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="relative" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => setOpenMenu(openMenu === px.id ? null : px.id)}
+                        className="p-1.5 rounded-lg text-foreground-muted hover:text-foreground hover:bg-white/5">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                      {openMenu === px.id && (
+                        <>
+                          <div className="fixed inset-0 z-20" onClick={() => setOpenMenu(null)} />
+                          <div className="absolute right-0 top-8 z-30 w-56 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden">
+                            <a href={`https://business.facebook.com/events_manager2/list/pixel/${px.id}/overview`}
+                              target="_blank" rel="noopener noreferrer" onClick={() => setOpenMenu(null)}
+                              className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5">
+                              <ExternalLink className="w-4 h-4 text-foreground-muted" />Go to Events Manager
+                            </a>
+                            <Link href={`/campaigns/new?objective=CONVERSIONS&pixel_id=${px.id}&pixel_name=${encodeURIComponent(px.name)}`}
+                              onClick={() => setOpenMenu(null)}
+                              className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border">
+                              <Zap className="w-4 h-4 text-foreground-muted" />Use in Campaign
+                            </Link>
+                            <button onClick={() => startRename(px)}
+                              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border">
+                              <Edit3 className="w-4 h-4 text-foreground-muted" />Rename
+                            </button>
+                            <button
+                              onClick={() => { setDeleteModal({ id: px.id, name: px.name }); setDeleteResult(null); setOpenMenu(null); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-rose-400 hover:bg-rose-500/10 border-t border-border">
+                              <Trash2 className="w-4 h-4" />Delete Pixel
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Expanded stats panel */}
+                  {isOpen && (
+                    <div className="px-5 pb-5 pt-1 bg-background/30 border-t border-border/50">
+                      {stLoad && !stats ? (
+                        <div className="flex items-center gap-2 py-4 text-sm text-foreground-muted">
+                          <RefreshCw className="w-4 h-4 animate-spin" />Loading stats…
+                        </div>
+                      ) : !stats || stats.meta_error ? (
+                        <p className="text-sm text-foreground-muted py-3">
+                          {stats?.meta_error || "Stats unavailable. You may need full ad account access to view pixel analytics."}
+                          {" "}<a href={`https://business.facebook.com/events_manager2/list/pixel/${px.id}/overview`}
+                            target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">View in Events Manager →</a>
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-5 pt-3 sm:grid-cols-2">
+
+                          {/* 7-day bar chart */}
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted mb-3">Last 7 Days</p>
+                            {stats.by_day.length === 0 ? (
+                              <p className="text-xs text-foreground-muted">No events in the past 7 days.</p>
+                            ) : (() => {
+                              const max = Math.max(...stats.by_day.map(d => d.count), 1);
+                              return (
+                                <div className="flex items-end gap-1 h-16">
+                                  {stats.by_day.map((d, i) => (
+                                    <div key={i} className="flex-1 flex flex-col items-center gap-1 group" title={`${formatDate(d.date)}: ${d.count} events`}>
+                                      <div className="w-full bg-blue-500/70 rounded-sm transition-all group-hover:bg-blue-400"
+                                        style={{ height: `${Math.max(Math.round((d.count / max) * 100), d.count > 0 ? 4 : 0)}%` }} />
+                                      <span className="text-[9px] text-foreground-muted">{formatDate(d.date).split(" ")[1]}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                          </div>
+
+                          {/* Event breakdown */}
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted mb-3">Events (7 Days)</p>
+                            {stats.by_event.length === 0 ? (
+                              <p className="text-xs text-foreground-muted">No events in the past 7 days.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {stats.by_event.slice(0, 6).map(ev => {
+                                  const total = stats.by_event.reduce((s, e) => s + e.count, 0) || 1;
+                                  const pct   = Math.round((ev.count / total) * 100);
+                                  return (
+                                    <div key={ev.event}>
+                                      <div className="flex items-center justify-between text-xs mb-0.5">
+                                        <span className="text-foreground-muted">{ev.event}</span>
+                                        <span className="text-foreground font-medium">{ev.count.toLocaleString()}</span>
+                                      </div>
+                                      <div className="h-1 bg-border rounded-full overflow-hidden">
+                                        <div className="h-full bg-blue-500/70 rounded-full" style={{ width: `${pct}%` }} />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+
+      {/* Create Pixel modal */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setShowCreate(false)}>
+          <div className="bg-surface border border-border rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div>
+              <h3 className="text-base font-bold text-foreground">Create Meta Pixel</h3>
+              <p className="text-xs text-foreground-muted mt-1">A new pixel will be created in your Meta ad account and ready to install on your website.</p>
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-widest text-foreground-muted mb-1.5">Pixel Name</label>
+              <input className={inp} placeholder="My Website Pixel" value={createName}
+                onChange={e => setCreateName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleCreate(); }}
+                autoFocus />
+            </div>
+            {createErr && (
+              <div className="flex items-start gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />{createErr}
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-foreground-muted hover:text-foreground border border-border rounded-xl">Cancel</button>
+              <button onClick={handleCreate} disabled={creating || !createName.trim()}
+                className="px-4 py-2 text-sm font-semibold bg-[#1877F2] hover:bg-blue-500 text-white rounded-xl disabled:opacity-50 transition-colors">
+                {creating ? "Creating…" : "Create Pixel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => { if (!deleting) setDeleteModal(null); }}>
+          <div className="bg-surface border border-border rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            {deleteResult?.needs_events_manager ? (
+              <>
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-foreground text-sm">Cannot delete via API</p>
+                    <p className="text-xs text-foreground-muted mt-1">
+                      This pixel cannot be deleted through the API. Please delete it directly in Meta Events Manager.
+                    </p>
+                  </div>
+                </div>
+                <a href={deleteResult.events_manager_url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#1877F2] hover:bg-blue-500 text-white text-sm font-medium rounded-xl transition-colors">
+                  Open Events Manager <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                <button onClick={() => setDeleteModal(null)} className="w-full py-2 text-sm text-foreground-muted hover:text-foreground">Close</button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">Delete pixel?</h3>
+                  <p className="text-sm text-foreground-muted mt-1">
+                    <span className="font-medium text-foreground">{deleteModal.name}</span> will be permanently deleted from Meta. Campaigns using this pixel will lose conversion tracking.
+                  </p>
+                </div>
+                {deleteResult?.error && (
+                  <div className="flex items-start gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />{deleteResult.error}
+                  </div>
+                )}
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setDeleteModal(null)} disabled={deleting}
+                    className="px-4 py-2 text-sm text-foreground-muted border border-border rounded-xl hover:text-foreground">Cancel</button>
+                  <button onClick={confirmDelete} disabled={deleting}
+                    className="px-4 py-2 text-sm font-semibold bg-rose-600 hover:bg-rose-500 text-white rounded-xl disabled:opacity-50 transition-colors">
+                    {deleting ? "Deleting…" : "Delete Pixel"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
 // Main
 
 export default function CampaignsPage() {
@@ -507,17 +998,7 @@ export default function CampaignsPage() {
 
         {/* Pixel Connector */}
         {tab === "pixels" && (
-          <div className="py-16 text-center">
-            <Zap className="w-12 h-12 text-foreground-muted mx-auto mb-4" />
-            <p className="text-foreground font-bold text-lg mb-2">Meta Pixels</p>
-            <p className="text-foreground-muted text-sm mb-1 max-w-sm mx-auto">
-              Connect your Meta Pixel to track conversions and optimize ad targeting with real website data.
-            </p>
-            <p className="text-foreground-muted text-xs mb-6">Your Pixel must be linked to the same Business Manager as your ad account.</p>
-            <button className="px-5 py-2.5 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-semibold rounded-lg transition-colors">
-              Connect Pixel
-            </button>
-          </div>
+          <PixelsPanel />
         )}
 
         {/* No Facebook account connected */}
