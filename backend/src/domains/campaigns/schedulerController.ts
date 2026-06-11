@@ -327,7 +327,7 @@ export const schedulePost = async (req: AuthRequest, res: Response, next: NextFu
     if (jobError) throw jobError;
 
     // 3. Enqueue the actual task in BullMQ with a delay (if Redis available)
-    const queue = getQueue();
+    const queue = await getQueue();
     if (queue) {
       const scheduledDate = new Date(scheduledTime);
       const delay = Math.max(0, scheduledDate.getTime() - Date.now());
@@ -379,7 +379,7 @@ export const cancelScheduledPost = async (req: AuthRequest, res: Response, next:
     if (!post) return res.status(403).json({ error: 'Forbidden: Post not found in your workspace' });
 
     // 1. Delete the background job in BullMQ (if Redis available)
-    const queue = getQueue();
+    const queue = await getQueue();
     if (queue) {
       const bullJob = await queue.getJob(id);
       if (bullJob) await bullJob.remove();
@@ -513,7 +513,7 @@ export const updateScheduledPost = async (req: AuthRequest, res: Response, next:
     }
 
     if (updates.status === 'CANCELLED') {
-      const queue = getQueue();
+      const queue = await getQueue();
       if (queue) {
         const bullJob = await queue.getJob(id);
         if (bullJob) await bullJob.remove();

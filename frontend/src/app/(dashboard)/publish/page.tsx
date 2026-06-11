@@ -976,7 +976,6 @@ function PublishPageInner() {
         const data = await api.post("/api/v1/ai/analyze-image", {
           imageBase64: optimizedBase64,
         });
-        console.log("[VISION] Analysis Result:", data);
         if (data.success && data.analysis) {
           sessionStorage.setItem("lastImageAnalysis", data.analysis);
           setHasImageAnalysis(true);
