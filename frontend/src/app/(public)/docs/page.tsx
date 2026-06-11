@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
   title: "Documentation | ZoikoVertex",
@@ -49,7 +48,6 @@ const SECTIONS = [
 export default function DocsPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <Navbar />
 
       <main className="max-w-5xl mx-auto px-6 pt-[100px] pb-16">
         <div className="mb-14">

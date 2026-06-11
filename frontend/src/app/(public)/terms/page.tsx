@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Navbar from "@/components/Navbar";
 
 export const metadata: Metadata = {
   title: "Terms of Service | ZoikoVertex",
@@ -232,7 +231,6 @@ Website: https://zoikovertex.com`,
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <Navbar />
 
       {/* Content */}
       <main className="max-w-4xl mx-auto px-6 pt-[100px] pb-16">
