@@ -263,7 +263,7 @@ export default function SignupPage() {
   );
 
   return (
-    <AuthLayout footer={step < 4 ? signInFooter : undefined}>
+    <AuthLayout footer={signInFooter} noCard>
       <div className="w-full">
         {error && (
           <div className="mb-5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
