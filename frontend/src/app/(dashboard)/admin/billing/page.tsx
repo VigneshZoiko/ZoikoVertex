@@ -1316,7 +1316,7 @@ export default function BillingPage() {
                         autoFocus
                       />
                     </div>
-                    <p className="text-[11px] text-foreground-muted mt-1.5">Minimum $10 Â· Maximum $100,000</p>
+                    <p className="text-[11px] text-foreground-muted mt-1.5">Minimum $10 · Maximum $100,000</p>
                   </div>
                   {/* Quick amounts */}
                   <div className="grid grid-cols-4 gap-2">

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——— Types —————————————————————————————————————————————————————————————————————
 
 interface ValidationItem {
   id: string;
@@ -77,7 +77,7 @@ interface TimelineEntry {
   performed_at: string;
 }
 
-// â”€â”€â”€ Config Maps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——— Config Maps ———————————————————————————————————————————————————————————————
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   PENDING_VALIDATION:    { label: "Pending",          color: "bg-blue-500/15 text-blue-300 border-blue-500/25",       icon: <Clock className="w-3 h-3" /> },
@@ -117,17 +117,17 @@ const ITEM_TYPE_ICONS: Record<string, React.ReactNode> = {
 };
 
 function formatDate(dateStr?: string): string {
-  if (!dateStr) return "â€”";
+  if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function formatShortDate(dateStr?: string): string {
-  if (!dateStr) return "â€”";
+  if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function formatRelativeTime(dateStr?: string): string {
-  if (!dateStr) return "â€”";
+  if (!dateStr) return "—";
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(mins / 60);
@@ -138,7 +138,7 @@ function formatRelativeTime(dateStr?: string): string {
   return "Just now";
 }
 
-// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ——— Main Component ————————————————————————————————————————————————————————————
 
 export default function ValidationDeskPage() {
   const [items, setItems] = useState<ValidationItem[]>([]);
@@ -294,7 +294,7 @@ export default function ValidationDeskPage() {
   const failedRules = ruleResults.filter(r => r.result === "FAILED" || r.result === "BLOCKED");
   const passedRules = ruleResults.filter(r => r.result === "PASSED" || r.result === "WARNING");
 
-  // â”€â”€ media derived from selected item â”€â”€
+  // —— media derived from selected item ——
   const mediaUrls    = selectedItem?.content_snapshot?.urls as string[] | undefined;
   const mediaFt      = selectedItem?.content_snapshot?.file_type as string | undefined;
   const isImageMedia = !!(mediaFt?.startsWith("image") || mediaFt === "image");
@@ -309,7 +309,7 @@ export default function ValidationDeskPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 pb-16">
 
-      {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* —— Header ———————————————————————————————————————————————————————————— */}
       <div className="mb-6 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
@@ -331,7 +331,7 @@ export default function ValidationDeskPage() {
         </button>
       </div>
 
-      {/* â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* —— Toast ————————————————————————————————————————————————————————————— */}
       {message && (
         <div className={`mb-4 p-3 rounded-lg flex items-center gap-2.5 text-xs font-semibold transition-all ${
           message.type === "success"
@@ -346,7 +346,7 @@ export default function ValidationDeskPage() {
         </div>
       )}
 
-      {/* â”€â”€ Stats Row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* —— Stats Row ————————————————————————————————————————————————————————— */}
       {stats && (
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
@@ -366,7 +366,7 @@ export default function ValidationDeskPage() {
         </div>
       )}
 
-      {/* â”€â”€ Automated Workflow Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* —— Automated Workflow Banner —————————————————————————————————————————— */}
       <div className="mb-5 p-3 bg-indigo-500/5 border border-indigo-500/15 rounded-lg flex items-center gap-3">
         <div className="flex items-center gap-1.5 text-indigo-400 shrink-0">
           <Zap className="w-3.5 h-3.5" />
@@ -385,7 +385,7 @@ export default function ValidationDeskPage() {
         </div>
       </div>
 
-      {/* â”€â”€ Main 2-Panel Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* —— Main 2-Panel Layout ———————————————————————————————————————————————— */}
       <div className="flex gap-4 items-start">
 
         {/* â•â•â• Left Panel: Item List â•â•â• */}
@@ -485,7 +485,7 @@ export default function ValidationDeskPage() {
           ) : (
             <div className="space-y-3">
 
-              {/* â”€â”€ Instagram PC card: left info | right media â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* —— Instagram PC card: left info | right media —————————————————— */}
               <div className="bg-surface border border-border rounded-lg overflow-hidden">
                 <div className={`flex items-stretch ${hasMedia ? "" : "flex-col"}`}>
 
@@ -520,7 +520,7 @@ export default function ValidationDeskPage() {
                           <span className="text-foreground-muted">{new Date(selectedItem.submitted_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
                         </div>
                         {selectedItem.item_type && (
-                          <p className="capitalize">{selectedItem.item_type.replace(/_/g, " ")} Â· {selectedItem.source_module}</p>
+                          <p className="capitalize">{selectedItem.item_type.replace(/_/g, " ")} · {selectedItem.source_module}</p>
                         )}
                       </div>
                     </div>
@@ -647,7 +647,7 @@ export default function ValidationDeskPage() {
                 </div>
               </div>
 
-              {/* â”€â”€ Passed: Auto-Approved Notice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* —— Passed: Auto-Approved Notice ——————————————————————————————— */}
               {isPassed && (
                 <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-lg p-4 flex items-start gap-3">
                   <div className="w-8 h-8 bg-emerald-500/15 rounded-lg flex items-center justify-center shrink-0">
@@ -662,7 +662,7 @@ export default function ValidationDeskPage() {
                 </div>
               )}
 
-              {/* â”€â”€ Rejected: Block Notice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* —— Rejected: Block Notice —————————————————————————————————————— */}
               {isRejected && (
                 <div className="bg-red-500/5 border border-red-500/15 rounded-lg p-4 flex items-start gap-3">
                   <div className="w-8 h-8 bg-red-500/15 rounded-lg flex items-center justify-center shrink-0">
@@ -671,7 +671,7 @@ export default function ValidationDeskPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-red-300 mb-0.5">
                       {selectedItem.validation_status === "BLOCKED"        ? "Permanently Blocked from Vault" :
-                       selectedItem.validation_status === "NEEDS_REVISION" ? "Returned to Creator â€” Awaiting Resubmission" :
+                       selectedItem.validation_status === "NEEDS_REVISION" ? "Returned to Creator — Awaiting Resubmission" :
                        "Failed Safety Scan"}
                     </p>
                     <p className="text-[10px] text-red-400/60 leading-relaxed">
@@ -683,7 +683,7 @@ export default function ValidationDeskPage() {
                 </div>
               )}
 
-              {/* â”€â”€ NEEDS_REVISION: Feedback notes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* —— NEEDS_REVISION: Feedback notes ————————————————————————————— */}
               {selectedItem.validation_status === "NEEDS_REVISION" && notes.length > 0 && (
                 <div className="bg-orange-500/5 border border-orange-500/15 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -699,7 +699,7 @@ export default function ValidationDeskPage() {
                         <p className="text-xs text-foreground leading-relaxed">{note.note_body}</p>
                         <p className="text-[9px] text-foreground-muted">
                           {note.created_by === "system" ? "âš¡ System" : `Validator ${note.created_by?.slice(0, 8)}`}
-                          {" â€¢ "}{formatShortDate(note.created_at)}
+                          {" ¢ "}{formatShortDate(note.created_at)}
                         </p>
                       </div>
                     ))}
@@ -707,7 +707,7 @@ export default function ValidationDeskPage() {
                 </div>
               )}
 
-              {/* â”€â”€ Automated Scan Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* —— Automated Scan Results —————————————————————————————————————— */}
               {ruleResults.length > 0 && (
                 <div className="bg-surface border border-border rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -760,7 +760,7 @@ export default function ValidationDeskPage() {
                 </div>
               )}
 
-              {/* â”€â”€ Audit Timeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* —— Audit Timeline —————————————————————————————————————————————— */}
               {timeline.length > 0 && (
                 <div className="bg-surface border border-border rounded-lg p-4">
                   <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider mb-3">Audit History</p>
@@ -771,7 +771,7 @@ export default function ValidationDeskPage() {
                         <div className="min-w-0">
                           <p className="text-foreground-muted leading-snug">{entry.action?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</p>
                           <p className="text-[9px] text-foreground-muted">
-                            {formatShortDate(entry.performed_at)} â€” {entry.performed_by === "system" ? "System (Automated)" : entry.performed_by?.slice(0, 10)}
+                            {formatShortDate(entry.performed_at)} — {entry.performed_by === "system" ? "System (Automated)" : entry.performed_by?.slice(0, 10)}
                           </p>
                         </div>
                       </div>
@@ -780,7 +780,7 @@ export default function ValidationDeskPage() {
                 </div>
               )}
 
-              {/* â”€â”€ MANUAL_CHECK_REQUIRED â†’ Review Queue notice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* —— MANUAL_CHECK_REQUIRED â†’ Review Queue notice ————————————————— */}
               {(selectedItem.validation_status === "MANUAL_CHECK_REQUIRED" || selectedItem.validation_status === "FAILED") && (
                 <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg p-4 flex items-start gap-3">
                   <div className="w-8 h-8 bg-amber-500/15 rounded-lg flex items-center justify-center shrink-0">
