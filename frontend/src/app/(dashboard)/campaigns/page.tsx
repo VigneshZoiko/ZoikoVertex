@@ -886,10 +886,33 @@ function PixelsPanel() {
                      className="text-sm font-medium text-foreground hover:text-white transition-colors">
                     Email Instructions
                   </a>
-                  <a href={`https://business.facebook.com/events_manager2/list/pixel/${showSetup.id}/overview`} target="_blank" rel="noopener noreferrer"
-                     className="px-5 py-2 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-semibold rounded-lg transition-colors">
-                    Continue
-                  </a>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        setStatsLoading(s => ({ ...s, [showSetup.id]: true }));
+                        const r = await api.get(`/api/v1/campaigns/meta/pixels/${showSetup.id}/stats`);
+                        if (r.data) {
+                          setStatsMap(m => ({ ...m, [showSetup.id]: r.data }));
+                          const px = pixels.find(p => p.id === showSetup.id);
+                          const st = pixelStatus(px?.last_fired_time || null, r.data.events_24h);
+                          if (st.label === "Active") {
+                            alert("Pixel verified successfully! It is now Active.");
+                            setShowSetup(null);
+                          } else {
+                            alert("Not active yet. Please wait for sometime until we receive activity.");
+                          }
+                        }
+                      } catch {
+                        alert("Failed to verify. Please try again.");
+                      } finally {
+                        setStatsLoading(s => ({ ...s, [showSetup.id]: false }));
+                      }
+                    }}
+                    disabled={statsLoading[showSetup.id]}
+                    className="flex items-center gap-2 px-5 py-2 bg-white hover:bg-zinc-100 disabled:opacity-50 text-zinc-900 text-sm font-semibold rounded-lg transition-colors">
+                    {statsLoading[showSetup.id] && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Verify
+                  </button>
                 </div>
               </>
             ) : (
