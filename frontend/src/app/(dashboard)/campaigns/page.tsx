@@ -652,11 +652,18 @@ function PixelsPanel() {
                               className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border">
                               <Code className="w-4 h-4 text-foreground-muted" />View Setup Code
                             </button>
-                            <Link href={`/campaigns/new?objective=CONVERSIONS&pixel_id=${px.id}&pixel_name=${encodeURIComponent(px.name)}`}
-                              onClick={() => setOpenMenu(null)}
-                              className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border">
-                              <Zap className="w-4 h-4 text-foreground-muted" />Use in Campaign
-                            </Link>
+                            {st.label === "Active" ? (
+                              <Link href={`/campaigns/new?objective=CONVERSIONS&pixel_id=${px.id}&pixel_name=${encodeURIComponent(px.name)}`}
+                                onClick={() => setOpenMenu(null)}
+                                className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border">
+                                <Zap className="w-4 h-4 text-foreground-muted" />Use in Campaign
+                              </Link>
+                            ) : (
+                              <div title="Verify pixel to use in campaign"
+                                className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground-muted cursor-not-allowed border-t border-border opacity-50 bg-surface-hover/50">
+                                <Zap className="w-4 h-4 text-foreground-muted" />Use in Campaign (Unverified)
+                              </div>
+                            )}
                             <button onClick={() => startRename(px)}
                               className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border">
                               <Edit3 className="w-4 h-4 text-foreground-muted" />Rename
