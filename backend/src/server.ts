@@ -178,7 +178,6 @@ import { listCampaigns, getCampaign, createCampaign, updateCampaign, deleteCampa
 import { getCampaignStats, submitCampaignForReview, approveCampaign, checkLaunchGate, launchCampaign, pauseCampaign, resumeCampaign, emergencyPauseCampaign, getCampaignEvents, updateSpend } from './domains/campaigns/campaignsV2Controller';
 import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBudgetAuth, rejectBudgetAuth } from './domains/campaigns/budgetAuthController';
 import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
-import { getGoogleAdsCustomers, linkGoogleAdsCustomer, createGoogleBoost, syncGoogleBoostMetrics as syncGoogleMetrics, pauseGoogleBoost, resumeGoogleBoost, cancelGoogleBoost } from './domains/campaigns/googleAdsController';
 import { listLibrary, addToLibrary, deleteFromLibrary, bulkDeleteFromLibrary, listStorageItems } from './domains/content/libraryController';
 import { readRecentScans } from './modules/safety/scanLogger';
 import {
@@ -765,7 +764,7 @@ app.patch('/api/v1/campaigns/:id/spend',          authenticate, campaignWriteGua
 app.post('/api/v1/campaigns/:id/push-to-meta',   authenticate, campaignLaunchGuard,  pushCampaignToMetaHandler);
 
 // Client Meta Account routes (bring-your-own-account model)
-import { listClientCampaignAccounts, fetchMetaAdAccounts, setAdAccount, fetchMetaPages } from './domains/campaigns/metaAccountController';
+import { listClientCampaignAccounts, fetchMetaAdAccounts, setAdAccount, fetchMetaPages, fetchMetaPixels, getPixelStats, createPixel, updatePixelName, deleteMetaPixel } from './domains/campaigns/metaAccountController';
 import { publishToMeta, toggleMetaStatus, deleteFromMeta, syncFromMeta, getAdAccountDetails, verifyMetaCampaign } from './domains/campaigns/metaPublishController';
 import { searchLocations, searchInterests, getReachEstimate } from './domains/campaigns/metaTargetingSearch';
 
@@ -774,6 +773,11 @@ app.get('/api/v1/campaigns/meta/accounts',                        authenticate, 
 app.post('/api/v1/campaigns/meta/accounts/:id/fetch-ad-accounts', authenticate, campaignGuard, fetchMetaAdAccounts);
 app.post('/api/v1/campaigns/meta/accounts/:id/set-ad-account',    authenticate, campaignWriteGuard, setAdAccount);
 app.get('/api/v1/campaigns/meta/pages',                           authenticate, campaignGuard, fetchMetaPages);
+app.get('/api/v1/campaigns/meta/pixels',                          authenticate, campaignGuard,      fetchMetaPixels);
+app.post('/api/v1/campaigns/meta/pixels',                         authenticate, campaignWriteGuard, createPixel);
+app.get('/api/v1/campaigns/meta/pixels/:pixelId/stats',           authenticate, campaignGuard,      getPixelStats);
+app.patch('/api/v1/campaigns/meta/pixels/:pixelId',               authenticate, campaignWriteGuard, updatePixelName);
+app.delete('/api/v1/campaigns/meta/pixels/:pixelId',              authenticate, campaignWriteGuard, deleteMetaPixel);
 
 // Meta campaign publish / sync
 app.post('/api/v1/campaigns/:id/publish-to-meta',    authenticate, campaignWriteGuard,  publishToMeta);
@@ -807,14 +811,6 @@ app.post('/api/v1/ads/boosts/:id/resume',  authenticate, adsGuard, resumeBoost);
 app.delete('/api/v1/ads/boosts/:id',       authenticate, adsGuard, cancelBoost);
 app.get('/api/v1/campaigns/:id/insights',  authenticate, adsGuard, getCampaignInsights);
 
-// Google Ads / Boost routes (Phase 2b)
-app.get('/api/v1/ads/google/accounts/:connectedAccountId/customers',      authenticate, adsGuard, getGoogleAdsCustomers);
-app.post('/api/v1/ads/google/accounts/:connectedAccountId/link-customer', authenticate, adsGuard, linkGoogleAdsCustomer);
-app.post('/api/v1/ads/google/boosts',            authenticate, adsGuard, createGoogleBoost);
-app.post('/api/v1/ads/google/boosts/:id/sync',   authenticate, adsGuard, syncGoogleMetrics);
-app.post('/api/v1/ads/google/boosts/:id/pause',  authenticate, adsGuard, pauseGoogleBoost);
-app.post('/api/v1/ads/google/boosts/:id/resume', authenticate, adsGuard, resumeGoogleBoost);
-app.delete('/api/v1/ads/google/boosts/:id',      authenticate, adsGuard, cancelGoogleBoost);
 
 // Protected Scheduler Routes
 app.post('/api/v1/scheduler/recommend', authenticate, planRateLimit('general'), checkAiTokenQuota, scopeGuard('read:content', '*'), getRecommendations);

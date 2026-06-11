@@ -1,13 +1,21 @@
+import { createHmac } from 'crypto';
 import { Response } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
+import { env } from '../../config/env';
 import {
   publishCampaignToMeta,
   toggleMetaCampaignStatus,
   deleteMetaCampaign,
   syncCampaignsFromMeta,
 } from './metaCampaignPublisher';
+
+function appSecretProof(token: string): string {
+  const secret = env.META_APP_SECRET;
+  if (!secret) return '';
+  return createHmac('sha256', secret).update(token).digest('hex');
+}
 
 // ── POST /api/v1/campaigns/:id/publish-to-meta ────────────────────────────────
 
@@ -30,7 +38,7 @@ export const publishToMeta = async (req: AuthRequest, res: Response) => {
     // need to sit in the library. Fire-and-forget; vault cleanup is non-critical.
     removePublishedImagesFromVault(id, workspaceId).catch(() => {});
 
-    return res.json({ success: true, data: result, publish_report: result.publish_report });
+    return res.json({ success: true, data: result, warnings: result.warnings, publish_report: result.publish_report });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err: msg, campaignId: id }, '[MetaPublish] Unexpected error');
@@ -116,16 +124,18 @@ export const verifyMetaCampaign = async (req: AuthRequest, res: Response) => {
     .from('connected_accounts')
     .select('access_token, refresh_token')
     .eq('id', campaign.selected_meta_account_id)
+    .eq('workspace_id', workspaceId)
     .single();
 
-  const token = account?.access_token || account?.refresh_token;
+  const token = account?.refresh_token || account?.access_token;
   if (!token) return res.status(400).json({ error: 'Access token not found. Please reconnect Facebook.' });
 
-  const META_GRAPH = 'https://graph.facebook.com/v18.0';
+  const META_GRAPH = 'https://graph.facebook.com/v21.0';
+  const proof = appSecretProof(token);
 
   async function metaGet(path: string) {
     const sep = path.includes('?') ? '&' : '?';
-    const r = await fetch(`${META_GRAPH}${path}${sep}access_token=${token}`);
+    const r = await fetch(`${META_GRAPH}${path}${sep}access_token=${token}${proof ? `&appsecret_proof=${proof}` : ''}`);
     return r.json() as Promise<any>;
   }
 
@@ -303,7 +313,7 @@ export const syncFromMeta = async (req: AuthRequest, res: Response) => {
   if (!acc) return res.status(400).json({ error: 'No Meta ad account linked.' });
 
   const adAccountId = acc.agency_ad_account_id || acc.ad_account_id;
-  const token       = acc.access_token || acc.refresh_token;
+  const token       = acc.refresh_token || acc.access_token; // prefer user token (refresh_token)
   if (!token) return res.status(400).json({ error: 'Access token not found. Reconnect Facebook.' });
 
   const result = await syncCampaignsFromMeta(workspaceId, adAccountId, token);
@@ -332,12 +342,13 @@ export const getAdAccountDetails = async (req: AuthRequest, res: Response) => {
 
   const adAcctRaw   = acc.agency_ad_account_id || acc.ad_account_id;
   const adAccountId = adAcctRaw?.startsWith('act_') ? adAcctRaw : `act_${adAcctRaw}`;
-  const token       = acc.access_token || acc.refresh_token;
+  const token       = acc.refresh_token || acc.access_token; // prefer user token (refresh_token)
   if (!token) return res.json({ success: true, data: null });
 
   try {
-    const fields = 'id,name,account_status,currency,timezone_name,amount_spent,spend_cap,balance';
-    const r = await fetch(`https://graph.facebook.com/v18.0/${adAccountId}?fields=${fields}&access_token=${token}`);
+    const fields   = 'id,name,account_status,currency,timezone_name,amount_spent,spend_cap,balance';
+    const acctProof = appSecretProof(token);
+    const r = await fetch(`https://graph.facebook.com/v21.0/${adAccountId}?fields=${fields}&access_token=${token}${acctProof ? `&appsecret_proof=${acctProof}` : ''}`);
     const data = await r.json() as any;
 
     if (data.error) return res.json({ success: true, data: null });
