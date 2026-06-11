@@ -176,18 +176,28 @@ export default function CreatorUploadPage() {
         }
       }
 
-      // Determine overall file_type
+      // Determine overall file_type and total size across all files in this upload
       const hasVideo = entries.some(e => isVideo(e.file));
       const hasImage = entries.some(e => e.file.type.startsWith('image/'));
       const fileType = hasVideo && hasImage ? 'mixed' : hasVideo ? 'video' : 'image';
+      const totalSizeBytes = entries.reduce((acc, e) => acc + e.file.size, 0);
 
-      await api.post('/api/v1/library/upload', {
+      const result = await api.post('/api/v1/library/upload', {
         title: title.trim(),
         urls: publicUrls,
         file_type: fileType,
+        file_size_bytes: totalSizeBytes,
       });
 
-      setMessage({ type: 'success', text: `${entries.length} file${entries.length !== 1 ? 's' : ''} uploaded to the Common Library!` });
+      const n = entries.length;
+      const filesLabel = `${n} file${n !== 1 ? 's' : ''}`;
+      if (result?.status === 'pending_review') {
+        setMessage({ type: 'success', text: `${filesLabel} sent to the Review Queue — a reviewer will approve before it appears in the library.` });
+      } else if (result?.status === 'blocked') {
+        setMessage({ type: 'error', text: `${filesLabel} flagged by the safety scanner and sent for review. It will not be published until a reviewer approves it.` });
+      } else {
+        setMessage({ type: 'success', text: `${filesLabel} uploaded to the Common Library!` });
+      }
       setTitle("");
       setDescription("");
       setEntries([]);

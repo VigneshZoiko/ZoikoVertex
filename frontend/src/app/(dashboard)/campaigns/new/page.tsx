@@ -16,11 +16,17 @@ import MediaVaultPicker from "@/components/MediaVaultPicker";
 
 interface TeamMember { id: string; full_name?: string; email: string; role: string; }
 
+interface MetaPixel { id: string; name: string; }
+
 interface WizardData {
   // Step 1
   name:      string;
   platforms: string[];
   objective: string;
+  // Pixel (only for CONVERSIONS objective)
+  tracking_pixel_id:   string;
+  tracking_pixel_name: string;
+  conversion_event:    string;
   // Step 2
   budget_total:      string;
   budget_currency:   string;
@@ -34,7 +40,7 @@ interface WizardData {
   age_max:          string;
   gender:           string;
   interests:        string;
-  keywords:         string;   // Google Search keywords (one per line)
+  keywords:         string;
   landing_page_url: string;
   headline:         string;
   copy_text:        string;
@@ -50,6 +56,7 @@ interface WizardData {
 
 const DEFAULT: WizardData = {
   name: "", platforms: [], objective: "",
+  tracking_pixel_id: "", tracking_pixel_name: "", conversion_event: "PURCHASE",
   budget_total: "", budget_currency: "USD",
   start_at: "", end_at: "",
   budget_owner_id: "", budget_owner_name: "",
@@ -96,15 +103,16 @@ const STEP_REQUIRED: Record<number, (keyof WizardData)[]> = {
 };
 
 const REQUIRED_MSGS: Partial<Record<keyof WizardData, string>> = {
-  name:             "Campaign name is required",
-  objective:        "Select a goal to continue",
-  budget_total:     "Budget is required",
-  start_at:         "Start date is required",
-  end_at:           "End date is required",
-  landing_page_url: "Landing page URL is required",
-  headline:         "Headline is required",
-  copy_text:        "Ad body text is required",
-  lead_form_id:     "Lead Form ID is required for Lead Ads",
+  name:               "Campaign name is required",
+  objective:          "Select a goal to continue",
+  tracking_pixel_id:  "Select a Meta Pixel to track conversions",
+  budget_total:       "Budget is required",
+  start_at:           "Start date is required",
+  end_at:             "End date is required",
+  landing_page_url:   "Landing page URL is required",
+  headline:           "Headline is required",
+  copy_text:          "Ad body text is required",
+  lead_form_id:       "Lead Form ID is required for Lead Ads",
 };
 
 type ArrKey = "geography" | "platforms";
@@ -127,19 +135,38 @@ export default function NewCampaignPage() {
   const editId       = searchParams.get("edit");
 
   const [step,       setStep]       = useState(parseInt(searchParams.get("step") ?? "1", 10));
-  const [data,       setData]       = useState<WizardData>(DEFAULT);
+  const [data,       setData]       = useState<WizardData>(() => ({
+    ...DEFAULT,
+    // Pre-fill from "Use in Campaign" link on pixels page
+    objective:           searchParams.get("objective")   || DEFAULT.objective,
+    tracking_pixel_id:   searchParams.get("pixel_id")    || DEFAULT.tracking_pixel_id,
+    tracking_pixel_name: searchParams.get("pixel_name")  || DEFAULT.tracking_pixel_name,
+  }));
   const [campaignId, setCampaignId] = useState<string | null>(editId);
   const [saving,     setSaving]     = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [members,    setMembers]    = useState<TeamMember[]>([]);
   const [fieldErrors,setFieldErrors]= useState<FieldErrors>({});
   const [touched,    setTouched]    = useState<Partial<Record<keyof WizardData, boolean>>>({});
-  const [submitError,setSubmitError]= useState<string | null>(null);
+  const [submitError,  setSubmitError]  = useState<string | null>(null);
+  const [submitWarnings, setSubmitWarnings] = useState<string[]>([]);
   const [vaultPicker, setVaultPicker] = useState<{ slot: string; hint: string } | null>(null);
+  const [pixels,        setPixels]        = useState<MetaPixel[]>([]);
+  const [pixelsLoading, setPixelsLoading] = useState(false);
 
   useEffect(() => {
     api.get("/api/v1/team/members").then(r => setMembers(r.data || [])).catch(() => {});
   }, []);
+
+  // Fetch Meta Pixels when CONVERSIONS objective is selected
+  useEffect(() => {
+    if (data.objective !== "CONVERSIONS") { setPixels([]); return; }
+    setPixelsLoading(true);
+    api.get("/api/v1/campaigns/meta/pixels")
+      .then(r => setPixels(r.data?.pixels || []))
+      .catch(() => setPixels([]))
+      .finally(() => setPixelsLoading(false));
+  }, [data.objective]);
 
   // Auto-switch meta_ad_type when objective changes
   useEffect(() => {
@@ -171,6 +198,9 @@ export default function NewCampaignPage() {
         meta_ad_type: cr.meta_ad_type || "image_ad", google_ad_type: cr.google_ad_type || "display",
         ad_image_url: cr.ad_image_url || "", ad_square_image_url: cr.ad_square_image_url || "",
         ad_video_url: cr.ad_video_url || "", lead_form_id: cr.lead_form_id || "",
+        tracking_pixel_id:   c.tracking_pixel_id   || "",
+        tracking_pixel_name: c.tracking_pixel_name || "",
+        conversion_event:    c.conversion_event    || "PURCHASE",
       });
     }).catch(() => {});
   }, [editId]);
@@ -225,6 +255,12 @@ export default function NewCampaignPage() {
         valid = false;
       }
     }
+    // When CONVERSIONS objective is selected, a pixel must be chosen
+    if (step === 1 && data.objective === "CONVERSIONS" && !data.tracking_pixel_id) {
+      errors.tracking_pixel_id = "Select a Meta Pixel to track conversions";
+      newTouched.tracking_pixel_id = true;
+      valid = false;
+    }
     setTouched(t => ({ ...t, ...newTouched }));
     setFieldErrors(e => ({ ...e, ...errors }));
     return valid;
@@ -237,10 +273,13 @@ export default function NewCampaignPage() {
 
       if (step === 1) {
         Object.assign(payload, {
-          name:          data.name.trim(),
-          campaign_type: 'PAID_ADS',
-          objective:     data.objective,
-          platforms:     data.platforms,
+          name:                data.name.trim(),
+          campaign_type:       'PAID_ADS',
+          objective:           data.objective,
+          platforms:           data.platforms,
+          tracking_pixel_id:   data.tracking_pixel_id   || null,
+          tracking_pixel_name: data.tracking_pixel_name || null,
+          conversion_event:    data.conversion_event    || null,
         });
       }
       if (step === 2) {
@@ -259,14 +298,16 @@ export default function NewCampaignPage() {
         });
       }
       if (step === 3) {
-        // Default optimization goal per objective for campaigns created via the simple wizard
+        // Default optimization goal per objective for campaigns created via the simple wizard.
+        // CONVERSIONS uses OFFSITE_CONVERSIONS only when a pixel is configured; otherwise falls
+        // back to LANDING_PAGE_VIEWS (the backend also enforces this, but be explicit here).
         const defaultOptimizeMap: Record<string, string> = {
           AWARENESS:       'REACH',
           TRAFFIC:         'LANDING_PAGE_VIEWS',
           ENGAGEMENT:      'POST_ENGAGEMENT',
           LEAD_GENERATION: 'LEAD_GENERATION',
-          CONVERSIONS:     'OFFSITE_CONVERSIONS',
-          SALES:           'OFFSITE_CONVERSIONS',
+          CONVERSIONS:     data.tracking_pixel_id ? 'OFFSITE_CONVERSIONS' : 'LANDING_PAGE_VIEWS',
+          SALES:           data.tracking_pixel_id ? 'OFFSITE_CONVERSIONS' : 'LANDING_PAGE_VIEWS',
         };
         const obj = data.objective || 'TRAFFIC';
         Object.assign(payload, {
@@ -348,6 +389,13 @@ export default function NewCampaignPage() {
           router.push(`/campaigns/${campaignId}`);
           return;
         }
+        // Publish succeeded — surface any non-fatal warnings (pixel downgrade, interest filtering, etc.)
+        const publishWarnings: string[] = metaRes.warnings || [];
+        if (publishWarnings.length > 0) {
+          setSubmitWarnings(publishWarnings);
+          // Give user a moment to read warnings before redirecting
+          await new Promise(r => setTimeout(r, 3000));
+        }
       }
 
       router.push(`/campaigns/${campaignId}`);
@@ -413,25 +461,16 @@ export default function NewCampaignPage() {
               <div>
                 <label className={lbl}>Run ads on</label>
                 <div className="flex gap-3">
-                  {[
-                    { id: "Meta",   label: "Meta",   sub: "Facebook & Instagram", available: true  },
-                    { id: "Google", label: "Google", sub: "Coming soon",           available: false },
-                  ].map(p => (
-                    <button key={p.id} type="button"
-                      onClick={() => p.available && toggleArr("platforms", p.id)}
-                      disabled={!p.available}
-                      title={!p.available ? "Google Ads publishing is not yet available" : undefined}
-                      className={`flex-1 p-4 rounded-xl border text-left transition-all ${
-                        !p.available
-                          ? "bg-surface border-border text-foreground-muted cursor-not-allowed opacity-60"
-                          : data.platforms.includes(p.id)
-                            ? "bg-white border-white/20 text-zinc-900"
-                            : "bg-card border-border text-foreground-muted hover:border-border"
-                      }`}>
-                      <p className="text-sm font-bold">{p.label}</p>
-                      <p className="text-[11px] opacity-70 mt-0.5">{p.sub}</p>
-                    </button>
-                  ))}
+                  <button type="button"
+                    onClick={() => toggleArr("platforms", "Meta")}
+                    className={`flex-1 p-4 rounded-xl border text-left transition-all ${
+                      data.platforms.includes("Meta")
+                        ? "bg-white border-white/20 text-zinc-900"
+                        : "bg-card border-border text-foreground-muted hover:border-border"
+                    }`}>
+                    <p className="text-sm font-bold">Meta</p>
+                    <p className="text-[11px] opacity-70 mt-0.5">Facebook & Instagram</p>
+                  </button>
                 </div>
               </div>
 
@@ -460,6 +499,63 @@ export default function NewCampaignPage() {
                   ))}
                 </div>
                 {fieldErr("objective")}
+                {data.objective === "CONVERSIONS" && (
+                  <>
+                    <div className="flex items-start gap-2 mt-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-400">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>Sales &amp; Conversions requires a Meta Pixel for full conversion optimization. Without a Pixel configured, the campaign will optimize for Landing Page Views instead.</span>
+                    </div>
+
+                    {/* ── Meta Pixel picker ── */}
+                    <div className="mt-4 space-y-3">
+                      <div>
+                        <label className={lbl}>Meta Pixel <span className="text-rose-400">*</span></label>
+                        {pixelsLoading ? (
+                          <div className="text-xs text-foreground-muted py-2">Loading pixels…</div>
+                        ) : pixels.length === 0 ? (
+                          <div className="text-xs text-foreground-muted py-2">No Meta Pixels found. <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Create one in Meta Events Manager.</a></div>
+                        ) : (
+                          <select
+                            value={data.tracking_pixel_id}
+                            onChange={e => {
+                              const selected = pixels.find(p => p.id === e.target.value);
+                              set("tracking_pixel_id",   e.target.value);
+                              set("tracking_pixel_name", selected?.name || "");
+                            }}
+                            className={`${inp} ${touched.tracking_pixel_id && fieldErrors.tracking_pixel_id ? err : ok}`}
+                          >
+                            <option value="">— Select a pixel —</option>
+                            {pixels.map(p => (
+                              <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+                            ))}
+                          </select>
+                        )}
+                        {fieldErr("tracking_pixel_id")}
+                      </div>
+
+                      {data.tracking_pixel_id && (
+                        <div>
+                          <label className={lbl}>Conversion Event</label>
+                          <select
+                            value={data.conversion_event}
+                            onChange={e => set("conversion_event", e.target.value)}
+                            className={`${inp} ${ok}`}
+                          >
+                            <option value="PURCHASE">Purchase</option>
+                            <option value="LEAD">Lead</option>
+                            <option value="COMPLETE_REGISTRATION">Complete Registration</option>
+                            <option value="ADD_TO_CART">Add to Cart</option>
+                            <option value="INITIATE_CHECKOUT">Initiate Checkout</option>
+                            <option value="ADD_PAYMENT_INFO">Add Payment Info</option>
+                            <option value="VIEW_CONTENT">View Content</option>
+                            <option value="SEARCH">Search</option>
+                            <option value="ADD_TO_WISHLIST">Add to Wishlist</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -668,9 +764,10 @@ export default function NewCampaignPage() {
                       <WizardImageUpload label="Video Thumbnail" hint="Optional"
                         value={data.ad_image_url} onChange={url => set("ad_image_url", url)} />
                       <div>
-                        <label className={lbl}>Video URL</label>
+                        <label className={lbl}>Meta Video ID <span className="normal-case font-normal text-foreground-muted">(numeric, not a URL)</span></label>
                         <input value={data.ad_video_url} onChange={e => set("ad_video_url", e.target.value)}
-                          className={`${inp} ${ok}`} placeholder="Paste Facebook-hosted video URL or ID" />
+                          className={`${inp} ${ok}`} placeholder="e.g. 1234567890" />
+                        <p className="text-[11px] text-foreground-muted mt-1.5">Find in Meta Ads Manager → Creative Hub → Videos — copy the numeric ID only, not the video URL.</p>
                       </div>
                     </div>
                   )}
@@ -688,56 +785,6 @@ export default function NewCampaignPage() {
                 </div>
               )}
 
-              {/* ── Google Creative ── */}
-              {data.platforms.includes("Google") && (
-                <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl space-y-4">
-                  <p className="text-[11px] font-bold text-orange-400 uppercase tracking-widest">Google Ad Type</p>
-                  <div className="flex gap-2">
-                    {[
-                      { value: "display", label: "Display Ad" },
-                      { value: "search",  label: "Search Ad"  },
-                    ].map(t => (
-                      <button key={t.value} type="button" onClick={() => set("google_ad_type", t.value)}
-                        className={`px-3 py-1.5 rounded-lg text-xs border font-semibold transition-all ${
-                          data.google_ad_type === t.value ? selChip : unChip
-                        }`}>{t.label}</button>
-                    ))}
-                  </div>
-
-                  {data.google_ad_type === "display" && (
-                    <div className="space-y-3">
-                      <div>
-                        <WizardImageUpload label="Landscape Image (1200×628)" hint="Required"
-                          value={data.ad_image_url} onChange={url => set("ad_image_url", url)} />
-                        {!data.ad_image_url && (
-                          <button type="button" onClick={() => setVaultPicker({ slot: "landscape", hint: "Pick a landscape image (1200×628) for the Display ad" })}
-                            className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
-                            or browse Media Vault →
-                          </button>
-                        )}
-                      </div>
-                      <div>
-                        <WizardImageUpload label="Square Image (1200×1200)" hint="Required"
-                          value={data.ad_square_image_url} onChange={url => set("ad_square_image_url", url)} />
-                        {!data.ad_square_image_url && (
-                          <button type="button" onClick={() => setVaultPicker({ slot: "square", hint: "Pick a square image (1200×1200) for the Display ad" })}
-                            className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
-                            or browse Media Vault →
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {data.google_ad_type === "search" && (
-                    <div>
-                      <label className={lbl}>Keywords <span className="normal-case font-normal text-foreground-muted">(one per line)</span></label>
-                      <textarea rows={4} value={data.keywords} onChange={e => set("keywords", e.target.value)}
-                        className={`${inp} ${ok} resize-none font-mono text-xs`}
-                        placeholder={"running shoes\nbuy sneakers online\nbest trainers 2026"} />
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
@@ -753,6 +800,12 @@ export default function NewCampaignPage() {
                 <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-xl flex items-start gap-3">
                   <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                   <p className="text-xs text-rose-300">{submitError}</p>
+                </div>
+              )}
+              {submitWarnings.length > 0 && (
+                <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-1.5">
+                  <p className="text-xs font-semibold text-amber-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />Published with notices — redirecting to campaign…</p>
+                  {submitWarnings.map((w, i) => <p key={i} className="text-xs text-amber-300 pl-5">{w}</p>)}
                 </div>
               )}
 

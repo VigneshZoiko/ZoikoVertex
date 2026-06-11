@@ -39,23 +39,20 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
-  const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!isSupabaseReady) { setChecking(false); return; }
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        supabase.auth.signOut();
-        setChecking(false);
-        return;
-      }
+    if (!isSupabaseReady) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         const next = searchParams.get("next");
         router.replace(next && next.startsWith("/") ? next : "/dashboard");
-      } else {
-        setChecking(false);
+      }
+    }).catch((err: any) => {
+      if (err?.message?.includes?.("Invalid Refresh Token") || err?.message?.includes?.("Refresh Token Not Found")) {
+        supabase.auth.signOut();
+        setError("Your session has expired. Please sign in again.");
       }
     });
   }, [router, searchParams]);
@@ -115,15 +112,13 @@ function LoginForm() {
   return (
     <AuthLayout footer={footer} noCard>
       <div className="w-full">
-
-        {/* Header */}
-        <div className="mb-7">
+        <div className="mb-8">
           <h1 className="text-[1.75rem] font-bold text-white mb-1.5">Sign in to ZoikoVertex</h1>
           <p className="text-[14px] text-white/50">Access your corporate workspace.</p>
         </div>
 
         {error && (
-          <div className="mb-5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+          <div className="mb-5 rounded-xl border border-[var(--error-border)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[var(--error-text)]">
             {error}
           </div>
         )}
@@ -131,7 +126,7 @@ function LoginForm() {
         {/* Email + password form */}
         <form onSubmit={handleLogin} className="space-y-5">
           {/* Email */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Work Email</label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
@@ -198,13 +193,13 @@ function LoginForm() {
         </form>
 
         {/* Divider */}
-        <div className="flex items-center gap-3 my-5">
+        <div className="flex items-center gap-3 my-6">
           <div className="h-px flex-1 bg-white/10" />
           <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/25">or continue with</span>
           <div className="h-px flex-1 bg-white/10" />
         </div>
 
-        {/* Social buttons */}
+        {/* Social buttons — side by side */}
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
@@ -231,6 +226,7 @@ function LoginForm() {
           {" "}and{" "}
           <Link href="/privacy" className="underline hover:text-white/50 transition">Privacy Policy</Link>
         </p>
+
       </div>
     </AuthLayout>
   );

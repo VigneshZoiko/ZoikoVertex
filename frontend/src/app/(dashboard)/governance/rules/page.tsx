@@ -42,7 +42,7 @@ function mapRule(r: any): Rule {
   };
 }
 
-// â”€â”€ AI suggestion prompt examples â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— AI suggestion prompt examples —————————————————————————————————————————
 const AI_EXAMPLES = [
   "profanity & bad words",
   "competitor brand names",
@@ -123,7 +123,7 @@ export default function ApprovalRulesPage() {
     setEditKeywords(prev => prev.filter(k => k !== kw));
   }
 
-  // â”€â”€ AI generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // —— AI generation ————————————————————————————————————————————————————————
   async function handleAiGenerate() {
     if (!aiTopic.trim()) return;
     setAiGenerating(true);
@@ -167,7 +167,7 @@ export default function ApprovalRulesPage() {
     setAiContext("");
   }
 
-  // â”€â”€ CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // —— CRUD —————————————————————————————————————————————————————————————————
   async function handleCreate() {
     setActionLoading("create");
     try {
@@ -239,7 +239,7 @@ export default function ApprovalRulesPage() {
   return (
     <div className="pb-16 px-4">
 
-      {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* —— Header ———————————————————————————————————————————————————————————— */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground mb-1">Approval Rules</h1>
@@ -264,7 +264,7 @@ export default function ApprovalRulesPage() {
         </div>
       </div>
 
-      {/* â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* —— Toast ————————————————————————————————————————————————————————————— */}
       {message && (
         <div className={`mb-4 p-3 rounded-lg flex items-center gap-2.5 text-xs font-semibold ${
           message.type === "success"
@@ -277,16 +277,16 @@ export default function ApprovalRulesPage() {
         </div>
       )}
 
-      {/* â”€â”€ 2-panel layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* —— 2-panel layout ———————————————————————————————————————————————————— */}
       <div className="flex gap-4 items-start">
 
-        {/* â”€â”€ Left: rule list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* —— Left: rule list ——————————————————————————————————————————————— */}
         <div className="w-[280px] shrink-0 flex flex-col gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-muted" />
             <input
               type="text"
-              placeholder="Search rulesâ€¦"
+              placeholder="Search rules..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-surface border border-border text-foreground placeholder-zinc-600 focus:outline-none focus:border-indigo-500/40"
@@ -328,7 +328,7 @@ export default function ApprovalRulesPage() {
           </div>
         </div>
 
-        {/* â”€â”€ Right: editor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* —— Right: editor ————————————————————————————————————————————————— */}
         <div className="flex-1 min-w-0 bg-surface border border-border rounded-lg p-6 min-h-[420px]">
           {!selectedRule ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-10 text-foreground-muted">
@@ -347,7 +347,7 @@ export default function ApprovalRulesPage() {
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
                     disabled={!canManage}
-                    placeholder="Rule nameâ€¦"
+                    placeholder="Rule name..."
                     className="w-full bg-transparent text-sm font-bold text-foreground focus:outline-none border-b border-transparent focus:border-indigo-500/40 transition-colors"
                   />
                 </div>
@@ -358,7 +358,7 @@ export default function ApprovalRulesPage() {
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold rounded-lg transition-colors disabled:opacity-40"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    {actionLoading === "delete" ? "Deletingâ€¦" : "Delete"}
+                    {actionLoading === "delete" ? "Deleting..." : "Delete"}
                   </button>
                 )}
               </div>
@@ -385,7 +385,7 @@ export default function ApprovalRulesPage() {
                 <p className="text-[9px] text-[#444] mt-1.5">Applied when any keyword is found in asset title, description, or image text.</p>
               </div>
 
-              {/* â”€â”€ Keywords section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+              {/* —— Keywords section ———————————————————————————————————— */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-[9px] text-foreground-muted font-bold uppercase tracking-wider flex items-center gap-1.5">
@@ -412,7 +412,7 @@ export default function ApprovalRulesPage() {
                   )}
                 </div>
 
-                {/* â”€â”€ AI Suggestion Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+                {/* —— AI Suggestion Panel ———————————————————————————— */}
                 {showAiPanel && (
                   <div className="mb-4 rounded-lg border border-violet-500/20 bg-violet-500/[0.04] p-4 space-y-3">
 
@@ -439,7 +439,7 @@ export default function ApprovalRulesPage() {
                           value={aiTopic}
                           onChange={e => setAiTopic(e.target.value)}
                           onKeyDown={e => { if (e.key === "Enter" && !aiGenerating) handleAiGenerate(); }}
-                          placeholder="e.g. profanity, competitor brands, violence, gamblingâ€¦"
+                          placeholder="e.g. profanity, competitor brands, violence, gambling..."
                           className="flex-1 px-3 py-2 bg-[#0d0d0d] border border-border rounded-lg text-xs text-foreground placeholder-[#444] focus:outline-none focus:border-violet-500/40 transition-colors"
                         />
                         <button
@@ -450,7 +450,7 @@ export default function ApprovalRulesPage() {
                           {aiGenerating
                             ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
                             : <Zap className="w-3.5 h-3.5" />}
-                          {aiGenerating ? "Generatingâ€¦" : "Generate"}
+                          {aiGenerating ? "Generating..." : "Generate"}
                         </button>
                       </div>
                     </div>
@@ -480,14 +480,14 @@ export default function ApprovalRulesPage() {
                         className="flex items-center gap-1.5 text-[9px] text-foreground-muted hover:text-violet-400 transition-colors"
                       >
                         {showAiContext ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                        Add context (platform, audience, industryâ€¦)
+                        Add context (platform, audience, industry...)
                       </button>
                     )}
                     {showAiContext && !aiSuggested.length && (
                       <input
                         value={aiContext}
                         onChange={e => setAiContext(e.target.value)}
-                        placeholder="e.g. children's education platform, luxury brand, B2B SaaSâ€¦"
+                        placeholder="e.g. children's education platform, luxury brand, B2B SaaS..."
                         className="w-full px-3 py-2 bg-[#0d0d0d] border border-border rounded-lg text-xs text-foreground placeholder-[#444] focus:outline-none focus:border-violet-500/40"
                       />
                     )}
@@ -496,7 +496,7 @@ export default function ApprovalRulesPage() {
                     {aiGenerating && (
                       <div className="flex items-center gap-2 text-[10px] text-violet-400 py-1">
                         <div className="w-3.5 h-3.5 border border-violet-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                        Analyzing topic, generating smart keyword variantsâ€¦
+                        Analyzing topic, generating smart keyword variants...
                       </div>
                     )}
 
@@ -505,7 +505,7 @@ export default function ApprovalRulesPage() {
                       <>
                         <div className="flex items-center justify-between">
                           <p className="text-[9px] text-violet-400/60">
-                            {aiSuggested.length} keywords generated â€” click to toggle
+                            {aiSuggested.length} keywords generated — click to toggle
                           </p>
                           <div className="flex items-center gap-2">
                             <button
@@ -514,7 +514,7 @@ export default function ApprovalRulesPage() {
                             >
                               Select all
                             </button>
-                            <span className="text-[#444]">Â·</span>
+                            <span className="text-[#444]">·</span>
                             <button
                               onClick={() => setAiSelected(new Set())}
                               className="text-[9px] text-foreground-muted hover:text-white"
@@ -578,7 +578,7 @@ export default function ApprovalRulesPage() {
                 {/* Keyword chips */}
                 <div className="flex flex-wrap gap-2 min-h-[36px] mb-3 p-3 bg-[#0d0d0d] border border-border rounded-lg">
                   {editKeywords.length === 0 ? (
-                    <span className="text-[10px] text-[#333] italic self-center">No keywords yet â€” add manually or use AI Suggest.</span>
+                    <span className="text-[10px] text-[#333] italic self-center">No keywords yet — add manually or use AI Suggest.</span>
                   ) : (
                     editKeywords.map(kw => (
                       <span
@@ -604,7 +604,7 @@ export default function ApprovalRulesPage() {
                       value={kwInput}
                       onChange={e => setKwInput(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addKeyword(); } }}
-                      placeholder="Type keyword and press Enter or comma to addâ€¦"
+                      placeholder="Type keyword and press Enter or comma to add..."
                       className="flex-1 px-3 py-2 bg-[#0d0d0d] border border-[#222] rounded-lg text-xs text-foreground placeholder-[#444] focus:outline-none focus:border-indigo-500/40 transition-colors"
                     />
                     <button
@@ -621,14 +621,14 @@ export default function ApprovalRulesPage() {
               {canManage && (
                 <div className="pt-2 flex items-center justify-between">
                   <p className="text-[9px] text-[#444]">
-                    {editKeywords.length} keyword{editKeywords.length !== 1 ? "s" : ""} Â· {ACTION_LABELS[editAction]} action
+                    {editKeywords.length} keyword{editKeywords.length !== 1 ? "s" : ""} · {ACTION_LABELS[editAction]} action
                   </p>
                   <button
                     onClick={handleSave}
                     disabled={actionLoading === "save"}
                     className="px-5 py-2 bg-white hover:bg-zinc-100 disabled:opacity-40 text-black text-xs font-bold rounded-lg transition-all"
                   >
-                    {actionLoading === "save" ? "Savingâ€¦" : "Save Rule"}
+                    {actionLoading === "save" ? "Saving..." : "Save Rule"}
                   </button>
                 </div>
               )}

@@ -21,7 +21,7 @@ type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 type ItemType = "SOCIAL_POST" | "INBOX_REPLY" | "CAMPAIGN_ASSET" | "AGENT_ACTION" | "WORKFLOW_OUTPUT" | "VALIDATION_OVERRIDE" | "EXCEPTION_OUTCOME" | "RESTRICTED_OPERATION" | "COMPLIANCE_SENSITIVE_ITEM" | "PUBLISHING_ACTION";
 type EligibilityState = "APPROVAL_ELIGIBLE" | "REJECTION_ELIGIBLE" | "CHANGES_REQUEST_ELIGIBLE" | "CONDITIONAL_APPROVAL_ELIGIBLE" | "ESCALATION_REQUIRED" | "WAITING_ON_PRIOR_STAGE" | "MISSING_REQUIRED_APPROVER" | "VALIDATION_BLOCKED" | "REVALIDATION_REQUIRED" | "PERMISSION_DENIED" | "ALREADY_DECIDED" | "WORKFLOW_COMPLETED";
 type TabId = "queue" | "assigned" | "waiting" | "approved" | "rejected" | "changes" | "escalated" | "overdue" | "conditional" | "completed";
-type WorkspaceTabId = "summary" | "preview" | "validation" | "grounding" | "risk" | "path" | "history" | "evidence" | "comments" | "next-destination";
+type WorkspaceTabId = "summary" | "path" | "history" | "comments";
 
 interface ApprovalItem {
   id: string; title: string; item_type: ItemType; source_module: string;
@@ -116,11 +116,8 @@ const TAB_LABELS: Record<TabId, string> = {
 };
 
 const WORKSPACE_TAB_LABELS: Record<WorkspaceTabId, string> = {
-  summary: "Approval Summary", preview: "Content/Item Preview",
-  validation: "Validation Results", grounding: "Source Grounding",
-  risk: "Risk & Compliance", path: "Approval Path",
-  history: "Decision History", evidence: "Evidence",
-  comments: "Comments", "next-destination": "Next Destination",
+  summary: "Approval Summary", path: "Approval Path",
+  history: "Decision History", comments: "Comments",
 };
 
 const ELIGIBILITY_LABEL: Record<EligibilityState, { label: string; color: string }> = {
@@ -767,18 +764,6 @@ export default function ApprovalsPage() {
                         ))}
                       </div>
                     )}
-                  </div>
-                )}
-
-                {(workspaceTab === "preview" || workspaceTab === "validation" || workspaceTab === "grounding" || workspaceTab === "risk") && (
-                  <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 text-center">
-                    <p className="text-xs text-[#555]">Content preview and detailed analysis available when source module provides data</p>
-                  </div>
-                )}
-
-                {(workspaceTab === "evidence" || workspaceTab === "next-destination") && (
-                  <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 text-center">
-                    <p className="text-xs text-[#555]">This tab will display data once the approval workflow progresses</p>
                   </div>
                 )}
 

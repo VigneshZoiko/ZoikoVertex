@@ -13,7 +13,7 @@ const TRUST_BULLETS = [
 
 export default function AuthLayout({ children, footer, noCard }: { children: React.ReactNode; footer?: React.ReactNode; noCard?: boolean }) {
   return (
-    <div className="min-h-full bg-[#0B1120] flex flex-col">
+    <div className="min-h-[calc(100vh-69px)] bg-[#0B1120] flex flex-col">
       <div className="flex flex-1">
       {/* Left brand panel */}
       <div className="hidden lg:flex flex-col justify-center px-16 xl:px-20 bg-[#0B1120] w-[48%] shrink-0">

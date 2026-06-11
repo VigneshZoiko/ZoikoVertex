@@ -386,7 +386,7 @@ export default function ReviewQueuePage() {
             ))}
           </div>
 
-          <div className="space-y-1.5 max-h-[600px] overflow-y-auto scrollbar-none">
+          <div className="space-y-1.5 h-[360px] overflow-y-auto scrollbar-none">
             {loading ? (
               <div className="flex flex-col items-center py-12 text-foreground-muted gap-3">
                 <div className="w-5 h-5 border-2 border-border border-t-zinc-400 rounded-full animate-spin" />

@@ -4,11 +4,13 @@ import { useState, useMemo } from "react";
 import { Bell, X, Check, Clock, AlertCircle, ShieldAlert, ArrowRight } from "lucide-react";
 import { useNotifications, NotificationCategory, NotificationPriority } from "@/lib/context/NotificationContext";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type Tab = 'ALL' | 'UNREAD' | 'WORKFLOW';
 
 export default function NotificationPanel() {
   const { state, dispatch, markAsRead, markAllRead, clearAll } = useNotifications();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('ALL');
 
@@ -62,18 +64,18 @@ export default function NotificationPanel() {
 
       {isOpen && (
         <>
-          <div 
-            className="fixed inset-0 z-40" 
+          <div
+            className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
           <div className="absolute right-0 mt-3 w-96 bg-[var(--surface)]/95 backdrop-blur-xl border border-[var(--border)] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300 ease-out flex flex-col max-h-[85vh]">
-            
+
             {/* Header */}
             <div className="px-5 py-4 border-b border-[var(--border)] bg-[var(--surface-hover)]/40 backdrop-blur-md">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-bold text-[var(--foreground)] tracking-tight">Notifications</h3>
                 <div className="flex gap-3 items-center">
-                  <button 
+                  <button
                     onClick={markAllRead}
                     className="text-[10px] text-[var(--info-text)] hover:brightness-110 font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
                     disabled={unreadCount === 0}
@@ -81,7 +83,7 @@ export default function NotificationPanel() {
                     Mark all read
                   </button>
                   <div className="w-px h-3 bg-[var(--border)]" />
-                  <button 
+                  <button
                     onClick={clearAll}
                     className="text-[10px] text-[var(--error-text)] hover:brightness-110 font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
                     disabled={state.notifications.length === 0}
@@ -90,7 +92,7 @@ export default function NotificationPanel() {
                   </button>
                 </div>
               </div>
-              
+
               {/* Tabs */}
               <div className="flex space-x-1 bg-[var(--background)] p-1 rounded-lg">
                 {(['ALL', 'UNREAD', 'WORKFLOW'] as Tab[]).map(tab => (
@@ -98,8 +100,8 @@ export default function NotificationPanel() {
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                      activeTab === tab 
-                        ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm' 
+                      activeTab === tab
+                        ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
                         : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                     }`}
                   >
@@ -111,7 +113,7 @@ export default function NotificationPanel() {
                 ))}
               </div>
             </div>
-            
+
             {/* List */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {filteredNotifications.length === 0 ? (
@@ -123,13 +125,9 @@ export default function NotificationPanel() {
                   <p className="text-xs text-[var(--foreground-muted)]">No notifications in this category.</p>
                 </div>
               ) : (
-                filteredNotifications.map((notif, index) => (
-                  <div 
-                    key={notif.id} 
-                    style={{ animationDelay: `${index * 30}ms` }}
-                    className={`px-5 py-4 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]/60 transition-all relative group animate-in slide-in-from-right-4 duration-300 fill-mode-both ${!notif.read ? 'bg-[var(--accent)]/[0.02]' : ''}`}
-                    onClick={() => !notif.read && markAsRead(notif.id)}
-                  >
+                filteredNotifications.map((notif, index) => {
+                  const navHref = notif.actions?.find(a => a.href)?.href;
+                  const cardContent = (
                     <div className="flex gap-4">
                       {/* Priority Indicator & Icon */}
                       <div className="relative mt-0.5">
@@ -158,12 +156,12 @@ export default function NotificationPanel() {
                           <div className="flex gap-2 mt-2">
                             {notif.actions.map((action, i) => (
                               action.href ? (
-                                <Link 
-                                  key={i} 
+                                <Link
+                                  key={i}
                                   href={action.href}
                                   className={`text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center transition-colors ${
-                                    action.primary 
-                                      ? 'bg-[var(--accent-subtle)] text-[var(--accent)] hover:bg-[var(--info-border)]' 
+                                    action.primary
+                                      ? 'bg-[var(--accent-subtle)] text-[var(--accent)] hover:bg-[var(--info-border)]'
                                       : 'bg-[var(--surface-hover)] text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                                   }`}
                                 >
@@ -171,12 +169,12 @@ export default function NotificationPanel() {
                                   {action.primary && <ArrowRight className="w-3 h-3 ml-1.5" />}
                                 </Link>
                               ) : (
-                                <button 
+                                <button
                                   key={i}
                                   onClick={(e) => { e.stopPropagation(); action.onClick?.(); }}
                                   className={`text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center transition-colors ${
-                                    action.primary 
-                                      ? 'bg-[var(--accent-subtle)] text-[var(--accent)] hover:bg-[var(--info-border)]' 
+                                    action.primary
+                                      ? 'bg-[var(--accent-subtle)] text-[var(--accent)] hover:bg-[var(--info-border)]'
                                       : 'bg-[var(--surface-hover)] text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                                   }`}
                                 >
@@ -188,27 +186,46 @@ export default function NotificationPanel() {
                         )}
                       </div>
                     </div>
+                  );
 
-                    {/* Unread dot indicator on the side */}
-                    {!notif.read && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[var(--accent)] rounded-r-md" />
-                    )}
+                  const handleCardClick = () => {
+                    if (!notif.read) markAsRead(notif.id);
+                    if (navHref) {
+                      setIsOpen(false);
+                      router.push(navHref);
+                    }
+                  };
 
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        dispatch({ type: 'REMOVE', payload: notif.id });
-                      }}
-                      className="absolute top-4 right-4 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-[var(--error-bg)] text-[var(--foreground-muted)] hover:text-[var(--error-text)] transition-all shadow-sm bg-[var(--surface)]"
-                      aria-label="Remove notification"
+                  return (
+                    <div
+                      key={notif.id}
+                      style={{ animationDelay: `${index * 30}ms` }}
+                      className={`px-5 py-4 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]/60 transition-all relative group animate-in slide-in-from-right-4 duration-300 fill-mode-both cursor-pointer ${!notif.read ? 'bg-[var(--accent)]/[0.02]' : ''}`}
+                      onClick={handleCardClick}
                     >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))
+                      {cardContent}
+
+                      {/* Unread dot indicator on the side */}
+                      {!notif.read && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[var(--accent)] rounded-r-md" />
+                      )}
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dispatch({ type: 'REMOVE', payload: notif.id });
+                        }}
+                        className="absolute top-4 right-4 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-[var(--error-bg)] text-[var(--foreground-muted)] hover:text-[var(--error-text)] transition-all shadow-sm bg-[var(--surface)]"
+                        aria-label="Remove notification"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
-            
+
             {/* Footer */}
             <div className="px-5 py-3 border-t border-[var(--border)] text-center bg-[var(--surface-hover)]/40 backdrop-blur-md">
               <Link href="/admin/notifications" className="text-[11px] text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors font-bold uppercase tracking-widest flex items-center justify-center gap-1 group">

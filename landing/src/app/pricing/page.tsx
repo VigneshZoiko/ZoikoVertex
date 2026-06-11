@@ -1,4 +1,3 @@
-import Navbar from "@/components/navbar/Navbar";
 import Footer from "@/components/footer/Footer";
 
 import {
@@ -10,7 +9,6 @@ import {
 export default function Pricing() {
   return (
     <main>
-      <Navbar />
       <div className="pt-16">
         <PriceHero />
         <PricingComparison />

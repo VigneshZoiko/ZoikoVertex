@@ -9,12 +9,13 @@ import { useState } from "react";
 
 interface Props {
   orgName?: string;
-  type: "paused" | "banned" | "deleted";
+  type: "paused" | "banned" | "deleted" | "no_credits";
   planType?: string | null;
   premiumPaidUntil?: string | null;
+  cycleResetDate?: string | null;
 }
 
-export default function SuspendedOverlay({ orgName, type, planType }: Props) {
+export default function SuspendedOverlay({ orgName, type, planType, cycleResetDate }: Props) {
   const router = useRouter();
   const [downgrading, setDowngrading] = useState(false);
   const [downgradeError, setDowngradeError] = useState(false);

@@ -495,6 +495,11 @@ export class KnowledgeController {
         created_by: req.user?.id,
       });
 
+      if (req.file?.size && workspaceId) {
+        const sizeMb = req.file.size / (1024 * 1024);
+        trackUsage({ workspaceId, resourceType: 'STORAGE_MB', quantity: sizeMb, costUsd: 0, unit: 'MB', referenceId: (data as any)?.id, referenceType: 'knowledge_source', metadata: { filename: req.file.originalname, mime: req.file.mimetype } });
+      }
+
       res.status(201).json({ success: true, data });
     } catch (error) {
       next(error);
