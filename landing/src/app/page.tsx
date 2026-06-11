@@ -1,5 +1,4 @@
 import {
-  Navbar,
   Hero,
   TrustedBy,
   Stats,
@@ -22,7 +21,6 @@ import {
 export default function LandingPage() {
   return (
     <main className="min-h-screen">
-      <Navbar />
       <Hero />           {/* dark  #080812 */}
       <TrustedBy />      {/* dark  #0f1b2e */}
       <Stats />          {/* light #F5F7FA */}

@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { Providers } from "./providers";
+import Navbar from "@/components/navbar/Navbar";
 import Script from "next/script";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
+  weight: ["200", "300", "400", "500", "600", "700", "800"],
+  style: ["normal", "italic"],
   display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrains = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -52,7 +56,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`dark ${jakarta.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <head>
         <Script id="meta-pixel" strategy="afterInteractive">
           {`
@@ -69,11 +73,14 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body suppressHydrationWarning>
+      <body className="flex flex-col min-h-screen" suppressHydrationWarning>
         <noscript>
           <img height="1" width="1" style={{ display: "none" }} src="https://www.facebook.com/tr?id=1006709255052325&ev=PageView&noscript=1" alt="" />
         </noscript>
-        <Providers>{children}</Providers>
+        <Providers>
+          <Navbar />
+          {children}
+        </Providers>
       </body>
     </html>
   );

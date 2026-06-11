@@ -2,7 +2,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import Navbar from "@/components/navbar/Navbar";
 import Footer from "@/components/footer/Footer";
 
 /* ── Ticker ── */
@@ -1266,7 +1265,6 @@ function GovernanceFAQ() {
 export default function GovernancePage() {
   return (
     <main className="min-h-screen bg-[#080E1A]">
-      <Navbar />
       <div className="pt-16">
         <Hero />
         <Ticker />
