@@ -184,14 +184,14 @@ function TheProblem() {
             without control.
           </h2>
           <p className="text-white/50 text-sm leading-relaxed mb-4">
-            Every enterprise board is now asking the same question: not "should we use AI?" but "can we prove who approved this, under what policy, and what changed after approval?"
+            Every enterprise board is now asking the same question: not &ldquo;should we use AI?&rdquo; but &ldquo;can we prove who approved this, under what policy, and what changed after approval?&rdquo;
           </p>
           <p className="text-white/50 text-sm leading-relaxed mb-6">
             Uncontrolled execution — not AI itself — is the liability. ZoikoVertex turns AI marketing execution into a controlled system of record.
           </p>
           <div className="border-l-2 border-[#20E7F2] pl-4 bg-[#20E7F208] rounded-r-xl py-4 pr-4 mb-8">
             <p className="text-white font-semibold text-sm leading-relaxed">
-              "ZoikoVertex turns AI marketing execution into a controlled system of record — where every action has an owner, every decision has evidence, and every output has an approval signature."
+              &ldquo;ZoikoVertex turns AI marketing execution into a controlled system of record — where every action has an owner, every decision has evidence, and every output has an approval signature.&rdquo;
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -335,7 +335,7 @@ function ThreeKeyProtocol() {
         <div className="bg-[#0D1829] border border-[#20E7F220] rounded-2xl p-6 flex items-center gap-4 mb-4">
           <div className="w-12 h-12 rounded-xl bg-[#20E7F210] border border-[#20E7F230] flex items-center justify-center shrink-0 text-xl">🔒</div>
           <p className="text-white font-semibold text-sm leading-relaxed">
-            "The publish lock opens only when all three keys are satisfied. No single actor controls the full authorization chain. Every confirmation is immutably recorded."
+            &ldquo;The publish lock opens only when all three keys are satisfied. No single actor controls the full authorization chain. Every confirmation is immutably recorded.&rdquo;
           </p>
         </div>
 
