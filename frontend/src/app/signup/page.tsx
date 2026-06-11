@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Mail, ArrowRight, ArrowLeft, Loader2,
   Eye, EyeOff, Lock, User, Building2,
-  CheckCircle2, LayoutDashboard, ChevronDown,
+  CheckCircle2, LayoutDashboard, ChevronDown, Map,
 } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
 import Link from "next/link";
@@ -134,15 +134,15 @@ export default function SignupPage() {
   const [company, setCompany]     = useState("");
 
   /* Step 2 */
-  const [password, setPassword]     = useState("");
-  const [confirmPwd, setConfirmPwd] = useState("");
-  const [showPwd, setShowPwd]       = useState(false);
+  const [password, setPassword]       = useState("");
+  const [confirmPwd, setConfirmPwd]   = useState("");
+  const [showPwd, setShowPwd]         = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [role, setRole]             = useState("");
-  const [agreedToS, setAgreedToS]   = useState(false);
+  const [role, setRole]               = useState("");
+  const [agreedToS, setAgreedToS]     = useState(false);
 
   /* Step 3 */
-  const [otp, setOtp]             = useState(["", "", "", "", "", ""]);
+  const [otp, setOtp]               = useState(["", "", "", "", "", ""]);
   const [resendTimer, setResendTimer] = useState(0);
   const [verifyError, setVerifyError] = useState("");
 
@@ -253,9 +253,18 @@ export default function SignupPage() {
     }
   };
 
+  const signInFooter = (
+    <p className="text-center text-[13px] text-white/40">
+      Already have an account?{" "}
+      <Link href="/login" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">
+        Sign in
+      </Link>
+    </p>
+  );
+
   return (
-    <AuthLayout>
-      <div className="w-full max-w-[420px]">
+    <AuthLayout footer={step < 4 ? signInFooter : undefined}>
+      <div className="w-full">
         {error && (
           <div className="mb-5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
             {error}
@@ -266,13 +275,13 @@ export default function SignupPage() {
         {step === 1 && (
           <form onSubmit={handleStep1} className="space-y-5">
             <div className="mb-7">
-              <h1 className="text-[1.75rem] font-black text-white/90 mb-1.5">Start for free</h1>
+              <h1 className="text-[1.75rem] font-bold text-white/90 mb-1.5">Start for free</h1>
               <p className="text-[13px] text-white/45">Starting with Vertex Starter — free, no credit card needed.</p>
             </div>
 
             {/* Name row */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">First Name</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
@@ -280,7 +289,7 @@ export default function SignupPage() {
                     placeholder="Sarah" className={`${inputCls} pl-11 pr-4`} />
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Last Name</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
@@ -290,7 +299,7 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Work Email</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
@@ -299,7 +308,7 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Company Name</label>
               <div className="relative">
                 <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
@@ -330,11 +339,6 @@ export default function SignupPage() {
             </div>
 
             <StepDots current={1} total={3} />
-
-            <p className="text-center text-[13px] text-white/40">
-              Already have an account?{" "}
-              <Link href="/login" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">Sign in</Link>
-            </p>
           </form>
         )}
 
@@ -342,12 +346,12 @@ export default function SignupPage() {
         {step === 2 && (
           <form onSubmit={handleStep2} className="space-y-5">
             <div className="mb-7">
-              <h1 className="text-[1.75rem] font-black text-white/90 mb-1.5">Set your password</h1>
+              <h1 className="text-[1.75rem] font-bold text-white/90 mb-1.5">Set your password</h1>
               <p className="text-[13px] text-white/45">Choose a strong password for your governed workspace.</p>
             </div>
 
             {/* Password */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Password</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
@@ -364,7 +368,7 @@ export default function SignupPage() {
             </div>
 
             {/* Confirm password */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Confirm Password</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
@@ -380,7 +384,7 @@ export default function SignupPage() {
             </div>
 
             {/* Role */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Your Role</label>
               <div className="relative">
                 <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 pointer-events-none" />
@@ -420,18 +424,12 @@ export default function SignupPage() {
             </button>
 
             <StepDots current={2} total={3} />
-
-            <p className="text-center text-[13px] text-white/40">
-              Already have an account?{" "}
-              <Link href="/login" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">Sign in</Link>
-            </p>
           </form>
         )}
 
         {/* ── STEP 3: Verify email ── */}
         {step === 3 && (
           <div className="space-y-6">
-            {/* Green email icon */}
             <div className="flex flex-col items-center text-center space-y-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/25">
                 <Mail className="h-7 w-7 text-emerald-400" />
@@ -443,15 +441,14 @@ export default function SignupPage() {
                   <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#20E7F2]">Verify your email</span>
                   <div className="h-px w-5 bg-[#20E7F2]" />
                 </div>
-                <h2 className="text-[1.75rem] font-black text-white/90 mb-2">Check your inbox</h2>
+                <h2 className="text-[1.75rem] font-bold text-white/90 mb-2">Check your inbox</h2>
                 <p className="text-[13px] text-white/45 leading-relaxed">
-                  We sent a verification link to<br />
+                  We sent a 6-digit verification code to<br />
                   <span className="text-white/70 font-semibold">{email}</span>
                 </p>
               </div>
             </div>
 
-            {/* OTP boxes */}
             <OtpInput value={otp} onChange={setOtp} />
 
             {verifyError && (
@@ -460,11 +457,7 @@ export default function SignupPage() {
               </div>
             )}
 
-            <button
-              onClick={handleVerify}
-              disabled={loading}
-              className={cyanBtn}
-            >
+            <button onClick={handleVerify} disabled={loading} className={cyanBtn}>
               {loading
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <><CheckCircle2 className="h-4 w-4" /> Verify and continue</>
@@ -485,11 +478,6 @@ export default function SignupPage() {
             </p>
 
             <StepDots current={3} total={3} />
-
-            <p className="text-center text-[13px] text-white/40">
-              Already have an account?{" "}
-              <Link href="/login" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">Sign in</Link>
-            </p>
           </div>
         )}
 
@@ -500,6 +488,11 @@ export default function SignupPage() {
               <CheckCircle2 className="h-8 w-8 text-emerald-400" />
             </div>
             <div>
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <div className="h-px w-5 bg-[#20E7F2]" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#20E7F2]">You&apos;re in</span>
+                <div className="h-px w-5 bg-[#20E7F2]" />
+              </div>
               <h2 className="text-[1.75rem] font-bold text-white mb-2">Welcome to ZoikoVertex</h2>
               <p className="text-[14px] text-white/50 leading-relaxed">
                 Your governed workspace is ready. Start with<br />
@@ -511,11 +504,8 @@ export default function SignupPage() {
               <button onClick={() => router.push("/dashboard")} className={cyanBtn}>
                 <LayoutDashboard className="h-4 w-4" /> Go to Command Center
               </button>
-              <button
-                onClick={() => router.push("/dashboard?tour=1")}
-                className="w-full py-2 text-sm text-white/40 hover:text-white/70 transition"
-              >
-                Start quick tour
+              <button onClick={() => router.push("/dashboard?tour=1")} className={darkBtn}>
+                <Map className="h-4 w-4" /> Start guided setup
               </button>
             </div>
           </div>
