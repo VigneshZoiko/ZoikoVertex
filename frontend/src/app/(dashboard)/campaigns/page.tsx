@@ -827,7 +827,7 @@ function PixelsPanel() {
       {/* Setup Code modal */}
       {showSetup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setShowSetup(null)}>
-          <div className={`bg-surface border border-border rounded-2xl p-6 w-full shadow-2xl transition-all ${showSetup.view !== "CODE" ? "max-w-2xl" : "max-w-lg"}`} onClick={e => e.stopPropagation()}>
+          <div className={`bg-surface border border-border rounded-2xl p-6 w-full shadow-2xl transition-all max-h-[90vh] overflow-y-auto ${showSetup.view !== "CODE" ? "max-w-2xl" : "max-w-lg"}`} onClick={e => e.stopPropagation()}>
             {showSetup.view !== "CODE" ? (
               <>
                 <div className="flex justify-between items-start mb-4">
@@ -875,10 +875,13 @@ function PixelsPanel() {
                 </div>
 
                 <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
-                  <span className="text-sm text-blue-400 hover:underline cursor-pointer">Give feedback</span>
                   <a href={`mailto:?subject=Install Meta Pixel Code&body=Please install this Meta Pixel Base Code on our website:%0A%0A<!-- Meta Pixel Code -->%0A<script>%0A!function(f,b,e,v,n,t,s)%0A{if(f.fbq)return;n=f.fbq=function(){n.callMethod?%0An.callMethod.apply(n,arguments):n.queue.push(arguments)};%0Aif(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';%0An.queue=[];t=b.createElement(e);t.async=!0;%0At.src=v;s=b.getElementsByTagName(e)[0];%0As.parentNode.insertBefore(t,s)}(window, document,'script',%0A'https://connect.facebook.net/en_US/fbevents.js');%0Afbq('init', '${showSetup.id}');%0Afbq('track', 'PageView');%0A</script>%0A<noscript><img height="1" width="1" style="display:none"%0Asrc="https://www.facebook.com/tr?id=${showSetup.id}&ev=PageView&noscript=1"%0A/></noscript>%0A<!-- End Meta Pixel Code -->`} 
                      className="text-sm font-medium text-foreground hover:text-white transition-colors">
                     Email Instructions
+                  </a>
+                  <a href={`https://business.facebook.com/events_manager2/list/pixel/${showSetup.id}/overview`} target="_blank" rel="noopener noreferrer"
+                     className="px-5 py-2 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-semibold rounded-lg transition-colors">
+                    Continue
                   </a>
                 </div>
               </>
