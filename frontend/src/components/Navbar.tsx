@@ -26,10 +26,10 @@ const SOLUTION_ITEMS = [
 ];
 
 const NAV_ITEMS = [
-  { label: "Platform", hasDropdown: false, href: `${LANDING}/platform` },
-  { label: "AI Agents", hasDropdown: true, href: `${LANDING}/ai-agents` },
+  { label: "Platform", hasDropdown: true, href: `${LANDING}/platform` },
+  { label: "AI Agents", hasDropdown: false, href: `${LANDING}/ai-agents` },
   { label: "Solutions", hasDropdown: true, href: `${LANDING}/solution` },
-  { label: "Resources", hasDropdown: true, href: `${LANDING}/resources-hub` },
+  { label: "Resources", hasDropdown: false, href: `${LANDING}/resources-hub` },
   { label: "About Us", hasDropdown: false, href: `${LANDING}/about` },
   { label: "Pricing", hasDropdown: false, href: `${LANDING}/pricing` },
 ];
@@ -107,7 +107,7 @@ export default function Navbar() {
         {/* Nav links */}
         <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
           {NAV_ITEMS.map((item) => {
-            const hasPanel = item.label === "Solutions";
+            const hasPanel = item.hasDropdown;
             const chevron = (
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ transform: openMenu === item.label ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", opacity: 0.6 }}>
                 <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -136,7 +136,10 @@ export default function Navbar() {
                   </Link>
                 )}
 
-                {item.label === "Solutions" && openMenu === "Solutions" && (
+                {openMenu === item.label && item.label === "Platform" && (
+                  <DropdownMenu items={PLATFORM_ITEMS} title="Platform" viewAllLabel="Platform Overview →" viewAllHref={`${LANDING}/platform`} />
+                )}
+                {openMenu === item.label && item.label === "Solutions" && (
                   <DropdownMenu items={SOLUTION_ITEMS} title="Solutions" viewAllLabel="View All Solutions →" viewAllHref={`${LANDING}/solution`} />
                 )}
               </div>
