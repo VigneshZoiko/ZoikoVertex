@@ -285,7 +285,7 @@ async function advanceStage(pathId: string): Promise<void> {
     .eq('id', pathId)
     .single();
   if (!path) return;
-  const nextStage = path.current_stage + 1;
+  const nextStage = Number(path.current_stage) + 1;
   if (nextStage > path.total_stages) return;
   await supabaseAdmin.from('approval_paths')
     .update({ current_stage: nextStage })

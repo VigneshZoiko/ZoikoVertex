@@ -129,6 +129,19 @@ export const api = {
     return response.json();
   },
 
+  async getBlob(endpoint: string): Promise<Blob> {
+    const auth = await resolveAuth();
+    if (!auth.ok) throw new Error(auth.reason === "NO_SESSION" ? "No session" : "Session expired");
+    const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
+      headers: { ...auth.headers },
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.statusText);
+      throw new Error(`GET ${endpoint} failed: ${response.status} ${text}`);
+    }
+    return response.blob();
+  },
+
   async postBlob(endpoint: string, body: unknown): Promise<Blob> {
     const auth = await resolveAuth();
     if (!auth.ok) throw new Error(auth.reason === "NO_SESSION" ? "No session" : "Session expired");

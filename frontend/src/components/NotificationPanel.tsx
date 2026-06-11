@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Bell, X, Check, Clock, AlertCircle, ShieldAlert, ArrowRight } from "lucide-react";
 import { useNotifications, NotificationCategory, NotificationPriority } from "@/lib/context/NotificationContext";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type Tab = 'ALL' | 'UNREAD' | 'WORKFLOW';
 
 export default function NotificationPanel() {
   const { state, dispatch, markAsRead, markAllRead, clearAll } = useNotifications();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('ALL');
 
@@ -23,8 +25,6 @@ export default function NotificationPanel() {
 
   const togglePanel = () => {
     setIsOpen(!isOpen);
-    // Note: In an enterprise system, we might only mark read when they actually view it or click "mark all read",
-    // but for this UI, we can keep it as they see it, or require manual action. Let's require manual action for more sophistication.
   };
 
   const getPriorityColor = (priority: NotificationPriority) => {
@@ -46,6 +46,8 @@ export default function NotificationPanel() {
       default: return <Clock className="w-5 h-5" />;
     }
   };
+
+  const tabs: Tab[] = ['ALL', 'UNREAD', 'WORKFLOW'];
 
   return (
     <div className="relative">
@@ -95,7 +97,7 @@ export default function NotificationPanel() {
               
               {/* Tabs */}
               <div className="flex space-x-1 bg-[var(--background)] p-1 rounded-lg">
-                {(['ALL', 'UNREAD', 'WORKFLOW'] as Tab[]).map(tab => (
+                {tabs.map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -105,7 +107,7 @@ export default function NotificationPanel() {
                         : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                     }`}
                   >
-                    {tab.charAt(0) + tab.slice(1).toLowerCase()}
+                    {tab === 'UNREAD' ? 'Unread' : tab.charAt(0) + tab.slice(1).toLowerCase()}
                     {tab === 'UNREAD' && unreadCount > 0 && (
                       <span className="ml-1.5 bg-indigo-500 text-foreground px-1.5 py-0.5 rounded-full text-[9px]">{unreadCount}</span>
                     )}
@@ -125,13 +127,9 @@ export default function NotificationPanel() {
                   <p className="text-xs text-[var(--foreground-muted)]">No notifications in this category.</p>
                 </div>
               ) : (
-                filteredNotifications.map((notif, index) => (
-                  <div 
-                    key={notif.id} 
-                    style={{ animationDelay: `${index * 30}ms` }}
-                    className={`px-5 py-4 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]/60 transition-all relative group animate-in slide-in-from-right-4 duration-300 fill-mode-both ${!notif.read ? 'bg-indigo-500/[0.02]' : ''}`}
-                    onClick={() => !notif.read && markAsRead(notif.id)}
-                  >
+                filteredNotifications.map((notif, index) => {
+                  const navHref = notif.actions?.find(a => a.href)?.href;
+                  const cardContent = (
                     <div className="flex gap-4">
                       {/* Priority Indicator & Icon */}
                       <div className="relative mt-0.5">
@@ -150,6 +148,7 @@ export default function NotificationPanel() {
                             {notif.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
+
                         <p className="text-xs text-[var(--foreground-muted)] leading-relaxed font-medium mb-3">
                           {notif.message}
                         </p>
@@ -162,6 +161,7 @@ export default function NotificationPanel() {
                                 <Link 
                                   key={i} 
                                   href={action.href}
+                                  onClick={(e) => e.stopPropagation()}
                                   className={`text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center transition-colors ${
                                     action.primary 
                                       ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20' 
@@ -189,24 +189,43 @@ export default function NotificationPanel() {
                         )}
                       </div>
                     </div>
+                  );
 
-                    {/* Unread dot indicator on the side */}
-                    {!notif.read && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-500 rounded-r-md" />
-                    )}
+                  const handleCardClick = () => {
+                    if (!notif.read) markAsRead(notif.id);
+                    if (navHref) {
+                      setIsOpen(false);
+                      router.push(navHref);
+                    }
+                  };
 
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        dispatch({ type: 'REMOVE', payload: notif.id });
-                      }}
-                      className="absolute top-4 right-4 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-rose-500/10 text-[var(--foreground-muted)] hover:text-rose-500 transition-all shadow-sm bg-[var(--surface)]"
-                      aria-label="Remove notification"
+                  return (
+                    <div
+                      key={notif.id}
+                      style={{ animationDelay: `${index * 30}ms` }}
+                      className={`px-5 py-4 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]/60 transition-all relative group animate-in slide-in-from-right-4 duration-300 fill-mode-both cursor-pointer ${!notif.read ? 'bg-indigo-500/[0.02]' : ''}`}
+                      onClick={handleCardClick}
                     >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))
+                      {cardContent}
+
+                      {/* Unread dot indicator on the side */}
+                      {!notif.read && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-500 rounded-r-md" />
+                      )}
+
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dispatch({ type: 'REMOVE', payload: notif.id });
+                        }}
+                        className="absolute top-4 right-4 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-rose-500/10 text-[var(--foreground-muted)] hover:text-rose-500 transition-all shadow-sm bg-[var(--surface)]"
+                        aria-label="Remove notification"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
             

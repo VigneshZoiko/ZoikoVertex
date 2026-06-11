@@ -241,7 +241,7 @@ import { enterpriseSignup } from './domains/identity/enterpriseSignupController'
 import { setupWorkspace } from './domains/identity/onboardingController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
 // New features from Naresh
-import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
+import { listNotifications, markAsRead, markAllRead, clearNotifications, listWorkspaceNotifications, getNotificationSummary } from './domains/identity/notificationController';
 import {
   exportWorkflow,
   exportApprovals,
@@ -870,6 +870,8 @@ app.get('/api/v1/notifications', authenticate, listNotifications);
 app.patch('/api/v1/notifications/:id/read', authenticate, markAsRead);
 app.post('/api/v1/notifications/mark-all-read', authenticate, markAllRead);
 app.delete('/api/v1/notifications', authenticate, clearNotifications);
+app.get('/api/v1/notifications/admin/workspace', authenticate, requireRole('ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SECURITY_ADMIN'), listWorkspaceNotifications);
+app.get('/api/v1/notifications/admin/summary', authenticate, getNotificationSummary);
 
 // Protected Agent/Workflow Routes
 // Autonomy Control Routes
@@ -1569,6 +1571,7 @@ import { initAuditStreamingWorker } from './workers/auditStreamingWorker';
 import { initVaultWorker, initDlpScanWorker } from './workers/vaultWorker';
 import { startCampaignWorker } from './workers/campaignWorker';
 import { initOrgInactivityWorker } from './workers/orgInactivityWorker';
+import { startSlaBreachWorker } from './workers/slaBreachWorker';
 // ─── Start Server ─────────────────────────────────────────────────────────────
 try {
   registerExecutionListeners();
@@ -1579,10 +1582,10 @@ try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- intentional lazy require so env (provider keys) is loaded before adapter registration
   const { registerProductionAdapters } = require('./modules/prompts/modelProviders');
   registerProductionAdapters();
-  const server = app.listen(port, () => {
+  const server = app.listen(port, async () => {
     logger.info(`[server]: ZoikoVertex backend running in ${env.NODE_ENV} mode at http://localhost:${port}`);
     // Start background workers
-    initWorker();
+    await initWorker();
     initAuditExportWorker();
     initAuditIntegrityWorker();
     initAuditStreamingWorker();
@@ -1590,6 +1593,7 @@ try {
     initDlpScanWorker();
     startCampaignWorker();
     initOrgInactivityWorker();
+    startSlaBreachWorker();
   });
 
   server.on('error', (err: Error & { code?: string }) => {

@@ -26,7 +26,8 @@ import {
   ShieldCheck,
   ShieldAlert,
   Archive,
-  Database
+  Database,
+  Clock,
 } from "lucide-react";
 
 interface PolicySummary {
@@ -67,6 +68,27 @@ interface EnforcementEvent {
   decision: string;
   reason_code: string;
   created_at: string;
+}
+
+function timeAgo(date: string): string {
+  const diff = Date.now() - new Date(date).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  if (d > 0) return `${d}d ago`;
+  if (h > 0) return `${h}h ago`;
+  return `${m}m ago`;
+}
+
+function DecisionBadge({ decision }: { decision: string }) {
+  if (decision === "BLOCKED" || decision === "blocked")
+    return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase">Blocked</span>;
+  if (decision === "FLAGGED" || decision === "flagged")
+    return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">Flagged</span>;
+  if (decision === "ALLOWED" || decision === "allowed")
+    return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">Allowed</span>;
+  return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 border border-slate-500/20 uppercase">{decision}</span>;
 }
 
 export default function PolicyControlMatrixPage() {
@@ -287,8 +309,8 @@ export default function PolicyControlMatrixPage() {
           </div>
         </div>
 
-        {/* Control Summary Strip (6 Clickable Cards) */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {/* Control Summary Strip */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div className="bg-[#111] hover:bg-[#141414] border border-[#222] hover:border-[#333] rounded-2xl p-4 cursor-pointer transition-all">
             <div className="flex justify-between items-start">
               <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest">Active Rules</span>
@@ -312,22 +334,6 @@ export default function PolicyControlMatrixPage() {
             </div>
             <h3 className="text-2xl font-black text-foreground mt-2">{summary?.escalations_pending || 0}</h3>
           </div>
-          
-          <div className="bg-[#111] hover:bg-[#141414] border border-rose-500/30 rounded-2xl p-4 cursor-pointer transition-all">
-            <div className="flex justify-between items-start">
-              <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Conflicts</span>
-              <Activity className="w-4 h-4 text-rose-500" />
-            </div>
-            <h3 className="text-2xl font-black text-rose-400 mt-2">{summary?.policy_conflicts || 0}</h3>
-          </div>
-
-          <div className="bg-[#111] hover:bg-[#141414] border border-[#222] hover:border-[#333] rounded-2xl p-4 cursor-pointer transition-all">
-            <div className="flex justify-between items-start">
-              <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest">Sim Failures</span>
-              <Cpu className="w-4 h-4 text-amber-500" />
-            </div>
-            <h3 className="text-2xl font-black text-foreground mt-2">{summary?.simulation_failures || 0}</h3>
-          </div>
 
           <div className="bg-[#111] hover:bg-[#141414] border border-[#222] hover:border-[#333] rounded-2xl p-4 cursor-pointer transition-all">
             <div className="flex justify-between items-start">
@@ -335,6 +341,39 @@ export default function PolicyControlMatrixPage() {
               <FileText className="w-4 h-4 text-[#555]" />
             </div>
             <h3 className="text-2xl font-black text-foreground mt-2">{summary?.draft_changes || 0}</h3>
+          </div>
+        </div>
+
+        {/* Recent Enforcement Events */}
+        <div className="bg-[#111] border border-[#222] rounded-xl">
+          <div className="px-4 py-3 border-b border-[#222] flex items-center justify-between">
+            <h3 className="text-xs font-bold text-white flex items-center gap-2">
+              <Activity className="w-3.5 h-3.5 text-amber-500" />
+              Recent Enforcement Events
+            </h3>
+            <span className="text-[10px] text-[#666]">{events.length} events</span>
+          </div>
+          <div className="max-h-[240px] overflow-y-auto">
+            {events.length === 0 ? (
+              <div className="text-center py-8 text-xs text-[#555] font-mono">No enforcement events recorded.</div>
+            ) : (
+              <div className="divide-y divide-[#1e1e1e]">
+                {events.slice(0, 20).map((ev) => (
+                  <div key={ev.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#161616] transition-colors">
+                    <DecisionBadge decision={ev.decision} />
+                    <div className="flex-1 min-w-0 flex items-center gap-3">
+                      <span className="text-[11px] font-mono text-amber-500/80 font-bold shrink-0">{ev.rule_id}</span>
+                      <span className="text-[11px] text-[#888] truncate">{ev.reason_code}</span>
+                    </div>
+                    <span className="text-[10px] text-[#555] shrink-0 font-mono">{ev.actor}</span>
+                    <span className="text-[10px] text-[#555] shrink-0 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {timeAgo(ev.created_at)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

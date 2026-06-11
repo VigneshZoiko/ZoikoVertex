@@ -3,6 +3,7 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { supabaseAdmin } from '../../shared/supabase';
 import { internalEventBus } from '../../shared/internalEventBus';
 import { logAuditEvent } from './evidenceController';
+import { randomUUID } from 'crypto';
 
 // ---------------------------------------------------------------------------
 // Idempotency Tracking (in-memory per-process; good enough for single instance)
@@ -30,29 +31,99 @@ function intentToReviewItem(intent: any) {
     new Date(intent.created_at).getTime() + 24 * 60 * 60 * 1000
   ).toISOString(); // 24-hour SLA window
 
+  const riskLevel = (intent.risk_level || 'LOW').toUpperCase();
+  const riskScore = typeof intent.risk_score === 'number' ? intent.risk_score : 0;
+
+  const priorityMap: Record<string, string> = {
+    LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical',
+  };
+
+  const recommendationMap: Record<string, string> = {
+    LOW: 'allow',
+    MEDIUM: 'hold_for_review',
+    HIGH: 'block',
+    CRITICAL: 'block',
+  };
+
+  const riskFactors: string[] = intent.risk_factors || [];
+  const policyMatch = riskFactors.length > 0
+    ? riskFactors.slice(0, 3).join(', ')
+    : `Risk Level ${riskLevel}${riskScore > 0 ? ` (${riskScore}/100)` : ''}`;
+
   return {
     id: intent.id,
     workspace_id: intent.workspace_id,
-    priority: 'Medium',
+    priority: priorityMap[riskLevel] || 'Medium',
     sla_due_at: slaDueAt,
     item_type: 'Social Post',
     brand: (intent.platform || 'social').toUpperCase(),
-    trigger_summary: `${intent.platform || 'Social'} post submitted for review by creator`,
+    trigger_summary: `Risk ${riskLevel} · ${intent.platform || 'Social'} post submitted for review`,
     agent_id: 'HUMAN',
     autonomy_band: 'Supervised',
     owner: intent.reviewer_id || 'Unassigned',
     decision_state: intent.status === 'PENDING_REVIEW' ? 'hold_for_review' : intent.status,
     author_id: intent.creator_id,
     content_preview: intent.content || '(no caption)',
-    risk_factors: [],
+    risk_factors: riskFactors,
     jurisdictions: [],
-    policy_match: 'Standard Content Review',
-    ai_recommendation: 'hold_for_review',
+    policy_match: policyMatch,
+    ai_recommendation: recommendationMap[riskLevel] || 'hold_for_review',
     provenance: [intent.platform || 'social'],
     evidence_hash: `sha256-${intent.id.substring(0, 8)}`,
     first_approver_id: intent.first_approver_id || null,
     media_urls: intent.media_urls || [],
   };
+}
+
+// ---------------------------------------------------------------------------
+// In-App Notification Helper
+// ---------------------------------------------------------------------------
+async function createNotification(
+  userId: string,
+  title: string,
+  body: string,
+  type: string,
+  link?: string
+) {
+  try {
+    await supabaseAdmin.from('notifications').insert({
+      id: randomUUID(),
+      user_id: userId,
+      title,
+      body,
+      type,
+      link: link || null,
+      read: false,
+      created_at: new Date().toISOString(),
+    });
+  } catch {
+    // notification failure must not block the review decision
+  }
+}
+
+async function notifyWorkspaceAdmins(
+  workspaceId: string,
+  title: string,
+  body: string,
+  type: string,
+  link?: string
+) {
+  try {
+    const { data: admins } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .in('role', ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN', 'SECURITY_ADMIN']);
+
+    if (!admins) return;
+    for (const admin of admins) {
+      if (admin.id) {
+        await createNotification(admin.id, title, body, type, link);
+      }
+    }
+  } catch {
+    // non-blocking
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -243,6 +314,81 @@ export const submitReviewDecision = async (req: AuthRequest, res: Response, next
         },
       });
     } catch { /* audit failure must not block the decision */ }
+
+    // ── Notifications ──────────────────────────────────────────────────────
+    const contentPreview = (intent.content || '(no content)').slice(0, 120);
+    const creatorLink = `/publish?revisionId=${id}`;
+    const adminLink = '/review-queue';
+
+    switch (decision) {
+      case 'Approve':
+        await createNotification(
+          intent.creator_id,
+          '✅ Content Approved',
+          `Your content was approved: "${contentPreview}"`,
+          'APPROVAL',
+          creatorLink,
+        );
+        break;
+
+      case 'Reject':
+        await createNotification(
+          intent.creator_id,
+          '❌ Content Rejected',
+          `Your content was rejected. Reason: ${rationale}`,
+          'GOVERNANCE',
+          creatorLink,
+        );
+        break;
+
+      case 'Request Changes':
+        await createNotification(
+          intent.creator_id,
+          '🔄 Changes Requested',
+          `Changes requested for your content. Feedback: ${rationale}`,
+          'GOVERNANCE',
+          creatorLink,
+        );
+        break;
+
+      case 'Escalate':
+        // Notify creator
+        await createNotification(
+          intent.creator_id,
+          '⏫ Content Escalated',
+          `Your content has been escalated for senior review.`,
+          'GOVERNANCE',
+          creatorLink,
+        );
+        // Notify all workspace admins
+        await notifyWorkspaceAdmins(
+          intent.workspace_id || workspaceId || '',
+          '⏫ Escalation Requires Attention',
+          `Content "${contentPreview}" was escalated by a reviewer. Rationale: ${rationale}`,
+          'GOVERNANCE',
+          adminLink,
+        );
+        break;
+
+      case 'Quarantine':
+        // Notify creator
+        await createNotification(
+          intent.creator_id,
+          '⚠️ Content Quarantined',
+          `Your content was quarantined. Reason: ${rationale}`,
+          'ERROR',
+          creatorLink,
+        );
+        // Notify all workspace admins
+        await notifyWorkspaceAdmins(
+          intent.workspace_id || workspaceId || '',
+          '🚨 Content Quarantined — Admin Action Required',
+          `Content "${contentPreview}" was quarantined. Reviewer notes: ${rationale}`,
+          'ERROR',
+          adminLink,
+        );
+        break;
+    }
 
     res.json({
       success: true,
