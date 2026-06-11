@@ -8,7 +8,7 @@ export default function AuditorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-[var(--background,#111)] text-[var(--foreground,#eee)] min-h-screen flex flex-col font-sans">
+    <div className="bg-[var(--background,#111)] text-[var(--foreground,#eee)] min-h-full flex flex-col font-sans">
       <header className="h-16 border-b border-[var(--border,#2a2a2a)] bg-[var(--surface,#1a1a1a)] px-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">

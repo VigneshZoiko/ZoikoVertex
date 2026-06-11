@@ -94,7 +94,7 @@ export default function DashboardLayout({
   // ── Loading skeleton — mimics sidebar + header + content so transition feels instant ──
   if (isLoading || accessDenied === null) {
     return (
-      <div className="h-screen bg-[var(--background,#111111)] flex overflow-hidden">
+      <div className="h-full bg-[var(--background,#111111)] flex overflow-hidden">
         {/* Sidebar skeleton */}
         <div className="w-64 shrink-0 border-r border-white/5 flex flex-col gap-3 p-4">
           <div className="h-8 w-32 rounded-lg bg-white/5 animate-pulse mb-4" />
@@ -150,11 +150,11 @@ export default function DashboardLayout({
   return (
     <NotificationProvider>
       <DraftGuardProvider>
-        <div className="bg-[var(--background)] text-[var(--foreground)] h-screen overflow-hidden flex transition-colors">
+        <div className="bg-[var(--background)] text-[var(--foreground)] h-full overflow-hidden flex transition-colors">
           <div className={`shrink-0 transition-all duration-200 ${sidebarCollapseEnabled ? 'w-16' : 'w-64'} ${isSuspended ? 'opacity-20 pointer-events-none select-none' : ''}`}>
             <Sidebar />
           </div>
-          <div className="flex-1 flex flex-col min-w-0 h-screen">
+          <div className="flex-1 flex flex-col min-w-0 h-full">
             <Header />
             <main className="flex-1 overflow-hidden flex flex-col bg-[var(--background)] transition-colors">
               {isSuspended ? (
