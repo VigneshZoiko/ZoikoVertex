@@ -103,12 +103,21 @@ function LoginForm() {
 
   if (checking) return <div className="min-h-screen bg-[#0B1120]" />;
 
+  const footer = (
+    <p className="text-center text-[14px] text-white/40">
+      Don&apos;t have an account?{" "}
+      <Link href="/signup" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">
+        Create one free
+      </Link>
+    </p>
+  );
+
   return (
-    <AuthLayout>
-      <div className="w-full max-w-[420px]">
+    <AuthLayout footer={footer} noCard>
+      <div className="w-full">
 
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-7">
           <h1 className="text-[1.75rem] font-bold text-white mb-1.5">Sign in to ZoikoVertex</h1>
           <p className="text-[14px] text-white/50">Access your corporate workspace.</p>
         </div>
@@ -122,7 +131,7 @@ function LoginForm() {
         {/* Email + password form */}
         <form onSubmit={handleLogin} className="space-y-5">
           {/* Email */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Work Email</label>
             <div className="relative">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
@@ -138,7 +147,7 @@ function LoginForm() {
           </div>
 
           {/* Password */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">Password</label>
               <Link href="/reset-password" className="text-[13px] text-[#20E7F2] hover:text-[#20E7F2]/80 transition">
@@ -189,13 +198,13 @@ function LoginForm() {
         </form>
 
         {/* Divider */}
-        <div className="flex items-center gap-3 my-6">
+        <div className="flex items-center gap-3 my-5">
           <div className="h-px flex-1 bg-white/10" />
           <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/25">or continue with</span>
           <div className="h-px flex-1 bg-white/10" />
         </div>
 
-        {/* Social buttons — side by side */}
+        {/* Social buttons */}
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
@@ -221,14 +230,6 @@ function LoginForm() {
           <Link href="/terms" className="underline hover:text-white/50 transition">Terms of Service</Link>
           {" "}and{" "}
           <Link href="/privacy" className="underline hover:text-white/50 transition">Privacy Policy</Link>
-        </p>
-
-        {/* Sign up link */}
-        <p className="mt-6 text-center text-[14px] text-white/40">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">
-            Create one free
-          </Link>
         </p>
       </div>
     </AuthLayout>

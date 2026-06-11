@@ -12,7 +12,7 @@ const TRUST_BULLETS = [
   { icon: Lock,        text: "GDPR-compatible · SOC 2 readiness in progress" },
 ];
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default function AuthLayout({ children, footer, noCard }: { children: React.ReactNode; footer?: React.ReactNode; noCard?: boolean }) {
   return (
     <div className="min-h-screen bg-[#0B1120] flex flex-col">
       <Navbar />
@@ -31,7 +31,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           />
 
           {/* Headline */}
-          <h1 className="text-[2.1rem] leading-[1.15] font-black text-white mb-6">
+          <h1
+            className="text-[36px] font-extrabold leading-[1.1] tracking-[-0.03em] text-white/[88%] mb-6"
+            style={{ fontFamily: "var(--font-bricolage), 'Bricolage Grotesque', sans-serif" }}
+          >
             Governed AI marketing.<br />
             <span className="text-[#20E7F2]">Built for accountability.</span>
           </h1>
@@ -58,9 +61,19 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       {/* Right form panel */}
-      <div className="flex flex-1 items-center justify-center px-6 py-12 bg-[#0D1628]">
-        {children}
-      </div>
+      {noCard ? (
+        <div className="flex flex-1 flex-col justify-center px-16 xl:px-20 py-12 bg-[#0B1120] gap-6">
+          <div className="w-full max-w-[480px]">{children}</div>
+          {footer && <div className="w-full max-w-[480px]">{footer}</div>}
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 bg-[#0B1120] gap-6">
+          <div className="w-full max-w-[440px] rounded-2xl border border-[#1E2F55]/60 bg-[#0D1628] px-10 py-10 shadow-[0_0_60px_rgba(0,0,0,0.5)]">
+            {children}
+          </div>
+          {footer && <div className="w-full max-w-[440px]">{footer}</div>}
+        </div>
+      )}
       </div>
     </div>
   );
