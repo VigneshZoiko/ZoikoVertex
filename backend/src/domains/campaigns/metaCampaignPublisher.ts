@@ -632,6 +632,7 @@ export async function publishCampaignToMeta(
     objective:             metaObjective,
     status:                'PAUSED',
     special_ad_categories: specialCategories,
+    is_adset_budget_sharing_enabled: false,
   };
 
   // EU compliance: add beneficiary + payer as ad labels
