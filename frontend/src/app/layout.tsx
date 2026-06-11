@@ -41,13 +41,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`dark ${jakarta.variable} ${bricolage.variable} ${jetbrains.variable}`} suppressHydrationWarning>
-      <body suppressHydrationWarning>
+      <body className="flex flex-col min-h-screen" suppressHydrationWarning>
         <Providers>
           <CacheBuster />
           <Navbar />
-          <div className="pt-[68px] min-h-[calc(100vh-68px)]">
+          <main className="flex-1">
             {children}
-          </div>
+          </main>
         </Providers>
       </body>
     </html>

@@ -95,7 +95,7 @@ export default function Navbar() {
   return (
     <nav
       ref={navRef}
-      style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, background: "rgba(21,34,56,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+      style={{ position: "sticky", top: 0, left: 0, right: 0, zIndex: 50, background: "rgba(21,34,56,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}
     >
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 

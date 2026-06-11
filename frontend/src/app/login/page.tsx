@@ -101,7 +101,7 @@ function LoginForm() {
     }
   };
 
-  if (checking) return <div className="min-h-screen bg-[#0B1120]" />;
+  if (checking) return <div className="min-h-full bg-[#0B1120]" />;
 
   const footer = (
     <p className="text-center text-[14px] text-white/40">
