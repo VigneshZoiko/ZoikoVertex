@@ -213,41 +213,41 @@ interface AnalyticsMetrics {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; dot: string; severity: string }> = {
-  SCHEDULED:            { label: "Scheduled",           color: "text-blue-400",    bg: "bg-blue-500/10",    border: "border-blue-500/20",    dot: "bg-blue-400",                       severity: "normal"    },
-  QUEUED:               { label: "Queued",              color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/20",   dot: "bg-amber-400",                      severity: "attention" },
-  RUNNING:              { label: "Running",             color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", dot: "bg-emerald-400 animate-pulse",       severity: "normal"    },
-  WAITING_HUMAN_REVIEW: { label: "Waiting Review",      color: "text-purple-400",  bg: "bg-purple-500/10",  border: "border-purple-500/20",  dot: "bg-purple-400",                     severity: "warning"   },
-  POLICY_BLOCKED:       { label: "Policy Blocked",      color: "text-rose-400",    bg: "bg-rose-500/10",    border: "border-rose-500/20",    dot: "bg-rose-400",                       severity: "critical"  },
-  FAILED:               { label: "Failed",              color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/20",     dot: "bg-red-400",                        severity: "critical"  },
-  PAUSED:               { label: "Paused",              color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/20",  dot: "bg-orange-400",                     severity: "warning"   },
-  COMPLETED:            { label: "Completed",           color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", dot: "bg-emerald-400",                    severity: "normal"    },
-  QUARANTINED:          { label: "Quarantined",         color: "text-rose-400",    bg: "bg-rose-500/10",    border: "border-rose-500/20",    dot: "bg-rose-400",                       severity: "critical"  },
-  ESCALATED:            { label: "Escalated",           color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/20",  dot: "bg-orange-400 animate-pulse",       severity: "critical"  },
-  RESTRICTED:           { label: "Restricted",          color: "text-yellow-400",  bg: "bg-yellow-500/10",  border: "border-yellow-500/20",  dot: "bg-yellow-400",                     severity: "warning"   },
+  SCHEDULED:            { label: "Scheduled",           color: "text-info-text",    bg: "bg-info-bg",    border: "border-info-border",    dot: "bg-info-text",                       severity: "normal"    },
+  QUEUED:               { label: "Queued",              color: "text-warning-text",   bg: "bg-warning-bg",   border: "border-warning-border",   dot: "bg-warning-text",                      severity: "attention" },
+  RUNNING:              { label: "Running",             color: "text-success-text", bg: "bg-success-bg", border: "border-success-border", dot: "bg-success-text animate-pulse",       severity: "normal"    },
+  WAITING_HUMAN_REVIEW: { label: "Waiting Review",      color: "text-info-text",  bg: "bg-info-bg",  border: "border-info-border",  dot: "bg-info-text",                     severity: "warning"   },
+  POLICY_BLOCKED:       { label: "Policy Blocked",      color: "text-error-text",    bg: "bg-error-bg",    border: "border-error-border",    dot: "bg-error-text",                       severity: "critical"  },
+  FAILED:               { label: "Failed",              color: "text-error-text",     bg: "bg-error-bg",     border: "border-error-border",     dot: "bg-error-text",                        severity: "critical"  },
+  PAUSED:               { label: "Paused",              color: "text-warning-text",  bg: "bg-warning-bg",  border: "border-warning-border",  dot: "bg-warning-text",                     severity: "warning"   },
+  COMPLETED:            { label: "Completed",           color: "text-success-text", bg: "bg-success-bg", border: "border-success-border", dot: "bg-success-text",                    severity: "normal"    },
+  QUARANTINED:          { label: "Quarantined",         color: "text-error-text",    bg: "bg-error-bg",    border: "border-error-border",    dot: "bg-error-text",                       severity: "critical"  },
+  ESCALATED:            { label: "Escalated",           color: "text-warning-text",  bg: "bg-warning-bg",  border: "border-warning-border",  dot: "bg-warning-text animate-pulse",       severity: "critical"  },
+  RESTRICTED:           { label: "Restricted",          color: "text-warning-text",  bg: "bg-warning-bg",  border: "border-warning-border",  dot: "bg-warning-text",                     severity: "warning"   },
 };
 
 const POLICY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  PASS:           { label: "Pass",           color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  WARNING:        { label: "Warning",        color: "text-amber-400",   bg: "bg-amber-500/10"   },
-  BLOCKED:        { label: "Blocked",        color: "text-rose-400",    bg: "bg-rose-500/10"    },
+  PASS:           { label: "Pass",           color: "text-success-text", bg: "bg-success-bg" },
+  WARNING:        { label: "Warning",        color: "text-warning-text",   bg: "bg-warning-bg"   },
+  BLOCKED:        { label: "Blocked",        color: "text-error-text",    bg: "bg-error-bg"    },
   NOT_EVALUATED:  { label: "Not Evaluated",  color: "text-gray-400",    bg: "bg-gray-500/10"     },
-  PENDING_REVIEW: { label: "Pending Review", color: "text-purple-400",  bg: "bg-purple-500/10"  },
+  PENDING_REVIEW: { label: "Pending Review", color: "text-info-text",  bg: "bg-info-bg"  },
   NOT_APPLICABLE: { label: "N/A",            color: "text-[#555]",      bg: "bg-white/5"        },
 };
 
 const EVIDENCE_CONFIG: Record<string, { label: string; color: string }> = {
-  CAPTURED:     { label: "Captured",     color: "text-emerald-400" },
-  PARTIAL:      { label: "Partial",      color: "text-amber-400"   },
-  FAILED:       { label: "Failed",       color: "text-rose-400"    },
-  LOCKED:       { label: "Locked",       color: "text-blue-400"    },
-  EXPORT_READY: { label: "Export Ready", color: "text-indigo-400"  },
+  CAPTURED:     { label: "Captured",     color: "text-success-text" },
+  PARTIAL:      { label: "Partial",      color: "text-warning-text"   },
+  FAILED:       { label: "Failed",       color: "text-error-text"    },
+  LOCKED:       { label: "Locked",       color: "text-info-text"    },
+  EXPORT_READY: { label: "Export Ready", color: "text-info-text"  },
 };
 
 const INCIDENT_SEVERITY: Record<string, { label: string; color: string; bg: string }> = {
-  critical: { label: "Critical", color: "text-rose-400",   bg: "bg-rose-500/10"   },
-  high:     { label: "High",     color: "text-orange-400", bg: "bg-orange-500/10" },
-  medium:   { label: "Medium",   color: "text-amber-400",  bg: "bg-amber-500/10"  },
-  low:      { label: "Low",      color: "text-blue-400",   bg: "bg-blue-500/10"   },
+  critical: { label: "Critical", color: "text-error-text",   bg: "bg-error-bg"   },
+  high:     { label: "High",     color: "text-warning-text", bg: "bg-warning-bg" },
+  medium:   { label: "Medium",   color: "text-warning-text",  bg: "bg-warning-bg"  },
+  low:      { label: "Low",      color: "text-info-text",   bg: "bg-info-bg"   },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -320,7 +320,7 @@ function CopyButton({ text }: { text: string }) {
       className="p-1 hover:bg-white/5 rounded text-[#555] hover:text-white transition-colors"
       title="Copy ID"
     >
-      {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+      {copied ? <Check className="w-3 h-3 text-success-text" /> : <Copy className="w-3 h-3" />}
     </button>
   );
 }
@@ -351,7 +351,7 @@ function EvidenceBadge({ status }: { status: string }) {
 }
 
 function SeverityDot({ severity }: { severity: string }) {
-  const map: Record<string, string> = { critical: "bg-rose-400", warning: "bg-orange-400", attention: "bg-amber-400", normal: "bg-emerald-400", blocked: "bg-rose-400" };
+  const map: Record<string, string> = { critical: "bg-error-text", warning: "bg-warning-text", attention: "bg-warning-text", normal: "bg-success-text", blocked: "bg-error-text" };
   return <span className={`w-2 h-2 rounded-full ${map[severity] || "bg-gray-400"} shrink-0`} />;
 }
 
@@ -369,7 +369,7 @@ interface ConfirmModalProps {
   loading?: boolean;
 }
 
-function ConfirmModal({ title, description, impactPreview, requireReason = true, confirmLabel, confirmClass = "bg-rose-500 hover:bg-rose-600", onConfirm, onCancel, loading }: ConfirmModalProps) {
+function ConfirmModal({ title, description, impactPreview, requireReason = true, confirmLabel, confirmClass = "bg-error-text hover:brightness-110", onConfirm, onCancel, loading }: ConfirmModalProps) {
   const [reason, setReason] = useState("");
   const cardRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -399,22 +399,22 @@ function ConfirmModal({ title, description, impactPreview, requireReason = true,
         </div>
         <div className="p-5 space-y-4">
           {impactPreview && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300">
-              <p className="font-semibold mb-1 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Impact Preview</p>
-              <p>{impactPreview}</p>
-            </div>
+            <div className="p-3 bg-warning-bg border border-warning-border rounded-xl text-xs text-warning-text">
+               <p className="font-semibold mb-1 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Impact Preview</p>
+               <p>{impactPreview}</p>
+             </div>
           )}
           {requireReason && (
             <div>
-              <label className="block text-xs text-[#666] mb-1.5">Reason <span className="text-rose-400">*</span> <span className="text-[#555]">(minimum 8 characters)</span></label>
+              <label className="block text-xs text-[#666] mb-1.5">Reason <span className="text-error-text">*</span> <span className="text-[#555]">(minimum 8 characters)</span></label>
               <textarea
                 ref={textareaRef}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-foreground h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-[#2a2a2a] focus:border-[#444]"}`}
-                placeholder="Describe reason for this action (at least 8 characters)..."
-              />
-              <p className={`mt-1 text-xs ${reason.trim().length < 8 ? "text-amber-400" : "text-emerald-400"}`}>
+              className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-foreground h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-warning-border focus:border-warning-text" : "border-[#2a2a2a] focus:border-[#444]"}`}
+                 placeholder="Describe reason for this action (at least 8 characters)..."
+               />
+               <p className={`mt-1 text-xs ${reason.trim().length < 8 ? "text-warning-text" : "text-success-text"}`}>
                 {reason.trim().length < 8
                   ? `At least 8 characters required — ${8 - reason.trim().length} more to go (${reason.trim().length}/8).`
                   : `Reason looks good (${reason.trim().length} characters).`}
@@ -464,34 +464,34 @@ function EvidenceExportModal({ bundleId, onConfirm, onCancel, loading }: { bundl
     >
       <div ref={cardRef} tabIndex={-1} className="bg-[#1a1a1a] border border-[#333] rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
         <div className="p-5 border-b border-[#2a2a2a]">
-          <h3 className="text-base font-bold text-foreground flex items-center gap-2"><Download className="w-4 h-4 text-indigo-400" /> Export Evidence Bundle</h3>
+          <h3 className="text-base font-bold text-foreground flex items-center gap-2"><Download className="w-4 h-4 text-info-text" /> Export Evidence Bundle</h3>
           <p className="text-xs text-[#888] mt-1 font-mono">Bundle: {shortId(bundleId)}</p>
         </div>
         <div className="p-5 space-y-4">
-          <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs text-indigo-300">
+          <div className="p-3 bg-info-bg border border-info-border rounded-xl text-xs text-info-text">
             This export will be recorded with your identity, timestamp, and stated reason per governance requirements.
           </div>
           <div>
-            <label className="block text-xs text-[#666] mb-1.5">Export Reason <span className="text-rose-400">*</span> <span className="text-[#555]">(minimum 8 characters)</span></label>
+            <label className="block text-xs text-[#666] mb-1.5">Export Reason <span className="text-error-text">*</span> <span className="text-[#555]">(minimum 8 characters)</span></label>
             <textarea
               ref={textareaRef}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-foreground h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60 focus:border-amber-500" : "border-[#2a2a2a] focus:border-[#444]"}`}
-              placeholder="Legal review, audit request, incident investigation..."
+              className={`w-full bg-[#111] border rounded-xl px-3 py-2 text-sm text-foreground h-20 resize-none focus:outline-none placeholder-[#444] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-warning-border focus:border-warning-text" : "border-[#2a2a2a] focus:border-[#444]"}`}
+                 placeholder="Legal review, audit request, incident investigation..."
             />
-            <p className={`mt-1 text-xs ${reason.trim().length < 8 ? "text-amber-400" : "text-emerald-400"}`}>
-              {reason.trim().length < 8
-                ? `At least 8 characters required — ${8 - reason.trim().length} more to go (${reason.trim().length}/8).`
-                : `Reason looks good (${reason.trim().length} characters).`}
-            </p>
-          </div>
-          <div className="p-4 border-t border-[#2a2a2a] flex items-center justify-end gap-2">
-            <button onClick={onCancel} className="px-4 py-1.5 bg-[#2a2a2a] text-[#aaa] rounded-xl text-sm hover:bg-[#333] transition-colors">Cancel</button>
-            <button
-              onClick={() => onConfirm(reason)}
-              disabled={reason.trim().length < 8 || loading}
-              className="px-4 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-foreground rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2"
+            <p className={`mt-1 text-xs ${reason.trim().length < 8 ? "text-warning-text" : "text-success-text"}`}>
+               {reason.trim().length < 8
+                 ? `At least 8 characters required — ${8 - reason.trim().length} more to go (${reason.trim().length}/8).`
+                 : `Reason looks good (${reason.trim().length} characters).`}
+             </p>
+           </div>
+           <div className="p-4 border-t border-[#2a2a2a] flex items-center justify-end gap-2">
+             <button onClick={onCancel} className="px-4 py-1.5 bg-[#2a2a2a] text-[#aaa] rounded-xl text-sm hover:bg-[#333] transition-colors">Cancel</button>
+             <button
+               onClick={() => onConfirm(reason)}
+               disabled={reason.trim().length < 8 || loading}
+               className="px-4 py-1.5 bg-info-text hover:brightness-110 text-foreground rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2"
             >
             {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             Export Bundle
@@ -606,7 +606,7 @@ function RunDetailDrawer({
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${
-                activeTab === t.id ? "border-indigo-500 text-foreground" : "border-transparent text-[#555] hover:text-[#aaa]"
+                activeTab === t.id ? "border-info-border text-foreground" : "border-transparent text-[#555] hover:text-[#aaa]"
               }`}
             >
               {t.icon}
@@ -640,7 +640,7 @@ function RunDetailDrawer({
                   <div key={row.label} className="bg-[#1a1a1a] rounded-xl p-3 border border-[#2a2a2a]">
                     <p className="text-[10px] text-[#555] mb-0.5">{row.label}</p>
                     {row.link ? (
-                      <a href={row.link} className="text-xs text-indigo-400 hover:text-indigo-300 font-medium truncate underline underline-offset-2 decoration-[#333] hover:decoration-indigo-500/40 block">{row.value}</a>
+                      <a href={row.link} className="text-xs text-info-text hover:text-info-text font-medium truncate underline underline-offset-2 decoration-[#333] hover:decoration-info-border block">{row.value}</a>
                     ) : (
                       <p className="text-xs text-foreground font-medium truncate">{row.value}</p>
                     )}
@@ -648,8 +648,8 @@ function RunDetailDrawer({
                 ))}
               </div>
               {run.next_action && (
-                <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
-                  <p className="text-[10px] text-indigo-400 mb-0.5 font-semibold uppercase tracking-wide">Next Action</p>
+                <div className="p-3 bg-info-bg border border-info-border rounded-xl">
+                   <p className="text-[10px] text-info-text mb-0.5 font-semibold uppercase tracking-wide">Next Action</p>
                   <p className="text-sm text-foreground">{run.next_action}</p>
                 </div>
               )}
@@ -661,8 +661,8 @@ function RunDetailDrawer({
             <div>
               {loadingTimeline ? (
                 <div className="flex items-center justify-center py-12 gap-3 text-[#555]">
-                  <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
-                  <span className="text-sm">Loading timeline…</span>
+                  <Loader2 className="w-5 h-5 animate-spin text-info-text" />
+                   <span className="text-sm">Loading timeline…</span>
                 </div>
               ) : timeline.length === 0 ? (
                 <p className="text-center text-[#555] text-sm py-12">No events recorded for this run.</p>
@@ -671,7 +671,7 @@ function RunDetailDrawer({
                   {timeline.map((event, i) => (
                     <div key={event.id} className="flex items-start gap-3 pb-4">
                       <div className="flex flex-col items-center shrink-0 mt-1">
-                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 border-2 border-[#131313] z-10" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-info-text border-2 border-[#131313] z-10" />
                         {i < timeline.length - 1 && <span className="w-px flex-1 bg-[#2a2a2a] mt-1 h-full min-h-[1.5rem]" />}
                       </div>
                       <div className="flex-1 bg-[#1a1a1a] rounded-xl p-3 border border-[#2a2a2a]">
@@ -701,8 +701,8 @@ function RunDetailDrawer({
             <div className="space-y-3">
               {loadingDetail ? (
                 <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
-                  <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-                  <span className="text-sm">Loading inputs…</span>
+                  <Loader2 className="w-4 h-4 animate-spin text-info-text" />
+                   <span className="text-sm">Loading inputs…</span>
                 </div>
               ) : detail?.inputs ? (
                 Object.entries(detail.inputs).map(([key, val]) => (
@@ -722,17 +722,17 @@ function RunDetailDrawer({
             <div className="space-y-3">
               {loadingDetail ? (
                 <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
-                  <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                  <Loader2 className="w-4 h-4 animate-spin text-info-text" />
                 </div>
               ) : detail?.prompt_template ? (
                 <>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Hash className="w-4 h-4 text-indigo-400" />
-                      <span className="text-sm font-semibold text-foreground">Prompt Template</span>
+                      <Hash className="w-4 h-4 text-info-text" />
+                       <span className="text-sm font-semibold text-foreground">Prompt Template</span>
                     </div>
                     {detail.prompt_version && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">v{detail.prompt_version}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-info-bg text-info-text border border-info-border">v{detail.prompt_version}</span>
                     )}
                   </div>
                   <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-4 font-mono text-xs text-[#aaa] whitespace-pre-wrap max-h-64 overflow-y-auto">
@@ -740,9 +740,9 @@ function RunDetailDrawer({
                   </div>
                   <a
                     href="/agents/prompts"
-                    className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-                  >
-                    <ArrowRight className="w-3.5 h-3.5" /> Open Prompt Governance record
+                    className="flex items-center gap-1.5 text-xs text-info-text hover:text-info-text transition-colors"
+                   >
+                     <ArrowRight className="w-3.5 h-3.5" /> Open Prompt Governance record
                   </a>
                 </>
               ) : (
@@ -756,14 +756,14 @@ function RunDetailDrawer({
             <div className="space-y-3">
               {loadingDetail ? (
                 <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
-                  <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-                </div>
-              ) : detail?.knowledge_sources?.length ? (
-                detail.knowledge_sources.map((ks, i) => (
-                  <div key={i} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-semibold text-foreground">{ks.name}</p>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${ks.confidence >= 80 ? "bg-emerald-500/10 text-emerald-400" : ks.confidence >= 60 ? "bg-amber-500/10 text-amber-400" : "bg-rose-500/10 text-rose-400"}`}>
+                  <Loader2 className="w-4 h-4 animate-spin text-info-text" />
+                 </div>
+               ) : detail?.knowledge_sources?.length ? (
+                 detail.knowledge_sources.map((ks, i) => (
+                   <div key={i} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3">
+                     <div className="flex items-center justify-between mb-2">
+                       <p className="text-sm font-semibold text-foreground">{ks.name}</p>
+                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${ks.confidence >= 80 ? "bg-success-bg text-success-text" : ks.confidence >= 60 ? "bg-warning-bg text-warning-text" : "bg-error-bg text-error-text"}`}>
                         {ks.confidence}% confidence
                       </span>
                     </div>
@@ -772,7 +772,7 @@ function RunDetailDrawer({
                       <span>Freshness: {ks.freshness}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-2">
-                      <a href="/agents/knowledge" className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                      <a href="/agents/knowledge" className="text-[10px] text-info-text hover:text-info-text flex items-center gap-1">
                         <ArrowRight className="w-3 h-3" />Open source
                       </a>
                       <button
@@ -782,7 +782,7 @@ function RunDetailDrawer({
                           try { await onEscalateForReview(run.id, `Stale knowledge source flagged: ${ks.name}`); }
                           finally { setFlagStaleLoading(null); }
                         }}
-                        className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="text-[10px] text-warning-text hover:text-warning-text flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {flagStaleLoading === ks.name
                           ? <Loader2 className="w-3 h-3 animate-spin" />
@@ -806,7 +806,7 @@ function RunDetailDrawer({
                 <button
                   onClick={() => onRunPolicyCheck(run.id)}
                   disabled={policyCheckLoading}
-                  className="px-2.5 py-1 text-[11px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 rounded-lg hover:bg-indigo-500/20 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                  className="px-2.5 py-1 text-[11px] bg-info-bg border border-info-border text-info-text rounded-lg hover:brightness-110 transition-colors disabled:opacity-40 flex items-center gap-1.5"
                 >
                   {policyCheckLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
                   Run Policy Check
@@ -814,14 +814,14 @@ function RunDetailDrawer({
               </div>
               {loadingDetail ? (
                 <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
-                  <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-                </div>
-              ) : detail?.policy_results?.length ? (
-                detail.policy_results.map((pr) => {
-                  const outcomeKey = String(pr.outcome || "").toUpperCase();
-                  const polCfg = POLICY_CONFIG[outcomeKey] || POLICY_CONFIG.NOT_APPLICABLE;
-                  return (
-                    <div key={pr.id} className={`bg-[#1a1a1a] border rounded-xl p-4 ${outcomeKey === "BLOCKED" ? "border-rose-500/30" : outcomeKey === "WARNING" ? "border-amber-500/30" : "border-[#2a2a2a]"}`}>
+                  <Loader2 className="w-4 h-4 animate-spin text-info-text" />
+                 </div>
+               ) : detail?.policy_results?.length ? (
+                 detail.policy_results.map((pr) => {
+                   const outcomeKey = String(pr.outcome || "").toUpperCase();
+                   const polCfg = POLICY_CONFIG[outcomeKey] || POLICY_CONFIG.NOT_APPLICABLE;
+                   return (
+                     <div key={pr.id} className={`bg-[#1a1a1a] border rounded-xl p-4 ${outcomeKey === "BLOCKED" ? "border-error-border" : outcomeKey === "WARNING" ? "border-warning-border" : "border-[#2a2a2a]"}`}>
                       <div className="flex items-center justify-between mb-2">
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded ${polCfg.bg} ${polCfg.color}`}>{polCfg.label}</span>
                         <span className="text-[10px] text-[#555]">{new Date(pr.created_at).toLocaleString()}</span>
@@ -836,7 +836,7 @@ function RunDetailDrawer({
                         <p className="text-xs text-foreground mb-1"><span className="text-[#555]">Platform:</span> {pr.platform}</p>
                       )}
                       {pr.remediation_path && (
-                        <p className="text-xs text-amber-300 mb-1"><span className="text-[#555]">Remediation:</span> {pr.remediation_path}</p>
+                        <p className="text-xs text-warning-text mb-1"><span className="text-[#555]">Remediation:</span> {pr.remediation_path}</p>
                       )}
                       {(pr.notes || pr.policy_version) && (
                         <p className="text-[10px] text-[#555]">Source policy: {pr.notes || "policy"} {pr.policy_version && `v${pr.policy_version}`}</p>
@@ -845,11 +845,11 @@ function RunDetailDrawer({
                         <div className="mt-2 flex items-center gap-2">
                           <button
                             onClick={() => onEscalateForReview(run.id, `Policy violation sent to reviewer: ${pr.check_category || pr.failed_rule || 'policy check'}`)}
-                            className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1"
+                            className="text-[10px] text-error-text hover:text-error-text flex items-center gap-1"
                           >
                             <ArrowRight className="w-3 h-3" />Send to reviewer
                           </button>
-                          <button onClick={onCreateIncident} className="text-[10px] text-orange-400 hover:text-orange-300 flex items-center gap-1"><Ticket className="w-3 h-3" />Create incident</button>
+                          <button onClick={onCreateIncident} className="text-[10px] text-warning-text hover:text-warning-text flex items-center gap-1"><Ticket className="w-3 h-3" />Create incident</button>
                         </div>
                       )}
                     </div>
@@ -857,7 +857,7 @@ function RunDetailDrawer({
                 })
               ) : (
                 <div className="text-center py-12">
-                  <ShieldCheck className="w-10 h-10 text-emerald-400/20 mx-auto mb-2" />
+                  <ShieldCheck className="w-10 h-10 text-success-text/20 mx-auto mb-2" />
                   <p className="text-sm text-[#555]">No policy results available.</p>
                 </div>
               )}
@@ -869,9 +869,9 @@ function RunDetailDrawer({
             <div className="space-y-3">
               {loadingDetail ? (
                 <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
-                  <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-                </div>
-              ) : detail?.output_snapshot ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-info-text" />
+                 </div>
+               ) : detail?.output_snapshot ? (
                 <>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-semibold text-foreground">Generated Output</span>
@@ -885,25 +885,25 @@ function RunDetailDrawer({
                   <div className="flex items-center gap-2 flex-wrap">
                     <button
                       onClick={() => onApproveOutput(run)}
-                      className="px-3 py-1.5 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      Approve
-                    </button>
+                    className="px-3 py-1.5 text-xs bg-success-bg border border-success-border text-success-text rounded-lg hover:brightness-110 transition-colors flex items-center gap-1.5"
+                   >
+                     <Check className="w-3.5 h-3.5" />
+                     Approve
+                   </button>
                     <button
                       onClick={() => onRejectOutput(run)}
-                      className="px-3 py-1.5 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      Reject
-                    </button>
+                    className="px-3 py-1.5 text-xs bg-error-bg border border-error-border text-error-text rounded-lg hover:brightness-110 transition-colors flex items-center gap-1.5"
+                   >
+                     <XCircle className="w-3.5 h-3.5" />
+                     Reject
+                   </button>
                     <button
                       onClick={() => onRequestOutputChanges(run)}
-                      className="px-3 py-1.5 text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg hover:bg-amber-500/20 transition-colors flex items-center gap-1.5"
-                    >
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      Request Changes
-                    </button>
+                    className="px-3 py-1.5 text-xs bg-warning-bg border border-warning-border text-warning-text rounded-lg hover:brightness-110 transition-colors flex items-center gap-1.5"
+                   >
+                     <AlertTriangle className="w-3.5 h-3.5" />
+                     Request Changes
+                   </button>
                     <button
                       onClick={() => onExportSnapshot(run, detail)}
                       className="px-3 py-1.5 text-xs bg-[#1f1f1f] border border-[#2a2a2a] text-[#888] rounded-lg hover:text-white transition-colors flex items-center gap-1.5"
@@ -924,16 +924,16 @@ function RunDetailDrawer({
             <div className="space-y-4">
               {loadingDetail ? (
                 <div className="flex items-center justify-center py-12 gap-2 text-[#555]">
-                  <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-                </div>
-              ) : (
-                <>
-                  {detail?.evidence_bundle ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-info-text" />
+                 </div>
+               ) : (
+                 <>
+                   {detail?.evidence_bundle ? (
                     <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Lock className="w-4 h-4 text-indigo-400" />
-                          <span className="text-sm font-semibold text-foreground">Evidence Bundle</span>
+                          <Lock className="w-4 h-4 text-info-text" />
+                           <span className="text-sm font-semibold text-foreground">Evidence Bundle</span>
                         </div>
                         <EvidenceBadge status={detail.evidence_bundle.status} />
                       </div>
@@ -945,7 +945,7 @@ function RunDetailDrawer({
                         </div>
                       )}
                       {detail.evidence_bundle.id && (
-                        <a href={`/evidence/evidence-vault/items/${detail.evidence_bundle.id}`} className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 underline underline-offset-2 decoration-[#333] hover:decoration-indigo-500/40">
+                        <a href={`/evidence/evidence-vault/items/${detail.evidence_bundle.id}`} className="text-[10px] text-info-text hover:text-info-text flex items-center gap-1 underline underline-offset-2 decoration-[#333] hover:decoration-info-border">
                           <ArrowRight className="w-3 h-3" /> Open in Evidence Vault
                         </a>
                       )}
@@ -953,21 +953,21 @@ function RunDetailDrawer({
                         <p className="text-[10px] text-[#555]">Locked: {new Date(detail.evidence_bundle.locked_at).toLocaleString()}</p>
                       )}
                       {detail.evidence_bundle.exported_by && (
-                        <p className="text-[10px] text-amber-400">Last exported by {detail.evidence_bundle.exported_by} · {detail.evidence_bundle.exported_at ? new Date(detail.evidence_bundle.exported_at).toLocaleString() : ""}</p>
+                        <p className="text-[10px] text-warning-text">Last exported by {detail.evidence_bundle.exported_by} · {detail.evidence_bundle.exported_at ? new Date(detail.evidence_bundle.exported_at).toLocaleString() : ""}</p>
                       )}
                       <button
                         onClick={() => detail.evidence_bundle?.id && onExportEvidence(detail.evidence_bundle.id)}
                         disabled={exportEvidenceLoading}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-lg text-xs hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-info-bg border border-info-border text-info-text rounded-lg text-xs hover:brightness-110 transition-colors disabled:opacity-50"
                       >
                         {exportEvidenceLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                         Export Bundle
                       </button>
                     </div>
                   ) : (
-                    <div className="bg-[#1a1a1a] border border-amber-500/20 rounded-xl p-4 text-center">
-                      <AlertTriangle className="w-8 h-8 text-amber-400/30 mx-auto mb-2" />
-                      <p className="text-sm text-amber-400">Evidence capture incomplete</p>
+                    <div className="bg-[#1a1a1a] border border-warning-border rounded-xl p-4 text-center">
+                       <AlertTriangle className="w-8 h-8 text-warning-text/30 mx-auto mb-2" />
+                       <p className="text-sm text-warning-text">Evidence capture incomplete</p>
                       <p className="text-xs text-[#555] mt-1">Missing artifacts detected. A remediation task may be required.</p>
                     </div>
                   )}
@@ -977,9 +977,9 @@ function RunDetailDrawer({
                       <div className="space-y-2">
                         {detail.approval_chain.map((a, i) => (
                           <div key={i} className="flex items-start gap-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3">
-                            <UserCheck className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                            <UserCheck className="w-4 h-4 text-info-text shrink-0 mt-0.5" />
                             <div>
-                              <p className="text-xs text-foreground">{a.actor} <span className="text-[#555]">·</span> <span className="text-emerald-400">{a.action}</span></p>
+                              <p className="text-xs text-foreground">{a.actor} <span className="text-[#555]">·</span> <span className="text-success-text">{a.action}</span></p>
                               {a.reason && <p className="text-[10px] text-[#555] mt-0.5">{a.reason}</p>}
                               <p className="text-[10px] text-[#3a3a3a] mt-0.5">{new Date(a.timestamp).toLocaleString()}</p>
                             </div>
@@ -998,9 +998,9 @@ function RunDetailDrawer({
         <div className="p-4 border-t border-[#2a2a2a] flex items-center justify-between shrink-0">
           <button
             onClick={onCreateIncident}
-            className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"
-          >
-            <Ticket className="w-3.5 h-3.5" /> Create Incident
+            className="px-3 py-1.5 bg-error-bg border border-error-border text-error-text rounded-xl text-xs hover:brightness-110 transition-colors flex items-center gap-1.5"
+           >
+             <Ticket className="w-3.5 h-3.5" /> Create Incident
           </button>
           <button onClick={onClose} className="px-4 py-1.5 bg-[#2a2a2a] text-[#aaa] rounded-xl text-xs hover:bg-[#333] transition-colors">
             Close
@@ -1443,7 +1443,7 @@ export default function AgentOperationsPage() {
       impactPreview: "Creates a linked incident, records an immutable control action, and notifies operator surfaces in real time.",
       requireReason: true,
       confirmLabel: "Escalate",
-      confirmClass: "bg-rose-500 hover:bg-rose-600",
+      confirmClass: "bg-error-text hover:brightness-110",
     } as typeof confirmAction);
   };
 
@@ -1662,12 +1662,12 @@ export default function AgentOperationsPage() {
 
       {/* ── Realtime Degraded Banner ── */}
       {realtimeDegraded && (
-        <div className="mb-4 p-3 rounded-xl flex items-center justify-between text-sm bg-amber-500/10 border border-amber-500/20 text-amber-400">
-          <div className="flex items-center gap-2.5">
-            <WifiOff className="w-4 h-4 shrink-0" />
-            <span>Degraded mode — realtime updates unavailable. Last synced: {lastRefreshed.toLocaleTimeString()}</span>
-          </div>
-          <button onClick={fetchData} className="text-xs px-2.5 py-1 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-colors flex items-center gap-1">
+        <div className="mb-4 p-3 rounded-xl flex items-center justify-between text-sm bg-warning-bg border border-warning-border text-warning-text">
+           <div className="flex items-center gap-2.5">
+             <WifiOff className="w-4 h-4 shrink-0" />
+             <span>Degraded mode — realtime updates unavailable. Last synced: {lastRefreshed.toLocaleTimeString()}</span>
+           </div>
+           <button onClick={fetchData} className="text-xs px-2.5 py-1 border border-warning-border rounded-lg hover:brightness-110 transition-colors flex items-center gap-1">
             <RefreshCcw className="w-3 h-3" /> Retry
           </button>
         </div>
@@ -1702,19 +1702,19 @@ export default function AgentOperationsPage() {
           {/* Incident shortcut */}
           <button
             onClick={() => setShowIncidentModal(true)}
-            className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"
-          >
-            <Siren className="w-3.5 h-3.5" /> New Incident
-          </button>
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10px] text-emerald-400">
-            <Radio className="w-3 h-3" />
-            <span className="hidden sm:inline">Auto-refresh 30s</span>
-          </div>
-          <button
-            onClick={fetchData}
-            className="p-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-[#555] hover:text-white transition-all group"
-          >
-            <RefreshCcw className={`w-4 h-4 ${loading ? "animate-spin text-indigo-400" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+            className="px-3 py-1.5 bg-error-bg border border-error-border text-error-text rounded-xl text-xs hover:brightness-110 transition-colors flex items-center gap-1.5"
+           >
+             <Siren className="w-3.5 h-3.5" /> New Incident
+           </button>
+           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-success-bg border border-success-border rounded-xl text-[10px] text-success-text">
+             <Radio className="w-3 h-3" />
+             <span className="hidden sm:inline">Auto-refresh 30s</span>
+           </div>
+           <button
+             onClick={fetchData}
+             className="p-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl text-[#555] hover:text-white transition-all group"
+           >
+             <RefreshCcw className={`w-4 h-4 ${loading ? "animate-spin text-info-text" : "group-hover:rotate-180 transition-transform duration-500"}`} />
           </button>
         </div>
       </div>
@@ -1732,23 +1732,23 @@ export default function AgentOperationsPage() {
 
       {/* ── Error Banner ── */}
       {error && (
-        <div className="mb-4 p-3.5 rounded-xl flex items-center justify-between gap-3 text-sm bg-rose-500/10 border border-rose-500/20 text-rose-400">
-          <div className="flex items-center gap-2.5">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            {error}
-          </div>
-          <button onClick={() => setError(null)} className="text-rose-400/60 hover:text-rose-400"><XCircle className="w-4 h-4" /></button>
+        <div className="mb-4 p-3.5 rounded-xl flex items-center justify-between gap-3 text-sm bg-error-bg border border-error-border text-error-text">
+           <div className="flex items-center gap-2.5">
+             <AlertCircle className="w-4 h-4 shrink-0" />
+             {error}
+           </div>
+           <button onClick={() => setError(null)} className="text-error-text/60 hover:text-error-text"><XCircle className="w-4 h-4" /></button>
         </div>
       )}
 
       {/* ── Success Notice ── */}
       {notice && (
-        <div role="status" aria-live="polite" className="mb-4 p-3.5 rounded-xl flex items-center justify-between gap-3 text-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            {notice}
-          </div>
-          <button onClick={() => setNotice(null)} className="text-emerald-400/60 hover:text-emerald-400" aria-label="Dismiss"><XCircle className="w-4 h-4" /></button>
+        <div role="status" aria-live="polite" className="mb-4 p-3.5 rounded-xl flex items-center justify-between gap-3 text-sm bg-success-bg border border-success-border text-success-text">
+           <div className="flex items-center gap-2.5">
+             <CheckCircle2 className="w-4 h-4 shrink-0" />
+             {notice}
+           </div>
+           <button onClick={() => setNotice(null)} className="text-success-text/60 hover:text-success-text" aria-label="Dismiss"><XCircle className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -1756,14 +1756,14 @@ export default function AgentOperationsPage() {
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-6">
           {[
-            { label: "Active Runs",    val: stats.active_runs,    icon: <Activity className="w-3.5 h-3.5" />, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-            { label: "Queued",         val: stats.queued_tasks,   icon: <Clock className="w-3.5 h-3.5" />,    color: "text-amber-400",   bg: "bg-amber-500/10"  },
-            { label: "Failed",         val: stats.failed_runs,    icon: <XCircle className="w-3.5 h-3.5" />, color: "text-red-400",      bg: "bg-red-500/10"    },
-            { label: "Policy Blocks",  val: stats.policy_blocks,  icon: <Ban className="w-3.5 h-3.5" />,     color: "text-rose-400",     bg: "bg-rose-500/10"   },
-            { label: "Open Incidents", val: stats.open_incidents, icon: <Ticket className="w-3.5 h-3.5" />,  color: "text-orange-400",   bg: "bg-orange-500/10" },
-            { label: "Escalations",    val: stats.escalations ?? 0, icon: <ArrowUpRight className="w-3.5 h-3.5" />, color: "text-purple-400", bg: "bg-purple-500/10" },
-            { label: "SLA Breaches",   val: stats.sla_breaches ?? 0, icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "text-rose-400", bg: "bg-rose-500/10" },
-            { label: "Ops Health",     val: `${stats.operations_health_score ?? stats.avg_trust_score ?? 0}%`, icon: <ShieldCheck className="w-3.5 h-3.5" />, color: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "text-emerald-400" : "text-amber-400", bg: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "bg-emerald-500/10" : "bg-amber-500/10" },
+            { label: "Active Runs",    val: stats.active_runs,    icon: <Activity className="w-3.5 h-3.5" />, color: "text-success-text", bg: "bg-success-bg" },
+            { label: "Queued",         val: stats.queued_tasks,   icon: <Clock className="w-3.5 h-3.5" />,    color: "text-warning-text",   bg: "bg-warning-bg"  },
+            { label: "Failed",         val: stats.failed_runs,    icon: <XCircle className="w-3.5 h-3.5" />, color: "text-error-text",      bg: "bg-error-bg"    },
+            { label: "Policy Blocks",  val: stats.policy_blocks,  icon: <Ban className="w-3.5 h-3.5" />,     color: "text-error-text",     bg: "bg-error-bg"   },
+            { label: "Open Incidents", val: stats.open_incidents, icon: <Ticket className="w-3.5 h-3.5" />,  color: "text-warning-text",   bg: "bg-warning-bg" },
+            { label: "Escalations",    val: stats.escalations ?? 0, icon: <ArrowUpRight className="w-3.5 h-3.5" />, color: "text-info-text", bg: "bg-info-bg" },
+            { label: "SLA Breaches",   val: stats.sla_breaches ?? 0, icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "text-error-text", bg: "bg-error-bg" },
+            { label: "Ops Health",     val: `${stats.operations_health_score ?? stats.avg_trust_score ?? 0}%`, icon: <ShieldCheck className="w-3.5 h-3.5" />, color: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "text-success-text" : "text-warning-text", bg: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "bg-success-bg" : "bg-warning-bg" },
           ].map((card) => (
             <div key={card.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3 flex items-center gap-2.5">
               <div className={`w-7 h-7 ${card.bg} rounded-lg flex items-center justify-center shrink-0 ${card.color}`}>
@@ -1780,12 +1780,12 @@ export default function AgentOperationsPage() {
 
       {/* ── Critical Items Alert ── */}
       {criticalCount > 0 && (
-        <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center justify-between">
-          <div className="flex items-center gap-2.5 text-rose-400 text-sm">
-            <Siren className="w-4 h-4" />
-            <span>{criticalCount} critical item{criticalCount > 1 ? "s" : ""} require immediate attention</span>
-          </div>
-          <button onClick={() => setStatusFilter("FAILED")} className="text-xs px-2.5 py-1 border border-rose-500/30 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors">
+        <div className="mb-4 p-3 bg-error-bg border border-error-border rounded-xl flex items-center justify-between">
+           <div className="flex items-center gap-2.5 text-error-text text-sm">
+             <Siren className="w-4 h-4" />
+             <span>{criticalCount} critical item{criticalCount > 1 ? "s" : ""} require immediate attention</span>
+           </div>
+           <button onClick={() => setStatusFilter("FAILED")} className="text-xs px-2.5 py-1 border border-error-border rounded-lg text-error-text hover:bg-error-bg transition-colors">
             Open Critical Items
           </button>
         </div>
@@ -1803,13 +1803,13 @@ export default function AgentOperationsPage() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id as typeof activeTab)}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === tab.id ? "border-indigo-500 text-foreground" : "border-transparent text-[#555] hover:text-[#aaa]"
+              activeTab === tab.id ? "border-info-border text-foreground" : "border-transparent text-[#555] hover:text-[#aaa]"
             }`}
           >
             {tab.icon}
             {tab.label}
             {tab.count > 0 && (
-              <span className={`px-1.5 py-0.5 text-[9px] rounded-full ${activeTab === tab.id ? "bg-indigo-500/20 text-indigo-400" : "bg-white/5 text-[#555]"}`}>
+              <span className={`px-1.5 py-0.5 text-[9px] rounded-full ${activeTab === tab.id ? "bg-info-bg text-info-text" : "bg-white/5 text-[#555]"}`}>
                 {tab.count}
               </span>
             )}
@@ -1922,13 +1922,13 @@ export default function AgentOperationsPage() {
 
           {loading ? (
             <div className="flex items-center justify-center py-16 text-[#555] gap-3">
-              <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
-              <span className="text-sm">Loading agent runs…</span>
+              <Loader2 className="w-5 h-5 animate-spin text-info-text" />
+               <span className="text-sm">Loading agent runs…</span>
             </div>
           ) : filteredRuns.length === 0 ? (
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">
-              <CheckCircle2 className="w-12 h-12 text-emerald-400/20 mx-auto mb-3" />
-              <p className="text-emerald-400 font-semibold mb-1">No Active Runs</p>
+              <CheckCircle2 className="w-12 h-12 text-success-text/20 mx-auto mb-3" />
+               <p className="text-success-text font-semibold mb-1">No Active Runs</p>
               <p className="text-[#555] text-sm mb-4">Agent operations are clear. No runs match the current filter.</p>
               <div className="flex items-center justify-center gap-3 flex-wrap">
                 <button onClick={() => setStatusFilter("SCHEDULED")} className="text-xs px-3 py-1.5 border border-[#2a2a2a] rounded-xl text-[#666] hover:text-white hover:border-[#444] transition-colors flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" />Scheduled Runs</button>
@@ -1953,7 +1953,7 @@ export default function AgentOperationsPage() {
                   const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-[#888]", bg: "bg-white/5", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
                   const sla = formatTimeRemaining(run.due_at);
                   return (
-                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
+                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${run.severity === "critical" ? "border-l-2 border-l-error-border" : run.severity === "warning" ? "border-l-2 border-l-warning-border" : ""}`}>
                       {/* Run info */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
@@ -1979,7 +1979,7 @@ export default function AgentOperationsPage() {
                       {/* SLA */}
                       <div>
                         {sla.label ? (
-                          <span className={`text-xs font-medium ${sla.overdue ? "text-rose-400" : "text-[#666]"}`}>
+                          <span className={`text-xs font-medium ${sla.overdue ? "text-error-text" : "text-[#666]"}`}>
                             {sla.label}
                           </span>
                         ) : <span className="text-[#333]">—</span>}
@@ -1989,69 +1989,69 @@ export default function AgentOperationsPage() {
                         <button onClick={() => handleViewRun(run)} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors" title="View Run Detail"><Eye className="w-3.5 h-3.5" /></button>
                         {run.status === "RUNNING" && (
                           <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "pause", runId: run.id, label: "Pause Run", description: `Pause "${run.agent_name}"?`, impactPreview: "Agent will halt at current step. In-progress tool calls may be interrupted.", confirmLabel: "Pause Run", confirmClass: "bg-amber-500 hover:bg-amber-600" })}
-                            className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 hover:text-amber-300 transition-colors" title="Pause"><Pause className="w-3.5 h-3.5" /></button>
+                            onClick={() => checkStaleAndAct(run.id, { type: "pause", runId: run.id, label: "Pause Run", description: `Pause "${run.agent_name}"?`, impactPreview: "Agent will halt at current step. In-progress tool calls may be interrupted.", confirmLabel: "Pause Run", confirmClass: "bg-warning-text hover:brightness-110" })}
+                            className="p-1.5 hover:bg-warning-bg rounded-lg text-warning-text hover:text-warning-text transition-colors" title="Pause"><Pause className="w-3.5 h-3.5" /></button>
                         )}
                         {run.status === "PAUSED" && (
                           <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "resume", runId: run.id, label: "Resume Run", description: `Resume "${run.agent_name}"? Policy and dependency checks will run.`, confirmLabel: "Resume Run", confirmClass: "bg-emerald-500 hover:bg-emerald-600" })}
-                            className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors" title="Resume"><Play className="w-3.5 h-3.5" /></button>
+                            onClick={() => checkStaleAndAct(run.id, { type: "resume", runId: run.id, label: "Resume Run", description: `Resume "${run.agent_name}"? Policy and dependency checks will run.`, confirmLabel: "Resume Run", confirmClass: "bg-success-text hover:brightness-110" })}
+                            className="p-1.5 hover:bg-success-bg rounded-lg text-success-text hover:text-success-text transition-colors" title="Resume"><Play className="w-3.5 h-3.5" /></button>
                         )}
                         {["RUNNING", "QUEUED", "PAUSED", "SCHEDULED"].includes(run.status) && (
                           <button
                             onClick={() => checkStaleAndAct(run.id, { type: "stop", runId: run.id, label: "Stop Run", description: `Stop "${run.agent_name}"?`, impactPreview: "Downstream deliveries will be cancelled. Output will be invalidated.", confirmLabel: "Stop Run" })}
-                            className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors" title="Stop"><Square className="w-3.5 h-3.5" /></button>
+                            className="p-1.5 hover:bg-error-bg rounded-lg text-error-text hover:text-error-text transition-colors" title="Stop"><Square className="w-3.5 h-3.5" /></button>
                         )}
                         {run.status === "FAILED" && (
                           <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "retry", runId: run.id, label: "Retry Run", description: `Retry "${run.agent_name}"? Original failure evidence is preserved. A new linked attempt will be created. For external channels, state how duplicate delivery will be prevented.`, confirmLabel: "Retry Run", confirmClass: "bg-blue-500 hover:bg-blue-600", requireReason: true } as typeof confirmAction)}
-                            className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-400 hover:text-blue-300 transition-colors" title="Retry"><RotateCcw className="w-3.5 h-3.5" /></button>
+                            onClick={() => checkStaleAndAct(run.id, { type: "retry", runId: run.id, label: "Retry Run", description: `Retry "${run.agent_name}"? Original failure evidence is preserved. A new linked attempt will be created. For external channels, state how duplicate delivery will be prevented.`, confirmLabel: "Retry Run", confirmClass: "bg-info-text hover:brightness-110", requireReason: true } as typeof confirmAction)}
+                            className="p-1.5 hover:bg-info-bg rounded-lg text-info-text hover:text-info-text transition-colors" title="Retry"><RotateCcw className="w-3.5 h-3.5" /></button>
                         )}
                         {["RUNNING", "WAITING_HUMAN_REVIEW", "PAUSED", "POLICY_BLOCKED"].includes(run.status) && (
                           <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "quarantine", runId: run.id, label: "Quarantine Output", description: `Quarantine "${run.agent_name}" output?`, impactPreview: "Output locked. Publishing blocked. Visibility restricted. Evidence event created.", confirmLabel: "Quarantine", confirmClass: "bg-rose-600 hover:bg-rose-700" })}
-                            className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors" title="Quarantine"><ShieldX className="w-3.5 h-3.5" /></button>
+                            onClick={() => checkStaleAndAct(run.id, { type: "quarantine", runId: run.id, label: "Quarantine Output", description: `Quarantine "${run.agent_name}" output?`, impactPreview: "Output locked. Publishing blocked. Visibility restricted. Evidence event created.", confirmLabel: "Quarantine", confirmClass: "bg-error-text hover:brightness-110" })}
+                            className="p-1.5 hover:bg-error-bg rounded-lg text-error-text hover:text-error-text transition-colors" title="Quarantine"><ShieldX className="w-3.5 h-3.5" /></button>
                         )}
                         {run.status !== "STOPPED" && (
                           <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "escalate", runId: run.id, label: "Escalate", description: `Escalate "${run.agent_name}"? An escalation record with severity and notification routing will be created.`, confirmLabel: "Escalate", confirmClass: "bg-orange-500 hover:bg-orange-600" })}
-                            className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400 hover:text-orange-300 transition-colors" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
+                            onClick={() => checkStaleAndAct(run.id, { type: "escalate", runId: run.id, label: "Escalate", description: `Escalate "${run.agent_name}"? An escalation record with severity and notification routing will be created.`, confirmLabel: "Escalate", confirmClass: "bg-warning-text hover:brightness-110" })}
+                            className="p-1.5 hover:bg-warning-bg rounded-lg text-warning-text hover:text-warning-text transition-colors" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
                         )}
                         {["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW"].includes(run.status) && (
                           <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "restricted_mode", runId: run.id, label: "Restricted Operations Mode", description: `Place "${run.agent_name}" in restricted mode?`, impactPreview: "Blocks new autonomous external actions; review, remediation, and approval remain available until cleared.", confirmLabel: "Activate Restricted Mode", confirmClass: "bg-amber-600 hover:bg-amber-700", requireReason: true } as typeof confirmAction)}
-                            className={`p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 hover:text-amber-300 transition-colors ${!actionGate(run, "restricted_mode").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
+                            onClick={() => checkStaleAndAct(run.id, { type: "restricted_mode", runId: run.id, label: "Restricted Operations Mode", description: `Place "${run.agent_name}" in restricted mode?`, impactPreview: "Blocks new autonomous external actions; review, remediation, and approval remain available until cleared.", confirmLabel: "Activate Restricted Mode", confirmClass: "bg-warning-text hover:brightness-110", requireReason: true } as typeof confirmAction)}
+                            className={`p-1.5 hover:bg-warning-bg rounded-lg text-warning-text hover:text-warning-text transition-colors ${!actionGate(run, "restricted_mode").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
                             title="Restricted Mode" disabled={!actionGate(run, "restricted_mode").allowed}><ShieldAlert className="w-3.5 h-3.5" /></button>
                         )}
                         {["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW", "SCHEDULED"].includes(run.status) && (
                           <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "hold", runId: run.id, label: "Hold Run", description: `Hold "${run.agent_name}"? The run will pause at its current step.`, impactPreview: "Agent will halt at current step. Use Release Hold to resume.", confirmLabel: "Hold Run", confirmClass: "bg-amber-500 hover:bg-amber-600", requireReason: true } as typeof confirmAction)}
-                            className={`p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400 hover:text-amber-300 transition-colors ${!actionGate(run, "hold").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
+                            onClick={() => checkStaleAndAct(run.id, { type: "hold", runId: run.id, label: "Hold Run", description: `Hold "${run.agent_name}"? The run will pause at its current step.`, impactPreview: "Agent will halt at current step. Use Release Hold to resume.", confirmLabel: "Hold Run", confirmClass: "bg-warning-text hover:brightness-110", requireReason: true } as typeof confirmAction)}
+                            className={`p-1.5 hover:bg-warning-bg rounded-lg text-warning-text hover:text-warning-text transition-colors ${!actionGate(run, "hold").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
                             title="Hold" disabled={!actionGate(run, "hold").allowed}><PauseCircle className="w-3.5 h-3.5" /></button>
                         )}
                         {run.status === "PAUSED" && (
                           <>
                             <button
-                              onClick={() => checkStaleAndAct(run.id, { type: "release_hold", runId: run.id, label: "Release Hold", description: `Release "${run.agent_name}" from hold?`, impactPreview: "Policy and dependency checks will re-run before the agent continues.", confirmLabel: "Release Hold", confirmClass: "bg-emerald-500 hover:bg-emerald-600", requireReason: true } as typeof confirmAction)}
-                              className={`p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors ${!actionGate(run, "release_hold").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
+                              onClick={() => checkStaleAndAct(run.id, { type: "release_hold", runId: run.id, label: "Release Hold", description: `Release "${run.agent_name}" from hold?`, impactPreview: "Policy and dependency checks will re-run before the agent continues.", confirmLabel: "Release Hold", confirmClass: "bg-success-text hover:brightness-110", requireReason: true } as typeof confirmAction)}
+                              className={`p-1.5 hover:bg-success-bg rounded-lg text-success-text hover:text-success-text transition-colors ${!actionGate(run, "release_hold").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
                               title="Release Hold" disabled={!actionGate(run, "release_hold").allowed}><PlayCircle className="w-3.5 h-3.5" /></button>
                           </>
                         )}
                         {["RUNNING", "QUEUED", "WAITING_HUMAN_REVIEW"].includes(run.status) && run.severity === "critical" && (
                           <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "emergency_pause", runId: run.id, label: "Emergency Pause", description: `Emergency pause "${run.agent_name}"? This immediately suspends all execution.`, impactPreview: "Immediate suspension. In-progress tool calls may be interrupted. Requires elevated permission.", confirmLabel: "Emergency Pause", confirmClass: "bg-rose-600 hover:bg-rose-700", requireReason: true } as typeof confirmAction)}
-                            className={`p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors ${!actionGate(run, "emergency_pause").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
+                            onClick={() => checkStaleAndAct(run.id, { type: "emergency_pause", runId: run.id, label: "Emergency Pause", description: `Emergency pause "${run.agent_name}"? This immediately suspends all execution.`, impactPreview: "Immediate suspension. In-progress tool calls may be interrupted. Requires elevated permission.", confirmLabel: "Emergency Pause", confirmClass: "bg-error-text hover:brightness-110", requireReason: true } as typeof confirmAction)}
+                            className={`p-1.5 hover:bg-error-bg rounded-lg text-error-text hover:text-error-text transition-colors ${!actionGate(run, "emergency_pause").allowed ? "opacity-30 cursor-not-allowed" : ""}`}
                             title="Emergency Pause" disabled={!actionGate(run, "emergency_pause").allowed}><Siren className="w-3.5 h-3.5" /></button>
                         )}
                         {run.status === "STOPPED" && (
                           <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "start", runId: run.id, label: "Start Run", description: `Start "${run.agent_name}"? The stopped run will be moved back to running.`, impactPreview: "The run resumes active execution from a stopped state.", confirmLabel: "Start Run", confirmClass: "bg-emerald-500 hover:bg-emerald-600", requireReason: true } as typeof confirmAction)}
-                            className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors" title="Start"><Play className="w-3.5 h-3.5" /></button>
+                            onClick={() => checkStaleAndAct(run.id, { type: "start", runId: run.id, label: "Start Run", description: `Start "${run.agent_name}"? The stopped run will be moved back to running.`, impactPreview: "The run resumes active execution from a stopped state.", confirmLabel: "Start Run", confirmClass: "bg-success-text hover:brightness-110", requireReason: true } as typeof confirmAction)}
+                            className="p-1.5 hover:bg-success-bg rounded-lg text-success-text hover:text-success-text transition-colors" title="Start"><Play className="w-3.5 h-3.5" /></button>
                         )}
                         {["STOPPED", "COMPLETED", "FAILED", "CANCELLED", "QUARANTINED"].includes(run.status) && (
                           <button
-                            onClick={() => checkStaleAndAct(run.id, { type: "remove", runId: run.id, label: "Archive Run", description: `Archive "${run.agent_name}"? The run is removed from the active list but its full history (timeline, policy results, incidents, evidence) is preserved permanently for audit.`, impactPreview: "Non-destructive: the run is archived and hidden from active views. Audit history and evidence are retained.", confirmLabel: "Archive Run", confirmClass: "bg-rose-600 hover:bg-rose-700", requireReason: false } as typeof confirmAction)}
-                            className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400 hover:text-rose-300 transition-colors" title="Archive"><Trash2 className="w-3.5 h-3.5" /></button>
+                            onClick={() => checkStaleAndAct(run.id, { type: "remove", runId: run.id, label: "Archive Run", description: `Archive "${run.agent_name}"? The run is removed from the active list but its full history (timeline, policy results, incidents, evidence) is preserved permanently for audit.`, impactPreview: "Non-destructive: the run is archived and hidden from active views. Audit history and evidence are retained.", confirmLabel: "Archive Run", confirmClass: "bg-error-text hover:brightness-110", requireReason: false } as typeof confirmAction)}
+                            className="p-1.5 hover:bg-error-bg rounded-lg text-error-text hover:text-error-text transition-colors" title="Archive"><Trash2 className="w-3.5 h-3.5" /></button>
                         )}
                       </div>
                     </div>
@@ -2079,7 +2079,7 @@ export default function AgentOperationsPage() {
                     <div className="flex items-center gap-2 mb-3 flex-wrap">
                       <PolicyBadge result={run.policy_result} />
                       <EvidenceBadge status={run.evidence_status} />
-                      {sla.label && <span className={`text-[10px] font-medium ${sla.overdue ? "text-rose-400" : "text-[#555]"}`}>{sla.label}</span>}
+                      {sla.label && <span className={`text-[10px] font-medium ${sla.overdue ? "text-error-text" : "text-[#555]"}`}>{sla.label}</span>}
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-[10px] text-[#444]">
@@ -2087,7 +2087,7 @@ export default function AgentOperationsPage() {
                         {run.channel && <><span>·</span><span>{run.channel}</span></>}
                         <span>·</span><span>{timeAgo(run.last_event_at)}</span>
                       </div>
-                      <button onClick={() => handleViewRun(run)} className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
+                      <button onClick={() => handleViewRun(run)} className="flex items-center gap-1 text-xs text-info-text hover:text-info-text transition-colors">
                         <Eye className="w-3.5 h-3.5" /> View
                       </button>
                     </div>
@@ -2140,17 +2140,17 @@ export default function AgentOperationsPage() {
           <div className="flex items-center gap-1.5 mb-4 overflow-x-auto">
             <button
               onClick={() => setQueueTypeFilter("ALL")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === "ALL" ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:text-white"}`}
-            >
-              All <span className="ml-1 text-[10px] opacity-70">{queues.length}</span>
-            </button>
-            {queueTypes.map((qt) => {
-              const count = queues.filter((q) => q.queue_type === qt).length;
-              return (
-                <button
-                  key={qt}
-                  onClick={() => setQueueTypeFilter(qt)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === qt ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:text-white"}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === "ALL" ? "bg-info-bg text-info-text border-info-border" : "bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:text-white"}`}
+             >
+               All <span className="ml-1 text-[10px] opacity-70">{queues.length}</span>
+             </button>
+             {queueTypes.map((qt) => {
+               const count = queues.filter((q) => q.queue_type === qt).length;
+               return (
+                 <button
+                   key={qt}
+                   onClick={() => setQueueTypeFilter(qt)}
+                   className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === qt ? "bg-info-bg text-info-text border-info-border" : "bg-[#1a1a1a] text-[#888] border-[#2a2a2a] hover:text-white"}`}
                 >
                   {qt.replace(/_/g, " ")} <span className="ml-1 text-[10px] opacity-70">{count}</span>
                 </button>
@@ -2159,8 +2159,8 @@ export default function AgentOperationsPage() {
           </div>
           {visibleQueues.length === 0 ? (
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">
-              <CheckCircle2 className="w-12 h-12 text-emerald-400/20 mx-auto mb-3" />
-              <p className="text-emerald-400 font-semibold mb-1">Queue Empty</p>
+              <CheckCircle2 className="w-12 h-12 text-success-text/20 mx-auto mb-3" />
+               <p className="text-success-text font-semibold mb-1">Queue Empty</p>
               <p className="text-[#555] text-sm">No pending tasks in this queue.</p>
             </div>
           ) : (
@@ -2177,10 +2177,10 @@ export default function AgentOperationsPage() {
                   const sla = formatTimeRemaining(item.due_at);
                   const resolved = ["resolved", "cancelled"].includes(String(item.status).toLowerCase());
                   return (
-                    <div key={item.id} className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${item.sla_breached ? "border-l-2 border-l-rose-500/50" : ""}`}>
+                    <div key={item.id} className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${item.sla_breached ? "border-l-2 border-l-error-border" : ""}`}>
                       <div>
                         <p className="text-sm font-medium text-foreground">{item.queue_type.replace(/_/g, " ")}</p>
-                        <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${resolved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+                          <span className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded mt-1 ${resolved ? "bg-success-bg text-success-text" : "bg-warning-bg text-warning-text"}`}>
                           {item.status}
                         </span>
                       </div>
@@ -2189,24 +2189,24 @@ export default function AgentOperationsPage() {
                         {item.assignee_name ? (
                           <span className="text-xs text-[#888]">{item.assignee_name}</span>
                         ) : (
-                          <span className="text-xs text-amber-400">Unassigned</span>
+                          <span className="text-xs text-warning-text">Unassigned</span>
                         )}
                         {item.claimed_by && <p className="text-[9px] text-[#444]">Claimed: {item.claimed_by}</p>}
                       </div>
                       <div>
                         {sla.label ? (
-                          <span className={`text-xs ${sla.overdue ? "text-rose-400 font-semibold" : "text-[#666]"}`}>{sla.label}</span>
+                          <span className={`text-xs ${sla.overdue ? "text-error-text font-semibold" : "text-[#666]"}`}>{sla.label}</span>
                         ) : <span className="text-[#333]">—</span>}
                       </div>
                       <div className="flex items-center gap-1">
                         <button onClick={() => handleQueueAssign(item)} disabled={resolved} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors disabled:opacity-30" title={item.assignee_name ? "Reassign / claim" : "Assign"}><UserCheck className="w-3.5 h-3.5" /></button>
                         {isRetryableQueueItem(item) && (
-                          <button onClick={() => handleQueueRetry(item)} disabled={resolved} className="p-1.5 hover:bg-blue-500/10 rounded-lg text-blue-400/70 hover:text-blue-400 transition-colors disabled:opacity-30" title="Retry"><RotateCcw className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleQueueRetry(item)} disabled={resolved} className="p-1.5 hover:bg-info-bg rounded-lg text-info-text/70 hover:text-info-text transition-colors disabled:opacity-30" title="Retry"><RotateCcw className="w-3.5 h-3.5" /></button>
                         )}
-                        <button onClick={() => handleQueueHold(item)} disabled={resolved} className="p-1.5 hover:bg-amber-500/10 rounded-lg text-amber-400/70 hover:text-amber-400 transition-colors disabled:opacity-30" title="Hold"><Pause className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleQueueEscalate(item)} disabled={resolved} className="p-1.5 hover:bg-orange-500/10 rounded-lg text-orange-400/70 hover:text-orange-400 transition-colors disabled:opacity-30" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleQueueResolve(item)} disabled={resolved} className="p-1.5 hover:bg-emerald-500/10 rounded-lg text-emerald-400/70 hover:text-emerald-400 transition-colors disabled:opacity-30" title="Resolve with note"><CheckSquare className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleQueueCancel(item)} disabled={resolved} className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-400/70 hover:text-rose-400 transition-colors disabled:opacity-30" title="Cancel"><XCircle className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueHold(item)} disabled={resolved} className="p-1.5 hover:bg-warning-bg rounded-lg text-warning-text/70 hover:text-warning-text transition-colors disabled:opacity-30" title="Hold"><Pause className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueEscalate(item)} disabled={resolved} className="p-1.5 hover:bg-warning-bg rounded-lg text-warning-text/70 hover:text-warning-text transition-colors disabled:opacity-30" title="Escalate"><ArrowUpRight className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueResolve(item)} disabled={resolved} className="p-1.5 hover:bg-success-bg rounded-lg text-success-text/70 hover:text-success-text transition-colors disabled:opacity-30" title="Resolve with note"><CheckSquare className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleQueueCancel(item)} disabled={resolved} className="p-1.5 hover:bg-error-bg rounded-lg text-error-text/70 hover:text-error-text transition-colors disabled:opacity-30" title="Cancel"><XCircle className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   );
@@ -2226,15 +2226,15 @@ export default function AgentOperationsPage() {
             <p className="text-sm text-[#555]">{incidents.length} open incident{incidents.length !== 1 ? "s" : ""}</p>
             <button
               onClick={() => setShowIncidentModal(true)}
-              className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"
-            >
-              <Siren className="w-3.5 h-3.5" /> Create Incident
+              className="px-3 py-1.5 bg-error-bg border border-error-border text-error-text rounded-xl text-xs hover:brightness-110 transition-colors flex items-center gap-1.5"
+             >
+               <Siren className="w-3.5 h-3.5" /> Create Incident
             </button>
           </div>
           {incidents.length === 0 ? (
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">
-              <ShieldCheck className="w-12 h-12 text-emerald-400/20 mx-auto mb-3" />
-              <p className="text-emerald-400 font-semibold mb-1">No Open Incidents</p>
+              <ShieldCheck className="w-12 h-12 text-success-text/20 mx-auto mb-3" />
+               <p className="text-success-text font-semibold mb-1">No Open Incidents</p>
               <p className="text-[#555] text-sm">All operations are running within normal parameters.</p>
             </div>
           ) : (
@@ -2257,7 +2257,7 @@ export default function AgentOperationsPage() {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${sevCfg.bg} ${sevCfg.color}`}>{sevCfg.label}</span>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${incident.status === "OPEN" ? "bg-amber-500/10 text-amber-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${incident.status === "OPEN" ? "bg-warning-bg text-warning-text" : "bg-success-bg text-success-text"}`}>
                             {incident.status}
                           </span>
                         </div>
@@ -2271,7 +2271,7 @@ export default function AgentOperationsPage() {
                                 flashNotice(`Postmortem generated for incident ${incident.id.slice(0, 8)}`);
                               } catch { setError("Failed to generate postmortem"); }
                             }}
-                            className="px-2 py-1 text-[10px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-lg hover:bg-indigo-500/20 transition-colors flex items-center gap-1"
+                            className="px-2 py-1 text-[10px] bg-info-bg border border-info-border text-info-text rounded-lg hover:brightness-110 transition-colors flex items-center gap-1"
                           >
                             <FileText className="w-3 h-3" /> Generate Postmortem
                           </button>
@@ -2295,19 +2295,19 @@ export default function AgentOperationsPage() {
             <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: "Failure Rate",           val: formatPercentMetric(analytics.failure_rate),                                       icon: <XCircle className="w-4 h-4" />,        color: "text-red-400",    bg: "bg-red-500/10",    trend: "down"    },
-                  { label: "Retry Success Rate",     val: formatPercentMetric(analytics.retry_success_rate),                                 icon: <RotateCcw className="w-4 h-4" />,    color: "text-blue-400",   bg: "bg-blue-500/10",   trend: "up"      },
-                  { label: "Policy Block Rate",      val: formatPercentMetric(analytics.policy_block_rate),                                  icon: <Ban className="w-4 h-4" />,          color: "text-rose-400",   bg: "bg-rose-500/10",   trend: "down"    },
-                  { label: "Avg Review Time",        val: formatUnitMetric(analytics.avg_review_time_minutes, "m"),                          icon: <Clock className="w-4 h-4" />,        color: "text-amber-400",  bg: "bg-amber-500/10",  trend: "down"    },
-                  { label: "SLA Breach Rate",        val: formatPercentMetric(analytics.sla_breach_rate),                                    icon: <AlertTriangle className="w-4 h-4" />, color: "text-orange-400", bg: "bg-orange-500/10", trend: "down"    },
-                  { label: "Incident Closure Time",  val: formatUnitMetric(analytics.incident_closure_time_hours, "h"),                      icon: <Ticket className="w-4 h-4" />,       color: "text-purple-400", bg: "bg-purple-500/10", trend: "down"    },
-                  { label: "Evidence Completeness",  val: formatPercentMetric(analytics.evidence_completeness_pct ?? analytics.evidence_completeness), icon: <Lock className="w-4 h-4" />,         color: "text-indigo-400", bg: "bg-indigo-500/10", trend: "up"      },
-                  { label: "Throughput / Day",       val: formatUnitMetric(analytics.throughput_per_day ?? analytics.throughput, ""),         icon: <Activity className="w-4 h-4" />,     color: "text-emerald-400",bg: "bg-emerald-500/10",trend: "up"      },
+                  { label: "Failure Rate",           val: formatPercentMetric(analytics.failure_rate),                                       icon: <XCircle className="w-4 h-4" />,        color: "text-error-text",    bg: "bg-error-bg",    trend: "down"    },
+                  { label: "Retry Success Rate",     val: formatPercentMetric(analytics.retry_success_rate),                                 icon: <RotateCcw className="w-4 h-4" />,    color: "text-info-text",   bg: "bg-info-bg",   trend: "up"      },
+                  { label: "Policy Block Rate",      val: formatPercentMetric(analytics.policy_block_rate),                                  icon: <Ban className="w-4 h-4" />,          color: "text-error-text",   bg: "bg-error-bg",   trend: "down"    },
+                  { label: "Avg Review Time",        val: formatUnitMetric(analytics.avg_review_time_minutes, "m"),                          icon: <Clock className="w-4 h-4" />,        color: "text-warning-text",  bg: "bg-warning-bg",  trend: "down"    },
+                  { label: "SLA Breach Rate",        val: formatPercentMetric(analytics.sla_breach_rate),                                    icon: <AlertTriangle className="w-4 h-4" />, color: "text-warning-text", bg: "bg-warning-bg", trend: "down"    },
+                  { label: "Incident Closure Time",  val: formatUnitMetric(analytics.incident_closure_time_hours, "h"),                      icon: <Ticket className="w-4 h-4" />,       color: "text-info-text", bg: "bg-info-bg", trend: "down"    },
+                  { label: "Evidence Completeness",  val: formatPercentMetric(analytics.evidence_completeness_pct ?? analytics.evidence_completeness), icon: <Lock className="w-4 h-4" />,         color: "text-info-text", bg: "bg-info-bg", trend: "up"      },
+                  { label: "Throughput / Day",       val: formatUnitMetric(analytics.throughput_per_day ?? analytics.throughput, ""),         icon: <Activity className="w-4 h-4" />,     color: "text-success-text",bg: "bg-success-bg",trend: "up"      },
                 ].map((m) => (
                   <div key={m.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className={`w-7 h-7 ${m.bg} rounded-lg flex items-center justify-center ${m.color}`}>{m.icon}</div>
-                      {m.trend === "up" ? <TrendingUp className="w-3.5 h-3.5 text-emerald-400/50" /> : <TrendingDown className="w-3.5 h-3.5 text-rose-400/50" />}
+                      {m.trend === "up" ? <TrendingUp className="w-3.5 h-3.5 text-success-text/50" /> : <TrendingDown className="w-3.5 h-3.5 text-error-text/50" />}
                     </div>
                     <p className={`text-xl font-bold ${m.color}`}>{m.val}</p>
                     <p className="text-[10px] text-[#555] mt-0.5">{m.label}</p>
@@ -2401,13 +2401,13 @@ export default function AgentOperationsPage() {
           <div ref={incidentModalRef} tabIndex={-1} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
             <div className="p-5 border-b border-[#2a2a2a]">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                <Siren className="w-4 h-4 text-rose-400" /> Create Incident
+                <Siren className="w-4 h-4 text-error-text" /> Create Incident
               </h3>
               {selectedRun && <p className="text-xs text-[#555] mt-1">Linked to: {selectedRun.agent_name}</p>}
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs text-[#555] mb-1.5">Severity <span className="text-rose-400">*</span></label>
+                <label className="block text-xs text-[#555] mb-1.5">Severity <span className="text-error-text">*</span></label>
                 <select
                   value={incidentForm.severity}
                   onChange={(e) => setIncidentForm({ ...incidentForm, severity: e.target.value })}
@@ -2420,7 +2420,7 @@ export default function AgentOperationsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[#555] mb-1.5">Category <span className="text-rose-400">*</span></label>
+                <label className="block text-xs text-[#555] mb-1.5">Category <span className="text-error-text">*</span></label>
                 <select
                   value={incidentForm.category}
                   onChange={(e) => setIncidentForm({ ...incidentForm, category: e.target.value })}
@@ -2437,7 +2437,7 @@ export default function AgentOperationsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-[#555] mb-1.5">Root Cause <span className="text-rose-400">*</span></label>
+                <label className="block text-xs text-[#555] mb-1.5">Root Cause <span className="text-error-text">*</span></label>
                 <textarea
                   value={incidentForm.root_cause}
                   onChange={(e) => setIncidentForm({ ...incidentForm, root_cause: e.target.value })}
@@ -2462,7 +2462,7 @@ export default function AgentOperationsPage() {
               <button
                 onClick={handleCreateIncident}
                 disabled={!incidentForm.root_cause.trim() || incidentLoading}
-                className="px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-foreground rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2"
+                className="px-4 py-1.5 bg-error-text hover:brightness-110 text-foreground rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2"
               >
                 {incidentLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Create Incident

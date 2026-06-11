@@ -149,13 +149,13 @@ function platformColor(platform: string): string {
 
 function statusColor(s: string): string {
   switch (s) {
-    case "UNREAD":         return "text-sky-400 bg-sky-400/10 border border-sky-400/20";
+    case "UNREAD":         return "text-info-text bg-info-bg border border-info-border";
     case "OPEN":           return "text-white/50 bg-white/5 border border-white/8";
-    case "ASSIGNED":       return "text-yellow-400 bg-yellow-400/10 border border-yellow-400/20";
-    case "IN_PROGRESS":    return "text-blue-400 bg-blue-400/10 border border-blue-400/20";
-    case "ESCALATED":      return "text-red-400 bg-red-400/10 border border-red-400/20";
-    case "PENDING_REVIEW": return "text-orange-400 bg-orange-400/10 border border-orange-400/20";
-    case "RESOLVED":       return "text-emerald-400 bg-emerald-400/10 border border-emerald-400/20";
+    case "ASSIGNED":       return "text-warning-text bg-warning-bg border border-warning-border";
+    case "IN_PROGRESS":    return "text-info-text bg-info-bg border border-info-border";
+    case "ESCALATED":      return "text-error-text bg-error-bg border border-error-border";
+    case "PENDING_REVIEW": return "text-warning-text bg-warning-bg border border-warning-border";
+    case "RESOLVED":       return "text-success-text bg-success-bg border border-success-border";
     case "ARCHIVED":       return "text-[#444] bg-white/[0.03] border border-white/5";
     default:               return "text-[#666] bg-white/[0.03] border border-white/5";
   }
@@ -163,10 +163,10 @@ function statusColor(s: string): string {
 
 function riskColor(r: string): string {
   switch (r) {
-    case "LOW":      return "text-emerald-500";
-    case "MEDIUM":   return "text-yellow-400";
-    case "HIGH":     return "text-red-400";
-    case "CRITICAL": return "text-red-500";
+    case "LOW":      return "text-success-text";
+    case "MEDIUM":   return "text-warning-text";
+    case "HIGH":     return "text-error-text";
+    case "CRITICAL": return "text-error-text";
     default:         return "text-[#555]";
   }
 }
@@ -200,9 +200,9 @@ function MessageListItem({
     <div
       className={`w-full text-left px-3 py-2.5 border-b border-[#0f0f0f] transition-all duration-100 relative group ${
         selected
-          ? "bg-white/[0.05] border-l-2 border-l-sky-500/80"
+          ? "bg-white/[0.05] border-l-2 border-l-info-border"
           : checked
-          ? "bg-red-500/[0.04] border-l-2 border-l-red-500/40"
+          ? "bg-error-bg border-l-2 border-l-error-border"
           : "border-l-2 border-l-transparent hover:bg-white/[0.02]"
       }`}
     >
@@ -213,7 +213,7 @@ function MessageListItem({
           className={`flex-shrink-0 mt-1 transition-opacity ${selectMode ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
         >
           {checked
-            ? <CheckSquare className="w-3.5 h-3.5 text-red-400" />
+            ? <CheckSquare className="w-3.5 h-3.5 text-error-text" />
             : <Square className="w-3.5 h-3.5 text-[#333]" />}
         </button>
 
@@ -221,7 +221,7 @@ function MessageListItem({
         <button onClick={onClick} className="flex-1 min-w-0 text-left">
           <div className="flex items-start gap-2">
             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5 ${
-              selected ? "bg-sky-500/15 text-sky-300" : "bg-[#181818] text-[#555]"
+              selected ? "bg-info-bg text-info-text" : "bg-[#181818] text-[#555]"
             }`}>
               {initials(msg.sender_name)}
             </div>
@@ -232,7 +232,7 @@ function MessageListItem({
                     {platformBadge(msg.platform)}
                   </span>
                   <span className="text-[11px] text-white/90 font-medium truncate">{msg.sender_name}</span>
-                  {msg.status === "UNREAD" && <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0" />}
+                  {msg.status === "UNREAD" && <span className="w-1.5 h-1.5 rounded-full bg-info-text flex-shrink-0" />}
                 </div>
                 <span className="text-[9px] text-[#383838] flex-shrink-0">{timeAgo(msg.received_at)}</span>
               </div>
@@ -276,17 +276,17 @@ function DmBubble({ body, time, isMine, status, replyType, sending, retryCount, 
     <div className={`flex ${isMine ? "justify-end" : "justify-start"} mb-3`}>
       <div className={`max-w-[72%] flex flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
         {isAutoSent && (
-          <span className="text-[9px] text-emerald-400/50 px-1 mb-0.5">⚡ Auto-replied</span>
+          <span className="text-[9px] text-success-text/50 px-1 mb-0.5">⚡ Auto-replied</span>
         )}
         <div className={`px-3.5 py-2.5 rounded-2xl text-[13px] leading-[1.55] ${
           isMine
             ? isAutoSent
-              ? "bg-emerald-500/5 text-emerald-200/60 rounded-br-sm border border-emerald-500/15"
+              ? "bg-success-bg text-success-text rounded-br-sm border border-success-border"
               : failed
-                ? "bg-red-900/30 text-red-200/70 rounded-br-sm border border-red-500/20"
+                ? "bg-error-text/30 text-error-text rounded-br-sm border border-error-border"
                 : sending
-                  ? "bg-sky-700/50 text-sky-200/80 rounded-br-sm"
-                  : "bg-sky-600 text-foreground rounded-br-sm"
+                  ? "bg-info-text/50 text-info-text/80 rounded-br-sm"
+                  : "bg-info-text text-foreground rounded-br-sm"
             : "bg-[#161616] text-[#d4d4d4] rounded-bl-sm border border-[#202020]"
         }`}>
           {body}
@@ -295,17 +295,17 @@ function DmBubble({ body, time, isMine, status, replyType, sending, retryCount, 
           <span className="text-[10px] text-[#333]">{time}</span>
           {isMine && failed && (
             <>
-              <X className="w-2.5 h-2.5 text-red-400/80" />
+              <X className="w-2.5 h-2.5 text-error-text/80" />
               {!maxed ? (
                 <button
                   onClick={onRetry}
                   title={`Retry (${retryCount ?? 0}/${MAX_RETRIES})`}
-                  className="text-[#444] hover:text-sky-400 transition-colors"
+                  className="text-[#444] hover:text-info-text transition-colors"
                 >
                   <RefreshCcw className="w-2.5 h-2.5" />
                 </button>
               ) : (
-                <span className="text-[9px] text-red-400/50">max retries</span>
+                <span className="text-[9px] text-error-text/50">max retries</span>
               )}
             </>
           )}
@@ -313,7 +313,7 @@ function DmBubble({ body, time, isMine, status, replyType, sending, retryCount, 
             <span className="text-[10px] text-[#333]">✓</span>
           )}
           {isMine && sending && <span className="text-[10px] text-[#383838]">…</span>}
-          {isMine && replyType === "ai_draft" && <Sparkles className="w-2.5 h-2.5 text-sky-500/70" />}
+          {isMine && replyType === "ai_draft" && <Sparkles className="w-2.5 h-2.5 text-info-text/70" />}
         </div>
       </div>
     </div>
@@ -335,37 +335,37 @@ function CommentItem({ body, author, time, isMine, sending, replyType, status, r
     <div className={`flex items-start gap-2.5 ${isMine ? "ml-7" : ""}`}>
       <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-bold mt-0.5 ${
         isMine
-          ? failed ? "bg-red-500/10 text-red-300" : isAutoSent ? "bg-emerald-500/10 text-emerald-400/70" : "bg-sky-500/15 text-sky-300"
+          ? failed ? "bg-error-bg text-error-text" : isAutoSent ? "bg-success-bg text-success-text/70" : "bg-info-bg text-info-text"
           : "bg-[#181818] text-[#555]"
       }`}>
         {isMine ? "ME" : initials(author)}
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-          <span className={`text-[11px] font-semibold ${isMine ? (failed ? "text-red-400/70" : isAutoSent ? "text-emerald-400/60" : "text-sky-400") : "text-[#c0c0c0]"}`}>
+          <span className={`text-[11px] font-semibold ${isMine ? (failed ? "text-error-text/70" : isAutoSent ? "text-success-text/60" : "text-info-text") : "text-[#c0c0c0]"}`}>
             {isMine ? (isAutoSent ? "⚡ Auto-reply" : "You") : author}
           </span>
           <span className="text-[10px] text-[#333]">{time}</span>
-          {isMine && replyType === "ai_draft" && <Sparkles className="w-2.5 h-2.5 text-sky-500/70" />}
+          {isMine && replyType === "ai_draft" && <Sparkles className="w-2.5 h-2.5 text-info-text/70" />}
           {isMine && failed && (
             <>
-              <X className="w-2.5 h-2.5 text-red-400/80" />
+              <X className="w-2.5 h-2.5 text-error-text/80" />
               {!maxed ? (
                 <button
                   onClick={onRetry}
                   title={`Retry (${retryCount ?? 0}/${MAX_RETRIES})`}
-                  className="text-[#444] hover:text-sky-400 transition-colors"
+                  className="text-[#444] hover:text-info-text transition-colors"
                 >
                   <RefreshCcw className="w-2.5 h-2.5" />
                 </button>
               ) : (
-                <span className="text-[9px] text-red-400/50">max retries</span>
+                <span className="text-[9px] text-error-text/50">max retries</span>
               )}
             </>
           )}
         </div>
         <p className={`text-[13px] leading-[1.55] ${
-          failed ? "text-red-200/50 line-through decoration-red-500/30" : isAutoSent ? "text-emerald-200/40 italic" : sending ? "text-[#555]" : "text-[#bbb]"
+          failed ? "text-error-text line-through decoration-error-border" : isAutoSent ? "text-success-text italic" : sending ? "text-[#555]" : "text-[#bbb]"
         }`}>{body}</p>
       </div>
     </div>
@@ -410,7 +410,7 @@ function ChatSkeleton() {
         </div>
         {/* Outgoing */}
         <div className="flex justify-end">
-          <div className="h-8 w-40 rounded-2xl rounded-br-sm bg-sky-900/20 skeleton-shimmer" />
+          <div className="h-8 w-40 rounded-2xl rounded-br-sm bg-info-text/20 skeleton-shimmer" />
         </div>
         {/* Incoming */}
         <div className="flex justify-start">
@@ -418,7 +418,7 @@ function ChatSkeleton() {
         </div>
         {/* Outgoing */}
         <div className="flex justify-end">
-          <div className="h-8 w-48 rounded-2xl rounded-br-sm bg-sky-900/20 skeleton-shimmer" />
+          <div className="h-8 w-48 rounded-2xl rounded-br-sm bg-info-text/20 skeleton-shimmer" />
         </div>
         {/* Incoming */}
         <div className="flex justify-start">
@@ -463,7 +463,7 @@ function PostContextCard({ msg, preview, loading }: { msg: InboxMessage; preview
             href={preview.post_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto flex items-center gap-1 text-[9px] text-sky-400/60 hover:text-sky-400 transition-colors"
+            className="ml-auto flex items-center gap-1 text-[9px] text-info-text/60 hover:text-info-text transition-colors"
           >
             View {isVideo ? "video" : "post"} <ExternalLink className="w-2.5 h-2.5" />
           </a>
@@ -554,13 +554,13 @@ function ComposeBar({
       commentMode ? "border-[#161616] bg-[#0b0b0b]" : "border-[#131313] bg-[#080808]"
     }`}>
       {lastSendStatus === "sent" && (
-        <div className="flex items-center gap-1.5 mb-2 text-[11px] text-emerald-400/80">
+        <div className="flex items-center gap-1.5 mb-2 text-[11px] text-success-text/80">
           <CheckCircle2 className="w-3 h-3" />
           Sent on {platform.charAt(0) + platform.slice(1).toLowerCase()}
         </div>
       )}
       {lastSendStatus === "draft" && (
-        <div className="mb-2 text-[11px] text-yellow-400/70">
+        <div className="mb-2 text-[11px] text-warning-text/70">
           Saved as draft{lastSendError ? ` — ${lastSendError}` : ""}
         </div>
       )}
@@ -576,7 +576,7 @@ function ComposeBar({
           className={`flex-1 text-[13px] text-white/90 placeholder-[#333] px-3.5 py-2.5 outline-none resize-none leading-relaxed transition-colors ${
             commentMode
               ? "bg-[#111] border border-[#1d1d1d] rounded-xl focus:border-[#2a2a2a]"
-              : "bg-[#0e0e0e] border border-[#1a1a1a] rounded-2xl focus:border-sky-600/25"
+              : "bg-[#0e0e0e] border border-[#1a1a1a] rounded-2xl focus:border-info-border/25"
           }`}
         />
 
@@ -596,7 +596,7 @@ function ComposeBar({
               onClick={onGenerateDraft}
               disabled={generatingDraft}
               title="AI draft"
-              className="p-1.5 rounded-lg text-sky-400/60 bg-sky-400/5 border border-sky-400/10 hover:bg-sky-400/10 hover:text-sky-400 transition-colors disabled:opacity-30"
+              className="p-1.5 rounded-lg text-info-text/60 bg-info-bg border border-info-border hover:brightness-110 hover:text-info-text transition-colors disabled:opacity-30"
             >
               {generatingDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             </button>
@@ -609,7 +609,7 @@ function ComposeBar({
             className={`flex items-center justify-center p-2 rounded-xl transition-colors disabled:opacity-25 disabled:cursor-not-allowed ${
               commentMode
                 ? "bg-[#161616] hover:bg-[#1e1e1e] border border-[#222] text-[#777] hover:text-white"
-                : "bg-sky-600 hover:bg-sky-500 text-foreground"
+                : "bg-info-text hover:brightness-110 text-foreground"
             }`}
           >
             {sendingReply ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -1066,8 +1066,8 @@ export default function InboxPage() {
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="border-b border-[#111] px-5 py-2.5 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-6 h-6 rounded-md bg-sky-500/10 flex items-center justify-center">
-            <Inbox className="w-3.5 h-3.5 text-sky-400/80" />
+          <div className="w-6 h-6 rounded-md bg-info-bg flex items-center justify-center">
+            <Inbox className="w-3.5 h-3.5 text-info-text/80" />
           </div>
           <div className="flex items-baseline gap-2">
             <h1 className="text-[13px] font-semibold text-white/90 tracking-tight">Inbox</h1>
@@ -1078,12 +1078,12 @@ export default function InboxPage() {
         </div>
         <div className="flex items-center gap-2">
           {isDemo && (
-            <span className="text-[9px] text-yellow-400/60 bg-yellow-400/5 border border-yellow-400/10 px-2 py-1 rounded-full tracking-wide uppercase">
+            <span className="text-[9px] text-warning-text/60 bg-warning-bg border border-warning-border px-2 py-1 rounded-full tracking-wide uppercase">
               Demo
             </span>
           )}
           {syncResult && (
-            <span className="text-[9px] text-emerald-400/60 px-2 py-1 rounded-lg border border-emerald-400/10 bg-emerald-400/5 max-w-[220px] truncate">
+            <span className="text-[9px] text-success-text/60 px-2 py-1 rounded-lg border border-success-border bg-success-bg max-w-[220px] truncate">
               {syncResult.message}
             </span>
           )}
@@ -1105,7 +1105,7 @@ export default function InboxPage() {
               )}
               <button
                 onClick={handleSync} disabled={syncing}
-                className="flex items-center gap-1.5 text-[11px] text-sky-400/60 hover:text-sky-400 bg-sky-400/[0.04] hover:bg-sky-400/10 border border-sky-400/10 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+                className="flex items-center gap-1.5 text-[11px] text-info-text/60 hover:text-info-text bg-info-bg hover:brightness-110 border border-info-border px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30"
               >
                 {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCcw className="w-3 h-3" />}
                 {syncing ? "Syncing…" : "Sync"}
@@ -1190,11 +1190,11 @@ export default function InboxPage() {
 
             {checkedIds.size > 0 ? (
               <>
-                <span className="text-[9px] text-red-400/80 font-medium">{checkedIds.size} selected</span>
+                <span className="text-[9px] text-error-text/80 font-medium">{checkedIds.size} selected</span>
                 <button
                   onClick={handleDeleteSelected}
                   disabled={deleting}
-                  className="ml-auto flex items-center gap-1 text-[9px] text-red-400/70 hover:text-red-400 bg-red-400/[0.06] hover:bg-red-400/10 border border-red-400/10 px-2 py-1 rounded-md transition-colors disabled:opacity-40"
+                  className="ml-auto flex items-center gap-1 text-[9px] text-error-text/70 hover:text-error-text bg-error-bg hover:brightness-110 border border-error-border px-2 py-1 rounded-md transition-colors disabled:opacity-40"
                 >
                   {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                   {deleting ? "Deleting…" : "Delete"}
@@ -1216,7 +1216,7 @@ export default function InboxPage() {
                   <button
                     onClick={() => setSelectMode(v => !v)}
                     title="Select messages"
-                    className={`ml-auto p-1 rounded transition-colors ${selectMode ? "text-sky-400" : "text-[#2a2a2a] hover:text-[#888]"}`}
+                    className={`ml-auto p-1 rounded transition-colors ${selectMode ? "text-info-text" : "text-[#2a2a2a] hover:text-[#888]"}`}
                   >
                     <CheckSquare className="w-3.5 h-3.5" />
                   </button>
@@ -1232,9 +1232,9 @@ export default function InboxPage() {
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
-                <XCircle className="w-4 h-4 text-red-400/40" />
+                <XCircle className="w-4 h-4 text-error-text/40" />
                 <span className="text-[11px] text-[#444]">{error}</span>
-                <button onClick={() => fetchMessages(1)} className="text-[11px] text-sky-400/60 hover:text-sky-400">Retry</button>
+                <button onClick={() => fetchMessages(1)} className="text-[11px] text-info-text/60 hover:text-info-text">Retry</button>
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
@@ -1329,7 +1329,7 @@ export default function InboxPage() {
                   {detail.status !== "ESCALATED" && detail.status !== "RESOLVED" && detail.status !== "ARCHIVED" && !isDemo && (
                     <button
                       onClick={() => setShowEscalate(true)}
-                      className="p-1.5 rounded-lg text-red-400/40 hover:text-red-400/80 hover:bg-red-400/5 border border-transparent hover:border-red-400/10 transition-colors"
+                      className="p-1.5 rounded-lg text-error-text/40 hover:text-error-text/80 hover:brightness-110 border border-transparent hover:border-error-border transition-colors"
                       title="Escalate"
                     >
                       <ShieldAlert className="w-3.5 h-3.5" />
@@ -1338,7 +1338,7 @@ export default function InboxPage() {
                   {detail.status !== "RESOLVED" && !isDemo && (
                     <button
                       onClick={() => handleStatusChange("RESOLVED")}
-                      className="p-1.5 rounded-lg text-emerald-400/40 hover:text-emerald-400/80 hover:bg-emerald-400/5 border border-transparent hover:border-emerald-400/10 transition-colors"
+                      className="p-1.5 rounded-lg text-success-text/40 hover:text-success-text/80 hover:brightness-110 border border-transparent hover:border-success-border transition-colors"
                       title="Resolve"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1376,7 +1376,7 @@ export default function InboxPage() {
                       onClick={() => setReplyTab(t.key as typeof replyTab)}
                       className={`flex items-center gap-1.5 text-[11px] py-2.5 border-b-2 transition-colors ${
                         replyTab === t.key
-                          ? "text-white/80 border-sky-500/70"
+                          ? "text-white/80 border-info-border"
                           : "text-[#333] border-transparent hover:text-[#666]"
                       }`}
                     >
@@ -1400,22 +1400,22 @@ export default function InboxPage() {
                   {detail.escalation && (
                     <div className={`mx-4 mt-2 border rounded-lg px-3 py-2 flex-shrink-0 ${
                       detail.escalation.review_status === "RESOLVED"
-                        ? "bg-emerald-400/[0.04] border-emerald-400/10"
-                        : "bg-red-400/[0.04] border-red-400/10"
+                        ? "bg-success-bg border-success-border"
+                        : "bg-error-bg border-error-border"
                     }`}>
                       <div className="flex items-start gap-2">
                         {detail.escalation.review_status === "RESOLVED"
-                          ? <CheckCircle2 className="w-3 h-3 text-emerald-400/60 mt-0.5 flex-shrink-0" />
-                          : <AlertTriangle className="w-3 h-3 text-red-400/60 mt-0.5 flex-shrink-0" />
+                          ? <CheckCircle2 className="w-3 h-3 text-success-text/60 mt-0.5 flex-shrink-0" />
+                          : <AlertTriangle className="w-3 h-3 text-error-text/60 mt-0.5 flex-shrink-0" />
                         }
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {detail.escalation.is_auto_escalated && (
-                              <span className="text-[9px] font-semibold uppercase tracking-wider bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 py-0.5 rounded-full">
+                              <span className="text-[9px] font-semibold uppercase tracking-wider bg-warning-bg text-warning-text border border-warning-border px-1.5 py-0.5 rounded-full">
                                 Auto-escalated
                               </span>
                             )}
-                            <p className={`text-[11px] font-medium ${detail.escalation.review_status === "RESOLVED" ? "text-emerald-400/70" : "text-red-400/70"}`}>
+                            <p className={`text-[11px] font-medium ${detail.escalation.review_status === "RESOLVED" ? "text-success-text/70" : "text-error-text/70"}`}>
                               {detail.escalation.review_status === "RESOLVED"
                                 ? `Resolved${detail.escalation.decision ? ` · ${detail.escalation.decision}` : ""}`
                                 : detail.escalation.escalation_reason
@@ -1503,7 +1503,7 @@ export default function InboxPage() {
 
                     {detail.is_demo && (
                       <div className="flex justify-center mt-3">
-                        <span className="text-[9px] text-yellow-400/40 border border-yellow-400/10 px-3 py-1 rounded-full">
+                        <span className="text-[9px] text-warning-text/40 border border-warning-border px-3 py-1 rounded-full">
                           Demo — Upgrade to Growth for real messages
                         </span>
                       </div>
@@ -1514,7 +1514,7 @@ export default function InboxPage() {
 
                   {detail.status === "ESCALATED" ? (
                     <div className="border-t border-[#111] px-4 py-3 flex items-center gap-2 text-[11px] flex-shrink-0">
-                      <Shield className="w-3 h-3 text-red-400/40 flex-shrink-0" />
+                      <Shield className="w-3 h-3 text-error-text/40 flex-shrink-0" />
                       <span className="text-[#333]">Reply locked — awaiting escalation review</span>
                       {detail.escalation?.assigned_reviewer_name && (
                         <span className="ml-auto text-[10px] text-[#2e2e2e]">
@@ -1524,7 +1524,7 @@ export default function InboxPage() {
                     </div>
                   ) : detail.status === "RESOLVED" && detail.escalation?.review_status === "RESOLVED" ? (
                     <div className="border-t border-[#111] px-4 py-3 flex items-center gap-2 text-[11px] flex-shrink-0">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400/50 flex-shrink-0" />
+                      <CheckCircle2 className="w-3 h-3 text-success-text/50 flex-shrink-0" />
                       <span className="text-[#444]">
                         {detail.escalation.resolved_by_name
                           ? `Resolved by ${detail.escalation.resolved_by_name}`
@@ -1537,7 +1537,7 @@ export default function InboxPage() {
                     </div>
                   ) : isDemo ? (
                     <div className="border-t border-[#111] px-4 py-3 flex items-center gap-2 text-[11px] text-[#333] flex-shrink-0">
-                      <ArrowUpRight className="w-3 h-3 text-yellow-400/40" />
+                      <ArrowUpRight className="w-3 h-3 text-warning-text/40" />
                       Upgrade to Growth to reply
                     </div>
                   ) : (
@@ -1565,7 +1565,7 @@ export default function InboxPage() {
                 <div className="flex-1 flex flex-col overflow-hidden">
                   <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
                     {detail.notes?.length ? detail.notes.map(n => (
-                      <div key={n.id} className="bg-yellow-400/[0.02] border border-yellow-400/[0.06] rounded-lg px-3 py-2.5">
+                      <div key={n.id} className="bg-warning-bg border border-warning-border rounded-lg px-3 py-2.5">
                         <p className="text-[12px] text-[#aaa] leading-relaxed">{n.note_body}</p>
                         <p className="text-[10px] text-[#2e2e2e] mt-1">{timeAgo(n.created_at)}</p>
                       </div>
@@ -1580,12 +1580,12 @@ export default function InboxPage() {
                         onChange={e => setNoteBody(e.target.value)}
                         placeholder="Internal note…"
                         rows={2}
-                        className="flex-1 bg-[#0d0d0d] border border-[#161616] rounded-xl text-[12px] text-white/80 placeholder-[#2e2e2e] px-3 py-2 outline-none resize-none focus:border-yellow-500/15 transition-colors leading-relaxed"
+                        className="flex-1 bg-[#0d0d0d] border border-[#161616] rounded-xl text-[12px] text-white/80 placeholder-[#2e2e2e] px-3 py-2 outline-none resize-none focus:border-warning-border transition-colors leading-relaxed"
                       />
                       <button
                         onClick={handleAddNote}
                         disabled={savingNote || !noteBody.trim()}
-                        className="p-2 rounded-xl bg-yellow-600/[0.08] hover:bg-yellow-600/15 border border-yellow-600/15 text-yellow-400/50 hover:text-yellow-400/80 transition-colors disabled:opacity-25"
+                        className="p-2 rounded-xl bg-warning-bg hover:brightness-110 border border-warning-border text-warning-text/50 hover:text-warning-text/80 transition-colors disabled:opacity-25"
                       >
                         {savingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <StickyNote className="w-4 h-4" />}
                       </button>
@@ -1624,7 +1624,7 @@ export default function InboxPage() {
           <div className="bg-[#0c0c0c] border border-[#161616] rounded-xl p-5 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-red-400/60" />
+                <ShieldAlert className="w-4 h-4 text-error-text/60" />
                 <h3 className="text-[13px] font-semibold text-white/90">Escalate</h3>
               </div>
               <button onClick={() => setShowEscalate(false)} className="text-[#2e2e2e] hover:text-white/70 transition-colors">
@@ -1667,7 +1667,7 @@ export default function InboxPage() {
                 <button
                   onClick={handleEscalate}
                   disabled={escalating || !escalateReason.trim()}
-                  className="flex items-center gap-1.5 text-[11px] text-white/90 bg-red-700/80 hover:bg-red-600/80 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+                  className="flex items-center gap-1.5 text-[11px] text-white/90 bg-error-text/80 hover:brightness-110 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
                 >
                   {escalating ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldAlert className="w-3 h-3" />}
                   {escalating ? "Escalating…" : "Escalate"}
@@ -1690,8 +1690,8 @@ export default function InboxPage() {
               {/* ── Modal header ─────────────────────────────────────────── */}
               <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#141414]">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-md bg-sky-500/10 flex items-center justify-center">
-                    <Settings className="w-3.5 h-3.5 text-sky-400/70" />
+                  <div className="w-6 h-6 rounded-md bg-info-bg flex items-center justify-center">
+                    <Settings className="w-3.5 h-3.5 text-info-text/70" />
                   </div>
                   <h3 className="text-[13px] font-semibold text-white/90 tracking-tight">Inbox Settings</h3>
                 </div>
@@ -1711,10 +1711,10 @@ export default function InboxPage() {
                   <div className="bg-[#0f0f0f] border border-[#161616] rounded-lg overflow-hidden">
                     <div className="divide-y divide-[#111]">
                       {[
-                        { level: "CRITICAL", color: "text-red-500",     bg: "bg-red-500/5",     desc: "Threats, extreme abuse, slurs — 10 languages" },
-                        { level: "HIGH",     color: "text-orange-400",  bg: "bg-orange-400/5",  desc: "Legal threats, chargeback, fraud claims" },
-                        { level: "MEDIUM",   color: "text-yellow-400",  bg: "bg-yellow-400/5",  desc: "Strong complaints and frustration" },
-                        { level: "LOW",      color: "text-emerald-500", bg: "bg-emerald-500/5", desc: "General inquiries and positive messages" },
+                        { level: "CRITICAL", color: "text-error-text",     bg: "bg-error-bg",     desc: "Threats, extreme abuse, slurs — 10 languages" },
+                        { level: "HIGH",     color: "text-warning-text",  bg: "bg-warning-bg",  desc: "Legal threats, chargeback, fraud claims" },
+                        { level: "MEDIUM",   color: "text-warning-text",  bg: "bg-warning-bg",  desc: "Strong complaints and frustration" },
+                        { level: "LOW",      color: "text-success-text", bg: "bg-success-bg", desc: "General inquiries and positive messages" },
                       ].map(({ level, color, bg, desc }) => (
                         <div key={level} className="flex items-center gap-3 px-3.5 py-2.5">
                           <span className={`text-[10px] font-bold ${color} ${bg} px-2 py-0.5 rounded w-[68px] text-center flex-shrink-0`}>{level}</span>
@@ -1755,8 +1755,8 @@ export default function InboxPage() {
                             className="flex items-center gap-1.5 group"
                             title="Toggle case-sensitive matching"
                           >
-                            <span className={`text-[9px] font-mono font-bold transition-colors ${newRuleCaseSensitive ? "text-sky-400" : "text-[#333] group-hover:text-[#555]"}`}>Aa</span>
-                            <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${newRuleCaseSensitive ? "bg-sky-500" : "bg-[#222]"}`}>
+                            <span className={`text-[9px] font-mono font-bold transition-colors ${newRuleCaseSensitive ? "text-info-text" : "text-[#333] group-hover:text-[#555]"}`}>Aa</span>
+                            <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${newRuleCaseSensitive ? "bg-info-text" : "bg-[#222]"}`}>
                               <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all duration-200 ${newRuleCaseSensitive ? "left-[14px]" : "left-0.5"}`} />
                             </div>
                           </button>
@@ -1792,7 +1792,7 @@ export default function InboxPage() {
                         onClick={handleSaveRule}
                         disabled={savingRule || !newRuleKeywords.trim() || !newRuleReply.trim() || !canManageInboxRules}
                         title={!canManageInboxRules ? "Only Admins can manage auto-reply rules" : undefined}
-                        className="flex items-center gap-1.5 text-[11px] text-white/90 bg-sky-600/70 hover:bg-sky-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+                        className="flex items-center gap-1.5 text-[11px] text-white/90 bg-info-text/70 hover:brightness-110 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
                       >
                         {savingRule ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                         {editingRule ? "Save Changes" : "Add Rule"}
@@ -1827,10 +1827,10 @@ export default function InboxPage() {
                               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                                 <p className="text-[11px] text-white/80 font-medium truncate">{rule.rule_name}</p>
                                 {rule.is_active && (
-                                  <span className="text-[8px] text-emerald-500/60 bg-emerald-500/5 border border-emerald-500/10 px-1.5 py-0.5 rounded-full flex-shrink-0">active</span>
+                                  <span className="text-[8px] text-success-text/60 bg-success-bg border border-success-border px-1.5 py-0.5 rounded-full flex-shrink-0">active</span>
                                 )}
                                 {rule.is_case_sensitive && (
-                                  <span className="text-[8px] text-sky-400/60 bg-sky-500/5 border border-sky-500/10 px-1.5 py-0.5 rounded-full flex-shrink-0 font-mono">Aa</span>
+                                  <span className="text-[8px] text-info-text/60 bg-info-bg border border-info-border px-1.5 py-0.5 rounded-full flex-shrink-0 font-mono">Aa</span>
                                 )}
                               </div>
                               <div className="flex flex-wrap gap-1 mb-1">
@@ -1848,7 +1848,7 @@ export default function InboxPage() {
                                 title={rule.is_active ? "Disable" : "Enable"}
                               >
                                 {rule.is_active
-                                  ? <ToggleRight className="w-4 h-4 text-sky-500" />
+                                  ? <ToggleRight className="w-4 h-4 text-info-text" />
                                   : <ToggleLeft className="w-4 h-4 text-[#333]" />}
                               </button>
                               <button
@@ -1861,7 +1861,7 @@ export default function InboxPage() {
                               <button
                                 onClick={() => handleDeleteRule(rule.id)}
                                 disabled={!canManageInboxRules}
-                                className="p-1 rounded-md text-[#2e2e2e] hover:text-red-400 hover:bg-red-500/[0.06] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="p-1 rounded-md text-[#2e2e2e] hover:text-error-text hover:brightness-110 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>

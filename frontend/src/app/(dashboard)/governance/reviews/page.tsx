@@ -146,9 +146,9 @@ export default function HumanReviewConsolePage() {
     const due = new Date(dueAt).getTime();
     const diff = due - now;
     
-    if (diff < 0) return { text: "BREACHED", color: "text-rose-500 bg-rose-500/10 border-rose-500/20 animate-pulse" };
-    if (diff < 30 * 60 * 1000) return { text: "AT RISK", color: "text-orange-500 bg-orange-500/10 border-orange-500/20" }; // < 30 mins
-    return { text: "ON TRACK", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" };
+    if (diff < 0) return { text: "BREACHED", color: "text-error-text bg-error-bg border-error-border animate-pulse" };
+    if (diff < 30 * 60 * 1000) return { text: "AT RISK", color: "text-warning-text bg-warning-bg border-warning-border" }; // < 30 mins
+    return { text: "ON TRACK", color: "text-success-text bg-success-bg border-success-border" };
   };
 
   const formatTimeDiff = (dueAt: string) => {
@@ -185,14 +185,14 @@ export default function HumanReviewConsolePage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-foreground">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500 mb-4"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-warning-border mb-4"></div>
         <p className="text-[#888] font-medium font-mono text-sm">Initializing Human-in-the-Loop Console...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#ddd] flex font-sans overflow-hidden h-screen selection:bg-amber-500/30 selection:text-white">
+    <div className="min-h-screen bg-[#0a0a0a] text-[#ddd] flex font-sans overflow-hidden h-screen selection:bg-warning-bg selection:text-white">
       
       {/* -------------------------------------------------------------
           LEFT PANEL: REVIEW QUEUE
@@ -200,7 +200,7 @@ export default function HumanReviewConsolePage() {
       <div className="w-[450px] border-r border-[#222] bg-[#111] flex flex-col h-full flex-shrink-0">
         <div className="p-4 border-b border-[#222] bg-[#141414]">
           <h2 className="text-lg font-black text-foreground flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-amber-500" />
+            <ShieldAlert className="w-5 h-5 text-warning-text" />
             Active Review Queue
           </h2>
           <div className="flex items-center justify-between mt-3">
@@ -229,16 +229,16 @@ export default function HumanReviewConsolePage() {
                 onClick={() => fetchDetail(item.id)}
                 className={`p-3 rounded-xl border transition-all cursor-pointer select-none group ${
                   isSelected 
-                    ? "bg-[#1a1a1a] border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]" 
+                    ? "bg-[#1a1a1a] border-warning-border shadow-[0_0_15px_rgba(245,158,11,0.1)]" 
                     : "bg-[#141414] border-[#222] hover:border-[#444]"
                 }`}
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex gap-2">
                     <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${
-                      item.priority === 'Critical' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                      item.priority === 'High' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
-                      'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      item.priority === 'Critical' ? 'bg-error-bg text-error-text border-error-border' :
+                      item.priority === 'High' ? 'bg-warning-bg text-warning-text border-warning-border' :
+                      'bg-warning-bg text-warning-text border-warning-border'
                     }`}>
                       {item.priority}
                     </span>
@@ -257,7 +257,7 @@ export default function HumanReviewConsolePage() {
                   <span className="text-[9px] font-mono text-[#666]">{item.id}</span>
                   <div className="flex gap-2">
                     {item.owner === 'Unassigned' ? (
-                      <button className="px-2 py-1 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 rounded border border-amber-500/30 text-[9px] font-bold">
+                      <button className="px-2 py-1 bg-warning-bg text-warning-text hover:brightness-110 rounded border border-warning-border text-[9px] font-bold">
                         Assign Self
                       </button>
                     ) : (
@@ -284,15 +284,15 @@ export default function HumanReviewConsolePage() {
             <div className="p-6 border-b border-[#222] bg-[#111]/80 backdrop-blur flex justify-between items-center">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-mono text-amber-500">Decision Canvas</span>
+                  <span className="text-xs font-mono text-warning-text">Decision Canvas</span>
                   <span className="px-2 py-0.5 bg-[#222] text-[#888] text-[9px] font-bold rounded uppercase">{selectedItem.decision_state}</span>
                 </div>
                 <h1 className="text-2xl font-black text-foreground">{selectedItem.item_type} Review</h1>
               </div>
               {isConflictOfInterest && (
-                <div className="px-4 py-2 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-rose-400" />
-                  <span className="text-xs font-bold text-rose-400">Conflict of Interest: Self-Approval Disabled</span>
+                <div className="px-4 py-2 bg-error-bg border border-error-border rounded-lg flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-error-text" />
+                  <span className="text-xs font-bold text-error-text">Conflict of Interest: Self-Approval Disabled</span>
                 </div>
               )}
             </div>
@@ -307,7 +307,7 @@ export default function HumanReviewConsolePage() {
                   </span>
                   <span className="text-[10px] text-[#666] font-mono">Autonomy Band: {selectedItem.autonomy_band}</span>
                 </div>
-                <div className="p-6 text-sm text-foreground font-serif leading-relaxed italic border-l-4 border-amber-500/50 bg-[#151515]">
+                <div className="p-6 text-sm text-foreground font-serif leading-relaxed italic border-l-4 border-warning-border bg-[#151515]">
                   {"\u201C"}{selectedItem.content_preview}{"\u201D"}
                 </div>
               </div>
@@ -316,12 +316,12 @@ export default function HumanReviewConsolePage() {
                 {/* Risk Summary */}
                 <div className="bg-[#111] border border-[#222] rounded-xl p-5">
                   <h3 className="text-xs font-bold text-[#888] uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-orange-500" /> Risk Summary
+                    <AlertTriangle className="w-4 h-4 text-warning-text" /> Risk Summary
                   </h3>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center border-b border-[#222] pb-2">
                       <span className="text-[11px] text-[#666]">Base Tier</span>
-                      <span className="text-xs font-black text-rose-400">{selectedItem.priority}</span>
+                      <span className="text-xs font-black text-error-text">{selectedItem.priority}</span>
                     </div>
                     <div className="flex justify-between items-center border-b border-[#222] pb-2">
                       <span className="text-[11px] text-[#666]">Risk Factors</span>
@@ -335,7 +335,7 @@ export default function HumanReviewConsolePage() {
                       <span className="text-[11px] text-[#666]">Jurisdictions</span>
                       <div className="flex flex-wrap gap-1 justify-end">
                         {selectedItem.jurisdictions?.map(j => (
-                          <span key={j} className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] rounded font-medium">{j}</span>
+                          <span key={j} className="px-1.5 py-0.5 bg-info-bg text-info-text border border-info-border text-[9px] rounded font-medium">{j}</span>
                         ))}
                       </div>
                     </div>
@@ -345,16 +345,16 @@ export default function HumanReviewConsolePage() {
                 {/* AI Rec & Policy Trigger */}
                 <div className="space-y-6">
                   <div className="bg-[#141414] border border-[#222] rounded-xl p-4 flex gap-3">
-                    <Cpu className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                    <Cpu className="w-5 h-5 text-info-text flex-shrink-0" />
                     <div>
                       <span className="text-[10px] font-bold text-[#888] uppercase block mb-1">AI Recommendation (Informational)</span>
-                      <span className="text-sm font-black text-purple-400 uppercase tracking-wide">{selectedItem.ai_recommendation?.replace(/_/g, ' ')}</span>
+                      <span className="text-sm font-black text-info-text uppercase tracking-wide">{selectedItem.ai_recommendation?.replace(/_/g, ' ')}</span>
                       <p className="text-[9px] text-[#666] mt-1 italic">AI recommendations do not pre-select decision buttons.</p>
                     </div>
                   </div>
 
-                  <div className="bg-[#111] border border-rose-500/20 rounded-xl p-4">
-                    <span className="text-[10px] font-bold text-rose-400 uppercase block mb-1 flex items-center gap-1.5">
+                  <div className="bg-[#111] border border-error-border rounded-xl p-4">
+                    <span className="text-[10px] font-bold text-error-text uppercase block mb-1 flex items-center gap-1.5">
                       <ShieldAlert className="w-3.5 h-3.5" /> Policy Trigger Stack
                     </span>
                     <span className="text-xs text-foreground font-mono">{selectedItem.policy_match}</span>
@@ -367,7 +367,7 @@ export default function HumanReviewConsolePage() {
               <div className="bg-[#111] border border-[#333] rounded-2xl p-6 shadow-2xl relative">
                 
                 {requiresDualControl && (
-                  <div className="absolute -top-3 left-6 px-3 py-1 bg-indigo-500/20 border border-indigo-500/50 text-indigo-400 text-[10px] font-black rounded uppercase tracking-wider flex items-center gap-1.5 backdrop-blur-md">
+                  <div className="absolute -top-3 left-6 px-3 py-1 bg-info-bg border border-info-border text-info-text text-[10px] font-black rounded uppercase tracking-wider flex items-center gap-1.5 backdrop-blur-md">
                     <Lock className="w-3 h-3" /> Dual-Control Validation Required
                   </div>
                 )}
@@ -378,10 +378,10 @@ export default function HumanReviewConsolePage() {
                     value={rationale}
                     onChange={(e) => setRationale(e.target.value)}
                     placeholder="Provide explicit reasoning for the decision. This is immutable and visible in audits."
-                    className="w-full h-24 bg-[#050505] border border-[#333] focus:border-amber-500/50 rounded-xl p-4 text-xs text-foreground placeholder-[#555] resize-none focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                    className="w-full h-24 bg-[#050505] border border-[#333] focus:border-warning-border rounded-xl p-4 text-xs text-foreground placeholder-[#555] resize-none focus:outline-none focus:ring-warning-border"
                   />
                   {actionError && (
-                    <div className="mt-2 text-[10px] text-rose-400 font-semibold flex items-center gap-1">
+                    <div className="mt-2 text-[10px] text-error-text font-semibold flex items-center gap-1">
                       <AlertOctagon className="w-3 h-3" /> {actionError}
                     </div>
                   )}
@@ -390,7 +390,7 @@ export default function HumanReviewConsolePage() {
                 {/* Downstream Impact Preview */}
                 <div className="bg-[#050505] border border-[#222] rounded-lg p-3 mb-6 min-h-[48px] flex items-center gap-2">
                   <CornerDownRight className="w-4 h-4 text-[#555]" />
-                  <span className={`text-[10px] font-mono ${hoveredAction ? 'text-amber-400' : 'text-[#666]'}`}>
+                  <span className={`text-[10px] font-mono ${hoveredAction ? 'text-warning-text' : 'text-[#666]'}`}>
                     {getDownstreamPreview()}
                   </span>
                 </div>
@@ -401,7 +401,7 @@ export default function HumanReviewConsolePage() {
                     onMouseEnter={() => setHoveredAction('Approve')} onMouseLeave={() => setHoveredAction(null)}
                     onClick={() => handleDecision('Approve')}
                     disabled={isConflictOfInterest || submitting}
-                    className="py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-foreground text-xs font-black rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-1"
+                    className="py-3 px-4 bg-success-text hover:brightness-110 disabled:opacity-50 text-foreground text-xs font-black rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-1"
                   >
                     <CheckCircle className="w-4 h-4" />
                     {requiresDualControl && !isFirstKeyTurned ? "Submit First Approval" : "Approve & Release"}
@@ -411,7 +411,7 @@ export default function HumanReviewConsolePage() {
                     onMouseEnter={() => setHoveredAction('Reject')} onMouseLeave={() => setHoveredAction(null)}
                     onClick={() => handleDecision('Reject')}
                     disabled={submitting}
-                    className="py-3 px-4 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-foreground text-xs font-black rounded-xl transition-all flex flex-col items-center justify-center gap-1"
+                    className="py-3 px-4 bg-error-text hover:brightness-110 disabled:opacity-50 text-foreground text-xs font-black rounded-xl transition-all flex flex-col items-center justify-center gap-1"
                   >
                     <XCircle className="w-4 h-4" />
                     Reject & Block
@@ -431,7 +431,7 @@ export default function HumanReviewConsolePage() {
                     onMouseEnter={() => setHoveredAction('Escalate')} onMouseLeave={() => setHoveredAction(null)}
                     onClick={() => handleDecision('Escalate')}
                     disabled={submitting}
-                    className="py-3 px-4 bg-orange-600 hover:bg-orange-700 text-foreground text-xs font-bold rounded-xl transition-all flex flex-col items-center justify-center gap-1"
+                    className="py-3 px-4 bg-warning-text hover:brightness-110 text-foreground text-xs font-bold rounded-xl transition-all flex flex-col items-center justify-center gap-1"
                   >
                     <AlertTriangle className="w-4 h-4" />
                     Escalate
@@ -449,7 +449,7 @@ export default function HumanReviewConsolePage() {
                   <button 
                     onMouseEnter={() => setHoveredAction('Pause Agent')} onMouseLeave={() => setHoveredAction(null)}
                     onClick={() => handleDecision('Pause Agent')}
-                    className="text-[10px] text-rose-500 hover:text-rose-400 transition-colors uppercase font-bold tracking-widest"
+                    className="text-[10px] text-error-text hover:text-error-text transition-colors uppercase font-bold tracking-widest"
                   >
                     Emergency Pause Agent
                   </button>
@@ -481,10 +481,10 @@ export default function HumanReviewConsolePage() {
           <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
             
             {/* Export Hash */}
-            <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl flex items-start gap-3">
-              <Download className="w-4 h-4 text-blue-400 mt-0.5" />
+            <div className="p-3 bg-info-bg border border-info-border rounded-xl flex items-start gap-3">
+              <Download className="w-4 h-4 text-info-text mt-0.5" />
               <div>
-                <span className="text-[10px] font-bold text-blue-400 block mb-0.5">Export Immutable Evidence</span>
+                <span className="text-[10px] font-bold text-info-text block mb-0.5">Export Immutable Evidence</span>
                 <span className="text-[9px] text-[#666] font-mono block break-all">{selectedItem.evidence_hash}</span>
               </div>
             </div>
@@ -503,7 +503,7 @@ export default function HumanReviewConsolePage() {
                 </div>
                 <div className="mt-3">
                   <span className="text-[10px] text-[#666] block mb-1">Execution Chain:</span>
-                  <div className="flex gap-2 font-mono text-[9px] text-amber-500">
+                  <div className="flex gap-2 font-mono text-[9px] text-warning-text">
                     {selectedItem.provenance?.map((p, i) => (
                       <span key={i} className="px-1.5 py-0.5 bg-[#222] border border-[#333] rounded">{p}</span>
                     ))}
@@ -520,7 +520,7 @@ export default function HumanReviewConsolePage() {
               <div className="bg-[#141414] border border-[#222] rounded-lg p-3 space-y-2">
                 <div className="flex justify-between text-[10px]">
                   <span className="text-[#666]">Outcome Code</span>
-                  <span className="text-emerald-400 font-mono font-bold">hold_for_review</span>
+                  <span className="text-success-text font-mono font-bold">hold_for_review</span>
                 </div>
                 <div className="flex justify-between text-[10px]">
                   <span className="text-[#666]">Intake Confidence</span>
@@ -537,7 +537,7 @@ export default function HumanReviewConsolePage() {
               <div className="space-y-2">
                 <div className="p-2 border border-[#333] rounded bg-[#1a1a1a] text-[10px]">
                   <div className="flex justify-between mb-1">
-                    <span className="text-rose-400 font-bold uppercase">Block</span>
+                    <span className="text-error-text font-bold uppercase">Block</span>
                     <span className="text-[#666]">14d ago</span>
                   </div>
                   <p className="text-[#888] truncate">Same policy triggered by AGT-FIN-01.</p>

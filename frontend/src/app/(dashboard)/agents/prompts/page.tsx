@@ -149,21 +149,21 @@ type FilterRisk = "ALL" | RiskTier;
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const RISK_META: Record<RiskTier, { label: string; color: string; bg: string; border: string; dot: string }> = {
-  TIER_1_LOW: { label: "Tier 1 — Low", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", dot: "bg-emerald-500" },
-  TIER_2_MEDIUM: { label: "Tier 2 — Medium", color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", dot: "bg-amber-500" },
-  TIER_3_HIGH: { label: "Tier 3 — High", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20", dot: "bg-orange-500" },
-  TIER_4_CRITICAL: { label: "Tier 4 — Critical", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", dot: "bg-rose-500" },
+  TIER_1_LOW: { label: "Tier 1 — Low", color: "text-success-text", bg: "bg-success-bg", border: "border-success-border", dot: "bg-success-text" },
+  TIER_2_MEDIUM: { label: "Tier 2 — Medium", color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border", dot: "bg-warning-text" },
+  TIER_3_HIGH: { label: "Tier 3 — High", color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border", dot: "bg-warning-text" },
+  TIER_4_CRITICAL: { label: "Tier 4 — Critical", color: "text-error-text", bg: "bg-error-bg", border: "border-error-border", dot: "bg-error-text" },
 };
 
 const STATUS_META: Record<LifecycleStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   DRAFT: { label: "Draft", color: "text-slate-400", bg: "bg-slate-800", icon: CircleDot },
-  INTERNAL_TEST: { label: "Internal Test", color: "text-blue-400", bg: "bg-blue-500/10", icon: FlaskConical },
-  REVIEW_REQUESTED: { label: "Review Requested", color: "text-amber-400", bg: "bg-amber-500/10", icon: Clock },
-  APPROVED_STAGING: { label: "Approved — Staging", color: "text-teal-400", bg: "bg-teal-500/10", icon: CheckCircle2 },
-  PRODUCTION_PENDING: { label: "Production Pending", color: "text-indigo-400", bg: "bg-indigo-500/10", icon: ArrowRight },
-  PRODUCTION_ACTIVE: { label: "Production Active", color: "text-emerald-400", bg: "bg-emerald-500/10", icon: Zap },
-  PAUSED: { label: "Paused", color: "text-orange-400", bg: "bg-orange-500/10", icon: PauseCircle },
-  RETIRED: { label: "Retired", color: "text-rose-400", bg: "bg-rose-500/10", icon: XCircle },
+  INTERNAL_TEST: { label: "Internal Test", color: "text-info-text", bg: "bg-info-bg", icon: FlaskConical },
+  REVIEW_REQUESTED: { label: "Review Requested", color: "text-warning-text", bg: "bg-warning-bg", icon: Clock },
+  APPROVED_STAGING: { label: "Approved — Staging", color: "text-info-text", bg: "bg-info-bg", icon: CheckCircle2 },
+  PRODUCTION_PENDING: { label: "Production Pending", color: "text-info-text", bg: "bg-info-bg", icon: ArrowRight },
+  PRODUCTION_ACTIVE: { label: "Production Active", color: "text-success-text", bg: "bg-success-bg", icon: Zap },
+  PAUSED: { label: "Paused", color: "text-warning-text", bg: "bg-warning-bg", icon: PauseCircle },
+  RETIRED: { label: "Retired", color: "text-error-text", bg: "bg-error-bg", icon: XCircle },
   ARCHIVED: { label: "Archived", color: "text-slate-500", bg: "bg-slate-900", icon: Archive },
 };
 
@@ -237,7 +237,7 @@ function RiskBadge({ tier }: { tier: RiskTier | string }) {
 
 function TestBadge({ result }: { result: TestResult | null }) {
   if (!result) return <span className="text-[10px] text-slate-600 italic">No test run</span>;
-  const colors = result.pass_fail === "PASS" ? "text-emerald-400 bg-emerald-500/10" : result.pass_fail === "FAIL" ? "text-rose-400 bg-rose-500/10" : "text-slate-400 bg-slate-800";
+  const colors = result.pass_fail === "PASS" ? "text-success-text bg-success-bg" : result.pass_fail === "FAIL" ? "text-error-text bg-error-bg" : "text-slate-400 bg-slate-800";
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${colors} border border-white/5`}>
       {result.pass_fail === "PASS" ? <CheckCircle2 className="w-3 h-3" /> : result.pass_fail === "FAIL" ? <XCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
@@ -253,7 +253,7 @@ function ApprovalChain({ approvals, riskTier }: { approvals: ApprovalRecord[]; r
     <div className="flex items-center gap-1">
       {Array.from({ length: Math.max(required, approvals.length) }).map((_, i) => {
         const a = approvals[i];
-        const color = !a ? "bg-slate-800" : a.decision === "APPROVED" ? "bg-emerald-500" : a.decision === "REJECTED" ? "bg-rose-500" : a.decision === "PENDING" ? "bg-amber-500/40 border border-amber-500" : "bg-slate-700";
+        const color = !a ? "bg-slate-800" : a.decision === "APPROVED" ? "bg-success-text" : a.decision === "REJECTED" ? "bg-error-text" : a.decision === "PENDING" ? "bg-warning-bg border border-warning-text" : "bg-slate-700";
         return <div key={i} className={`w-2.5 h-2.5 rounded-full ${color}`} title={a ? `${a.reviewer_role}: ${a.decision}` : "Required"} />;
       })}
       <span className="text-[10px] text-slate-500 ml-1">{completed}/{required}</span>
@@ -291,7 +291,7 @@ function deploymentStateOf(p: PromptRecord): Exclude<DeploymentState, "ALL"> {
   return "NONE";
 }
 
-const FILTER_SELECT_CLS = "bg-black border border-slate-800 rounded-xl py-2.5 px-4 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 transition-all";
+const FILTER_SELECT_CLS = "bg-black border border-slate-800 rounded-xl py-2.5 px-4 text-xs text-slate-300 focus:outline-none focus:border-info-border transition-all";
 
 function RegistryTab({
   prompts,
@@ -370,7 +370,7 @@ function RegistryTab({
               placeholder="Search by name, owner, or linked agent..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-black border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-xs text-foreground focus:outline-none focus:border-indigo-500 transition-all"
+              className="w-full bg-black border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-xs text-foreground focus:outline-none focus:border-info-border transition-all"
             />
           </div>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as FilterStatus)} className={FILTER_SELECT_CLS}>
@@ -442,7 +442,7 @@ function RegistryTab({
             {filtered.map((p) => (
               <tr key={p.id} className="hover:bg-slate-900/30 transition-colors group cursor-pointer" onClick={() => onSelectPrompt(p)}>
                 <td className="py-4 px-5">
-                  <div className="text-sm font-bold text-foreground group-hover:text-indigo-400 transition-colors max-w-[200px] truncate">{p.name}</div>
+                  <div className="text-sm font-bold text-foreground group-hover:text-info-text transition-colors max-w-[200px] truncate">{p.name}</div>
                   <div className="text-[10px] text-slate-500 max-w-[200px] truncate mt-0.5">{p.description}</div>
                 </td>
                 <td className="py-4 px-5">
@@ -451,7 +451,7 @@ function RegistryTab({
                 <td className="py-4 px-5 text-xs text-slate-400 whitespace-nowrap">{p.owner}</td>
                 <td className="py-4 px-5">
                   <div className="flex items-center gap-1.5">
-                    <Cpu className="w-3 h-3 text-indigo-400" />
+                    <Cpu className="w-3 h-3 text-info-text" />
                     <span className="text-[10px] text-slate-300">{p.linked_agent}</span>
                   </div>
                 </td>
@@ -543,7 +543,7 @@ function LifecycleTab({ prompts }: { prompts: PromptRecord[] }) {
             "Every lifecycle event writes an immutable record to the Evidence Vault.",
           ].map((rule, i) => (
             <div key={i} className="flex items-start gap-2 p-3 bg-black border border-slate-900 rounded-xl">
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" />
+              <ShieldCheck className="w-3.5 h-3.5 text-info-text mt-0.5 shrink-0" />
               <span>{rule}</span>
             </div>
           ))}
@@ -583,8 +583,8 @@ function TestingTab({
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: "Tested Prompts", value: withTests.length, color: "text-foreground" },
-          { label: "Passing", value: passed, color: "text-emerald-400" },
-          { label: "Failing", value: failed, color: "text-rose-400" },
+          { label: "Passing", value: passed, color: "text-success-text" },
+          { label: "Failing", value: failed, color: "text-error-text" },
         ].map((s) => (
           <div key={s.label} className="bg-black border border-slate-900 rounded-2xl p-5 text-center">
             <div className={`text-3xl font-black ${s.color}`}>{s.value}</div>
@@ -600,9 +600,9 @@ function TestingTab({
           {TEST_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             return (
-              <div key={cat.label} className="flex items-start gap-4 p-4 bg-black border border-slate-900 rounded-2xl hover:border-indigo-500/30 transition-all">
+              <div key={cat.label} className="flex items-start gap-4 p-4 bg-black border border-slate-900 rounded-2xl hover:border-info-border transition-all">
                 <div className="p-2 bg-slate-950 border border-slate-800 rounded-xl">
-                  <Icon className="w-4 h-4 text-indigo-400" />
+                  <Icon className="w-4 h-4 text-info-text" />
                 </div>
                 <div>
                   <div className="text-[11px] font-bold text-foreground">{cat.label}</div>
@@ -646,7 +646,7 @@ function TestingTab({
       {/* Adversarial Validation */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-rose-400" />
+          <ShieldAlert className="w-4 h-4 text-error-text" />
           <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Adversarial Validation — Attack Vector Coverage</h3>
         </div>
         <p className="text-[10px] text-slate-500 leading-relaxed max-w-2xl">
@@ -661,9 +661,9 @@ function TestingTab({
             { label: "Data Exfiltration", desc: "Requests to reveal system prompts, policy internals, confidential documents, knowledge-base credentials, or private customer data.", severity: "HIGH" },
             { label: "Cross-Market Traps", desc: "Claims that are permitted in one jurisdiction but prohibited in another — testing whether locale and compliance constraints are enforced per execution context.", severity: "MEDIUM" },
           ].map((v) => (
-            <div key={v.label} className="flex gap-3 p-4 bg-black border border-slate-900 rounded-2xl hover:border-rose-500/20 transition-all">
+            <div key={v.label} className="flex gap-3 p-4 bg-black border border-slate-900 rounded-2xl hover:border-error-border transition-all">
               <div className="shrink-0">
-                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${v.severity === "CRITICAL" ? "text-rose-400 bg-rose-500/10 border border-rose-500/20" : v.severity === "HIGH" ? "text-orange-400 bg-orange-500/10 border border-orange-500/20" : "text-amber-400 bg-amber-500/10 border border-amber-500/20"}`}>{v.severity}</span>
+                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${v.severity === "CRITICAL" ? "text-error-text bg-error-bg border border-error-border" : v.severity === "HIGH" ? "text-warning-text bg-warning-bg border border-warning-border" : "text-warning-text bg-warning-bg border border-warning-border"}`}>{v.severity}</span>
               </div>
               <div>
                 <div className="text-[11px] font-bold text-foreground mb-1">{v.label}</div>
@@ -712,10 +712,10 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
   };
 
   const APPROVAL_MATRIX = [
-    { tier: "Tier 1 — Low", color: "text-emerald-400", requirements: "Prompt owner approval only.", roles: ["PROMPT_OWNER"] },
-    { tier: "Tier 2 — Medium", color: "text-amber-400", requirements: "Owner + brand reviewer.", roles: ["PROMPT_OWNER", "BRAND_REVIEWER"] },
-    { tier: "Tier 3 — High", color: "text-orange-400", requirements: "Owner + brand + compliance reviewer.", roles: ["PROMPT_OWNER", "BRAND_REVIEWER", "COMPLIANCE_REVIEWER"] },
-    { tier: "Tier 4 — Critical", color: "text-rose-400", requirements: "Three-key: Owner + compliance + security or executive approver.", roles: ["PROMPT_OWNER", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN"] },
+    { tier: "Tier 1 — Low", color: "text-success-text", requirements: "Prompt owner approval only.", roles: ["PROMPT_OWNER"] },
+    { tier: "Tier 2 — Medium", color: "text-warning-text", requirements: "Owner + brand reviewer.", roles: ["PROMPT_OWNER", "BRAND_REVIEWER"] },
+    { tier: "Tier 3 — High", color: "text-warning-text", requirements: "Owner + brand + compliance reviewer.", roles: ["PROMPT_OWNER", "BRAND_REVIEWER", "COMPLIANCE_REVIEWER"] },
+    { tier: "Tier 4 — Critical", color: "text-error-text", requirements: "Three-key: Owner + compliance + security or executive approver.", roles: ["PROMPT_OWNER", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN"] },
   ];
 
   return (
@@ -724,7 +724,7 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Pending Approval Queue</h3>
-          <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full font-black">
+          <span className="text-[10px] text-warning-text bg-warning-bg border border-warning-border px-3 py-1 rounded-full font-black">
             {approvalStats?.counts?.total_pending ?? pending.length} Awaiting Action
           </span>
         </div>
@@ -733,7 +733,7 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
         ) : (
           <div className="space-y-2">
             {pending.map((p) => (
-              <div key={p.id} className="p-5 bg-black border border-amber-500/20 rounded-2xl space-y-3">
+              <div key={p.id} className="p-5 bg-black border border-warning-border rounded-2xl space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-sm font-bold text-foreground">{p.name}</span>
                   <RiskBadge tier={p.risk_tier} />
@@ -744,7 +744,7 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
                   <ApprovalChain approvals={p.approvals} riskTier={p.risk_tier} />
                   {p.approvals.map((a, i) => (
                     <div key={i} className="flex items-center gap-1.5">
-                      <div className={`w-2 h-2 rounded-full ${a.decision === "APPROVED" ? "bg-emerald-500" : a.decision === "REJECTED" ? "bg-rose-500" : "bg-amber-500/40 border border-amber-500"}`} />
+                      <div className={`w-2 h-2 rounded-full ${a.decision === "APPROVED" ? "bg-success-text" : a.decision === "REJECTED" ? "bg-error-text" : "bg-warning-bg border border-warning-text"}`} />
                       <span className="text-[10px] text-slate-400">{a.reviewer_role}</span>
                       <span className="text-[10px] font-bold text-slate-300">{a.decision}</span>
                     </div>
@@ -766,26 +766,26 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
                       });
                     }}
                     disabled={!p.active_version_id}
-                    className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all disabled:opacity-50"
+                    className="px-4 py-1.5 bg-success-bg border border-success-border text-success-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all disabled:opacity-50"
                   >Approve</button>
                   <button
                     disabled={!p.active_version_id}
                     onClick={() => { if (p.active_version_id) setRejectionModal({ versionId: p.active_version_id, promptName: p.name, title: `Request Changes for "${p.name}"` }); }}
-                    className="px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all disabled:opacity-50"
+                    className="px-4 py-1.5 bg-warning-bg border border-warning-border text-warning-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all disabled:opacity-50"
                   >
                     Request Changes
                   </button>
                   <button
                     onClick={() => { if (p.active_version_id) setRejectionModal({ versionId: p.active_version_id, promptName: p.name, title: `Reject "${p.name}"` }); }}
                     disabled={!p.active_version_id}
-                    className="px-4 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-rose-500/20 transition-all disabled:opacity-50"
+                    className="px-4 py-1.5 bg-error-bg border border-error-border text-error-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all disabled:opacity-50"
                   >Reject</button>
                   {canWaive && (
                     <button
                       onClick={() => { if (p.active_version_id) setWaiveModal({ versionId: p.active_version_id, promptName: p.name }); }}
                       disabled={!p.active_version_id}
                       title="Waive outstanding review requirements with justification (governance override)"
-                      className="px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                      className="px-4 py-1.5 bg-info-bg border border-info-border text-info-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all disabled:opacity-50 flex items-center gap-1.5"
                     ><ShieldCheck className="w-3 h-3" /> Waive</button>
                   )}
                 </div>
@@ -884,9 +884,9 @@ function EvidenceTab({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total Events", value: auditStats?.total ?? 0, color: "text-foreground" },
-          { label: "Today", value: auditStats?.today ?? 0, color: "text-indigo-400" },
-          { label: "Warnings", value: auditStats?.warnings ?? 0, color: "text-amber-400" },
-          { label: "Errors", value: auditStats?.errors ?? 0, color: "text-rose-400" },
+          { label: "Today", value: auditStats?.today ?? 0, color: "text-info-text" },
+          { label: "Warnings", value: auditStats?.warnings ?? 0, color: "text-warning-text" },
+          { label: "Errors", value: auditStats?.errors ?? 0, color: "text-error-text" },
         ].map((s) => (
           <div key={s.label} className="bg-black border border-slate-900 rounded-2xl p-5 text-center">
             <div className={`text-3xl font-black ${s.color}`}>{s.value}</div>
@@ -904,7 +904,7 @@ function EvidenceTab({
             return (
               <div key={e.label} className="flex items-start gap-3 p-4 bg-black border border-slate-900 rounded-2xl">
                 <div className="p-2 bg-slate-950 border border-slate-800 rounded-xl shrink-0">
-                  <Icon className="w-4 h-4 text-indigo-400" />
+                  <Icon className="w-4 h-4 text-info-text" />
                 </div>
                 <div>
                   <div className="text-[11px] font-bold text-foreground">{e.label}</div>
@@ -929,7 +929,7 @@ function EvidenceTab({
             <RiskBadge tier={p.risk_tier} />
             <button
               onClick={() => onExportPromptEvidence(p, "evidence_tab")}
-              className="flex items-center gap-2 px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all"
+              className="flex items-center gap-2 px-4 py-1.5 bg-info-bg border border-info-border text-info-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all"
             >
               <Download className="w-3 h-3" />
               Export Pack
@@ -947,12 +947,12 @@ function EvidenceTab({
         ) : (
           <div className="space-y-3">
             {productionPrompts.map((p) => (
-              <div key={p.id} className="bg-black border border-indigo-500/15 rounded-2xl overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-900 bg-indigo-500/5">
+              <div key={p.id} className="bg-black border border-info-border rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-900 bg-info-bg">
                   <div className="flex items-center gap-3">
-                    <FileCheck className="w-3.5 h-3.5 text-indigo-400" />
+                    <FileCheck className="w-3.5 h-3.5 text-info-text" />
                     <span className="text-[11px] font-black text-foreground">{p.name}</span>
-                    <span className="text-[9px] font-black text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded uppercase tracking-widest">{p.active_version}</span>
+                    <span className="text-[9px] font-black text-info-text bg-info-bg border border-info-border px-2 py-0.5 rounded uppercase tracking-widest">{p.active_version}</span>
                   </div>
                   <RiskBadge tier={p.risk_tier} />
                 </div>
@@ -1016,10 +1016,10 @@ function RuntimeTab({
       {/* Live stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Production Active", value: prompts.filter((p) => p.status === "PRODUCTION_ACTIVE").length, icon: Zap, color: "text-emerald-400" },
-          { label: "Paused", value: paused.length, icon: PauseCircle, color: "text-orange-400" },
-          { label: "HITL Rules Active", value: hitlRules.filter((r) => r.enabled).length, icon: ShieldCheck, color: "text-indigo-400" },
-          { label: "Rollback Available", value: prompts.filter((p) => p.status === "PRODUCTION_ACTIVE" || p.status === "PAUSED").length, icon: RotateCcw, color: "text-amber-400" },
+          { label: "Production Active", value: prompts.filter((p) => p.status === "PRODUCTION_ACTIVE").length, icon: Zap, color: "text-success-text" },
+          { label: "Paused", value: paused.length, icon: PauseCircle, color: "text-warning-text" },
+          { label: "HITL Rules Active", value: hitlRules.filter((r) => r.enabled).length, icon: ShieldCheck, color: "text-info-text" },
+          { label: "Rollback Available", value: prompts.filter((p) => p.status === "PRODUCTION_ACTIVE" || p.status === "PAUSED").length, icon: RotateCcw, color: "text-warning-text" },
         ].map((s) => {
           const Icon = s.icon;
           return (
@@ -1035,11 +1035,11 @@ function RuntimeTab({
       {/* Paused prompts */}
       {paused.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-xs font-black text-orange-400 uppercase tracking-widest flex items-center gap-2">
+          <h3 className="text-xs font-black text-warning-text uppercase tracking-widest flex items-center gap-2">
             <PauseCircle className="w-4 h-4" /> Paused Prompts — Require Investigation
           </h3>
           {paused.map((p) => (
-            <div key={p.id} className="p-5 bg-orange-500/5 border border-orange-500/20 rounded-2xl flex flex-wrap items-center gap-4">
+            <div key={p.id} className="p-5 bg-warning-bg border border-warning-border rounded-2xl flex flex-wrap items-center gap-4">
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-bold text-foreground">{p.name}</div>
                 <div className="text-[10px] text-slate-400 mt-0.5">{p.description}</div>
@@ -1048,13 +1048,13 @@ function RuntimeTab({
               <div className="flex gap-2">
                 <button
                   onClick={() => onLifecycleAction(p.id, "resume")}
-                  className="px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all"
+                  className="px-4 py-1.5 bg-success-bg border border-success-border text-success-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all"
                 >
                   Resume
                 </button>
                 <button
                   onClick={() => onLifecycleAction(p.id, "rollback")}
-                  className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all"
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-warning-bg border border-warning-border text-warning-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all"
                 >
                   <RotateCcw className="w-3 h-3" />
                   Rollback
@@ -1074,12 +1074,12 @@ function RuntimeTab({
           <div className="space-y-2">
             {hitlRules.map((rule) => (
               <div key={rule.id} className="flex items-center gap-4 p-4 bg-black border border-slate-900 rounded-2xl">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${rule.enabled ? "bg-emerald-500" : "bg-slate-700"}`} />
+                <div className={`w-2 h-2 rounded-full shrink-0 ${rule.enabled ? "bg-success-text" : "bg-slate-700"}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-[11px] font-bold text-foreground">{rule.trigger}</div>
                   <div className="text-[10px] text-slate-500">{rule.action} → routed to <span className="text-slate-300 font-bold">{rule.route_to_role}</span></div>
                 </div>
-                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${rule.enabled ? "text-emerald-400 bg-emerald-500/10" : "text-slate-600 bg-slate-900"}`}>
+                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${rule.enabled ? "text-success-text bg-success-bg" : "text-slate-600 bg-slate-900"}`}>
                   {rule.enabled ? "ENABLED" : "DISABLED"}
                 </span>
               </div>
@@ -1090,22 +1090,22 @@ function RuntimeTab({
 
       {/* Drift Monitor */}
       <div className="space-y-3">
-        <h3 className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
+        <h3 className="text-xs font-black text-warning-text uppercase tracking-widest flex items-center gap-2">
           <BarChart3 className="w-4 h-4" /> Drift Monitor — Post-Deployment Telemetry
         </h3>
         <p className="text-[10px] text-slate-500 leading-relaxed max-w-2xl">After deployment, every prompt is monitored for output quality, rejection rate, hallucination flags, faithfulness, brand alignment, and policy trigger rate. Prompts that exceed drift thresholds are flagged for regression testing.</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "First-Pass Acceptance", desc: "% of outputs accepted without human edit or rejection. Rising rate improves trust score.", threshold: "Target ≥ 85%", color: "text-emerald-400" },
-            { label: "Remediation Rate", desc: "% of executions requiring human correction after output. High rate triggers prompt review.", threshold: "Alert > 10%", color: "text-amber-400" },
-            { label: "Hallucination Flags", desc: "Outputs flagged for unsupported claims, fabricated sources, or unverifiable statistics.", threshold: "Alert > 0 on restricted", color: "text-rose-400" },
-            { label: "Brand Alignment Score", desc: "Average score measuring adherence to approved voice, vocabulary, and channel constraints.", threshold: "Target ≥ 80", color: "text-indigo-400" },
-            { label: "Policy Trigger Rate", desc: "Executions blocked or escalated by policy engine per 1,000 runs. High rate signals prompt design flaw.", threshold: "Alert > 5%", color: "text-orange-400" },
-            { label: "Faithfulness Score", desc: "Measures citation accuracy and source grounding for knowledge-bound prompts.", threshold: "Target ≥ 90%", color: "text-teal-400" },
+            { label: "First-Pass Acceptance", desc: "% of outputs accepted without human edit or rejection. Rising rate improves trust score.", threshold: "Target ≥ 85%", color: "text-success-text" },
+            { label: "Remediation Rate", desc: "% of executions requiring human correction after output. High rate triggers prompt review.", threshold: "Alert > 10%", color: "text-warning-text" },
+            { label: "Hallucination Flags", desc: "Outputs flagged for unsupported claims, fabricated sources, or unverifiable statistics.", threshold: "Alert > 0 on restricted", color: "text-error-text" },
+            { label: "Brand Alignment Score", desc: "Average score measuring adherence to approved voice, vocabulary, and channel constraints.", threshold: "Target ≥ 80", color: "text-info-text" },
+            { label: "Policy Trigger Rate", desc: "Executions blocked or escalated by policy engine per 1,000 runs. High rate signals prompt design flaw.", threshold: "Alert > 5%", color: "text-warning-text" },
+            { label: "Faithfulness Score", desc: "Measures citation accuracy and source grounding for knowledge-bound prompts.", threshold: "Target ≥ 90%", color: "text-info-text" },
             { label: "Token ROI", desc: "Output quality relative to token cost. Flags expensive prompts producing low-value or low-acceptance outputs.", threshold: "Monitor weekly", color: "text-slate-400" },
-            { label: "HITL Escalation Rate", desc: "Executions routed to human review. Sustained high rate indicates unclear instructions or autonomy misconfiguration.", threshold: "Alert > 15%", color: "text-amber-400" },
+            { label: "HITL Escalation Rate", desc: "Executions routed to human review. Sustained high rate indicates unclear instructions or autonomy misconfiguration.", threshold: "Alert > 15%", color: "text-warning-text" },
           ].map((m) => (
-            <div key={m.label} className="p-4 bg-black border border-slate-900 rounded-2xl space-y-1.5 hover:border-amber-500/20 transition-all">
+            <div key={m.label} className="p-4 bg-black border border-slate-900 rounded-2xl space-y-1.5 hover:border-warning-border transition-all">
               <div className={`text-[10px] font-black uppercase tracking-widest ${m.color}`}>{m.label}</div>
               <div className="text-[9px] text-slate-500 leading-relaxed">{m.desc}</div>
               <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest border-t border-slate-900 pt-1.5 mt-1">{m.threshold}</div>
@@ -1123,7 +1123,7 @@ function RuntimeTab({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {RUNTIME_RULES.map((rule, i) => (
             <div key={i} className="flex items-start gap-2 p-3 bg-black border border-slate-900 rounded-xl text-[10px] text-slate-400">
-              <Network className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" />
+              <Network className="w-3.5 h-3.5 text-info-text mt-0.5 shrink-0" />
               {rule}
             </div>
           ))}
@@ -1278,9 +1278,9 @@ ROLLBACK: If behavior degrades, disable and revert to [PREV VERSION]. Notify [OW
 }
 
 const AUDIT_STATUS = {
-  PASS: { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", icon: CheckCircle2 },
-  WARN: { color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20", icon: AlertTriangle },
-  FAIL: { color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20", icon: XCircle },
+  PASS: { color: "text-success-text", bg: "bg-success-bg", border: "border-success-border", icon: CheckCircle2 },
+  WARN: { color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border", icon: AlertTriangle },
+  FAIL: { color: "text-error-text", bg: "bg-error-bg", border: "border-error-border", icon: XCircle },
 };
 
 function AuditScoreRing({ score }: { score: number }) {
@@ -1321,9 +1321,9 @@ function AuditorTab() {
   };
 
   const VERDICT_STYLE = {
-    "APPROVED": { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-    "CONDITIONALLY APPROVED": { color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-    "BLOCKED": { color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20" },
+    "APPROVED": { color: "text-success-text", bg: "bg-success-bg", border: "border-success-border" },
+    "CONDITIONALLY APPROVED": { color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border" },
+    "BLOCKED": { color: "text-error-text", bg: "bg-error-bg", border: "border-error-border" },
   };
 
   return (
@@ -1339,7 +1339,7 @@ function AuditorTab() {
           <div className="space-y-1 flex-1">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Risk Tier</label>
             <select value={tier} onChange={e => setTier(e.target.value as AuditRiskTier)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-foreground focus:outline-none focus:border-indigo-500 transition-all">
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-foreground focus:outline-none focus:border-info-border transition-all">
               {(["Tier 1 Low","Tier 2 Medium","Tier 3 High","Tier 4 Critical"] as AuditRiskTier[]).map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
@@ -1348,14 +1348,14 @@ function AuditorTab() {
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Prompt to Audit</label>
           <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={9}
             placeholder="Paste the prompt you want to audit here..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-foreground placeholder:text-slate-700 focus:outline-none focus:border-indigo-500 resize-none font-mono transition-all leading-relaxed" />
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-foreground placeholder:text-slate-700 focus:outline-none focus:border-info-border resize-none font-mono transition-all leading-relaxed" />
           <div className="flex justify-between text-[10px] text-slate-600">
             <span>{prompt.length} characters</span><span>{prompt.trim().split(/\s+/).filter(Boolean).length} words</span>
           </div>
         </div>
         <div className="flex gap-3">
           <button onClick={handleAudit} disabled={!prompt.trim() || running}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-foreground text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-info-text hover:brightness-110 text-foreground text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed">
             {running ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>Running...</> : <><ShieldCheck className="w-3.5 h-3.5"/>Run Audit</>}
           </button>
           {report && <button onClick={() => { setReport(null); setPrompt(""); setExpanded(null); }}
@@ -1369,7 +1369,7 @@ function AuditorTab() {
           {/* Score Summary */}
           <div className="bg-black border border-slate-800 rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-5">
-              <div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 1 — Score Summary</span>
+              <div className="w-1 h-5 rounded-full bg-info-text"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 1 — Score Summary</span>
             </div>
             <div className="flex flex-col md:flex-row gap-6 items-center">
               <div className="flex flex-col items-center gap-2"><AuditScoreRing score={report.score}/><span className="text-[10px] text-slate-500 font-bold">Overall Score</span></div>
@@ -1378,10 +1378,10 @@ function AuditorTab() {
                   <ShieldCheck className={`w-5 h-5 ${VERDICT_STYLE[report.verdict].color}`}/>
                   <div><div className={`text-base font-black ${VERDICT_STYLE[report.verdict].color}`}>{report.verdict}</div><div className="text-[10px] text-slate-500">Final Verdict · {report.tier}</div></div>
                 </div>
-                <div className="p-3 rounded-xl border border-slate-800 bg-slate-950 text-center"><div className="text-xl font-black text-emerald-400">{report.pass}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Pass</div></div>
+                <div className="p-3 rounded-xl border border-slate-800 bg-slate-950 text-center"><div className="text-xl font-black text-success-text">{report.pass}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Pass</div></div>
                 <div className="p-3 rounded-xl border border-slate-800 bg-slate-950 grid grid-cols-2 gap-2 text-center">
-                  <div><div className="text-xl font-black text-amber-400">{report.warn}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Warn</div></div>
-                  <div><div className="text-xl font-black text-rose-400">{report.fail}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Fail</div></div>
+                  <div><div className="text-xl font-black text-warning-text">{report.warn}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Warn</div></div>
+                  <div><div className="text-xl font-black text-error-text">{report.fail}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Fail</div></div>
                 </div>
               </div>
             </div>
@@ -1390,7 +1390,7 @@ function AuditorTab() {
           {/* Model Findings */}
           <div className="bg-black border border-slate-800 rounded-2xl overflow-hidden">
             <div className="flex items-center gap-2 p-5 border-b border-slate-800">
-              <div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 2 — Model Findings</span>
+              <div className="w-1 h-5 rounded-full bg-info-text"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 2 — Model Findings</span>
             </div>
             <div className="divide-y divide-slate-900">
               {report.models.map(m => {
@@ -1415,8 +1415,8 @@ function AuditorTab() {
                     {open && (
                       <div className="px-4 pb-4 ml-11 border-l-2 border-slate-800 space-y-2 ml-[60px]">
                         <div><span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Finding</span><p className="text-xs text-slate-300 mt-1 leading-relaxed">{m.finding}</p></div>
-                        {m.fix && <div><span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Fix Required</span><p className="text-xs text-slate-400 mt-1 leading-relaxed">{m.fix}</p></div>}
-                        {!m.fix && <div className="flex items-center gap-1.5 text-xs text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5"/>No fix required</div>}
+                        {m.fix && <div><span className="text-[9px] font-black text-warning-text uppercase tracking-widest">Fix Required</span><p className="text-xs text-slate-400 mt-1 leading-relaxed">{m.fix}</p></div>}
+                        {!m.fix && <div className="flex items-center gap-1.5 text-xs text-success-text"><CheckCircle2 className="w-3.5 h-3.5"/>No fix required</div>}
                       </div>
                     )}
                   </div>
@@ -1427,23 +1427,23 @@ function AuditorTab() {
 
           {/* Executive Summary */}
           <div className="bg-black border border-slate-800 rounded-2xl p-5">
-            <div className="flex items-center gap-2 mb-3"><div className="w-1 h-5 rounded-full bg-indigo-500"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 3 — Executive Summary</span></div>
+            <div className="flex items-center gap-2 mb-3"><div className="w-1 h-5 rounded-full bg-info-text"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 3 — Executive Summary</span></div>
             <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 border border-slate-800 rounded-xl p-4">{report.summary}</p>
           </div>
 
           {/* Rebuilt Prompt */}
           {report.rebuilt && (
-            <div className="bg-black border border-rose-500/20 rounded-2xl overflow-hidden">
+            <div className="bg-black border border-error-border rounded-2xl overflow-hidden">
               <div className="flex items-center justify-between p-5 border-b border-slate-800">
-                <div className="flex items-center gap-2"><div className="w-1 h-5 rounded-full bg-rose-500"/><div><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 4 — Rebuilt Prompt</span><p className="text-[10px] text-slate-500 mt-0.5">Score below 70 or a model failed — production-ready governed prompt generated.</p></div></div>
+                <div className="flex items-center gap-2"><div className="w-1 h-5 rounded-full bg-error-text"/><div><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 4 — Rebuilt Prompt</span><p className="text-[10px] text-slate-500 mt-0.5">Score below 70 or a model failed — production-ready governed prompt generated.</p></div></div>
                 <button onClick={handleCopy} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-400 hover:text-white hover:border-slate-600 transition-all shrink-0">
-                  {copied ? <><Check className="w-3.5 h-3.5 text-emerald-400"/>Copied!</> : <><Copy className="w-3.5 h-3.5"/>Copy</>}
+                  {copied ? <><Check className="w-3.5 h-3.5 text-success-text"/>Copied!</> : <><Copy className="w-3.5 h-3.5"/>Copy</>}
                 </button>
               </div>
               <div className="p-5">
-                <div className="flex items-start gap-2 mb-3 p-3 rounded-xl bg-rose-500/5 border border-rose-500/15">
-                  <ShieldAlert className="w-3.5 h-3.5 text-rose-400 mt-0.5 shrink-0"/>
-                  <p className="text-[10px] text-rose-300/80">Replace all <code className="bg-rose-500/10 px-1 rounded text-rose-400">[BRACKETED PLACEHOLDERS]</code> with your actual values before deploying.</p>
+                <div className="flex items-start gap-2 mb-3 p-3 rounded-xl bg-error-bg border border-error-border">
+                  <ShieldAlert className="w-3.5 h-3.5 text-error-text mt-0.5 shrink-0"/>
+                  <p className="text-[10px] text-error-text/80">Replace all <code className="bg-error-bg px-1 rounded text-error-text">[BRACKETED PLACEHOLDERS]</code> with your actual values before deploying.</p>
                 </div>
                 <pre className="text-[10px] text-slate-400 font-mono leading-relaxed whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-xl p-4 overflow-x-auto max-h-96 overflow-y-auto">{report.rebuilt}</pre>
               </div>
@@ -1451,9 +1451,9 @@ function AuditorTab() {
           )}
 
           {!report.rebuilt && (
-            <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0"/>
-              <div><p className="text-xs font-bold text-emerald-400">No Rebuild Required</p><p className="text-[10px] text-slate-500 mt-0.5">Scored {report.score}/100 with no FAIL conditions — approved for deployment at {report.tier}.</p></div>
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-success-bg border border-success-border">
+              <CheckCircle2 className="w-5 h-5 text-success-text shrink-0"/>
+              <div><p className="text-xs font-bold text-success-text">No Rebuild Required</p><p className="text-[10px] text-slate-500 mt-0.5">Scored {report.score}/100 with no FAIL conditions — approved for deployment at {report.tier}.</p></div>
             </div>
           )}
         </div>
@@ -1461,8 +1461,8 @@ function AuditorTab() {
 
       {!report && !running && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
-            <ShieldCheck className="w-7 h-7 text-indigo-400"/>
+          <div className="w-14 h-14 rounded-2xl bg-info-bg border border-info-border flex items-center justify-center mb-4">
+            <ShieldCheck className="w-7 h-7 text-info-text"/>
           </div>
           <h3 className="text-sm font-bold text-foreground mb-2">Ready to Audit</h3>
           <p className="text-xs text-slate-500 max-w-sm leading-relaxed">Paste any prompt above, set the risk tier, and click <strong className="text-foreground">Run Audit</strong> to evaluate it against all 8 governance models.</p>
@@ -1562,13 +1562,13 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Type</label>
-        <select value={promptType} onChange={(e) => setPromptType(e.target.value as PromptType)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
+        <select value={promptType} onChange={(e) => setPromptType(e.target.value as PromptType)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
           {(["system","agent_role","task","channel","tool_use","escalation","refusal","safety","localization"] as const).map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
         </select>
       </div>
       <div className="space-y-2">
         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Risk Tier</label>
-        <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
+        <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
           {(Object.keys(RISK_META) as RiskTier[]).map((r) => <option key={r} value={r}>{RISK_META[r].label}</option>)}
         </select>
       </div>
@@ -1592,7 +1592,7 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
                 <button
                   key={m.id}
                   onClick={() => { setMode(m.id); setLocalError(null); }}
-                  className={`flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-wider transition-all ${mode === m.id ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/30" : "bg-black text-slate-500 border-slate-800 hover:text-slate-300"}`}
+                  className={`flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-wider transition-all ${mode === m.id ? "bg-info-bg text-info-text border-info-border" : "bg-black text-slate-500 border-slate-800 hover:text-slate-300"}`}
                 >
                   <Icon className="w-3.5 h-3.5" />
                   {m.label}
@@ -1607,26 +1607,26 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
             <>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Prompt Name *</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Brand Voice — Content Lead" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Brand Voice — Content Lead" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-info-border transition-all" />
               </div>
               {mode === "workflow_node" && (
                 <>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Workflow *</label>
-                    <select value={workflowId} onChange={(e) => setWorkflowId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
+                    <select value={workflowId} onChange={(e) => setWorkflowId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
                       <option value="">{workflows.length ? "Select a workflow…" : "Loading workflows…"}</option>
                       {workflows.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Node Name / Execution Context</label>
-                    <input value={nodeName} onChange={(e) => setNodeName(e.target.value)} placeholder="e.g. caption-generation node" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
+                    <input value={nodeName} onChange={(e) => setNodeName(e.target.value)} placeholder="e.g. caption-generation node" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-info-border transition-all" />
                   </div>
                 </>
               )}
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Description</label>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose and scope of this prompt..." className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all h-20 resize-none text-sm" />
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose and scope of this prompt..." className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-info-border transition-all h-20 resize-none text-sm" />
               </div>
               {typeAndRisk}
             </>
@@ -1634,26 +1634,26 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
 
           {(mode === "template" || mode === "clone") && (
             <>
-              <div className="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/15 text-[10px] text-slate-400 leading-relaxed">
+              <div className="p-3 rounded-xl bg-info-bg border border-info-border text-[10px] text-slate-400 leading-relaxed">
                 {mode === "template"
                   ? "Creates a new draft copying the source's variables, guardrails, tools, knowledge bindings, and metadata. Approvals, audit history, deployments, and evidence are not copied."
                   : "Creates an independent draft copy of an existing prompt's configuration."}
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{mode === "template" ? "Source (approved prompt) *" : "Source prompt *"}</label>
-                <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
+                <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
                   <option value="">Select a source…</option>
                   {(mode === "template" ? templateSources : prompts).map((p) => <option key={p.id} value={p.id}>{p.name} · {STATUS_META[normalizeStatus(p.status)].label}</option>)}
                 </select>
                 {mode === "template" && templateSources.length === 0 && (
-                  <p className="text-[10px] text-amber-400">No approved prompts available to use as a template yet.</p>
+                  <p className="text-[10px] text-warning-text">No approved prompts available to use as a template yet.</p>
                 )}
               </div>
               {mode === "template" && (
                 <>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">New Prompt Name (optional)</label>
-                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Defaults to “<source> (From Template)”" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all" />
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Defaults to “<source> (From Template)”" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-info-border transition-all" />
                   </div>
                   {typeAndRisk}
                 </>
@@ -1669,19 +1669,19 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
                 value={importJson}
                 onChange={(e) => setImportJson(e.target.value)}
                 placeholder={`{\n  "name": "Imported Prompt",\n  "prompt_type": "system",\n  "risk_tier": "tier_2_medium",\n  "body": "...",\n  "variables_json": {}\n}`}
-                className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-indigo-500 transition-all h-48 resize-none text-[11px] font-mono"
+                className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-info-border transition-all h-48 resize-none text-[11px] font-mono"
               />
             </div>
           )}
 
           {localError && (
-            <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[11px] text-rose-400 whitespace-pre-wrap">
+            <div className="flex items-start gap-2 rounded-xl border border-error-border bg-error-bg px-4 py-3 text-[11px] text-error-text whitespace-pre-wrap">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{localError}</span>
             </div>
           )}
 
-          <button onClick={submit} disabled={creating} className="w-full py-4 bg-indigo-500 text-foreground rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20">
+          <button onClick={submit} disabled={creating} className="w-full py-4 bg-info-text text-foreground rounded-2xl font-black text-sm hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20">
             {creating ? <><Loader2 className="w-4 h-4 animate-spin" />CREATING...</> : <><Plus className="w-4 h-4" />{mode === "clone" ? "CLONE PROMPT" : mode === "import" ? "IMPORT PROMPT" : "CREATE PROMPT"}</>}
           </button>
         </div>
@@ -1798,11 +1798,11 @@ function VariableEditor({ versionId, editable }: { versionId?: string; editable:
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black flex items-center gap-2"><Variable className="w-3.5 h-3.5 text-indigo-400" /> Governed Variables</div>
-        {editable && <button onClick={add} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all"><Plus className="w-3 h-3" /> Add Variable</button>}
+        <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black flex items-center gap-2"><Variable className="w-3.5 h-3.5 text-info-text" /> Governed Variables</div>
+        {editable && <button onClick={add} className="flex items-center gap-1.5 px-3 py-1.5 bg-info-bg border border-info-border text-info-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all"><Plus className="w-3 h-3" /> Add Variable</button>}
       </div>
 
-      {!editable && <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/15 text-[10px] text-amber-400">This prompt is not in an editable state, or you lack edit permission. Variables are read-only.</div>}
+      {!editable && <div className="p-3 rounded-xl bg-warning-bg border border-warning-border text-[10px] text-warning-text">This prompt is not in an editable state, or you lack edit permission. Variables are read-only.</div>}
       {loading ? (
         <div className="flex items-center gap-2 py-6 text-slate-500"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading variables…</span></div>
       ) : rows.length === 0 ? (
@@ -1812,28 +1812,28 @@ function VariableEditor({ versionId, editable }: { versionId?: string; editable:
           {rows.map((r, i) => (
             <div key={i} className="p-4 bg-black border border-slate-900 rounded-2xl space-y-3">
               <div className="flex items-center gap-2">
-                <input disabled={!editable} value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="variable_name" className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-indigo-500 disabled:opacity-60" />
-                <select disabled={!editable} value={r.type} onChange={(e) => update(i, { type: e.target.value as VariableType })} className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-[11px] text-slate-300 outline-none focus:border-indigo-500 disabled:opacity-60">
+                <input disabled={!editable} value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="variable_name" className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-info-border disabled:opacity-60" />
+                <select disabled={!editable} value={r.type} onChange={(e) => update(i, { type: e.target.value as VariableType })} className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-[11px] text-slate-300 outline-none focus:border-info-border disabled:opacity-60">
                   {VARIABLE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
                 <label className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap"><input disabled={!editable} type="checkbox" checked={r.required} onChange={(e) => update(i, { required: e.target.checked })} /> required</label>
-                {editable && <button onClick={() => remove(i)} className="p-1.5 text-rose-400/70 hover:text-rose-400 transition-colors" title="Delete variable"><XCircle className="w-4 h-4" /></button>}
+                {editable && <button onClick={() => remove(i)} className="p-1.5 text-error-text/70 hover:text-error-text transition-colors" title="Delete variable"><XCircle className="w-4 h-4" /></button>}
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <input disabled={!editable} value={r.allowedValues} onChange={(e) => update(i, { allowedValues: e.target.value })} placeholder="Allowed values (comma-separated)" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-indigo-500 disabled:opacity-60" />
-                <input disabled={!editable} value={r.validationRule} onChange={(e) => update(i, { validationRule: e.target.value })} placeholder="Validation regex" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] font-mono text-foreground outline-none focus:border-indigo-500 disabled:opacity-60" />
-                <input disabled={!editable} value={r.fallbackValue} onChange={(e) => update(i, { fallbackValue: e.target.value })} placeholder="Fallback / default value" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-indigo-500 disabled:opacity-60" />
-                <input disabled={!editable} value={r.example} onChange={(e) => update(i, { example: e.target.value })} placeholder="Example" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-indigo-500 disabled:opacity-60" />
+                <input disabled={!editable} value={r.allowedValues} onChange={(e) => update(i, { allowedValues: e.target.value })} placeholder="Allowed values (comma-separated)" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-info-border disabled:opacity-60" />
+                <input disabled={!editable} value={r.validationRule} onChange={(e) => update(i, { validationRule: e.target.value })} placeholder="Validation regex" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] font-mono text-foreground outline-none focus:border-info-border disabled:opacity-60" />
+                <input disabled={!editable} value={r.fallbackValue} onChange={(e) => update(i, { fallbackValue: e.target.value })} placeholder="Fallback / default value" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-info-border disabled:opacity-60" />
+                <input disabled={!editable} value={r.example} onChange={(e) => update(i, { example: e.target.value })} placeholder="Example" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-info-border disabled:opacity-60" />
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {error && <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[11px] text-rose-400"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
-      {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[11px] text-emerald-400"><Check className="w-4 h-4 shrink-0" /><span>{notice}</span></div>}
+      {error && <div className="flex items-start gap-2 rounded-xl border border-error-border bg-error-bg px-4 py-3 text-[11px] text-error-text"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
+      {notice && <div className="flex items-center gap-2 rounded-xl border border-success-border bg-success-bg px-4 py-3 text-[11px] text-success-text"><Check className="w-4 h-4 shrink-0" /><span>{notice}</span></div>}
       {editable && rows.length > 0 && (
-        <button onClick={save} disabled={saving} className="w-full py-3 bg-indigo-500 text-foreground rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+        <button onClick={save} disabled={saving} className="w-full py-3 bg-info-text text-foreground rounded-xl font-black text-xs uppercase tracking-widest hover:brightness-110 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
           {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Check className="w-4 h-4" /> Save Variables</>}
         </button>
       )}
@@ -1917,10 +1917,10 @@ function GuardrailEditor({ promptId, versionId, editable }: { promptId: string; 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-rose-400" /> Guardrails</div>
-        {editable && <button onClick={add} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-rose-500/20 transition-all"><Plus className="w-3 h-3" /> Add Guardrail</button>}
+        <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-error-text" /> Guardrails</div>
+        {editable && <button onClick={add} className="flex items-center gap-1.5 px-3 py-1.5 bg-error-bg border border-error-border text-error-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all"><Plus className="w-3 h-3" /> Add Guardrail</button>}
       </div>
-      {!editable && <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/15 text-[10px] text-amber-400">This prompt is not in an editable state, or you lack edit permission. Guardrails are read-only.</div>}
+      {!editable && <div className="p-3 rounded-xl bg-warning-bg border border-warning-border text-[10px] text-warning-text">This prompt is not in an editable state, or you lack edit permission. Guardrails are read-only.</div>}
       {loading ? (
         <div className="flex items-center gap-2 py-6 text-slate-500"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading guardrails…</span></div>
       ) : rows.length === 0 ? (
@@ -1930,7 +1930,7 @@ function GuardrailEditor({ promptId, versionId, editable }: { promptId: string; 
           {rows.map((r, i) => (
             <div key={i} className="p-3 bg-black border border-slate-900 rounded-2xl space-y-2">
               <div className="flex items-center gap-2">
-                <select disabled={!editable} value={r.category} onChange={(e) => update(i, { category: e.target.value as GuardrailCategory })} className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-[11px] text-slate-300 outline-none focus:border-rose-500 disabled:opacity-60">
+                <select disabled={!editable} value={r.category} onChange={(e) => update(i, { category: e.target.value as GuardrailCategory })} className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-[11px] text-slate-300 outline-none focus:border-error-border disabled:opacity-60">
                   {GUARDRAIL_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                 </select>
                 <label className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap"><input disabled={!editable} type="checkbox" checked={r.enabled} onChange={(e) => update(i, { enabled: e.target.checked })} /> enabled</label>
@@ -1938,19 +1938,19 @@ function GuardrailEditor({ promptId, versionId, editable }: { promptId: string; 
                   {editable && <>
                     <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1.5 py-1 text-slate-500 hover:text-white disabled:opacity-30" title="Move up">↑</button>
                     <button onClick={() => move(i, 1)} disabled={i === rows.length - 1} className="px-1.5 py-1 text-slate-500 hover:text-white disabled:opacity-30" title="Move down">↓</button>
-                    <button onClick={() => remove(i)} className="p-1.5 text-rose-400/70 hover:text-rose-400" title="Delete guardrail"><XCircle className="w-4 h-4" /></button>
+                    <button onClick={() => remove(i)} className="p-1.5 text-error-text/70 hover:text-error-text" title="Delete guardrail"><XCircle className="w-4 h-4" /></button>
                   </>}
                 </div>
               </div>
-              <textarea disabled={!editable} value={r.rule} onChange={(e) => update(i, { rule: e.target.value })} placeholder="Guardrail rule text…" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-rose-500 h-16 resize-none disabled:opacity-60" />
+              <textarea disabled={!editable} value={r.rule} onChange={(e) => update(i, { rule: e.target.value })} placeholder="Guardrail rule text…" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-error-border h-16 resize-none disabled:opacity-60" />
             </div>
           ))}
         </div>
       )}
-      {error && <div className="flex items-start gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[11px] text-rose-400"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
-      {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[11px] text-emerald-400"><Check className="w-4 h-4 shrink-0" /><span>{notice}</span></div>}
+      {error && <div className="flex items-start gap-2 rounded-xl border border-error-border bg-error-bg px-4 py-3 text-[11px] text-error-text"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span>{error}</span></div>}
+      {notice && <div className="flex items-center gap-2 rounded-xl border border-success-border bg-success-bg px-4 py-3 text-[11px] text-success-text"><Check className="w-4 h-4 shrink-0" /><span>{notice}</span></div>}
       {editable && rows.length > 0 && (
-        <button onClick={save} disabled={saving} className="w-full py-3 bg-rose-500 text-foreground rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-600 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+        <button onClick={save} disabled={saving} className="w-full py-3 bg-error-text text-foreground rounded-xl font-black text-xs uppercase tracking-widest hover:brightness-110 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
           {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><Check className="w-4 h-4" /> Save Guardrails</>}
         </button>
       )}
@@ -2004,18 +2004,18 @@ function PreSubmitValidation({ prompt, onResult }: { prompt: PromptRecord; onRes
   useEffect(() => { if (!loading) onResult(hasBlocking); }, [loading, hasBlocking, onResult]);
 
   const ICON: Record<ValidationLevel, { icon: React.ElementType; cls: string }> = {
-    pass: { icon: CheckCircle2, cls: "text-emerald-400" },
-    warning: { icon: AlertTriangle, cls: "text-amber-400" },
-    blocking: { icon: XCircle, cls: "text-rose-400" },
+    pass: { icon: CheckCircle2, cls: "text-success-text" },
+    warning: { icon: AlertTriangle, cls: "text-warning-text" },
+    blocking: { icon: XCircle, cls: "text-error-text" },
   };
 
   return (
-    <div className={`rounded-2xl border p-4 space-y-2 ${hasBlocking ? "border-rose-500/20 bg-rose-500/5" : "border-emerald-500/15 bg-emerald-500/5"}`}>
+    <div className={`rounded-2xl border p-4 space-y-2 ${hasBlocking ? "border-error-border bg-error-bg" : "border-success-border bg-success-bg"}`}>
       <div className="flex items-center gap-2">
-        <ShieldCheck className={`w-3.5 h-3.5 ${hasBlocking ? "text-rose-400" : "text-emerald-400"}`} />
+        <ShieldCheck className={`w-3.5 h-3.5 ${hasBlocking ? "text-error-text" : "text-success-text"}`} />
         <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Pre-Submit Validation</span>
         {loading && <Loader2 className="w-3 h-3 animate-spin text-slate-500" />}
-        <span className={`ml-auto text-[10px] font-black uppercase tracking-widest ${hasBlocking ? "text-rose-400" : "text-emerald-400"}`}>{hasBlocking ? "Blocked" : "Ready"}</span>
+        <span className={`ml-auto text-[10px] font-black uppercase tracking-widest ${hasBlocking ? "text-error-text" : "text-success-text"}`}>{hasBlocking ? "Blocked" : "Ready"}</span>
       </div>
       <div className="space-y-1.5">
         {checks.map((c) => {
@@ -2031,7 +2031,7 @@ function PreSubmitValidation({ prompt, onResult }: { prompt: PromptRecord; onRes
           );
         })}
       </div>
-      {hasBlocking && <p className="text-[10px] text-rose-400/80 leading-relaxed">Resolve the blocking items above before submitting for review. Warnings do not block submission.</p>}
+      {hasBlocking && <p className="text-[10px] text-error-text/80 leading-relaxed">Resolve the blocking items above before submitting for review. Warnings do not block submission.</p>}
     </div>
   );
 }
@@ -2074,10 +2074,10 @@ function DeploymentConfirmation({ data, prompt, onClose, onRollback, onOpenInCen
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-950 border border-emerald-500/25 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-emerald-500/5">
+      <div className="bg-slate-950 border border-success-border rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-success-bg">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            <CheckCircle2 className="w-5 h-5 text-success-text" />
             <h3 className="text-lg font-bold text-foreground">Deployment Confirmed</h3>
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
@@ -2098,17 +2098,17 @@ function DeploymentConfirmation({ data, prompt, onClose, onRollback, onOpenInCen
           <div>
             <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Affected Agents</div>
             {agents.length ? (
-              <div className="flex flex-wrap gap-2">{agents.map((a) => <span key={a} className="inline-flex items-center gap-1 text-[10px] text-slate-300 bg-black border border-slate-800 px-2 py-1 rounded-lg"><Cpu className="w-3 h-3 text-indigo-400" />{a}</span>)}</div>
+              <div className="flex flex-wrap gap-2">{agents.map((a) => <span key={a} className="inline-flex items-center gap-1 text-[10px] text-slate-300 bg-black border border-slate-800 px-2 py-1 rounded-lg"><Cpu className="w-3 h-3 text-info-text" />{a}</span>)}</div>
             ) : <p className="text-[10px] text-slate-600 italic">No agents directly bound to this prompt.</p>}
           </div>
           <div>
             <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Affected Workflows</div>
             {workflows.length ? (
-              <div className="flex flex-wrap gap-2">{workflows.map((w) => <span key={w} className="inline-flex items-center gap-1 text-[10px] text-slate-300 bg-black border border-slate-800 px-2 py-1 rounded-lg"><GitBranch className="w-3 h-3 text-amber-400" />{w}</span>)}</div>
+              <div className="flex flex-wrap gap-2">{workflows.map((w) => <span key={w} className="inline-flex items-center gap-1 text-[10px] text-slate-300 bg-black border border-slate-800 px-2 py-1 rounded-lg"><GitBranch className="w-3 h-3 text-warning-text" />{w}</span>)}</div>
             ) : <p className="text-[10px] text-slate-600 italic">No workflows directly bound to this prompt.</p>}
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
-            <button onClick={() => onOpenInCenter(prompt.id, data.version_id)} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all">
+            <button onClick={() => onOpenInCenter(prompt.id, data.version_id)} className="flex items-center gap-1.5 px-4 py-2 bg-info-bg border border-info-border text-info-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all">
               <FileCheck className="w-3 h-3" /> View Evidence / Receipt
             </button>
             {data.evidence_id && (
@@ -2116,7 +2116,7 @@ function DeploymentConfirmation({ data, prompt, onClose, onRollback, onOpenInCen
                 <ArrowRight className="w-3 h-3" /> Evidence Vault
               </a>
             )}
-            <button onClick={() => { onRollback(); onClose(); }} className="flex items-center gap-1.5 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all">
+            <button onClick={() => { onRollback(); onClose(); }} className="flex items-center gap-1.5 px-4 py-2 bg-warning-bg border border-warning-border text-warning-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all">
               <RotateCcw className="w-3 h-3" /> Rollback
             </button>
           </div>
@@ -2151,7 +2151,7 @@ function RejectionModal({ title, promptName, onConfirm, onCancel }: {
   const valid = category && notes.trim().length >= 4;
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-950 border border-rose-500/25 rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden">
+      <div className="bg-slate-950 border border-error-border rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden">
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <h3 className="text-base font-bold text-foreground">{title}</h3>
           <button onClick={onCancel} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
@@ -2160,18 +2160,18 @@ function RejectionModal({ title, promptName, onConfirm, onCancel }: {
           <p className="text-[11px] text-slate-500">{promptName}</p>
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Reason Category *</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-rose-500 transition-all text-xs">
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-error-border transition-all text-xs">
               <option value="">Select a category…</option>
               {REJECTION_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Actionable Notes *</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Describe the specific change required…" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-rose-500 transition-all h-24 resize-none text-sm" />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Describe the specific change required…" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-error-border transition-all h-24 resize-none text-sm" />
           </div>
           <div className="flex gap-2">
             <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-slate-800 text-slate-300 font-semibold text-sm hover:bg-slate-900 transition-all">Cancel</button>
-            <button onClick={() => onConfirm(category, notes.trim())} disabled={!valid} className="flex-1 py-3 rounded-xl bg-rose-600 text-foreground font-bold text-sm hover:bg-rose-500 disabled:opacity-50 transition-all">Submit</button>
+            <button onClick={() => onConfirm(category, notes.trim())} disabled={!valid} className="flex-1 py-3 rounded-xl bg-error-text text-foreground font-bold text-sm hover:brightness-110 disabled:opacity-50 transition-all">Submit</button>
           </div>
         </div>
       </div>
@@ -2282,7 +2282,7 @@ function PromptDetailDrawer({
           </div>
           <div className="flex gap-1">
             {(["overview", "body", "bindings", "variables", "guardrails", "history"] as const).map((t) => (
-              <button key={t} onClick={() => setDrawerTab(t)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${drawerTab === t ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "text-slate-500 hover:text-white"}`}>
+              <button key={t} onClick={() => setDrawerTab(t)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${drawerTab === t ? "bg-info-bg text-info-text border border-info-border" : "text-slate-500 hover:text-white"}`}>
                 {t}
               </button>
             ))}
@@ -2321,7 +2321,7 @@ function PromptDetailDrawer({
                 <div className="mt-2 space-y-1">
                   {prompt.approvals.map((a, i) => (
                     <div key={i} className="flex items-center gap-3 text-[10px] text-slate-400">
-                      <div className={`w-2 h-2 rounded-full ${a.decision === "APPROVED" ? "bg-emerald-500" : a.decision === "REJECTED" ? "bg-rose-500" : "bg-amber-500/40 border border-amber-500"}`} />
+                      <div className={`w-2 h-2 rounded-full ${a.decision === "APPROVED" ? "bg-success-text" : a.decision === "REJECTED" ? "bg-error-text" : "bg-warning-bg border border-warning-text"}`} />
                       <span className="font-bold text-slate-300">{a.reviewer_role}</span>
                       <span>{a.decision}</span>
                       {a.notes && <span className="text-slate-600 italic">&quot;{a.notes}&quot;</span>}
@@ -2333,8 +2333,8 @@ function PromptDetailDrawer({
                 <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Constraint Shadow</div>
                 <div className="space-y-1.5">
                   {constraintShadowRules(prompt.risk_tier).map((rule, i) => (
-                    <div key={i} className="flex items-start gap-2 p-2.5 bg-rose-500/5 border border-rose-500/10 rounded-xl">
-                      <XCircle className="w-3 h-3 text-rose-400 mt-0.5 shrink-0" />
+                    <div key={i} className="flex items-start gap-2 p-2.5 bg-error-bg border border-error-border rounded-xl">
+                      <XCircle className="w-3 h-3 text-error-text mt-0.5 shrink-0" />
                       <span className="text-[10px] text-slate-400 leading-relaxed">{rule}</span>
                     </div>
                   ))}
@@ -2351,7 +2351,7 @@ function PromptDetailDrawer({
                   <div className="space-y-1">
                     {prompt.knowledge_sources.map((ks) => (
                       <div key={ks} className="flex items-center gap-2 p-3 bg-black border border-slate-900 rounded-xl text-[11px] text-slate-300">
-                        <BookOpen className="w-3 h-3 text-indigo-400" />
+                        <BookOpen className="w-3 h-3 text-info-text" />
                         {ks}
                       </div>
                     ))}
@@ -2364,7 +2364,7 @@ function PromptDetailDrawer({
                   <div className="space-y-1">
                     {prompt.tools_permitted.map((t) => (
                       <div key={t} className="flex items-center gap-2 p-3 bg-black border border-slate-900 rounded-xl text-[11px] text-slate-300">
-                        <Wrench className="w-3 h-3 text-amber-400" />
+                        <Wrench className="w-3 h-3 text-warning-text" />
                         {t}
                       </div>
                     ))}
@@ -2386,7 +2386,7 @@ function PromptDetailDrawer({
             <div>
               {loadingBody ? (
                 <div className="flex items-center justify-center py-10 gap-2">
-                  <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+                  <Loader2 className="w-5 h-5 animate-spin text-info-text" />
                   <span className="text-xs text-slate-500">Loading prompt body…</span>
                 </div>
               ) : promptBody ? (
@@ -2397,12 +2397,12 @@ function PromptDetailDrawer({
                 <div className="p-4 bg-black border border-slate-900 rounded-2xl text-[11px] text-slate-400 font-mono leading-relaxed">
                   <span className="text-slate-600 italic">[Version {prompt.active_version} — metadata]</span>
                   <br /><br />
-                  <span className="text-indigo-400">{"// Role: "}</span>{prompt.prompt_type}<br />
-                  <span className="text-indigo-400">{"// Agent: "}</span>{prompt.linked_agent}<br />
-                  <span className="text-indigo-400">{"// Workflow: "}</span>{prompt.linked_workflow}<br />
-                  <span className="text-indigo-400">{"// Risk Tier: "}</span>{RISK_META[normalizeRiskTier(prompt.risk_tier)].label}<br />
-                  <span className="text-indigo-400">{"// Knowledge: "}</span>{prompt.knowledge_sources.join(", ") || "None"}<br />
-                  <span className="text-indigo-400">{"// Tools: "}</span>{prompt.tools_permitted.join(", ") || "None"}<br /><br />
+                  <span className="text-info-text">{"// Role: "}</span>{prompt.prompt_type}<br />
+                  <span className="text-info-text">{"// Agent: "}</span>{prompt.linked_agent}<br />
+                  <span className="text-info-text">{"// Workflow: "}</span>{prompt.linked_workflow}<br />
+                  <span className="text-info-text">{"// Risk Tier: "}</span>{RISK_META[normalizeRiskTier(prompt.risk_tier)].label}<br />
+                  <span className="text-info-text">{"// Knowledge: "}</span>{prompt.knowledge_sources.join(", ") || "None"}<br />
+                  <span className="text-info-text">{"// Tools: "}</span>{prompt.tools_permitted.join(", ") || "None"}<br /><br />
                   <span className="text-slate-500">Prompt body was not returned by the registry API. Export via Evidence Vault to retrieve the full body with hash verification.</span>
                 </div>
               )}
@@ -2413,7 +2413,7 @@ function PromptDetailDrawer({
             <div className="space-y-2">
               {loadingVersions ? (
                 <div className="flex items-center justify-center py-10 gap-2">
-                  <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+                  <Loader2 className="w-5 h-5 animate-spin text-info-text" />
                   <span className="text-xs text-slate-500">Loading version history…</span>
                 </div>
               ) : versions.length > 0 ? (
@@ -2425,7 +2425,7 @@ function PromptDetailDrawer({
                       </span>
                       <div className="flex items-center gap-2">
                         {i === 0 && (
-                          <span className="text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded font-black uppercase tracking-widest">Current</span>
+                          <span className="text-[9px] text-success-text bg-success-bg border border-success-border px-2 py-0.5 rounded font-black uppercase tracking-widest">Current</span>
                         )}
                         {v.state && (
                           <span className="text-[9px] text-slate-400 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest">{v.state}</span>
@@ -2458,44 +2458,44 @@ function PromptDetailDrawer({
           <button
             type="button"
             onClick={() => onOpenInCenter(prompt.id, prompt.active_version_id)}
-            className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-400 hover:text-indigo-300"
+            className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-info-text hover:text-info-text"
           >
             Open in Governance Center →
           </button>
           <div className="flex flex-wrap gap-2">
             {prompt.status === "DRAFT" && (
-              <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'run_tests')} className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Run Tests</button>
+              <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'run_tests')} className="px-4 py-2 bg-info-bg border border-info-border text-info-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Run Tests</button>
             )}
             {prompt.status === "INTERNAL_TEST" && (
               <button
                 onClick={() => { if (!submitBlocked) onLifecycleAction(prompt.id, 'submit_review'); }}
                 disabled={submitBlocked}
                 title={submitBlocked ? "Resolve the blocking validation items above before submitting." : "Submit for review"}
-                className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >Submit for Review</button>
             )}
             {prompt.status === "APPROVED_STAGING" && (
-              <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'deploy_production')} className="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-500/20 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Request Production Approval</button>
+              <button onClick={() => prompt.active_version_id && onVersionAction(prompt.active_version_id, 'deploy_production')} className="px-4 py-2 bg-info-bg border border-info-border text-info-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all disabled:opacity-50" disabled={!prompt.active_version_id}>Request Production Approval</button>
             )}
             {prompt.status === "PRODUCTION_PENDING" && (
-              <button onClick={() => onLifecycleAction(prompt.id, 'commission')} className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all flex items-center gap-1.5">
+              <button onClick={() => onLifecycleAction(prompt.id, 'commission')} className="px-4 py-2 bg-success-bg border border-success-border text-success-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all flex items-center gap-1.5">
                 <ShieldCheck className="w-3 h-3" /> Commission
               </button>
             )}
             {prompt.status === "PRODUCTION_ACTIVE" && (
               <>
-                <button onClick={() => onLifecycleAction(prompt.id, 'pause')} className="px-4 py-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-500/20 transition-all flex items-center gap-1.5">
+                <button onClick={() => onLifecycleAction(prompt.id, 'pause')} className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all flex items-center gap-1.5">
                   <PauseCircle className="w-3 h-3" /> Pause
                 </button>
-                <button onClick={() => onLifecycleAction(prompt.id, 'rollback')} className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all flex items-center gap-1.5">
+                <button onClick={() => onLifecycleAction(prompt.id, 'rollback')} className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all flex items-center gap-1.5">
                   <RotateCcw className="w-3 h-3" /> Rollback
                 </button>
               </>
             )}
             {prompt.status === "PAUSED" && (
               <>
-                <button onClick={() => onLifecycleAction(prompt.id, 'resume')} className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-500/20 transition-all">Resume</button>
-                <button onClick={() => onLifecycleAction(prompt.id, 'rollback')} className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-amber-500/20 transition-all flex items-center gap-1.5">
+                <button onClick={() => onLifecycleAction(prompt.id, 'resume')} className="px-4 py-2 bg-success-bg border border-success-border text-success-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all">Resume</button>
+                <button onClick={() => onLifecycleAction(prompt.id, 'rollback')} className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all flex items-center gap-1.5">
                   <RotateCcw className="w-3 h-3" /> Rollback
                 </button>
               </>
@@ -2824,16 +2824,16 @@ export default function PromptsPage() {
     <div className="p-6 xl:p-8 max-w-screen-2xl mx-auto space-y-8 pb-32 bg-black min-h-screen">
 
       {/* Header */}
-      <div className="relative overflow-hidden bg-slate-950 border border-indigo-500/20 rounded-[3rem] p-10 xl:p-14 shadow-[0_0_80px_rgba(99,102,241,0.1)]">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/8 blur-[150px] rounded-full -mr-60 -mt-60" />
+      <div className="relative overflow-hidden bg-slate-950 border border-info-border rounded-[3rem] p-10 xl:p-14 shadow-[0_0_80px_rgba(99,102,241,0.1)]">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-info-bg blur-[150px] rounded-full -mr-60 -mt-60" />
         <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8">
           <div className="space-y-4 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/5 border border-indigo-500/15 text-indigo-400 text-[10px] font-black uppercase tracking-[0.4em]">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-info-bg border border-info-border text-info-text text-[10px] font-black uppercase tracking-[0.4em]">
               <Lock className="w-3.5 h-3.5" />
               Prompt Governance Center — Layer 1 Authority Control
             </div>
             <h1 className="text-5xl xl:text-6xl font-black text-foreground tracking-tighter leading-none">
-              Prompt <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-rose-500 italic">Governance.</span>
+              Prompt <span className="text-transparent bg-clip-text bg-gradient-to-r from-info-text to-error-text italic">Governance.</span>
             </h1>
             <p className="text-base text-slate-400 leading-relaxed font-medium">
               The governed instruction lifecycle system. Create, test, approve, deploy, monitor, rollback, and evidence every prompt used by agents, workflows, tools, and knowledge-grounded tasks inside ZoikoVertex.
@@ -2847,7 +2847,7 @@ export default function PromptsPage() {
               <Download className="w-4 h-4" />
               Audit Export
             </button>
-            <button onClick={() => setShowCreateModal(true)} className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-foreground rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-indigo-600/20 active:scale-95">
+            <button onClick={() => setShowCreateModal(true)} className="px-8 py-3 bg-info-text hover:brightness-110 text-foreground rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all shadow-xl shadow-indigo-600/20 active:scale-95">
               <Plus className="w-4 h-4" />
               New Prompt
             </button>
@@ -2857,7 +2857,7 @@ export default function PromptsPage() {
 
       {/* Error banner */}
       {error && (
-        <div className="flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-3.5 text-sm text-amber-400">
+        <div className="flex items-center gap-3 rounded-2xl border border-warning-border bg-warning-bg px-5 py-3.5 text-sm text-warning-text">
           <ShieldAlert className="w-4 h-4 shrink-0" />
           <span className="text-[11px]">{error}</span>
         </div>
@@ -2867,11 +2867,11 @@ export default function PromptsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
         {([
           { label: "Total Prompts", value: prompts.length, icon: MessageSquareCode, color: "text-foreground", apply: () => { setFilterStatus("ALL"); setFilterTest("ALL"); } },
-          { label: "Production Active", value: productionCount, icon: Zap, color: "text-emerald-400", apply: () => { setFilterStatus("PRODUCTION_ACTIVE"); setFilterTest("ALL"); } },
-          { label: "Drafts / Pending", value: draftsPending, icon: Clock, color: "text-amber-400", apply: () => { setFilterStatus("REVIEW_REQUESTED"); setFilterTest("ALL"); } },
-          { label: "Failed Tests", value: failedTests, icon: AlertTriangle, color: "text-rose-400", apply: () => { setFilterStatus("ALL"); setFilterTest("FAIL"); } },
-          { label: "Paused", value: paused, icon: PauseCircle, color: "text-orange-400", apply: () => { setFilterStatus("PAUSED"); setFilterTest("ALL"); } },
-          { label: "HITL Rules", value: hitlRules.filter((r) => r.enabled).length, icon: ShieldCheck, color: "text-indigo-400", apply: () => setActiveTab("runtime") },
+          { label: "Production Active", value: productionCount, icon: Zap, color: "text-success-text", apply: () => { setFilterStatus("PRODUCTION_ACTIVE"); setFilterTest("ALL"); } },
+          { label: "Drafts / Pending", value: draftsPending, icon: Clock, color: "text-warning-text", apply: () => { setFilterStatus("REVIEW_REQUESTED"); setFilterTest("ALL"); } },
+          { label: "Failed Tests", value: failedTests, icon: AlertTriangle, color: "text-error-text", apply: () => { setFilterStatus("ALL"); setFilterTest("FAIL"); } },
+          { label: "Paused", value: paused, icon: PauseCircle, color: "text-warning-text", apply: () => { setFilterStatus("PAUSED"); setFilterTest("ALL"); } },
+          { label: "HITL Rules", value: hitlRules.filter((r) => r.enabled).length, icon: ShieldCheck, color: "text-info-text", apply: () => setActiveTab("runtime") },
         ] as const).map((stat) => {
           const Icon = stat.icon;
           return (
@@ -2879,7 +2879,7 @@ export default function PromptsPage() {
               key={stat.label}
               type="button"
               onClick={() => { stat.apply(); if (stat.label !== "HITL Rules") setActiveTab("registry"); }}
-              className="text-left bg-slate-950 border border-slate-900 rounded-2xl p-5 hover:border-indigo-500/30 transition-all cursor-pointer focus:outline-none focus:border-indigo-500/50"
+              className="text-left bg-slate-950 border border-slate-900 rounded-2xl p-5 hover:border-info-border transition-all cursor-pointer focus:outline-none focus:border-info-border/50"
             >
               <div className="flex items-center justify-between mb-3">
                 <Icon className={`w-4 h-4 ${stat.color}`} />
@@ -2901,7 +2901,7 @@ export default function PromptsPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
                 activeTab === tab.id
-                  ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/25"
+                  ? "bg-info-bg text-info-text border border-info-border"
                   : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
               }`}
             >

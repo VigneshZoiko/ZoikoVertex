@@ -83,11 +83,11 @@ function timeAgo(date: string): string {
 
 function DecisionBadge({ decision }: { decision: string }) {
   if (decision === "BLOCKED" || decision === "blocked")
-    return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase">Blocked</span>;
+    return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-error-bg text-error-text border border-error-border uppercase">Blocked</span>;
   if (decision === "FLAGGED" || decision === "flagged")
-    return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">Flagged</span>;
+    return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-warning-bg text-warning-text border border-warning-border uppercase">Flagged</span>;
   if (decision === "ALLOWED" || decision === "allowed")
-    return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">Allowed</span>;
+    return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-success-bg text-success-text border border-success-border uppercase">Allowed</span>;
   return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 border border-slate-500/20 uppercase">{decision}</span>;
 }
 
@@ -232,47 +232,47 @@ export default function PolicyControlMatrixPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-foreground">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500 mb-4"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-warning-text mb-4"></div>
         <p className="text-[#888] font-medium tracking-wide">Syncing Policy Control Matrix...</p>
       </div>
     );
   }
 
   const getSeverityColor = (sev: string) => {
-    if (sev === "Critical") return "text-rose-400 bg-rose-500/10 border-rose-500/20";
-    if (sev === "High") return "text-orange-400 bg-orange-500/10 border-orange-500/20";
-    if (sev === "Medium") return "text-amber-400 bg-amber-500/10 border-amber-500/20";
-    return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+    if (sev === "Critical") return "text-error-text bg-error-bg border-error-border";
+    if (sev === "High") return "text-warning-text bg-warning-bg border-warning-border";
+    if (sev === "Medium") return "text-warning-text bg-warning-bg border-warning-border";
+    return "text-success-text bg-success-bg border-success-border";
   };
 
   const getStatusColor = (status: string) => {
-    if (status === "Active") return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
-    if (status === "Pending Approval") return "text-amber-400 bg-amber-500/10 border-amber-500/20 animate-pulse";
+    if (status === "Active") return "text-success-text bg-success-bg border-success-border";
+    if (status === "Pending Approval") return "text-warning-text bg-warning-bg border-warning-border animate-pulse";
     if (status === "Draft") return "text-[#888] bg-[#222] border-[#333]";
     if (status === "Retired" || status === "Superseded") return "text-[#555] bg-transparent border-[#222] line-through";
-    return "text-purple-400 bg-purple-500/10 border-purple-500/20"; // Rollback
+    return "text-info-text bg-info-bg border-info-border"; // Rollback
   };
 
   const getActionColor = (action: string) => {
-    if (action === "Block") return "text-rose-400";
-    if (action === "Quarantine" || action === "Escalate") return "text-orange-400";
-    if (action === "Warn") return "text-amber-400";
-    if (action === "Allow") return "text-emerald-400";
-    return "text-blue-400";
+    if (action === "Block") return "text-error-text";
+    if (action === "Quarantine" || action === "Escalate") return "text-warning-text";
+    if (action === "Warn") return "text-warning-text";
+    if (action === "Allow") return "text-success-text";
+    return "text-info-text";
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#ddd] pb-24 font-sans selection:bg-amber-500/30 selection:text-white flex flex-col justify-between">
+    <div className="min-h-screen bg-[#0a0a0a] text-[#ddd] pb-24 font-sans selection:bg-warning-bg selection:text-white flex flex-col justify-between">
       
       {/* Main Workspace Frame */}
       <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8 flex-1 flex flex-col">
         
         {/* Success Message Banner */}
         {successMessage && (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-2">
+          <div className="bg-success-bg border border-success-border text-success-text px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-2">
             <CheckCircle className="w-4 h-4 shrink-0" />
             <span>{successMessage}</span>
-            <button onClick={() => setSuccessMessage(null)} className="ml-auto text-emerald-400/80 hover:text-emerald-300">
+            <button onClick={() => setSuccessMessage(null)} className="ml-auto text-success-text/80 hover:text-success-text">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -282,7 +282,7 @@ export default function PolicyControlMatrixPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#222] pb-6">
           <div>
             <div className="flex items-center gap-2.5">
-              <Scale className="w-8 h-8 text-amber-500" />
+              <Scale className="w-8 h-8 text-warning-text" />
               <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Policy Control Matrix</h1>
             </div>
             <p className="text-[#888] text-sm mt-1">
@@ -300,7 +300,7 @@ export default function PolicyControlMatrixPage() {
             {canManagePolicies && (
               <button
                 onClick={() => setIsBuilderOpen(true)}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black text-sm font-extrabold rounded-xl transition-all flex items-center gap-1.5 shadow-lg shadow-amber-500/10"
+                className="px-4 py-2 bg-warning-text hover:brightness-110 text-black text-sm font-extrabold rounded-xl transition-all flex items-center gap-1.5 shadow-lg shadow-warning-bg"
               >
                 <Plus className="w-4 h-4" />
                 New Guardrail
@@ -314,7 +314,7 @@ export default function PolicyControlMatrixPage() {
           <div className="bg-[#111] hover:bg-[#141414] border border-[#222] hover:border-[#333] rounded-2xl p-4 cursor-pointer transition-all">
             <div className="flex justify-between items-start">
               <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest">Active Rules</span>
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <ShieldCheck className="w-4 h-4 text-success-text" />
             </div>
             <h3 className="text-2xl font-black text-foreground mt-2">{summary?.active_rules_count || 0}</h3>
           </div>
@@ -322,7 +322,7 @@ export default function PolicyControlMatrixPage() {
           <div className="bg-[#111] hover:bg-[#141414] border border-[#222] hover:border-[#333] rounded-2xl p-4 cursor-pointer transition-all">
             <div className="flex justify-between items-start">
               <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest">Blocked (24h)</span>
-              <ShieldAlert className="w-4 h-4 text-rose-500" />
+              <ShieldAlert className="w-4 h-4 text-error-text" />
             </div>
             <h3 className="text-2xl font-black text-foreground mt-2">{summary?.blocked_last_24h || 0}</h3>
           </div>
@@ -330,7 +330,7 @@ export default function PolicyControlMatrixPage() {
           <div className="bg-[#111] hover:bg-[#141414] border border-[#222] hover:border-[#333] rounded-2xl p-4 cursor-pointer transition-all">
             <div className="flex justify-between items-start">
               <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest">Escalations</span>
-              <AlertTriangle className="w-4 h-4 text-orange-500" />
+              <AlertTriangle className="w-4 h-4 text-warning-text" />
             </div>
             <h3 className="text-2xl font-black text-foreground mt-2">{summary?.escalations_pending || 0}</h3>
           </div>
@@ -348,7 +348,7 @@ export default function PolicyControlMatrixPage() {
         <div className="bg-[#111] border border-[#222] rounded-xl">
           <div className="px-4 py-3 border-b border-[#222] flex items-center justify-between">
             <h3 className="text-xs font-bold text-white flex items-center gap-2">
-              <Activity className="w-3.5 h-3.5 text-amber-500" />
+              <Activity className="w-3.5 h-3.5 text-warning-text" />
               Recent Enforcement Events
             </h3>
             <span className="text-[10px] text-[#666]">{events.length} events</span>
@@ -362,7 +362,7 @@ export default function PolicyControlMatrixPage() {
                   <div key={ev.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#161616] transition-colors">
                     <DecisionBadge decision={ev.decision} />
                     <div className="flex-1 min-w-0 flex items-center gap-3">
-                      <span className="text-[11px] font-mono text-amber-500/80 font-bold shrink-0">{ev.rule_id}</span>
+                      <span className="text-[11px] font-mono text-warning-text/80 font-bold shrink-0">{ev.rule_id}</span>
                       <span className="text-[11px] text-[#888] truncate">{ev.reason_code}</span>
                     </div>
                     <span className="text-[10px] text-[#555] shrink-0 font-mono">{ev.actor}</span>
@@ -418,7 +418,7 @@ export default function PolicyControlMatrixPage() {
               <tbody className="divide-y divide-[#1e1e1e] text-xs">
                 {policies.length > 0 ? policies.map(pol => (
                   <tr key={pol.id} className="hover:bg-[#161616] transition-colors group">
-                    <td className="p-4 font-mono font-bold text-amber-500/80 group-hover:text-amber-400">{pol.rule_id}</td>
+                    <td className="p-4 font-mono font-bold text-warning-text/80 group-hover:text-warning-text">{pol.rule_id}</td>
                     <td className="p-4 text-foreground">{pol.domain}</td>
                     <td className="p-4 text-[#aaa]">{pol.risk_category}</td>
                     <td className="p-4">
@@ -434,7 +434,7 @@ export default function PolicyControlMatrixPage() {
                     </td>
                     <td className="p-4 text-[#666]">{pol.agent_impact}</td>
                     <td className="p-4 text-center">
-                      {pol.evidence_required ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500 mx-auto" /> : <X className="w-3.5 h-3.5 text-neutral-600 mx-auto" />}
+                      {pol.evidence_required ? <CheckCircle className="w-3.5 h-3.5 text-success-text mx-auto" /> : <X className="w-3.5 h-3.5 text-neutral-600 mx-auto" />}
                     </td>
                     <td className="p-4">
                       <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${getStatusColor(pol.status)}`}>
@@ -445,7 +445,7 @@ export default function PolicyControlMatrixPage() {
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => { setSelectedSimRule(pol); setIsSimulatorOpen(true); }}
-                          className="px-2 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 rounded font-bold text-[10px] flex items-center gap-1"
+                          className="px-2 py-1 bg-info-bg text-info-text border border-info-border hover:brightness-110 rounded font-bold text-[10px] flex items-center gap-1"
                         >
                           <Play className="w-3 h-3" /> Simulate
                         </button>
@@ -495,7 +495,7 @@ export default function PolicyControlMatrixPage() {
         <div className="max-w-[1700px] mx-auto px-4 flex flex-col md:flex-row items-center gap-4 justify-between">
           <div className="flex items-center gap-2">
             <span className="p-1.5 bg-[#222] rounded-lg">
-              <Activity className="w-3.5 h-3.5 text-amber-500" />
+              <Activity className="w-3.5 h-3.5 text-warning-text" />
             </span>
             <span className="text-xs font-black uppercase text-foreground tracking-widest">Enforcement Engine Telemetry</span>
             <span className="text-[10px] text-[#666]">(Live Decisions)</span>
@@ -527,7 +527,7 @@ export default function PolicyControlMatrixPage() {
             <div>
               <div className="flex justify-between items-start mb-8">
                 <div>
-                  <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest">Workspace Builder</span>
+                  <span className="text-[10px] font-mono text-warning-text uppercase tracking-widest">Workspace Builder</span>
                   <h3 className="text-2xl font-black text-foreground mt-1">Guardrail Configuration</h3>
                 </div>
                 <button
@@ -541,7 +541,7 @@ export default function PolicyControlMatrixPage() {
               {/* Step indicator */}
               <div className="flex gap-1 mb-8">
                 {[1,2,3,4,5,6,7,8].map(s => (
-                  <div key={s} className={`h-1 flex-1 rounded-full ${builderStep >= s ? 'bg-amber-500' : 'bg-[#222]'}`} />
+                  <div key={s} className={`h-1 flex-1 rounded-full ${builderStep >= s ? 'bg-warning-text' : 'bg-[#222]'}`} />
                 ))}
               </div>
 
@@ -550,7 +550,7 @@ export default function PolicyControlMatrixPage() {
                 
                 {builderStep === 1 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Filter className="w-4 h-4 text-amber-500"/> 1. Scope & Domain</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Filter className="w-4 h-4 text-warning-text"/> 1. Scope & Domain</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Policy Domain</label>
                       <select value={formData.domain} onChange={e => setFormData({...formData, domain: e.target.value})} className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-foreground">
@@ -569,7 +569,7 @@ export default function PolicyControlMatrixPage() {
 
                 {builderStep === 2 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500"/> 2. Base Severity</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-warning-text"/> 2. Base Severity</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Severity Rating</label>
                       <select value={formData.severity} onChange={e => setFormData({...formData, severity: e.target.value})} className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-foreground">
@@ -584,7 +584,7 @@ export default function PolicyControlMatrixPage() {
 
                 {builderStep === 3 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Search className="w-4 h-4 text-amber-500"/> 3. Trigger Condition</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Search className="w-4 h-4 text-warning-text"/> 3. Trigger Condition</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Condition Expression (Regex or Natural Logic)</label>
                       <textarea value={formData.trigger_condition} onChange={e => setFormData({...formData, trigger_condition: e.target.value})} placeholder="e.g. Payload matches regex: /(guaranteed returns|100% ROI)/i" className="w-full h-32 bg-black border border-[#333] rounded-xl p-4 text-xs text-foreground font-mono resize-none" />
@@ -595,7 +595,7 @@ export default function PolicyControlMatrixPage() {
 
                 {builderStep === 4 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Shield className="w-4 h-4 text-amber-500"/> 4. Enforcement Action</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Shield className="w-4 h-4 text-warning-text"/> 4. Enforcement Action</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Action Outcome</label>
                       <select value={formData.enforcement_action} onChange={e => setFormData({...formData, enforcement_action: e.target.value})} className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-foreground">
@@ -614,7 +614,7 @@ export default function PolicyControlMatrixPage() {
 
                 {builderStep === 5 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><FileText className="w-4 h-4 text-amber-500"/> 5. Rationale</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><FileText className="w-4 h-4 text-warning-text"/> 5. Rationale</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Business Rationale</label>
                       <textarea value={formData.rationale} onChange={e => setFormData({...formData, rationale: e.target.value})} placeholder="Provide exact reasoning for this rule implementation..." className="w-full h-24 bg-black border border-[#333] rounded-xl p-4 text-xs text-foreground resize-none" />
@@ -624,9 +624,9 @@ export default function PolicyControlMatrixPage() {
 
                 {builderStep === 6 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Archive className="w-4 h-4 text-amber-500"/> 6. Evidence</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Archive className="w-4 h-4 text-warning-text"/> 6. Evidence</h4>
                     <div className="flex items-center gap-3 bg-[#141414] border border-[#222] p-4 rounded-xl">
-                      <input type="checkbox" checked={formData.evidence_required} onChange={e => setFormData({...formData, evidence_required: e.target.checked})} className="w-4 h-4 rounded text-amber-500 bg-black border-[#333]" />
+                      <input type="checkbox" checked={formData.evidence_required} onChange={e => setFormData({...formData, evidence_required: e.target.checked})} className="w-4 h-4 rounded text-warning-text bg-black border-[#333]" />
                       <div>
                         <label className="block text-xs font-bold text-foreground">Require Evidence Snapshot</label>
                         <p className="text-[10px] text-[#888]">Capture immutable forensic snapshot to Evidence Vault when triggered.</p>
@@ -637,7 +637,7 @@ export default function PolicyControlMatrixPage() {
 
                 {builderStep === 7 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Users className="w-4 h-4 text-amber-500"/> 7. Approval & Escalation</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><Users className="w-4 h-4 text-warning-text"/> 7. Approval & Escalation</h4>
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Escalation Path (Queue/Role)</label>
                       <input type="text" value={formData.escalation_path} onChange={e => setFormData({...formData, escalation_path: e.target.value})} placeholder="e.g. Legal Counsel, Security Operations" className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-foreground" />
@@ -645,14 +645,14 @@ export default function PolicyControlMatrixPage() {
                     <div>
                       <label className="block text-xs font-bold text-[#888] mb-1.5">Designated Approver ID (Mandatory for High/Critical)</label>
                       <input type="text" value={formData.approver_id} onChange={e => setFormData({...formData, approver_id: e.target.value})} placeholder="e.g. USR-042" className="w-full bg-black border border-[#333] rounded-xl px-4 py-3 text-xs text-foreground font-mono" />
-                      <p className="text-[10px] text-rose-400 mt-2 flex items-center gap-1"><Lock className="w-3 h-3"/> Author cannot be sole approver for production deployment.</p>
+                      <p className="text-[10px] text-error-text mt-2 flex items-center gap-1"><Lock className="w-3 h-3"/> Author cannot be sole approver for production deployment.</p>
                     </div>
                   </div>
                 )}
 
                 {builderStep === 8 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><CheckCircle className="w-4 h-4 text-emerald-500"/> 8. Deployment Review</h4>
+                    <h4 className="text-sm font-bold text-foreground flex items-center gap-2"><CheckCircle className="w-4 h-4 text-success-text"/> 8. Deployment Review</h4>
                     <div className="bg-[#141414] border border-[#222] rounded-xl p-5 space-y-3 font-mono text-xs text-[#888]">
                       <div className="flex justify-between"><span className="text-[#666]">Domain:</span> <span className="text-foreground">{formData.domain}</span></div>
                       <div className="flex justify-between"><span className="text-[#666]">Severity:</span> <span className={getSeverityColor(formData.severity)}>{formData.severity}</span></div>
@@ -661,7 +661,7 @@ export default function PolicyControlMatrixPage() {
                     </div>
 
                     {builderError && (
-                      <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl text-xs font-semibold flex items-start gap-2">
+                      <div className="p-3 bg-error-bg border border-error-border text-error-text rounded-xl text-xs font-semibold flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                         <span>{builderError}</span>
                       </div>
@@ -691,7 +691,7 @@ export default function PolicyControlMatrixPage() {
               ) : (
                 <button
                   onClick={submitGuardrail}
-                  className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-black rounded-xl text-xs font-extrabold transition-all shadow-lg shadow-amber-500/10"
+                  className="px-6 py-2 bg-warning-text hover:brightness-110 text-black rounded-xl text-xs font-extrabold transition-all shadow-lg shadow-warning-bg"
                 >
                   Submit to Pending Approval
                 </button>
@@ -710,7 +710,7 @@ export default function PolicyControlMatrixPage() {
             <div className="space-y-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="text-[10px] font-mono text-blue-400 uppercase tracking-widest flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5"/> Simulation Engine</span>
+                  <span className="text-[10px] font-mono text-info-text uppercase tracking-widest flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5"/> Simulation Engine</span>
                   <h3 className="text-xl font-black text-foreground mt-1">Rule: {selectedSimRule.rule_id}</h3>
                 </div>
                 <button onClick={() => setIsSimulatorOpen(false)} className="p-1.5 hover:bg-[#222] border border-[#2d2d2d] rounded-lg text-[#666]"><X className="w-4 h-4" /></button>
@@ -718,7 +718,7 @@ export default function PolicyControlMatrixPage() {
 
               <div className="p-4 bg-[#141414] border border-[#222] rounded-xl flex flex-col gap-2">
                 <span className="text-[10px] text-[#666] font-bold uppercase">Trigger Condition Active</span>
-                <code className="text-xs text-amber-400 bg-black p-2 rounded border border-[#333]">{selectedSimRule.trigger_condition}</code>
+                <code className="text-xs text-warning-text bg-black p-2 rounded border border-[#333]">{selectedSimRule.trigger_condition}</code>
                 <span className="text-[10px] text-[#666] font-bold uppercase mt-2">Configured Action: <span className="text-foreground">{selectedSimRule.enforcement_action}</span></span>
               </div>
 
@@ -738,14 +738,14 @@ export default function PolicyControlMatrixPage() {
                   <textarea 
                     value={simPayload} 
                     onChange={e => setSimPayload(e.target.value)} 
-                    className="w-full h-40 bg-black border border-[#333] focus:border-[#555] rounded-xl p-4 text-xs text-emerald-400 font-mono resize-none" 
+                    className="w-full h-40 bg-black border border-[#333] focus:border-[#555] rounded-xl p-4 text-xs text-success-text font-mono resize-none" 
                   />
                 </div>
                 
                 <button
                   onClick={runSimulation}
                   disabled={runningSim}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-900/50 text-foreground font-black text-xs rounded-xl transition-colors flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-info-text hover:brightness-110 disabled:bg-info-text/50 text-foreground font-black text-xs rounded-xl transition-colors flex items-center justify-center gap-2"
                 >
                   {runningSim ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                   {runningSim ? "Computing Deterministic Outcome..." : "Execute Simulation"}
@@ -753,7 +753,7 @@ export default function PolicyControlMatrixPage() {
               </div>
 
               {simError && (
-                <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl text-xs font-semibold flex items-start gap-2">
+                <div className="mt-4 p-3 bg-error-bg border border-error-border text-error-text rounded-xl text-xs font-semibold flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <span>{simError}</span>
                 </div>
@@ -766,9 +766,9 @@ export default function PolicyControlMatrixPage() {
                   <div className="flex justify-between items-center p-4 bg-[#141414] border border-[#333] rounded-xl">
                     <span className="text-xs font-mono text-[#666]">Deterministic Outcome:</span>
                     <span className={`text-sm font-black uppercase px-3 py-1 rounded border ${
-                      simResult.outcome === 'block' || simResult.outcome === 'conflict' ? 'text-rose-400 bg-rose-500/10 border-rose-500/30' :
-                      simResult.outcome === 'warn' || simResult.outcome === 'escalate' || simResult.outcome === 'quarantine' ? 'text-orange-400 bg-orange-500/10 border-orange-500/30' :
-                      'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+                      simResult.outcome === 'block' || simResult.outcome === 'conflict' ? 'text-error-text bg-error-bg border-error-border' :
+                      simResult.outcome === 'warn' || simResult.outcome === 'escalate' || simResult.outcome === 'quarantine' ? 'text-warning-text bg-warning-bg border-warning-border' :
+                      'text-success-text bg-success-bg border-success-border'
                     }`}>
                       {simResult.outcome}
                     </span>

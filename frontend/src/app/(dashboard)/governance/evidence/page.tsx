@@ -64,10 +64,10 @@ interface LegalHold {
 
 function defensibilityBar(score: number) {
   const color =
-    score >= 95 ? "bg-emerald-500" :
-    score >= 85 ? "bg-amber-400" :
-    score >= 70 ? "bg-orange-500" :
-    "bg-rose-500";
+    score >= 95 ? "bg-success-text" :
+    score >= 85 ? "bg-warning-text" :
+    score >= 70 ? "bg-warning-text" :
+    "bg-error-text";
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 bg-[#222] rounded-full overflow-hidden">
@@ -190,20 +190,20 @@ export default function EvidenceVaultPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-foreground">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4" />
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-info-border mb-4" />
         <p className="text-[#888] font-mono text-sm">Loading Evidence Vault...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#ddd] p-6 font-sans selection:bg-blue-500/30">
+    <div className="min-h-screen bg-[#0a0a0a] text-[#ddd] p-6 font-sans selection:bg-info-bg">
 
       {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-          <p className="text-xs text-red-400">{error}</p>
-          <button onClick={() => setError(null)} className="ml-auto text-red-400/60 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+        <div className="mb-4 p-3 bg-error-bg border border-error-border rounded-lg flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-error-text shrink-0" />
+          <p className="text-xs text-error-text">{error}</p>
+          <button onClick={() => setError(null)} className="ml-auto text-error-text/60 hover:text-error-text"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
 
@@ -211,8 +211,8 @@ export default function EvidenceVaultPage() {
       <div className="flex justify-between items-start mb-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-              <Archive className="w-5 h-5 text-blue-400" />
+            <div className="w-10 h-10 rounded-xl bg-info-bg border border-info-border flex items-center justify-center">
+              <Archive className="w-5 h-5 text-info-text" />
             </div>
             <div>
               <h1 className="text-2xl font-black text-foreground">Evidence Vault</h1>
@@ -226,7 +226,7 @@ export default function EvidenceVaultPage() {
           </button>
           <button
             onClick={() => setShowPackBuilder(!showPackBuilder)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-foreground text-xs font-bold rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-info-text hover:brightness-110 text-foreground text-xs font-bold rounded-lg transition-colors"
           >
             <Package className="w-4 h-4" />
             Build Evidence Pack
@@ -236,23 +236,23 @@ export default function EvidenceVaultPage() {
 
       {/* ── Evidence Pack Builder ────────────────────────────────────────── */}
       {showPackBuilder && (
-        <div className="bg-[#111] border border-blue-500/20 rounded-2xl p-6 mb-8 shadow-[0_0_30px_rgba(59,130,246,0.08)]">
+        <div className="bg-[#111] border border-info-border rounded-2xl p-6 mb-8 shadow-[0_0_30px_rgba(59,130,246,0.08)]">
           <h3 className="text-sm font-black text-foreground mb-5 flex items-center gap-2">
-            <Package className="w-4 h-4 text-blue-400" />
+            <Package className="w-4 h-4 text-info-text" />
             Build Compliance Evidence Pack
           </h3>
           {buildResult ? (
-            <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5 flex items-start gap-4">
-              <CheckCircle className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
+            <div className="bg-success-bg border border-success-border rounded-xl p-5 flex items-start gap-4">
+              <CheckCircle className="w-6 h-6 text-success-text flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-bold text-emerald-400 mb-1">Evidence Pack Ready</p>
+                <p className="text-sm font-bold text-success-text mb-1">Evidence Pack Ready</p>
                 <div className="font-mono text-[10px] text-[#888] space-y-1">
                   <p>Pack ID: <span className="text-foreground">{buildResult.id}</span></p>
                   <p>Artifacts: <span className="text-foreground">{buildResult.artifact_count}</span></p>
-                  <p>Hash: <span className="text-blue-400 break-all">{buildResult.export_hash}</span></p>
+                  <p>Hash: <span className="text-info-text break-all">{buildResult.export_hash}</span></p>
                 </div>
                 <div className="flex gap-3 mt-3">
-                  <button onClick={() => downloadPack(buildResult.id, buildResult.format)} className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg">
+                  <button onClick={() => downloadPack(buildResult.id, buildResult.format)} className="flex items-center gap-2 px-3 py-1.5 bg-info-text hover:brightness-110 text-white text-xs font-bold rounded-lg">
                     <Download className="w-3.5 h-3.5" /> Download {buildResult.format}
                   </button>
                   <button onClick={() => { setBuildResult(null); setPackScope(""); }} className="text-xs text-[#666] hover:text-white">
@@ -266,7 +266,7 @@ export default function EvidenceVaultPage() {
               <div>
                 <label className="block text-[10px] font-bold text-[#888] mb-1.5 uppercase">Compliance Purpose</label>
                 <select value={packPurpose} onChange={e => setPackPurpose(e.target.value)}
-                  className="w-full bg-black border border-[#333] focus:border-blue-500/50 rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none">
+                  className="w-full bg-black border border-[#333] focus:border-info-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none">
                   {["INTERNAL_AUDIT","REGULATOR_REQUEST","LITIGATION","CUSTOMER_REVIEW","INCIDENT_REVIEW","EXECUTIVE_REVIEW","LEGAL_DISCOVERY"].map(p => (
                     <option key={p} value={p}>{p.replace(/_/g, " ")}</option>
                   ))}
@@ -276,17 +276,17 @@ export default function EvidenceVaultPage() {
                 <label className="block text-[10px] font-bold text-[#888] mb-1.5 uppercase">Scope Description</label>
                 <input value={packScope} onChange={e => setPackScope(e.target.value)}
                   placeholder="e.g. Q2 2026 finance content review"
-                  className="w-full bg-black border border-[#333] focus:border-blue-500/50 rounded-lg px-3 py-2 text-xs text-foreground placeholder-[#555] focus:outline-none" />
+                  className="w-full bg-black border border-[#333] focus:border-info-border rounded-lg px-3 py-2 text-xs text-foreground placeholder-[#555] focus:outline-none" />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-[#888] mb-1.5 uppercase">Export Format</label>
                 <select value={packFormat} onChange={e => setPackFormat(e.target.value)}
-                  className="w-full bg-black border border-[#333] focus:border-blue-500/50 rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none">
+                  className="w-full bg-black border border-[#333] focus:border-info-border rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none">
                   {["JSON","PDF","CSV","ZIP"].map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
               </div>
               <button onClick={buildPack} disabled={building || !packScope.trim()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-foreground text-xs font-black rounded-lg transition-colors flex items-center justify-center gap-2">
+                className="px-4 py-2 bg-info-text hover:brightness-110 disabled:opacity-50 text-foreground text-xs font-black rounded-lg transition-colors flex items-center justify-center gap-2">
                 {building ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
                 {building ? "Building..." : "Build Pack"}
               </button>
@@ -335,22 +335,22 @@ export default function EvidenceVaultPage() {
                 ) : filtered.map((art) => (
                   <tr key={art.id} className="border-b border-[#1a1a1a] hover:bg-[#141414] transition-colors group">
                     <td className="px-4 py-3">
-                      <span className="font-mono text-blue-400 text-[10px]">{art.artifact_uuid}</span>
+                      <span className="font-mono text-info-text text-[10px]">{art.artifact_uuid}</span>
                     </td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-0.5 bg-[#222] text-[#ccc] text-[10px] rounded font-medium uppercase">{art.platform || "–"}</span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                        art.status === "APPROVED" ? "bg-emerald-500/10 text-emerald-400" :
-                        art.status === "REJECTED" ? "bg-rose-500/10 text-rose-400" :
-                        "bg-amber-500/10 text-amber-400"
+                        art.status === "APPROVED" ? "bg-success-bg text-success-text" :
+                        art.status === "REJECTED" ? "bg-error-bg text-error-text" :
+                        "bg-warning-bg text-warning-text"
                       }`}>{art.status || "–"}</span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-[10px] font-bold ${
-                        art.risk_level === "HIGH" || art.risk_level === "CRITICAL" ? "text-rose-400" :
-                        art.risk_level === "MEDIUM" ? "text-amber-400" : "text-emerald-400"
+                        art.risk_level === "HIGH" || art.risk_level === "CRITICAL" ? "text-error-text" :
+                        art.risk_level === "MEDIUM" ? "text-warning-text" : "text-success-text"
                       }`}>{art.risk_level || "–"} {art.risk_score ? `(${art.risk_score}%)` : ""}</span>
                     </td>
                     <td className="px-4 py-3 min-w-[140px]">
@@ -358,7 +358,7 @@ export default function EvidenceVaultPage() {
                     </td>
                     <td className="px-4 py-3">
                       {art.is_on_legal_hold ? (
-                        <span className="flex items-center gap-1 text-[10px] text-purple-400 font-bold">
+                        <span className="flex items-center gap-1 text-[10px] text-info-text font-bold">
                           <Lock className="w-3 h-3" /> HOLD
                         </span>
                       ) : (
@@ -399,19 +399,19 @@ export default function EvidenceVaultPage() {
                   <tr><td colSpan={8} className="text-center py-10 text-[#666] text-xs">No evidence packs built yet.</td></tr>
                 ) : packs.map(pack => (
                   <tr key={pack.id} className="border-b border-[#1a1a1a] hover:bg-[#141414] transition-colors">
-                    <td className="px-4 py-3 font-mono text-[10px] text-blue-400">{pack.id.slice(0,8).toUpperCase()}</td>
+                    <td className="px-4 py-3 font-mono text-[10px] text-info-text">{pack.id.slice(0,8).toUpperCase()}</td>
                     <td className="px-4 py-3"><span className="text-[10px] text-[#ccc] font-medium">{pack.purpose.replace(/_/g," ")}</span></td>
                     <td className="px-4 py-3 max-w-[200px]"><span className="text-[10px] text-[#888] line-clamp-1">{pack.scope_description}</span></td>
                     <td className="px-4 py-3"><span className="px-2 py-0.5 bg-[#222] text-[#ccc] text-[10px] rounded font-bold">{pack.format}</span></td>
                     <td className="px-4 py-3 text-foreground font-bold">{pack.artifact_count}</td>
-                    <td className="px-4 py-3"><span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] rounded font-bold">{pack.status}</span></td>
+                    <td className="px-4 py-3"><span className="px-2 py-0.5 bg-success-bg text-success-text text-[10px] rounded font-bold">{pack.status}</span></td>
                     <td className="px-4 py-3">
                       <span className="font-mono text-[9px] text-[#666] flex items-center gap-1">
                         <Hash className="w-2.5 h-2.5" />{pack.export_hash.slice(0,20)}…
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <button onClick={() => downloadPack(pack.id, pack.format)} className="flex items-center gap-1 px-2 py-1 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/30 text-blue-400 text-[10px] font-bold rounded transition-colors">
+                      <button onClick={() => downloadPack(pack.id, pack.format)} className="flex items-center gap-1 px-2 py-1 bg-info-bg hover:brightness-110 border border-info-border text-info-text text-[10px] font-bold rounded transition-colors">
                         <Download className="w-3 h-3" /> Download
                       </button>
                     </td>
@@ -426,9 +426,9 @@ export default function EvidenceVaultPage() {
       {/* ── Legal Holds Tab ───────────────────────────────────────────────── */}
       {activeTab === "holds" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-[#111] border border-purple-500/20 rounded-2xl p-6">
+          <div className="bg-[#111] border border-info-border rounded-2xl p-6">
             <h3 className="text-sm font-black text-foreground mb-5 flex items-center gap-2">
-              <Gavel className="w-4 h-4 text-purple-400" />
+              <Gavel className="w-4 h-4 text-info-text" />
               Apply Legal Hold
             </h3>
             <div className="space-y-4">
@@ -436,22 +436,22 @@ export default function EvidenceVaultPage() {
                 <label className="block text-[10px] font-bold text-[#888] mb-1.5 uppercase">Object / Artifact ID</label>
                 <input value={holdObjectId} onChange={e => setHoldObjectId(e.target.value)}
                   placeholder="e.g. artifact UUID or publish intent ID"
-                  className="w-full bg-black border border-[#333] focus:border-purple-500/50 rounded-lg px-3 py-2 text-xs text-foreground placeholder-[#555] focus:outline-none" />
+                  className="w-full bg-black border border-[#333] focus:border-info-border rounded-lg px-3 py-2 text-xs text-foreground placeholder-[#555] focus:outline-none" />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-[#888] mb-1.5 uppercase">Matter Reference</label>
                 <input value={holdMatter} onChange={e => setHoldMatter(e.target.value)}
                   placeholder="e.g. CASE-2026-1142"
-                  className="w-full bg-black border border-[#333] focus:border-purple-500/50 rounded-lg px-3 py-2 text-xs text-foreground placeholder-[#555] focus:outline-none" />
+                  className="w-full bg-black border border-[#333] focus:border-info-border rounded-lg px-3 py-2 text-xs text-foreground placeholder-[#555] focus:outline-none" />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-[#888] mb-1.5 uppercase">Reason (min 10 chars)</label>
                 <textarea value={holdReason} onChange={e => setHoldReason(e.target.value)}
                   placeholder="State grounds for legal preservation..."
-                  className="w-full h-20 bg-black border border-[#333] focus:border-purple-500/50 rounded-lg px-3 py-2 text-xs text-foreground placeholder-[#555] resize-none focus:outline-none" />
+                  className="w-full h-20 bg-black border border-[#333] focus:border-info-border rounded-lg px-3 py-2 text-xs text-foreground placeholder-[#555] resize-none focus:outline-none" />
               </div>
               <button onClick={applyHold} disabled={applyingHold || !holdObjectId || !holdMatter || holdReason.length < 10}
-                className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-foreground text-xs font-black rounded-lg transition-colors flex items-center justify-center gap-2">
+                className="w-full py-2.5 bg-info-text hover:brightness-110 disabled:opacity-50 text-foreground text-xs font-black rounded-lg transition-colors flex items-center justify-center gap-2">
                 <Lock className="w-4 h-4" />
                 {applyingHold ? "Applying Hold..." : "Apply Legal Hold"}
               </button>
@@ -471,9 +471,9 @@ export default function EvidenceVaultPage() {
             ) : (
               <div className="space-y-3">
                 {holds.map(h => (
-                  <div key={h.id} className="p-3 bg-[#0a0a0a] rounded-lg border border-purple-500/20">
+                  <div key={h.id} className="p-3 bg-[#0a0a0a] rounded-lg border border-info-border">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-purple-300">{h.matter_ref}</span>
+                      <span className="text-xs font-bold text-info-text">{h.matter_ref}</span>
                       <span className="text-[10px] text-[#555]">{new Date(h.created_at).toLocaleDateString()}</span>
                     </div>
                     <p className="text-[11px] text-[#888] mb-1">{h.reason}</p>

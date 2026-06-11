@@ -94,22 +94,22 @@ function CopyButton({ text }: { text: string }) {
   };
   return (
     <button onClick={copy} className="p-1 rounded hover:bg-[#222] text-[#666] hover:text-white transition-colors">
-      {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+      {copied ? <Check size={13} className="text-success-text" /> : <Copy size={13} />}
     </button>
   );
 }
 
 function StatusBadge({ active, failCount }: { active: boolean; failCount?: number }) {
   if (!active) return (
-    <span className="px-2 py-0.5 rounded-full text-xs bg-[#2a1a1a] text-red-400 border border-red-900/40">Disabled</span>
+    <span className="px-2 py-0.5 rounded-full text-xs bg-[#2a1a1a] text-error-text border border-error-border">Disabled</span>
   );
   if (failCount && failCount > 0) return (
-    <span className="px-2 py-0.5 rounded-full text-xs bg-[#2a1f10] text-amber-400 border border-amber-900/40">
+    <span className="px-2 py-0.5 rounded-full text-xs bg-[#2a1f10] text-warning-text border border-warning-border">
       {failCount} fail{failCount > 1 ? "s" : ""}
     </span>
   );
   return (
-    <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Active</span>
+    <span className="px-2 py-0.5 rounded-full text-xs bg-success-bg text-success-text border border-success-border">Active</span>
   );
 }
 
@@ -189,14 +189,14 @@ function ApiKeysTab() {
   return (
     <div className="space-y-4">
       {createdKey && (
-        <div className="border border-emerald-500/30 bg-emerald-500/5 rounded-xl p-4">
+        <div className="border border-success-border bg-success-bg rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <Shield size={18} className="text-emerald-400 mt-0.5 shrink-0" />
+            <Shield size={18} className="text-success-text mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-emerald-400 mb-1">API key created — copy it now</p>
+              <p className="text-sm font-medium text-success-text mb-1">API key created — copy it now</p>
               <p className="text-xs text-[#666] mb-3">This is the only time the full key will be shown.</p>
               <div className="flex items-center gap-2 bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2">
-                <code className="text-xs text-emerald-300 flex-1 truncate font-mono">
+                <code className="text-xs text-success-text flex-1 truncate font-mono">
                   {showFull
                     ? createdKey.full_key
                     : createdKey.full_key?.replace(/^(.{16})(.+)(.{4})$/, "$1••••••••••••$3")}
@@ -226,7 +226,7 @@ function ApiKeysTab() {
       {showCreate && (
         <div className="border border-[#222] rounded-xl p-4 bg-[#0d0d0d] space-y-4">
           <p className="text-sm font-medium text-foreground">Create API Key</p>
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          {error && <p className="text-xs text-error-text">{error}</p>}
           <div>
             <label className="text-xs text-[#666] mb-1 block">Key Name</label>
             <input
@@ -305,7 +305,7 @@ function ApiKeysTab() {
                   <CopyButton text={key.key_prefix} />
                   <span>Created {fmtDate(key.created_at)}</span>
                   <span>Last used {timeAgo(key.last_used_at)}</span>
-                  {key.expires_at && <span className="text-amber-500">Expires {fmtDate(key.expires_at)}</span>}
+                  {key.expires_at && <span className="text-warning-text">Expires {fmtDate(key.expires_at)}</span>}
                 </div>
                 <div className="flex gap-1 mt-2">
                   {key.scopes.map(s => (
@@ -318,7 +318,7 @@ function ApiKeysTab() {
                   <button
                     onClick={() => handleRevoke(key.id)}
                     disabled={revoking === key.id}
-                    className="px-3 py-1.5 text-xs border border-[#222] rounded-lg text-[#666] hover:text-amber-400 hover:border-amber-900/40 transition-colors disabled:opacity-50"
+                    className="px-3 py-1.5 text-xs border border-[#222] rounded-lg text-[#666] hover:text-warning-text hover:border-warning-border transition-colors disabled:opacity-50"
                   >
                     {revoking === key.id ? "..." : "Revoke"}
                   </button>
@@ -326,7 +326,7 @@ function ApiKeysTab() {
                 <button
                   onClick={() => handleDelete(key.id)}
                   disabled={deleting === key.id}
-                  className="p-1.5 rounded-lg text-[#444] hover:text-red-400 hover:bg-red-900/10 transition-colors disabled:opacity-50"
+                  className="p-1.5 rounded-lg text-[#444] hover:text-error-text hover:brightness-110 transition-colors disabled:opacity-50"
                 >
                   {deleting === key.id ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 </button>
@@ -429,16 +429,16 @@ function WebhooksTab() {
   return (
     <div className="space-y-4">
       {createdWebhook && (
-        <div className="border border-emerald-500/30 bg-emerald-500/5 rounded-xl p-4">
+        <div className="border border-success-border bg-success-bg rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <Shield size={18} className="text-emerald-400 mt-0.5 shrink-0" />
+            <Shield size={18} className="text-success-text mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-emerald-400 mb-1">Webhook created — save the signing secret</p>
+              <p className="text-sm font-medium text-success-text mb-1">Webhook created — save the signing secret</p>
               <p className="text-xs text-[#666] mb-3">
                 Use this to verify <code className="text-[#888]">X-ZV-Signature</code> on incoming requests. Not shown again.
               </p>
               <div className="flex items-center gap-2 bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2">
-                <code className="text-xs text-emerald-300 flex-1 truncate font-mono">{createdWebhook.secret}</code>
+                <code className="text-xs text-success-text flex-1 truncate font-mono">{createdWebhook.secret}</code>
                 {createdWebhook.secret && <CopyButton text={createdWebhook.secret} />}
               </div>
             </div>
@@ -461,7 +461,7 @@ function WebhooksTab() {
       {showCreate && (
         <div className="border border-[#222] rounded-xl p-4 bg-[#0d0d0d] space-y-4">
           <p className="text-sm font-medium text-foreground">Register Webhook Endpoint</p>
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          {error && <p className="text-xs text-error-text">{error}</p>}
           <div>
             <label className="text-xs text-[#666] mb-1 block">Name</label>
             <input
@@ -549,7 +549,7 @@ function WebhooksTab() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {testResult?.id === wh.id && (
-                    <span className={`text-xs flex items-center gap-1 ${testResult.status === "success" ? "text-emerald-400" : "text-red-400"}`}>
+                    <span className={`text-xs flex items-center gap-1 ${testResult.status === "success" ? "text-success-text" : "text-error-text"}`}>
                       {testResult.status === "success"
                         ? <CheckCircle2 size={12} />
                         : <XCircle size={12} />}
@@ -565,7 +565,7 @@ function WebhooksTab() {
                   </button>
                   <button
                     onClick={() => handleToggle(wh)}
-                    className={`p-1.5 rounded-lg transition-colors ${wh.is_active ? "text-emerald-400 hover:text-[#666]" : "text-[#444] hover:text-emerald-400"}`}
+                    className={`p-1.5 rounded-lg transition-colors ${wh.is_active ? "text-success-text hover:text-[#666]" : "text-[#444] hover:text-success-text"}`}
                     title={wh.is_active ? "Disable" : "Enable"}
                   >
                     {wh.is_active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
@@ -580,7 +580,7 @@ function WebhooksTab() {
                   <button
                     onClick={() => handleDelete(wh.id)}
                     disabled={deleting === wh.id}
-                    className="p-1.5 rounded-lg text-[#444] hover:text-red-400 hover:bg-red-900/10 transition-colors disabled:opacity-50"
+                    className="p-1.5 rounded-lg text-[#444] hover:text-error-text hover:brightness-110 transition-colors disabled:opacity-50"
                   >
                     {deleting === wh.id ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
                   </button>
@@ -599,10 +599,10 @@ function WebhooksTab() {
                       {logs[wh.id].map(log => (
                         <div key={log.id} className="flex items-center gap-3 text-xs">
                           {log.status === "success"
-                            ? <CheckCircle2 size={11} className="text-emerald-400 shrink-0" />
-                            : <XCircle size={11} className="text-red-400 shrink-0" />}
+                            ? <CheckCircle2 size={11} className="text-success-text shrink-0" />
+                            : <XCircle size={11} className="text-error-text shrink-0" />}
                           <span className="text-[#555] w-36 shrink-0">{log.event_type}</span>
-                          <span className={log.response_status && log.response_status < 300 ? "text-emerald-400" : "text-[#555]"}>
+                          <span className={log.response_status && log.response_status < 300 ? "text-success-text" : "text-[#555]"}>
                             {log.response_status ?? "—"}
                           </span>
                           <span className="text-[#444]">{log.duration_ms != null ? `${log.duration_ms}ms` : "—"}</span>

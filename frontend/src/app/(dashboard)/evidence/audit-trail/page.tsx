@@ -102,19 +102,19 @@ const TAB_OPTIONS: { id: TabId; label: string; icon: React.ElementType }[] = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const riskConfig: Record<string, { color: string; bg: string; border: string }> = {
-  low:    { color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20" },
-  medium: { color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20" },
-  high:   { color: "text-orange-400", bg: "bg-orange-400/10", border: "border-orange-400/20" },
-  critical: { color: "text-red-400", bg: "bg-red-400/10", border: "border-red-400/20" },
+  low:    { color: "text-success-text", bg: "bg-success-bg", border: "border-success-border" },
+  medium: { color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border" },
+  high:   { color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border" },
+  critical: { color: "text-error-text", bg: "bg-error-bg", border: "border-error-border" },
 };
 
 const statusConfig: Record<string, { color: string; icon: React.ElementType }> = {
-  success:    { color: "text-emerald-400", icon: CheckCircle2 },
-  failed:     { color: "text-red-400", icon: X },
-  blocked:    { color: "text-orange-400", icon: ShieldAlert },
-  pending:    { color: "text-amber-400", icon: Clock },
-  overridden: { color: "text-purple-400", icon: AlertTriangle },
-  preserved:  { color: "text-blue-400", icon: Lock },
+  success:    { color: "text-success-text", icon: CheckCircle2 },
+  failed:     { color: "text-error-text", icon: X },
+  blocked:    { color: "text-warning-text", icon: ShieldAlert },
+  pending:    { color: "text-warning-text", icon: Clock },
+  overridden: { color: "text-info-text", icon: AlertTriangle },
+  preserved:  { color: "text-info-text", icon: Lock },
   sealed:     { color: "text-[#666]", icon: Archive },
 };
 
@@ -181,7 +181,7 @@ export default function AuditTrailPage() {
   };
 
   if (!hasRole(["WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "ADMIN", "AUDITOR", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN"])) {
-    return <div className="p-8 text-red-400">Unauthorized. You need governance privileges to view the Audit Trail.</div>;
+    return <div className="p-8 text-error-text">Unauthorized. You need governance privileges to view the Audit Trail.</div>;
   }
 
   return (
@@ -190,7 +190,7 @@ export default function AuditTrailPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-            <FileSearch className="w-6 h-6 text-amber-500" />
+            <FileSearch className="w-6 h-6 text-warning-text" />
             Audit Trail
           </h1>
           <p className="text-[#888888] mt-1">
@@ -200,15 +200,15 @@ export default function AuditTrailPage() {
         <div className="flex items-center gap-3">
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
             chainStatus.intact
-              ? "bg-emerald-400/10 border border-emerald-400/20"
-              : "bg-red-400/10 border border-red-400/20"
+              ? "bg-success-bg border border-success-border"
+              : "bg-error-bg border border-error-border"
           }`}>
             {chainStatus.intact ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-success-text" />
             ) : (
-              <AlertTriangle className="w-4 h-4 text-red-400" />
+              <AlertTriangle className="w-4 h-4 text-error-text" />
             )}
-            <span className={`text-xs font-medium ${chainStatus.intact ? "text-emerald-400" : "text-red-400"}`}>
+            <span className={`text-xs font-medium ${chainStatus.intact ? "text-success-text" : "text-error-text"}`}>
               {chainStatus.intact ? "Chain Intact" : "Chain Compromised"}
             </span>
             {chainStatus.lastVerified && (
@@ -228,11 +228,11 @@ export default function AuditTrailPage() {
 
       {/* Chain Break P0 Banner */}
       {chainStatus.lastVerified && !chainStatus.intact && (
-        <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+        <div className="mb-4 bg-error-bg border border-error-border rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-error-text flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-sm font-medium text-red-400">Chain Integrity Compromised — P0</h4>
-            <p className="text-xs text-red-300 mt-1">
+            <h4 className="text-sm font-medium text-error-text">Chain Integrity Compromised — P0</h4>
+            <p className="text-xs text-error-text mt-1">
               Cryptographic hash chain verification has detected mismatched blocks. Unsafe exports and actions for affected ranges are disabled. Run Verify Now on the Integrity tab for details.
             </p>
           </div>
@@ -240,7 +240,7 @@ export default function AuditTrailPage() {
       )}
 
       {/* Index Lag Warning */}
-      <div className="mb-4 bg-amber-500/5 border border-amber-500/20 rounded-lg px-4 py-2 flex items-center gap-2 text-xs text-amber-400">
+      <div className="mb-4 bg-warning-bg border border-warning-border rounded-lg px-4 py-2 flex items-center gap-2 text-xs text-warning-text">
         <Info className="w-3.5 h-3.5" />
         Some recent events may still be indexing. Results reflect the indexed read model state.
       </div>
@@ -255,7 +255,7 @@ export default function AuditTrailPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? "text-amber-400 border-amber-400"
+                  ? "text-warning-text border-warning-border"
                   : "text-[#666] border-transparent hover:text-white hover:border-[#444]"
               }`}
             >
@@ -414,10 +414,10 @@ function EventsTab() {
   const activeFilterCount = [selectedCategory, selectedEventType, selectedRisk, selectedStatus, selectedEvidenceState, selectedRetentionClass, policyRuleId, dataResidency, selectedActorId, selectedObjectId, workflowRunId, approvalChainId].filter(Boolean).length;
 
   const riskConfigMap: Record<string, { color: string; bg: string; border: string }> = {
-    low:    { color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20" },
-    medium: { color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20" },
-    high:   { color: "text-orange-400", bg: "bg-orange-400/10", border: "border-orange-400/20" },
-    critical: { color: "text-red-400", bg: "bg-red-400/10", border: "border-red-400/20" },
+    low:    { color: "text-success-text", bg: "bg-success-bg", border: "border-success-border" },
+    medium: { color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border" },
+    high:   { color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border" },
+    critical: { color: "text-error-text", bg: "bg-error-bg", border: "border-error-border" },
   };
 
   const handleActionModalConfirm = async (value?: string) => {
@@ -473,7 +473,7 @@ function EventsTab() {
       {/* Main Content */}
       <div className="flex-1 min-w-0">
         {message && (
-          <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-xs ${message.type === "error" ? "bg-red-500/10 border border-red-500/30 text-red-400" : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"}`}>
+          <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-xs ${message.type === "error" ? "bg-error-bg border border-error-border text-error-text" : "bg-success-bg border border-success-border text-success-text"}`}>
             {message.type === "error" ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
             {message.text}
             <button onClick={() => setMessage(null)} className="ml-auto opacity-60 hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
@@ -483,14 +483,14 @@ function EventsTab() {
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3 mb-4">
             <StatCard label="Today" value={stats.events_today} color="text-foreground" />
-            <StatCard label="High Risk" value={stats.high_risk_events} color="text-orange-400" />
-            <StatCard label="Critical" value={stats.critical_events} color="text-red-400" />
-            <StatCard label="AI Events" value={stats.ai_events} color="text-purple-400" />
-            <StatCard label="Failed" value={stats.failed_events} color="text-red-400" />
-            <StatCard label="Override" value={stats.overridden_events} color="text-amber-400" />
-            <StatCard label="Blocked" value={stats.blocked_events} color="text-orange-400" />
-            <StatCard label="Preserved" value={stats.preserved_events} color="text-blue-400" />
-            <StatCard label="Legal Hold" value={stats.legal_hold_events} color="text-amber-400" />
+            <StatCard label="High Risk" value={stats.high_risk_events} color="text-warning-text" />
+            <StatCard label="Critical" value={stats.critical_events} color="text-error-text" />
+            <StatCard label="AI Events" value={stats.ai_events} color="text-info-text" />
+            <StatCard label="Failed" value={stats.failed_events} color="text-error-text" />
+            <StatCard label="Override" value={stats.overridden_events} color="text-warning-text" />
+            <StatCard label="Blocked" value={stats.blocked_events} color="text-warning-text" />
+            <StatCard label="Preserved" value={stats.preserved_events} color="text-info-text" />
+            <StatCard label="Legal Hold" value={stats.legal_hold_events} color="text-warning-text" />
           </div>
         )}
 
@@ -504,14 +504,14 @@ function EventsTab() {
                 placeholder="Search event_id, title, summary, actor, object, type..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg pl-10 pr-4 py-2 text-sm text-foreground focus:outline-none focus:border-amber-500"
+                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg pl-10 pr-4 py-2 text-sm text-foreground focus:outline-none focus:border-warning-border"
               />
             </div>
 
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-amber-500"
+              className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-warning-border"
             >
               <option value="1h">Last Hour</option>
               <option value="24h">Last 24 Hours</option>
@@ -536,14 +536,14 @@ function EventsTab() {
               onClick={() => setShowFilters(!showFilters)}
               className={`px-3 py-2 border rounded-lg text-sm flex items-center gap-2 transition-colors ${
                 showFilters || activeFilterCount > 0
-                  ? "border-amber-500/50 text-amber-400 bg-amber-400/10"
+                  ? "border-warning-border text-warning-text bg-warning-bg"
                   : "border-[#333] text-[#888] hover:border-[#555]"
               }`}
             >
               <SlidersHorizontal className="w-4 h-4" />
               Filters
               {activeFilterCount > 0 && (
-                <span className="bg-amber-500 text-black text-xs font-bold px-1.5 py-0.5 rounded-full">
+                <span className="bg-warning-text text-black text-xs font-bold px-1.5 py-0.5 rounded-full">
                   {activeFilterCount}
                 </span>
               )}
@@ -632,7 +632,7 @@ function EventsTab() {
                     setPolicyRuleId(""); setDataResidency(""); setSelectedActorId(""); setSelectedObjectId("");
                     setWorkflowRunId(""); setApprovalChainId(""); setSearch("");
                   }}
-                  className="px-3 py-2 text-sm text-red-400 hover:text-red-300 flex items-center gap-1"
+                  className="px-3 py-2 text-sm text-error-text hover:text-error-text flex items-center gap-1"
                 >
                   <X className="w-4 h-4" /> Clear All Filters
                 </button>
@@ -642,9 +642,9 @@ function EventsTab() {
         </div>
 
         {/* Permission-filtered banner */}
-        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2 mb-3 flex items-center gap-2">
-          <EyeOff className="w-4 h-4 text-amber-400" />
-          <span className="text-xs text-amber-300">
+        <div className="bg-warning-bg border border-warning-border rounded-lg px-3 py-2 mb-3 flex items-center gap-2">
+          <EyeOff className="w-4 h-4 text-warning-text" />
+          <span className="text-xs text-warning-text">
             Showing permission-filtered results based on your role. Some fields may be redacted, hashed, or hidden per access control policy.
           </span>
         </div>
@@ -666,7 +666,7 @@ function EventsTab() {
                         type="checkbox"
                         checked={events.length > 0 && selectedIds.size === events.length}
                         onChange={handleSelectAll}
-                        className="accent-amber-500"
+                        className="accent-warning-text"
                       />
                     </th>
                     <th className="py-3 px-3 text-xs font-medium text-[#888] uppercase tracking-wider border-b border-[#222]">Time</th>
@@ -701,7 +701,7 @@ function EventsTab() {
                             type="checkbox"
                             checked={selectedIds.has(event.id)}
                             onChange={() => handleSelect(event.id)}
-                            className="accent-amber-500"
+                            className="accent-warning-text"
                           />
                         </td>
                         <td className="py-3 px-3 text-xs text-[#888] whitespace-nowrap">
@@ -755,7 +755,7 @@ function EventsTab() {
                         <FileSearch className="w-8 h-8 mx-auto mb-2 text-[#444]" />
                         No events found matching your criteria.
                         <br />
-                        <button onClick={() => fetchEvents()} className="text-amber-500 text-sm mt-2 hover:text-amber-400">
+                        <button onClick={() => fetchEvents()} className="text-warning-text text-sm mt-2 hover:text-warning-text">
                           Clear filters and reload
                         </button>
                       </td>
@@ -781,30 +781,30 @@ function EventsTab() {
 
           {/* Bulk Action Bar */}
           {selectedIds.size > 0 && (
-            <div className="px-4 py-3 border-t border-[#222] bg-amber-500/5 flex items-center justify-between">
+            <div className="px-4 py-3 border-t border-[#222] bg-warning-bg flex items-center justify-between">
               <span className="text-sm text-[#ccc]">{selectedIds.size} event{selectedIds.size > 1 ? "s" : ""} selected</span>
               <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => setActionModal({ step: 'preserve', eventIds: Array.from(selectedIds) })}
-                  className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg text-xs hover:bg-blue-500/20 flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-info-bg border border-info-border text-info-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5"
                 >
                   <Lock className="w-3.5 h-3.5" /> Preserve
                 </button>
                 <button
                   onClick={() => setActionModal({ step: 'exportFormat', eventIds: Array.from(selectedIds) })}
-                  className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs hover:bg-emerald-500/20 flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-success-bg border border-success-border text-success-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5" /> Export
                 </button>
                 <button
                   onClick={() => setActionModal({ step: 'investigationTitle', eventIds: Array.from(selectedIds) })}
-                  className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-lg text-xs hover:bg-purple-500/20 flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-info-bg border border-info-border text-info-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5"
                 >
                   <Shield className="w-3.5 h-3.5" /> Investigate
                 </button>
                 <button
                   onClick={() => setActionModal({ step: 'legalHold', eventIds: Array.from(selectedIds) })}
-                  className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg text-xs hover:bg-rose-500/20 flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-error-bg border border-error-border text-error-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5"
                 >
                   <Gavel className="w-3.5 h-3.5" /> Legal Hold
                 </button>
@@ -814,7 +814,7 @@ function EventsTab() {
                     navigator.clipboard.writeText(links.join('\n'));
                     setSelectedIds(new Set());
                   }}
-                  className="px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 rounded-lg text-xs hover:bg-indigo-500/20 flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-info-bg border border-info-border text-info-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5"
                 >
                   <Link2 className="w-3.5 h-3.5" /> Copy Links
                 </button>
@@ -895,8 +895,8 @@ function EventsTab() {
                     <p className="flex items-center gap-1"><span className="text-[#666] w-16">Approval:</span> <FieldValue value={String(selectedEvent.authority.approval_required)} /></p>
                   )}
                   {!!selectedEvent.authority.override_reason && (
-                    <div className="bg-orange-500/5 border border-orange-500/20 rounded p-2 mt-1">
-                      <p className="text-orange-400 text-[10px] uppercase tracking-wider mb-0.5">Override Reason</p>
+                    <div className="bg-warning-bg border border-warning-border rounded p-2 mt-1">
+                      <p className="text-warning-text text-[10px] uppercase tracking-wider mb-0.5">Override Reason</p>
                       <FieldValue value={String(selectedEvent.authority.override_reason)} />
                     </div>
                   )}
@@ -915,9 +915,9 @@ function EventsTab() {
                     <p><span className="text-[#666]">Field:</span> <span className="text-[#ccc] font-mono">{String(selectedEvent.change.field_changed)}</span></p>
                   )}
                   {selectedEvent.change.previous_value !== undefined && (
-                    <div className="border border-red-500/20 bg-red-500/5 rounded p-1.5">
-                      <span className="text-red-400 text-[10px] uppercase">Was:</span>
-                      <div className="text-red-300 font-mono text-[10px] break-all mt-0.5">
+                    <div className="border border-error-border bg-error-bg rounded p-1.5">
+                      <span className="text-error-text text-[10px] uppercase">Was:</span>
+                      <div className="text-error-text font-mono text-[10px] break-all mt-0.5">
                         {typeof selectedEvent.change.previous_value === "object"
                           ? JSON.stringify(selectedEvent.change.previous_value)
                           : String(selectedEvent.change.previous_value as string)}
@@ -925,9 +925,9 @@ function EventsTab() {
                     </div>
                   )}
                   {selectedEvent.change.new_value !== undefined && (
-                    <div className="border border-emerald-500/20 bg-emerald-500/5 rounded p-1.5">
-                      <span className="text-emerald-400 text-[10px] uppercase">Now:</span>
-                      <div className="text-emerald-300 font-mono text-[10px] break-all mt-0.5">
+                    <div className="border border-success-border bg-success-bg rounded p-1.5">
+                      <span className="text-success-text text-[10px] uppercase">Now:</span>
+                      <div className="text-success-text font-mono text-[10px] break-all mt-0.5">
                         {typeof selectedEvent.change.new_value === "object"
                           ? JSON.stringify(selectedEvent.change.new_value)
                           : String(selectedEvent.change.new_value as string)}
@@ -960,7 +960,7 @@ function EventsTab() {
                       <span className="text-[#666] text-[10px] uppercase">Policy Checks:</span>
                       <div className="flex flex-wrap gap-1 mt-0.5">
                         {selectedEvent.ai_context.policy_checks.map((pc: string) => (
-                          <span key={pc} className="px-1.5 py-0.5 bg-emerald-400/10 text-emerald-400 rounded text-[10px]">{pc}</span>
+                          <span key={pc} className="px-1.5 py-0.5 bg-success-bg text-success-text rounded text-[10px]">{pc}</span>
                         ))}
                       </div>
                     </div>
@@ -977,7 +977,7 @@ function EventsTab() {
                 <p><span className="text-[#666]">Previous:</span> <span className="text-[#ccc] font-mono text-[10px] break-all">{selectedEvent.prev_hash || "Genesis"}</span></p>
                 <p><span className="text-[#666]">Chain:</span> <span className="text-[#ccc]">{selectedEvent.chain_id}</span></p>
                 {selectedEvent.sealed_at && (
-                  <p><span className="text-[#666]">Sealed:</span> <span className="text-amber-400">{formatTimestamp(selectedEvent.sealed_at)}</span></p>
+                  <p><span className="text-[#666]">Sealed:</span> <span className="text-warning-text">{formatTimestamp(selectedEvent.sealed_at)}</span></p>
                 )}
               </div>
             </div>
@@ -1016,13 +1016,13 @@ function EventsTab() {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setActionModal({ step: 'preserve', eventIds: [selectedEvent.id] })}
-                className="flex-1 px-3 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 flex items-center justify-center gap-1.5"
+                className="flex-1 px-3 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-xs hover:brightness-110 flex items-center justify-center gap-1.5"
               >
                 <Lock className="w-3.5 h-3.5" /> Preserve
               </button>
               <button
                 onClick={() => setActionModal({ step: 'exportFormat', eventIds: [selectedEvent.id] })}
-                className="flex-1 px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs hover:bg-emerald-500/20 flex items-center justify-center gap-1.5"
+                className="flex-1 px-3 py-2 bg-success-bg border border-success-border text-success-text rounded-lg text-xs hover:brightness-110 flex items-center justify-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" /> Export
               </button>
@@ -1120,7 +1120,7 @@ function SavedViewsTab() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-sm hover:bg-amber-500/20 flex items-center gap-2"
+          className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-sm hover:brightness-110 flex items-center gap-2"
         >
           <Plus className="w-4 h-4" /> {showForm ? "Cancel" : "New View"}
         </button>
@@ -1135,7 +1135,7 @@ function SavedViewsTab() {
             onKeyDown={e => e.key === "Enter" && handleCreate()}
             className="flex-1 bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground"
           />
-          <button onClick={handleCreate} className="px-4 py-2 bg-amber-500 text-black rounded-lg text-sm font-medium hover:bg-amber-400">
+          <button onClick={handleCreate} className="px-4 py-2 bg-warning-text text-black rounded-lg text-sm font-medium hover:brightness-110">
             Save
           </button>
         </div>
@@ -1163,7 +1163,7 @@ function SavedViewsTab() {
                   <td className="py-2 px-3 font-medium text-foreground">{v.name}</td>
                   <td className="py-2 px-3 text-xs text-[#888]">{formatTimestamp(v.createdAt)}</td>
                   <td className="py-2 px-3">
-                    <button onClick={() => handleDelete(v.id)} className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1">
+                    <button onClick={() => handleDelete(v.id)} className="text-error-text hover:text-error-text text-xs flex items-center gap-1">
                       <Trash2 className="w-3 h-3" /> Delete
                     </button>
                   </td>
@@ -1237,10 +1237,10 @@ function ExportsTab() {
                   <td className="py-2 px-3">{exp.reason}</td>
                   <td className="py-2 px-3">
                     <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium w-fit ${
-                      exp.status === "COMPLETED" ? "text-emerald-400 bg-emerald-400/10" :
-                      exp.status === "FAILED" ? "text-red-400 bg-red-400/10" :
-                      exp.status === "PROCESSING" ? "text-blue-400 bg-blue-400/10" :
-                      "text-amber-400 bg-amber-400/10"
+                      exp.status === "COMPLETED" ? "text-success-text bg-success-bg" :
+                      exp.status === "FAILED" ? "text-error-text bg-error-bg" :
+                      exp.status === "PROCESSING" ? "text-info-text bg-info-bg" :
+                      "text-warning-text bg-warning-bg"
                     }`}>
                       {exp.status === "PENDING" && <RefreshCw className="w-3 h-3 animate-spin" />}
                       {exp.status === "PROCESSING" && <RefreshCw className="w-3 h-3 animate-spin" />}
@@ -1299,7 +1299,7 @@ function IntegrityTab() {
           <button
             onClick={handleVerify}
             disabled={verifying}
-            className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 bg-success-bg border border-success-border text-success-text rounded-lg text-sm hover:brightness-110 flex items-center gap-2 disabled:opacity-50"
           >
             {verifying ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1317,14 +1317,14 @@ function IntegrityTab() {
                 <div className="text-2xl font-bold text-foreground">{verifyResult.total_blocks}</div>
                 <div className="text-xs text-[#888]">Total Blocks</div>
               </div>
-              <div className="bg-[#0a0a0a] border border-emerald-500/20 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-emerald-400">{verifyResult.verified_blocks}</div>
+              <div className="bg-[#0a0a0a] border border-success-border rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-success-text">{verifyResult.verified_blocks}</div>
                 <div className="text-xs text-[#888]">Verified</div>
               </div>
               <div className={`bg-[#0a0a0a] border rounded-lg p-3 text-center ${
-                verifyResult.failed_blocks > 0 ? "border-red-500/20" : "border-[#222]"
+                verifyResult.failed_blocks > 0 ? "border-error-border" : "border-[#222]"
               }`}>
-                <div className={`text-2xl font-bold ${verifyResult.failed_blocks > 0 ? "text-red-400" : "text-[#666]"}`}>
+                <div className={`text-2xl font-bold ${verifyResult.failed_blocks > 0 ? "text-error-text" : "text-[#666]"}`}>
                   {verifyResult.failed_blocks}
                 </div>
                 <div className="text-xs text-[#888]">Failed</div>
@@ -1332,12 +1332,12 @@ function IntegrityTab() {
             </div>
 
             {verifyResult.failed_blocks > 0 && (
-              <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-red-400 text-sm font-medium mb-2">
+              <div className="bg-error-bg border border-error-border rounded-lg p-3">
+                <div className="flex items-center gap-2 text-error-text text-sm font-medium mb-2">
                   <ShieldAlert className="w-4 h-4" />
                   Chain Integrity Issues Detected
                 </div>
-                <div className="space-y-1 text-xs text-red-300">
+                <div className="space-y-1 text-xs text-error-text">
                   {verifyResult.results?.filter((r: any) => !r.chain_verified).map((r: any) => (
                     <p key={r.block_number}>Block #{r.block_number}: {r.error_message}</p>
                   ))}
@@ -1346,9 +1346,9 @@ function IntegrityTab() {
             )}
 
             {verifyResult.failed_blocks === 0 && verifyResult.total_blocks > 0 && (
-              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm text-emerald-400">All blocks verified. Chain integrity is intact.</span>
+              <div className="bg-success-bg border border-success-border rounded-lg p-3 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success-text" />
+                <span className="text-sm text-success-text">All blocks verified. Chain integrity is intact.</span>
               </div>
             )}
           </div>
@@ -1388,10 +1388,10 @@ function RetentionTab() {
         <h3 className="text-lg font-medium text-foreground mb-4">Retention Policies</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Standard", duration: "2 years", color: "text-emerald-400", desc: "Default retention for routine audit events", badge: "bg-emerald-400/10 border-emerald-400/20" },
-            { label: "Extended", duration: "7 years", color: "text-blue-400", desc: "Compliance and regulatory events", badge: "bg-blue-400/10 border-blue-400/20" },
-            { label: "Regulated", duration: "10 years", color: "text-purple-400", desc: "GDPR, SOX, FINRA requirements", badge: "bg-purple-400/10 border-purple-400/20" },
-            { label: "Legal Hold", duration: "Indefinite", color: "text-amber-400", desc: "Suspended until hold is released", badge: "bg-amber-400/10 border-amber-400/20" },
+            { label: "Standard", duration: "2 years", color: "text-success-text", desc: "Default retention for routine audit events", badge: "bg-success-bg border-success-border" },
+            { label: "Extended", duration: "7 years", color: "text-info-text", desc: "Compliance and regulatory events", badge: "bg-info-bg border-info-border" },
+            { label: "Regulated", duration: "10 years", color: "text-info-text", desc: "GDPR, SOX, FINRA requirements", badge: "bg-info-bg border-info-border" },
+            { label: "Legal Hold", duration: "Indefinite", color: "text-warning-text", desc: "Suspended until hold is released", badge: "bg-warning-bg border-warning-border" },
           ].map((cls) => (
             <div key={cls.label} className={`${cls.badge} border rounded-lg p-4`}>
               <div className={`text-sm font-medium ${cls.color}`}>{cls.label}</div>
@@ -1414,16 +1414,16 @@ function RetentionTab() {
           <button
             onClick={handleSealExpired}
             disabled={sealing}
-            className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-sm hover:bg-amber-500/20 flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-sm hover:brightness-110 flex items-center gap-2 disabled:opacity-50"
           >
             <Archive className="w-4 h-4" />
             {sealing ? "Sealing..." : "Seal Expired"}
           </button>
         </div>
         {sealResult && (
-          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm text-emerald-400">{sealResult.sealed_count} record(s) sealed</span>
+          <div className="bg-success-bg border border-success-border rounded-lg p-3 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-success-text" />
+            <span className="text-sm text-success-text">{sealResult.sealed_count} record(s) sealed</span>
           </div>
         )}
       </div>
@@ -1515,11 +1515,11 @@ function StreamingTab() {
   return (
     <div className="space-y-4">
       {/* Streaming Backlog Warning */}
-      <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg px-4 py-3 flex items-start gap-3 text-xs">
-        <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+      <div className="bg-warning-bg border border-warning-border rounded-lg px-4 py-3 flex items-start gap-3 text-xs">
+        <AlertTriangle className="w-4 h-4 text-warning-text flex-shrink-0 mt-0.5" />
         <div>
-          <span className="text-amber-400 font-medium">Degraded Streaming</span>
-          <span className="text-amber-300 ml-1">
+          <span className="text-warning-text font-medium">Degraded Streaming</span>
+          <span className="text-warning-text ml-1">
             Events may be backlogged. 3 of {subs.length} subscriptions may be affected.
           </span>
           <p className="text-[#888] mt-0.5">Admin/Security review recommended if backlog persists.</p>
@@ -1536,7 +1536,7 @@ function StreamingTab() {
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-sm hover:bg-amber-500/20 flex items-center gap-2"
+            className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-sm hover:brightness-110 flex items-center gap-2"
           >
             <Plus className="w-4 h-4" /> {showForm ? "Cancel" : "New Subscription"}
           </button>
@@ -1563,10 +1563,10 @@ function StreamingTab() {
               className="w-full bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground font-mono"
             />
             <div className="flex gap-2 text-xs text-[#888]">
-              <span className="px-2 py-1 bg-[#111] rounded">SSE: <code className="text-amber-400">GET /api/audit-events/subscribe</code></span>
+              <span className="px-2 py-1 bg-[#111] rounded">SSE: <code className="text-warning-text">GET /api/audit-events/subscribe</code></span>
               <span className="px-2 py-1 bg-[#111] rounded">Webhook: POST to your endpoint</span>
             </div>
-            <button onClick={handleCreate} className="px-4 py-2 bg-amber-500 text-black rounded-lg text-sm font-medium hover:bg-amber-400">
+            <button onClick={handleCreate} className="px-4 py-2 bg-warning-text text-black rounded-lg text-sm font-medium hover:brightness-110">
               Create Subscription
             </button>
           </div>
@@ -1599,20 +1599,20 @@ function StreamingTab() {
                     <td className="py-2 px-3">{s.name}</td>
                     <td className="py-2 px-3">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        s.subscription_type === 'webhook' ? 'text-blue-400 bg-blue-400/10' :
-                        s.subscription_type === 'sse' ? 'text-emerald-400 bg-emerald-400/10' :
-                        'text-purple-400 bg-purple-400/10'
+                        s.subscription_type === 'webhook' ? 'text-info-text bg-info-bg' :
+                        s.subscription_type === 'sse' ? 'text-success-text bg-success-bg' :
+                        'text-info-text bg-info-bg'
                       }`}>{s.subscription_type}</span>
                     </td>
                     <td className="py-2 px-3 text-xs font-mono text-[#888]">{s.endpoint_url || "SSE (direct)"}</td>
                     <td className="py-2 px-3">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        s.status === 'ACTIVE' ? 'text-emerald-400 bg-emerald-400/10' : 'text-[#666] bg-[#222]'
+                        s.status === 'ACTIVE' ? 'text-success-text bg-success-bg' : 'text-[#666] bg-[#222]'
                       }`}>{s.status}</span>
                     </td>
                     <td className="py-2 px-3 text-xs text-[#888]">{s.delivery_count || 0}</td>
                     <td className="py-2 px-3">
-                      <button onClick={() => handleDelete(s.id)} className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1">
+                      <button onClick={() => handleDelete(s.id)} className="text-error-text hover:text-error-text text-xs flex items-center gap-1">
                         <Trash2 className="w-3 h-3" /> Delete
                       </button>
                     </td>
@@ -1636,7 +1636,7 @@ function FieldValue({ value, label }: { value: unknown; label?: string }) {
   if (value === undefined || value === null) return <span className="text-[#555]">-</span>;
   if (typeof value === "string" && value === REDACTED_MARKER) {
     return (
-      <span className="inline-flex items-center gap-1 text-amber-500" title="This field has been redacted due to access control policy">
+      <span className="inline-flex items-center gap-1 text-warning-text" title="This field has been redacted due to access control policy">
         <EyeOff className="w-3 h-3" />
         <span className="text-xs italic">Redacted</span>
       </span>
@@ -1645,7 +1645,7 @@ function FieldValue({ value, label }: { value: unknown; label?: string }) {
   if (typeof value === "string" && value.startsWith(HASHED_MARKER_PREFIX)) {
     const prefix = value.substring(0, 24);
     return (
-      <span className="inline-flex items-center gap-1 text-orange-400" title="This field has been hashed for privacy protection">
+      <span className="inline-flex items-center gap-1 text-warning-text" title="This field has been hashed for privacy protection">
         <ShieldOff className="w-3 h-3" />
         <span className="text-xs font-mono">{prefix}…</span>
       </span>
@@ -1653,7 +1653,7 @@ function FieldValue({ value, label }: { value: unknown; label?: string }) {
   }
   if (typeof value === "string" && value === "SEALED_BY_RETENTION_POLICY") {
     return (
-      <span className="inline-flex items-center gap-1 text-blue-400" title="This record has been sealed by retention policy">
+      <span className="inline-flex items-center gap-1 text-info-text" title="This record has been sealed by retention policy">
         <Archive className="w-3 h-3" />
         <span className="text-xs italic">Sealed</span>
       </span>

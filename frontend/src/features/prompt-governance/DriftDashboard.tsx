@@ -23,10 +23,10 @@ import {
 const { muted } = _styles;
 
 const SEVERITY_COLOR: Record<string, string> = {
-  low: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  medium: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  high: "bg-orange-500/15 text-orange-300 border-orange-500/30",
-  critical: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  low: "bg-info-bg text-info-text border-info-border",
+  medium: "bg-warning-bg text-warning-text border-warning-border",
+  high: "bg-warning-bg text-warning-text border-warning-border",
+  critical: "bg-error-bg text-error-text border-error-border",
 };
 
 const CATEGORY_LABELS: Record<BehavioralDriftCategory, string> = {

@@ -88,28 +88,28 @@ const STATE_LABELS: Record<string, string> = {
 };
 
 const STATE_COLORS: Record<string, string> = {
-  preserved: "text-green-400 bg-green-400/10 border-green-400/30",
-  sealed: "text-blue-400 bg-blue-400/10 border-blue-400/30",
-  legal_hold: "text-red-400 bg-red-400/10 border-red-400/30",
-  archived: "text-slate-400 bg-slate-400/10 border-slate-400/30",
-  quarantined: "text-amber-400 bg-amber-400/10 border-amber-400/30",
-  failed: "text-red-500 bg-red-500/10 border-red-500/30",
-  capturing: "text-cyan-400 bg-cyan-400/10 border-cyan-400/30",
-  requested: "text-slate-400 bg-slate-400/10 border-slate-400/30",
+  preserved: "text-success-text bg-success-bg border-success-border",
+  sealed: "text-info-text bg-info-bg border-info-border",
+  legal_hold: "text-error-text bg-error-bg border-error-border",
+  archived: "text-info-text bg-info-bg border-info-border",
+  quarantined: "text-warning-text bg-warning-bg border-warning-border",
+  failed: "text-error-text bg-error-bg border-error-border",
+  capturing: "text-info-text bg-info-bg border-info-border",
+  requested: "text-info-text bg-info-bg border-info-border",
 };
 
 const RETENTION_COLORS: Record<string, string> = {
-  standard: "text-slate-400", extended: "text-blue-400",
-  regulated: "text-amber-400", legal_hold: "text-red-400",
-  contractual_custom: "text-purple-400",
+  standard: "text-info-text", extended: "text-info-text",
+  regulated: "text-warning-text", legal_hold: "text-error-text",
+  contractual_custom: "text-info-text",
 };
 
 const SCAN_STATUS_COLORS: Record<string, string> = {
-  pending: "text-slate-400 bg-slate-400/10",
-  scanning: "text-cyan-400 bg-cyan-400/10",
-  passed: "text-green-400 bg-green-400/10",
-  flagged: "text-amber-400 bg-amber-400/10",
-  failed: "text-red-500 bg-red-500/10",
+  pending: "text-info-text bg-info-bg",
+  scanning: "text-info-text bg-info-bg",
+  passed: "text-success-text bg-success-bg",
+  flagged: "text-warning-text bg-warning-bg",
+  failed: "text-error-text bg-error-bg",
 };
 
 function fmt(ts: string) {
@@ -252,7 +252,7 @@ export default function EvidenceVaultPage() {
   const TabIcon = TABS.find(t => t.id === activeTab)?.icon || Archive;
 
   if (rolesLoading) return <div className="p-8 text-[#888]">Loading...</div>;
-  if (error) return <div className="p-8 text-red-400">{error}</div>;
+  if (error) return <div className="p-8 text-error-text">{error}</div>;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -270,22 +270,22 @@ export default function EvidenceVaultPage() {
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
           {activeTab === "items" && (
-            <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-foreground rounded-lg hover:bg-blue-700">
+            <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-info-text text-xs text-foreground rounded-lg hover:brightness-110">
               <Plus className="w-3.5 h-3.5" /> Preserve
             </button>
           )}
           {activeTab === "packages" && (
-            <button onClick={() => setShowCreatePackage(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-foreground rounded-lg hover:bg-blue-700">
+            <button onClick={() => setShowCreatePackage(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-info-text text-xs text-foreground rounded-lg hover:brightness-110">
               <Plus className="w-3.5 h-3.5" /> Create Package
             </button>
           )}
           {activeTab === "shares" && (
-            <button onClick={() => setShowCreateShare(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-foreground rounded-lg hover:bg-blue-700">
+            <button onClick={() => setShowCreateShare(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-info-text text-xs text-foreground rounded-lg hover:brightness-110">
               <Plus className="w-3.5 h-3.5" /> New Share
             </button>
           )}
           {activeTab === "scans" && (
-            <button onClick={() => setShowRunScan(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-xs text-foreground rounded-lg hover:bg-blue-700">
+            <button onClick={() => setShowRunScan(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-info-text text-xs text-foreground rounded-lg hover:brightness-110">
               <Scan className="w-3.5 h-3.5" /> Run Scan
             </button>
           )}
@@ -296,10 +296,10 @@ export default function EvidenceVaultPage() {
       {activeTab === "items" && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
           <StatCard label="Total Preserved" value={health?.total_items || 0} color="text-foreground" />
-          <StatCard label="Legal Holds" value={health?.legal_hold_count || 0} color="text-red-400" />
-          <StatCard label="Needs Verify" value={health?.failed_verifications || 0} color={health?.failed_verifications ? "text-amber-400" : "text-green-400"} />
-          <StatCard label="Quarantined" value={health?.quarantined || 0} color="text-amber-400" />
-          <StatCard label="Preserved" value={health?.by_state?.preserved || 0} color="text-green-400" />
+          <StatCard label="Legal Holds" value={health?.legal_hold_count || 0} color="text-error-text" />
+          <StatCard label="Needs Verify" value={health?.failed_verifications || 0} color={health?.failed_verifications ? "text-warning-text" : "text-success-text"} />
+          <StatCard label="Quarantined" value={health?.quarantined || 0} color="text-warning-text" />
+          <StatCard label="Preserved" value={health?.by_state?.preserved || 0} color="text-success-text" />
         </div>
       )}
 
@@ -308,7 +308,7 @@ export default function EvidenceVaultPage() {
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs border-b-2 transition-colors ${
-              activeTab === tab.id ? "text-amber-400 border-amber-400" : "text-[#666] border-transparent hover:text-white hover:border-[#444]"
+              activeTab === tab.id ? "text-warning-text border-warning-border" : "text-[#666] border-transparent hover:text-white hover:border-[#444]"
             }`}>
             <tab.icon className="w-3.5 h-3.5" /> {tab.label}
           </button>
@@ -376,19 +376,19 @@ export default function EvidenceVaultPage() {
                         <span className="text-[#666] ml-1">:{item.source_id.substring(0, 12)}</span>
                       </td>
                       <td className="p-3">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] border ${STATE_COLORS[item.vault_state] || 'text-slate-400 border-slate-400/30 bg-slate-400/10'}`}>
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] border ${STATE_COLORS[item.vault_state] || 'text-info-text border-info-border bg-info-bg'}`}>
                           {STATE_LABELS[item.vault_state] || item.vault_state}
                         </span>
                       </td>
                       <td className={`p-3 ${RETENTION_COLORS[item.retention_class] || 'text-[#888]'}`}>{item.retention_class}</td>
                       <td className="p-3">
-                        {item.legal_hold ? <span className="text-red-400 flex items-center gap-1"><Lock className="w-3 h-3" /> Held</span> : <span className="text-[#555]">—</span>}
+                        {item.legal_hold ? <span className="text-error-text flex items-center gap-1"><Lock className="w-3 h-3" /> Held</span> : <span className="text-[#555]">—</span>}
                       </td>
                       <td className="p-3">
                         <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${
-                          item.risk_level === 'critical' ? 'bg-red-400/10 text-red-400' :
-                          item.risk_level === 'high' ? 'bg-orange-400/10 text-orange-400' :
-                          item.risk_level === 'medium' ? 'bg-amber-400/10 text-amber-400' : 'bg-blue-400/10 text-blue-400'
+                          item.risk_level === 'critical' ? 'bg-error-bg text-error-text' :
+                          item.risk_level === 'high' ? 'bg-warning-bg text-warning-text' :
+                          item.risk_level === 'medium' ? 'bg-warning-bg text-warning-text' : 'bg-info-bg text-info-text'
                         }`}>{item.risk_level}</span>
                       </td>
                       <td className="p-3 text-[#888] font-mono text-[11px]">{item.preserved_by_actor_id}</td>
@@ -401,7 +401,7 @@ export default function EvidenceVaultPage() {
             </div>
             {cursor && (
               <div className="p-3 text-center border-t border-[#222]">
-                <button onClick={() => fetchItems(cursor)} className="text-xs text-blue-400 hover:text-blue-300">Load More</button>
+                <button onClick={() => fetchItems(cursor)} className="text-xs text-info-text hover:text-info-text">Load More</button>
               </div>
             )}
           </div>
@@ -455,10 +455,10 @@ export default function EvidenceVaultPage() {
                     <td className="p-3 text-[#aaa]">{pkg.package_type.replace(/_/g, ' ')}</td>
                     <td className="p-3">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] border ${
-                        pkg.status === 'sealed' ? 'text-blue-400 border-blue-400/30 bg-blue-400/10' :
-                        pkg.status === 'exported' ? 'text-green-400 border-green-400/30 bg-green-400/10' :
-                        pkg.status === 'draft' ? 'text-slate-400 border-slate-400/30 bg-slate-400/10' :
-                        'text-red-400 border-red-400/30 bg-red-400/10'
+                        pkg.status === 'sealed' ? 'text-info-text border-info-border bg-info-bg' :
+                        pkg.status === 'exported' ? 'text-success-text border-success-border bg-success-bg' :
+                        pkg.status === 'draft' ? 'text-info-text border-info-border bg-info-bg' :
+                        'text-error-text border-error-border bg-error-bg'
                       }`}>{pkg.status}</span>
                     </td>
                     <td className="p-3 text-[#888]">{pkg.item_count}</td>
@@ -500,10 +500,10 @@ export default function EvidenceVaultPage() {
                     <td className="p-3 text-[#888]}">{share.current_views}{share.max_views > 0 ? `/${share.max_views}` : ''}</td>
                     <td className="p-3">
                       {share.revoked
-                        ? <span className="text-red-400 text-[10px]">Revoked</span>
+                        ? <span className="text-error-text text-[10px]">Revoked</span>
                         : new Date(share.expires_at) < new Date()
-                          ? <span className="text-amber-400 text-[10px]">Expired</span>
-                          : <span className="text-green-400 text-[10px]">Active</span>
+                          ? <span className="text-warning-text text-[10px]">Expired</span>
+                          : <span className="text-success-text text-[10px]">Active</span>
                       }
                     </td>
                     <td className="p-3 text-[#666] text-[11px]">{fmt(share.created_at)}</td>
@@ -539,7 +539,7 @@ export default function EvidenceVaultPage() {
                     <td className="p-3 text-foreground font-mono text-[11px]">{scan.id.substring(0, 8)}</td>
                     <td className="p-3 text-[#aaa] font-mono text-[11px]">{scan.package_id.substring(0, 8)}</td>
                     <td className="p-3">
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${SCAN_STATUS_COLORS[scan.scan_status] || 'text-slate-400'}`}>
+                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${SCAN_STATUS_COLORS[scan.scan_status] || 'text-info-text'}`}>
                         {scan.scan_status}
                       </span>
                     </td>
@@ -665,11 +665,11 @@ function CreatePreservationModal({ onClose, onCreated }: { onClose: () => void; 
               </select>
             </div>
           </div>
-          {error && <div className="text-xs text-red-400">{error}</div>}
+          {error && <div className="text-xs text-error-text">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-4 py-2 text-xs text-foreground bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-xs text-foreground bg-info-text rounded-lg hover:brightness-110 disabled:opacity-50">
               {saving ? "Preserving..." : "Preserve"}
             </button>
           </div>
@@ -730,11 +730,11 @@ function CreatePackageModal({ onClose, onCreated }: { onClose: () => void; onCre
             <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description"
               className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" rows={2} />
           </div>
-          {error && <div className="text-xs text-red-400">{error}</div>}
+          {error && <div className="text-xs text-error-text">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-4 py-2 text-xs text-foreground bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-xs text-foreground bg-info-text rounded-lg hover:brightness-110 disabled:opacity-50">
               {saving ? "Creating..." : "Create"}
             </button>
           </div>
@@ -821,11 +821,11 @@ function CreateShareModal({ onClose, onCreated }: { onClose: () => void; onCreat
               className="rounded border-[#333] bg-[#1a1a1a]" />
             Allow download
           </label>
-          {error && <div className="text-xs text-red-400">{error}</div>}
+          {error && <div className="text-xs text-error-text">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-4 py-2 text-xs text-foreground bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-xs text-foreground bg-info-text rounded-lg hover:brightness-110 disabled:opacity-50">
               {saving ? "Creating..." : "Create Share"}
             </button>
           </div>
@@ -867,11 +867,11 @@ function RunScanModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
             <input value={packageId} onChange={e => setPackageId(e.target.value)} placeholder="Sealed package UUID"
               className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
           </div>
-          {error && <div className="text-xs text-red-400">{error}</div>}
+          {error && <div className="text-xs text-error-text">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
             <button onClick={handleSave} disabled={saving}
-              className="px-4 py-2 text-xs text-foreground bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="px-4 py-2 text-xs text-foreground bg-info-text rounded-lg hover:brightness-110 disabled:opacity-50">
               {saving ? "Scanning..." : "Run Scan"}
             </button>
           </div>
