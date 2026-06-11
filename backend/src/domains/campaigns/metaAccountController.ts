@@ -260,10 +260,11 @@ export const getPixelStats = async (req: AuthRequest, res: Response) => {
     const ts24h     = nowTs - 86400;
 
     // Three parallel calls to Meta stats endpoint
+    // Meta requires valid aggregations: browser_type, custom_data_field, device_os, device_type, event, host, match_keys, had_pii, pixel_fire, event_detection_method, url, event_value_count, url_by_rule, event_total_counts, event_source, event_processing_results
     const [evR, dayR, totR] = await Promise.all([
-      fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=event_name&start_time=${ts7d}&end_time=${nowTs}`)),
-      fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=day&start_time=${ts7d}&end_time=${nowTs}`)),
-      fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=total&start_time=${ts24h}&end_time=${nowTs}`)),
+      fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=event&start_time=${ts7d}&end_time=${nowTs}`)),
+      fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=pixel_fire&start_time=${ts7d}&end_time=${nowTs}`)),
+      fetch(metaUrl(`/${pixelId}/stats`, token, `&aggregation=event_total_counts&start_time=${ts24h}&end_time=${nowTs}`)),
     ]);
 
     const [evData, dayData, totData] = await Promise.all([
@@ -277,7 +278,7 @@ export const getPixelStats = async (req: AuthRequest, res: Response) => {
     }
 
     const byEvent = ((evData.data  || []) as any[])
-      .map(e => ({ event: e.event_name || 'Unknown', count: parseInt(e.value || '0', 10) }))
+      .map(e => ({ event: e.event || e.value || 'Unknown', count: parseInt(e.count || e.value || '0', 10) }))
       .sort((a, b) => b.count - a.count);
 
     const byDay = ((dayData.data || []) as any[])

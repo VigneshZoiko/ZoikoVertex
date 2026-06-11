@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Plus, Loader2, AlertCircle, RefreshCw, MoreHorizontal,
   Eye, Edit3, Trash2, ExternalLink, Zap, ChevronDown,
   TrendingUp, Link2, Check, X, Settings, ImageIcon,
-  CheckCircle2, Clock, Info,
+  CheckCircle2, Clock, Info, Code, Blocks,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -384,6 +384,7 @@ function PixelsPanel() {
   const [expanded,     setExpanded]     = useState<string | null>(null);
   const [statsMap,     setStatsMap]     = useState<Record<string, PixelStats>>({});
   const [statsLoading, setStatsLoading] = useState<Record<string, boolean>>({});
+  const [showSetup,    setShowSetup]    = useState<{ id: string; name: string; view?: "OPTIONS" | "CODE" } | null>(null);
   // Create pixel modal
   const [showCreate,   setShowCreate]   = useState(false);
   const [createName,   setCreateName]   = useState("");
@@ -533,7 +534,7 @@ function PixelsPanel() {
       )}
 
       {/* Pixels table */}
-      <div className="bg-surface border border-border rounded-2xl overflow-hidden">
+      <div className="bg-surface border border-border rounded-2xl">
         {loading ? (
           <div className="flex items-center justify-center py-16 gap-3 text-foreground-muted">
             <RefreshCw className="w-5 h-5 animate-spin" /><span className="text-sm">Loading pixels…</span>
@@ -555,7 +556,7 @@ function PixelsPanel() {
         ) : (
           <>
             {/* Table header */}
-            <div className="grid grid-cols-[auto_2fr_1fr_1fr_1fr_auto] gap-3 px-5 py-3 border-b border-border bg-background/40 text-[11px] font-semibold uppercase tracking-widest text-foreground-muted">
+            <div className="grid grid-cols-[auto_2fr_1fr_1fr_1fr_auto] gap-3 px-5 py-3 border-b border-border bg-background/40 rounded-t-2xl text-[11px] font-semibold uppercase tracking-widest text-foreground-muted">
               <span className="w-4" />
               <span>Meta Pixel</span>
               <span>Last Active</span>
@@ -647,6 +648,10 @@ function PixelsPanel() {
                               className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5">
                               <ExternalLink className="w-4 h-4 text-foreground-muted" />Go to Events Manager
                             </a>
+                            <button onClick={() => { setShowSetup({ id: px.id, name: px.name }); setOpenMenu(null); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border">
+                              <Code className="w-4 h-4 text-foreground-muted" />View Setup Code
+                            </button>
                             <Link href={`/campaigns/new?objective=CONVERSIONS&pixel_id=${px.id}&pixel_name=${encodeURIComponent(px.name)}`}
                               onClick={() => setOpenMenu(null)}
                               className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border">
@@ -818,6 +823,124 @@ function PixelsPanel() {
           </div>
         </div>
       )}
+
+      {/* Setup Code modal */}
+      {showSetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setShowSetup(null)}>
+          <div className={`bg-surface border border-border rounded-2xl p-6 w-full shadow-2xl transition-all ${showSetup.view !== "CODE" ? "max-w-2xl" : "max-w-lg"}`} onClick={e => e.stopPropagation()}>
+            {showSetup.view !== "CODE" ? (
+              <>
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-xl font-bold text-foreground">Connect website activity using pixel</h3>
+                  <button onClick={() => setShowSetup(null)} className="p-1 hover:bg-white/10 rounded-lg"><X className="w-5 h-5 text-foreground-muted" /></button>
+                </div>
+                <p className="text-sm text-foreground-muted mb-6">
+                  Select the best method for adding the pixel code to your site based on how the website was built, what kind of access you have to the code and your technical support.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Option 1 */}
+                  <div className="border border-border rounded-xl p-5 bg-background/50 hover:bg-white/[0.02] transition-colors flex flex-col">
+                    <div className="w-10 h-10 rounded-lg bg-surface-hover border border-border flex items-center justify-center mb-4">
+                      <Code className="w-5 h-5 text-foreground-muted" />
+                    </div>
+                    <h4 className="font-bold text-foreground mb-2">Manually add pixel code to website</h4>
+                    <p className="text-sm text-foreground-muted mb-6 flex-1">
+                      Follow guided installation instructions with detailed developer documentation or email instructions to your developer.
+                    </p>
+                    <div>
+                      <button onClick={() => setShowSetup({ ...showSetup, view: "CODE" })}
+                        className="px-5 py-2 bg-[#1877F2] hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors">
+                        Install Code Manually
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Option 2 */}
+                  <div className="border border-border rounded-xl p-5 bg-background/50 hover:bg-white/[0.02] transition-colors flex flex-col">
+                    <div className="w-10 h-10 rounded-lg bg-surface-hover border border-border flex items-center justify-center mb-4">
+                      <Blocks className="w-5 h-5 text-foreground-muted" />
+                    </div>
+                    <h4 className="font-bold text-foreground mb-2">Use partner integration</h4>
+                    <p className="text-sm text-foreground-muted mb-6 flex-1">
+                      Check if your website is eligible for integration with one of our supported partners, such as Shopify, WordPress and more.
+                    </p>
+                    <div>
+                      <a href={`https://business.facebook.com/events_manager2/list/pixel/${showSetup.id}/settings`} target="_blank" rel="noopener noreferrer"
+                        className="inline-block px-5 py-2 bg-[#1877F2] hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-colors">
+                        Check for Partner
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center mt-6 pt-4 border-t border-border">
+                  <span className="text-sm text-blue-400 hover:underline cursor-pointer">Give feedback</span>
+                  <a href={`mailto:?subject=Install Meta Pixel Code&body=Please install this Meta Pixel Base Code on our website:%0A%0A<!-- Meta Pixel Code -->%0A<script>%0A!function(f,b,e,v,n,t,s)%0A{if(f.fbq)return;n=f.fbq=function(){n.callMethod?%0An.callMethod.apply(n,arguments):n.queue.push(arguments)};%0Aif(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';%0An.queue=[];t=b.createElement(e);t.async=!0;%0At.src=v;s=b.getElementsByTagName(e)[0];%0As.parentNode.insertBefore(t,s)}(window, document,'script',%0A'https://connect.facebook.net/en_US/fbevents.js');%0Afbq('init', '${showSetup.id}');%0Afbq('track', 'PageView');%0A</script>%0A<noscript><img height="1" width="1" style="display:none"%0Asrc="https://www.facebook.com/tr?id=${showSetup.id}&ev=PageView&noscript=1"%0A/></noscript>%0A<!-- End Meta Pixel Code -->`} 
+                     className="text-sm font-medium text-foreground hover:text-white transition-colors">
+                    Email Instructions
+                  </a>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <button onClick={() => setShowSetup({ ...showSetup, view: "OPTIONS" })} className="text-xs text-blue-400 hover:underline mb-1 inline-block">&larr; Back to options</button>
+                    <h3 className="text-base font-bold text-foreground">Pixel Base Code</h3>
+                    <p className="text-sm text-foreground-muted mt-1">Paste this code just above the <code className="bg-white/10 px-1 py-0.5 rounded">&lt;/head&gt;</code> tag on your website.</p>
+                  </div>
+                  <button onClick={() => setShowSetup(null)} className="p-1 hover:bg-white/10 rounded-lg"><X className="w-4 h-4 text-foreground-muted" /></button>
+                </div>
+                <div className="relative">
+                  <pre className="bg-background border border-border p-4 rounded-xl text-[10px] text-emerald-400 overflow-x-auto whitespace-pre-wrap">
+{`<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '${showSetup.id}');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=${showSetup.id}&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->`}
+              </pre>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => {
+                const code = `<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '${showSetup.id}');
+fbq('track', 'PageView');
+</` + `script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=${showSetup.id}&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->`;
+                navigator.clipboard.writeText(code);
+                alert("Code copied to clipboard!");
+              }} className="px-4 py-2 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-semibold rounded-xl">Copy Code</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )}
 
     </div>
   );
