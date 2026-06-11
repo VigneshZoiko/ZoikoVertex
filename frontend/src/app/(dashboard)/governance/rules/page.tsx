@@ -286,7 +286,7 @@ export default function ApprovalRulesPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-muted" />
             <input
               type="text"
-              placeholder="Search rules¦"
+              placeholder="Search rules..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-surface border border-border text-foreground placeholder-zinc-600 focus:outline-none focus:border-indigo-500/40"
@@ -347,7 +347,7 @@ export default function ApprovalRulesPage() {
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
                     disabled={!canManage}
-                    placeholder="Rule name¦"
+                    placeholder="Rule name..."
                     className="w-full bg-transparent text-sm font-bold text-foreground focus:outline-none border-b border-transparent focus:border-indigo-500/40 transition-colors"
                   />
                 </div>
@@ -358,7 +358,7 @@ export default function ApprovalRulesPage() {
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-bold rounded-lg transition-colors disabled:opacity-40"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    {actionLoading === "delete" ? "Deleting¦" : "Delete"}
+                    {actionLoading === "delete" ? "Deleting..." : "Delete"}
                   </button>
                 )}
               </div>
@@ -439,7 +439,7 @@ export default function ApprovalRulesPage() {
                           value={aiTopic}
                           onChange={e => setAiTopic(e.target.value)}
                           onKeyDown={e => { if (e.key === "Enter" && !aiGenerating) handleAiGenerate(); }}
-                          placeholder="e.g. profanity, competitor brands, violence, gambling¦"
+                          placeholder="e.g. profanity, competitor brands, violence, gambling..."
                           className="flex-1 px-3 py-2 bg-[#0d0d0d] border border-border rounded-lg text-xs text-foreground placeholder-[#444] focus:outline-none focus:border-violet-500/40 transition-colors"
                         />
                         <button
@@ -450,7 +450,7 @@ export default function ApprovalRulesPage() {
                           {aiGenerating
                             ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
                             : <Zap className="w-3.5 h-3.5" />}
-                          {aiGenerating ? "Generating¦" : "Generate"}
+                          {aiGenerating ? "Generating..." : "Generate"}
                         </button>
                       </div>
                     </div>
@@ -480,14 +480,14 @@ export default function ApprovalRulesPage() {
                         className="flex items-center gap-1.5 text-[9px] text-foreground-muted hover:text-violet-400 transition-colors"
                       >
                         {showAiContext ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                        Add context (platform, audience, industry¦)
+                        Add context (platform, audience, industry...)
                       </button>
                     )}
                     {showAiContext && !aiSuggested.length && (
                       <input
                         value={aiContext}
                         onChange={e => setAiContext(e.target.value)}
-                        placeholder="e.g. children's education platform, luxury brand, B2B SaaS¦"
+                        placeholder="e.g. children's education platform, luxury brand, B2B SaaS..."
                         className="w-full px-3 py-2 bg-[#0d0d0d] border border-border rounded-lg text-xs text-foreground placeholder-[#444] focus:outline-none focus:border-violet-500/40"
                       />
                     )}
@@ -496,7 +496,7 @@ export default function ApprovalRulesPage() {
                     {aiGenerating && (
                       <div className="flex items-center gap-2 text-[10px] text-violet-400 py-1">
                         <div className="w-3.5 h-3.5 border border-violet-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                        Analyzing topic, generating smart keyword variants¦
+                        Analyzing topic, generating smart keyword variants...
                       </div>
                     )}
 
@@ -604,7 +604,7 @@ export default function ApprovalRulesPage() {
                       value={kwInput}
                       onChange={e => setKwInput(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addKeyword(); } }}
-                      placeholder="Type keyword and press Enter or comma to add¦"
+                      placeholder="Type keyword and press Enter or comma to add..."
                       className="flex-1 px-3 py-2 bg-[#0d0d0d] border border-[#222] rounded-lg text-xs text-foreground placeholder-[#444] focus:outline-none focus:border-indigo-500/40 transition-colors"
                     />
                     <button
@@ -628,7 +628,7 @@ export default function ApprovalRulesPage() {
                     disabled={actionLoading === "save"}
                     className="px-5 py-2 bg-white hover:bg-zinc-100 disabled:opacity-40 text-black text-xs font-bold rounded-lg transition-all"
                   >
-                    {actionLoading === "save" ? "Saving¦" : "Save Rule"}
+                    {actionLoading === "save" ? "Saving..." : "Save Rule"}
                   </button>
                 </div>
               )}

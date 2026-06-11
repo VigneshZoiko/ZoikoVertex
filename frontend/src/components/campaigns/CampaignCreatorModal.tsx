@@ -253,7 +253,7 @@ function MetaPickerModal({
           {loading ? (
             <div className="flex items-center justify-center py-16 gap-3">
               <Loader2 className="w-5 h-5 animate-spin text-foreground-muted" />
-              <span className="text-sm text-foreground-muted">Loading from Meta¦</span>
+              <span className="text-sm text-foreground-muted">Loading from Meta...</span>
             </div>
           ) : fetchErr ? (
             <div className="p-6 text-center space-y-2">
@@ -2142,7 +2142,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     </div>
                   ) : (
                     <div className="h-[60px] flex items-center px-4 bg-card border border-border rounded-xl">
-                      <p className="text-xs text-foreground-muted">Connecting to Meta ad account¦</p>
+                      <p className="text-xs text-foreground-muted">Connecting to Meta ad account...</p>
                     </div>
                   )}
 
@@ -2400,7 +2400,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 : <ImageIcon className="w-5 h-5 text-foreground-muted" />}
                             </div>
                             <p className="text-xs text-foreground-muted group-hover:text-foreground-muted">
-                              {imageUploading ? "Uploading¦" : "Add image"}
+                              {imageUploading ? "Uploading..." : "Add image"}
                             </p>
                             <input type="file" accept="image/*,image/jpeg,image/png,image/gif,image/webp" className="hidden"
                               disabled={imageUploading}
@@ -2460,7 +2460,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           <p className="text-[10px] text-foreground-muted text-right">{welcomeMsg.length} / 300 characters</p>
                           {(showWelcomeErr || fieldErrors.welcomeMsg) && (
                             <div className="flex items-start gap-2 p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-lg">
-                              <span className="text-rose-400 text-xs shrink-0 mt-0.5">âŠ˜</span>
+                              <span className="text-rose-400 text-xs shrink-0 mt-0.5">⊘</span>
                               <div>
                                 <p className="text-xs font-semibold text-rose-300">Welcome message required</p>
                                 <p className="text-[11px] text-rose-400/80">Add a welcome message to proceed with this campaign type.</p>
@@ -2567,7 +2567,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                               </div>
                               <div className="flex items-center justify-between px-3 py-1.5 border-t border-zinc-100">
                                 <div className="flex items-center gap-3 text-foreground-muted">
-                                  <span>â™¡</span><span>ðŸ’¬</span><span>âŠ˜</span>
+                                  <span>♡</span><span>💬</span><span>⊘</span>
                                 </div>
                                 <span className="text-foreground-muted">ðŸ”–</span>
                               </div>
@@ -2599,8 +2599,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             <div className="px-3 pt-2 pb-1">
                               <div className="flex items-center justify-between mb-1.5">
                                 <div className="flex items-center gap-3 text-foreground-muted">
-                                  <span className="text-lg">â™¡</span>
-                                  <span className="text-lg">ðŸ’¬</span>
+                                  <span className="text-lg">♡</span>
+                                  <span className="text-lg">💬</span>
                                   <span className="text-lg">â†—</span>
                                 </div>
                                 <span className="text-lg text-foreground-muted">ðŸ”–</span>
@@ -2646,7 +2646,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                               </div>
                             )}
                             <div className="flex items-center gap-4 mt-3 pt-2 border-t border-zinc-100">
-                              {["ðŸ‘ Like", "ðŸ’¬ Comment", "â†— Share"].map(label => (
+                              {["ðŸ‘ Like", "💬 Comment", "â†— Share"].map(label => (
                                 <button key={label} className="flex-1 text-center text-[11px] text-foreground-muted font-semibold">{label}</button>
                               ))}
                             </div>
