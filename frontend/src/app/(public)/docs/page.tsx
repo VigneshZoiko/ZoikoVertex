@@ -47,7 +47,7 @@ const SECTIONS = [
 
 export default function DocsPage() {
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
+    <div className="min-h-full bg-[#0a0a0f] text-white">
 
       <main className="max-w-5xl mx-auto px-6 pt-[100px] pb-16">
         <div className="mb-14">
