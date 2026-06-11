@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -386,10 +386,11 @@ function MetaPickerModal({
 
 // —— Main Modal ————————————————————————————————————————————————
 
-export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
+export default function CampaignCreatorModal({ onClose, onCreated, editId, prefill }: {
   onClose: () => void;
   onCreated: () => void;
   editId?: string;
+  prefill?: { pixel_id: string; pixel_name: string; objective: string };
 }) {
   const [step,       setStep]       = useState(1);
   const [saving,     setSaving]     = useState(false);
@@ -436,7 +437,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
     setShowMetaPicker(false);
   };
   const [campName,    setCampName]  = useState("New campaign");
-  const [objective,   setObjective] = useState("TRAFFIC");
+  const [objective,   setObjective] = useState(prefill?.objective || "TRAFFIC");
   const [optimize,    setOptimize]     = useState("LANDING_PAGE_VIEWS");
   const [optimizeOpen, setOptimizeOpen] = useState(false);
   const [convLocation, setConvLocation] = useState("website");
@@ -452,7 +453,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   const [location,    setLocation]       = useState(() => JSON.stringify([{ key: "US", display_name: "United States", type: "country" }]));
   const [interests,   setInterests]      = useState<{id:string;name:string}[]>([]);
   const [msgDest,        setMsgDest]        = useState("messenger");
-  const [trackingPixel,  setTrackingPixel]  = useState("");
+  const [trackingPixel,  setTrackingPixel]  = useState(prefill?.pixel_id || "");
   const [convEvent,      setConvEvent]      = useState("");
   const [pixelDropOpen,  setPixelDropOpen]  = useState(false);
   const [eventDropOpen,  setEventDropOpen]  = useState(false);

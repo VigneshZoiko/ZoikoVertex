@@ -375,7 +375,7 @@ function pixelStatus(lf: string | null, events24h: number | undefined) {
   return              { label: "Inactive",        icon: "dot"   as const };
 }
 
-function PixelsPanel() {
+function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: string) => void }) {
   const [pixels,       setPixels]       = useState<MetaPixelItem[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [apiError,     setApiError]     = useState<string | null>(null);
@@ -653,11 +653,11 @@ function PixelsPanel() {
                               <Code className="w-4 h-4 text-foreground-muted" />View Setup Code
                             </button>
                             {st.label === "Active" ? (
-                              <Link href={`/campaigns/new?objective=CONVERSIONS&pixel_id=${px.id}&pixel_name=${encodeURIComponent(px.name)}`}
-                                onClick={() => setOpenMenu(null)}
-                                className="flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border">
+                              <button
+                                onClick={() => { setOpenMenu(null); onUseInCampaign(px.id, px.name); }}
+                                className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-white/5 border-t border-border text-left">
                                 <Zap className="w-4 h-4 text-foreground-muted" />Use in Campaign
-                              </Link>
+                              </button>
                             ) : (
                               <div title="Verify pixel to use in campaign"
                                 className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground-muted cursor-not-allowed border-t border-border opacity-50 bg-surface-hover/50">
@@ -989,6 +989,7 @@ export default function CampaignsPage() {
   const [tab,        setTab]        = useState("ad-campaigns");
   const [showCreator,setShowCreator]= useState(false);
   const [editCampaignId, setEditCampaignId] = useState<string | null>(null);
+  const [creatorPrefill, setCreatorPrefill] = useState<{ pixel_id: string; pixel_name: string; objective: string } | null>(null);
   const [sidebarOpen,setSidebarOpen]= useState(true);
   const [campaigns,  setCampaigns]  = useState<Campaign[]>([]);
   const [stats,      setStats]      = useState<Stats | null>(null);
@@ -1154,7 +1155,11 @@ export default function CampaignsPage() {
 
         {/* Pixel Connector */}
         {tab === "pixels" && (
-          <PixelsPanel />
+          <PixelsPanel onUseInCampaign={(id, name) => {
+            setCreatorPrefill({ pixel_id: id, pixel_name: name, objective: "CONVERSIONS" });
+            setShowCreator(true);
+            setTab("ad-campaigns");
+          }} />
         )}
 
         {/* No Facebook account connected */}
@@ -1586,8 +1591,9 @@ export default function CampaignsPage() {
     {showCreator && (
       <CampaignCreatorModal
         editId={editCampaignId || undefined}
-        onClose={() => { setShowCreator(false); setEditCampaignId(null); }}
-        onCreated={() => { setShowCreator(false); setEditCampaignId(null); load(); }}
+        prefill={creatorPrefill || undefined}
+        onClose={() => { setShowCreator(false); setEditCampaignId(null); setCreatorPrefill(null); }}
+        onCreated={() => { setShowCreator(false); setEditCampaignId(null); setCreatorPrefill(null); load(); }}
       />
     )}
     <ConfirmActionModal
