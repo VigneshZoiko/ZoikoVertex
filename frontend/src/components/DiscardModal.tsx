@@ -32,12 +32,12 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel 
       {/* Modal card */}
       <div className="relative z-10 w-full max-w-md bg-[var(--card)] border border-[var(--border)] rounded-3xl shadow-2xl shadow-black/50 animate-in zoom-in-95 duration-200">
         {/* Top accent */}
-        <div className="h-1 rounded-t-3xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500" />
+        <div className="h-1 rounded-t-3xl bg-[var(--warning-text)]" />
 
         <div className="p-8">
           {/* Icon */}
-          <div className="w-14 h-14 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center mb-6">
-            <AlertTriangle className="w-7 h-7 text-amber-400" />
+          <div className="w-14 h-14 bg-[var(--warning-bg)] border-[var(--warning-border)] rounded-2xl flex items-center justify-center mb-6">
+            <AlertTriangle className="w-7 h-7 text-[var(--warning-text)]" />
           </div>
 
           <h2 className="text-xl font-bold text-[var(--foreground)] mb-2">Discard this draft?</h2>
@@ -54,7 +54,7 @@ export default function DiscardModal({ isOpen, pendingHref, onConfirm, onCancel 
             </button>
             <button
               onClick={onConfirm}
-              className="flex-1 py-3 rounded-xl bg-rose-600 text-foreground font-bold text-sm hover:bg-rose-500 active:scale-[0.98] transition-all shadow-lg shadow-rose-500/20"
+              className="flex-1 py-3 rounded-xl bg-[var(--error-text)] text-foreground font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-[var(--error-text)]/20"
             >
               Yes, Discard
             </button>

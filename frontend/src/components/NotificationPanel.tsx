@@ -23,17 +23,15 @@ export default function NotificationPanel() {
 
   const togglePanel = () => {
     setIsOpen(!isOpen);
-    // Note: In an enterprise system, we might only mark read when they actually view it or click "mark all read",
-    // but for this UI, we can keep it as they see it, or require manual action. Let's require manual action for more sophistication.
   };
 
   const getPriorityColor = (priority: NotificationPriority) => {
     switch (priority) {
-      case 'URGENT': return 'bg-rose-500';
-      case 'HIGH': return 'bg-amber-500';
-      case 'MEDIUM': return 'bg-indigo-500';
-      case 'LOW': return 'bg-slate-400';
-      default: return 'bg-indigo-500';
+      case 'URGENT': return 'bg-[var(--error-text)]';
+      case 'HIGH': return 'bg-[var(--warning-text)]';
+      case 'MEDIUM': return 'bg-[var(--info-text)]';
+      case 'LOW': return 'bg-[var(--foreground-muted)]';
+      default: return 'bg-[var(--info-text)]';
     }
   };
 
@@ -56,7 +54,7 @@ export default function NotificationPanel() {
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-indigo-500 text-foreground text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[var(--header-bg)] animate-pulse">
+          <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[var(--accent)] text-[var(--accent-foreground)] text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[var(--header-bg)] animate-pulse">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -77,7 +75,7 @@ export default function NotificationPanel() {
                 <div className="flex gap-3 items-center">
                   <button 
                     onClick={markAllRead}
-                    className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
+                    className="text-[10px] text-[var(--info-text)] hover:brightness-110 font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
                     disabled={unreadCount === 0}
                   >
                     Mark all read
@@ -85,7 +83,7 @@ export default function NotificationPanel() {
                   <div className="w-px h-3 bg-[var(--border)]" />
                   <button 
                     onClick={clearAll}
-                    className="text-[10px] text-rose-400 hover:text-rose-300 font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
+                    className="text-[10px] text-[var(--error-text)] hover:brightness-110 font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
                     disabled={state.notifications.length === 0}
                   >
                     Clear
@@ -107,7 +105,7 @@ export default function NotificationPanel() {
                   >
                     {tab.charAt(0) + tab.slice(1).toLowerCase()}
                     {tab === 'UNREAD' && unreadCount > 0 && (
-                      <span className="ml-1.5 bg-indigo-500 text-foreground px-1.5 py-0.5 rounded-full text-[9px]">{unreadCount}</span>
+                      <span className="ml-1.5 bg-[var(--accent)] text-[var(--accent-foreground)] px-1.5 py-0.5 rounded-full text-[9px]">{unreadCount}</span>
                     )}
                   </button>
                 ))}
@@ -118,8 +116,8 @@ export default function NotificationPanel() {
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {filteredNotifications.length === 0 ? (
                 <div className="py-20 px-6 text-center">
-                  <div className="w-16 h-16 bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-500/10">
-                    <Bell className="w-8 h-8 text-indigo-500/40" />
+                  <div className="w-16 h-16 bg-[var(--info-bg)] rounded-2xl flex items-center justify-center mx-auto mb-4 border-[var(--info-border)]">
+                    <Bell className="w-8 h-8 text-[var(--info-text)]/40" />
                   </div>
                   <p className="text-base font-semibold text-[var(--foreground)] mb-1">All caught up!</p>
                   <p className="text-xs text-[var(--foreground-muted)]">No notifications in this category.</p>
@@ -129,7 +127,7 @@ export default function NotificationPanel() {
                   <div 
                     key={notif.id} 
                     style={{ animationDelay: `${index * 30}ms` }}
-                    className={`px-5 py-4 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]/60 transition-all relative group animate-in slide-in-from-right-4 duration-300 fill-mode-both ${!notif.read ? 'bg-indigo-500/[0.02]' : ''}`}
+                    className={`px-5 py-4 border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]/60 transition-all relative group animate-in slide-in-from-right-4 duration-300 fill-mode-both ${!notif.read ? 'bg-[var(--accent)]/[0.02]' : ''}`}
                     onClick={() => !notif.read && markAsRead(notif.id)}
                   >
                     <div className="flex gap-4">
@@ -150,6 +148,7 @@ export default function NotificationPanel() {
                             {notif.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
+
                         <p className="text-xs text-[var(--foreground-muted)] leading-relaxed font-medium mb-3">
                           {notif.message}
                         </p>
@@ -164,7 +163,7 @@ export default function NotificationPanel() {
                                   href={action.href}
                                   className={`text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center transition-colors ${
                                     action.primary 
-                                      ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20' 
+                                      ? 'bg-[var(--accent-subtle)] text-[var(--accent)] hover:bg-[var(--info-border)]' 
                                       : 'bg-[var(--surface-hover)] text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                                   }`}
                                 >
@@ -177,7 +176,7 @@ export default function NotificationPanel() {
                                   onClick={(e) => { e.stopPropagation(); action.onClick?.(); }}
                                   className={`text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center transition-colors ${
                                     action.primary 
-                                      ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20' 
+                                      ? 'bg-[var(--accent-subtle)] text-[var(--accent)] hover:bg-[var(--info-border)]' 
                                       : 'bg-[var(--surface-hover)] text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                                   }`}
                                 >
@@ -192,7 +191,7 @@ export default function NotificationPanel() {
 
                     {/* Unread dot indicator on the side */}
                     {!notif.read && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-500 rounded-r-md" />
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[var(--accent)] rounded-r-md" />
                     )}
 
                     <button 
@@ -200,7 +199,7 @@ export default function NotificationPanel() {
                         e.stopPropagation();
                         dispatch({ type: 'REMOVE', payload: notif.id });
                       }}
-                      className="absolute top-4 right-4 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-rose-500/10 text-[var(--foreground-muted)] hover:text-rose-500 transition-all shadow-sm bg-[var(--surface)]"
+                      className="absolute top-4 right-4 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-[var(--error-bg)] text-[var(--foreground-muted)] hover:text-[var(--error-text)] transition-all shadow-sm bg-[var(--surface)]"
                       aria-label="Remove notification"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -212,7 +211,7 @@ export default function NotificationPanel() {
             
             {/* Footer */}
             <div className="px-5 py-3 border-t border-[var(--border)] text-center bg-[var(--surface-hover)]/40 backdrop-blur-md">
-              <Link href="/admin/notifications" className="text-[11px] text-[var(--foreground-muted)] hover:text-indigo-400 transition-colors font-bold uppercase tracking-widest flex items-center justify-center gap-1 group">
+              <Link href="/admin/notifications" className="text-[11px] text-[var(--foreground-muted)] hover:text-[var(--accent)] transition-colors font-bold uppercase tracking-widest flex items-center justify-center gap-1 group">
                 View full history
                 <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
               </Link>

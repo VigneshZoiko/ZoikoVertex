@@ -38,6 +38,55 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
     }
   };
 
+  /* ── No Credits (AI suspended, billing cycle not yet reset) ──────────────── */
+  if (type === "no_credits") {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-zinc-950 flex items-center justify-center p-6">
+        <div className="w-full max-w-[420px] space-y-8">
+          <div className="text-center space-y-5">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--warning-bg)] border-[var(--warning-border)]">
+              <CreditCard className="w-5 h-5 text-[var(--warning-text)]" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold text-white tracking-tight">
+                No Credits
+              </h2>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                AI services for
+                {orgName && <span className="text-white font-medium"> {orgName}</span>} are suspended — your wallet balance reached $0.
+              </p>
+              {cycleResetDate && (
+                <p className="text-xs text-zinc-500 mt-1">
+                  Services resume automatically on{" "}
+                  <span className="text-zinc-300">{new Date(cycleResetDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                  {" "}or top up now to restore access immediately.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t border-zinc-800" />
+
+          <div className="space-y-3">
+            <Link
+              href="/admin/billing"
+              className="w-full h-11 flex items-center justify-center gap-2 bg-white text-black hover:bg-zinc-200 rounded-lg transition-colors text-sm font-medium"
+            >
+              Top Up Credits
+              <ArrowUpRight className="w-4 h-4" />
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="w-full h-11 flex items-center justify-center gap-2 border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 rounded-lg transition-colors text-sm font-medium"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   /* ── Plan Expired ─────────────────────────────────────────────────────────── */
   if (isPlanExpiry) {
     return (
@@ -84,7 +133,7 @@ export default function SuspendedOverlay({ orgName, type, planType }: Props) {
               {downgrading ? "Switching…" : "Continue with Free Plan"}
             </button>
             {downgradeError && (
-              <p className="text-xs text-rose-400 mt-2">Failed to downgrade. Please contact support.</p>
+              <p className="text-xs text-[var(--error-text)] mt-2">Failed to downgrade. Please contact support.</p>
             )}
 
             <button
