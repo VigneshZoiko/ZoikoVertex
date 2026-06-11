@@ -303,7 +303,7 @@ Return ONLY a valid JSON array with no explanation:
 ["keyword1", "keyword2", ...]`;
 
     const completion = await groqClient.chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.4,
       max_tokens: 600,
@@ -324,7 +324,11 @@ Return ONLY a valid JSON array with no explanation:
 
     const unique = [...new Set(keywords)].slice(0, 30);
     res.json({ success: true, keywords: unique, count: unique.length });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.status) {
+      // Handle Groq API errors specifically instead of throwing a generic 500
+      return res.status(error.status).json({ error: error.message || 'AI generation failed' });
+    }
     next(error);
   }
 };
