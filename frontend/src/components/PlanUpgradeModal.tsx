@@ -74,8 +74,8 @@ export default function PlanUpgradeModal({ feature, onClose }: Props) {
         {/* Top bar */}
         <div className="flex items-start justify-between p-6 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-              <Lock className="w-5 h-5 text-amber-400" />
+            <div className="w-10 h-10 rounded-xl bg-[var(--warning-bg)] border-[var(--warning-border)] flex items-center justify-center shrink-0">
+              <Lock className="w-5 h-5 text-[var(--warning-text)]" />
             </div>
             <div>
               <p className="text-foreground font-bold text-sm">Feature Locked</p>

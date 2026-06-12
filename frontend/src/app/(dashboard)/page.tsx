@@ -72,43 +72,43 @@ export default function CommandCenterPage() {
       value: campaigns?.total ?? '—',
       sub: campaigns ? `${campaigns.active} active` : null,
       icon: Layers,
-      iconBg: "bg-indigo-500/10",
-      iconColor: "text-indigo-400",
+      iconBg: "bg-info-bg",
+      iconColor: "text-info-text",
     },
     {
       label: "Pending Approvals",
       value: campaigns?.approval_pending ?? '—',
       sub: campaigns?.needs_action ? `${campaigns.needs_action} need action` : null,
       icon: AlertCircle,
-      iconBg: "bg-amber-500/10",
-      iconColor: "text-amber-400",
+      iconBg: "bg-warning-bg",
+      iconColor: "text-warning-text",
     },
     {
       label: "Active Agent Runs",
       value: ops?.active_runs ?? '—',
       sub: ops ? `${ops.queue_depth} queued` : null,
       icon: Cpu,
-      iconBg: "bg-emerald-500/10",
-      iconColor: "text-emerald-400",
+      iconBg: "bg-success-bg",
+      iconColor: "text-success-text",
     },
     {
       label: "Failure Rate",
       value: ops ? `${ops.failure_rate.toFixed(1)}%` : '—',
       sub: ops ? `of ${ops.total_runs} total runs` : null,
       icon: ops && ops.failure_rate > 10 ? TrendingDown : Activity,
-      iconBg: ops && ops.failure_rate > 10 ? "bg-rose-500/10" : "bg-blue-500/10",
-      iconColor: ops && ops.failure_rate > 10 ? "text-rose-400" : "text-blue-400",
+      iconBg: ops && ops.failure_rate > 10 ? "bg-error-bg" : "bg-info-bg",
+      iconColor: ops && ops.failure_rate > 10 ? "text-error-text" : "text-info-text",
     },
   ];
 
   const statusBars = campaigns
     ? [
         { label: 'Draft', count: campaigns.draft, color: 'bg-slate-500' },
-        { label: 'In Review', count: campaigns.in_review, color: 'bg-blue-500' },
-        { label: 'Pending Approval', count: campaigns.approval_pending, color: 'bg-amber-500' },
-        { label: 'Active', count: campaigns.active, color: 'bg-emerald-500' },
-        { label: 'Paused', count: campaigns.paused + campaigns.pausing, color: 'bg-orange-500' },
-        { label: 'Completed', count: campaigns.completed, color: 'bg-indigo-500' },
+        { label: 'In Review', count: campaigns.in_review, color: 'bg-info-text' },
+        { label: 'Pending Approval', count: campaigns.approval_pending, color: 'bg-warning-text' },
+        { label: 'Active', count: campaigns.active, color: 'bg-success-text' },
+        { label: 'Paused', count: campaigns.paused + campaigns.pausing, color: 'bg-warning-text' },
+        { label: 'Completed', count: campaigns.completed, color: 'bg-info-text' },
       ]
     : [];
 
@@ -237,19 +237,19 @@ export default function CommandCenterPage() {
                 <div>
                   <div className="flex justify-between mb-1.5">
                     <span className="text-xs text-[var(--foreground-muted)]">Failure Rate</span>
-                    <span className="text-xs font-bold text-rose-400">{ops.failure_rate.toFixed(1)}%</span>
+                    <span className="text-xs font-bold text-error-text">{ops.failure_rate.toFixed(1)}%</span>
                   </div>
                   <div className="h-1.5 bg-[var(--surface)] rounded-full overflow-hidden">
-                    <div className="h-full bg-rose-500 rounded-full" style={{ width: `${Math.min(ops.failure_rate, 100)}%` }} />
+                    <div className="h-full bg-error-text rounded-full" style={{ width: `${Math.min(ops.failure_rate, 100)}%` }} />
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between mb-1.5">
                     <span className="text-xs text-[var(--foreground-muted)]">Policy Block Rate</span>
-                    <span className="text-xs font-bold text-amber-400">{ops.policy_block_rate.toFixed(1)}%</span>
+                    <span className="text-xs font-bold text-warning-text">{ops.policy_block_rate.toFixed(1)}%</span>
                   </div>
                   <div className="h-1.5 bg-[var(--surface)] rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(ops.policy_block_rate, 100)}%` }} />
+                    <div className="h-full bg-warning-text rounded-full" style={{ width: `${Math.min(ops.policy_block_rate, 100)}%` }} />
                   </div>
                 </div>
               </div>

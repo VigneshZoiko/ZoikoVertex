@@ -81,21 +81,21 @@ interface TimelineEntry {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   PENDING_VALIDATION:    { label: "Pending",          color: "bg-blue-500/15 text-blue-300 border-blue-500/25",       icon: <Clock className="w-3 h-3" /> },
-  IN_VALIDATION:         { label: "Validating",        color: "bg-indigo-500/15 text-indigo-300 border-indigo-500/25", icon: <RefreshCcw className="w-3 h-3 animate-spin" /> },
-  PASSED:                { label: "Passed",            color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25", icon: <CheckCircle2 className="w-3 h-3" /> },
-  WARNING:               { label: "Warning",           color: "bg-amber-500/15 text-amber-300 border-amber-500/25",    icon: <AlertTriangle className="w-3 h-3" /> },
-  FAILED:                { label: "Failed",            color: "bg-rose-500/15 text-rose-300 border-rose-500/25",       icon: <AlertCircle className="w-3 h-3" /> },
+  IN_VALIDATION:         { label: "Validating",        color: "bg-info-text/15 text-info-text border-info-border/25", icon: <RefreshCcw className="w-3 h-3 animate-spin" /> },
+  PASSED:                { label: "Passed",            color: "bg-success-text/15 text-success-text border-success-border/25", icon: <CheckCircle2 className="w-3 h-3" /> },
+  WARNING:               { label: "Warning",           color: "bg-warning-text/15 text-warning-text border-warning-border/25",    icon: <AlertTriangle className="w-3 h-3" /> },
+  FAILED:                { label: "Failed",            color: "bg-error-text/15 text-error-text border-error-border/25",       icon: <AlertCircle className="w-3 h-3" /> },
   BLOCKED:               { label: "Blocked",           color: "bg-red-600/15 text-red-400 border-red-600/25",          icon: <Ban className="w-3 h-3" /> },
   NEEDS_REVISION:        { label: "Returned",          color: "bg-orange-500/15 text-orange-300 border-orange-500/25", icon: <RotateCcw className="w-3 h-3" /> },
-  MANUAL_CHECK_REQUIRED: { label: "In Review Queue",   color: "bg-amber-500/15 text-amber-300 border-amber-500/25",    icon: <Layers className="w-3 h-3" /> },
+  MANUAL_CHECK_REQUIRED: { label: "In Review Queue",   color: "bg-warning-text/15 text-warning-text border-warning-border/25",    icon: <Layers className="w-3 h-3" /> },
   ESCALATION_REQUIRED:   { label: "Escalated",         color: "bg-red-500/15 text-red-400 border-red-500/25",          icon: <AlertCircle className="w-3 h-3" /> },
-  COMPLETED:             { label: "Completed",         color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25", icon: <CheckCircle2 className="w-3 h-3" /> },
+  COMPLETED:             { label: "Completed",         color: "bg-success-text/15 text-success-text border-success-border/25", icon: <CheckCircle2 className="w-3 h-3" /> },
   PASSED_WITH_OVERRIDE:  { label: "Passed (Override)", color: "bg-teal-500/15 text-teal-300 border-teal-500/25",       icon: <Shield className="w-3 h-3" /> },
 };
 
 const RISK_CONFIG: Record<string, { badge: string }> = {
-  LOW:      { badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-  MEDIUM:   { badge: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  LOW:      { badge: "bg-success-text/10 text-success-text border-success-border/20" },
+  MEDIUM:   { badge: "bg-warning-text/10 text-warning-text border-warning-border/20" },
   HIGH:     { badge: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
   CRITICAL: { badge: "bg-red-500/10 text-red-400 border-red-500/20" },
 };
@@ -313,8 +313,8 @@ export default function ValidationDeskPage() {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
-            <div className="w-7 h-7 bg-indigo-500/15 rounded-lg flex items-center justify-center">
-              <Shield className="w-4 h-4 text-indigo-400" />
+            <div className="w-7 h-7 bg-info-text/15 rounded-lg flex items-center justify-center">
+              <Shield className="w-4 h-4 text-info-text" />
             </div>
             <h1 className="text-lg font-bold text-foreground">Validation Desk</h1>
           </div>
@@ -327,7 +327,7 @@ export default function ValidationDeskPage() {
           disabled={loading}
           className="p-2 bg-surface border border-border rounded-lg text-foreground-muted hover:text-white hover:border-border transition-all disabled:opacity-50"
         >
-          <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-indigo-400" : ""}`} />
+          <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-info-text" : ""}`} />
         </button>
       </div>
 
@@ -335,8 +335,8 @@ export default function ValidationDeskPage() {
       {message && (
         <div className={`mb-4 p-3 rounded-lg flex items-center gap-2.5 text-xs font-semibold transition-all ${
           message.type === "success"
-            ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
-            : "bg-rose-500/10 border border-rose-500/20 text-rose-400"
+            ? "bg-success-text/10 border border-success-border/20 text-success-text"
+            : "bg-error-text/10 border border-error-border/20 text-error-text"
         }`}>
           {message.type === "success" ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
           {message.text}
@@ -351,7 +351,7 @@ export default function ValidationDeskPage() {
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
             { label: "Pending Scan",  value: stats.pending ?? stats.pending_validation ?? 0, icon: <Clock className="w-4 h-4" />,        color: "text-blue-400",    bg: "bg-blue-500/10" },
-            { label: "Auto-Passed",   value: stats.passed,                                   icon: <CheckCircle2 className="w-4 h-4" />,  color: "text-emerald-400", bg: "bg-emerald-500/10" },
+            { label: "Auto-Passed",   value: stats.passed,                                   icon: <CheckCircle2 className="w-4 h-4" />,  color: "text-success-text", bg: "bg-success-text/10" },
             { label: "Blocked",       value: stats.blocked,                                   icon: <Ban className="w-4 h-4" />,           color: "text-red-400",     bg: "bg-red-500/10" },
             { label: "Returned",      value: (stats.failed || 0) + (stats.needs_revision ?? 0), icon: <RotateCcw className="w-4 h-4" />, color: "text-orange-400",  bg: "bg-orange-500/10" },
           ].map(stat => (
@@ -367,8 +367,8 @@ export default function ValidationDeskPage() {
       )}
 
       {/* —— Automated Workflow Banner —————————————————————————————————————————— */}
-      <div className="mb-5 p-3 bg-indigo-500/5 border border-indigo-500/15 rounded-lg flex items-center gap-3">
-        <div className="flex items-center gap-1.5 text-indigo-400 shrink-0">
+      <div className="mb-5 p-3 bg-info-text/5 border border-info-border/15 rounded-lg flex items-center gap-3">
+        <div className="flex items-center gap-1.5 text-info-text shrink-0">
           <Zap className="w-3.5 h-3.5" />
           <span className="text-[10px] font-bold uppercase tracking-wider">Automated Workflow</span>
         </div>
@@ -377,11 +377,11 @@ export default function ValidationDeskPage() {
           <ArrowRight className="w-3 h-3 text-foreground-muted" />
           <span className="px-2 py-0.5 bg-surface border border-border rounded text-foreground-muted">AI Scan</span>
           <ArrowRight className="w-3 h-3 text-foreground-muted" />
-          <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-emerald-400">Safe â†’ Vault</span>
+          <span className="px-2 py-0.5 bg-success-text/10 border border-success-border/20 rounded text-success-text">Safe â†’ Vault</span>
           <span className="text-foreground-muted">or</span>
           <span className="px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded text-red-400">Violations â†’ Blocked</span>
           <ArrowRight className="w-3 h-3 text-foreground-muted" />
-          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded text-amber-400">Review Queue (human)</span>
+          <span className="px-2 py-0.5 bg-warning-text/10 border border-warning-border/20 rounded text-warning-text">Review Queue (human)</span>
         </div>
       </div>
 
@@ -397,7 +397,7 @@ export default function ValidationDeskPage() {
               placeholder="Search validations..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 bg-surface border border-border rounded-lg text-xs text-foreground placeholder-zinc-600 focus:outline-none focus:border-indigo-500/40 transition-colors"
+              className="w-full pl-8 pr-3 py-2 bg-surface border border-border rounded-lg text-xs text-foreground placeholder-zinc-600 focus:outline-none focus:border-info-border/40 transition-colors"
             />
           </div>
 
@@ -408,14 +408,14 @@ export default function ValidationDeskPage() {
                 onClick={() => setActiveTab(tab.key)}
                 className={`flex-1 px-2 py-1.5 text-[10px] font-bold rounded-lg transition-all relative ${
                   activeTab === tab.key
-                    ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/25"
+                    ? "bg-info-text/15 text-info-text border border-info-border/25"
                     : "text-foreground-muted hover:text-foreground-muted border border-transparent"
                 }`}
               >
                 {tab.label}
                 {tabCounts[tab.key as keyof typeof tabCounts] > 0 && (
                   <span className={`ml-1 px-1 rounded text-[8px] font-bold ${
-                    activeTab === tab.key ? "bg-indigo-500/30 text-indigo-300" : "bg-white/5 text-foreground-muted"
+                    activeTab === tab.key ? "bg-info-text/30 text-info-text" : "bg-white/5 text-foreground-muted"
                   }`}>
                     {tabCounts[tab.key as keyof typeof tabCounts]}
                   </span>
@@ -427,7 +427,7 @@ export default function ValidationDeskPage() {
           <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1 scrollbar-none">
             {loading ? (
               <div className="flex flex-col items-center py-12 text-foreground-muted gap-3">
-                <div className="w-6 h-6 border-2 border-indigo-500/50 border-t-indigo-500 rounded-full animate-spin" />
+                <div className="w-6 h-6 border-2 border-info-border/50 border-t-indigo-500 rounded-full animate-spin" />
                 <p className="text-[10px]">Loading validations...</p>
               </div>
             ) : sortedItems.length === 0 ? (
@@ -447,7 +447,7 @@ export default function ValidationDeskPage() {
                     onClick={() => handleSelectItem(item)}
                     className={`w-full text-left rounded-lg p-3 transition-all border ${
                       isSelected
-                        ? "bg-indigo-500/[0.04] border-indigo-500/30"
+                        ? "bg-info-text/[0.04] border-info-border/30"
                         : "bg-surface border-border hover:border-border"
                     } ${isItemRejected ? "border-l-2 border-l-red-500/40" : isItemPassed ? "border-l-2 border-l-emerald-500/40" : "border-l-2 border-l-blue-500/30"}`}
                   >
@@ -509,7 +509,7 @@ export default function ValidationDeskPage() {
                           <User className="w-3 h-3 shrink-0" />
                           <span className="text-foreground font-medium">{selectedItem.submitter_name || selectedItem.submitted_by?.slice(0, 10) || "Unknown"}</span>
                           {selectedItem.submitter_role && (
-                            <span className="px-1 py-[1px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[7px] font-bold rounded capitalize">
+                            <span className="px-1 py-[1px] bg-info-text/10 border border-info-border/20 text-info-text text-[7px] font-bold rounded capitalize">
                               {selectedItem.submitter_role.toLowerCase()}
                             </span>
                           )}
@@ -626,7 +626,7 @@ export default function ValidationDeskPage() {
                               onClick={() => setActiveMediaIdx(idx)}
                               className={`relative h-12 w-12 shrink-0 rounded overflow-hidden border-2 transition-all ${
                                 activeMediaIdx === idx
-                                  ? "border-indigo-500"
+                                  ? "border-info-border"
                                   : "border-border opacity-60 hover:opacity-100"
                               }`}
                             >
@@ -649,13 +649,13 @@ export default function ValidationDeskPage() {
 
               {/* —— Passed: Auto-Approved Notice ——————————————————————————————— */}
               {isPassed && (
-                <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-lg p-4 flex items-start gap-3">
-                  <div className="w-8 h-8 bg-emerald-500/15 rounded-lg flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <div className="bg-success-text/5 border border-success-border/15 rounded-lg p-4 flex items-start gap-3">
+                  <div className="w-8 h-8 bg-success-text/15 rounded-lg flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-4 h-4 text-success-text" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-emerald-300 mb-0.5">Media Auto-Approved & Added to Vault</p>
-                    <p className="text-[10px] text-emerald-400/60 leading-relaxed">
+                    <p className="text-xs font-bold text-success-text mb-0.5">Media Auto-Approved & Added to Vault</p>
+                    <p className="text-[10px] text-success-text/60 leading-relaxed">
                       This media passed all automated safety checks and has been added to the media vault. It is available for use.
                     </p>
                   </div>
@@ -711,7 +711,7 @@ export default function ValidationDeskPage() {
               {ruleResults.length > 0 && (
                 <div className="bg-surface border border-border rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <ShieldAlert className="w-3.5 h-3.5 text-indigo-400" />
+                    <ShieldAlert className="w-3.5 h-3.5 text-info-text" />
                     <h4 className="text-[11px] font-bold text-foreground">Automated Scan Results</h4>
                     <div className="ml-auto flex gap-1.5">
                       {failedRules.length > 0 && (
@@ -720,7 +720,7 @@ export default function ValidationDeskPage() {
                         </span>
                       )}
                       {passedRules.length > 0 && (
-                        <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded font-bold">
+                        <span className="text-[9px] px-1.5 py-0.5 bg-success-text/10 border border-success-border/20 text-success-text rounded font-bold">
                           {passedRules.length} Passed
                         </span>
                       )}
@@ -736,7 +736,7 @@ export default function ValidationDeskPage() {
                             <span className={`text-[8px] px-2 py-0.5 rounded font-bold border ${
                               rr.result === "BLOCKED"
                                 ? "bg-red-600/15 border-red-600/25 text-red-400"
-                                : "bg-rose-500/15 border-rose-500/25 text-rose-400"
+                                : "bg-error-text/15 border-error-border/25 text-error-text"
                             }`}>{rr.result}</span>
                           </div>
                           {rr.explanation && <p className="text-[10px] text-foreground-muted leading-relaxed">{rr.explanation}</p>}
@@ -749,10 +749,10 @@ export default function ValidationDeskPage() {
                     <div className="space-y-1.5">
                       <p className="text-[9px] font-bold text-foreground-muted uppercase tracking-wider">Checks Passed</p>
                       {passedRules.map(rr => (
-                        <div key={rr.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/[0.03] border border-emerald-500/10">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-500/60 shrink-0" />
+                        <div key={rr.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-success-text/[0.03] border border-success-border/10">
+                          <CheckCircle2 className="w-3 h-3 text-success-text/60 shrink-0" />
                           <span className="text-[10px] text-foreground-muted">{rr.rule_name}</span>
-                          {rr.result === "WARNING" && <AlertTriangle className="w-3 h-3 text-amber-500/60 ml-auto" />}
+                          {rr.result === "WARNING" && <AlertTriangle className="w-3 h-3 text-warning-text/60 ml-auto" />}
                         </div>
                       ))}
                     </div>
@@ -767,7 +767,7 @@ export default function ValidationDeskPage() {
                   <div className="space-y-2">
                     {timeline.slice(0, 5).map((entry, i) => (
                       <div key={entry.id || i} className="flex items-start gap-2 text-[10px]">
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500/40 mt-1.5 shrink-0" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-info-text/40 mt-1.5 shrink-0" />
                         <div className="min-w-0">
                           <p className="text-foreground-muted leading-snug">{entry.action?.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</p>
                           <p className="text-[9px] text-foreground-muted">
@@ -782,17 +782,17 @@ export default function ValidationDeskPage() {
 
               {/* —— MANUAL_CHECK_REQUIRED â†’ Review Queue notice ————————————————— */}
               {(selectedItem.validation_status === "MANUAL_CHECK_REQUIRED" || selectedItem.validation_status === "FAILED") && (
-                <div className="bg-amber-500/5 border border-amber-500/15 rounded-lg p-4 flex items-start gap-3">
-                  <div className="w-8 h-8 bg-amber-500/15 rounded-lg flex items-center justify-center shrink-0">
-                    <Layers className="w-4 h-4 text-amber-400" />
+                <div className="bg-warning-text/5 border border-warning-border/15 rounded-lg p-4 flex items-start gap-3">
+                  <div className="w-8 h-8 bg-warning-text/15 rounded-lg flex items-center justify-center shrink-0">
+                    <Layers className="w-4 h-4 text-warning-text" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs font-bold text-amber-300 mb-0.5">Sent to Review Queue</p>
-                    <p className="text-[10px] text-amber-400/70 leading-relaxed">
+                    <p className="text-xs font-bold text-warning-text mb-0.5">Sent to Review Queue</p>
+                    <p className="text-[10px] text-warning-text/70 leading-relaxed">
                       This asset was flagged by the AI scan and added to the Review Queue for a human reviewer to decide.
                     </p>
                     <a href="/review-queue"
-                      className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/25 rounded-lg text-amber-300 text-[10px] font-bold transition-colors">
+                      className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-warning-text/15 hover:bg-warning-text/25 border border-warning-border/25 rounded-lg text-warning-text text-[10px] font-bold transition-colors">
                       <ArrowRight className="w-3 h-3" /> Go to Review Queue
                     </a>
                   </div>

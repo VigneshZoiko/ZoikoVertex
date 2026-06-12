@@ -70,12 +70,12 @@ export default function SocialPerformancePage() {
   const statusBars = campaigns
     ? [
         { label: 'Draft', count: campaigns.draft, color: 'bg-slate-500' },
-        { label: 'In Review', count: campaigns.in_review, color: 'bg-blue-500' },
-        { label: 'Approval Pending', count: campaigns.approval_pending, color: 'bg-amber-500' },
-        { label: 'Active', count: campaigns.active, color: 'bg-emerald-500' },
-        { label: 'Pausing', count: campaigns.pausing, color: 'bg-orange-400' },
-        { label: 'Paused', count: campaigns.paused, color: 'bg-orange-600' },
-        { label: 'Completed', count: campaigns.completed, color: 'bg-indigo-500' },
+        { label: 'In Review', count: campaigns.in_review, color: 'bg-info-text' },
+        { label: 'Approval Pending', count: campaigns.approval_pending, color: 'bg-warning-text' },
+        { label: 'Active', count: campaigns.active, color: 'bg-success-text' },
+        { label: 'Pausing', count: campaigns.pausing, color: 'bg-warning-text' },
+        { label: 'Paused', count: campaigns.paused, color: 'bg-warning-text' },
+        { label: 'Completed', count: campaigns.completed, color: 'bg-info-text' },
       ]
     : [];
 
@@ -108,32 +108,32 @@ export default function SocialPerformancePage() {
               value={campaigns.total}
               sub={`${campaigns.active} active`}
               Icon={Layers}
-              iconBg="bg-indigo-500/10"
-              iconColor="text-indigo-400"
+              iconBg="bg-info-bg"
+              iconColor="text-info-text"
             />
             <StatCard
               label="Completed"
               value={campaigns.completed}
               sub={null}
               Icon={CheckCircle2}
-              iconBg="bg-emerald-500/10"
-              iconColor="text-emerald-400"
+              iconBg="bg-success-bg"
+              iconColor="text-success-text"
             />
             <StatCard
               label="Pending Approval"
               value={campaigns.approval_pending}
               sub={campaigns.needs_action > 0 ? `${campaigns.needs_action} need action` : null}
               Icon={AlertCircle}
-              iconBg="bg-amber-500/10"
-              iconColor="text-amber-400"
+              iconBg="bg-warning-bg"
+              iconColor="text-warning-text"
             />
             <StatCard
               label="Risk Flags"
               value={campaigns.risk_flags}
               sub={null}
               Icon={Zap}
-              iconBg="bg-rose-500/10"
-              iconColor="text-rose-400"
+              iconBg="bg-error-bg"
+              iconColor="text-error-text"
             />
           </>
         ) : (
@@ -148,7 +148,7 @@ export default function SocialPerformancePage() {
         {/* Status Distribution */}
         <div className="lg:col-span-2 bg-[var(--card)] border border-[var(--border)] rounded-2xl p-8 shadow-sm">
           <div className="flex items-center gap-2 mb-6">
-            <BarChart3 className="w-5 h-5 text-indigo-400" />
+            <BarChart3 className="w-5 h-5 text-info-text" />
             <div>
               <h2 className="text-lg font-bold text-[var(--foreground)]">Status Distribution</h2>
               <p className="text-xs text-[var(--foreground-muted)] mt-0.5">Campaign count by lifecycle stage</p>
@@ -192,7 +192,7 @@ export default function SocialPerformancePage() {
         {/* Budget Tracker */}
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-8 shadow-sm flex flex-col gap-6">
           <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-emerald-400" />
+            <DollarSign className="w-5 h-5 text-success-text" />
             <div>
               <h2 className="text-lg font-bold text-[var(--foreground)]">Budget Tracker</h2>
               <p className="text-xs text-[var(--foreground-muted)] mt-0.5">Spend vs allocation</p>
@@ -221,13 +221,13 @@ export default function SocialPerformancePage() {
                 </div>
                 <div className="h-3 bg-[var(--surface)] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
+                    className="h-full bg-success-text rounded-full transition-all duration-1000"
                     style={{ width: `${spendPct}%` }}
                   />
                 </div>
                 <div className="flex justify-between mt-1.5">
                   <span className="text-xs text-[var(--foreground-muted)]">Utilization</span>
-                  <span className="text-xs font-bold text-emerald-400">{spendPct.toFixed(1)}%</span>
+                  <span className="text-xs font-bold text-success-text">{spendPct.toFixed(1)}%</span>
                 </div>
               </div>
 
@@ -240,9 +240,9 @@ export default function SocialPerformancePage() {
 
               <div className="space-y-3 pt-1">
                 {[
-                  { label: 'Risk Flags', value: campaigns.risk_flags, color: 'text-rose-400' },
-                  { label: 'Needs Action', value: campaigns.needs_action, color: 'text-amber-400' },
-                  { label: 'In Review', value: campaigns.in_review, color: 'text-blue-400' },
+                  { label: 'Risk Flags', value: campaigns.risk_flags, color: 'text-error-text' },
+                  { label: 'Needs Action', value: campaigns.needs_action, color: 'text-warning-text' },
+                  { label: 'In Review', value: campaigns.in_review, color: 'text-info-text' },
                 ].map(item => (
                   <div key={item.label} className="flex justify-between items-center">
                     <span className="text-xs text-[var(--foreground-muted)]">{item.label}</span>

@@ -25,10 +25,10 @@ import {
 const { muted } = _styles;
 
 const SEVERITY_COLOR: Record<string, string> = {
-  low: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  medium: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  high: "bg-orange-500/15 text-orange-300 border-orange-500/30",
-  critical: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  low: "bg-info-bg text-info-text border-info-border",
+  medium: "bg-warning-bg text-warning-text border-warning-border",
+  high: "bg-warning-bg text-warning-text border-warning-border",
+  critical: "bg-error-bg text-error-text border-error-border",
 };
 
 function StatRow({
@@ -42,15 +42,15 @@ function StatRow({
     <div className="grid grid-cols-[1.6fr_auto_auto_auto_auto] items-center gap-2 rounded-lg border border-[var(--border)] px-2 py-1.5 text-[11px]">
       <span className="font-medium">{label}</span>
       <span className={muted}>{stats.total} total</span>
-      <span className="text-emerald-300">{stats.passed} pass</span>
-      <span className="text-rose-300">{stats.failed} fail</span>
+      <span className="text-success-text">{stats.passed} pass</span>
+      <span className="text-error-text">{stats.failed} fail</span>
       <span
         className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold ${
           stats.pass_rate >= 95
-            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+            ? "border-success-border bg-success-bg text-success-text"
             : stats.pass_rate >= 80
-              ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
-              : "border-rose-500/30 bg-rose-500/10 text-rose-300"
+              ? "border-warning-border bg-warning-bg text-warning-text"
+              : "border-error-border bg-error-bg text-error-text"
         }`}
       >
         {stats.pass_rate}%
@@ -133,7 +133,7 @@ export function AdversarialDashboard({ embedded = false }: { embedded?: boolean 
           <Field
             k="Bypasses detected"
             v={
-              <span className={summary.bypasses_detected > 0 ? "text-rose-300" : "text-emerald-300"}>
+              <span className={summary.bypasses_detected > 0 ? "text-error-text" : "text-success-text"}>
                 {summary.bypasses_detected}
               </span>
             }
@@ -172,7 +172,7 @@ export function AdversarialDashboard({ embedded = false }: { embedded?: boolean 
                   {sev}
                 </span>
                 <span className={muted}>{stats.total} total</span>
-                <span className="text-rose-300">{stats.failed} failed</span>
+                <span className="text-error-text">{stats.failed} failed</span>
               </div>
             ))}
           </div>

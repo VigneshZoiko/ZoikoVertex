@@ -203,7 +203,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
       <div className="flex flex-col h-full">
         <div className="p-6 border-b border-[var(--card-border)] bg-[var(--surface)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+            <div className="w-12 h-12 rounded-2xl bg-info-text/10 flex items-center justify-center text-info-text">
               <Shield className="w-7 h-7" />
             </div>
             <div>
@@ -214,25 +214,25 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
               </div>
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {agent.status === 'DRAFT' && (
-                  <button onClick={() => handleAgentAction('approval')} disabled={actionBusy !== null} className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-lg text-[9px] font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50">
+                  <button onClick={() => handleAgentAction('approval')} disabled={actionBusy !== null} className="flex items-center gap-1.5 px-2.5 py-1 bg-warning-text/10 text-warning-text border border-warning-border/20 rounded-lg text-[9px] font-bold hover:bg-warning-text/20 transition-all disabled:opacity-50">
                     <FileCheck className="w-3 h-3" />
                     {actionBusy === 'approval' ? 'Requesting...' : 'Request Approval'}
                   </button>
                 )}
                 {agent.status === 'APPROVED' && (
-                  <button onClick={() => handleAgentAction('deploy')} disabled={actionBusy !== null} className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg text-[9px] font-bold hover:bg-emerald-500/20 transition-all disabled:opacity-50">
+                  <button onClick={() => handleAgentAction('deploy')} disabled={actionBusy !== null} className="flex items-center gap-1.5 px-2.5 py-1 bg-success-text/10 text-success-text border border-success-border/20 rounded-lg text-[9px] font-bold hover:bg-success-text/20 transition-all disabled:opacity-50">
                     <Play className="w-3 h-3" />
                     {actionBusy === 'deploy' ? 'Deploying...' : 'Deploy'}
                   </button>
                 )}
                 {agent.status === 'ACTIVE' && (
-                  <button onClick={() => handleAgentAction('pause')} disabled={actionBusy !== null} className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded-lg text-[9px] font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50">
+                  <button onClick={() => handleAgentAction('pause')} disabled={actionBusy !== null} className="flex items-center gap-1.5 px-2.5 py-1 bg-warning-text/10 text-warning-text border border-warning-border/20 rounded-lg text-[9px] font-bold hover:bg-warning-text/20 transition-all disabled:opacity-50">
                     <Pause className="w-3 h-3" />
                     {actionBusy === 'pause' ? 'Pausing...' : 'Pause'}
                   </button>
                 )}
                 {agent.status === 'PAUSED' && (
-                  <button onClick={() => handleAgentAction('resume')} disabled={actionBusy !== null} className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg text-[9px] font-bold hover:bg-emerald-500/20 transition-all disabled:opacity-50">
+                  <button onClick={() => handleAgentAction('resume')} disabled={actionBusy !== null} className="flex items-center gap-1.5 px-2.5 py-1 bg-success-text/10 text-success-text border border-success-border/20 rounded-lg text-[9px] font-bold hover:bg-success-text/20 transition-all disabled:opacity-50">
                     <Play className="w-3 h-3" />
                     {actionBusy === 'resume' ? 'Resuming...' : 'Resume'}
                   </button>
@@ -262,7 +262,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`flex items-center gap-1.5 px-3 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all shrink-0 ${
                 activeTab === tab.id
-                  ? 'border-indigo-500 text-indigo-500'
+                  ? 'border-info-border text-info-text'
                   : 'border-transparent text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
               }`}
             >
@@ -274,31 +274,31 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           {actionError && (
-            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-500">
+            <div className="rounded-2xl border border-error-border/20 bg-error-text/10 p-3 text-xs text-error-text">
               {actionError}
             </div>
           )}
           {activeTab === 'overview' && (
             <div className="space-y-6 animate-in fade-in duration-500">
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-5 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl space-y-3">
+                <div className="p-5 bg-info-text/5 border border-info-border/10 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Trust Score</span>
-                    <TrendingUp className="w-4 h-4 text-indigo-500" />
+                    <span className="text-[10px] font-black text-info-text uppercase tracking-widest">Trust Score</span>
+                    <TrendingUp className="w-4 h-4 text-info-text" />
                   </div>
-                  <div className="text-3xl font-black text-indigo-600">{((agent.trust_score || 0) * 100).toFixed(0)}%</div>
-                  <div className="w-full h-1.5 bg-indigo-500/10 rounded-full">
-                    <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${(agent.trust_score || 0) * 100}%` }} />
+                  <div className="text-3xl font-black text-info-text">{((agent.trust_score || 0) * 100).toFixed(0)}%</div>
+                  <div className="w-full h-1.5 bg-info-text/10 rounded-full">
+                    <div className="h-full bg-info-text rounded-full" style={{ width: `${(agent.trust_score || 0) * 100}%` }} />
                   </div>
                 </div>
-                <div className="p-5 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl space-y-3">
+                <div className="p-5 bg-success-text/5 border border-success-border/10 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Faithfulness</span>
-                    <CheckCircle className="w-4 h-4 text-emerald-500" />
+                    <span className="text-[10px] font-black text-success-text uppercase tracking-widest">Faithfulness</span>
+                    <CheckCircle className="w-4 h-4 text-success-text" />
                   </div>
-                  <div className="text-3xl font-black text-emerald-600">{((agent.faithfulness_score || 0) * 100).toFixed(0)}%</div>
-                  <div className="w-full h-1.5 bg-emerald-500/10 rounded-full">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(agent.faithfulness_score || 0) * 100}%` }} />
+                  <div className="text-3xl font-black text-success-text">{((agent.faithfulness_score || 0) * 100).toFixed(0)}%</div>
+                  <div className="w-full h-1.5 bg-success-text/10 rounded-full">
+                    <div className="h-full bg-success-text rounded-full" style={{ width: `${(agent.faithfulness_score || 0) * 100}%` }} />
                   </div>
                 </div>
               </div>
@@ -315,7 +315,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                     <div key={row.label}>
                       <div className="text-[9px] font-black text-[var(--foreground-muted)] uppercase mb-0.5">{row.label}</div>
                       <div className="font-semibold text-[var(--foreground)] text-xs capitalize flex items-center gap-1">
-                        <row.icon className="w-3 h-3 text-indigo-400" />
+                        <row.icon className="w-3 h-3 text-info-text" />
                         {row.value}
                       </div>
                     </div>
@@ -326,22 +326,22 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
               <div className="space-y-3">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)] border-b border-[var(--card-border)] pb-2">DRI Contact</h3>
                 <div className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                  <div className="w-10 h-10 rounded-full bg-info-text/10 flex items-center justify-center text-info-text">
                     <User className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="text-sm font-semibold text-[var(--foreground)]">{agent.primary_dri?.full_name || 'Unassigned'}</div>
-                    <div className="text-xs text-indigo-400">{agent.primary_dri?.email || 'No email assigned'}</div>
+                    <div className="text-xs text-info-text">{agent.primary_dri?.email || 'No email assigned'}</div>
                   </div>
                 </div>
                 {agent.backup_dri && (
                   <div className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500">
+                    <div className="w-10 h-10 rounded-full bg-warning-text/10 flex items-center justify-center text-warning-text">
                       <User className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-[var(--foreground)]">{agent.backup_dri.full_name}</div>
-                      <div className="text-xs text-amber-400">{agent.backup_dri.email}</div>
+                      <div className="text-xs text-warning-text">{agent.backup_dri.email}</div>
                       <span className="text-[9px] text-[var(--foreground-muted)] font-black uppercase">Backup DRI</span>
                     </div>
                   </div>
@@ -352,7 +352,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                 <div className="p-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl">
                   <div className="text-[10px] font-black uppercase text-[var(--foreground-muted)]">Brand Binding</div>
                   <div className="text-sm font-semibold text-[var(--foreground)]">{agent.assigned_brand}</div>
-                  <div className="text-[10px] text-emerald-500 mt-1 flex items-center gap-1">
+                  <div className="text-[10px] text-success-text mt-1 flex items-center gap-1">
                     <ShieldCheck className="w-3 h-3" />
                     Brand voice rules active
                   </div>
@@ -383,11 +383,11 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
               <div className="pt-2 space-y-3">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)] mb-2">Lifecycle</h3>
                 <div className="flex gap-3">
-                  <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-xl text-[10px] font-black hover:bg-amber-500 hover:text-white transition-all">
+                  <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-warning-text/10 text-warning-text border border-warning-border/20 rounded-xl text-[10px] font-black hover:bg-warning-text hover:text-white transition-all">
                     <Pause className="w-3.5 h-3.5" />
                     PAUSE
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-rose-500/10 text-rose-600 border border-rose-500/20 rounded-xl text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all">
+                  <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-error-text/10 text-error-text border border-error-border/20 rounded-xl text-[10px] font-black hover:bg-error-text hover:text-white transition-all">
                     <RotateCcw className="w-3.5 h-3.5" />
                     RESET
                   </button>
@@ -403,8 +403,8 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                 {checklist && (
                   <span className={`text-[10px] font-black px-2 py-1 rounded-full ${
                     checklist.all_complete
-                      ? 'bg-emerald-500/10 text-emerald-500'
-                      : 'bg-amber-500/10 text-amber-500'
+                      ? 'bg-success-text/10 text-success-text'
+                      : 'bg-warning-text/10 text-warning-text'
                   }`}>
                     {checklist.all_complete ? 'READY TO ACTIVATE' : `${CHECKLIST_ITEMS.filter(c => (checklist as any)[c.key]).length}/${CHECKLIST_ITEMS.length}`}
                   </span>
@@ -413,7 +413,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
 
               {!checklist ? (
                 <div className="text-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mx-auto mb-2" />
+                  <Loader2 className="w-8 h-8 animate-spin text-info-text mx-auto mb-2" />
                   <p className="text-xs text-[var(--foreground-muted)]">Loading checklist...</p>
                 </div>
               ) : (
@@ -424,15 +424,15 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                       return (
                         <div key={item.key} className="flex items-center gap-3 p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                           <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                            done ? "bg-emerald-500 text-foreground" : "bg-[var(--surface)] border border-[var(--border)]"
+                            done ? "bg-success-text text-foreground" : "bg-[var(--surface)] border border-[var(--border)]"
                           }`}>
                             {done && <Check className="w-3.5 h-3.5" />}
                           </div>
                           <div className="flex-1">
-                            <item.icon className={`w-3 h-3 inline mr-1.5 ${done ? "text-emerald-500" : "text-[var(--foreground-muted)]"}`} />
-                            <span className={`text-xs font-semibold ${done ? "text-emerald-500" : "text-[var(--foreground-muted)]"}`}>{item.label}</span>
+                            <item.icon className={`w-3 h-3 inline mr-1.5 ${done ? "text-success-text" : "text-[var(--foreground-muted)]"}`} />
+                            <span className={`text-xs font-semibold ${done ? "text-success-text" : "text-[var(--foreground-muted)]"}`}>{item.label}</span>
                           </div>
-                          <span className={`text-[9px] font-black uppercase ${done ? "text-emerald-500" : "text-amber-500"}`}>
+                          <span className={`text-[9px] font-black uppercase ${done ? "text-success-text" : "text-warning-text"}`}>
                             {done ? 'Complete' : 'Incomplete'}
                           </span>
                         </div>
@@ -442,10 +442,10 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
 
                   {checklist.blockers.length > 0 && (
                     <div className="space-y-2">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-500">Blockers</h4>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-error-text">Blockers</h4>
                       {checklist.blockers.map((blocker, i) => (
-                        <div key={i} className="flex items-start gap-2 p-3 bg-rose-500/5 border border-rose-500/10 rounded-xl">
-                          <AlertTriangle className="w-3.5 h-3.5 text-rose-500 mt-0.5 shrink-0" />
+                        <div key={i} className="flex items-start gap-2 p-3 bg-error-text/5 border border-error-border/10 rounded-xl">
+                          <AlertTriangle className="w-3.5 h-3.5 text-error-text mt-0.5 shrink-0" />
                           <span className="text-xs text-[var(--foreground-muted)]">{blocker}</span>
                         </div>
                       ))}
@@ -467,14 +467,14 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                     <div key={ver.id} className="p-4 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black px-2 py-0.5 bg-indigo-500/10 text-indigo-500 rounded">v{ver.version}</span>
+                          <span className="text-[10px] font-black px-2 py-0.5 bg-info-text/10 text-info-text rounded">v{ver.version}</span>
                           <span className="text-xs font-semibold text-[var(--foreground)]">{ver.reason}</span>
                         </div>
                         {ver.version !== versions[0].version && (
                           <button
                             onClick={() => handleRollback(ver.id)}
                             disabled={rollingBack === ver.id}
-                            className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:underline disabled:opacity-50"
+                            className="flex items-center gap-1 text-[10px] font-bold text-info-text hover:underline disabled:opacity-50"
                           >
                             {rollingBack === ver.id ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
@@ -503,11 +503,11 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
           {activeTab === 'permissions' && (
             <div className="space-y-5 animate-in slide-in-from-right-4 duration-500">
               <div className="space-y-3">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-500 border-b border-[var(--card-border)] pb-2">Permitted Actions</h3>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-success-text border-b border-[var(--card-border)] pb-2">Permitted Actions</h3>
                 {(agent.permitted_actions || []).length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {(agent.permitted_actions || []).map(action => (
-                      <span key={action} className="px-3 py-1.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full text-xs font-bold">
+                      <span key={action} className="px-3 py-1.5 bg-success-text/10 text-success-text border border-success-border/20 rounded-full text-xs font-bold">
                         {action}
                       </span>
                     ))}
@@ -517,11 +517,11 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                 )}
               </div>
               <div className="space-y-3">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-rose-500 border-b border-[var(--card-border)] pb-2">Prohibited Actions</h3>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-error-text border-b border-[var(--card-border)] pb-2">Prohibited Actions</h3>
                 {(agent.prohibited_actions || []).length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {(agent.prohibited_actions || []).map(action => (
-                      <span key={action} className="px-3 py-1.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-full text-xs font-bold">
+                      <span key={action} className="px-3 py-1.5 bg-error-text/10 text-error-text border border-error-border/20 rounded-full text-xs font-bold">
                         {action}
                       </span>
                     ))}
@@ -538,7 +538,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                       {[...linkedResources.policies, ...linkedResources.prompts].map((r, i) => (
                         <div key={i} className="flex items-center justify-between p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                           <div className="flex items-center gap-2">
-                            <Link2 className="w-3 h-3 text-indigo-400" />
+                            <Link2 className="w-3 h-3 text-info-text" />
                             <span className="text-xs font-semibold text-[var(--foreground)]">{r.name}</span>
                           </div>
                           <StatusBadge status={r.status} />
@@ -561,9 +561,9 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                   <div className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                     <div className="text-[10px] font-black uppercase text-[var(--foreground-muted)]">Risk Tier</div>
                     <div className={`text-sm font-bold capitalize mt-1 ${
-                      (agent.risk_level || 'medium') === 'low' ? 'text-emerald-500' :
-                      (agent.risk_level || 'medium') === 'high' || (agent.risk_level || 'medium') === 'critical' ? 'text-rose-500' :
-                      'text-amber-500'
+                      (agent.risk_level || 'medium') === 'low' ? 'text-success-text' :
+                      (agent.risk_level || 'medium') === 'high' || (agent.risk_level || 'medium') === 'critical' ? 'text-error-text' :
+                      'text-warning-text'
                     }`}>{agent.risk_level || 'medium'}</div>
                   </div>
                   <div className="p-4 bg-[var(--background)] border border-[var(--border)] rounded-xl">
@@ -583,15 +583,15 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                 {(agent.prohibited_actions || []).length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {(agent.prohibited_actions || []).map(action => (
-                      <span key={action} className="px-3 py-1.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-full text-xs font-bold">
+                      <span key={action} className="px-3 py-1.5 bg-error-text/10 text-error-text border border-error-border/20 rounded-full text-xs font-bold">
                         {action}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
-                    <CheckCircle className="w-4 h-4 text-emerald-500" />
-                    <span className="text-xs text-emerald-500">No prohibited actions configured. Agent operates with full allowed scope.</span>
+                  <div className="flex items-center gap-2 p-3 bg-success-text/5 border border-success-border/10 rounded-xl">
+                    <CheckCircle className="w-4 h-4 text-success-text" />
+                    <span className="text-xs text-success-text">No prohibited actions configured. Agent operates with full allowed scope.</span>
                   </div>
                 )}
               </div>
@@ -608,7 +608,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                     <div key={i} className="flex items-center justify-between p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                       <div className="flex items-center gap-2">
                         <AlertTriangle className={`w-3.5 h-3.5 ${
-                          rule.severity === 'critical' ? 'text-rose-500' : rule.severity === 'high' ? 'text-amber-500' : 'text-indigo-400'
+                          rule.severity === 'critical' ? 'text-error-text' : rule.severity === 'high' ? 'text-warning-text' : 'text-info-text'
                         }`} />
                         <div>
                           <div className="text-xs font-semibold text-[var(--foreground)]">{rule.trigger}</div>
@@ -616,9 +616,9 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                         </div>
                       </div>
                       <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${
-                        rule.severity === 'critical' ? 'bg-rose-500/10 text-rose-500' :
-                        rule.severity === 'high' ? 'bg-amber-500/10 text-amber-500' :
-                        'bg-indigo-500/10 text-indigo-500'
+                        rule.severity === 'critical' ? 'bg-error-text/10 text-error-text' :
+                        rule.severity === 'high' ? 'bg-warning-text/10 text-warning-text' :
+                        'bg-info-text/10 text-info-text'
                       }`}>{rule.severity}</span>
                     </div>
                   ))}
@@ -640,20 +640,20 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
             <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
               <div className="flex items-center justify-between">
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)]">Compliance Events</h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-rose-500/10 text-rose-500 rounded-full border border-rose-500/20">{incidents.length} alerts</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-error-text/10 text-error-text rounded-full border border-error-border/20">{incidents.length} alerts</span>
               </div>
               {incidents.map((inc) => (
-                <div key={inc.id} className="p-4 bg-[var(--surface)] border border-[var(--card-border)] rounded-2xl space-y-3 group hover:border-rose-500/30 transition-all">
+                <div key={inc.id} className="p-4 bg-[var(--surface)] border border-[var(--card-border)] rounded-2xl space-y-3 group hover:border-error-border/30 transition-all">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className={`w-4 h-4 ${inc.severity === 'CRITICAL' ? 'text-rose-500' : 'text-amber-500'}`} />
+                      <AlertTriangle className={`w-4 h-4 ${inc.severity === 'CRITICAL' ? 'text-error-text' : 'text-warning-text'}`} />
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground)]">{inc.incident_type.replace(/_/g, ' ')}</span>
                     </div>
                     <span className="text-[10px] text-[var(--foreground-muted)]">{new Date(inc.created_at).toLocaleDateString()}</span>
                   </div>
                   <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">{inc.description}</p>
                   <div className="flex justify-end">
-                    <button className="text-[10px] font-bold text-indigo-500 flex items-center gap-1 hover:underline">
+                    <button className="text-[10px] font-bold text-info-text flex items-center gap-1 hover:underline">
                       VIEW EVIDENCE <ExternalLink className="w-3 h-3" />
                     </button>
                   </div>
@@ -665,13 +665,13 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
           {activeTab === 'deployment' && (
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
               <div className="bg-[var(--surface)] border border-[var(--card-border)] rounded-3xl p-6 aspect-video flex flex-col items-center justify-center relative overflow-hidden">
-                <Globe className="w-32 h-32 text-indigo-500/10 absolute" />
+                <Globe className="w-32 h-32 text-info-text/10 absolute" />
                 <div className="relative z-10 text-center space-y-2">
                   <h4 className="text-sm font-bold">Global Deployment Map</h4>
                   <p className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-widest font-black">Cluster: Active</p>
                 </div>
-                <div className="absolute top-1/4 left-1/3 w-3 h-3 bg-indigo-500 rounded-full animate-ping" />
-                <div className="absolute top-1/2 right-1/4 w-3 h-3 bg-emerald-500 rounded-full animate-ping" />
+                <div className="absolute top-1/4 left-1/3 w-3 h-3 bg-info-text rounded-full animate-ping" />
+                <div className="absolute top-1/2 right-1/4 w-3 h-3 bg-success-text rounded-full animate-ping" />
               </div>
 
               <div className="space-y-3">
@@ -702,10 +702,10 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                   <div key={i} className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold">
                       <span className="text-[var(--foreground-muted)] uppercase tracking-tight">{reg.region}</span>
-                      <span className="text-indigo-500">{reg.latency}</span>
+                      <span className="text-info-text">{reg.latency}</span>
                     </div>
                     <div className="w-full h-1 bg-[var(--surface)] rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-500 transition-all" style={{ width: `${reg.health}%` }} />
+                      <div className="h-full bg-info-text transition-all" style={{ width: `${reg.health}%` }} />
                     </div>
                   </div>
                 ))}
@@ -724,7 +724,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                       });
                       if (result.success) onUpdate();
                     }}
-                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-foreground text-[10px] font-bold rounded-lg transition-all">
+                    className="px-3 py-1 bg-info-text hover:bg-info-text text-foreground text-[10px] font-bold rounded-lg transition-all">
                     Save
                   </button>
                 </div>
@@ -733,17 +733,17 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                   <div className="p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                     <label className="text-[10px] font-black uppercase text-[var(--foreground-muted)] block mb-1">Rate Limit (req/hr)</label>
                     <input id="rate_limit" type="number" defaultValue="50"
-                      className="w-full bg-transparent text-sm font-semibold text-[var(--foreground)] outline-none border-b border-[var(--border)] focus:border-indigo-500" />
+                      className="w-full bg-transparent text-sm font-semibold text-[var(--foreground)] outline-none border-b border-[var(--border)] focus:border-info-border" />
                   </div>
                   <div className="p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                     <label className="text-[10px] font-black uppercase text-[var(--foreground-muted)] block mb-1">Token Budget (/day)</label>
                     <input id="token_budget" type="number" defaultValue="10000"
-                      className="w-full bg-transparent text-sm font-semibold text-[var(--foreground)] outline-none border-b border-[var(--border)] focus:border-indigo-500" />
+                      className="w-full bg-transparent text-sm font-semibold text-[var(--foreground)] outline-none border-b border-[var(--border)] focus:border-info-border" />
                   </div>
                   <div className="p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                     <label className="text-[10px] font-black uppercase text-[var(--foreground-muted)] block mb-1">Retry Policy (attempts)</label>
                     <input id="retry_policy" type="number" defaultValue="3"
-                      className="w-full bg-transparent text-sm font-semibold text-[var(--foreground)] outline-none border-b border-[var(--border)] focus:border-indigo-500" />
+                      className="w-full bg-transparent text-sm font-semibold text-[var(--foreground)] outline-none border-b border-[var(--border)] focus:border-info-border" />
                   </div>
                   <div className="p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl">
                     <label className="text-[10px] font-black uppercase text-[var(--foreground-muted)] block mb-1">Environment</label>
@@ -760,7 +760,7 @@ export default function AgentDetailsDrawer({ isOpen, onClose, agent, onUpdate }:
                   <label className="text-[10px] font-black uppercase text-[var(--foreground-muted)] block mb-2">Channel Scope</label>
                   <div className="flex flex-wrap gap-1.5">
                     {(agent as any).linked_channels?.map((ch: string) => (
-                      <span key={ch} className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded">
+                      <span key={ch} className="px-2 py-0.5 bg-info-text/10 text-info-text text-[10px] font-bold rounded">
                         {ch}
                       </span>
                     )) || <span className="text-xs text-[var(--foreground-muted)]">No channels configured</span>}

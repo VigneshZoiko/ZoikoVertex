@@ -53,12 +53,12 @@ interface TimelineEntry { id: string; action: string; previous_value?: string; n
 // ─── Config ────────────────────────────────────────────────────────────────────
 
 const METRIC_CARDS = [
-  { key: "total_audit_items", label: "Audit Items", icon: <List className="w-4 h-4" />, color: "text-blue-400", bg: "bg-blue-500/5 border-blue-500/15" },
-  { key: "in_audit",           label: "In Audit",     icon: <Clock className="w-4 h-4" />,          color: "text-indigo-400", bg: "bg-indigo-500/5 border-indigo-500/15" },
-  { key: "passed",             label: "Passed",        icon: <CheckCircle2 className="w-4 h-4" />,    color: "text-emerald-400", bg: "bg-emerald-500/5 border-emerald-500/15" },
-  { key: "failed",             label: "Failed",        icon: <XCircle className="w-4 h-4" />,         color: "text-rose-400", bg: "bg-rose-500/5 border-rose-500/15" },
-  { key: "needs_correction",   label: "Needs Correction", icon: <AlertTriangle className="w-4 h-4" />,color: "text-orange-400", bg: "bg-orange-500/5 border-orange-500/15" },
-  { key: "avg_quality_score",  label: "Avg Quality Score",icon: <Star className="w-4 h-4" />,         color: "text-amber-400", bg: "bg-amber-500/5 border-amber-500/15" },
+  { key: "total_audit_items", label: "Audit Items", icon: <List className="w-4 h-4" />, color: "text-info-text", bg: "bg-info-bg border-info-border" },
+  { key: "in_audit",           label: "In Audit",     icon: <Clock className="w-4 h-4" />,          color: "text-info-text", bg: "bg-info-bg border-info-border" },
+  { key: "passed",             label: "Passed",        icon: <CheckCircle2 className="w-4 h-4" />,    color: "text-success-text", bg: "bg-success-bg border-success-border" },
+  { key: "failed",             label: "Failed",        icon: <XCircle className="w-4 h-4" />,         color: "text-error-text", bg: "bg-error-bg border-error-border" },
+  { key: "needs_correction",   label: "Needs Correction", icon: <AlertTriangle className="w-4 h-4" />,color: "text-warning-text", bg: "bg-warning-bg border-warning-border" },
+  { key: "avg_quality_score",  label: "Avg Quality Score",icon: <Star className="w-4 h-4" />,         color: "text-warning-text", bg: "bg-warning-bg border-warning-border" },
 ];
 
 const AUDIT_TABS = [
@@ -86,23 +86,23 @@ const COMPARISON_TABS = [
 ];
 
 const AUDIT_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  AUDIT_PENDING:             { label: "Audit Pending",          color: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
-  IN_AUDIT:                  { label: "In Audit",               color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20" },
-  PASSED:                    { label: "Passed",                 color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-  FAILED:                    { label: "Failed",                 color: "text-rose-400 bg-rose-500/10 border-rose-500/20" },
-  NEEDS_CORRECTION:          { label: "Needs Correction",       color: "text-orange-400 bg-orange-500/10 border-orange-500/20" },
-  CORRECTIVE_ACTION_OPEN:    { label: "Corrective Action Open", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-  CORRECTIVE_ACTION_COMPLETE:{ label: "Corrective Action Done", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-  ESCALATED:                 { label: "Escalated",              color: "text-red-400 bg-red-500/10 border-red-500/20" },
+  AUDIT_PENDING:             { label: "Audit Pending",          color: "text-info-text bg-info-bg border-info-border" },
+  IN_AUDIT:                  { label: "In Audit",               color: "text-info-text bg-info-bg border-info-border" },
+  PASSED:                    { label: "Passed",                 color: "text-success-text bg-success-bg border-success-border" },
+  FAILED:                    { label: "Failed",                 color: "text-error-text bg-error-bg border-error-border" },
+  NEEDS_CORRECTION:          { label: "Needs Correction",       color: "text-warning-text bg-warning-bg border-warning-border" },
+  CORRECTIVE_ACTION_OPEN:    { label: "Corrective Action Open", color: "text-warning-text bg-warning-bg border-warning-border" },
+  CORRECTIVE_ACTION_COMPLETE:{ label: "Corrective Action Done", color: "text-success-text bg-success-bg border-success-border" },
+  ESCALATED:                 { label: "Escalated",              color: "text-error-text bg-error-bg border-error-border" },
   CLOSED:                    { label: "Closed",                 color: "text-gray-400 bg-gray-500/10 border-gray-500/20" },
   ARCHIVED:                  { label: "Archived",               color: "text-gray-500 bg-gray-500/5 border-gray-500/10" },
 };
 
 const RISK_BADGE: Record<string, string> = {
-  LOW: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  MEDIUM: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  HIGH: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-  CRITICAL: "bg-red-500/10 text-red-400 border-red-500/20",
+  LOW: "bg-success-bg text-success-text border-success-border",
+  MEDIUM: "bg-warning-bg text-warning-text border-warning-border",
+  HIGH: "bg-warning-bg text-warning-text border-warning-border",
+  CRITICAL: "bg-error-bg text-error-text border-error-border",
 };
 
 const SEVERITY_DOT: Record<string, string> = {
@@ -143,11 +143,11 @@ function timeAgo(d: string): string {
 }
 
 function getScoreBand(score: number): { label: string; color: string } {
-  if (score >= 90) return { label: "Excellent", color: "text-emerald-400" };
-  if (score >= 75) return { label: "Acceptable", color: "text-blue-400" };
-  if (score >= 60) return { label: "Needs Improvement", color: "text-amber-400" };
-  if (score >= 40) return { label: "Poor", color: "text-orange-400" };
-  return { label: "Critical Failure", color: "text-red-400" };
+  if (score >= 90) return { label: "Excellent", color: "text-success-text" };
+  if (score >= 75) return { label: "Acceptable", color: "text-info-text" };
+  if (score >= 60) return { label: "Needs Improvement", color: "text-warning-text" };
+  if (score >= 40) return { label: "Poor", color: "text-warning-text" };
+  return { label: "Critical Failure", color: "text-error-text" };
 }
 
 function TooltipBtn({ disabled, tooltip, children }: { disabled: boolean; tooltip: string; children: React.ReactNode }) {
@@ -312,10 +312,10 @@ export default function QualityAuditPage() {
   );
 
   const alerts: { label: string; icon: React.ReactNode; color: string }[] = [];
-  if (defects.some(d => d.severity === "CRITICAL")) alerts.push({ label: "Critical Defects Found", icon: <AlertCircle className="w-3 h-3" />, color: "text-red-400" });
-  if (selectedItem?.published_at && items.some(i => i.published_at)) alerts.push({ label: "Published Mismatch Detected", icon: <AlertTriangle className="w-3 h-3" />, color: "text-orange-400" });
-  if (correctiveActions.some(ca => ca.status === "OPEN" && ca.due_at && new Date(ca.due_at) < new Date())) alerts.push({ label: "Corrective Actions Overdue", icon: <Clock className="w-3 h-3" />, color: "text-amber-400" });
-  if (evidence.length === 0 && selectedItem) alerts.push({ label: "Evidence Missing", icon: <Eye className="w-3 h-3" />, color: "text-purple-400" });
+  if (defects.some(d => d.severity === "CRITICAL")) alerts.push({ label: "Critical Defects Found", icon: <AlertCircle className="w-3 h-3" />, color: "text-error-text" });
+  if (selectedItem?.published_at && items.some(i => i.published_at)) alerts.push({ label: "Published Mismatch Detected", icon: <AlertTriangle className="w-3 h-3" />, color: "text-warning-text" });
+  if (correctiveActions.some(ca => ca.status === "OPEN" && ca.due_at && new Date(ca.due_at) < new Date())) alerts.push({ label: "Corrective Actions Overdue", icon: <Clock className="w-3 h-3" />, color: "text-warning-text" });
+  if (evidence.length === 0 && selectedItem) alerts.push({ label: "Evidence Missing", icon: <Eye className="w-3 h-3" />, color: "text-info-text" });
 
   // ─── Render ───────────────────────────────────────────────────────────────────
 
@@ -323,7 +323,7 @@ export default function QualityAuditPage() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-col items-center py-32 text-[#666] gap-4">
-          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-info-border border-t-transparent rounded-full animate-spin" />
           <p className="text-sm">Loading Quality Audit…</p>
         </div>
       </div>
@@ -334,12 +334,12 @@ export default function QualityAuditPage() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-16 text-center">
-          <div className="w-14 h-14 bg-rose-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-7 h-7 text-rose-400" />
+          <div className="w-14 h-14 bg-error-bg rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-7 h-7 text-error-text" />
           </div>
           <p className="text-foreground font-semibold mb-2">Failed to Load Quality Audit</p>
           <p className="text-[#666] text-sm mb-6">{error}</p>
-          <button onClick={fetchAll} className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-foreground rounded-xl text-xs font-bold transition-all">
+          <button onClick={fetchAll} className="px-5 py-2.5 bg-info-text hover:brightness-110 text-foreground rounded-xl text-xs font-bold transition-all">
             Retry
           </button>
         </div>
@@ -359,7 +359,7 @@ export default function QualityAuditPage() {
           <TooltipBtn disabled={!selectedItem || actionLoading !== null} tooltip="Select an audit item first">
             <button disabled={!selectedItem || actionLoading !== null}
               onClick={() => selectedItem && handleAction("start-audit", selectedItem.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-foreground rounded-lg text-[10px] font-bold transition-all disabled:opacity-40 shadow-lg shadow-indigo-500/15">
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-info-text hover:brightness-110 text-foreground rounded-lg text-[10px] font-bold transition-all disabled:opacity-40 shadow-lg shadow-info-bg">
               {actionLoading === "start-audit" ? <RefreshCcw className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}Start Audit
             </button>
           </TooltipBtn>
@@ -412,7 +412,7 @@ export default function QualityAuditPage() {
 
       {/* ── Message Toast ─────────────────────────────────────────────────────── */}
       {message && (
-        <div className={`mb-4 p-3 rounded-xl flex items-center gap-2.5 text-sm font-medium ${message.type === "success" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border border-rose-500/20 text-rose-400"}`}>
+        <div className={`mb-4 p-3 rounded-xl flex items-center gap-2.5 text-sm font-medium ${message.type === "success" ? "bg-success-bg border border-success-border text-success-text" : "bg-error-bg border border-error-border text-error-text"}`}>
           {message.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
           {message.text}
         </div>
@@ -439,7 +439,7 @@ export default function QualityAuditPage() {
       {alerts.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
           {alerts.map((a, i) => (
-            <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold ${a.color.includes("red") ? "bg-red-500/5 border-red-500/15" : a.color.includes("orange") ? "bg-orange-500/5 border-orange-500/15" : a.color.includes("amber") ? "bg-amber-500/5 border-amber-500/15" : "bg-purple-500/5 border-purple-500/15"} ${a.color}`}>
+            <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold ${a.color.includes("red") ? "bg-error-bg border-error-border" : a.color.includes("orange") ? "bg-warning-bg border-warning-border" : a.color.includes("amber") ? "bg-warning-bg border-warning-border" : "bg-info-bg border-info-border"} ${a.color}`}>
               {a.icon}{a.label}
             </div>
           ))}
@@ -451,7 +451,7 @@ export default function QualityAuditPage() {
         <div className="flex items-center gap-1 overflow-x-auto flex-1">
           {AUDIT_TABS.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${activeTab === tab.key ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" : "text-[#666] hover:text-white border border-transparent hover:border-[var(--border)]"}`}>
+              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${activeTab === tab.key ? "bg-info-bg text-info-text border border-info-border" : "text-[#666] hover:text-white border border-transparent hover:border-[var(--border)]"}`}>
               {tab.label}
             </button>
           ))}
@@ -460,10 +460,10 @@ export default function QualityAuditPage() {
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#555]" />
             <input type="text" placeholder="Search audit items…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              className="w-48 pl-8 pr-3 py-1.5 bg-[var(--card)] border border-[var(--border)] rounded-lg text-xs text-foreground placeholder-[#555] outline-none focus:border-indigo-500/40" />
+              className="w-48 pl-8 pr-3 py-1.5 bg-[var(--card)] border border-[var(--border)] rounded-lg text-xs text-foreground placeholder-[#555] outline-none focus:border-info-border" />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
-            className={`p-1.5 rounded-lg border transition-all ${showFilters ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" : "border-[var(--border)] text-[#666] hover:text-white"}`}>
+            className={`p-1.5 rounded-lg border transition-all ${showFilters ? "bg-info-bg border-info-border text-info-text" : "border-[var(--border)] text-[#666] hover:text-white"}`}>
             <Filter className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -474,23 +474,23 @@ export default function QualityAuditPage() {
         <div className="mb-4 p-3 bg-[var(--card)] border border-[var(--border)] rounded-xl">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-[10px] font-semibold text-[#666] uppercase tracking-wider">Filters</h3>
-            <button onClick={() => setFilters({})} className="text-[9px] text-indigo-400 hover:underline font-semibold">Clear All</button>
+            <button onClick={() => setFilters({})} className="text-[9px] text-info-text hover:underline font-semibold">Clear All</button>
           </div>
           <div className="flex flex-wrap gap-3">
             <select value={filters.itemType || ""} onChange={e => setFilters(f => ({ ...f, itemType: e.target.value || undefined }))}
-              className="px-2.5 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[10px] text-[#aaa] outline-none focus:border-indigo-500/40">
+              className="px-2.5 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[10px] text-[#aaa] outline-none focus:border-info-border">
               <option value="">All Types</option>
               {["Social Post", "Inbox Reply", "Campaign Asset", "Agent Action", "Workflow Output", "Approval Decision", "Validation Override", "Escalation Outcome"].map(t => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
             <select value={filters.riskLevel || ""} onChange={e => setFilters(f => ({ ...f, riskLevel: e.target.value || undefined }))}
-              className="px-2.5 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[10px] text-[#aaa] outline-none focus:border-indigo-500/40">
+              className="px-2.5 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[10px] text-[#aaa] outline-none focus:border-info-border">
               <option value="">All Risk Levels</option>
               {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map(r => <option key={r} value={r}>{r}</option>)}
             </select>
             <select value={filters.auditStatus || ""} onChange={e => setFilters(f => ({ ...f, auditStatus: e.target.value || undefined }))}
-              className="px-2.5 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[10px] text-[#aaa] outline-none focus:border-indigo-500/40">
+              className="px-2.5 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[10px] text-[#aaa] outline-none focus:border-info-border">
               <option value="">All Statuses</option>
               {Object.entries(AUDIT_STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
@@ -506,32 +506,32 @@ export default function QualityAuditPage() {
             <h2 className="text-xs font-semibold text-[#666] uppercase tracking-wider">Items ({filteredItems.length})</h2>
             <div className="flex items-center gap-1">
               <button onClick={() => { setBulkMode(!bulkMode); setBulkSelected(new Set()); }}
-                className={`p-1 rounded transition-colors ${bulkMode ? "text-indigo-400 bg-indigo-500/10" : "text-[#555] hover:text-white"}`} title="Toggle bulk selection">
+                className={`p-1 rounded transition-colors ${bulkMode ? "text-info-text bg-info-bg" : "text-[#555] hover:text-white"}`} title="Toggle bulk selection">
                 <ClipboardList className="w-3.5 h-3.5" />
               </button>
               <button onClick={fetchAll} className="p-1 text-[#555] hover:text-white transition-colors"><RefreshCcw className="w-3.5 h-3.5" /></button>
             </div>
           </div>
           {bulkMode && bulkSelected.size > 0 && (
-            <div className="flex items-center gap-2 p-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
-              <span className="text-[10px] text-indigo-300 font-semibold whitespace-nowrap">{bulkSelected.size} selected</span>
+            <div className="flex items-center gap-2 p-2.5 bg-info-bg border border-info-border rounded-xl">
+              <span className="text-[10px] text-info-text font-semibold whitespace-nowrap">{bulkSelected.size} selected</span>
               <div className="flex gap-1 ml-auto">
                 <button onClick={() => { setBulkSelected(new Set()); setBulkMode(false); }} className="px-2 py-1 text-[9px] font-bold text-[#888] hover:text-white rounded-lg hover:bg-white/5 transition-all">Cancel</button>
                 <button onClick={() => setBulkSelected(new Set())} className="px-2 py-1 text-[9px] font-bold text-[#888] hover:text-white rounded-lg hover:bg-white/5 transition-all">Deselect All</button>
-                <button onClick={() => { Array.from(bulkSelected).forEach(id => handleAction("start-audit", id)); setBulkMode(false); setBulkSelected(new Set()); }} className="px-2 py-1 text-[9px] font-bold text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all">Start Audit</button>
+                <button onClick={() => { Array.from(bulkSelected).forEach(id => handleAction("start-audit", id)); setBulkMode(false); setBulkSelected(new Set()); }} className="px-2 py-1 text-[9px] font-bold text-info-text hover:bg-info-bg rounded-lg transition-all">Start Audit</button>
               </div>
             </div>
           )}
           {filteredItems.length === 0 ? (
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-8 text-center">
-              {activeTab === "assigned_to_me" ? <><UserCheck className="w-6 h-6 text-indigo-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Assigned Items</p><p className="text-[10px] text-[#666]">Audit items assigned to you will appear here.</p></> :
-               activeTab === "passed" ? <><CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Passed Audits</p><p className="text-[10px] text-[#666]">Items that passed quality audit will appear here.</p></> :
-               activeTab === "failed" ? <><XCircle className="w-6 h-6 text-rose-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Failed Audits</p><p className="text-[10px] text-[#666]">Items that failed quality audit will appear here with defect details.</p></> :
-               activeTab === "needs_correction" ? <><AlertTriangle className="w-6 h-6 text-orange-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Corrections Needed</p><p className="text-[10px] text-[#666]">Items requiring corrective action will appear here.</p></> :
-               activeTab === "high_severity" ? <><AlertCircle className="w-6 h-6 text-red-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No High-Severity Defects</p><p className="text-[10px] text-[#666]">Items with Major or Critical defects will appear here.</p></> :
-               activeTab === "published_check" ? <><Send className="w-6 h-6 text-blue-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Published Checks</p><p className="text-[10px] text-[#666]">Published and sent items selected for version-matching review will appear here.</p></> :
+              {activeTab === "assigned_to_me" ? <><UserCheck className="w-6 h-6 text-info-text mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Assigned Items</p><p className="text-[10px] text-[#666]">Audit items assigned to you will appear here.</p></> :
+               activeTab === "passed" ? <><CheckCircle2 className="w-6 h-6 text-success-text mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Passed Audits</p><p className="text-[10px] text-[#666]">Items that passed quality audit will appear here.</p></> :
+               activeTab === "failed" ? <><XCircle className="w-6 h-6 text-error-text mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Failed Audits</p><p className="text-[10px] text-[#666]">Items that failed quality audit will appear here with defect details.</p></> :
+               activeTab === "needs_correction" ? <><AlertTriangle className="w-6 h-6 text-warning-text mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Corrections Needed</p><p className="text-[10px] text-[#666]">Items requiring corrective action will appear here.</p></> :
+               activeTab === "high_severity" ? <><AlertCircle className="w-6 h-6 text-error-text mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No High-Severity Defects</p><p className="text-[10px] text-[#666]">Items with Major or Critical defects will appear here.</p></> :
+               activeTab === "published_check" ? <><Send className="w-6 h-6 text-info-text mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Published Checks</p><p className="text-[10px] text-[#666]">Published and sent items selected for version-matching review will appear here.</p></> :
                activeTab === "completed" ? <><CheckCircle2 className="w-6 h-6 text-gray-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Completed Audits</p><p className="text-[10px] text-[#666]">Closed and archived audits will appear here.</p></> :
-               <><ShieldCheck className="w-6 h-6 text-emerald-400 mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Items Selected for Audit</p><p className="text-[10px] text-[#666]">Generate a sample or select items from completed workflows to begin quality auditing.</p></>}
+               <><ShieldCheck className="w-6 h-6 text-success-text mx-auto mb-3" /><p className="text-xs text-foreground font-semibold mb-1">No Items Selected for Audit</p><p className="text-[10px] text-[#666]">Generate a sample or select items from completed workflows to begin quality auditing.</p></>}
             </div>
           ) : (
             <div className="space-y-2 max-h-[calc(100vh-360px)] overflow-y-auto pr-1">
@@ -540,11 +540,11 @@ export default function QualityAuditPage() {
                 const isBulk = bulkSelected.has(item.id);
                 return (
                   <button key={item.id} onClick={() => { if (bulkMode) { const n = new Set(bulkSelected); if (n.has(item.id)) n.delete(item.id); else n.add(item.id); setBulkSelected(n); } else handleSelect(item); }}
-                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 ${isSel && !bulkMode ? "bg-[var(--card-hover)] border-indigo-500/40 shadow-lg shadow-indigo-500/5" : isBulk ? "bg-indigo-500/5 border-indigo-500/30" : "bg-[var(--card)] border-[var(--border)] hover:border-[var(--border-hover)]"}`}>
+                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 ${isSel && !bulkMode ? "bg-[var(--card-hover)] border-info-border shadow-lg shadow-info-bg" : isBulk ? "bg-info-bg border-info-border" : "bg-[var(--card)] border-[var(--border)] hover:border-[var(--border-hover)]"}`}>
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-1.5">
                         {bulkMode && (
-                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isBulk ? "bg-indigo-500 border-indigo-500" : "border-[#555]"}`}>
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isBulk ? "bg-info-text border-info-border" : "border-[#555]"}`}>
                             {isBulk && <CheckCircle2 className="w-3 h-3 text-foreground" />}
                           </div>
                         )}
@@ -577,7 +577,7 @@ export default function QualityAuditPage() {
           {!selectedItem ? (
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-16 text-center">
               <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <ShieldCheck className="w-7 h-7 text-emerald-400" />
+                <ShieldCheck className="w-7 h-7 text-success-text" />
               </div>
               <p className="text-foreground font-semibold mb-1">Select an Audit Item</p>
               <p className="text-[#666] text-sm">Choose an item from the audit queue to begin quality review.</p>
@@ -609,19 +609,19 @@ export default function QualityAuditPage() {
               <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-[var(--border)]/30">
                 {COMPARISON_TABS.map(tab => (
                   <button key={tab.key} onClick={() => setActiveComparison(tab.key)}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-t-lg text-[11px] font-bold transition-all whitespace-nowrap ${activeComparison === tab.key ? "bg-[var(--card-hover)] text-indigo-400 border-b-2 border-indigo-500" : "text-[#666] hover:text-white"}`}>
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-t-lg text-[11px] font-bold transition-all whitespace-nowrap ${activeComparison === tab.key ? "bg-[var(--card-hover)] text-info-text border-b-2 border-info-border" : "text-[#666] hover:text-white"}`}>
                     {tab.icon}{tab.label}
                   </button>
                 ))}
               </div>
               {/* Tab Content */}
               <div className="min-h-[180px]">
-                {activeComparison === "ai_draft" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><Sparkles className="w-4 h-4 mb-2 text-purple-400" /><p>AI-generated draft preview will appear here when available.</p></div>}
-                {activeComparison === "human_edits" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><Edit3 className="w-4 h-4 mb-2 text-blue-400" /><p>Human-edited version will appear here when available.</p></div>}
-                {activeComparison === "approved_version" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><CheckCircle2 className="w-4 h-4 mb-2 text-emerald-400" /><p>Approved version will appear here when available.</p></div>}
-                {activeComparison === "published_version" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><Send className="w-4 h-4 mb-2 text-amber-400" /><p>{selectedItem.published_at ? `Published version as of ${formatDate(selectedItem.published_at)}` : "Published/sent version not yet available for this item."}</p></div>}
-                {activeComparison === "validation_results" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><ShieldCheck className="w-4 h-4 mb-2 text-indigo-400" /><p>Validation results from the Validation Desk will appear here when available.</p></div>}
-                {activeComparison === "approval_history" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><History className="w-4 h-4 mb-2 text-amber-400" /><p>Approval history and approval path details will appear here when available.</p></div>}
+                {activeComparison === "ai_draft" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><Sparkles className="w-4 h-4 mb-2 text-info-text" /><p>AI-generated draft preview will appear here when available.</p></div>}
+                {activeComparison === "human_edits" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><Edit3 className="w-4 h-4 mb-2 text-info-text" /><p>Human-edited version will appear here when available.</p></div>}
+                {activeComparison === "approved_version" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><CheckCircle2 className="w-4 h-4 mb-2 text-success-text" /><p>Approved version will appear here when available.</p></div>}
+                {activeComparison === "published_version" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><Send className="w-4 h-4 mb-2 text-warning-text" /><p>{selectedItem.published_at ? `Published version as of ${formatDate(selectedItem.published_at)}` : "Published/sent version not yet available for this item."}</p></div>}
+                {activeComparison === "validation_results" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><ShieldCheck className="w-4 h-4 mb-2 text-info-text" /><p>Validation results from the Validation Desk will appear here when available.</p></div>}
+                {activeComparison === "approval_history" && <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-[11px] text-[#888]"><History className="w-4 h-4 mb-2 text-warning-text" /><p>Approval history and approval path details will appear here when available.</p></div>}
                 {activeComparison === "audit_findings" && (
                   <div className="space-y-2">
                     {defects.length === 0 ? (
@@ -637,11 +637,11 @@ export default function QualityAuditPage() {
                             </div>
                           </div>
                           <p className="text-[11px] text-[#aaa] mb-1">{d.description}</p>
-                          {d.evidence_reference && <p className="text-[10px] text-indigo-400">Evidence: {d.evidence_reference}</p>}
+                          {d.evidence_reference && <p className="text-[10px] text-info-text">Evidence: {d.evidence_reference}</p>}
                           <div className="flex items-center gap-3 text-[9px] text-[#555] mt-1">
                             <span>By: {d.created_by}</span>
                             <span>{timeAgo(d.created_at)}</span>
-                            {d.resolved_at && <span className="text-emerald-400">Resolved</span>}
+                            {d.resolved_at && <span className="text-success-text">Resolved</span>}
                           </div>
                         </div>
                       ))
@@ -674,7 +674,7 @@ export default function QualityAuditPage() {
                         <div key={ca.id} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-[11px] text-foreground font-medium">{ca.title}</span>
-                            <span className={`px-1.5 py-0.5 rounded border text-[8px] font-bold ${ca.status === "COMPLETED" ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/10" : ca.status === "OVERDUE" ? "text-red-400 border-red-500/20 bg-red-500/10" : "text-amber-400 border-amber-500/20 bg-amber-500/10"}`}>{ca.status}</span>
+                            <span className={`px-1.5 py-0.5 rounded border text-[8px] font-bold ${ca.status === "COMPLETED" ? "text-success-text border-success-border bg-success-bg" : ca.status === "OVERDUE" ? "text-error-text border-error-border bg-error-bg" : "text-warning-text border-warning-border bg-warning-bg"}`}>{ca.status}</span>
                           </div>
                           <p className="text-[10px] text-[#888]">{ca.required_action}</p>
                           <div className="flex items-center gap-3 text-[9px] text-[#555] mt-1">
@@ -736,28 +736,28 @@ export default function QualityAuditPage() {
                 <div className="grid grid-cols-2 gap-1.5">
                   <TooltipBtn disabled={false} tooltip="">
                     <button onClick={() => handleAction("pass-audit", selectedItem.id)}
-                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 rounded-lg text-[10px] font-bold transition-all">
+                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-success-bg hover:bg-success-text text-success-text hover:text-white border border-success-border rounded-lg text-[10px] font-bold transition-all">
                       <ThumbsUp className="w-3 h-3" />Pass Audit
                     </button>
                   </TooltipBtn>
                   <TooltipBtn disabled={false} tooltip="">
                     <button onClick={() => handleAction("fail-audit", selectedItem.id)}
-                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 rounded-lg text-[10px] font-bold transition-all">
+                      className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-error-bg hover:bg-error-text text-error-text hover:text-white border border-error-border rounded-lg text-[10px] font-bold transition-all">
                       <ThumbsDown className="w-3 h-3" />Fail Audit
                     </button>
                   </TooltipBtn>
                   <button onClick={() => handleAction("needs-correction", selectedItem.id)}
-                    className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-white border border-orange-500/20 rounded-lg text-[10px] font-bold transition-all">
+                    className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-warning-bg hover:bg-warning-text text-warning-text hover:text-white border border-warning-border rounded-lg text-[10px] font-bold transition-all">
                     <AlertTriangle className="w-3 h-3" />Needs Correction
                   </button>
                   <button onClick={() => handleAction("escalate-audit", selectedItem.id)}
-                    className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/20 rounded-lg text-[10px] font-bold transition-all">
+                    className="flex items-center justify-center gap-1.5 px-2 py-1.5 bg-error-bg hover:bg-error-text text-error-text hover:text-white border border-error-border rounded-lg text-[10px] font-bold transition-all">
                     <ArrowUpRight className="w-3 h-3" />Escalate
                   </button>
                 </div>
                 {actionLoading && (
                   <textarea placeholder="Reason (required for fail, correction, escalation)…" value={feedbackText} onChange={e => setFeedbackText(e.target.value)}
-                    className="w-full mt-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-[11px] text-foreground placeholder-[#555] outline-none focus:border-indigo-500/30 resize-none" rows={2} />
+                    className="w-full mt-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-[11px] text-foreground placeholder-[#555] outline-none focus:border-info-border resize-none" rows={2} />
                 )}
               </div>
 
@@ -801,7 +801,7 @@ export default function QualityAuditPage() {
                       <div key={ca.id} className="p-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] text-foreground font-medium truncate">{ca.title}</span>
-                          <span className={`text-[8px] px-1 py-0.5 rounded font-bold ${ca.status === "COMPLETED" ? "text-emerald-400 bg-emerald-500/10" : ca.status === "OVERDUE" ? "text-red-400 bg-red-500/10" : "text-amber-400 bg-amber-500/10"}`}>{ca.status}</span>
+                          <span className={`text-[8px] px-1 py-0.5 rounded font-bold ${ca.status === "COMPLETED" ? "text-success-text bg-success-bg" : ca.status === "OVERDUE" ? "text-error-text bg-error-bg" : "text-warning-text bg-warning-bg"}`}>{ca.status}</span>
                         </div>
                         {ca.due_at && <p className="text-[9px] text-[#555]">Due: {formatShortDate(ca.due_at)}</p>}
                       </div>
@@ -833,9 +833,9 @@ export default function QualityAuditPage() {
                 )}
                 <div className="flex gap-2">
                   <input type="text" placeholder="Add a note…" value={feedbackText} onChange={e => setFeedbackText(e.target.value)}
-                    className="flex-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder-[#555] outline-none focus:border-indigo-500/30" />
+                    className="flex-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-[11px] text-foreground placeholder-[#555] outline-none focus:border-info-border" />
                   <button onClick={handleAddNote} disabled={actionLoading === "add_note" || !feedbackText.trim()}
-                    className="px-2.5 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-foreground rounded-lg text-[10px] font-bold transition-all disabled:opacity-40">
+                    className="px-2.5 py-1.5 bg-info-text hover:brightness-110 text-foreground rounded-lg text-[10px] font-bold transition-all disabled:opacity-40">
                     <Send className="w-3 h-3" />
                   </button>
                 </div>
@@ -874,7 +874,7 @@ export default function QualityAuditPage() {
                   <div className="space-y-1.5 max-h-[150px] overflow-y-auto">
                     {timeline.map(entry => (
                       <div key={entry.id} className="flex items-start gap-2 text-[10px]">
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-info-text mt-1.5 shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
                             <span className="text-[#ccc] font-medium">{entry.action.replace(/_/g, " ")}</span>

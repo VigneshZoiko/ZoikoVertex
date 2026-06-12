@@ -43,23 +43,23 @@ interface CalendarPost {
 
 function pillClass(post: CalendarPost): string {
   if (post.source === "scheduled") {
-    if (post.status === "SCHEDULED") return "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20";
+    if (post.status === "SCHEDULED") return "bg-success-text/10 text-success-text hover:bg-success-text/20";
     if (post.status === "PUBLISHED")  return "bg-blue-500/10 text-blue-400";
-    return "bg-rose-500/10 text-rose-400";
+    return "bg-error-text/10 text-error-text";
   }
   // publish_intent
   if (post.status === "APPROVED" || post.status === "PUBLISHED") return "bg-blue-500/10 text-blue-300 hover:bg-blue-500/20";
-  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20";
-  if (post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "bg-rose-500/10 text-rose-400";
+  if (typeof post.status === "string" && post.status.startsWith("PENDING_")) return "bg-warning-text/10 text-warning-text hover:bg-warning-text/20";
+  if (post.status === "GOVERNANCE_BLOCKED" || post.status === "REJECTED") return "bg-error-text/10 text-error-text";
   return "bg-violet-500/10 text-violet-400 hover:bg-violet-500/20";
 }
 
 function statusBadgeClass(status: string): string {
-  if (status === "SCHEDULED")  return "bg-emerald-500/20 text-emerald-400";
+  if (status === "SCHEDULED")  return "bg-success-text/20 text-success-text";
   if (status === "PUBLISHED")  return "bg-blue-500/20 text-blue-400";
   if (status === "APPROVED")   return "bg-sky-500/20 text-sky-400";
-  if (status.startsWith("PENDING_")) return "bg-amber-500/20 text-amber-400";
-  if (status === "GOVERNANCE_BLOCKED" || status === "REJECTED") return "bg-rose-500/20 text-rose-400";
+  if (status.startsWith("PENDING_")) return "bg-warning-text/20 text-warning-text";
+  if (status === "GOVERNANCE_BLOCKED" || status === "REJECTED") return "bg-error-text/20 text-error-text";
   return "bg-zinc-500/20 text-foreground-muted";
 }
 
@@ -207,7 +207,7 @@ export default function CalendarPage() {
       </div>
 
       {message && (
-        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in slide-in-from-top-4 ${message.type === "success" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border border-rose-500/20 text-rose-400"}`}>
+        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in slide-in-from-top-4 ${message.type === "success" ? "bg-success-text/10 border border-success-border/20 text-success-text" : "bg-error-text/10 border border-error-border/20 text-error-text"}`}>
           {message.text}
           <button onClick={() => setMessage(null)} className="ml-auto"><X className="w-4 h-4" /></button>
         </div>
@@ -231,7 +231,7 @@ export default function CalendarPage() {
                     <ChevronRight className="w-5 h-5 text-[var(--foreground-muted)]" />
                   </button>
                 </div>
-                <button onClick={() => setCurrentDate(new Date())} className="text-sm text-indigo-400 hover:text-indigo-300 font-medium">
+                <button onClick={() => setCurrentDate(new Date())} className="text-sm text-info-text hover:text-info-text font-medium">
                   Today
                 </button>
               </div>
@@ -239,12 +239,12 @@ export default function CalendarPage() {
               {/* Legend */}
               <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--foreground-muted)]">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/30 border border-emerald-500/50 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-sm bg-success-text/30 border border-success-border/50 inline-block" />
                   <Calendar className="w-3 h-3" />
                   <span>Scheduled ({scheduledCount})</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-amber-500/30 border border-amber-500/50 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-sm bg-warning-text/30 border border-warning-border/50 inline-block" />
                   <Send className="w-3 h-3" />
                   <span>Publishing Hub ({intentCount})</span>
                 </div>
@@ -252,7 +252,7 @@ export default function CalendarPage() {
                   <span className="w-2.5 h-2.5 rounded-sm bg-blue-500/30 border border-blue-500/50 inline-block" />
                   <span>Published</span>
                 </div>
-                {loading && <span className="text-indigo-400 animate-pulse">Loading…</span>}
+                {loading && <span className="text-info-text animate-pulse">Loading…</span>}
               </div>
             </div>
 
@@ -279,9 +279,9 @@ export default function CalendarPage() {
                 return (
                   <div
                     key={day}
-                    className={`min-h-[120px] border-b border-r border-[var(--border)]/50 p-2 ${isToday ? "bg-indigo-500/5" : "bg-[var(--card)]/30"}`}
+                    className={`min-h-[120px] border-b border-r border-[var(--border)]/50 p-2 ${isToday ? "bg-info-text/5" : "bg-[var(--card)]/30"}`}
                   >
-                    <div className={`text-sm font-medium mb-2 ${isToday ? "text-indigo-400" : "text-[var(--foreground-muted)]"}`}>
+                    <div className={`text-sm font-medium mb-2 ${isToday ? "text-info-text" : "text-[var(--foreground-muted)]"}`}>
                       {day}
                     </div>
                     <div className="space-y-1">
@@ -321,12 +321,12 @@ export default function CalendarPage() {
               <div className="grid gap-4">
                 <div className="flex items-center gap-3 flex-wrap text-sm">
                   {/* Source badge */}
-                  <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${selectedPost.source === "scheduled" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>
+                  <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${selectedPost.source === "scheduled" ? "bg-success-text/20 text-success-text" : "bg-warning-text/20 text-warning-text"}`}>
                     {selectedPost.source === "scheduled" ? <Calendar className="w-3 h-3" /> : <Send className="w-3 h-3" />}
                     {selectedPost.source === "scheduled" ? "AI Scheduled" : "Publishing Hub"}
                   </span>
                   {/* Platform */}
-                  <span className="px-3 py-1 bg-indigo-500/20 text-indigo-400 rounded-full text-xs font-bold">
+                  <span className="px-3 py-1 bg-info-text/20 text-info-text rounded-full text-xs font-bold">
                     {selectedPost.platform}
                   </span>
                   {/* Status */}
@@ -361,14 +361,14 @@ export default function CalendarPage() {
                         });
                         setShowEditModal(true);
                       }}
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-foreground text-sm font-bold rounded-xl transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-info-text hover:bg-info-text text-foreground text-sm font-bold rounded-xl transition-colors"
                     >
                       <Edit3 className="w-4 h-4" />
                       Edit
                     </button>
                     <button
                       onClick={() => handleCancelPost(selectedPost.id)}
-                      className="flex items-center gap-2 px-4 py-2 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 text-sm font-bold rounded-xl transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-error-text/20 hover:bg-error-text/30 text-error-text text-sm font-bold rounded-xl transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                       Cancel
@@ -380,7 +380,7 @@ export default function CalendarPage() {
                 {selectedPost.source === "intent" && (
                   <Link
                     href="/publish"
-                    className="inline-flex items-center gap-2 px-4 py-2 w-fit bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 text-sm font-bold rounded-xl transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 w-fit bg-warning-text/20 hover:bg-warning-text/30 text-warning-text text-sm font-bold rounded-xl transition-colors"
                   >
                     <ExternalLink className="w-4 h-4" />
                     View in Publishing Hub
@@ -396,7 +396,7 @@ export default function CalendarPage() {
           {/* Upcoming — merged list */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
             <h3 className="text-lg font-bold text-[var(--foreground)] mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-indigo-400" />
+              <Calendar className="w-5 h-5 text-info-text" />
               Upcoming
               <span className="ml-auto text-xs font-normal text-[var(--foreground-muted)]">
                 {posts.filter((p) => p.status === "SCHEDULED" || (p.source === "intent" && p.status.startsWith("PENDING_"))).length} pending
@@ -420,10 +420,10 @@ export default function CalendarPage() {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-1.5">
                         {post.source === "intent"
-                          ? <Send className="w-3 h-3 text-amber-400" />
-                          : <Calendar className="w-3 h-3 text-emerald-400" />
+                          ? <Send className="w-3 h-3 text-warning-text" />
+                          : <Calendar className="w-3 h-3 text-success-text" />
                         }
-                        <span className={`text-xs font-bold ${post.source === "intent" ? "text-amber-400" : "text-indigo-400"}`}>
+                        <span className={`text-xs font-bold ${post.source === "intent" ? "text-warning-text" : "text-info-text"}`}>
                           {post.platform}
                         </span>
                       </div>
@@ -465,7 +465,7 @@ export default function CalendarPage() {
                 <textarea
                   value={editingPost.content}
                   onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500 min-h-[120px]"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border min-h-[120px]"
                 />
               </div>
               <div>
@@ -474,13 +474,13 @@ export default function CalendarPage() {
                   type="datetime-local"
                   value={editingPost.scheduled_time.slice(0, 16)}
                   onChange={(e) => setEditingPost({ ...editingPost, scheduled_time: new Date(e.target.value).toISOString() })}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-info-border"
                 />
               </div>
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleUpdatePost}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-foreground font-bold py-3 px-4 rounded-xl transition-colors"
+                  className="flex-1 bg-info-text hover:bg-info-text text-foreground font-bold py-3 px-4 rounded-xl transition-colors"
                 >
                   Save Changes
                 </button>

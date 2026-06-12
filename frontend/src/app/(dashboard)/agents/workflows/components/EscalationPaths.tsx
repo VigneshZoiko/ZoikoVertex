@@ -25,9 +25,9 @@ interface EscalationEvent {
 
 const SEVERITY_STYLES: Record<EscalationSeverity, string> = {
   Low:      'bg-zinc-500/10 text-foreground-muted border-zinc-500/20',
-  Medium:   'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  Medium:   'bg-warning-text/10 text-warning-text border-warning-border/20',
   High:     'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  Critical: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+  Critical: 'bg-error-text/10 text-error-text border-error-border/20',
 };
 
 export default function EscalationPaths({ escalations }: { escalations?: EscalationEvent[] }) {
@@ -43,8 +43,8 @@ export default function EscalationPaths({ escalations }: { escalations?: Escalat
       {/* Header */}
       <div className="px-6 py-5 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface-hover)]/30">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-rose-500/10 rounded-xl">
-            <ArrowUpFromLine className="w-5 h-5 text-rose-400" />
+          <div className="p-2.5 bg-error-text/10 rounded-xl">
+            <ArrowUpFromLine className="w-5 h-5 text-error-text" />
           </div>
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">Escalation Paths</h2>
@@ -53,11 +53,11 @@ export default function EscalationPaths({ escalations }: { escalations?: Escalat
         </div>
         <div className="flex items-center gap-2">
           {criticalCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-600/10 text-rose-500 border border-rose-600/20">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-error-text/10 text-error-text border border-error-border/20">
               {criticalCount} Critical
             </span>
           )}
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-error-text/10 text-error-text border border-error-border/20">
             {unresolvedCount} Unresolved
           </span>
         </div>
@@ -80,8 +80,8 @@ export default function EscalationPaths({ escalations }: { escalations?: Escalat
               event.resolved
                 ? 'border-[var(--border)] bg-transparent opacity-60'
                 : event.severity === 'Critical'
-                ? 'border-rose-600/30 bg-rose-600/5'
-                : 'border-rose-500/20 bg-rose-500/5'
+                ? 'border-error-border/30 bg-error-text/5'
+                : 'border-error-border/20 bg-error-text/5'
             }`}
           >
             {/* Title row */}
@@ -99,8 +99,8 @@ export default function EscalationPaths({ escalations }: { escalations?: Escalat
                 <span
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                     event.resolved
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                      : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                      ? 'bg-success-text/10 text-success-text border-success-border/20'
+                      : 'bg-error-text/10 text-error-text border-error-border/20'
                   }`}
                 >
                   {event.resolved ? 'Resolved' : 'Active'}
@@ -114,8 +114,8 @@ export default function EscalationPaths({ escalations }: { escalations?: Escalat
             {/* Override reason (if any) */}
             {event.overrideReason && (
               <div className="pl-6 mb-2 flex items-start gap-1.5">
-                <RotateCcw className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
-                <p className="text-[10px] text-amber-400 leading-relaxed">Override: {event.overrideReason}</p>
+                <RotateCcw className="w-3 h-3 text-warning-text mt-0.5 shrink-0" />
+                <p className="text-[10px] text-warning-text leading-relaxed">Override: {event.overrideReason}</p>
               </div>
             )}
 
@@ -123,11 +123,11 @@ export default function EscalationPaths({ escalations }: { escalations?: Escalat
             <div className="pl-6 flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)]">
               <span className="flex items-center gap-1.5">
                 <GitFork className="w-3 h-3" /> Trigger:{' '}
-                <strong className="text-amber-400">{event.trigger}</strong>
+                <strong className="text-warning-text">{event.trigger}</strong>
               </span>
               <span className="flex items-center gap-1.5">
                 <User className="w-3 h-3" /> Handed to:{' '}
-                <strong className="text-indigo-400">{event.handoffTo}</strong>
+                <strong className="text-info-text">{event.handoffTo}</strong>
               </span>
               {event.sla && (
                 <span className="flex items-center gap-1.5">

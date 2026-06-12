@@ -41,13 +41,13 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
-          <Clock className="w-5 h-5 text-amber-400" />
+          <Clock className="w-5 h-5 text-warning-text" />
           Scheduling Logic
         </h2>
         <button
           onClick={onMagicSchedule}
           disabled={isFetchingRecommendations}
-          className="bg-indigo-600 hover:bg-indigo-500 text-foreground text-xs font-bold py-2 px-4 rounded-xl flex items-center gap-2 transition-colors shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+          className="bg-info-text hover:brightness-110 text-foreground text-xs font-bold py-2 px-4 rounded-xl flex items-center gap-2 transition-colors shadow-lg shadow-info-text/20 disabled:opacity-50"
         >
           {isFetchingRecommendations ? (
             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -64,7 +64,7 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
           <select 
             value={audienceRegion} 
             onChange={(e) => setAudienceRegion(e.target.value)}
-            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-xs outline-none focus:border-indigo-500"
+            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-xs outline-none focus:border-info-border"
           >
             <option value="Global">Global</option>
             <option value="US (EST)">US (EST)</option>
@@ -78,7 +78,7 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
           <select 
             value={audienceAgeGroup} 
             onChange={(e) => setAudienceAgeGroup(e.target.value)}
-            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-xs outline-none focus:border-indigo-500"
+            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-foreground text-xs outline-none focus:border-info-border"
           >
             <option value="All Ages">All Ages</option>
             <option value="18-24">18-24 (Gen Z)</option>
@@ -93,7 +93,7 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
         <div className="space-y-3 mb-6">
           <p className="text-xs text-[var(--foreground-muted)] mb-2">AI Suggested Peak Times for {contentType}:</p>
           {suggestedTimes.map((slot, i) => (
-            <label key={i} className={`flex items-start p-3 rounded-xl border cursor-pointer transition-colors ${selectedTime === slot.time ? 'bg-indigo-500/10 border-indigo-500' : 'bg-[var(--surface)] border-[var(--border)] hover:border-[var(--card-border)]'}`}>
+            <label key={i} className={`flex items-start p-3 rounded-xl border cursor-pointer transition-colors ${selectedTime === slot.time ? 'bg-info-bg border-info-border' : 'bg-[var(--surface)] border-[var(--border)] hover:border-[var(--card-border)]'}`}>
               <input 
                 type="radio" name="schedule" 
                 checked={selectedTime === slot.time}
@@ -102,23 +102,23 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <p className={`text-sm font-bold ${selectedTime === slot.time ? 'text-indigo-400' : 'text-[var(--foreground)]'}`}>
+                  <p className={`text-sm font-bold ${selectedTime === slot.time ? 'text-info-text' : 'text-[var(--foreground)]'}`}>
                     {new Date(slot.time).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </p>
                   {slot.confidence_score && (
-                    <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-full font-mono">
+                    <span className="text-[10px] bg-info-bg text-info-text px-1.5 py-0.5 rounded-full font-mono">
                       {Math.round(slot.confidence_score * 100)}% Conf
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-[var(--foreground-muted)] mt-1">{slot.label}</p>
                 {slot.reasoning && (
-                  <p className="text-xs text-indigo-400/80 mt-1.5 italic bg-indigo-500/5 p-2 rounded-lg border border-indigo-500/10">
+                  <p className="text-xs text-info-text/80 mt-1.5 italic bg-info-bg p-2 rounded-lg border border-info-border">
                     &quot;{slot.reasoning}&quot;
                   </p>
                 )}
               </div>
-              {selectedTime === slot.time && <CheckCircle2 className="w-5 h-5 text-indigo-400 mt-1 ml-3 shrink-0" />}
+              {selectedTime === slot.time && <CheckCircle2 className="w-5 h-5 text-info-text mt-1 ml-3 shrink-0" />}
             </label>
           ))}
         </div>
@@ -128,7 +128,7 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
         </div>
       )}
 
-      <label className={`flex items-center p-3 rounded-xl border cursor-pointer transition-colors mb-3 ${selectedTime === 'immediate' ? 'bg-emerald-500/10 border-emerald-500' : 'bg-[var(--surface)] border-[var(--border)] hover:border-[var(--card-border)]'}`}>
+      <label className={`flex items-center p-3 rounded-xl border cursor-pointer transition-colors mb-3 ${selectedTime === 'immediate' ? 'bg-success-bg border-success-border' : 'bg-[var(--surface)] border-[var(--border)] hover:border-[var(--card-border)]'}`}>
         <input 
           type="radio" name="schedule" 
           checked={selectedTime === 'immediate'}
@@ -136,13 +136,13 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
           className="hidden"
         />
         <div className="flex-1">
-          <p className={`text-sm font-bold ${selectedTime === 'immediate' ? 'text-emerald-400' : 'text-[var(--foreground)]'}`}>Post Immediately</p>
+          <p className={`text-sm font-bold ${selectedTime === 'immediate' ? 'text-success-text' : 'text-[var(--foreground)]'}`}>Post Immediately</p>
           <p className="text-xs text-[var(--foreground-muted)] mt-0.5">Executes upon manager approval</p>
         </div>
-        {selectedTime === 'immediate' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
+        {selectedTime === 'immediate' && <CheckCircle2 className="w-5 h-5 text-success-text" />}
       </label>
 
-      <div className={`p-3 rounded-xl border transition-colors ${selectedTime === 'custom' ? 'bg-indigo-500/10 border-indigo-500' : 'bg-[var(--surface)] border-[var(--border)] hover:border-[var(--card-border)]'}`}>
+      <div className={`p-3 rounded-xl border transition-colors ${selectedTime === 'custom' ? 'bg-info-bg border-info-border' : 'bg-[var(--surface)] border-[var(--border)] hover:border-[var(--card-border)]'}`}>
         <label className="flex items-center cursor-pointer">
           <input 
             type="radio" name="schedule" 
@@ -151,10 +151,10 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
             className="hidden"
           />
           <div className="flex-1">
-            <p className={`text-sm font-bold ${selectedTime === 'custom' ? 'text-indigo-400' : 'text-[var(--foreground)]'}`}>Custom Schedule</p>
+            <p className={`text-sm font-bold ${selectedTime === 'custom' ? 'text-info-text' : 'text-[var(--foreground)]'}`}>Custom Schedule</p>
             <p className="text-xs text-[var(--foreground-muted)] mt-0.5">Pick your own specific time</p>
           </div>
-          {selectedTime === 'custom' && <CheckCircle2 className="w-5 h-5 text-indigo-400" />}
+          {selectedTime === 'custom' && <CheckCircle2 className="w-5 h-5 text-info-text" />}
         </label>
         
         {selectedTime === 'custom' && (
@@ -163,7 +163,7 @@ const SchedulingPanel: React.FC<SchedulingPanelProps> = ({
               type="datetime-local" 
               value={customTime}
               onChange={(e) => onCustomTimeChange(e.target.value)}
-              className="w-full bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none focus:border-indigo-500"
+              className="w-full bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none focus:border-info-border"
             />
           </div>
         )}
