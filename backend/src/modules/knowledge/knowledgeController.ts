@@ -958,4 +958,18 @@ export class KnowledgeController {
       next(error);
     }
   }
+
+  static async decideSourceTransfer(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const sourceId = getParam(req, 'id');
+      const { decision } = req.body;
+      if (!decision || !['approve', 'reject', 'reassign'].includes(decision)) {
+        return res.status(400).json({ success: false, error: 'Invalid decision. Must be approve, reject, or reassign.' });
+      }
+      const result = await KnowledgeSourceService.updateStatus(sourceId, decision);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

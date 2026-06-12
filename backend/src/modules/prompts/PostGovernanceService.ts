@@ -97,26 +97,6 @@ const PROMPT_LABELS: Record<string, string> = {
   POLICY_VIOLATION: 'Policy Violation Prompt',
 };
 
-const RISK_TIER_LABELS: Record<string, string> = {
-  BASIC_POST: 'Tier 1 — Low',
-  FACTUAL_CLAIM_KB_FOUND: 'Tier 2 — Medium',
-  FACTUAL_CLAIM_NO_KB: 'Tier 2 — Medium',
-  HIGH_RISK_CLAIM: 'Tier 4 — Critical',
-  POLICY_VIOLATION: 'Tier 3 — High',
-};
-
-const DECISION_RISK_LABEL: Record<string, string> = {
-  APPROVE: 'Low',
-  REVIEW: 'Medium',
-  BLOCK: 'High',
-};
-
-const DECISION_RISK_SCORE: Record<string, number> = {
-  APPROVE: 15,
-  REVIEW: 55,
-  BLOCK: 90,
-};
-
 /**
  * Keywords/phrases that suggest a factual claim, pricing claim, numerical
  * claim, guarantee, comparison, or performance claim.
