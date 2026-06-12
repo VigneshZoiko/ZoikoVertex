@@ -14,42 +14,25 @@ async function resolveAuth(): Promise<AuthResolution> {
     if (!session?.access_token) {
       return { ok: false, reason: "NO_SESSION" };
     }
-
-    // If the token has expired or expires within the next 60 seconds, force a
-    // refresh before sending it to the backend. getSession() reads from
-    // localStorage without re-validating, so stale tokens are common on
-    // cold-start or after long idle periods.
-    const expiresAt = (session.expires_at ?? 0) * 1000; // convert to ms
-    if (expiresAt < Date.now() + 60_000) {
-      const { data: refreshed, error } = await supabase.auth.refreshSession();
-      if (error || !refreshed.session?.access_token) {
-        clearStaleAuthState();
-        return { ok: false, reason: "REFRESH_FAILED", detail: error?.message };
-      }
-      return { ok: true, headers: { Authorization: `Bearer ${refreshed.session.access_token}` } };
-    }
-
     return { ok: true, headers: { Authorization: `Bearer ${session.access_token}` } };
   } catch (err) {
     console.warn(
       "[API Auth] Supabase session refresh failed — clearing stale local auth state.",
       err,
     );
-    clearStaleAuthState();
+    if (typeof document !== "undefined") {
+      document.cookie = "zv_auth=; path=/; SameSite=Strict; max-age=0";
+    }
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("zv_role_cache");
+      } catch {}
+    }
     return {
       ok: false,
       reason: "REFRESH_FAILED",
       detail: err instanceof Error ? err.message : String(err),
     };
-  }
-}
-
-function clearStaleAuthState() {
-  if (typeof document !== "undefined") {
-    document.cookie = "zv_auth=; path=/; SameSite=Strict; max-age=0";
-  }
-  if (typeof window !== "undefined") {
-    try { localStorage.removeItem("zv_role_cache"); } catch {}
   }
 }
 
@@ -191,15 +174,12 @@ export const api = {
     return response.json();
   },
 
-  async delete(endpoint: string, body?: Record<string, unknown>) {
+  async delete(endpoint: string) {
     const auth = await resolveAuth();
     if (!auth.ok) return authExpiredResponse(auth.reason);
     const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
       method: "DELETE",
-      headers: body
-        ? { ...auth.headers, "Content-Type": "application/json" }
-        : { ...auth.headers },
-      ...(body ? { body: JSON.stringify(body) } : {}),
+      headers: { ...auth.headers },
     });
     if (!response.ok) {
       return apiError(response, endpoint, "DELETE");
@@ -774,6 +754,11 @@ export const api = {
     return this.post(`/api/v1/prompts/${id}/versions`, data);
   },
 
+  // Test Center — classify a post description through the governance pipeline.
+  async classifyTestDescription(body: { description: string; platform?: string; prompt_id?: string }) {
+    return this.post("/api/v1/prompts/test-center/classify", body);
+  },
+
   // ─── KNOWLEDGE BASE API CLIENT ───
   async listKnowledgeBases() {
     return this.get("/api/v1/knowledge/bases");
@@ -816,6 +801,41 @@ export const api = {
       `/api/v1/knowledge/collections/${collectionId}/sources`,
       formData,
     );
+  },
+
+  async getKnowledgeSource(id: string) {
+    return this.get(`/api/v1/knowledge/sources/${id}`);
+  },
+
+  async updateKnowledgeSource(id: string, data: any) {
+    return this.patch(`/api/v1/knowledge/sources/${id}`, data);
+  },
+
+  async deleteKnowledgeSource(id: string) {
+    return this.delete(`/api/v1/knowledge/sources/${id}`);
+  },
+
+  // AI-assisted governance category check (Groq primary, Gemini optional fallback).
+  async classifySourceGovernance(id: string) {
+    return this.post(`/api/v1/knowledge/sources/${id}/classify-governance`, {});
+  },
+
+  // Admin / workspace owner resolves a governance-category check.
+  // decision: 'accept' | 'keep' | 'review'
+  async decideSourceGovernance(id: string, body: { decision: "accept" | "keep" | "review"; reason?: string }) {
+    return this.post(`/api/v1/knowledge/sources/${id}/governance-decision`, body);
+  },
+
+  async listKnowledgeReviews(sourceId: string) {
+    return this.get(`/api/v1/knowledge/reviews?source_id=${encodeURIComponent(sourceId)}`);
+  },
+
+  async listTeamMembers() {
+    return this.get("/api/v1/team/members");
+  },
+
+  async decideKnowledgeTransfer(id: string, decision: "allow" | "block") {
+    return this.post(`/api/v1/knowledge/sources/${id}/transfer/decision`, { decision });
   },
 
   async approveKnowledgeSource(id: string) {

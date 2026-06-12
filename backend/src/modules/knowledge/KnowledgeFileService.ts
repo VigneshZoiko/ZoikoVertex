@@ -22,6 +22,10 @@ export class KnowledgeFileService {
         return result.value;
       }
       
+      if (mimeType === 'application/json' || filePath.endsWith('.json')) {
+        return buffer.toString('utf8');
+      }
+
       if (mimeType === 'text/plain' || mimeType === 'text/markdown' || filePath.endsWith('.md') || filePath.endsWith('.txt')) {
         return buffer.toString('utf8');
       }

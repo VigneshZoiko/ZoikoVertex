@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Response, NextFunction } from 'express';
+import { randomUUID } from 'crypto';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { KnowledgeFileService } from './KnowledgeFileService';
@@ -475,6 +476,7 @@ export class KnowledgeController {
 
       const data = await KnowledgeSourceService.create({
         collection_id: getParam(req, 'collectionId'),
+        workspace_id: workspaceId,
         title: req.body.title || (req.file ? req.file.originalname : 'Untitled'),
         content,
         source_url: req.body.source_url || '',
@@ -511,6 +513,90 @@ export class KnowledgeController {
     try {
       const data = await KnowledgeSourceService.update(getParam(req, 'id'), req.body);
       res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Admin / workspace owner decides a pending ownership transfer. On "allow" we
+  // re-verify (server-side) that the target is a real member of this org whose
+  // username matches, hand over ownership, record the prior owner in history,
+  // and notify the new owner with a professional message.
+  static async decideSourceTransfer(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const role = String(req.user?.role || '').toUpperCase();
+      const isAdmin = !!req.user?.is_superadmin || ['ADMIN', 'WORKSPACE_OWNER'].includes(role);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Only an admin or workspace owner can decide ownership transfers.' });
+
+      const decision = String(req.body?.decision || '').toLowerCase();
+      if (decision !== 'allow' && decision !== 'block') {
+        return res.status(400).json({ success: false, error: "decision must be 'allow' or 'block'." });
+      }
+
+      const sourceId = getParam(req, 'id');
+      const source = await KnowledgeSourceService.getById(sourceId);
+      if (!source) return res.status(404).json({ success: false, error: 'Source not found' });
+
+      const md = (source.metadata as any) || {};
+      const pending = md.pending_transfer;
+      if (!pending || !pending.to_email) return res.status(400).json({ success: false, error: 'No pending transfer for this source.' });
+
+      if (decision === 'block') {
+        const updated = await KnowledgeSourceService.update(sourceId, { metadata: { ...md, pending_transfer: null } });
+        return res.json({ success: true, data: updated });
+      }
+
+      // ── allow: verify the target is a real member of this workspace ──
+      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id, req.user?.workspace_id);
+      const { data: memberRows } = await supabaseAdmin.from('workspace_members').select('user_id').eq('workspace_id', workspaceId);
+      const ids = (memberRows || []).map((m: any) => m.user_id).filter(Boolean);
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
+      const target = (users || []).find((u: any) => String(u.email || '').toLowerCase() === String(pending.to_email).toLowerCase());
+      if (!target) return res.status(400).json({ success: false, error: 'The requested user is no longer a member of this organization.' });
+      if (String(target.full_name || '').trim().toLowerCase() !== String(pending.to_username || '').trim().toLowerCase()) {
+        return res.status(400).json({ success: false, error: 'The username no longer matches the user for that email.' });
+      }
+
+      const prevOwner = {
+        email: md.owner_email || md.author_email || source.owner_name || '',
+        username: md.owner_username || md.author || '',
+        until: new Date().toISOString(),
+      };
+      const history = [prevOwner, ...(Array.isArray(md.owner_history) ? md.owner_history : [])].slice(0, 10);
+
+      const updated = await KnowledgeSourceService.update(sourceId, {
+        metadata: {
+          ...md,
+          owner_email: target.email,
+          owner_username: target.full_name,
+          author: target.full_name,
+          author_email: target.email,
+          owner_history: history,
+          pending_transfer: null,
+        },
+      });
+
+      // Notify the new owner (best-effort — never blocks the transfer).
+      try {
+        const fromLabel = prevOwner.username || prevOwner.email || 'the previous owner';
+        const approvedBy = req.user?.email || 'an administrator';
+        await supabaseAdmin.from('notifications').insert({
+          id: randomUUID(),
+          user_id: target.id,
+          title: 'Knowledge source ownership transferred to you',
+          body: `You are now the owner of the knowledge source "${source.title}". Ownership was transferred from ${fromLabel} and approved by ${approvedBy}. You can now manage, edit, and govern this source in the Knowledge Base.`,
+          type: 'GOVERNANCE',
+          link: '/agents/knowledge',
+          read: false,
+        });
+      } catch {
+        /* notifications table optional — transfer still succeeds */
+      }
+
+      res.json({ success: true, data: updated });
     } catch (error) {
       next(error);
     }
@@ -868,6 +954,20 @@ export class KnowledgeController {
     try {
       const data = await KnowledgeAccessService.upsert(req.body);
       res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async decideSourceTransfer(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const sourceId = getParam(req, 'id');
+      const { decision } = req.body;
+      if (!decision || !['approve', 'reject', 'reassign'].includes(decision)) {
+        return res.status(400).json({ success: false, error: 'Invalid decision. Must be approve, reject, or reassign.' });
+      }
+      const result = await KnowledgeSourceService.updateStatus(sourceId, decision);
+      res.json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

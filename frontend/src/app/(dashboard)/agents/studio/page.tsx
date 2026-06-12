@@ -852,12 +852,12 @@ export default function StudioPage() {
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-info-border/20 bg-info-text/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-info-text">
+              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-indigo-500">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 Authority Layer
               </div>
               <div className="flex items-center gap-3">
-                <Bot className="h-8 w-8 text-info-text" />
+                <Bot className="h-8 w-8 text-indigo-500" />
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">
                     Agent Studio
@@ -874,14 +874,14 @@ export default function StudioPage() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => fetchAgents(workspaceId)}
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-info-border/30 hover:text-info-text"
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
               >
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </button>
               <button
                 onClick={() => setIsKillSwitchOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-error-border/20 bg-error-text/10 px-4 py-2 text-sm font-semibold text-error-text transition hover:bg-error-text hover:text-white"
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white"
               >
                 <ShieldAlert className="h-4 w-4" />
                 Kill Switch
@@ -889,14 +889,14 @@ export default function StudioPage() {
               {/* "Hire New Agent" per spec Section 3 Layer 1 header */}
               <button
                 onClick={() => setIsWizardOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-info-border/20 bg-info-text px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-info-text"
+                className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
               >
                 <Plus className="h-4 w-4" />
                 Hire New Agent
               </button>
               <button
                 onClick={() => importFileRef.current?.click()}
-                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-info-border/30 hover:text-info-text"
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-2 text-sm font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
                 title="Import an agent template JSON file"
               >
                 <Upload className="h-4 w-4" />
@@ -913,13 +913,13 @@ export default function StudioPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by agent, owner, brand, or type"
-                className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] py-3 pl-11 pr-4 text-sm text-[var(--foreground)] outline-none transition focus:border-info-border/40"
+                className="w-full rounded-2xl border border-[var(--border)] bg-[var(--background)] py-3 pl-11 pr-4 text-sm text-[var(--foreground)] outline-none transition focus:border-indigo-500/40"
               />
             </div>
             <select
               value={brandFilter}
               onChange={(e) => setBrandFilter(e.target.value)}
-              className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-info-border/40"
+              className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-indigo-500/40"
             >
               <option value="">All brands</option>
               {brandOptions.map((b) => (
@@ -931,7 +931,7 @@ export default function StudioPage() {
             <select
               value={environmentFilter}
               onChange={(e) => setEnvironmentFilter(e.target.value)}
-              className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-info-border/40"
+              className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-indigo-500/40"
             >
               <option value="">All environments</option>
               <option value="sandbox">Sandbox</option>
@@ -941,7 +941,7 @@ export default function StudioPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-info-border/40"
+              className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-indigo-500/40"
             >
               {STATUS_OPTIONS.map((s) => (
                 <option key={s || "all-status"} value={s}>
@@ -953,7 +953,7 @@ export default function StudioPage() {
               <select
                 value={riskFilter}
                 onChange={(e) => setRiskFilter(e.target.value)}
-                className="min-w-0 flex-1 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-info-border/40"
+                className="min-w-0 flex-1 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-indigo-500/40"
               >
                 {RISK_OPTIONS.map((r) => (
                   <option key={r || "all-risk"} value={r}>
@@ -967,8 +967,8 @@ export default function StudioPage() {
                 onClick={() => setShowAdvancedFilters((c) => !c)}
                 className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
                   showAdvancedFilters || hasFilters
-                    ? "border-info-border/20 bg-info-text/10 text-info-text"
-                    : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:border-info-border/30 hover:text-info-text"
+                    ? "border-indigo-500/20 bg-indigo-500/10 text-indigo-500"
+                    : "border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] hover:border-indigo-500/30 hover:text-indigo-500"
                 }`}
               >
                 <Filter className="h-4 w-4" />
@@ -1045,14 +1045,14 @@ export default function StudioPage() {
                 <button
                   onClick={restoreDismissedAgents}
                   title="Show retired agents you removed from view"
-                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 transition hover:border-info-border/30 hover:text-info-text"
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 transition hover:border-indigo-500/30 hover:text-indigo-500"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   Show {dismissedIds.length} dismissed
                 </button>
               )}
               {!canManageAuthority && (
-                <div className="inline-flex items-center gap-2 rounded-full border border-warning-border/20 bg-warning-text/10 px-3 py-1.5 text-warning-text">
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-amber-500">
                   <AlertTriangle className="h-3.5 w-3.5" />
                   Read-only authority view
                 </div>
@@ -1063,7 +1063,7 @@ export default function StudioPage() {
                 onClick={() => setViewMode("table")}
                 className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
                   viewMode === "table"
-                    ? "bg-info-text/10 text-info-text"
+                    ? "bg-indigo-500/10 text-indigo-500"
                     : "text-[var(--foreground-muted)]"
                 }`}
               >
@@ -1073,7 +1073,7 @@ export default function StudioPage() {
                 onClick={() => setViewMode("card")}
                 className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
                   viewMode === "card"
-                    ? "bg-info-text/10 text-info-text"
+                    ? "bg-indigo-500/10 text-indigo-500"
                     : "text-[var(--foreground-muted)]"
                 }`}
               >
@@ -1085,7 +1085,7 @@ export default function StudioPage() {
       </div>
 
       {error && (
-        <div className="flex items-start gap-3 rounded-2xl border border-warning-border/20 bg-warning-text/10 p-4 text-sm text-warning-text">
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-500">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -1098,17 +1098,17 @@ export default function StudioPage() {
             label: "Active Agents",
             value: summary.active,
             icon: PlayCircle,
-            tone: "text-success-text",
-            border: "border-success-border/10",
-            bg: "bg-success-text/5",
+            tone: "text-emerald-500",
+            border: "border-emerald-500/10",
+            bg: "bg-emerald-500/5",
           },
           {
             label: "Certifications",
             value: summary.certified,
             icon: Award,
-            tone: "text-info-text",
-            border: "border-info-border/10",
-            bg: "bg-info-text/5",
+            tone: "text-indigo-500",
+            border: "border-indigo-500/10",
+            bg: "bg-indigo-500/5",
           },
           {
             label: "Avg Trust Score",
@@ -1122,9 +1122,9 @@ export default function StudioPage() {
             label: "Risk Alerts",
             value: summary.riskAlerts,
             icon: ShieldAlert,
-            tone: "text-error-text",
-            border: "border-error-border/10",
-            bg: "bg-error-text/5",
+            tone: "text-rose-500",
+            border: "border-rose-500/10",
+            bg: "bg-rose-500/5",
           },
         ].map((card) => (
           <div
@@ -1187,7 +1187,7 @@ export default function StudioPage() {
               ? `${summary.governanceDebt} agents need setup, certification, or governance completion before promotion.`
               : "Authority inventory is in a healthy state with no immediate governance debt."}
           </div>
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-info-border/20 bg-info-text/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-info-text">
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-indigo-500">
             <Sparkles className="h-3.5 w-3.5" />
             {summary.governanceDebt > 0
               ? "Review incomplete agents"
@@ -1211,7 +1211,7 @@ export default function StudioPage() {
       ) : filteredAgents.length === 0 ? (
         /* ── Empty State — spec Section 11 + 8 required templates ── */
         <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-10 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-info-text/10 text-info-text">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-indigo-500/10 text-indigo-500">
             <Bot className="h-8 w-8" />
           </div>
           <h2 className="mt-5 text-2xl font-bold text-[var(--foreground)]">
@@ -1230,7 +1230,7 @@ export default function StudioPage() {
                 key={t.title}
                 className="rounded-3xl border border-[var(--card-border)] bg-[var(--background)] p-5 text-left"
               >
-                <div className="inline-flex items-center gap-2 rounded-full border border-info-border/20 bg-info-text/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-info-text">
+                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">
                   Template
                 </div>
                 <div className="mt-4 text-sm font-bold text-[var(--foreground)]">
@@ -1244,7 +1244,7 @@ export default function StudioPage() {
           </div>
           <button
             onClick={() => setIsWizardOpen(true)}
-            className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-info-text px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-info-text"
+            className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500"
           >
             <Plus className="h-4 w-4" />
             Hire New Agent
@@ -1290,7 +1290,7 @@ export default function StudioPage() {
                           className="text-left"
                         >
                           <div className="flex items-start gap-3">
-                            <div className="mt-1 rounded-2xl bg-info-text/10 p-2.5 text-info-text">
+                            <div className="mt-1 rounded-2xl bg-indigo-500/10 p-2.5 text-indigo-500">
                               <BrainCircuit className="h-4 w-4" />
                             </div>
                             <div className="space-y-1">
@@ -1322,7 +1322,7 @@ export default function StudioPage() {
                           <div className="text-xs text-[var(--foreground-muted)]">
                             Backup:{" "}
                             {agent.backup_dri?.full_name || (
-                              <span className="text-warning-text">Missing</span>
+                              <span className="text-amber-500">Missing</span>
                             )}
                           </div>
                           <div className="text-xs text-[var(--foreground-muted)]">
@@ -1349,7 +1349,7 @@ export default function StudioPage() {
                       <td className="px-5 py-5">
                         <div className="space-y-2">
                           <StatusBadge status={agent.status} />
-                          <div className="inline-flex rounded-full border border-warning-border/20 bg-warning-text/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-warning-text">
+                          <div className="inline-flex rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">
                             {(agent.risk_level || "medium").toUpperCase()} risk
                           </div>
 
@@ -1363,10 +1363,10 @@ export default function StudioPage() {
                               <div
                                 className={`h-full rounded-full ${
                                   readiness >= 80
-                                    ? "bg-success-text"
+                                    ? "bg-emerald-500"
                                     : readiness >= 60
-                                      ? "bg-warning-text"
-                                      : "bg-error-text"
+                                      ? "bg-amber-500"
+                                      : "bg-rose-500"
                                 }`}
                                 style={{ width: `${readiness}%` }}
                               />
@@ -1387,10 +1387,10 @@ export default function StudioPage() {
                                 <div
                                   className={`h-full rounded-full ${
                                     agent.trust_score >= 0.8
-                                      ? "bg-success-text"
+                                      ? "bg-emerald-500"
                                       : agent.trust_score >= 0.6
-                                        ? "bg-warning-text"
-                                        : "bg-error-text"
+                                        ? "bg-amber-500"
+                                        : "bg-rose-500"
                                   }`}
                                   style={{
                                     width: `${(agent.trust_score || 0) * 100}%`,
@@ -1411,8 +1411,8 @@ export default function StudioPage() {
                                 <div
                                   className={`h-full rounded-full ${
                                     agent.faithfulness_score >= 0.85
-                                      ? "bg-success-text"
-                                      : "bg-warning-text"
+                                      ? "bg-emerald-500"
+                                      : "bg-amber-500"
                                   }`}
                                   style={{
                                     width: `${
@@ -1449,7 +1449,7 @@ export default function StudioPage() {
                                   </span>
                                 ))
                             ) : (
-                              <span className="text-warning-text">
+                              <span className="text-amber-500">
                                 No channel scope
                               </span>
                             )}
@@ -1476,7 +1476,7 @@ export default function StudioPage() {
                       {/* Next Action */}
                       <td className="px-5 py-5">
                         <div className="space-y-2">
-                          <div className="inline-flex rounded-full border border-info-border/20 bg-info-text/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-info-text">
+                          <div className="inline-flex rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-500">
                             {nextAction}
                           </div>
                           <div className="max-w-[180px] text-xs text-[var(--foreground-muted)]">
@@ -1491,7 +1491,7 @@ export default function StudioPage() {
                           {/* View Details → AgentDetailsDrawer */}
                           <button
                             onClick={() => openAgent(agent)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-info-border/30 hover:text-info-text"
+                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             View Details
@@ -1501,7 +1501,7 @@ export default function StudioPage() {
                           {!isRetired && (
                             <button
                               onClick={() => openSandbox(agent)}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-info-border/30 hover:text-info-text"
+                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
                             >
                               <ShieldCheck className="h-3.5 w-3.5" />
                               Certify / Upgrade
@@ -1513,7 +1513,7 @@ export default function StudioPage() {
                             <button
                               disabled={!canManageAuthority || isBusy}
                               onClick={() => runAgentAction(agent, "approval")}
-                              className="inline-flex items-center gap-2 rounded-xl bg-warning-text px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-warning-text disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <FileCheck className="h-3.5 w-3.5" />
                               {actionLoading[agent.id] === "approval"
@@ -1529,7 +1529,7 @@ export default function StudioPage() {
                               onClick={() =>
                                 checkGovernanceGatesAndDeploy(agent)
                               }
-                              className="inline-flex items-center gap-2 rounded-xl bg-success-text px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-success-text disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <PlayCircle className="h-3.5 w-3.5" />
                               {actionLoading[agent.id] === "deploy"
@@ -1538,40 +1538,59 @@ export default function StudioPage() {
                             </button>
                           )}
 
-                          {/* Pause — ACTIVE */}
-                          {agent.status === "ACTIVE" && (
-                            <button
-                              disabled={!canManageAuthority || isBusy}
-                              onClick={() => runAgentAction(agent, "pause")}
-                              className="inline-flex items-center gap-2 rounded-xl bg-error-text px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-error-text disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <PauseCircle className="h-3.5 w-3.5" />
-                              {actionLoading[agent.id] === "pause"
-                                ? "Pausing..."
-                                : "Pause"}
-                            </button>
-                          )}
-
-                          {/* Resume — PAUSED */}
-                          {agent.status === "PAUSED" && (
-                            <button
-                              disabled={!canManageAuthority || isBusy}
-                              onClick={() => runAgentAction(agent, "resume")}
-                              className="inline-flex items-center gap-2 rounded-xl bg-success-text px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-success-text disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <PlayCircle className="h-3.5 w-3.5" />
-                              {actionLoading[agent.id] === "resume"
-                                ? "Resuming..."
-                                : "Resume"}
-                            </button>
-                          )}
+                          {/* Pause ⇄ Start toggle — ACTIVE pauses; PAUSED or
+                              SUSPENDED (e.g. halted by the Kill Switch) starts */}
+                          {["ACTIVE", "PAUSED", "SUSPENDED"].includes(
+                            agent.status,
+                          ) &&
+                            (() => {
+                              const isRunning = agent.status === "ACTIVE";
+                              const toggleAction = isRunning ? "pause" : "resume";
+                              const busyThis =
+                                actionLoading[agent.id] === toggleAction;
+                              return (
+                                <button
+                                  role="switch"
+                                  aria-checked={isRunning}
+                                  disabled={!canManageAuthority || isBusy}
+                                  onClick={() =>
+                                    runAgentAction(agent, toggleAction)
+                                  }
+                                  className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                    isRunning
+                                      ? "bg-rose-500 hover:bg-rose-400"
+                                      : "bg-emerald-600 hover:bg-emerald-500"
+                                  }`}
+                                >
+                                  {/* track */}
+                                  <span
+                                    className={`relative inline-flex h-3.5 w-6 items-center rounded-full transition ${
+                                      isRunning ? "bg-white/30" : "bg-white/30"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`absolute h-2.5 w-2.5 rounded-full bg-white transition-all ${
+                                        isRunning ? "left-3" : "left-0.5"
+                                      }`}
+                                    />
+                                  </span>
+                                  {busyThis
+                                    ? isRunning
+                                      ? "Pausing..."
+                                      : "Starting..."
+                                    : isRunning
+                                      ? "Pause"
+                                      : "Start"}
+                                </button>
+                              );
+                            })()}
 
                           {/* Rollback — ACTIVE or RESTRICTED */}
                           {["ACTIVE", "RESTRICTED"].includes(agent.status) && (
                             <button
                               disabled={!canManageAuthority || isBusy}
                               onClick={() => runAgentAction(agent, "rollback")}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-warning-border/30 hover:text-warning-text disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-amber-500/30 hover:text-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
                               Rollback
@@ -1601,7 +1620,7 @@ export default function StudioPage() {
                             <button
                               disabled={evidenceExportLoading === agent.id}
                               onClick={() => handleExportEvidence(agent)}
-                              className="inline-flex items-center gap-2 rounded-xl border border-info-border/20 bg-info-text/10 px-3 py-2 text-xs font-semibold text-info-text transition hover:bg-info-text/20 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-400 transition hover:bg-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Award className="h-3.5 w-3.5" />
                               {evidenceExportLoading === agent.id
@@ -1614,7 +1633,7 @@ export default function StudioPage() {
                           <button
                             disabled={!canManageAuthority || isBusy}
                             onClick={() => runAgentAction(agent, "clone")}
-                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-info-border/30 hover:text-info-text disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <ChevronRight className="h-3.5 w-3.5" />
                             {actionLoading[agent.id] === "clone"
@@ -1627,7 +1646,7 @@ export default function StudioPage() {
                             <button
                               disabled={!canManageAuthority || isBusy}
                               onClick={() => runAgentAction(agent, "retire")}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-error-border/30 hover:text-error-text disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Archive className="h-3.5 w-3.5" />
                               {actionLoading[agent.id] === "retire"
@@ -1643,7 +1662,7 @@ export default function StudioPage() {
                               onClick={() => dismissRetiredAgent(agent)}
                               title="Remove from view (record preserved for audit)"
                               aria-label={`Remove ${agent.name} from view`}
-                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-error-border/30 hover:text-error-text"
+                              className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
                             >
                               <X className="h-3.5 w-3.5" />
                               Remove
@@ -1674,7 +1693,7 @@ export default function StudioPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <div className="rounded-2xl bg-info-text/10 p-3 text-info-text">
+                    <div className="rounded-2xl bg-indigo-500/10 p-3 text-indigo-500">
                       <BrainCircuit className="h-5 w-5" />
                     </div>
                     <div>
@@ -1697,7 +1716,7 @@ export default function StudioPage() {
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <StatusBadge status={agent.status} />
-                  <span className="inline-flex rounded-full border border-warning-border/20 bg-warning-text/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-warning-text">
+                  <span className="inline-flex rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">
                     {(agent.risk_level || "medium").toUpperCase()}
                   </span>
                 </div>
@@ -1733,10 +1752,10 @@ export default function StudioPage() {
                     <div
                       className={`h-full rounded-full ${
                         readiness >= 80
-                          ? "bg-success-text"
+                          ? "bg-emerald-500"
                           : readiness >= 60
-                            ? "bg-warning-text"
-                            : "bg-error-text"
+                            ? "bg-amber-500"
+                            : "bg-rose-500"
                       }`}
                       style={{ width: `${readiness}%` }}
                     />
@@ -1746,7 +1765,7 @@ export default function StudioPage() {
                 <div className="mt-5 flex flex-wrap gap-2">
                   <button
                     onClick={() => openAgent(agent)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-info-border/30 hover:text-info-text"
+                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
                   >
                     <Eye className="h-3.5 w-3.5" />
                     View Details
@@ -1754,7 +1773,7 @@ export default function StudioPage() {
                   {!isRetired && (
                     <button
                       onClick={() => openSandbox(agent)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-info-border/30 hover:text-info-text"
+                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500"
                     >
                       <ShieldCheck className="h-3.5 w-3.5" />
                       Certify / Upgrade
@@ -1765,7 +1784,7 @@ export default function StudioPage() {
                     disabled={
                       !canManageAuthority || Boolean(actionLoading[agent.id])
                     }
-                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-info-border/30 hover:text-info-text disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground)] transition hover:border-indigo-500/30 hover:text-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ChevronRight className="h-3.5 w-3.5" />
                     {actionLoading[agent.id] === "clone"
@@ -1779,7 +1798,7 @@ export default function StudioPage() {
                       disabled={
                         !canManageAuthority || Boolean(actionLoading[agent.id])
                       }
-                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-error-border/30 hover:text-error-text disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Archive className="h-3.5 w-3.5" />
                       {actionLoading[agent.id] === "retire"
@@ -1795,7 +1814,7 @@ export default function StudioPage() {
                       onClick={() => dismissRetiredAgent(agent)}
                       title="Remove from view (record preserved for audit)"
                       aria-label={`Remove ${agent.name} from view`}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-error-border/30 hover:text-error-text"
+                      className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs font-semibold text-[var(--foreground-muted)] transition hover:border-rose-500/30 hover:text-rose-500"
                     >
                       <X className="h-3.5 w-3.5" />
                       Remove
@@ -1809,8 +1828,8 @@ export default function StudioPage() {
       )}
 
       {/* ── Footer governance note ── */}
-      <div className="flex items-start gap-3 rounded-3xl border border-info-border/15 bg-info-text/5 p-5 text-sm text-[var(--foreground-muted)]">
-        <Shield className="mt-0.5 h-5 w-5 shrink-0 text-info-text" />
+      <div className="flex items-start gap-3 rounded-3xl border border-indigo-500/15 bg-indigo-500/5 p-5 text-sm text-[var(--foreground-muted)]">
+        <Shield className="mt-0.5 h-5 w-5 shrink-0 text-indigo-500" />
         <div>
           <div className="font-semibold text-[var(--foreground)]">
             Agent Studio is a governed control plane, not a prompt playground.
