@@ -240,28 +240,28 @@ const STATUS_CONFIG: Record<
 > = {
   DRAFT: { label: "Draft", color: "text-foreground-muted", bg: "bg-surface-hover", icon: FileText },
   PROCESSING: { label: "Processing", color: "text-blue-400", bg: "bg-blue-500/10", icon: Loader2 },
-  REVIEW_REQUIRED: { label: "Review Required", color: "text-amber-400", bg: "bg-amber-500/10", icon: ClipboardList },
-  APPROVED: { label: "Approved", color: "text-emerald-400", bg: "bg-emerald-500/10", icon: BadgeCheck },
+  REVIEW_REQUIRED: { label: "Review Required", color: "text-warning-text", bg: "bg-warning-text/10", icon: ClipboardList },
+  APPROVED: { label: "Approved", color: "text-success-text", bg: "bg-success-text/10", icon: BadgeCheck },
   ACTIVE: { label: "Active", color: "text-green-400", bg: "bg-green-500/10", icon: CheckCircle2 },
   RESTRICTED: { label: "Restricted", color: "text-purple-400", bg: "bg-purple-500/10", icon: Lock },
   EXPIRED: { label: "Expired", color: "text-orange-400", bg: "bg-orange-500/10", icon: Clock3 },
   RETIRED: { label: "Retired", color: "text-foreground-muted", bg: "bg-surface-hover/40", icon: Archive },
-  QUARANTINED: { label: "Quarantined", color: "text-rose-400", bg: "bg-rose-500/10", icon: AlertOctagon },
+  QUARANTINED: { label: "Quarantined", color: "text-error-text", bg: "bg-error-text/10", icon: AlertOctagon },
   REJECTED: { label: "Rejected", color: "text-red-400", bg: "bg-red-500/10", icon: XCircle },
 };
 
 const RISK_CONFIG: Record<RiskTier, { label: string; color: string; bg: string }> = {
   LOW: { label: "Low", color: "text-green-400", bg: "bg-green-500/10" },
-  MEDIUM: { label: "Medium", color: "text-amber-400", bg: "bg-amber-500/10" },
+  MEDIUM: { label: "Medium", color: "text-warning-text", bg: "bg-warning-text/10" },
   HIGH: { label: "High", color: "text-orange-400", bg: "bg-orange-500/10" },
-  CRITICAL: { label: "Critical", color: "text-rose-400", bg: "bg-rose-500/10" },
+  CRITICAL: { label: "Critical", color: "text-error-text", bg: "bg-error-text/10" },
 };
 
 const CONFLICT_SEVERITY_CONFIG: Record<ConflictSeverity, { color: string; bg: string }> = {
   LOW: { color: "text-green-400", bg: "bg-green-500/10" },
-  MEDIUM: { color: "text-amber-400", bg: "bg-amber-500/10" },
+  MEDIUM: { color: "text-warning-text", bg: "bg-warning-text/10" },
   HIGH: { color: "text-orange-400", bg: "bg-orange-500/10" },
-  BLOCKING: { color: "text-rose-400", bg: "bg-rose-500/10" },
+  BLOCKING: { color: "text-error-text", bg: "bg-error-text/10" },
 };
 
 const PRIMARY_TABS: { id: PrimaryTab; label: string; icon: React.ElementType; desc: string }[] = [
@@ -381,11 +381,11 @@ function CollectionsPanel({
               <div key={col.id} className="group relative">
                 <button
                   onClick={() => onSelect(col)}
-                  className={`w-full p-4 rounded-2xl border text-left transition-all ${selectedCollection?.id === col.id ? "bg-indigo-500/5 border-indigo-500/30" : "bg-surface border-border hover:bg-surface"}`}
+                  className={`w-full p-4 rounded-2xl border text-left transition-all ${selectedCollection?.id === col.id ? "bg-info-text/5 border-info-border/30" : "bg-surface border-border hover:bg-surface"}`}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className={`text-sm font-bold ${selectedCollection?.id === col.id ? "text-foreground" : "text-foreground-muted"}`}>{col.name}</span>
-                    <ChevronRight className={`w-4 h-4 transition-transform ${selectedCollection?.id === col.id ? "translate-x-1 text-indigo-400" : "text-foreground-muted"}`} />
+                    <ChevronRight className={`w-4 h-4 transition-transform ${selectedCollection?.id === col.id ? "translate-x-1 text-info-text" : "text-foreground-muted"}`} />
                   </div>
                   <div className="flex items-center gap-2 flex-wrap mt-1.5">
                     {col.risk_tier && <RiskBadge tier={col.risk_tier} />}
@@ -398,7 +398,7 @@ function CollectionsPanel({
                 </button>
                 {onDeleteCollection && (
                   <button onClick={(e) => { e.stopPropagation(); onDeleteCollection(col.id); }}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-card border border-border text-foreground-muted hover:text-rose-400 hover:border-rose-500/30 transition-all opacity-0 group-hover:opacity-100"
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-card border border-border text-foreground-muted hover:text-error-text hover:border-error-border/30 transition-all opacity-0 group-hover:opacity-100"
                     title="Delete collection">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -425,14 +425,14 @@ function CollectionsPanel({
                 </div>
                 <p className="text-xs text-foreground-muted font-medium">{selectedCollection.description}</p>
                 {selectedCollection.retrieval_policy && (
-                  <span className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">
+                  <span className="text-[10px] text-info-text font-black uppercase tracking-widest">
                     Retrieval: {selectedCollection.retrieval_policy.replace(/_/g, " ")}
                   </span>
                 )}
               </div>
               <button
                 onClick={onAddSourceClick}
-                className="px-4 py-2 bg-indigo-500 text-foreground rounded-xl text-xs font-black hover:bg-indigo-600 transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+                className="px-4 py-2 bg-info-text text-foreground rounded-xl text-xs font-black hover:bg-info-text transition-all flex items-center gap-2 shadow-lg shadow-info-text/20"
               >
                 <Plus className="w-4 h-4" />
                 ADD SOURCE
@@ -446,7 +446,7 @@ function CollectionsPanel({
                   value={entrySearch}
                   onChange={(e) => setEntrySearch(e.target.value)}
                   placeholder="Search sources, guidelines, or SOP text..."
-                  className="w-full bg-card border border-border rounded-2xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all text-sm"
+                  className="w-full bg-card border border-border rounded-2xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-sm"
                 />
               </div>
 
@@ -527,7 +527,7 @@ function SourceCard({
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-2 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            {source.source_url ? <Globe className="w-4 h-4 text-emerald-400 shrink-0" /> : <FileText className="w-4 h-4 text-blue-400 shrink-0" />}
+            {source.source_url ? <Globe className="w-4 h-4 text-success-text shrink-0" /> : <FileText className="w-4 h-4 text-blue-400 shrink-0" />}
             <h3 className="font-bold text-foreground">{source.title}</h3>
             <StatusBadge status={status as SourceStatus} />
             {source.risk_tier && <RiskBadge tier={source.risk_tier} />}
@@ -545,7 +545,7 @@ function SourceCard({
               </span>
             )}
             {source.retrieval_policy && (
-              <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest">
+              <span className="text-[10px] text-info-text font-bold uppercase tracking-widest">
                 {source.retrieval_policy.replace(/_/g, " ")}
               </span>
             )}
@@ -565,7 +565,7 @@ function SourceCard({
             {source.chunk_count !== undefined && <span>{source.chunk_count} chunks</span>}
             {source.citation_count !== undefined && <span>{source.citation_count} citations</span>}
             {source.conflict_count !== undefined && source.conflict_count > 0 && (
-              <span className="text-rose-400">{source.conflict_count} conflicts</span>
+              <span className="text-error-text">{source.conflict_count} conflicts</span>
             )}
             {source.review_date && <span>Review: {new Date(source.review_date).toLocaleDateString()}</span>}
             {source.expiry_date && <span className="text-orange-400">Expires: {new Date(source.expiry_date).toLocaleDateString()}</span>}
@@ -601,7 +601,7 @@ function SourceCard({
 
           {source.evidence_id && (
             <div className="flex items-center gap-1.5 text-[10px] text-foreground-muted">
-              <ShieldCheck className="w-3 h-3 text-indigo-500" />
+              <ShieldCheck className="w-3 h-3 text-info-text" />
               Evidence: {source.evidence_id}
             </div>
           )}
@@ -612,7 +612,7 @@ function SourceCard({
             <Eye className="w-4 h-4" />
           </button>
           {(status === "DRAFT" || status === "REVIEW_REQUIRED") && (
-            <button onClick={() => onApprove(source.id)} className="p-2 text-foreground-muted hover:text-emerald-400 transition-colors" title="Approve source">
+            <button onClick={() => onApprove(source.id)} className="p-2 text-foreground-muted hover:text-success-text transition-colors" title="Approve source">
               <BadgeCheck className="w-4 h-4" />
             </button>
           )}
@@ -627,7 +627,7 @@ function SourceCard({
             </button>
           )}
           {(status === "ACTIVE" || status === "APPROVED") && onPublish && (
-            <button onClick={() => onPublish(source.id)} className="p-2 text-foreground-muted hover:text-indigo-400 transition-colors" title="Publish to production">
+            <button onClick={() => onPublish(source.id)} className="p-2 text-foreground-muted hover:text-info-text transition-colors" title="Publish to production">
               <Globe className="w-4 h-4" />
             </button>
           )}
@@ -637,12 +637,12 @@ function SourceCard({
             </button>
           )}
           {(status === "ACTIVE" || status === "APPROVED") && onQuarantine && (
-            <button onClick={() => onQuarantine(source.id)} className="p-2 text-foreground-muted hover:text-rose-500 transition-colors" title="Quarantine">
+            <button onClick={() => onQuarantine(source.id)} className="p-2 text-foreground-muted hover:text-error-text transition-colors" title="Quarantine">
               <AlertTriangle className="w-4 h-4" />
             </button>
           )}
           {status !== "ACTIVE" && status !== "APPROVED" && (
-            <button onClick={() => onDelete(source.id)} className="p-2 text-foreground-muted hover:text-rose-500 transition-colors" title="Delete">
+            <button onClick={() => onDelete(source.id)} className="p-2 text-foreground-muted hover:text-error-text transition-colors" title="Delete">
               <Trash2 className="w-4 h-4" />
             </button>
           )}
@@ -673,7 +673,7 @@ function ReviewQueuePanel({
         <h2 className="text-sm font-black text-foreground uppercase tracking-wider">
           Review Queue
           {reviewItems.length > 0 && (
-            <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-400 font-black">
+            <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] bg-warning-text/20 text-warning-text font-black">
               {reviewItems.length}
             </span>
           )}
@@ -694,7 +694,7 @@ function ReviewQueuePanel({
       ) : (
         <div className="space-y-3">
           {reviewItems.map((source) => (
-            <div key={source.id} className="bg-surface/40 border border-amber-500/20 rounded-2xl p-6">
+            <div key={source.id} className="bg-surface/40 border border-warning-border/20 rounded-2xl p-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -712,14 +712,14 @@ function ReviewQueuePanel({
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => onApprove(source.id)}
-                    className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-black hover:bg-emerald-500/20 transition-all flex items-center gap-1"
+                    className="px-3 py-1.5 bg-success-text/10 text-success-text border border-success-border/20 rounded-lg text-xs font-black hover:bg-success-text/20 transition-all flex items-center gap-1"
                   >
                     <BadgeCheck className="w-3.5 h-3.5" />
                     APPROVE
                   </button>
                   <button
                     onClick={() => onReject(source.id)}
-                    className="px-3 py-1.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg text-xs font-black hover:bg-rose-500/20 transition-all flex items-center gap-1"
+                    className="px-3 py-1.5 bg-error-text/10 text-error-text border border-error-border/20 rounded-lg text-xs font-black hover:bg-error-text/20 transition-all flex items-center gap-1"
                   >
                     <XCircle className="w-3.5 h-3.5" />
                     REJECT
@@ -750,7 +750,7 @@ function ConflictsPanel({
         <h2 className="text-sm font-black text-foreground uppercase tracking-wider">
           Conflict Registry
           {conflicts.length > 0 && (
-            <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] bg-rose-500/20 text-rose-400 font-black">
+            <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] bg-error-text/20 text-error-text font-black">
               {conflicts.length}
             </span>
           )}
@@ -799,7 +799,7 @@ function ConflictsPanel({
                   {conflict.status !== "RESOLVED" && (
                     <button
                       onClick={() => onResolve(conflict.id)}
-                      className="px-3 py-1.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-lg text-xs font-black hover:bg-indigo-500/20 transition-all shrink-0"
+                      className="px-3 py-1.5 bg-info-text/10 text-info-text border border-info-border/20 rounded-lg text-xs font-black hover:bg-info-text/20 transition-all shrink-0"
                     >
                       RESOLVE
                     </button>
@@ -840,19 +840,19 @@ function RetrievalLogsPanel({ logs, loading }: { logs: RetrievalEvent[]; loading
                 <div className="space-y-1 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     {log.agent_name && (
-                      <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{log.agent_name}</span>
+                      <span className="text-[10px] font-black text-info-text uppercase tracking-widest">{log.agent_name}</span>
                     )}
                     <span className="text-xs text-foreground-muted font-medium">{log.query}</span>
                   </div>
                   <div className="flex items-center gap-3 text-[10px] text-foreground-muted">
                     {log.returned_chunks !== undefined && <span>{log.returned_chunks} chunks returned</span>}
                     {(log.blocked_chunks ?? 0) > 0 && (
-                      <span className="text-rose-400">{log.blocked_chunks} blocked</span>
+                      <span className="text-error-text">{log.blocked_chunks} blocked</span>
                     )}
                     {log.latency_ms !== undefined && <span>{log.latency_ms}ms</span>}
                     {log.evidence_id && (
                       <span className="flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3 text-indigo-500" />
+                        <ShieldCheck className="w-3 h-3 text-info-text" />
                         {log.evidence_id}
                       </span>
                     )}
@@ -861,7 +861,7 @@ function RetrievalLogsPanel({ logs, loading }: { logs: RetrievalEvent[]; loading
                   {log.reason_codes && log.reason_codes.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {log.reason_codes.map((code) => (
-                        <span key={code} className="text-[10px] px-2 py-0.5 bg-rose-500/10 text-rose-400 rounded">{code}</span>
+                        <span key={code} className="text-[10px] px-2 py-0.5 bg-error-text/10 text-error-text rounded">{code}</span>
                       ))}
                     </div>
                   )}
@@ -889,7 +889,7 @@ function AgentAccessPanel({ collections, accessPolicy }: { collections: Knowledg
               <div className="space-y-0.5">
                 <h3 className="font-bold text-foreground text-sm">{col.name}</h3>
                 {col.retrieval_policy && (
-                  <span className="text-[10px] text-indigo-400 font-black uppercase tracking-widest">
+                  <span className="text-[10px] text-info-text font-black uppercase tracking-widest">
                     {col.retrieval_policy.replace(/_/g, " ")}
                   </span>
                 )}
@@ -940,17 +940,17 @@ function TaxonomyPanel() {
   const taxonomyGroups = [
     {
       label: "Source Status Lifecycle",
-      color: "text-indigo-400",
+      color: "text-info-text",
       items: ["DRAFT", "PROCESSING", "REVIEW_REQUIRED", "APPROVED", "ACTIVE", "RESTRICTED", "EXPIRED", "RETIRED", "QUARANTINED", "REJECTED"],
     },
     {
       label: "Retrieval Policy",
-      color: "text-emerald-400",
+      color: "text-success-text",
       items: ["ALLOWED", "BLOCKED", "MANDATORY", "OPTIONAL", "CITATION_REQUIRED", "APPROVAL_GATED", "FALLBACK_ONLY"],
     },
     {
       label: "Risk Tier",
-      color: "text-amber-400",
+      color: "text-warning-text",
       items: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
     },
     {
@@ -960,7 +960,7 @@ function TaxonomyPanel() {
     },
     {
       label: "Sensitivity Level",
-      color: "text-rose-400",
+      color: "text-error-text",
       items: ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"],
     },
     {
@@ -1053,8 +1053,8 @@ function SettingsPanel() {
           </div>
         ))}
       </div>
-      <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-5">
-        <p className="text-xs font-black text-amber-400 uppercase tracking-widest mb-1">Governance Reminder</p>
+      <div className="bg-warning-text/5 border border-warning-border/20 rounded-2xl p-5">
+        <p className="text-xs font-black text-warning-text uppercase tracking-widest mb-1">Governance Reminder</p>
         <p className="text-xs text-foreground-muted leading-relaxed">
           Modifications to chunking strategy, embedding model, or citation policy require all affected sources to be re-processed and re-approved. Changes write to the Evidence Vault and notify AI Operations.
         </p>
@@ -1095,7 +1095,7 @@ function CreateCollectionModal({
       <div className="bg-surface border border-border rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
         <div className="p-6 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
+            <div className="p-2 bg-info-text/10 rounded-lg text-info-text">
               <Database className="w-4 h-4" />
             </div>
             <h3 className="text-lg font-bold text-foreground">New Knowledge Collection</h3>
@@ -1107,20 +1107,20 @@ function CreateCollectionModal({
         <div className="p-8 space-y-5">
           <div className="space-y-2">
             <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Collection Name *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Q4 Brand Voice Guidelines" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Q4 Brand Voice Guidelines" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Description</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose of this collection and what agents use it..." className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all h-20 resize-none text-sm" />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose of this collection and what agents use it..." className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all h-20 resize-none text-sm" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Scope / Brand</label>
-            <input value={scope} onChange={(e) => setScope(e.target.value)} placeholder="e.g. Global / North America / Brand X" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all text-sm" />
+            <input value={scope} onChange={(e) => setScope(e.target.value)} placeholder="e.g. Global / North America / Brand X" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-sm" />
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Category</label>
-              <select value={type} onChange={(e) => setType(e.target.value as KBType)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
+              <select value={type} onChange={(e) => setType(e.target.value as KBType)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
                 <option value="AI_LIBRARY">AI Library</option>
                 <option value="BRAND_GUIDELINES">Brand Guidelines</option>
                 <option value="SOP">Operations / SOP</option>
@@ -1128,7 +1128,7 @@ function CreateCollectionModal({
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Risk Tier</label>
-              <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
+              <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
                 <option value="HIGH">High</option>
@@ -1137,7 +1137,7 @@ function CreateCollectionModal({
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Retrieval</label>
-              <select value={retrievalPolicy} onChange={(e) => setRetrievalPolicy(e.target.value as RetrievalPolicy)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
+              <select value={retrievalPolicy} onChange={(e) => setRetrievalPolicy(e.target.value as RetrievalPolicy)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
                 <option value="ALLOWED">Allowed</option>
                 <option value="MANDATORY">Mandatory</option>
                 <option value="OPTIONAL">Optional</option>
@@ -1150,7 +1150,7 @@ function CreateCollectionModal({
           <button
             onClick={() => onCreate({ name, description, type, risk_tier: riskTier, retrieval_policy: retrievalPolicy, scope })}
             disabled={creating || !name}
-            className="w-full py-4 bg-indigo-500 text-foreground rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20"
+            className="w-full py-4 bg-info-text text-foreground rounded-2xl font-black text-sm hover:bg-info-text disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-info-text/20"
           >
             {creating ? (
               <><Loader2 className="w-4 h-4 animate-spin" />CREATING...</>
@@ -1274,7 +1274,7 @@ function CreateSourceModal({
       <div className="bg-surface border border-border rounded-[2rem] w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         <div className="p-6 border-b border-border flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">
+            <div className="p-2 bg-info-text/10 rounded-lg text-info-text">
               <Plus className="w-4 h-4" />
             </div>
             <div>
@@ -1291,14 +1291,14 @@ function CreateSourceModal({
           {/* Title */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Title / Headline *</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Tone of Voice — Professional Markets" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all" />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Tone of Voice — Professional Markets" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all" />
           </div>
 
           {/* Governance metadata */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Authority Level</label>
-              <select value={authorityLevel} onChange={(e) => setAuthorityLevel(e.target.value as AuthorityLevel)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
+              <select value={authorityLevel} onChange={(e) => setAuthorityLevel(e.target.value as AuthorityLevel)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
                 <option value="OFFICIAL">Official</option>
                 <option value="LEGAL_APPROVED">Legal Approved</option>
                 <option value="PRODUCT_APPROVED">Product Approved</option>
@@ -1309,7 +1309,7 @@ function CreateSourceModal({
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Sensitivity</label>
-              <select value={sensitivityLevel} onChange={(e) => setSensitivityLevel(e.target.value as SensitivityLevel)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
+              <select value={sensitivityLevel} onChange={(e) => setSensitivityLevel(e.target.value as SensitivityLevel)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
                 <option value="PUBLIC">Public</option>
                 <option value="INTERNAL">Internal</option>
                 <option value="CONFIDENTIAL">Confidential</option>
@@ -1318,7 +1318,7 @@ function CreateSourceModal({
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Risk Tier</label>
-              <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
+              <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
                 <option value="HIGH">High</option>
@@ -1327,18 +1327,18 @@ function CreateSourceModal({
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Locale / Market</label>
-              <input value={locale} onChange={(e) => setLocale(e.target.value)} placeholder="e.g. en-US, en-GB" className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all text-xs" />
+              <input value={locale} onChange={(e) => setLocale(e.target.value)} placeholder="e.g. en-US, en-GB" className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Review Date</label>
-              <input type="date" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs" />
+              <input type="date" value={reviewDate} onChange={(e) => setReviewDate(e.target.value)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs" />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Expiry Date</label>
-              <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs" />
+              <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs" />
             </div>
           </div>
 
@@ -1347,7 +1347,7 @@ function CreateSourceModal({
             <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Source URL (Approved URLs only)</label>
             <div className="relative">
               <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-              <input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://..." className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all text-xs" />
+              <input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://..." className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
             </div>
           </div>
 
@@ -1358,10 +1358,10 @@ function CreateSourceModal({
             </label>
             <div className="relative group">
               <input type="file" accept=".pdf,.docx,.pptx,.txt,.csv,.md" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-              <div className={`w-full bg-card border-2 border-dashed rounded-2xl p-6 transition-all flex flex-col items-center justify-center gap-3 ${selectedFile ? "border-indigo-500/50 bg-indigo-500/5" : "border-border group-hover:border-border"}`}>
+              <div className={`w-full bg-card border-2 border-dashed rounded-2xl p-6 transition-all flex flex-col items-center justify-center gap-3 ${selectedFile ? "border-info-border/50 bg-info-text/5" : "border-border group-hover:border-border"}`}>
                 {selectedFile ? (
                   <>
-                    <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400">
+                    <div className="p-3 bg-info-text/10 rounded-xl text-info-text">
                       <FileDigit className="w-6 h-6" />
                     </div>
                     <div className="text-center">
@@ -1393,7 +1393,7 @@ function CreateSourceModal({
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="relative py-4 flex items-center gap-4">
                 <div className="flex-1 h-px bg-surface-hover" />
-                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Visual Identity</span>
+                <span className="text-[10px] font-black text-info-text uppercase tracking-[0.2em]">Visual Identity</span>
                 <div className="flex-1 h-px bg-surface-hover" />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1401,28 +1401,28 @@ function CreateSourceModal({
                   <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Primary HEX</label>
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border border-border" style={{ backgroundColor: primaryColor || "transparent" }} />
-                    <input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} placeholder="#000000" className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all text-xs" />
+                    <input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} placeholder="#000000" className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Secondary HEX</label>
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border border-border" style={{ backgroundColor: secondaryColor || "transparent" }} />
-                    <input value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} placeholder="#FFFFFF" className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all text-xs" />
+                    <input value={secondaryColor} onChange={(e) => setSecondaryColor(e.target.value)} placeholder="#FFFFFF" className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Typography</label>
                   <div className="relative">
                     <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-                    <input value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} placeholder="e.g. Inter, Roboto" className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all text-xs" />
+                    <input value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} placeholder="e.g. Inter, Roboto" className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Style Keywords</label>
                   <div className="relative">
                     <Layers className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
-                    <input value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)} placeholder="e.g. Minimal, Vibrant" className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all text-xs" />
+                    <input value={visualStyle} onChange={(e) => setVisualStyle(e.target.value)} placeholder="e.g. Minimal, Vibrant" className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
                   </div>
                 </div>
               </div>
@@ -1442,29 +1442,29 @@ function CreateSourceModal({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Enter guidelines, policy text, or instructions if not uploading a file..."
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all h-32 resize-none text-sm"
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all h-32 resize-none text-sm"
               disabled={!!selectedFile}
             />
           </div>
 
-          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
-            <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-[10px] text-amber-400 leading-relaxed font-medium">
+          <div className="bg-warning-text/5 border border-warning-border/20 rounded-xl p-4 flex items-start gap-3">
+            <Info className="w-4 h-4 text-warning-text shrink-0 mt-0.5" />
+            <p className="text-[10px] text-warning-text leading-relaxed font-medium">
               This source will enter <strong>DRAFT</strong> status and be blocked from agent retrieval until reviewed and approved by an authorized reviewer.
             </p>
           </div>
 
           {validationError && (
-            <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 flex items-start gap-3">
-              <Info className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-rose-400 leading-relaxed font-medium">{validationError}</p>
+            <div className="bg-error-text/10 border border-error-border/30 rounded-xl p-4 flex items-start gap-3">
+              <Info className="w-4 h-4 text-error-text shrink-0 mt-0.5" />
+              <p className="text-[11px] text-error-text leading-relaxed font-medium">{validationError}</p>
             </div>
           )}
 
           <button
             onClick={handleSubmit}
             disabled={creating || !title}
-            className="w-full py-4 bg-indigo-500 text-foreground rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-2"
+            className="w-full py-4 bg-info-text text-foreground rounded-2xl font-black text-sm hover:bg-info-text disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xl shadow-info-text/20 flex items-center justify-center gap-2"
           >
             {creating ? (
               <><Loader2 className="w-4 h-4 animate-spin" />INGESTING SOURCE...</>
@@ -1519,31 +1519,31 @@ function CreateConflictModal({ onClose, onCreate }: {
           <div className="space-y-2">
             <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Conflict Summary *</label>
             <textarea value={summary} onChange={(e) => setSummary(e.target.value)} placeholder="Describe the contradictory or duplicate knowledge..."
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all h-24 resize-none text-sm" />
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all h-24 resize-none text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Severity</label>
               <select value={severity} onChange={(e) => setSeverity(e.target.value as ConflictSeverity)}
-                className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-indigo-500 transition-all text-xs">
+                className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
                 {(["LOW","MEDIUM","HIGH","BLOCKING"] as const).map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Source IDs * (comma-sep)</label>
               <input value={sourceIds} onChange={(e) => setSourceIds(e.target.value)} placeholder="src-001, src-002"
-                className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all text-xs" />
+                className="w-full bg-card border border-border rounded-xl px-3 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-xs" />
             </div>
           </div>
           {conflictValidationError && (
-            <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-error-text/10 border border-error-border/30 text-error-text text-xs">
               <Info className="w-4 h-4 shrink-0 mt-0.5" />
               {conflictValidationError}
             </div>
           )}
           <button onClick={handleConflictSubmit}
             disabled={!summary || parsedSourceIds.length === 0}
-            className="w-full py-4 bg-indigo-500 text-foreground rounded-2xl font-black text-sm hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-indigo-500/20">
+            className="w-full py-4 bg-info-text text-foreground rounded-2xl font-black text-sm hover:bg-info-text disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-xl shadow-info-text/20">
             <Plus className="w-4 h-4" /> REPORT CONFLICT
           </button>
         </div>
@@ -1900,7 +1900,7 @@ export default function KnowledgePage() {
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); if (e.target.value.length > 2) handleSearch(e.target.value); else setSearchResults(null); }}
                 placeholder="Search across all sources (3+ characters)..."
-                className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-indigo-500 transition-all text-sm"
+                className="w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all text-sm"
               />
             </div>
             {searchResults !== null ? (
@@ -1948,7 +1948,7 @@ export default function KnowledgePage() {
                 <h2 className="text-sm font-black text-foreground uppercase tracking-wider">Conflict Registry</h2>
                 <p className="text-xs text-foreground-muted mt-1">Contradictory or duplicate knowledge — agents must not improvise</p>
               </div>
-              <button onClick={() => setShowCreateConflict(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all">
+              <button onClick={() => setShowCreateConflict(true)} className="flex items-center gap-2 px-4 py-2 bg-info-text/10 border border-info-border/20 text-info-text rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-info-text/20 transition-all">
                 <Plus className="w-3.5 h-3.5" /> Report Conflict
               </button>
             </div>
@@ -1986,7 +1986,7 @@ export default function KnowledgePage() {
           </button>
           <button
             onClick={() => setShowGuide(!showGuide)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all font-bold text-xs ${showGuide ? "bg-indigo-500/10 border-indigo-500/50 text-indigo-400" : "bg-surface border-border text-foreground-muted hover:border-border"}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all font-bold text-xs ${showGuide ? "bg-info-text/10 border-info-border/50 text-info-text" : "bg-surface border-border text-foreground-muted hover:border-border"}`}
           >
             <HelpCircle className="w-4 h-4" />
             QUICK GUIDE
@@ -1997,7 +1997,7 @@ export default function KnowledgePage() {
 
       {/* ── Quick Guide ── */}
       {showGuide && (
-        <div className="bg-card border border-indigo-500/20 rounded-[2rem] p-8 animate-in slide-in-from-top-4 duration-500">
+        <div className="bg-card border border-info-border/20 rounded-[2rem] p-8 animate-in slide-in-from-top-4 duration-500">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
@@ -2016,29 +2016,29 @@ export default function KnowledgePage() {
               },
               {
                 icon: ListChecks,
-                color: "text-emerald-400",
-                bg: "bg-emerald-500/10",
+                color: "text-success-text",
+                bg: "bg-success-text/10",
                 title: "Operations (The Rules)",
                 body: "Store SOPs and workflow rules so all agent actions route through approved operating procedures.",
               },
               {
                 icon: ShieldCheck,
-                color: "text-amber-400",
-                bg: "bg-amber-500/10",
+                color: "text-warning-text",
+                bg: "bg-warning-text/10",
                 title: "Approval Gate",
                 body: "Every source starts as DRAFT and is blocked from agents until reviewed and approved by an authorized reviewer.",
               },
               {
                 icon: Zap,
-                color: "text-rose-400",
-                bg: "bg-rose-500/10",
+                color: "text-error-text",
+                bg: "bg-error-text/10",
                 title: "Conflict Control",
                 body: "Contradictory sources are flagged automatically. Agents must not improvise — they escalate until the conflict is resolved.",
               },
               {
                 icon: ActivitySquare,
-                color: "text-indigo-400",
-                bg: "bg-indigo-500/10",
+                color: "text-info-text",
+                bg: "bg-info-text/10",
                 title: "Evidence Vault",
                 body: "Every upload, approval, retrieval, and citation writes an immutable evidence record for audit and compliance.",
               },
@@ -2059,10 +2059,10 @@ export default function KnowledgePage() {
 
       {/* ── Error Banner ── */}
       {error && (
-        <div className="flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-4 text-sm text-amber-400">
+        <div className="flex items-center gap-3 rounded-2xl border border-warning-border/20 bg-warning-text/10 px-5 py-4 text-sm text-warning-text">
           <ShieldAlert className="h-4 w-4 shrink-0" />
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto text-amber-400 hover:text-white">
+          <button onClick={() => setError(null)} className="ml-auto text-warning-text hover:text-white">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -2071,13 +2071,13 @@ export default function KnowledgePage() {
       {/* ── Summary Stats (Section 5 — Top summary cards) ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         <SummaryCard label="Total Sources" value={summaryStats?.total_sources ?? collections.length} />
-        <SummaryCard label="Approved Sources" value={summaryStats?.approved_sources ?? 0} accent="text-emerald-400" />
+        <SummaryCard label="Approved Sources" value={summaryStats?.approved_sources ?? 0} accent="text-success-text" />
         <SummaryCard label="Stale Sources" value={summaryStats?.stale_sources ?? 0} accent={(summaryStats?.stale_sources ?? 0) > 0 ? "text-orange-400" : "text-foreground"} />
-        <SummaryCard label="Review Required" value={summaryStats?.review_required ?? 0} accent={(summaryStats?.review_required ?? 0) > 0 ? "text-amber-400" : "text-foreground"} />
-        <SummaryCard label="Active Collections" value={summaryStats?.active_collections ?? collections.length} accent="text-indigo-400" />
-        <SummaryCard label="Retrieval Errors" value={summaryStats?.retrieval_errors ?? 0} accent={(summaryStats?.retrieval_errors ?? 0) > 0 ? "text-rose-400" : "text-foreground"} />
-        <SummaryCard label="Conflict Flags" value={summaryStats?.conflict_flags ?? conflicts.length} accent={(summaryStats?.conflict_flags ?? 0) > 0 ? "text-rose-400" : "text-foreground"} />
-        <SummaryCard label="High-Risk Restricted" value={summaryStats?.high_risk_restricted ?? 0} accent={(summaryStats?.high_risk_restricted ?? 0) > 0 ? "text-rose-400" : "text-foreground"} />
+        <SummaryCard label="Review Required" value={summaryStats?.review_required ?? 0} accent={(summaryStats?.review_required ?? 0) > 0 ? "text-warning-text" : "text-foreground"} />
+        <SummaryCard label="Active Collections" value={summaryStats?.active_collections ?? collections.length} accent="text-info-text" />
+        <SummaryCard label="Retrieval Errors" value={summaryStats?.retrieval_errors ?? 0} accent={(summaryStats?.retrieval_errors ?? 0) > 0 ? "text-error-text" : "text-foreground"} />
+        <SummaryCard label="Conflict Flags" value={summaryStats?.conflict_flags ?? conflicts.length} accent={(summaryStats?.conflict_flags ?? 0) > 0 ? "text-error-text" : "text-foreground"} />
+        <SummaryCard label="High-Risk Restricted" value={summaryStats?.high_risk_restricted ?? 0} accent={(summaryStats?.high_risk_restricted ?? 0) > 0 ? "text-error-text" : "text-foreground"} />
       </div>
 
       {/* ── Primary Tabs (Section 5 — Collections, Sources, Review Queue, Conflicts, Retrieval Logs, Agent Access, Taxonomy, Settings) ── */}
@@ -2092,12 +2092,12 @@ export default function KnowledgePage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-wider flex-1 justify-center min-w-fit ${isActive ? "bg-indigo-500 text-foreground shadow-lg shadow-indigo-500/20" : "text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover"}`}
+              className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs font-black uppercase tracking-wider flex-1 justify-center min-w-fit ${isActive ? "bg-info-text text-foreground shadow-lg shadow-info-text/20" : "text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover"}`}
             >
               <Icon className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{tab.label}</span>
               {hasBadge && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 shadow-lg shadow-rose-500/50" />
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-error-text shadow-lg shadow-rose-500/50" />
               )}
             </button>
           );
@@ -2134,7 +2134,7 @@ export default function KnowledgePage() {
               <p>Style: <span className="text-foreground font-bold">{aiContext.brand_visual?.visual_style || "Not set"}</span></p>
               {aiContext.meta?.generated_at && (
                 <p className="flex items-center gap-1.5 text-foreground-muted pt-2 border-t border-border">
-                  <Clock3 className="w-3 h-3 text-indigo-400" />
+                  <Clock3 className="w-3 h-3 text-info-text" />
                   Context snapshot: {new Date(aiContext.meta.generated_at).toLocaleString()}
                 </p>
               )}

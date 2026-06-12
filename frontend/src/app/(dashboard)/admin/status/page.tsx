@@ -27,11 +27,11 @@ interface IntegrationHealthData {
 }
 
 const STATUS_STYLES: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  success:  { label: "Operational", color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20", dot: "bg-emerald-400" },
-  healthy:  { label: "Healthy",     color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20", dot: "bg-emerald-400" },
-  ok:       { label: "OK",          color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/20", dot: "bg-emerald-400" },
-  degraded: { label: "Degraded",    color: "text-amber-400",   bg: "bg-amber-400/10 border-amber-400/20",     dot: "bg-amber-400" },
-  error:    { label: "Error",       color: "text-rose-400",    bg: "bg-rose-400/10 border-rose-400/20",       dot: "bg-rose-400" },
+  success:  { label: "Operational", color: "text-success-text", bg: "bg-success-text/10 border-success-border/20", dot: "bg-success-text" },
+  healthy:  { label: "Healthy",     color: "text-success-text", bg: "bg-success-text/10 border-success-border/20", dot: "bg-success-text" },
+  ok:       { label: "OK",          color: "text-success-text", bg: "bg-success-text/10 border-success-border/20", dot: "bg-success-text" },
+  degraded: { label: "Degraded",    color: "text-warning-text",   bg: "bg-warning-text/10 border-warning-border/20",     dot: "bg-warning-text" },
+  error:    { label: "Error",       color: "text-error-text",    bg: "bg-error-text/10 border-error-border/20",       dot: "bg-error-text" },
   unknown:  { label: "Unknown",     color: "text-foreground-muted",    bg: "bg-zinc-400/10 border-zinc-400/20",       dot: "bg-zinc-500" },
 };
 
@@ -76,7 +76,7 @@ export default function SystemStatusPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
-            <Activity className="w-8 h-8 text-indigo-500" />
+            <Activity className="w-8 h-8 text-info-text" />
             System Status
           </h1>
           <p className="text-foreground-muted mt-1 text-sm">Real-time health of all platform services and integrations.</p>
@@ -118,7 +118,7 @@ export default function SystemStatusPage() {
         <div className="divide-y divide-border">
           {loading ? (
             <div className="px-6 py-10 flex justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-indigo-400" />
+              <Loader2 className="w-6 h-6 animate-spin text-info-text" />
             </div>
           ) : coreServices.map(({ name, icon: Icon, status, detail }) => {
             const s = getStyle(status);
@@ -156,7 +156,7 @@ export default function SystemStatusPage() {
                 <div key={svc.name || i} className="px-6 py-4 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-foreground">{svc.name}</p>
-                    {svc.error && <p className="text-xs text-rose-400 mt-0.5">{svc.error}</p>}
+                    {svc.error && <p className="text-xs text-error-text mt-0.5">{svc.error}</p>}
                   </div>
                   <div className="flex items-center gap-3">
                     {svc.latency !== undefined && (

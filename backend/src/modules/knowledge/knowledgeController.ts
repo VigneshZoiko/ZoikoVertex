@@ -10,6 +10,7 @@ import { KnowledgeReviewService } from './KnowledgeReviewService';
 import { KnowledgeConflictService } from './KnowledgeConflictService';
 import { KnowledgeRetrievalService } from './KnowledgeRetrievalService';
 import { KnowledgeAccessService } from './KnowledgeAccessService';
+import { classifyGovernanceCategory, GovCategory } from './GovernanceClassifierService';
 import { getParam, getQueryNumber, getQueryValue } from '../../shared/request';
 import { trackUsage } from '../../domains/monitoring/usageController';
 
@@ -572,7 +573,126 @@ export class KnowledgeController {
   static async activateSource(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const sourceId = getParam(req, 'id');
+      // Do not auto-activate a source whose AI governance-category check is
+      // still unresolved (mismatch or pending review). It must be reconciled by
+      // an admin / workspace owner first.
+      const source = await KnowledgeSourceService.getById(sourceId);
+      const reviewStatus = String((source?.metadata as any)?.category_review_status || '');
+      if (reviewStatus === 'mismatch' || reviewStatus === 'review_required') {
+        return res.status(409).json({
+          success: false,
+          error: 'Resolve the governance-category check before activating — accept the AI suggestion, keep your selection, or send for review.',
+        });
+      }
       const updated = await KnowledgeSourceService.updateStatus(sourceId, 'ACTIVE');
+      res.json({ success: true, data: updated });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Run AI-assisted governance classification on the source content and store
+  // the result in metadata (no duplicate columns). Compares against the user's
+  // selected category to flag a mismatch. Never blocks — returns classified:false
+  // when no AI provider is configured/available.
+  static async classifySourceGovernance(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const sourceId = getParam(req, 'id');
+      const source = await KnowledgeSourceService.getById(sourceId);
+      if (!source) return res.status(404).json({ success: false, error: 'Source not found' });
+
+      const md = (source.metadata as any) || {};
+      const result = await classifyGovernanceCategory(String(source.content || ''));
+      if (!result) {
+        return res.json({ success: true, classified: false, data: source });
+      }
+
+      const userSelected = String(md.governance_category || '');
+      const reviewStatus = !userSelected || userSelected !== result.category ? 'mismatch' : 'confirmed';
+
+      const updated = await KnowledgeSourceService.update(sourceId, {
+        metadata: {
+          ...md,
+          ai_suggested_governance_category: result.category,
+          ai_category_confidence: result.confidence,
+          ai_category_reason: result.reason,
+          ai_suggested_match_action: result.suggested_match_action,
+          ai_category_model: result.model_used,
+          ai_category_checked_at: new Date().toISOString(),
+          category_review_status: reviewStatus,
+        },
+      });
+
+      // Evidence/audit: classification ran.
+      await KnowledgeReviewService.create({
+        source_id: sourceId,
+        reviewer_id: req.user?.id || 'system',
+        review_type: 'AI_GOVERNANCE_CLASSIFICATION',
+        decision: reviewStatus === 'confirmed' ? 'CONFIRMED' : 'MISMATCH',
+        comments: `AI (${result.model_used}) suggested ${result.category} @ ${result.confidence}% — ${result.reason}`,
+      }).catch(() => undefined);
+
+      res.json({ success: true, classified: true, data: updated, classification: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Admin / workspace owner resolves the governance-category check:
+  //   accept → adopt the AI suggestion as the selected category
+  //   keep   → keep the user's selection (reason recorded)
+  //   review → send the source to REVIEW_REQUIRED
+  // Each path clears the unresolved state (or moves it to review) and is audited.
+  static async decideGovernanceCategory(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const role = String(req.user?.role || '').toUpperCase();
+      const isAdmin = !!req.user?.is_superadmin || ['ADMIN', 'WORKSPACE_OWNER'].includes(role);
+
+      const sourceId = getParam(req, 'id');
+      const decision = String(req.body?.decision || '').toLowerCase();
+      const reason = String(req.body?.reason || '').trim();
+      if (!['accept', 'keep', 'review'].includes(decision)) {
+        return res.status(400).json({ success: false, error: "decision must be 'accept', 'keep', or 'review'." });
+      }
+      // 'keep' overrides a flagged mismatch to the user's looser choice — that is
+      // a privileged call (admin / workspace owner only). 'accept' (adopt the
+      // stricter AI suggestion) and 'review' (escalate to an admin) are available
+      // to source editors with write:content (enforced by the route guard).
+      if (decision === 'keep' && !isAdmin) {
+        return res.status(403).json({ success: false, error: 'Only an admin or workspace owner can keep a mismatched selection. Accept the AI suggestion or send it for review.' });
+      }
+
+      const source = await KnowledgeSourceService.getById(sourceId);
+      if (!source) return res.status(404).json({ success: false, error: 'Source not found' });
+      const md = (source.metadata as any) || {};
+      const aiCategory = String(md.ai_suggested_governance_category || '') as GovCategory | '';
+
+      let updated;
+      if (decision === 'accept') {
+        if (!aiCategory) return res.status(400).json({ success: false, error: 'No AI suggestion to accept.' });
+        updated = await KnowledgeSourceService.update(sourceId, {
+          metadata: { ...md, governance_category: aiCategory, category_review_status: 'confirmed', category_decision_reason: reason, category_decided_by: req.user?.email || req.user?.id, category_decided_at: new Date().toISOString() },
+        });
+      } else if (decision === 'keep') {
+        updated = await KnowledgeSourceService.update(sourceId, {
+          metadata: { ...md, category_review_status: 'confirmed', category_decision_reason: reason, category_decided_by: req.user?.email || req.user?.id, category_decided_at: new Date().toISOString() },
+        });
+      } else {
+        // review
+        await KnowledgeSourceService.updateStatus(sourceId, 'REVIEW_REQUIRED');
+        updated = await KnowledgeSourceService.update(sourceId, {
+          metadata: { ...md, category_review_status: 'review_required', category_decision_reason: reason, category_decided_by: req.user?.email || req.user?.id, category_decided_at: new Date().toISOString() },
+        });
+      }
+
+      await KnowledgeReviewService.create({
+        source_id: sourceId,
+        reviewer_id: req.user?.id || '',
+        review_type: 'GOVERNANCE_CATEGORY_DECISION',
+        decision: decision.toUpperCase(),
+        comments: reason || `Governance category decision: ${decision}.`,
+      }).catch(() => undefined);
+
       res.json({ success: true, data: updated });
     } catch (error) {
       next(error);

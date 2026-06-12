@@ -23,7 +23,7 @@ const PLATFORM_META: Record<string, { label: string; color: string; dot: string;
   facebook:  { label: "Facebook",  color: "text-blue-400",   dot: "bg-blue-500",   iconBg: "bg-blue-500/15" },
   instagram: { label: "Instagram", color: "text-pink-400",   dot: "bg-pink-500",   iconBg: "bg-pink-500/15" },
   linkedin:  { label: "LinkedIn",  color: "text-sky-400",    dot: "bg-sky-500",    iconBg: "bg-sky-500/15" },
-  pinterest: { label: "Pinterest", color: "text-rose-400",   dot: "bg-rose-500",   iconBg: "bg-rose-500/15" },
+  pinterest: { label: "Pinterest", color: "text-error-text",   dot: "bg-error-text",   iconBg: "bg-error-text/15" },
   youtube:   { label: "YouTube",   color: "text-red-400",    dot: "bg-red-500",    iconBg: "bg-red-500/15" },
   threads:   { label: "Threads",   color: "text-foreground-muted",   dot: "bg-zinc-400",   iconBg: "bg-zinc-500/15" },
   twitter:   { label: "Twitter/X", color: "text-foreground-muted",   dot: "bg-zinc-500",   iconBg: "bg-zinc-500/15" },
@@ -220,8 +220,8 @@ export default function AnalyticsPage() {
       value: campaigns?.total ?? "—",
       sub: campaigns ? `${campaigns.active} active` : null,
       icon: Layers,
-      iconBg: "bg-indigo-500/10",
-      iconColor: "text-indigo-400",
+      iconBg: "bg-info-bg",
+      iconColor: "text-info-text",
       trend: null,
     },
     {
@@ -229,8 +229,8 @@ export default function AnalyticsPage() {
       value: analytics?.throughput["30d"] ?? "—",
       sub: "agent runs",
       icon: BarChart3,
-      iconBg: "bg-purple-500/10",
-      iconColor: "text-purple-400",
+      iconBg: "bg-info-bg",
+      iconColor: "text-info-text",
       trend: "up" as const,
     },
     {
@@ -238,8 +238,8 @@ export default function AnalyticsPage() {
       value: analytics ? `${slaCompliance}%` : "—",
       sub: `${analytics?.sla_breach_rate.toFixed(1) ?? "—"}% breach rate`,
       icon: CheckCircle2,
-      iconBg: "bg-emerald-500/10",
-      iconColor: "text-emerald-400",
+      iconBg: "bg-success-bg",
+      iconColor: "text-success-text",
       trend: "up" as const,
     },
     {
@@ -247,8 +247,8 @@ export default function AnalyticsPage() {
       value: analytics ? `${analytics.evidence_completeness.toFixed(0)}%` : "—",
       sub: null,
       icon: ShieldCheck,
-      iconBg: "bg-blue-500/10",
-      iconColor: "text-blue-400",
+      iconBg: "bg-info-bg",
+      iconColor: "text-info-text",
       trend: "up" as const,
     },
   ];
@@ -279,7 +279,7 @@ export default function AnalyticsPage() {
                   <Icon className={`w-5 h-5 ${card.iconColor}`} />
                 </div>
                 {card.trend && !loading && (
-                  <span className="text-xs text-emerald-500 flex items-center gap-1">
+                  <span className="text-xs text-success-text flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
                   </span>
                 )}
@@ -307,7 +307,7 @@ export default function AnalyticsPage() {
           <div>
             {/* Section header */}
             <div className="flex items-center gap-2 mb-4">
-              <Globe className="w-4 h-4 text-indigo-400" />
+              <Globe className="w-4 h-4 text-info-text" />
               <h2 className="text-base font-semibold text-[var(--foreground)]">Platform Reach</h2>
               {!loading && (
                 <span className="text-xs text-[var(--foreground-muted)] bg-[var(--card)] border border-[var(--border)] px-2 py-0.5 rounded-full ml-1">
@@ -446,7 +446,7 @@ export default function AnalyticsPage() {
                                         )}
                                       </>
                                     ) : (
-                                      <span className="text-[10px] text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md whitespace-nowrap">
+                                      <span className="text-[10px] text-warning-text bg-warning-bg border border-warning-border px-2 py-0.5 rounded-md whitespace-nowrap">
                                         Reconnect
                                       </span>
                                     )}
@@ -494,7 +494,7 @@ export default function AnalyticsPage() {
             onClick={() => setPeriod(p.key)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
               period === p.key
-                ? "bg-indigo-600 text-foreground shadow-sm"
+                ? "bg-info-text text-foreground shadow-sm"
                 : "text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
             }`}
           >
@@ -562,12 +562,12 @@ export default function AnalyticsPage() {
                         return (
                           <tr
                             key={key}
-                            className={`hover:bg-[var(--surface)] transition-colors ${isSelected ? "bg-indigo-500/5" : ""}`}
+                            className={`hover:bg-[var(--surface)] transition-colors ${isSelected ? "bg-info-bg" : ""}`}
                           >
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
                                 {isSelected && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-info-text inline-block" />
                                 )}
                                 <span className={`font-medium ${isSelected ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)]"}`}>
                                   {label}
@@ -578,17 +578,17 @@ export default function AnalyticsPage() {
                               {runs}
                             </td>
                             <td className="px-4 py-4 text-right tabular-nums">
-                              <span className={failRate > 10 ? "text-rose-400 font-semibold" : "text-[var(--foreground-muted)]"}>
+                              <span className={failRate > 10 ? "text-error-text font-semibold" : "text-[var(--foreground-muted)]"}>
                                 {failRate.toFixed(1)}%
                               </span>
                             </td>
                             <td className="px-4 py-4 text-right tabular-nums">
-                              <span className={blockRate > 5 ? "text-amber-400 font-semibold" : "text-[var(--foreground-muted)]"}>
+                              <span className={blockRate > 5 ? "text-warning-text font-semibold" : "text-[var(--foreground-muted)]"}>
                                 {blockRate.toFixed(1)}%
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right tabular-nums">
-                              <span className="text-emerald-500 font-semibold">{success}%</span>
+                              <span className="text-success-text font-semibold">{success}%</span>
                             </td>
                           </tr>
                         );
@@ -601,7 +601,7 @@ export default function AnalyticsPage() {
           {/* Campaign Budget ROI */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-5">
-              <DollarSign className="w-4 h-4 text-emerald-400" />
+              <DollarSign className="w-4 h-4 text-success-text" />
               <h2 className="text-base font-semibold text-[var(--foreground)]">Campaign Budget ROI</h2>
             </div>
 
@@ -618,8 +618,8 @@ export default function AnalyticsPage() {
                 <div className="grid grid-cols-3 gap-4 mb-5">
                   {[
                     { label: "Budget Allocated", value: `$${campaigns.budget_allocated.toLocaleString()}`, color: "text-[var(--foreground)]" },
-                    { label: "Spend Recorded", value: `$${campaigns.spend_recorded.toLocaleString()}`, color: "text-indigo-400" },
-                    { label: "Remaining", value: `$${(campaigns.budget_allocated - campaigns.spend_recorded).toLocaleString()}`, color: "text-emerald-500" },
+                    { label: "Spend Recorded", value: `$${campaigns.spend_recorded.toLocaleString()}`, color: "text-info-text" },
+                    { label: "Remaining", value: `$${(campaigns.budget_allocated - campaigns.spend_recorded).toLocaleString()}`, color: "text-success-text" },
                   ].map((item) => (
                     <div key={item.label} className="bg-[var(--surface)] rounded-xl p-4">
                       <p className="text-xs text-[var(--foreground-muted)] mb-1">{item.label}</p>
@@ -634,17 +634,17 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="h-2.5 bg-[var(--surface)] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-500 rounded-full transition-all duration-700"
+                    className="h-full bg-info-text rounded-full transition-all duration-700"
                     style={{ width: `${spendPct}%` }}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-[var(--border)]">
                   {[
-                    { label: "Active Campaigns", value: campaigns.active, color: "text-emerald-500" },
-                    { label: "Pending Approval", value: campaigns.approval_pending, color: "text-amber-400" },
-                    { label: "Risk Flags", value: campaigns.risk_flags, color: "text-rose-400" },
-                    { label: "Needs Action", value: campaigns.needs_action, color: "text-orange-400" },
+                    { label: "Active Campaigns", value: campaigns.active, color: "text-success-text" },
+                    { label: "Pending Approval", value: campaigns.approval_pending, color: "text-warning-text" },
+                    { label: "Risk Flags", value: campaigns.risk_flags, color: "text-error-text" },
+                    { label: "Needs Action", value: campaigns.needs_action, color: "text-warning-text" },
                   ].map((item) => (
                     <div key={item.label} className="flex justify-between">
                       <span className="text-sm text-[var(--foreground-muted)]">{item.label}</span>
@@ -664,7 +664,7 @@ export default function AnalyticsPage() {
           {/* Compliance Score */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-5">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <ShieldCheck className="w-4 h-4 text-success-text" />
               <h2 className="text-base font-semibold text-[var(--foreground)]">Compliance ({period.toUpperCase()})</h2>
             </div>
 
@@ -674,25 +674,25 @@ export default function AnalyticsPage() {
                   label: "SLA Compliance",
                   value: analytics ? `${slaCompliance}%` : "—",
                   pct: analytics ? parseFloat(slaCompliance as string) : 0,
-                  color: parseFloat(slaCompliance as string) > 90 ? "bg-emerald-500" : "bg-amber-500",
+                  color: parseFloat(slaCompliance as string) > 90 ? "bg-success-text" : "bg-warning-text",
                 },
                 {
                   label: "Policy Pass Rate",
                   value: analytics ? `${policyPassRate}%` : "—",
                   pct: analytics ? parseFloat(policyPassRate as string) : 0,
-                  color: parseFloat(policyPassRate as string) > 90 ? "bg-emerald-500" : "bg-amber-500",
+                  color: parseFloat(policyPassRate as string) > 90 ? "bg-success-text" : "bg-warning-text",
                 },
                 {
                   label: "Run Success Rate",
                   value: analytics ? `${successRate}%` : "—",
                   pct: analytics ? parseFloat(successRate as string) : 0,
-                  color: parseFloat(successRate as string) > 90 ? "bg-emerald-500" : "bg-rose-500",
+                  color: parseFloat(successRate as string) > 90 ? "bg-success-text" : "bg-error-text",
                 },
                 {
                   label: "Evidence Complete",
                   value: analytics ? `${analytics.evidence_completeness.toFixed(0)}%` : "—",
                   pct: analytics?.evidence_completeness ?? 0,
-                  color: (analytics?.evidence_completeness ?? 0) > 80 ? "bg-blue-500" : "bg-amber-500",
+                  color: (analytics?.evidence_completeness ?? 0) > 80 ? "bg-info-text" : "bg-warning-text",
                 },
               ].map((metric) => (
                 <div key={metric.label}>
@@ -717,7 +717,7 @@ export default function AnalyticsPage() {
           {analytics && !loading && (
             <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <AlertTriangle className="w-4 h-4 text-warning-text" />
                 <h2 className="text-base font-semibold text-[var(--foreground)]">Incidents ({period.toUpperCase()})</h2>
               </div>
               <div className="space-y-3">
@@ -728,7 +728,7 @@ export default function AnalyticsPage() {
                       <span className="text-sm text-[var(--foreground-muted)] capitalize">{sev}</span>
                       <span className={`text-sm font-bold tabular-nums ${
                         count > 0
-                          ? sev === "critical" ? "text-rose-400" : sev === "high" ? "text-orange-400" : "text-[var(--foreground)]"
+                          ? sev === "critical" ? "text-error-text" : sev === "high" ? "text-warning-text" : "text-[var(--foreground)]"
                           : "text-[var(--foreground-muted)]"
                       }`}>
                         {count}
@@ -754,7 +754,7 @@ export default function AnalyticsPage() {
                     {analytics.active_runs.value}
                   </span>
                   {" "}
-                  <span className={`inline-flex items-center gap-0.5 ${analytics.active_runs.trend === "up" ? "text-emerald-500" : "text-rose-400"}`}>
+                  <span className={`inline-flex items-center gap-0.5 ${analytics.active_runs.trend === "up" ? "text-success-text" : "text-error-text"}`}>
                     {analytics.active_runs.trend === "up"
                       ? <TrendingUp className="w-3 h-3" />
                       : <TrendingDown className="w-3 h-3" />}

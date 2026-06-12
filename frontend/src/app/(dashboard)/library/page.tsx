@@ -148,7 +148,7 @@ export default function MediaLibraryPage() {
             placeholder="Search by title or creator..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl py-4 pl-12 pr-4 text-[var(--foreground)] focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
+            className="w-full bg-[var(--card)] border border-[var(--border)] rounded-2xl py-4 pl-12 pr-4 text-[var(--foreground)] focus:ring-2 focus:ring-info-text transition-all outline-none"
           />
         </div>
 
@@ -157,7 +157,7 @@ export default function MediaLibraryPage() {
             <button
               key={t}
               onClick={() => setFilter(t)}
-              className={`px-6 py-3 rounded-xl text-sm font-medium transition-all ${filter === t ? 'bg-indigo-600 text-foreground shadow-lg shadow-indigo-500/20' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
+              className={`px-6 py-3 rounded-xl text-sm font-medium transition-all ${filter === t ? 'bg-info-text text-foreground shadow-lg shadow-info-text/20' : 'text-[var(--foreground-muted)] hover:text-[var(--foreground)]'
                 }`}
             >
               {t.charAt(0).toUpperCase() + t.slice(1)}s
@@ -168,23 +168,23 @@ export default function MediaLibraryPage() {
 
       {/* Error state */}
       {error && (
-        <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm font-medium flex items-center gap-3">
+        <div className="mb-6 p-4 rounded-2xl bg-error-text/10 border border-error-border/20 text-error-text text-sm font-medium flex items-center gap-3">
           <span>⚠</span>
           <span>{error}</span>
-          <button onClick={fetchLibrary} className="ml-auto text-rose-300 hover:text-white underline text-xs">Retry</button>
+          <button onClick={fetchLibrary} className="ml-auto text-error-text hover:text-white underline text-xs">Retry</button>
         </div>
       )}
 
       {/* Gallery Grid */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+          <Loader2 className="w-12 h-12 text-info-text animate-spin" />
           <p className="text-[var(--foreground-muted)]">Loading your library...</p>
         </div>
       ) : assets.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {assets.map((asset) => (
-            <div key={asset.id} className="group relative bg-[var(--card)] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-indigo-500/50 transition-all hover:shadow-2xl hover:shadow-indigo-500/10">
+            <div key={asset.id} className="group relative bg-[var(--card)] border border-[var(--border)] rounded-3xl overflow-hidden hover:border-info-border/50 transition-all hover:shadow-2xl hover:shadow-info-text/10">
               {/* Media Preview — shows carousel thumbnail with pack badge */}
               <div className="aspect-square relative overflow-hidden bg-black">
                 {(() => {
@@ -215,7 +215,7 @@ export default function MediaLibraryPage() {
                       {(['ADMIN','WORKSPACE_OWNER'].includes(userRole ?? '') || currentUserId === asset.uploader_id) && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteAsset(asset.id, asset.title); }}
-                          className="absolute top-3 right-3 p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl backdrop-blur-md border border-rose-500/20 transition-all opacity-0 group-hover:opacity-100 z-10"
+                          className="absolute top-3 right-3 p-2 bg-error-text/10 hover:bg-error-text text-error-text hover:text-white rounded-xl backdrop-blur-md border border-error-border/20 transition-all opacity-0 group-hover:opacity-100 z-10"
                           title="Delete Asset"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -237,7 +237,7 @@ export default function MediaLibraryPage() {
                   {userRole !== 'VIEWER' && (
                     <button
                       onClick={() => handleUseAsset(asset)}
-                      className="w-full bg-white text-black py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-500 hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-300 delay-75"
+                      className="w-full bg-white text-black py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-info-text hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-300 delay-75"
                     >
                       <Send className="w-4 h-4" />
                       {['ADMIN', 'MANAGER', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'PUBLISHER'].includes(userRole ?? '')

@@ -122,7 +122,7 @@ type FieldErrors = Partial<Record<keyof WizardData, string>>;
 
 const inp   = "w-full bg-surface border rounded-xl px-4 py-2.5 text-foreground text-sm placeholder:text-foreground-muted focus:outline-none transition-all";
 const ok    = "border-border focus:border-white/30";
-const err   = "border-rose-500/60 focus:border-rose-500";
+const err   = "border-error-border/60 focus:border-error-border";
 const lbl   = "block text-[11px] font-semibold text-foreground-muted uppercase tracking-widest mb-1.5";
 const selChip = "bg-white text-zinc-900 border-white/20 font-semibold";
 const unChip  = "bg-surface border-border text-foreground-muted hover:border-border hover:text-foreground-muted";
@@ -230,7 +230,7 @@ export default function NewCampaignPage() {
 
   const fieldErr = (key: keyof WizardData) =>
     touched[key] && fieldErrors[key]
-      ? <p className="text-xs text-rose-400 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors[key]}</p>
+      ? <p className="text-xs text-error-text mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors[key]}</p>
       : null;
 
   const getStep3Required = (): (keyof WizardData)[] => {
@@ -450,7 +450,7 @@ export default function NewCampaignPage() {
 
               {/* Name */}
               <div>
-                <label className={lbl}>Campaign Name <span className="text-rose-400">*</span></label>
+                <label className={lbl}>Campaign Name <span className="text-error-text">*</span></label>
                 <input value={data.name} onChange={e => set("name", e.target.value)}
                   onBlur={e => touch("name", e.target.value)}
                   className={cls("name")} placeholder="e.g. Summer Sale 2026" />
@@ -476,7 +476,7 @@ export default function NewCampaignPage() {
 
               {/* Goal */}
               <div>
-                <label className={lbl}>Campaign Goal <span className="text-rose-400">*</span></label>
+                <label className={lbl}>Campaign Goal <span className="text-error-text">*</span></label>
                 <div className="space-y-2">
                   {GOALS.map(g => (
                     <button key={g.value} type="button" onClick={() => set("objective", g.value)}
@@ -501,7 +501,7 @@ export default function NewCampaignPage() {
                 {fieldErr("objective")}
                 {data.objective === "CONVERSIONS" && (
                   <>
-                    <div className="flex items-start gap-2 mt-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-400">
+                    <div className="flex items-start gap-2 mt-2 p-3 bg-warning-text/10 border border-warning-border/20 rounded-xl text-xs text-warning-text">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                       <span>Sales &amp; Conversions requires a Meta Pixel for full conversion optimization. Without a Pixel configured, the campaign will optimize for Landing Page Views instead.</span>
                     </div>
@@ -509,7 +509,7 @@ export default function NewCampaignPage() {
                     {/* ── Meta Pixel picker ── */}
                     <div className="mt-4 space-y-3">
                       <div>
-                        <label className={lbl}>Meta Pixel <span className="text-rose-400">*</span></label>
+                        <label className={lbl}>Meta Pixel <span className="text-error-text">*</span></label>
                         {pixelsLoading ? (
                           <div className="text-xs text-foreground-muted py-2">Loading pixels…</div>
                         ) : pixels.length === 0 ? (
@@ -570,7 +570,7 @@ export default function NewCampaignPage() {
 
               {/* Budget */}
               <div>
-                <label className={lbl}>Total Budget <span className="text-rose-400">*</span></label>
+                <label className={lbl}>Total Budget <span className="text-error-text">*</span></label>
                 <div className="flex gap-2">
                   <select value={data.budget_currency} onChange={e => set("budget_currency", e.target.value)}
                     className={`${inp} ${ok} w-24`}>
@@ -583,7 +583,7 @@ export default function NewCampaignPage() {
                 </div>
                 {fieldErr("budget_total")}
                 {needsTwoApprovals && (
-                  <div className="flex items-center gap-2 mt-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-400">
+                  <div className="flex items-center gap-2 mt-2 p-3 bg-warning-text/10 border border-warning-border/20 rounded-xl text-xs text-warning-text">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                     Budgets of $500+ require <strong className="mx-0.5">2 approvals</strong> before launch
                   </div>
@@ -593,7 +593,7 @@ export default function NewCampaignPage() {
               {/* Dates */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={lbl}>Start Date <span className="text-rose-400">*</span></label>
+                  <label className={lbl}>Start Date <span className="text-error-text">*</span></label>
                   <input type="date" value={data.start_at}
                     onChange={e => set("start_at", e.target.value)}
                     onBlur={e => touch("start_at", e.target.value)}
@@ -601,7 +601,7 @@ export default function NewCampaignPage() {
                   {fieldErr("start_at")}
                 </div>
                 <div>
-                  <label className={lbl}>End Date <span className="text-rose-400">*</span></label>
+                  <label className={lbl}>End Date <span className="text-error-text">*</span></label>
                   <input type="date" value={data.end_at}
                     onChange={e => set("end_at", e.target.value)}
                     onBlur={e => touch("end_at", e.target.value)}
@@ -695,7 +695,7 @@ export default function NewCampaignPage() {
               {/* Landing URL — not needed for lead ads or awareness/engagement */}
               {data.meta_ad_type !== "lead_ad" && data.objective !== "AWARENESS" && data.objective !== "ENGAGEMENT" && (
                 <div>
-                  <label className={lbl}>Landing Page URL <span className="text-rose-400">*</span></label>
+                  <label className={lbl}>Landing Page URL <span className="text-error-text">*</span></label>
                   <input type="url" value={data.landing_page_url}
                     onChange={e => set("landing_page_url", e.target.value)}
                     onBlur={e => touch("landing_page_url", e.target.value)}
@@ -706,7 +706,7 @@ export default function NewCampaignPage() {
 
               {/* Headline */}
               <div>
-                <label className={lbl}>Headline <span className="text-rose-400">*</span></label>
+                <label className={lbl}>Headline <span className="text-error-text">*</span></label>
                 <input value={data.headline}
                   onChange={e => set("headline", e.target.value)}
                   onBlur={e => touch("headline", e.target.value)}
@@ -753,7 +753,7 @@ export default function NewCampaignPage() {
                         value={data.ad_image_url} onChange={url => set("ad_image_url", url)} />
                       {!data.ad_image_url && (
                         <button type="button" onClick={() => setVaultPicker({ slot: "meta-image", hint: "Pick an image for the Meta ad" })}
-                          className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                          className="mt-1.5 text-[11px] text-info-text hover:text-info-text transition-colors">
                           or browse Media Vault →
                         </button>
                       )}
@@ -797,15 +797,15 @@ export default function NewCampaignPage() {
               </div>
 
               {submitError && (
-                <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-xl flex items-start gap-3">
-                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-rose-300">{submitError}</p>
+                <div className="p-4 bg-error-text/5 border border-error-border/20 rounded-xl flex items-start gap-3">
+                  <AlertCircle className="w-4 h-4 text-error-text shrink-0 mt-0.5" />
+                  <p className="text-xs text-error-text">{submitError}</p>
                 </div>
               )}
               {submitWarnings.length > 0 && (
-                <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-1.5">
-                  <p className="text-xs font-semibold text-amber-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />Published with notices — redirecting to campaign…</p>
-                  {submitWarnings.map((w, i) => <p key={i} className="text-xs text-amber-300 pl-5">{w}</p>)}
+                <div className="p-4 bg-warning-text/5 border border-warning-border/20 rounded-xl space-y-1.5">
+                  <p className="text-xs font-semibold text-warning-text flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />Published with notices — redirecting to campaign…</p>
+                  {submitWarnings.map((w, i) => <p key={i} className="text-xs text-warning-text pl-5">{w}</p>)}
                 </div>
               )}
 
@@ -821,7 +821,7 @@ export default function NewCampaignPage() {
                   <ReviewRow label="Budget"   value={data.budget_total ? `${data.budget_currency} ${parseFloat(data.budget_total).toLocaleString()}` : "—"} missing={!data.budget_total} />
                   <ReviewRow label="Duration" value={data.start_at && data.end_at ? `${data.start_at} → ${data.end_at}` : "—"} missing={!data.start_at || !data.end_at} />
                   {needsTwoApprovals && (
-                    <div className="flex items-center gap-2 text-xs text-amber-400 mt-1">
+                    <div className="flex items-center gap-2 text-xs text-warning-text mt-1">
                       <AlertCircle className="w-3 h-3" />This budget requires 2 approvals
                     </div>
                   )}
@@ -947,7 +947,7 @@ function WizardImageUpload({ label, hint, value, onChange }: {
       )}
       <input ref={inputRef} type="file" accept="image/*" className="hidden"
         onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-      {uploadErr && <p className="text-[11px] text-rose-400 mt-1">{uploadErr}</p>}
+      {uploadErr && <p className="text-[11px] text-error-text mt-1">{uploadErr}</p>}
     </div>
   );
 }
@@ -967,7 +967,7 @@ function ReviewRow({ label, value, missing }: { label: string; value: string; mi
   return (
     <div className="flex items-start justify-between gap-4">
       <span className="text-xs text-foreground-muted shrink-0">{label}</span>
-      <span className={`text-xs text-right ${missing ? "text-amber-400 flex items-center gap-1" : "text-foreground-muted"}`}>
+      <span className={`text-xs text-right ${missing ? "text-warning-text flex items-center gap-1" : "text-foreground-muted"}`}>
         {missing && <AlertCircle className="w-3 h-3 shrink-0" />}{value}
       </span>
     </div>

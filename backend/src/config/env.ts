@@ -10,6 +10,9 @@ const envSchema = z.object({
   SUPABASE_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   GROQ_API_KEY: z.string().optional(),
+  // Optional Gemini fallback for AI classification (used only if Groq is
+  // unavailable). Classification degrades gracefully when neither is set.
+  GEMINI_API_KEY: z.string().optional(),
   // Phase 6 — Optional real model validation flag.
   // Default 'false': server starts normally without GROQ_API_KEY, Phase 6
   // real adversarial + cross-model evaluation short-circuit to a clear

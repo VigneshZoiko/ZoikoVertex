@@ -16,9 +16,9 @@ interface SimulationData {
 }
 
 const RESULT_STYLES: Record<string, string> = {
-  pass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  warning: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  block: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+  pass: 'bg-success-text/10 text-success-text border-success-border/20',
+  warning: 'bg-warning-text/10 text-warning-text border-warning-border/20',
+  block: 'bg-error-text/10 text-error-text border-error-border/20',
   escalation: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
   missing_dependency: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
   failed_integration: 'bg-red-500/10 text-red-400 border-red-500/20',
@@ -77,7 +77,7 @@ export default function SimulationPanel({ versionId }: { versionId: string | nul
           {running ? 'Running…' : 'Run Simulation'}
         </button>
       </div>
-      {error && <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{error}</div>}
+      {error && <div className="flex items-start gap-2 p-3 rounded-xl bg-error-text/10 border border-error-border/20 text-error-text text-xs"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{error}</div>}
       {loading && <div className="p-6 text-center text-xs text-[var(--text-muted)]"><Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" />Loading simulations…</div>}
       {!loading && !latest && <div className="p-4 rounded-xl border border-[var(--border)] text-center text-xs text-[var(--text-muted)]">No simulations yet. Click &quot;Run Simulation&quot; to start.</div>}
       {!loading && latest && (
@@ -88,13 +88,13 @@ export default function SimulationPanel({ versionId }: { versionId: string | nul
             {latest.evidence_ref && <span className="ml-auto font-mono text-[10px] opacity-60">ev:{latest.evidence_ref}</span>}
           </div>
           {latest.blocks.length > 0 && <Section title="Blocks" color="rose">
-            {latest.blocks.map((b, i) => <Item key={i} icon={<XCircle className="w-3.5 h-3.5 text-rose-400" />} label={b.message} sub={b.type} />)}
+            {latest.blocks.map((b, i) => <Item key={i} icon={<XCircle className="w-3.5 h-3.5 text-error-text" />} label={b.message} sub={b.type} />)}
           </Section>}
           {latest.warnings.length > 0 && <Section title="Warnings" color="amber">
-            {latest.warnings.map((w, i) => <Item key={i} icon={<AlertTriangle className="w-3.5 h-3.5 text-amber-400" />} label={w.message} sub={w.step_name} />)}
+            {latest.warnings.map((w, i) => <Item key={i} icon={<AlertTriangle className="w-3.5 h-3.5 text-warning-text" />} label={w.message} sub={w.step_name} />)}
           </Section>}
           {latest.failed_steps.length > 0 && <Section title="Failed Steps" color="rose">
-            {latest.failed_steps.map((f, i) => <Item key={i} icon={<XCircle className="w-3.5 h-3.5 text-rose-400" />} label={`${f.step_name} (${f.step_type})`} sub={f.reason} />)}
+            {latest.failed_steps.map((f, i) => <Item key={i} icon={<XCircle className="w-3.5 h-3.5 text-error-text" />} label={`${f.step_name} (${f.step_type})`} sub={f.reason} />)}
           </Section>}
           {latest.missing_dependencies.length > 0 && <Section title="Missing Dependencies" color="orange">
             {latest.missing_dependencies.map((m, i) => <Item key={i} icon={<AlertCircle className="w-3.5 h-3.5 text-orange-400" />} label={`${m.dependency_type}: ${m.dependency_name}`} sub={`Impact: ${m.impact}`} />)}
@@ -102,9 +102,9 @@ export default function SimulationPanel({ versionId }: { versionId: string | nul
           {latest.policy_results.length > 0 && <Section title="Policy Check Results" color="indigo">
             {latest.policy_results.map((p, i) => (
               <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)]/20">
-                <span className={`w-2 h-2 rounded-full ${p.status === 'passed' ? 'bg-emerald-400' : p.status === 'failed' ? 'bg-rose-400' : 'bg-amber-400'}`} />
+                <span className={`w-2 h-2 rounded-full ${p.status === 'passed' ? 'bg-success-text' : p.status === 'failed' ? 'bg-error-text' : 'bg-warning-text'}`} />
                 <span className="flex-1 text-xs text-[var(--text-primary)]">{p.policy_check}</span>
-                <span className={`text-[10px] font-bold uppercase ${p.status === 'passed' ? 'text-emerald-400' : p.status === 'failed' ? 'text-rose-400' : 'text-amber-400'}`}>{p.status}</span>
+                <span className={`text-[10px] font-bold uppercase ${p.status === 'passed' ? 'text-success-text' : p.status === 'failed' ? 'text-error-text' : 'text-warning-text'}`}>{p.status}</span>
               </div>
             ))}
           </Section>}
@@ -114,7 +114,7 @@ export default function SimulationPanel({ versionId }: { versionId: string | nul
                 <HealthDot health={d.health} />
                 <span className="flex-1 text-xs text-[var(--text-primary)]">{d.dependency_name || d.dependency_id_ref}</span>
                 <span className="text-[10px] text-[var(--text-muted)]">{d.health}</span>
-                {d.blocking && <XCircle className="w-3 h-3 text-rose-400" />}
+                {d.blocking && <XCircle className="w-3 h-3 text-error-text" />}
               </div>
             ))}
           </Section>}
@@ -147,6 +147,6 @@ function Item({ icon, label, sub }: { icon: React.ReactNode; label: string; sub?
 }
 
 function HealthDot({ health }: { health: string }) {
-  const colors: Record<string, string> = { healthy: 'bg-emerald-400', stale: 'bg-amber-400', paused: 'bg-blue-400', missing: 'bg-gray-400', deprecated: 'bg-purple-400', critical_failure: 'bg-rose-400' };
+  const colors: Record<string, string> = { healthy: 'bg-success-text', stale: 'bg-warning-text', paused: 'bg-blue-400', missing: 'bg-gray-400', deprecated: 'bg-purple-400', critical_failure: 'bg-error-text' };
   return <span className={`w-2 h-2 rounded-full shrink-0 ${colors[health] || 'bg-gray-500'}`} />;
 }

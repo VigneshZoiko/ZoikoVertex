@@ -129,14 +129,7 @@ const NAV_GROUPS: NavGroup[] = [
       // "Operations Feed" (/operations) was a duplicate of the Agent Operations
       // control room (see "Agent Operations" entry -> /agents/operations).
       // Consolidated to a single canonical page; /operations now redirects there.
-      {
-        name: "Insights & ROI",
-        href: "/analytics",
-        icon: TrendingUp,
-        // Analytics access: managers, auditors, compliance, publishers
-        roles: ["ADMIN","WORKSPACE_OWNER","CAMPAIGN_MANAGER","AUDITOR","COMPLIANCE_REVIEWER","PUBLISHER"],
-      },
-      {
+{
         name: "Resource Monitoring",
         href: "/resources",
         icon: Cpu,
@@ -764,17 +757,17 @@ export default function Sidebar() {
                       const badges = (
                         <>
                           {item.badge && pendingCount > 0 && (
-                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-black text-foreground shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-[var(--accent)] text-[10px] font-black text-[#080E1A] shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
                               {pendingCount}
                             </span>
                           )}
                           {item.name === "Support Queue" && supportTicketCount > 0 && (
-                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-foreground shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-[var(--error-text)] text-[10px] font-black text-white shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
                               {supportTicketCount > 9 ? "9+" : supportTicketCount}
                             </span>
                           )}
                           {item.name === "Notifications" && unreadCount > 0 && (
-                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-foreground shrink-0 animate-pulse transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full bg-[var(--error-text)] text-[10px] font-black text-white shrink-0 animate-pulse transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[20px]"}`}>
                               {unreadCount > 9 ? "9+" : unreadCount}
                             </span>
                           )}
@@ -807,17 +800,17 @@ export default function Sidebar() {
                           onClick={(e) => handleNavClick(e, item.href)}
                           className={`flex items-center px-3 py-2 rounded-lg transition-colors group ${
                             isActive
-                              ? "bg-[var(--sidebar-active)] text-indigo-400 font-medium"
+                              ? "bg-[var(--sidebar-active)] text-[var(--accent)] font-medium"
                               : "text-[var(--sidebar-text-muted)] hover:text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)]"
                           }`}
                         >
-                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-indigo-400" : "text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)]"}`} />
+                          <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-[var(--accent)]" : "text-[var(--sidebar-text-muted)] group-hover:text-[var(--sidebar-text)]"}`} />
                           <span className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-300 ease-in-out text-sm flex-1 ${isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[140px] opacity-100 ml-3"}`}>
                             {item.name}
                           </span>
                           {badges}
                           {item.dirty && isDirty && (
-                            <span className={`w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[8px] ml-auto"}`} />
+                            <span className={`w-2 h-2 rounded-full bg-[var(--warning-text)] animate-pulse shrink-0 transition-[opacity,max-width] duration-300 ${isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[8px] ml-auto"}`} />
                           )}
                         </Link>
                       );
@@ -836,14 +829,14 @@ export default function Sidebar() {
               href="/profile"
               onClick={(e) => handleNavClick(e, "/profile")}
               title={isCollapsed ? "Settings & Profile" : undefined}
-              className="w-10 h-10 flex items-center justify-center bg-[var(--surface)] text-[var(--sidebar-text-muted)] hover:text-indigo-400 hover:bg-[var(--sidebar-hover)] border border-[var(--sidebar-border)] rounded-full transition-all shadow-sm group shrink-0"
+              className="w-10 h-10 flex items-center justify-center bg-[var(--surface)] text-[var(--sidebar-text-muted)] hover:text-[var(--accent)] hover:bg-[var(--sidebar-hover)] border border-[var(--sidebar-border)] rounded-full transition-all shadow-sm group shrink-0"
             >
               <Settings className="w-4 h-4 transition-transform duration-500 group-hover:rotate-90" />
             </Link>
             <button
               onClick={handleLogout}
               title={isCollapsed ? "Log out" : undefined}
-              className={`overflow-hidden flex items-center justify-center h-10 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all font-semibold text-sm group ${isCollapsed ? "w-0 opacity-0 px-0" : "flex-1 px-4 opacity-100"}`}
+              className={`overflow-hidden flex items-center justify-center h-10 bg-[var(--error-bg)] text-[var(--error-text)] hover:bg-[var(--error-text)] hover:text-white rounded-xl transition-all font-semibold text-sm group ${isCollapsed ? "w-0 opacity-0 px-0" : "flex-1 px-4 opacity-100"}`}
               style={{ transition: "width 300ms ease-in-out, opacity 300ms ease-in-out, padding 300ms ease-in-out, flex 300ms ease-in-out" }}
             >
               <LogOut className="w-4 h-4 shrink-0" />
@@ -856,7 +849,7 @@ export default function Sidebar() {
               <button
                 onClick={handleLogout}
                 title="Log out"
-                className="w-10 h-10 flex items-center justify-center bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-full transition-all shrink-0"
+                className="w-10 h-10 flex items-center justify-center bg-[var(--error-bg)] text-[var(--error-text)] hover:bg-[var(--error-text)] hover:text-white rounded-full transition-all shrink-0"
                 style={{ transition: "opacity 300ms ease-in-out" }}
               >
                 <LogOut className="w-4 h-4" />

@@ -33,7 +33,6 @@ interface SearchItem {
 const allRoutes: SearchItem[] = [
   // Overview
   { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="w-4 h-4" />, keywords: "home overview main" },
-  { label: "Analytics", href: "/analytics", icon: <BarChart3 className="w-4 h-4" />, keywords: "charts metrics stats reports" },
   { label: "Operations", href: "/agents/operations", icon: <Settings className="w-4 h-4" />, keywords: "manage control" },
 
   // Publishing
@@ -89,7 +88,6 @@ const allRoutes: SearchItem[] = [
   { label: "Notifications", href: "/admin/notifications", icon: <FileText className="w-4 h-4" />, keywords: "alerts email preferences configure" },
   { label: "System Status", href: "/admin/status", icon: <BarChart3 className="w-4 h-4" />, keywords: "health uptime performance monitoring" },
   { label: "Security Center", href: "/admin/security", icon: <Shield className="w-4 h-4" />, keywords: "password 2fa mfa audit login" },
-  { label: "Crisis Management", href: "/admin/crisis", icon: <Shield className="w-4 h-4" />, keywords: "emergency incident response critical" },
 
   // SuperAdmin
   { label: "SuperAdmin", href: "/superadmin", icon: <Shield className="w-4 h-4" />, keywords: "admin console master" },
@@ -228,7 +226,7 @@ export default function Header() {
       <div className="flex-1 flex justify-center" ref={containerRef}>
         <div className="relative w-full max-w-md">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="w-4 h-4 text-[var(--foreground-muted)] group-focus-within:text-indigo-400 transition-colors" />
+            <Search className="w-4 h-4 text-[var(--foreground-muted)] group-focus-within:text-[var(--accent)] transition-colors" />
           </div>
           <input
             ref={inputRef}
@@ -239,7 +237,7 @@ export default function Header() {
             onChange={(e) => { setQuery(e.target.value); setOpen(true); setSelectedIdx(0); }}
             onFocus={() => setOpen(true)}
             onKeyDown={onKeyDown}
-            className="block w-full pl-10 pr-12 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+            className="block w-full pl-10 pr-12 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all shadow-sm"
           />
           <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
             <kbd className="hidden sm:inline-block border border-[var(--border)] rounded bg-[var(--background)] px-1.5 text-[10px] font-mono text-[var(--foreground-muted)] font-bold shadow-sm">
@@ -358,7 +356,7 @@ export default function Header() {
       {/* Right-side utilities */}
       <div className="flex-1 flex items-center justify-end gap-3">
         {isSuperAdmin && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-full text-[10px] font-bold text-indigo-500 uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[var(--info-bg)] border-[var(--info-border)] rounded-full text-[10px] font-bold text-[var(--info-text)] uppercase tracking-wider">
             <ShieldCheck className="w-3 h-3" />
             SuperAdmin
           </div>
@@ -373,14 +371,14 @@ export default function Header() {
           className="flex items-center pl-4 border-l border-[var(--border)] hover:opacity-80 transition-opacity group"
         >
           <div className="text-right mr-3 hidden md:block">
-            <p className="text-sm font-bold text-[var(--foreground)] group-hover:text-indigo-400 transition-colors">
+            <p className="text-sm font-bold text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">
               {fullName || "User Profile"}
             </p>
             <p className="text-[10px] text-[var(--foreground-muted)] font-black uppercase tracking-wider">
               {formatRole(role || (isSuperAdmin ? 'SUPERADMIN' : ''))}-{orgName || 'ZoikoGroup'}
             </p>
           </div>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 shrink-0 border-2 border-transparent group-hover:border-indigo-500/50 transition-all overflow-hidden shadow-lg flex items-center justify-center text-xs text-foreground font-bold uppercase">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[var(--accent)] to-[color-mix(in_srgb,var(--accent),black_60%)] shrink-0 border-2 border-transparent group-hover:border-[var(--accent)]/50 transition-all overflow-hidden shadow-lg flex items-center justify-center text-xs text-foreground font-bold uppercase">
             {fullName ? fullName.split(' ').map(n => n[0]).join('') : "U"}
           </div>
         </Link>

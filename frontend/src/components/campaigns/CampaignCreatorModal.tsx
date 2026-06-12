@@ -258,7 +258,7 @@ function MetaPickerModal({
             </div>
           ) : fetchErr ? (
             <div className="p-6 text-center space-y-2">
-              <p className="text-sm text-rose-400">{fetchErr}</p>
+              <p className="text-sm text-error-text">{fetchErr}</p>
               <p className="text-xs text-foreground-muted">Token may be expired. Reconnect from Platform Accounts.</p>
             </div>
           ) : (
@@ -304,7 +304,7 @@ function MetaPickerModal({
                         {/* Warning row — shown but doesn't block selection */}
                         {hasIssue && (
                           <div className="px-6 pb-3 pl-[60px] space-y-1">
-                            <div className="flex items-center gap-1.5 text-[11px] text-amber-400">
+                            <div className="flex items-center gap-1.5 text-[11px] text-warning-text">
                               <svg viewBox="0 0 20 20" className="w-3.5 h-3.5 shrink-0" fill="currentColor">
                                 <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/>
                               </svg>
@@ -1058,7 +1058,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
               return (
                 <div key={s.num}
                   className={`px-4 py-3 border-l-2 transition-colors ${
-                    current ? "border-amber-500 bg-amber-500/5" :
+                    current ? "border-warning-border bg-warning-text/5" :
                     done    ? "border-border cursor-pointer hover:bg-surface-hover" :
                               "border-transparent opacity-40"
                   }`}
@@ -1066,7 +1066,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                      current ? "bg-amber-500 text-zinc-900" :
+                      current ? "bg-warning-text text-zinc-900" :
                       done    ? "bg-zinc-600 text-foreground" : "bg-surface-hover text-foreground-muted"
                     }`}>{s.num}</div>
                     <p className={`text-xs font-bold ${current ? "text-foreground" : "text-foreground-muted"}`}>{s.label}</p>
@@ -1094,8 +1094,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
 
                   {adAccounts.length === 0 ? (
                     /* No Facebook accounts connected at all */
-                    <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-2">
-                      <p className="text-sm font-semibold text-amber-400">No Facebook accounts connected</p>
+                    <div className="p-4 bg-warning-text/5 border border-warning-border/20 rounded-xl space-y-2">
+                      <p className="text-sm font-semibold text-warning-text">No Facebook accounts connected</p>
                       <p className="text-xs text-foreground-muted">Connect a Facebook account first to run ad campaigns.</p>
                       <a href="/accounts" target="_blank"
                         className="inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 bg-[#1877F2] hover:bg-[#1877F2]/90 text-foreground text-xs font-semibold rounded-lg transition-colors">
@@ -1145,12 +1145,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                 <div className="flex items-center gap-2">
                                   <p className="text-[11px] text-foreground-muted w-20 shrink-0">Ad Account</p>
                                   {hasAdAccount ? (
-                                    <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                    <span className="flex items-center gap-1 text-[11px] text-success-text font-medium">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-success-text shrink-0" />
                                       {sel!.ad_account_id}
                                     </span>
                                   ) : (
-                                    <span className="text-[11px] text-amber-400">Not linked — click &quot;Select accounts&quot;</span>
+                                    <span className="text-[11px] text-warning-text">Not linked — click &quot;Select accounts&quot;</span>
                                   )}
                                 </div>
                               </div>
@@ -1163,7 +1163,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                 <div className="px-4 py-2.5 flex items-center gap-4 bg-card border-t border-border/60">
                                   <div>
                                     <p className="text-[10px] text-foreground-muted uppercase tracking-wider mb-0.5">Account Balance</p>
-                                    <p className={`text-xs font-bold ${metaBalance.balance !== null ? "text-emerald-400" : "text-foreground-muted"}`}>
+                                    <p className={`text-xs font-bold ${metaBalance.balance !== null ? "text-success-text" : "text-foreground-muted"}`}>
                                       {metaBalance.balance !== null
                                         ? `${metaBalance.currency} ${parseFloat(metaBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                                         : "—"}
@@ -1199,10 +1199,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                     </>
                   )}
                   {fieldErrors.selectedAcc && (
-                    <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.selectedAcc}</p>
+                    <p className="text-[11px] text-error-text mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.selectedAcc}</p>
                   )}
                   {fieldErrors.selectedPage && (
-                    <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.selectedPage}</p>
+                    <p className="text-[11px] text-error-text mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.selectedPage}</p>
                   )}
                 </div>
 
@@ -1211,10 +1211,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                     <input
                       value={campName}
                       onChange={e => { setCampName(e.target.value); clearErr("campName"); }}
-                      className={inp + (fieldErrors.campName ? " border-rose-500" : "")}
+                      className={inp + (fieldErrors.campName ? " border-error-border" : "")}
                       placeholder="New campaign"
                     />
-                    {fieldErrors.campName && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.campName}</p>}
+                    {fieldErrors.campName && <p className="text-[11px] text-error-text mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.campName}</p>}
                   </Field>
                 </div>
 
@@ -1322,9 +1322,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                   setOptimize(OPTIMIZE_OPTIONS[key]?.[0]?.value || "");
                                 }}
                                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                                  engType === et.value ? "bg-amber-500/10 text-foreground" : "hover:bg-surface-hover text-foreground-muted"
+                                  engType === et.value ? "bg-warning-text/10 text-foreground" : "hover:bg-surface-hover text-foreground-muted"
                                 }`}>
-                                {engType === et.value && <span className="text-amber-400 text-xs">✓</span>}
+                                {engType === et.value && <span className="text-warning-text text-xs">✓</span>}
                                 {engType !== et.value && <span className="w-3" />}
                                 <span className="text-sm font-medium">{et.label}</span>
                               </button>
@@ -1355,12 +1355,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                             <button key={o.value} type="button"
                               onClick={() => { setOptimize(o.value); setOptimizeOpen(false); }}
                               className={`w-full flex items-start gap-3 px-4 py-3.5 text-left transition-colors border-b border-border last:border-0 ${
-                                optimize === o.value ? "bg-amber-500/10" : "hover:bg-surface-hover"
+                                optimize === o.value ? "bg-warning-text/10" : "hover:bg-surface-hover"
                               }`}>
                               <div className="mt-0.5 shrink-0">
                                 {optimize === o.value ? (
-                                  <div className="w-4 h-4 rounded-full border-2 border-amber-400 flex items-center justify-center">
-                                    <div className="w-2 h-2 rounded-full bg-amber-400" />
+                                  <div className="w-4 h-4 rounded-full border-2 border-warning-border flex items-center justify-center">
+                                    <div className="w-2 h-2 rounded-full bg-warning-text" />
                                   </div>
                                 ) : (
                                   <div className="w-4 h-4 rounded-full border-2 border-border" />
@@ -1467,8 +1467,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden">
                           {/* Build your own — selected option */}
                           <button type="button" onClick={() => setAudDropOpen(false)}
-                            className="w-full flex items-start gap-3 px-4 py-3.5 text-left bg-amber-500/5 border-b border-border hover:bg-amber-500/10 transition-colors">
-                            <span className="text-amber-400 text-xs mt-0.5 shrink-0">✓</span>
+                            className="w-full flex items-start gap-3 px-4 py-3.5 text-left bg-warning-text/5 border-b border-border hover:bg-warning-text/10 transition-colors">
+                            <span className="text-warning-text text-xs mt-0.5 shrink-0">✓</span>
                             <div>
                               <p className="text-sm font-bold text-foreground">Build your own audience</p>
                               <p className="text-[11px] text-foreground-muted mt-0.5 leading-relaxed">Choose who you want to see your ad based on targeting settings including their location, age, interests, and others.</p>
@@ -1505,7 +1505,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                     <p className="text-xs text-foreground-muted">Location: {(() => { try { return (JSON.parse(location) as {display_name:string}[]).map(l => l.display_name).join(", "); } catch { return location || "—"; } })()}</p>
                     {interests.length > 0 && <p className="text-xs text-foreground-muted">Interests: {interests.map(i => i.name).join(", ")}</p>}
                     {excludeLocations.length > 0 && (
-                      <p className="text-xs text-rose-400 flex items-start gap-1">
+                      <p className="text-xs text-error-text flex items-start gap-1">
                         <span className="shrink-0">Excluded:</span>
                         <span>{excludeLocations.map(l => l.display_name).join(", ")}</span>
                       </p>
@@ -1561,7 +1561,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                   <span key={l.key} className="flex items-center gap-1 text-xs bg-surface-hover border border-border rounded px-2 py-1 text-foreground-muted">
                                     <span className="w-2 h-2 rounded-full bg-zinc-500 inline-block" />
                                     {l.display_name}
-                                    <button onClick={() => setTmpLoc(tmpLoc.filter(x => x.key !== l.key))} className="text-foreground-muted hover:text-rose-400 ml-0.5">
+                                    <button onClick={() => setTmpLoc(tmpLoc.filter(x => x.key !== l.key))} className="text-foreground-muted hover:text-error-text ml-0.5">
                                       <X className="w-3 h-3" />
                                     </button>
                                   </span>
@@ -1609,10 +1609,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                 <div className="border border-border rounded-lg p-2 bg-surface">
                                   <div className="flex flex-wrap gap-1.5 mb-2">
                                     {tmpExcLocItems.map(l => (
-                                      <span key={l.key} className="flex items-center gap-1 text-xs bg-rose-500/10 border border-rose-500/30 rounded px-2 py-1 text-rose-300">
-                                        <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />
+                                      <span key={l.key} className="flex items-center gap-1 text-xs bg-error-text/10 border border-error-border/30 rounded px-2 py-1 text-error-text">
+                                        <span className="w-2 h-2 rounded-full bg-error-text inline-block" />
                                         {l.display_name}
-                                        <button onClick={() => setTmpExcLocItems(tmpExcLocItems.filter(x => x.key !== l.key))} className="text-rose-400 hover:text-rose-200 ml-0.5">
+                                        <button onClick={() => setTmpExcLocItems(tmpExcLocItems.filter(x => x.key !== l.key))} className="text-error-text hover:text-error-text ml-0.5">
                                           <X className="w-3 h-3" />
                                         </button>
                                       </span>
@@ -1636,7 +1636,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                                 }
                                                 setExLocInput(""); setExLocResults([]);
                                               }}
-                                              className="w-full text-left px-3 py-2 text-sm text-rose-200 hover:bg-surface-hover transition-colors border-b border-border/50 last:border-0">
+                                              className="w-full text-left px-3 py-2 text-sm text-error-text hover:bg-surface-hover transition-colors border-b border-border/50 last:border-0">
                                               {l.display_name}
                                             </button>
                                           ))}
@@ -1655,7 +1655,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <p className="text-sm font-bold text-foreground">Gender</p>
-                              {specialCat && specialCatType && <span className="text-[10px] text-amber-400 font-semibold">Locked by special category</span>}
+                              {specialCat && specialCatType && <span className="text-[10px] text-warning-text font-semibold">Locked by special category</span>}
                             </div>
                             <div className={`flex gap-0 border rounded-lg overflow-hidden w-fit ${specialCat && specialCatType ? "border-border opacity-50 pointer-events-none" : "border-border"}`}>
                               {["ALL","FEMALE","MALE"].map((g, i) => (
@@ -1676,7 +1676,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <p className="text-sm font-bold text-foreground">Age</p>
-                              {specialCat && specialCatType && <span className="text-[10px] text-amber-400 font-semibold">Locked: 18–65+ by special category</span>}
+                              {specialCat && specialCatType && <span className="text-[10px] text-warning-text font-semibold">Locked: 18–65+ by special category</span>}
                             </div>
                             <p className="text-xs text-foreground-muted">Select the minimum and maximum age for people who will see your ad.<br/>Note: the minimum age is 13, and the maximum age is 65 and over.</p>
                             <div className="flex items-center gap-3">
@@ -1723,7 +1723,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                                 {tmpInt.map(t => (
                                   <span key={t.id} className="flex items-center gap-1 text-xs bg-surface-hover border border-border rounded px-2 py-1 text-foreground-muted">
                                     {t.name}
-                                    <button onClick={() => setTmpInt(prev => prev.filter(x => x.id !== t.id))} className="text-foreground-muted hover:text-rose-400 ml-0.5">
+                                    <button onClick={() => setTmpInt(prev => prev.filter(x => x.id !== t.id))} className="text-foreground-muted hover:text-error-text ml-0.5">
                                       <X className="w-3 h-3" />
                                     </button>
                                   </span>
@@ -1771,7 +1771,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                             <p className="text-xs text-foreground-muted">Age: {tmpAge[0]} - {tmpAge[1]}</p>
                             <p className="text-xs text-foreground-muted">Gender: {tmpGender === "ALL" ? "All" : tmpGender.charAt(0) + tmpGender.slice(1).toLowerCase()}</p>
                             <p className="text-xs text-foreground-muted">Location: {tmpLoc.map(l => l.display_name).join(", ") || "—"}</p>
-                            {tmpExcLocItems.length > 0 && <p className="text-xs text-rose-400">Excluded: {tmpExcLocItems.map(l => l.display_name).join(", ")}</p>}
+                            {tmpExcLocItems.length > 0 && <p className="text-xs text-error-text">Excluded: {tmpExcLocItems.map(l => l.display_name).join(", ")}</p>}
                             {tmpInt.length > 0 && <p className="text-xs text-foreground-muted">Interests: {tmpInt.map(i => i.name).join(", ")}</p>}
                           </div>
                           <div className="pt-3 border-t border-border">
@@ -1784,7 +1784,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                       {/* Footer */}
                       <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-card">
                         {audienceError && (
-                          <p className="text-xs text-rose-400 mr-auto">{audienceError}</p>
+                          <p className="text-xs text-error-text mr-auto">{audienceError}</p>
                         )}
                         <button onClick={() => { setShowEditAud(false); setAudienceError(null); }}
                           className="px-5 py-2 text-sm text-foreground-muted border border-border hover:border-border hover:text-white rounded-lg font-medium transition-colors">
@@ -1803,7 +1803,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                             setInterests([...tmpInt]);
                             setShowEditAud(false); setShowExclude(false);
                           }}
-                          className="px-5 py-2 text-sm bg-amber-500 hover:bg-amber-400 text-zinc-900 font-bold rounded-lg transition-colors">
+                          className="px-5 py-2 text-sm bg-warning-text hover:bg-warning-text text-zinc-900 font-bold rounded-lg transition-colors">
                           Change audience
                         </button>
                       </div>
@@ -1847,7 +1847,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold text-foreground">Beneficiary</p>
-                          <span className="text-rose-400 text-xs">*</span>
+                          <span className="text-error-text text-xs">*</span>
                         </div>
                         <p className="text-xs text-foreground-muted">Provide accurate beneficiary entity name</p>
                         <input
@@ -1862,7 +1862,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold text-foreground">Payer</p>
-                          <span className="text-rose-400 text-xs">*</span>
+                          <span className="text-error-text text-xs">*</span>
                         </div>
                         <p className="text-xs text-foreground-muted">Provide accurate payer entity name</p>
                         <input
@@ -1874,7 +1874,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                       </div>
 
                       {(beneficiary || payer) && !euConfirmed && (
-                        <p className="text-[11px] text-amber-400 flex items-center gap-1.5">
+                        <p className="text-[11px] text-warning-text flex items-center gap-1.5">
                           <span>⚠</span> Please confirm your details are accurate above.
                         </p>
                       )}
@@ -1930,7 +1930,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                     const PLATFORM_COLOR: Record<string, string> = {
                       "Facebook":         "text-blue-400",
                       "Instagram":        "text-pink-400",
-                      "Messenger":        "text-indigo-400",
+                      "Messenger":        "text-info-text",
                       "Audience Network": "text-purple-400",
                     };
 
@@ -2143,7 +2143,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                     <div className="flex items-center gap-5 px-4 py-3 bg-surface border border-border/60 rounded-xl">
                       <div className="flex-1">
                         <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider mb-0.5">Account Balance</p>
-                        <p className={`text-base font-bold ${metaBalance.balance !== null ? "text-emerald-400" : "text-foreground-muted"}`}>
+                        <p className={`text-base font-bold ${metaBalance.balance !== null ? "text-success-text" : "text-foreground-muted"}`}>
                           {metaBalance.balance !== null
                             ? `${symbol}${parseFloat(metaBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                             : "—"}
@@ -2182,7 +2182,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         <input type="number" value={budgetAmt}
                           onChange={e => { setBudget(e.target.value); clearErr("budget"); }}
                           min={minAmt}
-                          className={inp + " pl-7" + (fieldErrors.budget ? " border-rose-500" : "")} />
+                          className={inp + " pl-7" + (fieldErrors.budget ? " border-error-border" : "")} />
                       </div>
                       <div className="flex gap-3">
                         {[{v:"daily",l:"Per day"},{v:"total",l:"Total"}].map(({v,l}) => (
@@ -2196,14 +2196,14 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         ))}
                       </div>
                     </div>
-                    {fieldErrors.budget && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.budget}</p>}
+                    {fieldErrors.budget && <p className="text-[11px] text-error-text mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.budget}</p>}
                   </Field>
                   <Field label="Duration" hint="Choose how long your ad campaign will run.">
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
                         <p className="text-[10px] text-foreground-muted mb-1">From</p>
                         <input type="date" value={startDate} onChange={e => { setStart(e.target.value); clearErr("startDate"); }}
-                          className={inp + (fieldErrors.startDate ? " border-rose-500" : "")} />
+                          className={inp + (fieldErrors.startDate ? " border-error-border" : "")} />
                       </div>
                       <div className="flex-1">
                         <p className="text-[10px] text-foreground-muted mb-1">To</p>
@@ -2211,7 +2211,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                           min={startDate} className={inp} placeholder="No end date" />
                       </div>
                     </div>
-                    {fieldErrors.startDate && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.startDate}</p>}
+                    {fieldErrors.startDate && <p className="text-[11px] text-error-text mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.startDate}</p>}
                   </Field>
                 </div>
                   );
@@ -2262,16 +2262,16 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         {ads.map((a, idx) => (
                           <div key={idx}
                             className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors group ${
-                              !showSummary && selectedAdIdx === idx ? "bg-amber-500/10" : "hover:bg-surface-hover/40"
+                              !showSummary && selectedAdIdx === idx ? "bg-warning-text/10" : "hover:bg-surface-hover/40"
                             }`}
                             onClick={() => { setSelectedAdIdx(idx); setShowSummary(false); }}>
                             <p className="text-xs text-foreground-muted flex-1 truncate">{a.name || "New ad"}</p>
                             {!a.image_url && (
-                              <span className="text-amber-400 text-xs shrink-0" title="No image added">⚠</span>
+                              <span className="text-warning-text text-xs shrink-0" title="No image added">⚠</span>
                             )}
                             <button type="button"
                               onClick={e => { e.stopPropagation(); if (ads.length === 1) return; setAds(prev => prev.filter((_, i) => i !== idx)); setSelectedAdIdx(Math.max(0, idx - 1)); }}
-                              className="opacity-0 group-hover:opacity-100 text-foreground-muted hover:text-rose-400 transition-all shrink-0">
+                              className="opacity-0 group-hover:opacity-100 text-foreground-muted hover:text-error-text transition-all shrink-0">
                               <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
@@ -2283,7 +2283,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                         <p className="px-3 text-[9px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Campaign</p>
                         <button type="button"
                           onClick={() => setShowSummary(true)}
-                          className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${showSummary ? "bg-amber-500/10 text-amber-400" : "text-foreground-muted hover:bg-surface-hover/40 hover:text-foreground"}`}>
+                          className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${showSummary ? "bg-warning-text/10 text-warning-text" : "text-foreground-muted hover:bg-surface-hover/40 hover:text-foreground"}`}>
                           Summary
                         </button>
                       </div>
@@ -2321,7 +2321,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                 <div className="flex-1 flex flex-col overflow-hidden border-r border-border">
                   {/* Ad header row */}
                   <div className="flex items-center gap-3 px-5 py-3 border-b border-border shrink-0">
-                    <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                    <div className="w-2 h-2 rounded-full bg-warning-text shrink-0" />
                     <input value={ad.name} onChange={e => setAd(a => ({...a, name: e.target.value}))}
                       className="bg-transparent text-sm font-semibold text-foreground outline-none border-b border-transparent hover:border-border focus:border-zinc-400 transition-colors flex-1"
                       placeholder="New ad" />
@@ -2443,13 +2443,13 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                       <div className="space-y-2">
                         {/* Warning — only shown after failed Next attempt */}
                         {(showMediaErr || fieldErrors.adImage) && (
-                          <div className="flex items-start gap-2.5 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-                            <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                              <span className="text-rose-400 text-xs font-bold">!</span>
+                          <div className="flex items-start gap-2.5 p-3 bg-error-text/10 border border-error-border/20 rounded-xl">
+                            <div className="w-5 h-5 rounded-full bg-error-text/20 flex items-center justify-center shrink-0 mt-0.5">
+                              <span className="text-error-text text-xs font-bold">!</span>
                             </div>
                             <div>
-                              <p className="text-xs font-semibold text-rose-300">Image or video required</p>
-                              <p className="text-[11px] text-rose-400/80 mt-0.5">Facebook requires an image or video to be included.</p>
+                              <p className="text-xs font-semibold text-error-text">Image or video required</p>
+                              <p className="text-[11px] text-error-text/80 mt-0.5">Facebook requires an image or video to be included.</p>
                             </div>
                           </div>
                         )}
@@ -2482,7 +2482,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                           </button>
                         </div>
                         {imageUploadErr && (
-                          <p className="text-[11px] text-rose-400 flex items-center gap-1">
+                          <p className="text-[11px] text-error-text flex items-center gap-1">
                             <span>⚠</span>{imageUploadErr}
                           </p>
                         )}
@@ -2521,11 +2521,11 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                           />
                           <p className="text-[10px] text-foreground-muted text-right">{welcomeMsg.length} / 300 characters</p>
                           {(showWelcomeErr || fieldErrors.welcomeMsg) && (
-                            <div className="flex items-start gap-2 p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-lg">
-                              <span className="text-rose-400 text-xs shrink-0 mt-0.5">⊘</span>
+                            <div className="flex items-start gap-2 p-2.5 bg-error-text/10 border border-error-border/20 rounded-lg">
+                              <span className="text-error-text text-xs shrink-0 mt-0.5">⊘</span>
                               <div>
-                                <p className="text-xs font-semibold text-rose-300">Welcome message required</p>
-                                <p className="text-[11px] text-rose-400/80">Add a welcome message to proceed with this campaign type.</p>
+                                <p className="text-xs font-semibold text-error-text">Welcome message required</p>
+                                <p className="text-[11px] text-error-text/80">Add a welcome message to proceed with this campaign type.</p>
                               </div>
                             </div>
                           )}
@@ -2608,7 +2608,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                             <div className="bg-white rounded-xl overflow-hidden shadow-lg w-64 shrink-0">
                               <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-100">
                                 <div className="flex items-center gap-2">
-                                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600 p-0.5">
+                                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-info-text p-0.5">
                                     <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-zinc-800">{pageInitial}</div>
                                   </div>
                                   <div>
@@ -2645,7 +2645,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                             {/* Instagram header */}
                             <div className="flex items-center justify-between px-3 py-2">
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600 p-0.5">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-info-text p-0.5">
                                   <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-xs font-bold text-zinc-800">{pageInitial}</div>
                                 </div>
                                 <div>
@@ -2778,7 +2778,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
             )}
           </div>
           {publishingStatus && <p className="text-xs text-blue-400 animate-pulse">{publishingStatus}</p>}
-          {error && <p className="text-xs text-rose-400">{error}</p>}
+          {error && <p className="text-xs text-error-text">{error}</p>}
           <div className="flex items-center gap-3">
             <button onClick={saveAsDraft} disabled={saving}
               className="px-4 py-2 bg-surface-hover hover:bg-surface-hover text-foreground text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
@@ -2790,12 +2790,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId, prefi
                 setShowMediaErr(false); setShowWelcomeErr(false);
                 setStep(s => s + 1);
               }}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 text-sm font-bold rounded-lg transition-colors">
+                className="px-4 py-2 bg-warning-text hover:bg-warning-text text-zinc-900 text-sm font-bold rounded-lg transition-colors">
                 {nextLabel[step]}
               </button>
             ) : (
               <button onClick={publish} disabled={publishing}
-                className="flex items-center gap-2 px-5 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 text-sm font-bold rounded-lg transition-colors disabled:opacity-50">
+                className="flex items-center gap-2 px-5 py-2 bg-warning-text hover:bg-warning-text text-zinc-900 text-sm font-bold rounded-lg transition-colors disabled:opacity-50">
                 {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Publish campaign
               </button>

@@ -45,8 +45,8 @@ export default function SuspendedOverlay({ orgName, type, planType, cycleResetDa
       <div className="fixed inset-0 z-[9999] bg-zinc-950 flex items-center justify-center p-6">
         <div className="w-full max-w-[420px] space-y-8">
           <div className="text-center space-y-5">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20">
-              <CreditCard className="w-5 h-5 text-amber-400" />
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--warning-bg)] border-[var(--warning-border)]">
+              <CreditCard className="w-5 h-5 text-[var(--warning-text)]" />
             </div>
             <div className="space-y-2">
               <h2 className="text-2xl font-semibold text-white tracking-tight">
@@ -88,7 +88,6 @@ export default function SuspendedOverlay({ orgName, type, planType, cycleResetDa
       </div>
     );
   }
-
   /* ── Plan Expired ─────────────────────────────────────────────────────────── */
   if (isPlanExpiry) {
     return (
@@ -135,7 +134,7 @@ export default function SuspendedOverlay({ orgName, type, planType, cycleResetDa
               {downgrading ? "Switching…" : "Continue with Free Plan"}
             </button>
             {downgradeError && (
-              <p className="text-xs text-rose-400 mt-2">Failed to downgrade. Please contact support.</p>
+              <p className="text-xs text-[var(--error-text)] mt-2">Failed to downgrade. Please contact support.</p>
             )}
 
             <button

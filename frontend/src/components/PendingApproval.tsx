@@ -15,7 +15,7 @@ export default function PendingApproval({ orgName }: { orgName?: string }) {
     <div className="fixed inset-0 z-[9999] bg-[var(--background)] flex items-center justify-center p-6">
       <div className="w-full max-w-[440px] bg-[var(--card)] border border-[var(--border)] rounded-3xl p-12 text-center shadow-2xl shadow-black/30 animate-in fade-in zoom-in duration-500">
 
-        <div className="w-16 h-16 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg shadow-indigo-500/10">
+        <div className="w-16 h-16 bg-[var(--info-bg)] text-[var(--info-text)] rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg shadow-[var(--info-text)]/10">
           <ShieldAlert className="w-8 h-8" />
         </div>
 
@@ -27,16 +27,16 @@ export default function PendingApproval({ orgName }: { orgName?: string }) {
           Your organization{" "}
           <span className="text-[var(--foreground)] font-semibold">{orgName || "registration"}</span>{" "}
           has been successfully received and is currently under review by our{" "}
-          <span className="text-indigo-400 font-semibold">Workspace Owner Governance</span> team.
+          <span className="text-[var(--info-text)] font-semibold">Workspace Owner Governance</span> team.
         </p>
 
         <div className="space-y-3">
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-5 flex items-center gap-4 text-left">
-            <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center shrink-0">
-              <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
+            <div className="w-10 h-10 bg-[var(--info-bg)] rounded-xl flex items-center justify-center shrink-0">
+              <Loader2 className="w-5 h-5 text-[var(--info-text)] animate-spin" />
             </div>
             <div>
-              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-0.5">
+              <p className="text-[10px] font-black text-[var(--info-text)] uppercase tracking-widest mb-0.5">
                 Current Status
               </p>
               <p className="text-sm font-bold text-[var(--foreground)]">Validation in Progress</p>

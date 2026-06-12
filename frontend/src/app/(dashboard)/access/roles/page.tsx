@@ -61,17 +61,17 @@ function RolesTab() {
             onClick={() => setActiveLayer(activeLayer === key ? null : key)}
             className={`text-left p-5 rounded-2xl border transition-all relative overflow-hidden ${
               activeLayer === key
-                ? "bg-[var(--surface-hover)] border-indigo-500/50 shadow-lg shadow-indigo-500/10"
-                : "bg-[var(--card)] border-[var(--border)] hover:border-indigo-500/30"
+                ? "bg-[var(--surface-hover)] border-info-border/50 shadow-lg shadow-info-text/10"
+                : "bg-[var(--card)] border-[var(--border)] hover:border-info-border/30"
             }`}
           >
             <div
               className={`w-9 h-9 rounded-lg mb-4 flex items-center justify-center ${
                 key === "BUILD"
-                  ? "bg-emerald-500/10 text-emerald-400"
+                  ? "bg-success-text/10 text-success-text"
                   : key === "GOVERNANCE"
-                  ? "bg-amber-500/10 text-amber-400"
-                  : "bg-indigo-500/10 text-indigo-400"
+                  ? "bg-warning-text/10 text-warning-text"
+                  : "bg-info-text/10 text-info-text"
               }`}
             >
               {key === "BUILD" ? (
@@ -90,7 +90,7 @@ function RolesTab() {
             </p>
             {activeLayer === key && (
               <div className="absolute top-4 right-4">
-                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-info-text animate-pulse" />
               </div>
             )}
           </button>
@@ -106,7 +106,7 @@ function RolesTab() {
             placeholder="Search roles or capabilities..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[var(--card)] border border-[var(--border)] rounded-xl pl-10 pr-4 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-indigo-500/50 transition-all"
+            className="w-full bg-[var(--card)] border border-[var(--border)] rounded-xl pl-10 pr-4 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border/50 transition-all"
           />
         </div>
         <div className="flex items-center gap-2 text-[var(--foreground-muted)] text-xs font-medium">
@@ -120,7 +120,7 @@ function RolesTab() {
         {filteredRoles.map((role) => (
           <div
             key={role.id}
-            className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 flex flex-col hover:border-indigo-500/30 transition-all group"
+            className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 flex flex-col hover:border-info-border/30 transition-all group"
           >
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1">
@@ -129,7 +129,7 @@ function RolesTab() {
                     {role.name}
                   </h3>
                   {role.id === "WORKSPACE_OWNER" && (
-                    <Lock className="w-3 h-3 text-amber-400" />
+                    <Lock className="w-3 h-3 text-warning-text" />
                   )}
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] px-2 py-0.5 rounded bg-[var(--surface-hover)] border border-[var(--border)]">
@@ -139,10 +139,10 @@ function RolesTab() {
               <div
                 className={`px-2 py-1 rounded text-[10px] font-black uppercase ${
                   role.layer === "Build"
-                    ? "bg-emerald-500/10 text-emerald-400"
+                    ? "bg-success-text/10 text-success-text"
                     : role.layer === "Governance"
-                    ? "bg-amber-500/10 text-amber-400"
-                    : "bg-indigo-500/10 text-indigo-400"
+                    ? "bg-warning-text/10 text-warning-text"
+                    : "bg-info-text/10 text-info-text"
                 }`}
               >
                 {role.layer}
@@ -163,7 +163,7 @@ function RolesTab() {
                     key={idx}
                     className="flex items-center gap-2 text-[var(--foreground-muted)] text-[11px]"
                   >
-                    <CheckCircle2 className="w-3 h-3 text-[var(--foreground-muted)] group-hover:text-indigo-400 transition-colors shrink-0" />
+                    <CheckCircle2 className="w-3 h-3 text-[var(--foreground-muted)] group-hover:text-info-text transition-colors shrink-0" />
                     {resp}
                   </div>
                 ))}
@@ -174,9 +174,9 @@ function RolesTab() {
       </div>
 
       {/* Separation of duties notice */}
-      <div className="mt-14 p-7 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 flex flex-col md:flex-row items-center gap-6">
-        <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center shrink-0">
-          <AlertTriangle className="w-7 h-7 text-indigo-400" />
+      <div className="mt-14 p-7 rounded-2xl bg-info-text/5 border border-info-border/10 flex flex-col md:flex-row items-center gap-6">
+        <div className="w-14 h-14 rounded-2xl bg-info-text/10 flex items-center justify-center shrink-0">
+          <AlertTriangle className="w-7 h-7 text-info-text" />
         </div>
         <div className="flex-1">
           <h3 className="text-[var(--foreground)] font-bold mb-1">
@@ -275,7 +275,7 @@ function UnitsTab() {
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-foreground text-sm font-semibold rounded-xl transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-info-text hover:bg-info-text text-foreground text-sm font-semibold rounded-xl transition-colors"
           >
             <Plus className="w-4 h-4" />
             New Unit
@@ -318,7 +318,7 @@ function UnitsTab() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Marketing, APAC Region"
-                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-indigo-500/50 transition-all"
+                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border/50 transition-all"
               />
             </div>
             <div>
@@ -330,7 +330,7 @@ function UnitsTab() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Optional short description"
-                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-indigo-500/50 transition-all"
+                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border/50 transition-all"
               />
             </div>
           </div>
@@ -360,7 +360,7 @@ function UnitsTab() {
             <button
               onClick={handleCreate}
               disabled={submitting || !name.trim()}
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-foreground text-sm font-semibold rounded-xl transition-colors"
+              className="px-5 py-2 bg-info-text hover:bg-info-text disabled:opacity-50 text-foreground text-sm font-semibold rounded-xl transition-colors"
             >
               {submitting ? "Creating…" : "Create Unit"}
             </button>
@@ -401,7 +401,7 @@ function UnitsTab() {
           {units.map((unit) => (
             <div
               key={unit.id}
-              className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 flex items-start justify-between group hover:border-indigo-500/30 transition-all"
+              className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5 flex items-start justify-between group hover:border-info-border/30 transition-all"
             >
               <div className="flex items-start gap-3">
                 <div
@@ -447,8 +447,8 @@ export default function RolesAndUnitsPage() {
       {/* Page header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-indigo-400" />
+          <div className="w-10 h-10 rounded-xl bg-info-text/10 flex items-center justify-center">
+            <Shield className="w-5 h-5 text-info-text" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
             Roles & Units

@@ -27,15 +27,15 @@ interface Orchestration {
 
 const STATUS_MAP: Record<string, { cls: string; icon: React.ReactNode }> = {
   'In Progress': {
-    cls: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+    cls: 'bg-info-text/10 text-info-text border-info-border/20',
     icon: <Loader2 className="w-3 h-3 animate-spin" />,
   },
   Processing: {
-    cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    cls: 'bg-warning-text/10 text-warning-text border-warning-border/20',
     icon: <Loader2 className="w-3 h-3 animate-spin" />,
   },
   Pending: {
-    cls: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    cls: 'bg-error-text/10 text-error-text border-error-border/20',
     icon: <Clock className="w-3 h-3" />,
   },
   Waiting: {
@@ -43,15 +43,15 @@ const STATUS_MAP: Record<string, { cls: string; icon: React.ReactNode }> = {
     icon: <Clock className="w-3 h-3" />,
   },
   Blocked: {
-    cls: 'bg-rose-600/10 text-rose-500 border-rose-600/20',
+    cls: 'bg-error-text/10 text-error-text border-error-border/20',
     icon: <XCircle className="w-3 h-3" />,
   },
   Paused: {
-    cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    cls: 'bg-warning-text/10 text-warning-text border-warning-border/20',
     icon: <Pause className="w-3 h-3" />,
   },
   Completed: {
-    cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    cls: 'bg-success-text/10 text-success-text border-success-border/20',
     icon: <CheckCircle2 className="w-3 h-3" />,
   },
   Failed: {
@@ -71,7 +71,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const RiskBar = ({ score }: { score: number }) => {
-  const color = score >= 80 ? 'bg-rose-500' : score >= 60 ? 'bg-orange-500' : score >= 40 ? 'bg-amber-500' : 'bg-emerald-500';
+  const color = score >= 80 ? 'bg-error-text' : score >= 60 ? 'bg-orange-500' : score >= 40 ? 'bg-warning-text' : 'bg-success-text';
   return (
     <div className="flex items-center gap-2">
       <div className="w-16 h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
@@ -100,8 +100,8 @@ export default function ActiveOrchestrations({
       {/* Header */}
       <div className="px-6 py-5 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface-hover)]/30">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-indigo-500/10 rounded-xl">
-            <GitMerge className="w-5 h-5 text-indigo-400" />
+          <div className="p-2.5 bg-info-text/10 rounded-xl">
+            <GitMerge className="w-5 h-5 text-info-text" />
           </div>
           <div>
             <h2 className="text-base font-semibold text-[var(--text-primary)]">Live Orchestrations</h2>
@@ -112,12 +112,12 @@ export default function ActiveOrchestrations({
         </div>
         <div className="flex items-center gap-3">
           {blockedCount > 0 && (
-            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-error-text/10 text-error-text border border-error-border/20">
               {blockedCount} Blocked
             </span>
           )}
-          <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
-            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+          <div className="flex items-center gap-2 text-xs text-success-text font-medium">
+            <span className="w-2 h-2 bg-success-text rounded-full animate-pulse" />
             Live
           </div>
         </div>
@@ -149,7 +149,7 @@ export default function ActiveOrchestrations({
               <tr
                 key={orch.id}
                 className={`hover:bg-[var(--surface-hover)] transition-colors ${
-                  orch.status === 'Blocked' ? 'bg-rose-500/5' : ''
+                  orch.status === 'Blocked' ? 'bg-error-text/5' : ''
                 }`}
               >
                 <td className="px-5 py-4">
@@ -158,7 +158,7 @@ export default function ActiveOrchestrations({
                   {orch.post && (orch.post.excerpt || orch.post.platform) && (
                     <div className="mt-1 flex items-start gap-1.5 max-w-[220px]">
                       {orch.post.platform && (
-                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] font-bold uppercase tracking-wide">
+                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-info-text/10 text-info-text border border-info-border/20 text-[9px] font-bold uppercase tracking-wide">
                           {orch.post.platform}
                         </span>
                       )}
@@ -168,13 +168,13 @@ export default function ActiveOrchestrations({
                     </div>
                   )}
                   {orch.blocker && (
-                    <p className="text-[10px] text-rose-400 mt-0.5 flex items-center gap-1">
+                    <p className="text-[10px] text-error-text mt-0.5 flex items-center gap-1">
                       <XCircle className="w-3 h-3" /> {orch.blocker}
                     </p>
                   )}
                 </td>
                 <td className="px-5 py-4">
-                  <span className="px-2.5 py-1 rounded-lg bg-[var(--sidebar-active)] text-indigo-400 text-xs font-medium border border-indigo-500/20">
+                  <span className="px-2.5 py-1 rounded-lg bg-[var(--sidebar-active)] text-info-text text-xs font-medium border border-info-border/20">
                     {orch.currentStep}
                   </span>
                 </td>

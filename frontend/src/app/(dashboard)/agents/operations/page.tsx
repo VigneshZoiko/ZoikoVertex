@@ -22,14 +22,13 @@ import {
   XCircle,
   Filter,
   Eye,
-  BarChart3,
-  Ticket,
+  Clock3,
+  Download,
   Ban,
   ShieldX,
   Trash2,
   Search,
   ChevronDown,
-  Download,
   Users,
   Building2,
   Globe,
@@ -46,8 +45,6 @@ import {
   Hash,
   ArrowRight,
   Info,
-  TrendingUp,
-  TrendingDown,
   Minus,
   Lock,
   Unlock,
@@ -163,52 +160,18 @@ interface QueueItem {
   sla_breached?: boolean;
 }
 
-interface Incident {
-  id: string;
-  run_id: string | null;
-  run_name: string;
-  severity: string;
-  category: string;
-  owner_name: string | null;
-  status: string;
-  created_by_name: string;
-  created_at: string;
-  due_at: string | null;
-  root_cause?: string;
-  remediation?: string;
-  closed_by?: string;
-  closed_at?: string;
-}
-
 interface OperationsStats {
   active_runs: number;
   queued_tasks: number;
   failed_runs: number;
-  open_incidents: number;
   policy_blocks: number;
   avg_trust_score: number;
   operations_health_score?: number;
   total_runs?: number;
   quarantined_runs?: number;
-  sla_breaches?: number;
-  escalations?: number;
 }
 
-type NumericMetric = number | Record<string, number | undefined> | null | undefined;
 type RuntimeActionType = "pause" | "resume" | "stop" | "retry" | "quarantine" | "escalate" | "emergency_pause" | "restricted_mode" | "export_evidence" | "hold" | "release_hold";
-
-interface AnalyticsMetrics {
-  failure_rate?: NumericMetric;
-  retry_success_rate?: NumericMetric;
-  policy_block_rate?: NumericMetric;
-  avg_review_time_minutes?: NumericMetric;
-  sla_breach_rate?: NumericMetric;
-  incident_closure_time_hours?: NumericMetric;
-  evidence_completeness_pct?: NumericMetric;
-  evidence_completeness?: NumericMetric;
-  throughput_per_day?: NumericMetric;
-  throughput?: NumericMetric;
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -243,13 +206,6 @@ const EVIDENCE_CONFIG: Record<string, { label: string; color: string }> = {
   EXPORT_READY: { label: "Export Ready", color: "text-indigo-400"  },
 };
 
-const INCIDENT_SEVERITY: Record<string, { label: string; color: string; bg: string }> = {
-  critical: { label: "Critical", color: "text-rose-400",   bg: "bg-rose-500/10"   },
-  high:     { label: "High",     color: "text-orange-400", bg: "bg-orange-500/10" },
-  medium:   { label: "Medium",   color: "text-amber-400",  bg: "bg-amber-500/10"  },
-  low:      { label: "Low",      color: "text-blue-400",   bg: "bg-blue-500/10"   },
-};
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(date: string): string {
@@ -276,30 +232,6 @@ function formatTimeRemaining(dueAt: string | null): { label: string; overdue: bo
 
 function shortId(id: string): string {
   return id.slice(0, 8).toUpperCase();
-}
-
-function metricNumber(metric: NumericMetric, period = "30d"): number | null {
-  if (typeof metric === "number") {
-    return Number.isFinite(metric) ? metric : null;
-  }
-  if (metric && typeof metric === "object") {
-    const value = metric[period] ?? metric["7d"] ?? metric["24h"];
-    return typeof value === "number" && Number.isFinite(value) ? value : null;
-  }
-  return null;
-}
-
-function formatPercentMetric(metric: NumericMetric, period = "30d"): string {
-  const value = metricNumber(metric, period);
-  if (value === null) return "—";
-  const percent = Math.abs(value) <= 1 ? value * 100 : value;
-  return `${percent.toFixed(1)}%`;
-}
-
-function formatUnitMetric(metric: NumericMetric, suffix = "", period = "30d"): string {
-  const value = metricNumber(metric, period);
-  if (value === null) return "—";
-  return `${value}${suffix}`;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -514,7 +446,6 @@ interface RunDetailDrawerProps {
   loadingDetail: boolean;
   loadingTimeline: boolean;
   onClose: () => void;
-  onCreateIncident: () => void;
   onExportEvidence: (bundleId: string) => void;
   exportEvidenceLoading: boolean;
   onApproveOutput: (run: AgentRun) => void;
@@ -533,7 +464,6 @@ function RunDetailDrawer({
   loadingDetail,
   loadingTimeline,
   onClose,
-  onCreateIncident,
   onExportEvidence,
   exportEvidenceLoading,
   onApproveOutput,
@@ -849,7 +779,6 @@ function RunDetailDrawer({
                           >
                             <ArrowRight className="w-3 h-3" />Send to reviewer
                           </button>
-                          <button onClick={onCreateIncident} className="text-[10px] text-orange-400 hover:text-orange-300 flex items-center gap-1"><Ticket className="w-3 h-3" />Create incident</button>
                         </div>
                       )}
                     </div>
@@ -995,13 +924,7 @@ function RunDetailDrawer({
         </div>
 
         {/* Drawer footer */}
-        <div className="p-4 border-t border-[#2a2a2a] flex items-center justify-between shrink-0">
-          <button
-            onClick={onCreateIncident}
-            className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"
-          >
-            <Ticket className="w-3.5 h-3.5" /> Create Incident
-          </button>
+        <div className="p-4 border-t border-[#2a2a2a] flex items-center justify-end shrink-0">
           <button onClick={onClose} className="px-4 py-1.5 bg-[#2a2a2a] text-[#aaa] rounded-xl text-xs hover:bg-[#333] transition-colors">
             Close
           </button>
@@ -1018,8 +941,6 @@ export default function AgentOperationsPage() {
   const [stats, setStats] = useState<OperationsStats | null>(null);
   const [runs, setRuns] = useState<AgentRun[]>([]);
   const [queues, setQueues] = useState<QueueItem[]>([]);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [analytics, setAnalytics] = useState<AnalyticsMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -1039,7 +960,7 @@ export default function AgentOperationsPage() {
   const [envFilter, setEnvFilter] = useState("");
 
   // ── Tabs and filters ──
-  const [activeTab, setActiveTab] = useState<"runs" | "queues" | "incidents" | "analytics">("runs");
+  const [activeTab, setActiveTab] = useState<"runs" | "queues">("runs");
   const [statusFilter, setStatusFilter] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "card">("list");
   // Doc 6 §2/§3: queue segmentation by type (approval, failed, retry, human-review, publishing, exception …)
@@ -1114,20 +1035,6 @@ export default function AgentOperationsPage() {
   const [evidenceExportBundleId, setEvidenceExportBundleId] = useState<string | null>(null);
   const [evidenceExportLoading, setEvidenceExportLoading] = useState(false);
 
-  // ── Incident modal ──
-  const [showIncidentModal, setShowIncidentModal] = useState(false);
-  const [incidentForm, setIncidentForm] = useState({ severity: "medium", category: "critical_failure", root_cause: "", remediation: "" });
-  const [incidentLoading, setIncidentLoading] = useState(false);
-  const incidentModalRef = useRef<HTMLDivElement>(null);
-  // Auto-scroll the Create Incident dialog into view when it opens.
-  useEffect(() => {
-    if (!showIncidentModal) return;
-    const id = window.setTimeout(() => {
-      incidentModalRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 30);
-    return () => window.clearTimeout(id);
-  }, [showIncidentModal]);
-
   // ── Policy check ──
   const [policyCheckLoading, setPolicyCheckLoading] = useState(false);
 
@@ -1159,12 +1066,10 @@ export default function AgentOperationsPage() {
         params.date_to = end.toISOString();
       }
 
-      const [statsRes, runsRes, queuesRes, incidentsRes, analyticsRes] = await Promise.allSettled([
+      const [statsRes, runsRes, queuesRes] = await Promise.allSettled([
         api.getOperationsStatsScoped(scopedParams).catch(() => null),
         api.listAgentRuns(params).catch(() => null),
         api.listQueues(scopedParams).catch(() => null),
-        api.listIncidents(scopedParams).catch(() => null),
-        api.getOperationsAnalytics(scopedParams).catch(() => null),
       ]);
 
       if (statsRes.status === "fulfilled" && statsRes.value) setStats(statsRes.value);
@@ -1179,8 +1084,6 @@ export default function AgentOperationsPage() {
         if (typeof runsRes.value.total === "number") setTotalRuns(runsRes.value.total);
       }
       if (queuesRes.status === "fulfilled" && queuesRes.value?.items) setQueues(queuesRes.value.items);
-      if (incidentsRes.status === "fulfilled" && incidentsRes.value?.incidents) setIncidents(incidentsRes.value.incidents);
-      if (analyticsRes.status === "fulfilled" && analyticsRes.value) setAnalytics(analyticsRes.value);
 
       setLastRefreshed(new Date());
     } catch {
@@ -1560,28 +1463,6 @@ export default function AgentOperationsPage() {
     [],
   );
 
-  const handleExportAnalyticsCSV = async () => {
-    const reason = window.prompt("Reason for exporting analytics CSV:");
-    if (!reason || reason.trim().length < 8) {
-      setError("A reason of at least 8 characters is required.");
-      return;
-    }
-    try {
-      const blob = await api.exportAnalyticsCSV(reason.trim());
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `operations-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      flashNotice("Analytics CSV exported with audit trail.");
-    } catch {
-      setError("Failed to export analytics CSV. Check permissions.");
-    }
-  };
-
   // Doc 6 §2 — export the currently filtered operational run log to CSV.
   const handleExportFilteredRuns = () => {
     if (!filteredRuns.length) {
@@ -1621,26 +1502,6 @@ export default function AgentOperationsPage() {
     flashNotice(`Exported ${filteredRuns.length} filtered run(s) to CSV.`);
   };
 
-  const handleCreateIncident = async () => {
-    setIncidentLoading(true);
-    try {
-      await api.createIncident({
-        severity: incidentForm.severity,
-        category: incidentForm.category,
-        root_cause: incidentForm.root_cause,
-        remediation: incidentForm.remediation,
-        run_id: selectedRun?.id,
-      });
-      setShowIncidentModal(false);
-      setIncidentForm({ severity: "medium", category: "critical_failure", root_cause: "", remediation: "" });
-      await fetchData();
-    } catch {
-      setError("Failed to create incident.");
-    } finally {
-      setIncidentLoading(false);
-    }
-  };
-
   // ── Filtered runs ──
   // Filtering, search, and sorting are performed server-side (and paginated),
   // so the current page of runs is rendered as-is. Kept as `filteredRuns` to
@@ -1677,7 +1538,7 @@ export default function AgentOperationsPage() {
       <div className="mb-5 flex flex-col md:flex-row md:items-center gap-3 justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground mb-0.5">Agent Operations</h1>
-          <p className="text-[#666] text-sm">Live supervision · Runtime intervention · Incident response · Evidence capture</p>
+          <p className="text-[#666] text-sm">Live supervision · Runtime intervention · Evidence capture</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Context selectors */}
@@ -1699,13 +1560,7 @@ export default function AgentOperationsPage() {
               <option value="development">Development</option>
             </select>
           </div>
-          {/* Incident shortcut */}
-          <button
-            onClick={() => setShowIncidentModal(true)}
-            className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"
-          >
-            <Siren className="w-3.5 h-3.5" /> New Incident
-          </button>
+
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[10px] text-emerald-400">
             <Radio className="w-3 h-3" />
             <span className="hidden sm:inline">Auto-refresh 30s</span>
@@ -1760,9 +1615,7 @@ export default function AgentOperationsPage() {
             { label: "Queued",         val: stats.queued_tasks,   icon: <Clock className="w-3.5 h-3.5" />,    color: "text-amber-400",   bg: "bg-amber-500/10"  },
             { label: "Failed",         val: stats.failed_runs,    icon: <XCircle className="w-3.5 h-3.5" />, color: "text-red-400",      bg: "bg-red-500/10"    },
             { label: "Policy Blocks",  val: stats.policy_blocks,  icon: <Ban className="w-3.5 h-3.5" />,     color: "text-rose-400",     bg: "bg-rose-500/10"   },
-            { label: "Open Incidents", val: stats.open_incidents, icon: <Ticket className="w-3.5 h-3.5" />,  color: "text-orange-400",   bg: "bg-orange-500/10" },
-            { label: "Escalations",    val: stats.escalations ?? 0, icon: <ArrowUpRight className="w-3.5 h-3.5" />, color: "text-purple-400", bg: "bg-purple-500/10" },
-            { label: "SLA Breaches",   val: stats.sla_breaches ?? 0, icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "text-rose-400", bg: "bg-rose-500/10" },
+
             { label: "Ops Health",     val: `${stats.operations_health_score ?? stats.avg_trust_score ?? 0}%`, icon: <ShieldCheck className="w-3.5 h-3.5" />, color: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "text-emerald-400" : "text-amber-400", bg: (stats.operations_health_score ?? stats.avg_trust_score ?? 0) >= 80 ? "bg-emerald-500/10" : "bg-amber-500/10" },
           ].map((card) => (
             <div key={card.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3 flex items-center gap-2.5">
@@ -1796,8 +1649,7 @@ export default function AgentOperationsPage() {
         {[
           { id: "runs",      label: "Agent Runs",  icon: <Bot className="w-3.5 h-3.5" />,           count: runs.length         },
           { id: "queues",    label: "Task Queue",  icon: <Clock className="w-3.5 h-3.5" />,          count: queues.length       },
-          { id: "incidents", label: "Incidents",   icon: <AlertTriangle className="w-3.5 h-3.5" />,  count: incidents.length    },
-          { id: "analytics", label: "Analytics",   icon: <BarChart3 className="w-3.5 h-3.5" />,      count: 0                   },
+
         ].map((tab) => (
           <button
             key={tab.id}
@@ -1940,20 +1792,18 @@ export default function AgentOperationsPage() {
             /* ── List View ── */
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl overflow-hidden">
               {/* Table header */}
-              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 border-b border-[#2a2a2a] text-[10px] font-semibold text-[#444] uppercase tracking-wider">
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 px-4 py-2.5 items-center border-b border-[#2a2a2a] text-[10px] font-semibold text-[#444] uppercase tracking-wider">
                 <span>Run</span>
                 <span>Status</span>
                 <span>Policy</span>
                 <span>Evidence</span>
-                <span>SLA</span>
                 <span>Actions</span>
               </div>
               <div className="divide-y divide-[#1f1f1f]">
                 {filteredRuns.map((run) => {
                   const statusCfg = STATUS_CONFIG[run.status] || { label: run.status, color: "text-[#888]", bg: "bg-white/5", border: "border-white/10", dot: "bg-gray-400", severity: "normal" };
-                  const sla = formatTimeRemaining(run.due_at);
                   return (
-                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-center hover:bg-white/[0.02] transition-colors ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
+                    <div key={run.id} className={`grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3.5 items-start hover:bg-white/[0.02] transition-colors ${run.severity === "critical" ? "border-l-2 border-l-rose-500/50" : run.severity === "warning" ? "border-l-2 border-l-orange-500/30" : ""}`}>
                       {/* Run info */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
@@ -1976,14 +1826,6 @@ export default function AgentOperationsPage() {
                       <div><PolicyBadge result={run.policy_result} /></div>
                       {/* Evidence */}
                       <div><EvidenceBadge status={run.evidence_status} /></div>
-                      {/* SLA */}
-                      <div>
-                        {sla.label ? (
-                          <span className={`text-xs font-medium ${sla.overdue ? "text-rose-400" : "text-[#666]"}`}>
-                            {sla.label}
-                          </span>
-                        ) : <span className="text-[#333]">—</span>}
-                      </div>
                       {/* Actions */}
                       <div className="flex items-center gap-0.5">
                         <button onClick={() => handleViewRun(run)} className="p-1.5 hover:bg-white/5 rounded-lg text-[#555] hover:text-white transition-colors" title="View Run Detail"><Eye className="w-3.5 h-3.5" /></button>
@@ -2217,121 +2059,8 @@ export default function AgentOperationsPage() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: INCIDENTS
-      ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "incidents" && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-[#555]">{incidents.length} open incident{incidents.length !== 1 ? "s" : ""}</p>
-            <button
-              onClick={() => setShowIncidentModal(true)}
-              className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs hover:bg-rose-500/20 transition-colors flex items-center gap-1.5"
-            >
-              <Siren className="w-3.5 h-3.5" /> Create Incident
-            </button>
-          </div>
-          {incidents.length === 0 ? (
-            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">
-              <ShieldCheck className="w-12 h-12 text-emerald-400/20 mx-auto mb-3" />
-              <p className="text-emerald-400 font-semibold mb-1">No Open Incidents</p>
-              <p className="text-[#555] text-sm">All operations are running within normal parameters.</p>
-            </div>
-          ) : (
-            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl overflow-hidden">
-              <div className="divide-y divide-[#1f1f1f]">
-                {incidents.map((incident) => {
-                  const sevCfg = INCIDENT_SEVERITY[incident.severity] || { label: incident.severity, color: "text-gray-400", bg: "bg-white/5" };
-                  return (
-                    <div key={incident.id} className="px-4 py-3.5 hover:bg-white/[0.02] transition-colors">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <AlertTriangle className={`w-4 h-4 ${sevCfg.color} shrink-0 mt-0.5`} />
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground">{incident.category.replace(/_/g, " ")}</p>
-                            <p className="text-xs text-[#555] mt-0.5">
-                              {incident.run_name} · Created by {incident.created_by_name} · {timeAgo(incident.created_at)}
-                            </p>
-                            {incident.root_cause && <p className="text-xs text-[#444] mt-1 truncate">{incident.root_cause}</p>}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${sevCfg.bg} ${sevCfg.color}`}>{sevCfg.label}</span>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${incident.status === "OPEN" ? "bg-amber-500/10 text-amber-400" : "bg-emerald-500/10 text-emerald-400"}`}>
-                            {incident.status}
-                          </span>
-                        </div>
-                      </div>
-                      {incident.status === "resolved" && (
-                        <div className="px-4 pb-2 flex items-center gap-2">
-                          <button
-                            onClick={async () => {
-                              try {
-                                await api.generatePostmortem(incident.id);
-                                flashNotice(`Postmortem generated for incident ${incident.id.slice(0, 8)}`);
-                              } catch { setError("Failed to generate postmortem"); }
-                            }}
-                            className="px-2 py-1 text-[10px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-lg hover:bg-indigo-500/20 transition-colors flex items-center gap-1"
-                          >
-                            <FileText className="w-3 h-3" /> Generate Postmortem
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB: ANALYTICS
-      ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "analytics" && (
-        <div className="space-y-4">
-          {analytics ? (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[
-                  { label: "Failure Rate",           val: formatPercentMetric(analytics.failure_rate),                                       icon: <XCircle className="w-4 h-4" />,        color: "text-red-400",    bg: "bg-red-500/10",    trend: "down"    },
-                  { label: "Retry Success Rate",     val: formatPercentMetric(analytics.retry_success_rate),                                 icon: <RotateCcw className="w-4 h-4" />,    color: "text-blue-400",   bg: "bg-blue-500/10",   trend: "up"      },
-                  { label: "Policy Block Rate",      val: formatPercentMetric(analytics.policy_block_rate),                                  icon: <Ban className="w-4 h-4" />,          color: "text-rose-400",   bg: "bg-rose-500/10",   trend: "down"    },
-                  { label: "Avg Review Time",        val: formatUnitMetric(analytics.avg_review_time_minutes, "m"),                          icon: <Clock className="w-4 h-4" />,        color: "text-amber-400",  bg: "bg-amber-500/10",  trend: "down"    },
-                  { label: "SLA Breach Rate",        val: formatPercentMetric(analytics.sla_breach_rate),                                    icon: <AlertTriangle className="w-4 h-4" />, color: "text-orange-400", bg: "bg-orange-500/10", trend: "down"    },
-                  { label: "Incident Closure Time",  val: formatUnitMetric(analytics.incident_closure_time_hours, "h"),                      icon: <Ticket className="w-4 h-4" />,       color: "text-purple-400", bg: "bg-purple-500/10", trend: "down"    },
-                  { label: "Evidence Completeness",  val: formatPercentMetric(analytics.evidence_completeness_pct ?? analytics.evidence_completeness), icon: <Lock className="w-4 h-4" />,         color: "text-indigo-400", bg: "bg-indigo-500/10", trend: "up"      },
-                  { label: "Throughput / Day",       val: formatUnitMetric(analytics.throughput_per_day ?? analytics.throughput, ""),         icon: <Activity className="w-4 h-4" />,     color: "text-emerald-400",bg: "bg-emerald-500/10",trend: "up"      },
-                ].map((m) => (
-                  <div key={m.label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className={`w-7 h-7 ${m.bg} rounded-lg flex items-center justify-center ${m.color}`}>{m.icon}</div>
-                      {m.trend === "up" ? <TrendingUp className="w-3.5 h-3.5 text-emerald-400/50" /> : <TrendingDown className="w-3.5 h-3.5 text-rose-400/50" />}
-                    </div>
-                    <p className={`text-xl font-bold ${m.color}`}>{m.val}</p>
-                    <p className="text-[10px] text-[#555] mt-0.5">{m.label}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-end">
-                <button
-                  onClick={handleExportAnalyticsCSV}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] border border-[#2a2a2a] text-[#888] rounded-xl text-xs hover:text-white hover:border-[#444] transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" /> Export CSV (audited)
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-10 text-center">
-              <BarChart3 className="w-12 h-12 text-[#2a2a2a] mx-auto mb-3" />
-              <p className="text-[#555] font-medium mb-1">Analytics loading…</p>
-              <p className="text-[#3a3a3a] text-sm">Throughput, failure rates, SLA metrics, evidence completeness, and escalation trends will appear here.</p>
-            </div>
-          )}
-        </div>
-      )}
+
 
       {/* ══════════════════════════════════════════════════════════════════════
           RUN DETAIL DRAWER
@@ -2344,7 +2073,6 @@ export default function AgentOperationsPage() {
           loadingDetail={loadingDetail}
           loadingTimeline={loadingTimeline}
           onClose={() => { setSelectedRun(null); setRunDetail(null); setRunTimeline([]); }}
-          onCreateIncident={() => setShowIncidentModal(true)}
           onExportEvidence={(bundleId) => setEvidenceExportBundleId(bundleId)}
           exportEvidenceLoading={evidenceExportLoading}
           onApproveOutput={handleApproveOutput}
@@ -2384,92 +2112,6 @@ export default function AgentOperationsPage() {
           onCancel={() => setEvidenceExportBundleId(null)}
           loading={evidenceExportLoading}
         />
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          CREATE INCIDENT MODAL
-      ══════════════════════════════════════════════════════════════════════ */}
-      {showIncidentModal && (
-        <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Create Incident"
-          onKeyDown={(e) => { if (e.key === "Escape") setShowIncidentModal(false); }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowIncidentModal(false); }}
-        >
-          <div ref={incidentModalRef} tabIndex={-1} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl w-full max-w-md shadow-2xl focus:outline-none">
-            <div className="p-5 border-b border-[#2a2a2a]">
-              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                <Siren className="w-4 h-4 text-rose-400" /> Create Incident
-              </h3>
-              {selectedRun && <p className="text-xs text-[#555] mt-1">Linked to: {selectedRun.agent_name}</p>}
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs text-[#555] mb-1.5">Severity <span className="text-rose-400">*</span></label>
-                <select
-                  value={incidentForm.severity}
-                  onChange={(e) => setIncidentForm({ ...incidentForm, severity: e.target.value })}
-                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#444]"
-                >
-                  <option value="critical">Critical</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-[#555] mb-1.5">Category <span className="text-rose-400">*</span></label>
-                <select
-                  value={incidentForm.category}
-                  onChange={(e) => setIncidentForm({ ...incidentForm, category: e.target.value })}
-                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#444]"
-                >
-                  <option value="critical_failure">Critical Failure</option>
-                  <option value="platform_rule_breach">Platform Rule Breach</option>
-                  <option value="suspected_hallucination">Suspected Hallucination</option>
-                  <option value="brand_violation">Brand Violation</option>
-                  <option value="unauthorized_action">Unauthorized Action</option>
-                  <option value="integration_failure">Integration Failure</option>
-                  <option value="unsafe_content_risk">Unsafe Content Risk</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-[#555] mb-1.5">Root Cause <span className="text-rose-400">*</span></label>
-                <textarea
-                  value={incidentForm.root_cause}
-                  onChange={(e) => setIncidentForm({ ...incidentForm, root_cause: e.target.value })}
-                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-foreground h-20 resize-none focus:outline-none focus:border-[#444] placeholder-[#3a3a3a]"
-                  placeholder="Describe what failed and why…"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-[#555] mb-1.5">Initial Remediation Plan</label>
-                <textarea
-                  value={incidentForm.remediation}
-                  onChange={(e) => setIncidentForm({ ...incidentForm, remediation: e.target.value })}
-                  className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl px-3 py-2 text-sm text-foreground h-16 resize-none focus:outline-none focus:border-[#444] placeholder-[#3a3a3a]"
-                  placeholder="Initial remediation steps…"
-                />
-              </div>
-            </div>
-            <div className="p-4 border-t border-[#2a2a2a] flex items-center justify-end gap-2">
-              <button onClick={() => setShowIncidentModal(false)} className="px-4 py-1.5 bg-[#2a2a2a] text-[#aaa] rounded-xl text-sm hover:bg-[#333] transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateIncident}
-                disabled={!incidentForm.root_cause.trim() || incidentLoading}
-                className="px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-foreground rounded-xl text-sm transition-colors disabled:opacity-40 flex items-center gap-2"
-              >
-                {incidentLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                Create Incident
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       <ConfirmActionModal

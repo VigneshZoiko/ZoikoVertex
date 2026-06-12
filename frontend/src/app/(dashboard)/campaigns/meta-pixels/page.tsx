@@ -31,9 +31,9 @@ function pixelStatus(lastFired: string | null): { label: string; color: string }
   if (!lastFired) return { label: "Waiting for activity", color: "text-zinc-400" };
   const ms   = /^\d+$/.test(lastFired) ? parseInt(lastFired) * 1000 : new Date(lastFired).getTime();
   const days = (Date.now() - ms) / 86_400_000;
-  if (days < 1)  return { label: "Active",        color: "text-emerald-400" };
-  if (days < 7)  return { label: "Active",        color: "text-emerald-400" };
-  if (days < 30) return { label: "Issues found",  color: "text-amber-400"   };
+  if (days < 1)  return { label: "Active",        color: "text-success-text" };
+  if (days < 7)  return { label: "Active",        color: "text-success-text" };
+  if (days < 30) return { label: "Issues found",  color: "text-warning-text"   };
   return              { label: "Inactive",         color: "text-zinc-400"    };
 }
 
@@ -128,14 +128,14 @@ export default function MetaPixelsPage() {
 
         {/* Error state */}
         {error && (
-          <div className="flex items-center gap-2 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-sm text-rose-400">
+          <div className="flex items-center gap-2 p-4 bg-error-text/10 border border-error-border/20 rounded-xl text-sm text-error-text">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {error}
           </div>
         )}
 
         {deleteErr && (
-          <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-sm text-rose-400">
+          <div className="flex items-center gap-2 p-3 bg-error-text/10 border border-error-border/20 rounded-xl text-sm text-error-text">
             <AlertCircle className="w-4 h-4 shrink-0" />
             {deleteErr}
           </div>
@@ -196,8 +196,8 @@ export default function MetaPixelsPage() {
 
                     {/* Status */}
                     <div className="flex items-center gap-1.5 text-sm">
-                      {status.label === "Active" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                      {status.label === "Issues found" && <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                      {status.label === "Active" && <CheckCircle2 className="w-3.5 h-3.5 text-success-text shrink-0" />}
+                      {status.label === "Issues found" && <AlertCircle className="w-3.5 h-3.5 text-warning-text shrink-0" />}
                       {(status.label === "Inactive" || status.label === "Waiting for activity") &&
                         <div className="w-3.5 h-3.5 rounded-full border-2 border-zinc-600 shrink-0" />}
                       <span className={status.color}>{status.label}</span>
@@ -230,7 +230,7 @@ export default function MetaPixelsPage() {
                           <button
                             onClick={() => handleDelete(pixel.id)}
                             disabled={deleting === pixel.id}
-                            className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-rose-400 hover:bg-rose-500/10 transition-colors border-t border-border">
+                            className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-error-text hover:bg-error-text/10 transition-colors border-t border-border">
                             <Trash2 className="w-4 h-4" />
                             {deleting === pixel.id ? "Removing…" : "Delete Meta Pixel"}
                           </button>

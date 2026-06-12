@@ -148,7 +148,7 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
       <button onClick={() => setOpen(o => !o)}
         className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border hover:border-border rounded-lg text-sm transition-colors">
         {selected ? (
-          <><div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" /><span className="text-foreground font-medium">{selected.account_name}</span></>
+          <><div className="w-1.5 h-1.5 rounded-full bg-success-text shrink-0" /><span className="text-foreground font-medium">{selected.account_name}</span></>
         ) : (
           <span className="text-foreground-muted">Select account</span>
         )}
@@ -164,7 +164,7 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
           {accounts.length === 0 ? (
             <div className="px-4 py-6 text-center space-y-2">
               <p className="text-sm text-foreground-muted">No Facebook accounts connected.</p>
-              <a href="/accounts" className="text-xs text-indigo-400 hover:text-indigo-300 underline">Connect an account →</a>
+              <a href="/accounts" className="text-xs text-info-text hover:text-info-text underline">Connect an account →</a>
             </div>
           ) : accounts.map(a => {
             const isSelected  = selectedId === a.id;
@@ -183,7 +183,7 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
                     <p className="text-[10px] text-foreground-muted">@{a.account_handle}</p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                    {isSelected && <Check className="w-3.5 h-3.5 text-success-text" />}
                     {/* Settings gear button */}
                     <button
                       type="button"
@@ -207,7 +207,7 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
                 {/* Ad account status row */}
                 <div className="px-4 pb-2.5 pl-[52px]">
                   {a.has_ad_account ? (
-                    <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
+                    <span className="flex items-center gap-1 text-[11px] text-success-text font-medium">
                       <Check className="w-3 h-3" />{a.ad_account_id}
                     </span>
                   ) : (
@@ -215,7 +215,7 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
                       type="button"
                       onClick={() => fetchAd(a.id)}
                       disabled={loadingAd && linkingFor === a.id}
-                      className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                      className="flex items-center gap-1 text-[11px] text-info-text hover:text-info-text transition-colors">
                       {loadingAd && linkingFor === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link2 className="w-3 h-3" />}
                       Link ad account
                     </button>
@@ -237,11 +237,11 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
                         <span className="text-foreground-muted">Platform</span>
                         <span className="text-foreground capitalize">{a.platform}</span>
                         <span className="text-foreground-muted">Ad Account</span>
-                        <span className={a.has_ad_account ? "text-emerald-400" : "text-foreground-muted"}>
+                        <span className={a.has_ad_account ? "text-success-text" : "text-foreground-muted"}>
                           {a.ad_account_id || "Not linked"}
                         </span>
                         <span className="text-foreground-muted">Token</span>
-                        <span className={a.has_token ? "text-emerald-400" : "text-rose-400"}>
+                        <span className={a.has_token ? "text-success-text" : "text-error-text"}>
                           {a.has_token ? "Active" : "Expired"}
                         </span>
                       </div>
@@ -285,7 +285,7 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
                         </div>
                       )}
                       {adErr && linkingFor === a.id && (
-                        <p className="text-[11px] text-rose-400 px-3 pb-2">{adErr}</p>
+                        <p className="text-[11px] text-error-text px-3 pb-2">{adErr}</p>
                       )}
 
                       <a href="/accounts" target="_blank"
@@ -301,7 +301,7 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
                           <button type="button"
                             onClick={() => removeAccount(a.id)}
                             disabled={removing === a.id}
-                            className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 text-[11px] font-semibold rounded-lg transition-colors">
+                            className="px-2.5 py-1 bg-error-text/20 hover:bg-error-text/30 text-error-text text-[11px] font-semibold rounded-lg transition-colors">
                             {removing === a.id ? "Removing…" : "Yes, remove"}
                           </button>
                           <button type="button" onClick={() => setConfirmRm(null)}
@@ -312,7 +312,7 @@ function AccountSelector({ accounts, selectedId, onSelect, onReload }: {
                       ) : (
                         <button type="button"
                           onClick={() => setConfirmRm(a.id)}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors text-left">
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-error-text hover:text-error-text hover:bg-error-text/10 rounded-lg transition-colors text-left">
                           <Trash2 className="w-3.5 h-3.5" />
                           Remove account
                         </button>
@@ -528,7 +528,7 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
       </div>
 
       {apiError && (
-        <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-sm text-rose-400">
+        <div className="flex items-center gap-2 p-3 bg-error-text/10 border border-error-border/20 rounded-xl text-sm text-error-text">
           <AlertCircle className="w-4 h-4 shrink-0" />{apiError}
         </div>
       )}
@@ -625,10 +625,10 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
 
                     {/* Status */}
                     <div className="flex items-center gap-1.5 text-sm">
-                      {st.icon === "check" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                      {st.icon === "warn"  && <AlertCircle  className="w-3.5 h-3.5 text-amber-400 shrink-0"   />}
+                      {st.icon === "check" && <CheckCircle2 className="w-3.5 h-3.5 text-success-text shrink-0" />}
+                      {st.icon === "warn"  && <AlertCircle  className="w-3.5 h-3.5 text-warning-text shrink-0"   />}
                       {st.icon === "dot"   && <div className="w-3 h-3 rounded-full border-2 border-zinc-600 shrink-0" />}
-                      <span className={st.icon === "check" ? "text-emerald-400" : st.icon === "warn" ? "text-amber-400" : "text-zinc-400"}>
+                      <span className={st.icon === "check" ? "text-success-text" : st.icon === "warn" ? "text-warning-text" : "text-zinc-400"}>
                         {st.label}
                       </span>
                     </div>
@@ -670,7 +670,7 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                             </button>
                             <button
                               onClick={() => { setDeleteModal({ id: px.id, name: px.name }); setDeleteResult(null); setOpenMenu(null); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-rose-400 hover:bg-rose-500/10 border-t border-border">
+                              className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-error-text hover:bg-error-text/10 border-t border-border">
                               <Trash2 className="w-4 h-4" />Delete Pixel
                             </button>
                           </div>
@@ -768,7 +768,7 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                 autoFocus />
             </div>
             {createErr && (
-              <div className="flex items-start gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400">
+              <div className="flex items-start gap-2 p-3 bg-error-text/10 border border-error-border/20 rounded-xl text-xs text-error-text">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />{createErr}
               </div>
             )}
@@ -790,7 +790,7 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
             {deleteResult?.needs_events_manager ? (
               <>
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-warning-text shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold text-foreground text-sm">Cannot delete via API</p>
                     <p className="text-xs text-foreground-muted mt-1">
@@ -813,7 +813,7 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                   </p>
                 </div>
                 {deleteResult?.error && (
-                  <div className="flex items-start gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400">
+                  <div className="flex items-start gap-2 p-3 bg-error-text/10 border border-error-border/20 rounded-xl text-xs text-error-text">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />{deleteResult.error}
                   </div>
                 )}
@@ -821,7 +821,7 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                   <button onClick={() => setDeleteModal(null)} disabled={deleting}
                     className="px-4 py-2 text-sm text-foreground-muted border border-border rounded-xl hover:text-foreground">Cancel</button>
                   <button onClick={confirmDelete} disabled={deleting}
-                    className="px-4 py-2 text-sm font-semibold bg-rose-600 hover:bg-rose-500 text-white rounded-xl disabled:opacity-50 transition-colors">
+                    className="px-4 py-2 text-sm font-semibold bg-error-text hover:bg-error-text text-white rounded-xl disabled:opacity-50 transition-colors">
                     {deleting ? "Deleting…" : "Delete Pixel"}
                   </button>
                 </div>
@@ -926,7 +926,7 @@ function PixelsPanel({ onUseInCampaign }: { onUseInCampaign: (id: string, name: 
                   <button onClick={() => setShowSetup(null)} className="p-1 hover:bg-white/10 rounded-lg"><X className="w-4 h-4 text-foreground-muted" /></button>
                 </div>
                 <div className="relative">
-                  <pre className="bg-background border border-border p-4 rounded-xl text-[10px] text-emerald-400 overflow-x-auto whitespace-pre-wrap">
+                  <pre className="bg-background border border-border p-4 rounded-xl text-[10px] text-success-text overflow-x-auto whitespace-pre-wrap">
 {`<!-- Meta Pixel Code -->
 <script>
 !function(f,b,e,v,n,t,s)
@@ -1155,7 +1155,7 @@ export default function CampaignsPage() {
 
         {/* Error */}
         {error && (
-          <div className="flex items-center gap-3 text-rose-400 text-sm">
+          <div className="flex items-center gap-3 text-error-text text-sm">
             <AlertCircle className="w-4 h-4 shrink-0" />{error}
             <button onClick={() => setError(null)}><X className="w-3.5 h-3.5" /></button>
           </div>
@@ -1187,7 +1187,7 @@ export default function CampaignsPage() {
 
         {/* Warning: no ad account linked */}
         {tab !== "pixels" && accounts.length > 0 && !hasAdAcc && !loading && (
-          <div className="flex items-start gap-3 text-sm text-amber-400 py-2">
+          <div className="flex items-start gap-3 text-sm text-warning-text py-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>No ad account linked yet. Click the account selector above then &quot;Link ad account&quot; to connect your Meta Ad Account.</span>
           </div>
@@ -1229,7 +1229,7 @@ export default function CampaignsPage() {
                         <div key={c.id}
                           onClick={() => setSelectedDraft(selectedDraft?.id === c.id ? null : c)}
                           className={`flex items-stretch border rounded-xl overflow-hidden cursor-pointer transition-colors ${
-                            selectedDraft?.id === c.id ? "border-amber-500/60 bg-amber-500/5" : "border-border hover:border-border bg-surface"
+                            selectedDraft?.id === c.id ? "border-warning-border/60 bg-warning-text/5" : "border-border hover:border-border bg-surface"
                           }`}>
                           {/* No media box */}
                           <div className="w-24 shrink-0 bg-surface-hover flex items-center justify-center text-foreground-muted text-xs">
@@ -1257,7 +1257,7 @@ export default function CampaignsPage() {
                                 </button>
                                 <button type="button"
                                   onClick={e => { e.stopPropagation(); deleteCampaign(c.id); setSelectedDraft(null); }}
-                                  className="px-3 py-1.5 text-xs font-semibold border border-border hover:border-rose-500/50 text-foreground-muted hover:text-rose-400 rounded-lg transition-colors">
+                                  className="px-3 py-1.5 text-xs font-semibold border border-border hover:border-error-border/50 text-foreground-muted hover:text-error-text rounded-lg transition-colors">
                                   Delete
                                 </button>
                               </div>
@@ -1294,7 +1294,7 @@ export default function CampaignsPage() {
                     onClick={() => { setEditCampaignId(selectedDraft.id); setShowCreator(true); }}
                     className="flex-1 py-1.5 text-xs font-semibold border border-border hover:border-border text-foreground-muted rounded-lg transition-colors">Edit</button>
                   <button type="button" onClick={() => deleteCampaign(selectedDraft.id)}
-                    className="flex-1 py-1.5 text-xs font-semibold border border-border hover:border-rose-500/50 text-foreground-muted hover:text-rose-400 rounded-lg transition-colors">Delete</button>
+                    className="flex-1 py-1.5 text-xs font-semibold border border-border hover:border-error-border/50 text-foreground-muted hover:text-error-text rounded-lg transition-colors">Delete</button>
                 </div>
 
                 {/* Mini ad preview */}
@@ -1504,7 +1504,7 @@ export default function CampaignsPage() {
                             <>
                               <p className="text-sm text-foreground">${c.spend_recorded.toLocaleString()}</p>
                               {spendPct != null && (
-                                <p className={`text-[10px] ${spendPct >= 90 ? "text-amber-400" : "text-foreground-muted"}`}>
+                                <p className={`text-[10px] ${spendPct >= 90 ? "text-warning-text" : "text-foreground-muted"}`}>
                                   {spendPct}% of budget
                                 </p>
                               )}
@@ -1567,7 +1567,7 @@ export default function CampaignsPage() {
                                   </Link>
                                 )}
                                 <button onClick={() => { deleteCampaign(c.id); setMenu(null); }}
-                                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-rose-400 hover:bg-surface">
+                                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-error-text hover:bg-surface">
                                   <Trash2 className="w-3.5 h-3.5" />Delete campaign
                                 </button>
                                 <div className="border-t border-border" />
