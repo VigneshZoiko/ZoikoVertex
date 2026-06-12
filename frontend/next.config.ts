@@ -82,6 +82,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/queue',
+        destination: '/review-queue',
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {
