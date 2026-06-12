@@ -11,14 +11,25 @@
  *   4. Store meta IDs back to DB
  *   5. Update campaign status to ACTIVE
  *
- * Meta Graph API v18.0 — https://developers.facebook.com/docs/marketing-api
+ * Meta Graph API v21.0 — https://developers.facebook.com/docs/marketing-api
  */
 
+import { createHmac }    from 'crypto';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger }        from '../../shared/logger';
+import { env }           from '../../config/env';
 import { PublishReporter, type PublishReport } from './metaPublishReport';
 
-const META_GRAPH = 'https://graph.facebook.com/v18.0';
+const META_GRAPH = 'https://graph.facebook.com/v21.0';
+
+// appsecret_proof — required by Meta for server-side Marketing API calls.
+// HMAC-SHA256(access_token, app_secret). Without it Meta can reject calls or
+// revoke tokens if "Require App Secret" is enabled on the Meta App.
+function appSecretProof(token: string): string {
+  const secret = env.META_APP_SECRET;
+  if (!secret) return '';
+  return createHmac('sha256', secret).update(token).digest('hex');
+}
 
 // ── Objective mapping ─────────────────────────────────────────────────────────
 
@@ -116,6 +127,7 @@ function buildPlacementSpec(placements: string[], deviceType: string): Placement
 
 // ── Conversion event name → Meta standard event ───────────────────────────────
 const CONV_EVENT_MAP: Record<string, string> = {
+  // Display-name format (legacy)
   'Add payment info':       'ADD_PAYMENT_INFO',
   'Add to cart':            'ADD_TO_CART',
   'Add to wishlist':        'ADD_TO_WISHLIST',
@@ -127,22 +139,91 @@ const CONV_EVENT_MAP: Record<string, string> = {
   'Start trial':            'START_TRIAL',
   'Subscribe':              'SUBSCRIBE',
   'View content':           'VIEW_CONTENT',
+  // Meta API uppercase format (from pixel picker)
+  'ADD_PAYMENT_INFO':       'ADD_PAYMENT_INFO',
+  'ADD_TO_CART':            'ADD_TO_CART',
+  'ADD_TO_WISHLIST':        'ADD_TO_WISHLIST',
+  'COMPLETE_REGISTRATION':  'COMPLETE_REGISTRATION',
+  'DONATE':                 'DONATE',
+  'INITIATE_CHECKOUT':      'INITIATE_CHECKOUT',
+  'LEAD':                   'LEAD',
+  'PURCHASE':               'PURCHASE',
+  'SEARCH':                 'SEARCH',
+  'START_TRIAL':            'START_TRIAL',
+  'SUBSCRIBE':              'SUBSCRIBE',
+  'VIEW_CONTENT':           'VIEW_CONTENT',
+};
+
+// ── Zero-subunit (no-cents) currency codes ────────────────────────────────────
+// For these currencies Meta expects the raw integer, NOT × 100.
+// All others (USD, EUR, GBP, INR, AUD, etc.) use minor units (cents).
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  'BIF','CLP','DJF','GNF','GWP','ISK','JPY','KMF','KRW','MGA','PYG','RWF','UGX','VND','VUV','XAF','XOF','XPF',
+]);
+
+function toBudgetMinorUnit(amount: number, currency: string): number {
+  return ZERO_DECIMAL_CURRENCIES.has(currency.toUpperCase())
+    ? Math.round(amount)
+    : Math.round(amount * 100);
+}
+
+// ── Objective → valid optimization goals ─────────────────────────────────────
+// Meta rejects ad sets with optimization goals not valid for the campaign objective.
+const OBJECTIVE_VALID_GOALS: Record<string, Set<string>> = {
+  OUTCOME_AWARENESS:  new Set(['REACH','IMPRESSIONS','AD_RECALL_LIFT','THRUPLAY','TWO_SECOND_CONTINUOUS_VIDEO_VIEWS']),
+  OUTCOME_TRAFFIC:    new Set(['LANDING_PAGE_VIEWS','LINK_CLICKS','CONVERSATIONS','IMPRESSIONS']),
+  OUTCOME_ENGAGEMENT: new Set(['POST_ENGAGEMENT','IMPRESSIONS','REACH','THRUPLAY','TWO_SECOND_CONTINUOUS_VIDEO_VIEWS','CONVERSATIONS']),
+  OUTCOME_LEADS:      new Set(['LEAD_GENERATION','QUALITY_LEAD','CONVERSATIONS','LINK_CLICKS','LANDING_PAGE_VIEWS']),
+  OUTCOME_SALES:      new Set(['OFFSITE_CONVERSIONS','LINK_CLICKS','LANDING_PAGE_VIEWS','IMPRESSIONS','REACH']),
+};
+
+const OBJECTIVE_DEFAULT_GOAL: Record<string, string> = {
+  OUTCOME_AWARENESS:  'REACH',
+  OUTCOME_TRAFFIC:    'LANDING_PAGE_VIEWS',
+  OUTCOME_ENGAGEMENT: 'POST_ENGAGEMENT',
+  OUTCOME_LEADS:      'LANDING_PAGE_VIEWS',
+  OUTCOME_SALES:      'LANDING_PAGE_VIEWS',
 };
 
 // ── Meta API helper ───────────────────────────────────────────────────────────
 
-async function metaPost(path: string, token: string, body: Record<string, unknown>) {
+// Rate-limit error codes from Meta: 32 = app limit, 17 = user limit, 4 = app daily limit, 80004 = ads limit
+const RATE_LIMIT_CODES = new Set([4, 17, 32, 80004]);
+
+async function metaPost(path: string, token: string, body: Record<string, unknown>, _attempt = 0): Promise<any> {
+  const proof = appSecretProof(token);
   const r = await fetch(`${META_GRAPH}${path}`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ ...body, access_token: token }),
+    body:    JSON.stringify({
+      ...body,
+      access_token:    token,
+      ...(proof ? { appsecret_proof: proof } : {}),
+    }),
   });
-  return r.json() as Promise<any>;
+  const result = await r.json() as any;
+  if (result?.error?.code && RATE_LIMIT_CODES.has(result.error.code) && _attempt < 3) {
+    const delay = Math.pow(2, _attempt) * 1500; // 1.5s, 3s, 6s
+    logger.warn({ code: result.error.code, path, attempt: _attempt + 1, delay }, '[Meta] Rate limit — retrying');
+    await new Promise(res => setTimeout(res, delay));
+    return metaPost(path, token, body, _attempt + 1);
+  }
+  return result;
 }
 
-async function metaGet(path: string, token: string) {
-  const r = await fetch(`${META_GRAPH}${path}&access_token=${token}`);
-  return r.json() as Promise<any>;
+async function metaGet(path: string, token: string, _attempt = 0): Promise<any> {
+  const sep   = path.includes('?') ? '&' : '?';
+  const proof = appSecretProof(token);
+  const proofParam = proof ? `&appsecret_proof=${proof}` : '';
+  const r = await fetch(`${META_GRAPH}${path}${sep}access_token=${token}${proofParam}`);
+  const result = await r.json() as any;
+  if (result?.error?.code && RATE_LIMIT_CODES.has(result.error.code) && _attempt < 3) {
+    const delay = Math.pow(2, _attempt) * 1500;
+    logger.warn({ code: result.error.code, path, attempt: _attempt + 1, delay }, '[Meta] Rate limit — retrying');
+    await new Promise(res => setTimeout(res, delay));
+    return metaGet(path, token, _attempt + 1);
+  }
+  return result;
 }
 
 // ── Geo location spec builder ─────────────────────────────────────────────────
@@ -188,6 +269,7 @@ export interface PublishResult {
   meta_creative_id?: string;
   meta_ad_id?:       string;
   error?:            string;
+  warnings?:         string[];
   publish_report?:   PublishReport;
 }
 
@@ -197,6 +279,7 @@ export async function publishCampaignToMeta(
 ): Promise<PublishResult> {
 
   const reporter = new PublishReporter(campaignId, workspaceId);
+  const warnings: string[] = [];
 
   // ── 1. Load campaign ──────────────────────────────────────────────────────
   const { data: campaign, error: campErr } = await supabaseAdmin
@@ -295,8 +378,10 @@ export async function publishCampaignToMeta(
 
   // Pre-flight: check user token permissions — Page tokens return empty; user tokens return full grant list
   try {
-    const permResp = await fetch(`${META_GRAPH}/me/permissions?access_token=${userToken}`);
-    const permData = await permResp.json() as any;
+    const permProof = appSecretProof(userToken);
+    const permUrl   = `${META_GRAPH}/me/permissions?access_token=${userToken}${permProof ? `&appsecret_proof=${permProof}` : ''}`;
+    const permResp  = await fetch(permUrl);
+    const permData  = await permResp.json() as any;
     const granted = (permData?.data || [])
       .filter((p: any) => p.status === 'granted')
       .map((p: any) => p.permission);
@@ -332,7 +417,8 @@ export async function publishCampaignToMeta(
     reporter.addStep({ step: 'resolve_page_id', status: 'ok', notes: 'Used stored page_id from connected_accounts', received: { page_id: pageId } });
     // Verify the ad account is authorized to promote this page — must use user token, not page token
     try {
-      const promResp = await fetch(`${META_GRAPH}/${adAccountId}/promote_pages?fields=id,name&access_token=${userToken}`);
+      const pp1   = appSecretProof(userToken);
+      const promResp = await fetch(`${META_GRAPH}/${adAccountId}/promote_pages?fields=id,name&access_token=${userToken}${pp1 ? `&appsecret_proof=${pp1}` : ''}`);
       const promData = await promResp.json() as any;
       const pages = promData?.data || [];
       const authorized = pages.some((p: any) => p.id === pageId);
@@ -360,7 +446,8 @@ export async function publishCampaignToMeta(
     // Requires no special scope beyond basic ads_management.
     try {
       // Strategy 1 must use user token — page token returns empty
-      const r1 = await fetch(`${META_GRAPH}/${adAccountId}/promote_pages?fields=id,name&limit=1&access_token=${userToken}`);
+      const pp2 = appSecretProof(userToken);
+      const r1 = await fetch(`${META_GRAPH}/${adAccountId}/promote_pages?fields=id,name&limit=1&access_token=${userToken}${pp2 ? `&appsecret_proof=${pp2}` : ''}`);
       const d1 = await r1.json() as any;
       if (!d1.error && d1.data?.[0]?.id && isNumeric(d1.data[0].id)) {
         pageId = d1.data[0].id;
@@ -374,7 +461,8 @@ export async function publishCampaignToMeta(
     // Strategy 2: /me/accounts — requires pages_show_list; user token resolves to the user
     if (!pageId || !isNumeric(pageId)) {
       try {
-        const r2 = await fetch(`${META_GRAPH}/me/accounts?fields=id,name&limit=1&access_token=${userToken}`);
+        const pp3 = appSecretProof(userToken);
+        const r2 = await fetch(`${META_GRAPH}/me/accounts?fields=id,name&limit=1&access_token=${userToken}${pp3 ? `&appsecret_proof=${pp3}` : ''}`);
         const d2 = await r2.json() as any;
         if (!d2.error && d2.data?.[0]?.id && isNumeric(d2.data[0].id)) {
           pageId = d2.data[0].id;
@@ -392,7 +480,8 @@ export async function publishCampaignToMeta(
       const handle = (account.account_handle || '').replace(/^@/, '').trim();
       if (handle) {
         try {
-          const r3 = await fetch(`${META_GRAPH}/${encodeURIComponent(handle)}?fields=id,name,fan_count&access_token=${userToken}`);
+          const pp4 = appSecretProof(userToken);
+          const r3  = await fetch(`${META_GRAPH}/${encodeURIComponent(handle)}?fields=id,name,fan_count&access_token=${userToken}${pp4 ? `&appsecret_proof=${pp4}` : ''}`);
           const d3 = await r3.json() as any;
           // fan_count exists on Pages but not personal profiles
           if (!d3.error && d3.id && isNumeric(d3.id) && 'fan_count' in d3) {
@@ -426,9 +515,13 @@ export async function publishCampaignToMeta(
 
   // ── 3. Check ad account status before doing any work ─────────────────────
   // account_status values: 1=ACTIVE, 2=DISABLED, 3=UNSETTLED, 7=PENDING_REVIEW, 9=IN_GRACE_PERIOD
+  // Also capture currency — needed for correct budget minor-unit conversion.
+  let adAccountCurrency = 'USD'; // safe default (standard 2-decimal currency)
   try {
-    const acctResp = await fetch(`${META_GRAPH}/${adAccountId}?fields=account_status,disable_reason,currency&access_token=${token}`);
+    const acctProof = appSecretProof(token);
+    const acctResp  = await fetch(`${META_GRAPH}/${adAccountId}?fields=account_status,disable_reason,currency&access_token=${token}${acctProof ? `&appsecret_proof=${acctProof}` : ''}`);
     const acctData = await acctResp.json() as any;
+    if (acctData.currency) adAccountCurrency = acctData.currency;
     const statusCode: number = acctData.account_status;
     const STATUS_LABELS: Record<number, string> = {
       1: 'ACTIVE', 2: 'DISABLED', 3: 'UNSETTLED', 7: 'PENDING_REVIEW',
@@ -535,11 +628,11 @@ export async function publishCampaignToMeta(
   logger.info({ campaignId, adAccountId, metaObjective, specialCategories }, '[MetaPublisher] Creating campaign on Meta');
 
   const campaignCreateBody: Record<string, any> = {
-    name:                           campaign.name,
-    objective:                      metaObjective,
-    status:                         'PAUSED',
-    special_ad_categories:          specialCategories,
-    is_adset_budget_sharing_enabled: false, // budget is set at ad set level, not campaign level
+    name:                  campaign.name,
+    objective:             metaObjective,
+    status:                'PAUSED',
+    special_ad_categories: specialCategories,
+    is_adset_budget_sharing_enabled: false,
   };
 
   // EU compliance: add beneficiary + payer as ad labels
@@ -574,9 +667,9 @@ export async function publishCampaignToMeta(
   // Budget: daily vs total (lifetime)
   const budgetBody: Record<string, any> = {};
   if (campaign.budget_daily) {
-    budgetBody.daily_budget = Math.round(campaign.budget_daily * 100);
+    budgetBody.daily_budget = toBudgetMinorUnit(campaign.budget_daily, adAccountCurrency);
   } else if (campaign.budget_total) {
-    budgetBody.lifetime_budget = Math.round(campaign.budget_total * 100);
+    budgetBody.lifetime_budget = toBudgetMinorUnit(campaign.budget_total, adAccountCurrency);
     // lifetime_budget requires end_time
     if (!campaign.end_at) {
       // Default: 30 days from now
@@ -599,12 +692,16 @@ export async function publishCampaignToMeta(
   };
 
   // Interests — Meta requires [{id, name}] where id is a numeric Meta interest ID.
-  // Plain text strings (e.g. "Fashion") are not valid and are silently dropped.
+  // Plain text strings (e.g. "Fashion") are not valid and are dropped with a user warning.
   if (targeting.interests && Array.isArray(targeting.interests) && targeting.interests.length > 0) {
-    const interests = targeting.interests
-      .map((i: any) => typeof i === 'object' && i.id ? i : null)
-      .filter(Boolean);
-    if (interests.length > 0) adSetTargeting.flexible_spec = [{ interests }];
+    const validInterests = targeting.interests.filter((i: any) => typeof i === 'object' && i.id);
+    const textInterests  = targeting.interests.filter((i: any) => typeof i !== 'object' || !i.id);
+    if (textInterests.length > 0) {
+      const msg = `${textInterests.length} interest(s) provided as plain text were ignored — Meta requires interest objects with numeric IDs. No interest targeting was applied. Use the Advanced campaign builder to add Meta audience IDs.`;
+      reporter.addStep({ step: 'targeting_interests', status: 'warn', notes: msg });
+      warnings.push(msg);
+    }
+    if (validInterests.length > 0) adSetTargeting.flexible_spec = [{ interests: validInterests }];
   }
 
   // Manual placements
@@ -620,8 +717,9 @@ export async function publishCampaignToMeta(
       if (placementSpec.device_platforms)           adSetTargeting.device_platforms           = placementSpec.device_platforms;
     }
   } else if (campaign.device_type && campaign.device_type !== 'all') {
-    // Automatic placements with device filter
-    adSetTargeting.device_platforms = [campaign.device_type];
+    // Automatic placements with device filter — Meta requires publisher_platforms when device_platforms is set
+    adSetTargeting.publisher_platforms = ['facebook', 'instagram', 'messenger', 'audience_network'];
+    adSetTargeting.device_platforms    = [campaign.device_type];
   }
 
   // billing_event must match optimization_goal for some goals
@@ -652,21 +750,56 @@ export async function publishCampaignToMeta(
     ...budgetBody,
   };
 
-  // promoted_object — required by Meta for several optimization goals
-  if (optimizationGoal === 'OFFSITE_CONVERSIONS') {
-    if (campaign.tracking_pixel_id) {
-      const metaEvent = CONV_EVENT_MAP[campaign.conversion_event || 'Purchase'] || 'PURCHASE';
-      adSetBody.promoted_object = { pixel_id: campaign.tracking_pixel_id, custom_event_type: metaEvent };
+  // Validate optimization goal is compatible with the campaign objective.
+  // Meta rejects ad sets whose optimization_goal is not in the valid set for the objective.
+  const validGoals = OBJECTIVE_VALID_GOALS[metaObjective];
+  if (validGoals && !validGoals.has(adSetBody.optimization_goal)) {
+    const fallbackGoal = OBJECTIVE_DEFAULT_GOAL[metaObjective] || 'LANDING_PAGE_VIEWS';
+    const msg = `Optimization goal "${adSetBody.optimization_goal}" is not valid for objective "${metaObjective}" — downgraded to "${fallbackGoal}".`;
+    reporter.addStep({ step: 'validate_optimization_goal', status: 'warn', notes: msg });
+    warnings.push(msg);
+    logger.warn({ campaignId, metaObjective, was: adSetBody.optimization_goal, now: fallbackGoal }, '[MetaPublisher] Incompatible optimization goal downgraded');
+    adSetBody.optimization_goal = fallbackGoal;
+    adSetBody.billing_event     = BILLING_EVENT_MAP[fallbackGoal] ?? 'IMPRESSIONS';
+  }
+
+  // THRUPLAY requires a video ad — if no video is present, downgrade to IMPRESSIONS.
+  // creative is available here; adsData is resolved later but we can check the top-level creative field.
+  if (adSetBody.optimization_goal === 'THRUPLAY') {
+    const firstAdType = creative.meta_ad_type || '';
+    const hasVideo    = firstAdType === 'video_ad' && !!creative.ad_video_url;
+    if (!hasVideo) {
+      const msg = 'THRUPLAY optimization requires a video ad — downgraded to IMPRESSIONS because no video asset was found.';
+      reporter.addStep({ step: 'validate_thruplay', status: 'warn', notes: msg });
+      warnings.push(msg);
+      adSetBody.optimization_goal = 'IMPRESSIONS';
+      adSetBody.billing_event     = 'IMPRESSIONS';
+    }
+  }
+
+  // promoted_object — use adSetBody.optimization_goal (may have been downgraded above)
+  const finalOptGoal = adSetBody.optimization_goal as string;
+  if (finalOptGoal === 'OFFSITE_CONVERSIONS') {
+    const pixelIdRaw = String(campaign.tracking_pixel_id || '').trim();
+    if (pixelIdRaw && /^\d+$/.test(pixelIdRaw)) {
+      // Support both old display-name format ("Purchase") via CONV_EVENT_MAP
+      // and new Meta API format stored from the pixel picker ("PURCHASE", "LEAD", etc.)
+      const rawEvent  = campaign.conversion_event || 'PURCHASE';
+      const metaEvent = CONV_EVENT_MAP[rawEvent] || rawEvent.toUpperCase().replace(/ /g, '_');
+      adSetBody.promoted_object = { pixel_id: pixelIdRaw, custom_event_type: metaEvent };
     } else {
-      // No pixel — downgrade so Meta doesn't reject the ad set
+      // No pixel — downgrade and warn the user clearly
       adSetBody.optimization_goal = 'LANDING_PAGE_VIEWS';
       adSetBody.billing_event     = 'IMPRESSIONS';
-      logger.warn({ campaignId }, '[MetaPublisher] OFFSITE_CONVERSIONS requested but no pixel — downgraded to LANDING_PAGE_VIEWS');
+      const msg = 'No Meta Pixel configured — conversion optimization downgraded to Landing Page Views. To enable proper conversion tracking, add your Pixel ID to this campaign in Meta Ads Manager.';
+      reporter.addStep({ step: 'optimize_goal_downgrade', status: 'warn', notes: msg });
+      warnings.push(msg);
+      logger.warn({ campaignId }, '[MetaPublisher] OFFSITE_CONVERSIONS → LANDING_PAGE_VIEWS (no pixel)');
     }
-  } else if (optimizationGoal === 'CONVERSATIONS') {
+  } else if (finalOptGoal === 'CONVERSATIONS') {
     // Message ads require page_id in promoted_object
     adSetBody.promoted_object = { page_id: pageId };
-  } else if (optimizationGoal === 'LEAD_GENERATION' || optimizationGoal === 'QUALITY_LEAD') {
+  } else if (finalOptGoal === 'LEAD_GENERATION' || finalOptGoal === 'QUALITY_LEAD') {
     // Lead ads require page_id in promoted_object
     adSetBody.promoted_object = { page_id: pageId };
   }
@@ -721,7 +854,9 @@ export async function publishCampaignToMeta(
     pageId,
   }, '[MetaPublisher] Creative data resolved from DB');
 
-  const createdAdIds: string[] = [];
+  // Use Maps keyed by original ad index so partial failures don't shift IDs.
+  const createdAdIds       = new Map<number, string>();
+  const createdCreativeIds = new Map<number, string>();
   let firstCreativeId = '';
   let firstAdId       = '';
 
@@ -729,8 +864,6 @@ export async function publishCampaignToMeta(
     const adData      = adsData[idx];
     const landingUrl  = adData.landing_page_url || creative.landing_page_url || null;
     const validUrl    = landingUrl?.startsWith('http') ? landingUrl : null;
-    const headline    = adData.headline  || creative.headline  || campaign.name;
-    const message     = adData.copy_text || creative.copy_text || '';
     const ctaTypeRaw  = adData.cta_text  || creative.cta_text  || 'LEARN_MORE';
     const ctaTypeNorm = ctaTypeRaw.toUpperCase().replace(/ /g, '_').replace(/'/g, '');
     // CTAs that require special Meta account approval (employment, local business, etc.)
@@ -738,10 +871,22 @@ export async function publishCampaignToMeta(
     const RESTRICTED_CTAS = new Set(['APPLY_NOW', 'GET_DIRECTIONS', 'CALL_NOW', 'OPEN_LINK']);
     const ctaType = RESTRICTED_CTAS.has(ctaTypeNorm) ? 'LEARN_MORE' : ctaTypeNorm;
     if (RESTRICTED_CTAS.has(ctaTypeNorm)) {
+      const msg = `CTA "${ctaTypeNorm}" requires special Meta account approval — substituted with "LEARN_MORE". To use ${ctaTypeNorm}, request CTA approval in Meta Business Manager.`;
+      reporter.addStep({ step: `cta_substitution_ad${idx}`, status: 'warn', notes: msg });
+      warnings.push(msg);
       logger.warn({ ad: adData.name, ctaTypeNorm }, '[MetaPublisher] Restricted CTA substituted with LEARN_MORE');
     }
     const imageUrl    = adData.ad_image_url || creative.ad_image_url || null;
     const adName      = adData.name || `${campaign.name} — Ad ${idx + 1}`;
+
+    // Meta hard limits: primary text ≤ 500 chars, headline ≤ 255 chars.
+    // Silently truncate with a warning rather than failing the whole publish.
+    const rawMessage  = adData.copy_text || creative.copy_text || '';
+    const rawHeadline = adData.headline  || creative.headline  || campaign.name;
+    const message  = rawMessage.length  > 500 ? rawMessage.slice(0, 500)   : rawMessage;
+    const headline = rawHeadline.length > 255 ? rawHeadline.slice(0, 255)  : rawHeadline;
+    if (rawMessage.length  > 500) { const m = `Ad[${idx}] primary text truncated to 500 chars (was ${rawMessage.length})`; warnings.push(m); reporter.addStep({ step: `text_truncation_ad${idx}`, status: 'warn', notes: m }); }
+    if (rawHeadline.length > 255) { const m = `Ad[${idx}] headline truncated to 255 chars (was ${rawHeadline.length})`; warnings.push(m); reporter.addStep({ step: `text_truncation_ad${idx}`, status: 'warn', notes: m }); }
 
     const metaAdType  = adData.meta_ad_type || creative.meta_ad_type || 'image_ad';
     const leadFormId  = adData.lead_form_id || creative.lead_form_id || '';
@@ -749,25 +894,61 @@ export async function publishCampaignToMeta(
 
     let storySpec: Record<string, any>;
 
-    if (metaAdType === 'lead_ad' && leadFormId) {
-      // Lead generation ad — uses a Meta Lead Gen Form
+    if (metaAdType === 'lead_ad') {
+      // Lead generation ad — requires a valid numeric Meta Lead Gen Form ID
+      if (!leadFormId) {
+        const errMsg = 'Lead Form ID is required for Lead Ads. Go to Meta Ads Manager → Advertise → Lead Ads Forms, create a form, and paste the numeric Form ID here.';
+        reporter.addStep({ step: `build_creative_ad${idx}`, status: 'error', error: errMsg });
+        if (idx === 0) {
+          await metaPost(`/${metaCampaignId}`, token, { status: 'DELETED' }).catch(() => {});
+          await saveMetaError(campaignId, errMsg);
+          return { success: false, error: errMsg, publish_report: reporter.finalize('FAILED') };
+        }
+        continue;
+      }
+      if (!/^\d+$/.test(String(leadFormId).trim())) {
+        const errMsg = `Lead Form ID "${leadFormId}" is not valid — Meta Lead Form IDs are numeric only (e.g. "1234567890"). Go to Meta Ads Manager → Advertise → Lead Ads Forms and copy the numeric ID.`;
+        reporter.addStep({ step: `build_creative_ad${idx}`, status: 'error', error: errMsg });
+        if (idx === 0) {
+          await metaPost(`/${metaCampaignId}`, token, { status: 'DELETED' }).catch(() => {});
+          await saveMetaError(campaignId, errMsg);
+          return { success: false, error: errMsg, publish_report: reporter.finalize('FAILED') };
+        }
+        continue;
+      }
       storySpec = {
         object_story_spec: {
           page_id:   pageId,
           link_data: {
+            link:    `https://www.facebook.com/${pageId}`, // required by Meta even for lead ads
             ...(message  ? { message }  : {}),
-            name:         headline,
+            name:    headline,
             ...(imageUrl  ? { picture: imageUrl } : {}),
             call_to_action: { type: 'SIGN_UP', value: { lead_gen_form_id: leadFormId } },
           },
         },
       };
     } else if (metaAdType === 'video_ad' && videoUrl) {
-      // Video ad — video_id must be a numeric Meta video ID (not a CDN URL).
-      // If the user pasted a URL, warn them — Meta will reject it.
+      // Video ad — video_id must be a numeric Meta video ID, NOT a CDN URL.
       if (/^https?:\/\//i.test(videoUrl)) {
-        reporter.addStep({ step: 'build_creative', status: 'warn',
-          notes: `video_url looks like a URL, not a Meta video ID. Upload the video in Meta Ads Manager → Creative Hub and paste the numeric video ID.` });
+        const errMsg = `Video field contains a URL ("${videoUrl.slice(0, 60)}...") — Meta requires a numeric Video ID, not a URL. Go to Meta Ads Manager → Creative Hub → Videos, find your video, and copy the numeric ID (e.g. "1234567890").`;
+        reporter.addStep({ step: `build_creative_ad${idx}`, status: 'error', error: errMsg });
+        if (idx === 0) {
+          await metaPost(`/${metaCampaignId}`, token, { status: 'DELETED' }).catch(() => {});
+          await saveMetaError(campaignId, errMsg);
+          return { success: false, error: errMsg, publish_report: reporter.finalize('FAILED') };
+        }
+        continue;
+      }
+      if (!/^\d+$/.test(String(videoUrl).trim())) {
+        const errMsg = `Video ID "${videoUrl}" is not a valid Meta Video ID — expected a numeric string (e.g. "1234567890"). Find it in Meta Ads Manager → Creative Hub → Videos.`;
+        reporter.addStep({ step: `build_creative_ad${idx}`, status: 'error', error: errMsg });
+        if (idx === 0) {
+          await metaPost(`/${metaCampaignId}`, token, { status: 'DELETED' }).catch(() => {});
+          await saveMetaError(campaignId, errMsg);
+          return { success: false, error: errMsg, publish_report: reporter.finalize('FAILED') };
+        }
+        continue;
       }
       storySpec = {
         object_story_spec: {
@@ -786,9 +967,16 @@ export async function publishCampaignToMeta(
       };
     } else if (isMessage) {
       // Message / Messenger ad
+      // Instagram DM: ig.me/m/ requires Instagram username (account_handle), NOT Facebook Page ID.
+      // Messenger:    m.me/{pageId} uses the Facebook Page ID (numeric). ✓
+      const igHandle = (account.account_handle || '').replace(/^@/, '').trim();
       const messengerLink = msgDest === 'instagram_dm'
-        ? `https://ig.me/m/${pageId}`
+        ? (igHandle ? `https://ig.me/m/${igHandle}` : `https://www.instagram.com/${igHandle || pageId}`)
         : `https://m.me/${pageId}`;
+
+      // CTA type: INSTAGRAM_MESSAGE for IG DM, MESSAGE_PAGE for Messenger
+      const msgCtaType = msgDest === 'instagram_dm' ? 'INSTAGRAM_MESSAGE' : 'MESSAGE_PAGE';
+      const msgAppDest = msgDest === 'instagram_dm' ? 'INSTAGRAM_DIRECT' : 'MESSENGER';
 
       storySpec = {
         object_story_spec: {
@@ -797,14 +985,25 @@ export async function publishCampaignToMeta(
             ...(message ? { message } : {}),
             link:    messengerLink,
             name:    headline,
-            call_to_action: { type: 'MESSAGE_PAGE', value: { app_destination: msgDest === 'instagram_dm' ? 'INSTAGRAM_DIRECT' : 'MESSENGER' } },
+            call_to_action: { type: msgCtaType, value: { app_destination: msgAppDest } },
             ...(imageUrl ? { picture: imageUrl } : {}),
             ...(campaign.welcome_message ? { page_welcome_message: JSON.stringify({ type: 'VISUAL_EDITOR', version: 2, greeting: [{ content: { type: 'text', text: campaign.welcome_message }, tag: 'DEFAULT' }], call_to_actions: [] }) } : {}),
           },
         },
       };
     } else if (imageUrl) {
-      // Image / link ad — Meta requires a link in link_data; use page profile as fallback
+      // Image / link ad — requires a landing URL for all objectives except Awareness/Engagement
+      const needsLandingUrl = normalizedObjective !== 'AWARENESS' && normalizedObjective !== 'ENGAGEMENT';
+      if (!validUrl && needsLandingUrl) {
+        const errMsg = 'Landing page URL is required for image ads (except Awareness and Engagement objectives). Please add a valid HTTPS URL to your campaign creative before publishing.';
+        reporter.addStep({ step: `build_creative_ad${idx}`, status: 'error', error: errMsg });
+        if (idx === 0) {
+          await metaPost(`/${metaCampaignId}`, token, { status: 'DELETED' }).catch(() => {});
+          await saveMetaError(campaignId, errMsg);
+          return { success: false, error: errMsg, publish_report: reporter.finalize('FAILED') };
+        }
+        continue;
+      }
       const adLink = validUrl || `https://www.facebook.com/${pageId}`;
       storySpec = {
         object_story_spec: {
@@ -819,7 +1018,18 @@ export async function publishCampaignToMeta(
         },
       };
     } else {
-      // Text-only fallback
+      // Text-only fallback — requires a landing URL for objectives that need a destination
+      const needsUrl = normalizedObjective !== 'AWARENESS' && normalizedObjective !== 'ENGAGEMENT';
+      if (!validUrl && needsUrl) {
+        const errMsg = 'A landing page URL is required for this campaign objective. Please add an ad image or a destination URL to your creative before publishing.';
+        reporter.addStep({ step: `build_creative_ad${idx}`, status: 'error', error: errMsg });
+        if (idx === 0) {
+          await metaPost(`/${metaCampaignId}`, token, { status: 'DELETED' }).catch(() => {});
+          await saveMetaError(campaignId, errMsg);
+          return { success: false, error: errMsg, publish_report: reporter.finalize('FAILED') };
+        }
+        continue;
+      }
       storySpec = {
         object_story_spec: {
           page_id:   pageId,
@@ -876,6 +1086,7 @@ export async function publishCampaignToMeta(
     const metaCreativeId = metaCreative.id as string;
     reporter.addStep({ step: `create_creative_ad${idx}_response`, status: 'ok', meta_id: metaCreativeId, received: metaCreative, notes: `ad[${idx}] "${adName}"` });
     reporter.pushCreativeId(metaCreativeId);
+    createdCreativeIds.set(idx, metaCreativeId);
     if (idx === 0) firstCreativeId = metaCreativeId;
 
     // Create the ad as PAUSED — Meta v17+ rejects ACTIVE when the parent ad set is PAUSED.
@@ -900,14 +1111,14 @@ export async function publishCampaignToMeta(
     const metaAdId = metaAd.id as string;
     reporter.addStep({ step: `create_ad_ad${idx}_response`, status: 'ok', meta_id: metaAdId, received: metaAd, notes: `ad[${idx}] "${adName}"` });
     reporter.pushAdId(metaAdId);
-    createdAdIds.push(metaAdId);
+    createdAdIds.set(idx, metaAdId);
     if (idx === 0) firstAdId = metaAdId;
     logger.info({ adName, metaAdId }, '[MetaPublisher] Ad created');
   }
 
   const metaCreativeId = firstCreativeId;
   const metaAdId       = firstAdId;
-  logger.info({ total: createdAdIds.length }, '[MetaPublisher] All ads created — activating campaign on Meta');
+  logger.info({ total: createdAdIds.size }, '[MetaPublisher] All ads created — activating campaign on Meta');
 
   // ── 8. Activate hierarchy: ad set first, then campaign ───────────────────
   // Meta does NOT cascade activation from campaign to PAUSED ad sets,
@@ -946,7 +1157,7 @@ export async function publishCampaignToMeta(
 
   // Activate individual ads regardless of campaign/adset activation errors —
   // they may become active once the parent is fixed manually.
-  for (const adId of createdAdIds) {
+  for (const adId of createdAdIds.values()) {
     reporter.addStep({ step: `activate_ad_${adId}`, status: 'ok', notes: `Activating ad ${adId}`, sent: { status: 'ACTIVE' } });
     const adAct = await metaPost(`/${adId}`, token, { status: 'ACTIVE' });
     if ((adAct as any).error) {
@@ -960,21 +1171,34 @@ export async function publishCampaignToMeta(
   // ── 9. Save Meta IDs to DB ────────────────────────────────────────────────
   // Status is ACTIVE only when the full hierarchy activated successfully.
   // If activation failed, write SCHEDULED so the operator can retry / investigate.
-  const finalStatus = activationFailed ? 'SCHEDULED' : 'ACTIVE';
+  const finalStatus = activationFailed ? 'PAUSED' : 'ACTIVE';
   if (activationFailed) {
-    logger.warn({ campaignId, activationError }, '[MetaPublisher] Meta objects created but activation failed — marking SCHEDULED');
-    await saveMetaError(campaignId, `Activation failed: ${activationError}. Meta objects exist — check Meta Business Manager.`);
+    logger.warn({ campaignId, activationError }, '[MetaPublisher] Meta objects created but activation failed — marking PAUSED');
+    const activErrMsg = `Campaign created in Meta but activation failed: ${activationError}. Your campaign is currently PAUSED in Meta Ads Manager — activate it manually or re-publish.`;
+    await saveMetaError(campaignId, activErrMsg);
+    warnings.push(activErrMsg);
   }
 
-  const dbUpdate = {
+  // For multi-ad campaigns, write meta IDs back into each ads_data element so all ads are trackable
+  let updatedAdsData: any[] | undefined;
+  if (Array.isArray(campaign.ads_data) && campaign.ads_data.length > 1 && createdAdIds.size > 0) {
+    updatedAdsData = (campaign.ads_data as any[]).map((ad: any, i: number) => ({
+      ...ad,
+      _meta_ad_id:       createdAdIds.get(i)       || null,
+      _meta_creative_id: createdCreativeIds.get(i) || null,
+    }));
+  }
+
+  const dbUpdate: Record<string, any> = {
     meta_campaign_id:  metaCampaignId,
     meta_adset_id:     metaAdsetId,
     meta_creative_id:  metaCreativeId,
     meta_ad_id:        metaAdId,
     status:            finalStatus,
     published_at:      new Date().toISOString(),
-    meta_error:        activationFailed ? `Activation failed: ${activationError}` : null,
+    meta_error:        activationFailed ? warnings[warnings.length - 1] || null : null,
     updated_at:        new Date().toISOString(),
+    ...(updatedAdsData ? { ads_data: updatedAdsData } : {}),
   };
 
   reporter.addStep({
@@ -1001,6 +1225,7 @@ export async function publishCampaignToMeta(
     meta_adset_id:    metaAdsetId,
     meta_creative_id: metaCreativeId,
     meta_ad_id:       metaAdId,
+    warnings:         warnings.length > 0 ? warnings : undefined,
     publish_report:   publishReport,
   };
 }
@@ -1027,10 +1252,11 @@ export async function toggleMetaCampaignStatus(
     .from('connected_accounts')
     .select('access_token, refresh_token')
     .eq('id', campaign.selected_meta_account_id)
+    .eq('workspace_id', workspaceId)
     .single();
 
-  const token = account?.access_token || account?.refresh_token;
-  if (!token) return { success: false, error: 'Access token not found.' };
+  const token = account?.refresh_token || account?.access_token;
+  if (!token) return { success: false, error: 'Access token not found. Please reconnect your Facebook account.' };
 
   const result = await metaPost(`/${campaign.meta_campaign_id}`, token, {
     status: pause ? 'PAUSED' : 'ACTIVE',
@@ -1059,9 +1285,10 @@ export async function deleteMetaCampaign(
     .from('connected_accounts')
     .select('access_token, refresh_token')
     .eq('id', campaign.selected_meta_account_id)
+    .eq('workspace_id', workspaceId)
     .single();
 
-  const token = account?.access_token || account?.refresh_token;
+  const token = account?.refresh_token || account?.access_token;
   if (!token) return { success: true }; // can't delete but not critical
 
   await metaPost(`/${campaign.meta_campaign_id}`, token, { status: 'DELETED' }).catch(() => {});

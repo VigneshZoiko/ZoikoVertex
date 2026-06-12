@@ -25,15 +25,15 @@ function Spinner({ label }: { label?: string }) {
   return <div className={`flex items-center gap-2 p-6 text-sm ${muted}`}><Loader2 className="h-4 w-4 animate-spin" /> {label || "Loading…"}</div>;
 }
 function ErrorNote({ msg }: { msg: string }) {
-  return <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{msg}</div>;
+  return <div className="rounded-xl border border-error-border bg-error-bg p-3 text-sm text-error-text">{msg}</div>;
 }
 function Empty({ msg }: { msg: string }) {
   return <div className={`p-6 text-sm ${muted}`}>{msg}</div>;
 }
 function PassFail({ ok }: { ok: boolean }) {
   return ok
-    ? <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-    : <XCircle className="h-4 w-4 text-rose-400 shrink-0" />;
+    ? <CheckCircle2 className="h-4 w-4 text-success-text shrink-0" />
+    : <XCircle className="h-4 w-4 text-error-text shrink-0" />;
 }
 function Field({ k, v }: { k: string; v: React.ReactNode }) {
   return (
@@ -53,13 +53,13 @@ function CopyButton({ text }: { text?: string | null }) {
       className={`inline-flex items-center rounded p-0.5 ${muted} hover:text-[var(--foreground)]`}
       title="Copy"
     >
-      {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+      {copied ? <Check className="h-3 w-3 text-success-text" /> : <Copy className="h-3 w-3" />}
     </button>
   );
 }
 function ReadyBadge({ ready }: { ready: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] font-semibold ${ready ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-rose-500/30 bg-rose-500/10 text-rose-300"}`}>
+    <span className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[11px] font-semibold ${ready ? "border-success-border bg-success-bg text-success-text" : "border-error-border bg-error-bg text-error-text"}`}>
       {ready ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />} {ready ? "Ready" : "Blocked"}
     </span>
   );
@@ -75,7 +75,7 @@ function Skeleton({ rows = 3 }: { rows?: number }) {
 }
 function PermissionDenied() {
   return (
-    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+    <div className="rounded-xl border border-warning-border bg-warning-bg p-4 text-sm text-warning-text">
       You don’t have permission to view this Prompt Governance data. Ask a Governance Admin or Agent Architect.
     </div>
   );
@@ -101,7 +101,7 @@ function PromptAsCode({ prompt, version }: { prompt: PromptRow | null; version: 
       </div>
       <div className="flex items-center gap-2">
         {locked
-          ? <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs text-amber-300"><Lock className="h-3.5 w-3.5" /> Read-only (immutable / locked version)</span>
+          ? <span className="inline-flex items-center gap-1.5 rounded-lg border border-warning-border bg-warning-bg px-2 py-1 text-xs text-warning-text"><Lock className="h-3.5 w-3.5" /> Read-only (immutable / locked version)</span>
           : <span className={`text-xs ${muted}`}>Editable drafts are created as new governed versions via the repository — this viewer is read-only.</span>}
       </div>
       <div>
@@ -160,7 +160,7 @@ function SealedCompareTable({ a, b }: { a: Record<string, any> | null; b: Record
               <span className={muted}>{r.label}</span>
               <span className="break-all text-[var(--foreground)]">{cell(a, r.key, r.hash)}</span>
               <span className="break-all text-[var(--foreground)]">{cell(b, r.key, r.hash)}</span>
-              <span className={`text-[10px] font-semibold ${changed ? "text-amber-300" : muted}`}>{changed ? "changed" : "same"}</span>
+              <span className={`text-[10px] font-semibold ${changed ? "text-warning-text" : muted}`}>{changed ? "changed" : "same"}</span>
             </div>
           );
         })}
@@ -226,7 +226,7 @@ function DiffViewer({ promptId, versions }: { promptId: string; versions: Prompt
             <p className={`mb-1 text-xs ${muted}`}>Body diff</p>
             <pre className="max-h-72 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 font-mono text-xs">
               {lineDiff(a.body || "", b.body || "").map((r, i) => (
-                <div key={i} className={r.type === "add" ? "text-emerald-400" : r.type === "del" ? "text-rose-400" : muted}>
+                <div key={i} className={r.type === "add" ? "text-success-text" : r.type === "del" ? "text-error-text" : muted}>
                   {r.type === "add" ? "+ " : r.type === "del" ? "- " : "  "}{r.text}
                 </div>
               ))}
@@ -355,7 +355,7 @@ function CommissioningPanel({ promptId }: { promptId: string }) {
   return (
     <div className="space-y-4">
       {err && <ErrorNote msg={err} />}
-      {notice && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">{notice}</div>}
+      {notice && <div className="rounded-xl border border-success-border bg-success-bg p-3 text-sm text-success-text">{notice}</div>}
       {busy ? <Skeleton rows={9} /> : pf ? (
         <>
           <div className={`flex items-center gap-2 ${card} p-3`}>
@@ -373,7 +373,7 @@ function CommissioningPanel({ promptId }: { promptId: string }) {
           <button
             onClick={commission}
             disabled={!pf.canCommission || committing}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-xl bg-success-text px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-40"
           >
             {committing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />} Commission prompt
           </button>
@@ -388,10 +388,10 @@ function CommissioningPanel({ promptId }: { promptId: string }) {
 const LIFECYCLE_ORDER = ["created", "draft", "review", "approval", "approved", "deploy", "commission", "active", "rollback", "retire", "archive"];
 function eventTone(t: string): string {
   const s = t.toLowerCase();
-  if (s.includes("blocked") || s.includes("denied") || s.includes("violation") || s.includes("reject")) return "text-rose-400";
-  if (s.includes("receipt") || s.includes("commission")) return "text-emerald-400";
-  if (s.includes("governed_execution")) return "text-indigo-400";
-  if (s.includes("export")) return "text-amber-300";
+  if (s.includes("blocked") || s.includes("denied") || s.includes("violation") || s.includes("reject")) return "text-error-text";
+  if (s.includes("receipt") || s.includes("commission")) return "text-success-text";
+  if (s.includes("governed_execution")) return "text-info-text";
+  if (s.includes("export")) return "text-warning-text";
   return "text-[var(--foreground)]";
 }
 function AuditReconstruction({ promptId }: { promptId: string }) {
@@ -430,7 +430,7 @@ function AuditReconstruction({ promptId }: { promptId: string }) {
       <p className={`mb-2 text-[11px] ${muted}`}>Chronological: draft → review → approve → deploy → commission → active → rollback/retire, with governance blocks, receipts, governed executions, and evidence exports.</p>
       {events.map((e, i) => (
         <div key={i} className="flex items-start gap-3 rounded-xl bg-[var(--surface)] p-2 text-xs">
-          <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${e.src === "runtime" ? "bg-indigo-400" : e.src === "evidence" ? "bg-amber-300" : "bg-[var(--border)]"}`} />
+          <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${e.src === "runtime" ? "bg-info-text" : e.src === "evidence" ? "bg-warning-text" : "bg-[var(--border)]"}`} />
           <div className="min-w-0 flex-1">
             <p className={`font-medium ${eventTone(e.type)}`}>{e.type} <span className={`ml-1 text-[10px] uppercase ${muted}`}>{e.src}</span></p>
             <p className={`${muted} truncate`}>{e.actor}{e.reason ? ` · ${e.reason}` : ""}</p>
@@ -555,7 +555,7 @@ export function PromptGovernanceCenter({
           <button
             key={v.id}
             onClick={() => setView(v.id)}
-            className={`inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition ${view === v.id ? "border-indigo-400 text-[var(--foreground)]" : `border-transparent ${muted} hover:text-[var(--foreground)]`}`}
+            className={`inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition ${view === v.id ? "border-info-border text-[var(--foreground)]" : `border-transparent ${muted} hover:text-[var(--foreground)]`}`}
           >
             {v.icon} {v.label}
           </button>

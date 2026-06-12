@@ -16,11 +16,17 @@ import MediaVaultPicker from "@/components/MediaVaultPicker";
 
 interface TeamMember { id: string; full_name?: string; email: string; role: string; }
 
+interface MetaPixel { id: string; name: string; }
+
 interface WizardData {
   // Step 1
   name:      string;
   platforms: string[];
   objective: string;
+  // Pixel (only for CONVERSIONS objective)
+  tracking_pixel_id:   string;
+  tracking_pixel_name: string;
+  conversion_event:    string;
   // Step 2
   budget_total:      string;
   budget_currency:   string;
@@ -34,7 +40,7 @@ interface WizardData {
   age_max:          string;
   gender:           string;
   interests:        string;
-  keywords:         string;   // Google Search keywords (one per line)
+  keywords:         string;
   landing_page_url: string;
   headline:         string;
   copy_text:        string;
@@ -50,6 +56,7 @@ interface WizardData {
 
 const DEFAULT: WizardData = {
   name: "", platforms: [], objective: "",
+  tracking_pixel_id: "", tracking_pixel_name: "", conversion_event: "PURCHASE",
   budget_total: "", budget_currency: "USD",
   start_at: "", end_at: "",
   budget_owner_id: "", budget_owner_name: "",
@@ -96,15 +103,16 @@ const STEP_REQUIRED: Record<number, (keyof WizardData)[]> = {
 };
 
 const REQUIRED_MSGS: Partial<Record<keyof WizardData, string>> = {
-  name:             "Campaign name is required",
-  objective:        "Select a goal to continue",
-  budget_total:     "Budget is required",
-  start_at:         "Start date is required",
-  end_at:           "End date is required",
-  landing_page_url: "Landing page URL is required",
-  headline:         "Headline is required",
-  copy_text:        "Ad body text is required",
-  lead_form_id:     "Lead Form ID is required for Lead Ads",
+  name:               "Campaign name is required",
+  objective:          "Select a goal to continue",
+  tracking_pixel_id:  "Select a Meta Pixel to track conversions",
+  budget_total:       "Budget is required",
+  start_at:           "Start date is required",
+  end_at:             "End date is required",
+  landing_page_url:   "Landing page URL is required",
+  headline:           "Headline is required",
+  copy_text:          "Ad body text is required",
+  lead_form_id:       "Lead Form ID is required for Lead Ads",
 };
 
 type ArrKey = "geography" | "platforms";
@@ -112,12 +120,12 @@ type FieldErrors = Partial<Record<keyof WizardData, string>>;
 
 // ── Styles ─────────────────────────────────────────────────────────────────
 
-const inp   = "w-full bg-zinc-900 border rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none transition-all";
-const ok    = "border-zinc-800 focus:border-white/30";
-const err   = "border-rose-500/60 focus:border-rose-500";
-const lbl   = "block text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5";
+const inp   = "w-full bg-surface border rounded-xl px-4 py-2.5 text-foreground text-sm placeholder:text-foreground-muted focus:outline-none transition-all";
+const ok    = "border-border focus:border-white/30";
+const err   = "border-error-border/60 focus:border-error-border";
+const lbl   = "block text-[11px] font-semibold text-foreground-muted uppercase tracking-widest mb-1.5";
 const selChip = "bg-white text-zinc-900 border-white/20 font-semibold";
-const unChip  = "bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300";
+const unChip  = "bg-surface border-border text-foreground-muted hover:border-border hover:text-foreground-muted";
 
 // ── Page ───────────────────────────────────────────────────────────────────
 
@@ -127,19 +135,38 @@ export default function NewCampaignPage() {
   const editId       = searchParams.get("edit");
 
   const [step,       setStep]       = useState(parseInt(searchParams.get("step") ?? "1", 10));
-  const [data,       setData]       = useState<WizardData>(DEFAULT);
+  const [data,       setData]       = useState<WizardData>(() => ({
+    ...DEFAULT,
+    // Pre-fill from "Use in Campaign" link on pixels page
+    objective:           searchParams.get("objective")   || DEFAULT.objective,
+    tracking_pixel_id:   searchParams.get("pixel_id")    || DEFAULT.tracking_pixel_id,
+    tracking_pixel_name: searchParams.get("pixel_name")  || DEFAULT.tracking_pixel_name,
+  }));
   const [campaignId, setCampaignId] = useState<string | null>(editId);
   const [saving,     setSaving]     = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [members,    setMembers]    = useState<TeamMember[]>([]);
   const [fieldErrors,setFieldErrors]= useState<FieldErrors>({});
   const [touched,    setTouched]    = useState<Partial<Record<keyof WizardData, boolean>>>({});
-  const [submitError,setSubmitError]= useState<string | null>(null);
+  const [submitError,  setSubmitError]  = useState<string | null>(null);
+  const [submitWarnings, setSubmitWarnings] = useState<string[]>([]);
   const [vaultPicker, setVaultPicker] = useState<{ slot: string; hint: string } | null>(null);
+  const [pixels,        setPixels]        = useState<MetaPixel[]>([]);
+  const [pixelsLoading, setPixelsLoading] = useState(false);
 
   useEffect(() => {
     api.get("/api/v1/team/members").then(r => setMembers(r.data || [])).catch(() => {});
   }, []);
+
+  // Fetch Meta Pixels when CONVERSIONS objective is selected
+  useEffect(() => {
+    if (data.objective !== "CONVERSIONS") { setPixels([]); return; }
+    setPixelsLoading(true);
+    api.get("/api/v1/campaigns/meta/pixels")
+      .then(r => setPixels(r.data?.pixels || []))
+      .catch(() => setPixels([]))
+      .finally(() => setPixelsLoading(false));
+  }, [data.objective]);
 
   // Auto-switch meta_ad_type when objective changes
   useEffect(() => {
@@ -171,6 +198,9 @@ export default function NewCampaignPage() {
         meta_ad_type: cr.meta_ad_type || "image_ad", google_ad_type: cr.google_ad_type || "display",
         ad_image_url: cr.ad_image_url || "", ad_square_image_url: cr.ad_square_image_url || "",
         ad_video_url: cr.ad_video_url || "", lead_form_id: cr.lead_form_id || "",
+        tracking_pixel_id:   c.tracking_pixel_id   || "",
+        tracking_pixel_name: c.tracking_pixel_name || "",
+        conversion_event:    c.conversion_event    || "PURCHASE",
       });
     }).catch(() => {});
   }, [editId]);
@@ -200,7 +230,7 @@ export default function NewCampaignPage() {
 
   const fieldErr = (key: keyof WizardData) =>
     touched[key] && fieldErrors[key]
-      ? <p className="text-xs text-rose-400 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors[key]}</p>
+      ? <p className="text-xs text-error-text mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors[key]}</p>
       : null;
 
   const getStep3Required = (): (keyof WizardData)[] => {
@@ -225,6 +255,12 @@ export default function NewCampaignPage() {
         valid = false;
       }
     }
+    // When CONVERSIONS objective is selected, a pixel must be chosen
+    if (step === 1 && data.objective === "CONVERSIONS" && !data.tracking_pixel_id) {
+      errors.tracking_pixel_id = "Select a Meta Pixel to track conversions";
+      newTouched.tracking_pixel_id = true;
+      valid = false;
+    }
     setTouched(t => ({ ...t, ...newTouched }));
     setFieldErrors(e => ({ ...e, ...errors }));
     return valid;
@@ -237,10 +273,13 @@ export default function NewCampaignPage() {
 
       if (step === 1) {
         Object.assign(payload, {
-          name:          data.name.trim(),
-          campaign_type: 'PAID_ADS',
-          objective:     data.objective,
-          platforms:     data.platforms,
+          name:                data.name.trim(),
+          campaign_type:       'PAID_ADS',
+          objective:           data.objective,
+          platforms:           data.platforms,
+          tracking_pixel_id:   data.tracking_pixel_id   || null,
+          tracking_pixel_name: data.tracking_pixel_name || null,
+          conversion_event:    data.conversion_event    || null,
         });
       }
       if (step === 2) {
@@ -259,14 +298,16 @@ export default function NewCampaignPage() {
         });
       }
       if (step === 3) {
-        // Default optimization goal per objective for campaigns created via the simple wizard
+        // Default optimization goal per objective for campaigns created via the simple wizard.
+        // CONVERSIONS uses OFFSITE_CONVERSIONS only when a pixel is configured; otherwise falls
+        // back to LANDING_PAGE_VIEWS (the backend also enforces this, but be explicit here).
         const defaultOptimizeMap: Record<string, string> = {
           AWARENESS:       'REACH',
           TRAFFIC:         'LANDING_PAGE_VIEWS',
           ENGAGEMENT:      'POST_ENGAGEMENT',
           LEAD_GENERATION: 'LEAD_GENERATION',
-          CONVERSIONS:     'OFFSITE_CONVERSIONS',
-          SALES:           'OFFSITE_CONVERSIONS',
+          CONVERSIONS:     data.tracking_pixel_id ? 'OFFSITE_CONVERSIONS' : 'LANDING_PAGE_VIEWS',
+          SALES:           data.tracking_pixel_id ? 'OFFSITE_CONVERSIONS' : 'LANDING_PAGE_VIEWS',
         };
         const obj = data.objective || 'TRAFFIC';
         Object.assign(payload, {
@@ -348,6 +389,13 @@ export default function NewCampaignPage() {
           router.push(`/campaigns/${campaignId}`);
           return;
         }
+        // Publish succeeded — surface any non-fatal warnings (pixel downgrade, interest filtering, etc.)
+        const publishWarnings: string[] = metaRes.warnings || [];
+        if (publishWarnings.length > 0) {
+          setSubmitWarnings(publishWarnings);
+          // Give user a moment to read warnings before redirecting
+          await new Promise(r => setTimeout(r, 3000));
+        }
       }
 
       router.push(`/campaigns/${campaignId}`);
@@ -365,10 +413,10 @@ export default function NewCampaignPage() {
   // ── UI ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col">
+    <div className="min-h-screen bg-card flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-4 px-6 py-4 border-b border-zinc-800">
-        <button onClick={() => router.push("/campaigns")} className="p-2 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-400 hover:text-white">
+      <div className="flex items-center gap-4 px-6 py-4 border-b border-border">
+        <button onClick={() => router.push("/campaigns")} className="p-2 hover:bg-surface-hover rounded-lg transition-colors text-foreground-muted hover:text-white">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex items-center gap-1">
@@ -376,13 +424,13 @@ export default function NewCampaignPage() {
             <div key={s.id} className="flex items-center gap-1">
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 step === s.id ? "bg-white text-zinc-900" :
-                step > s.id  ? "bg-zinc-800 text-zinc-400" :
-                               "text-zinc-600"
+                step > s.id  ? "bg-surface-hover text-foreground-muted" :
+                               "text-foreground-muted"
               }`}>
                 {step > s.id ? <CheckCircle2 className="w-3 h-3" /> : <s.icon className="w-3 h-3" />}
                 {s.label}
               </div>
-              {i < STEPS.length - 1 && <div className="w-4 h-px bg-zinc-800" />}
+              {i < STEPS.length - 1 && <div className="w-4 h-px bg-surface-hover" />}
             </div>
           ))}
         </div>
@@ -390,19 +438,19 @@ export default function NewCampaignPage() {
 
       {/* Form body */}
       <div className="flex-1 flex items-start justify-center px-4 py-8">
-        <div className="w-full max-w-xl bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden">
+        <div className="w-full max-w-xl bg-card border border-border rounded-2xl overflow-hidden">
 
           {/* ── STEP 1 — Campaign ── */}
           {step === 1 && (
             <div className="p-6 space-y-6">
               <div>
-                <h2 className="text-lg font-bold text-white">New Campaign</h2>
-                <p className="text-sm text-zinc-500 mt-0.5">What are you trying to achieve?</p>
+                <h2 className="text-lg font-bold text-foreground">New Campaign</h2>
+                <p className="text-sm text-foreground-muted mt-0.5">What are you trying to achieve?</p>
               </div>
 
               {/* Name */}
               <div>
-                <label className={lbl}>Campaign Name <span className="text-rose-400">*</span></label>
+                <label className={lbl}>Campaign Name <span className="text-error-text">*</span></label>
                 <input value={data.name} onChange={e => set("name", e.target.value)}
                   onBlur={e => touch("name", e.target.value)}
                   className={cls("name")} placeholder="e.g. Summer Sale 2026" />
@@ -413,41 +461,32 @@ export default function NewCampaignPage() {
               <div>
                 <label className={lbl}>Run ads on</label>
                 <div className="flex gap-3">
-                  {[
-                    { id: "Meta",   label: "Meta",   sub: "Facebook & Instagram", available: true  },
-                    { id: "Google", label: "Google", sub: "Coming soon",           available: false },
-                  ].map(p => (
-                    <button key={p.id} type="button"
-                      onClick={() => p.available && toggleArr("platforms", p.id)}
-                      disabled={!p.available}
-                      title={!p.available ? "Google Ads publishing is not yet available" : undefined}
-                      className={`flex-1 p-4 rounded-xl border text-left transition-all ${
-                        !p.available
-                          ? "bg-zinc-900/30 border-zinc-800 text-zinc-600 cursor-not-allowed opacity-60"
-                          : data.platforms.includes(p.id)
-                            ? "bg-white border-white/20 text-zinc-900"
-                            : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700"
-                      }`}>
-                      <p className="text-sm font-bold">{p.label}</p>
-                      <p className="text-[11px] opacity-70 mt-0.5">{p.sub}</p>
-                    </button>
-                  ))}
+                  <button type="button"
+                    onClick={() => toggleArr("platforms", "Meta")}
+                    className={`flex-1 p-4 rounded-xl border text-left transition-all ${
+                      data.platforms.includes("Meta")
+                        ? "bg-white border-white/20 text-zinc-900"
+                        : "bg-card border-border text-foreground-muted hover:border-border"
+                    }`}>
+                    <p className="text-sm font-bold">Meta</p>
+                    <p className="text-[11px] opacity-70 mt-0.5">Facebook & Instagram</p>
+                  </button>
                 </div>
               </div>
 
               {/* Goal */}
               <div>
-                <label className={lbl}>Campaign Goal <span className="text-rose-400">*</span></label>
+                <label className={lbl}>Campaign Goal <span className="text-error-text">*</span></label>
                 <div className="space-y-2">
                   {GOALS.map(g => (
                     <button key={g.value} type="button" onClick={() => set("objective", g.value)}
                       className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
                         data.objective === g.value
                           ? "bg-white border-white/20 text-zinc-900"
-                          : "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-300"
+                          : "bg-card border-border text-foreground-muted hover:border-border hover:text-foreground-muted"
                       }`}>
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        data.objective === g.value ? "bg-zinc-900/10" : "bg-zinc-800"
+                        data.objective === g.value ? "bg-surface/10" : "bg-surface-hover"
                       }`}>
                         <g.icon className="w-4 h-4" />
                       </div>
@@ -460,6 +499,63 @@ export default function NewCampaignPage() {
                   ))}
                 </div>
                 {fieldErr("objective")}
+                {data.objective === "CONVERSIONS" && (
+                  <>
+                    <div className="flex items-start gap-2 mt-2 p-3 bg-warning-text/10 border border-warning-border/20 rounded-xl text-xs text-warning-text">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>Sales &amp; Conversions requires a Meta Pixel for full conversion optimization. Without a Pixel configured, the campaign will optimize for Landing Page Views instead.</span>
+                    </div>
+
+                    {/* ── Meta Pixel picker ── */}
+                    <div className="mt-4 space-y-3">
+                      <div>
+                        <label className={lbl}>Meta Pixel <span className="text-error-text">*</span></label>
+                        {pixelsLoading ? (
+                          <div className="text-xs text-foreground-muted py-2">Loading pixels…</div>
+                        ) : pixels.length === 0 ? (
+                          <div className="text-xs text-foreground-muted py-2">No Meta Pixels found. <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Create one in Meta Events Manager.</a></div>
+                        ) : (
+                          <select
+                            value={data.tracking_pixel_id}
+                            onChange={e => {
+                              const selected = pixels.find(p => p.id === e.target.value);
+                              set("tracking_pixel_id",   e.target.value);
+                              set("tracking_pixel_name", selected?.name || "");
+                            }}
+                            className={`${inp} ${touched.tracking_pixel_id && fieldErrors.tracking_pixel_id ? err : ok}`}
+                          >
+                            <option value="">— Select a pixel —</option>
+                            {pixels.map(p => (
+                              <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+                            ))}
+                          </select>
+                        )}
+                        {fieldErr("tracking_pixel_id")}
+                      </div>
+
+                      {data.tracking_pixel_id && (
+                        <div>
+                          <label className={lbl}>Conversion Event</label>
+                          <select
+                            value={data.conversion_event}
+                            onChange={e => set("conversion_event", e.target.value)}
+                            className={`${inp} ${ok}`}
+                          >
+                            <option value="PURCHASE">Purchase</option>
+                            <option value="LEAD">Lead</option>
+                            <option value="COMPLETE_REGISTRATION">Complete Registration</option>
+                            <option value="ADD_TO_CART">Add to Cart</option>
+                            <option value="INITIATE_CHECKOUT">Initiate Checkout</option>
+                            <option value="ADD_PAYMENT_INFO">Add Payment Info</option>
+                            <option value="VIEW_CONTENT">View Content</option>
+                            <option value="SEARCH">Search</option>
+                            <option value="ADD_TO_WISHLIST">Add to Wishlist</option>
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -468,13 +564,13 @@ export default function NewCampaignPage() {
           {step === 2 && (
             <div className="p-6 space-y-5">
               <div>
-                <h2 className="text-lg font-bold text-white">Budget & Schedule</h2>
-                <p className="text-sm text-zinc-500 mt-0.5">How much will you spend and when?</p>
+                <h2 className="text-lg font-bold text-foreground">Budget & Schedule</h2>
+                <p className="text-sm text-foreground-muted mt-0.5">How much will you spend and when?</p>
               </div>
 
               {/* Budget */}
               <div>
-                <label className={lbl}>Total Budget <span className="text-rose-400">*</span></label>
+                <label className={lbl}>Total Budget <span className="text-error-text">*</span></label>
                 <div className="flex gap-2">
                   <select value={data.budget_currency} onChange={e => set("budget_currency", e.target.value)}
                     className={`${inp} ${ok} w-24`}>
@@ -487,7 +583,7 @@ export default function NewCampaignPage() {
                 </div>
                 {fieldErr("budget_total")}
                 {needsTwoApprovals && (
-                  <div className="flex items-center gap-2 mt-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-400">
+                  <div className="flex items-center gap-2 mt-2 p-3 bg-warning-text/10 border border-warning-border/20 rounded-xl text-xs text-warning-text">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                     Budgets of $500+ require <strong className="mx-0.5">2 approvals</strong> before launch
                   </div>
@@ -497,7 +593,7 @@ export default function NewCampaignPage() {
               {/* Dates */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={lbl}>Start Date <span className="text-rose-400">*</span></label>
+                  <label className={lbl}>Start Date <span className="text-error-text">*</span></label>
                   <input type="date" value={data.start_at}
                     onChange={e => set("start_at", e.target.value)}
                     onBlur={e => touch("start_at", e.target.value)}
@@ -505,7 +601,7 @@ export default function NewCampaignPage() {
                   {fieldErr("start_at")}
                 </div>
                 <div>
-                  <label className={lbl}>End Date <span className="text-rose-400">*</span></label>
+                  <label className={lbl}>End Date <span className="text-error-text">*</span></label>
                   <input type="date" value={data.end_at}
                     onChange={e => set("end_at", e.target.value)}
                     onBlur={e => touch("end_at", e.target.value)}
@@ -516,7 +612,7 @@ export default function NewCampaignPage() {
 
               {/* Budget owner */}
               <div>
-                <label className={lbl}>Budget Owner <span className="text-zinc-600 normal-case font-normal">(who approves this spend)</span></label>
+                <label className={lbl}>Budget Owner <span className="text-foreground-muted normal-case font-normal">(who approves this spend)</span></label>
                 <select value={data.budget_owner_id}
                   onChange={e => {
                     const m = members.find(x => x.id === e.target.value);
@@ -535,14 +631,14 @@ export default function NewCampaignPage() {
           {step === 3 && (
             <div className="p-6 space-y-6">
               <div>
-                <h2 className="text-lg font-bold text-white">Audience & Creative</h2>
-                <p className="text-sm text-zinc-500 mt-0.5">Who should see this and what will it say?</p>
+                <h2 className="text-lg font-bold text-foreground">Audience & Creative</h2>
+                <p className="text-sm text-foreground-muted mt-0.5">Who should see this and what will it say?</p>
               </div>
 
               {/* Target countries */}
               <div>
                 <label className={lbl}>Target Countries</label>
-                <div className="flex flex-wrap gap-2 p-4 bg-zinc-900/60 border border-zinc-800 rounded-xl max-h-40 overflow-y-auto">
+                <div className="flex flex-wrap gap-2 p-4 bg-card border border-border rounded-xl max-h-40 overflow-y-auto">
                   {Object.entries(COUNTRIES).map(([code, name]) => (
                     <button key={code} type="button" onClick={() => toggleArr("geography", code)}
                       className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
@@ -552,7 +648,7 @@ export default function NewCampaignPage() {
                     </button>
                   ))}
                 </div>
-                {data.geography.length === 0 && <p className="text-[11px] text-zinc-600 mt-1">No selection = global audience</p>}
+                {data.geography.length === 0 && <p className="text-[11px] text-foreground-muted mt-1">No selection = global audience</p>}
               </div>
 
               {/* Age + Gender */}
@@ -563,7 +659,7 @@ export default function NewCampaignPage() {
                     <input type="number" min="13" max="65" value={data.age_min}
                       onChange={e => set("age_min", e.target.value)}
                       className={`${inp} ${ok} text-center`} placeholder="18" />
-                    <span className="text-zinc-600 shrink-0">–</span>
+                    <span className="text-foreground-muted shrink-0">–</span>
                     <input type="number" min="13" max="65" value={data.age_max}
                       onChange={e => set("age_max", e.target.value)}
                       className={`${inp} ${ok} text-center`} placeholder="65" />
@@ -579,7 +675,7 @@ export default function NewCampaignPage() {
                     ].map(g => (
                       <button key={g.value} type="button" onClick={() => set("gender", g.value)}
                         className={`flex-1 rounded-xl text-xs font-semibold border transition-all ${
-                          data.gender === g.value ? "bg-white text-zinc-900 border-white/20" : "bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700"
+                          data.gender === g.value ? "bg-white text-zinc-900 border-white/20" : "bg-surface border-border text-foreground-muted hover:border-border"
                         }`}>
                         {g.label}
                       </button>
@@ -590,16 +686,16 @@ export default function NewCampaignPage() {
 
               {/* Interests */}
               <div>
-                <label className={lbl}>Interests <span className="normal-case font-normal text-zinc-600">(optional, comma-separated)</span></label>
+                <label className={lbl}>Interests <span className="normal-case font-normal text-foreground-muted">(optional, comma-separated)</span></label>
                 <input value={data.interests} onChange={e => set("interests", e.target.value)}
                   className={`${inp} ${ok}`} placeholder="e.g. Fashion, Luxury, Travel" />
-                <p className="text-[11px] text-zinc-600 mt-1.5">For detailed interest targeting with Meta audience IDs, use the Advanced campaign modal instead.</p>
+                <p className="text-[11px] text-foreground-muted mt-1.5">For detailed interest targeting with Meta audience IDs, use the Advanced campaign modal instead.</p>
               </div>
 
               {/* Landing URL — not needed for lead ads or awareness/engagement */}
               {data.meta_ad_type !== "lead_ad" && data.objective !== "AWARENESS" && data.objective !== "ENGAGEMENT" && (
                 <div>
-                  <label className={lbl}>Landing Page URL <span className="text-rose-400">*</span></label>
+                  <label className={lbl}>Landing Page URL <span className="text-error-text">*</span></label>
                   <input type="url" value={data.landing_page_url}
                     onChange={e => set("landing_page_url", e.target.value)}
                     onBlur={e => touch("landing_page_url", e.target.value)}
@@ -610,7 +706,7 @@ export default function NewCampaignPage() {
 
               {/* Headline */}
               <div>
-                <label className={lbl}>Headline <span className="text-rose-400">*</span></label>
+                <label className={lbl}>Headline <span className="text-error-text">*</span></label>
                 <input value={data.headline}
                   onChange={e => set("headline", e.target.value)}
                   onBlur={e => touch("headline", e.target.value)}
@@ -657,7 +753,7 @@ export default function NewCampaignPage() {
                         value={data.ad_image_url} onChange={url => set("ad_image_url", url)} />
                       {!data.ad_image_url && (
                         <button type="button" onClick={() => setVaultPicker({ slot: "meta-image", hint: "Pick an image for the Meta ad" })}
-                          className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                          className="mt-1.5 text-[11px] text-info-text hover:text-info-text transition-colors">
                           or browse Media Vault →
                         </button>
                       )}
@@ -668,9 +764,10 @@ export default function NewCampaignPage() {
                       <WizardImageUpload label="Video Thumbnail" hint="Optional"
                         value={data.ad_image_url} onChange={url => set("ad_image_url", url)} />
                       <div>
-                        <label className={lbl}>Video URL</label>
+                        <label className={lbl}>Meta Video ID <span className="normal-case font-normal text-foreground-muted">(numeric, not a URL)</span></label>
                         <input value={data.ad_video_url} onChange={e => set("ad_video_url", e.target.value)}
-                          className={`${inp} ${ok}`} placeholder="Paste Facebook-hosted video URL or ID" />
+                          className={`${inp} ${ok}`} placeholder="e.g. 1234567890" />
+                        <p className="text-[11px] text-foreground-muted mt-1.5">Find in Meta Ads Manager → Creative Hub → Videos — copy the numeric ID only, not the video URL.</p>
                       </div>
                     </div>
                   )}
@@ -679,65 +776,15 @@ export default function NewCampaignPage() {
                       <label className={lbl}>Lead Form ID</label>
                       <input value={data.lead_form_id} onChange={e => set("lead_form_id", e.target.value)}
                         className={`${inp} ${ok}`} placeholder="Paste your Meta Lead Gen Form ID" />
-                      <p className="text-[11px] text-zinc-600 mt-1.5">Create in Meta Ads Manager → Lead Ads Forms</p>
+                      <p className="text-[11px] text-foreground-muted mt-1.5">Create in Meta Ads Manager → Lead Ads Forms</p>
                     </div>
                   )}
                   {data.meta_ad_type === "post_boost" && (
-                    <p className="text-xs text-zinc-500">Boost an existing published post — select the post to boost after launching the campaign.</p>
+                    <p className="text-xs text-foreground-muted">Boost an existing published post — select the post to boost after launching the campaign.</p>
                   )}
                 </div>
               )}
 
-              {/* ── Google Creative ── */}
-              {data.platforms.includes("Google") && (
-                <div className="p-4 bg-orange-500/5 border border-orange-500/20 rounded-xl space-y-4">
-                  <p className="text-[11px] font-bold text-orange-400 uppercase tracking-widest">Google Ad Type</p>
-                  <div className="flex gap-2">
-                    {[
-                      { value: "display", label: "Display Ad" },
-                      { value: "search",  label: "Search Ad"  },
-                    ].map(t => (
-                      <button key={t.value} type="button" onClick={() => set("google_ad_type", t.value)}
-                        className={`px-3 py-1.5 rounded-lg text-xs border font-semibold transition-all ${
-                          data.google_ad_type === t.value ? selChip : unChip
-                        }`}>{t.label}</button>
-                    ))}
-                  </div>
-
-                  {data.google_ad_type === "display" && (
-                    <div className="space-y-3">
-                      <div>
-                        <WizardImageUpload label="Landscape Image (1200×628)" hint="Required"
-                          value={data.ad_image_url} onChange={url => set("ad_image_url", url)} />
-                        {!data.ad_image_url && (
-                          <button type="button" onClick={() => setVaultPicker({ slot: "landscape", hint: "Pick a landscape image (1200×628) for the Display ad" })}
-                            className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
-                            or browse Media Vault →
-                          </button>
-                        )}
-                      </div>
-                      <div>
-                        <WizardImageUpload label="Square Image (1200×1200)" hint="Required"
-                          value={data.ad_square_image_url} onChange={url => set("ad_square_image_url", url)} />
-                        {!data.ad_square_image_url && (
-                          <button type="button" onClick={() => setVaultPicker({ slot: "square", hint: "Pick a square image (1200×1200) for the Display ad" })}
-                            className="mt-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
-                            or browse Media Vault →
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {data.google_ad_type === "search" && (
-                    <div>
-                      <label className={lbl}>Keywords <span className="normal-case font-normal text-zinc-600">(one per line)</span></label>
-                      <textarea rows={4} value={data.keywords} onChange={e => set("keywords", e.target.value)}
-                        className={`${inp} ${ok} resize-none font-mono text-xs`}
-                        placeholder={"running shoes\nbuy sneakers online\nbest trainers 2026"} />
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           )}
 
@@ -745,14 +792,20 @@ export default function NewCampaignPage() {
           {step === 4 && (
             <div className="p-6 space-y-5">
               <div>
-                <h2 className="text-lg font-bold text-white">Review & Submit</h2>
-                <p className="text-sm text-zinc-500 mt-0.5">Confirm everything looks right before requesting approval.</p>
+                <h2 className="text-lg font-bold text-foreground">Review & Submit</h2>
+                <p className="text-sm text-foreground-muted mt-0.5">Confirm everything looks right before requesting approval.</p>
               </div>
 
               {submitError && (
-                <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-xl flex items-start gap-3">
-                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-rose-300">{submitError}</p>
+                <div className="p-4 bg-error-text/5 border border-error-border/20 rounded-xl flex items-start gap-3">
+                  <AlertCircle className="w-4 h-4 text-error-text shrink-0 mt-0.5" />
+                  <p className="text-xs text-error-text">{submitError}</p>
+                </div>
+              )}
+              {submitWarnings.length > 0 && (
+                <div className="p-4 bg-warning-text/5 border border-warning-border/20 rounded-xl space-y-1.5">
+                  <p className="text-xs font-semibold text-warning-text flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />Published with notices — redirecting to campaign…</p>
+                  {submitWarnings.map((w, i) => <p key={i} className="text-xs text-warning-text pl-5">{w}</p>)}
                 </div>
               )}
 
@@ -768,7 +821,7 @@ export default function NewCampaignPage() {
                   <ReviewRow label="Budget"   value={data.budget_total ? `${data.budget_currency} ${parseFloat(data.budget_total).toLocaleString()}` : "—"} missing={!data.budget_total} />
                   <ReviewRow label="Duration" value={data.start_at && data.end_at ? `${data.start_at} → ${data.end_at}` : "—"} missing={!data.start_at || !data.end_at} />
                   {needsTwoApprovals && (
-                    <div className="flex items-center gap-2 text-xs text-amber-400 mt-1">
+                    <div className="flex items-center gap-2 text-xs text-warning-text mt-1">
                       <AlertCircle className="w-3 h-3" />This budget requires 2 approvals
                     </div>
                   )}
@@ -788,8 +841,8 @@ export default function NewCampaignPage() {
                 </ReviewSection>
               </div>
 
-              <div className="p-4 bg-zinc-800/50 border border-zinc-800 rounded-xl">
-                <p className="text-xs text-zinc-400 leading-relaxed">
+              <div className="p-4 bg-surface-hover border border-border rounded-xl">
+                <p className="text-xs text-foreground-muted leading-relaxed">
                   Your campaign will be launched immediately and published to Meta. You can pause or cancel it at any time from the campaigns list.
                 </p>
               </div>
@@ -800,7 +853,7 @@ export default function NewCampaignPage() {
           <div className="flex gap-3 px-6 pb-6">
             {step > 1 && (
               <button onClick={handleBack}
-                className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl transition-all">
+                className="flex items-center gap-2 px-4 py-2.5 bg-surface-hover hover:bg-surface-hover text-foreground-muted text-sm font-semibold rounded-xl transition-all">
                 <ArrowLeft className="w-4 h-4" />Back
               </button>
             )}
@@ -872,29 +925,29 @@ function WizardImageUpload({ label, hint, value, onChange }: {
     } finally { setUploading(false); }
   }
 
-  const lbl = "block text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5";
+  const lbl = "block text-[11px] font-semibold text-foreground-muted uppercase tracking-widest mb-1.5";
 
   return (
     <div>
-      <label className={lbl}>{label}{hint && <span className="normal-case font-normal text-zinc-600 ml-1">— {hint}</span>}</label>
+      <label className={lbl}>{label}{hint && <span className="normal-case font-normal text-foreground-muted ml-1">— {hint}</span>}</label>
       {value ? (
-        <div className="relative w-full h-28 rounded-xl overflow-hidden border border-zinc-700 bg-zinc-900">
+        <div className="relative w-full h-28 rounded-xl overflow-hidden border border-border bg-surface">
           <Image src={value} alt="" fill className="object-cover" unoptimized />
           <button type="button" onClick={() => onChange("")}
-            className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-white hover:bg-black">
+            className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-foreground hover:bg-black">
             <X className="w-3 h-3" />
           </button>
         </div>
       ) : (
         <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-          className="w-full h-20 border border-dashed border-zinc-700 rounded-xl flex flex-col items-center justify-center gap-1.5 text-zinc-500 hover:border-zinc-500 hover:text-zinc-400 transition-all disabled:opacity-50">
+          className="w-full h-20 border border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1.5 text-foreground-muted hover:border-border hover:text-foreground-muted transition-all disabled:opacity-50">
           {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
           <span className="text-xs">{uploading ? "Uploading…" : "Click to upload"}</span>
         </button>
       )}
       <input ref={inputRef} type="file" accept="image/*" className="hidden"
         onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-      {uploadErr && <p className="text-[11px] text-rose-400 mt-1">{uploadErr}</p>}
+      {uploadErr && <p className="text-[11px] text-error-text mt-1">{uploadErr}</p>}
     </div>
   );
 }
@@ -903,8 +956,8 @@ function WizardImageUpload({ label, hint, value, onChange }: {
 
 function ReviewSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="p-4 bg-zinc-900/60 border border-zinc-800 rounded-xl">
-      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">{title}</p>
+    <div className="p-4 bg-card border border-border rounded-xl">
+      <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-3">{title}</p>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -913,8 +966,8 @@ function ReviewSection({ title, children }: { title: string; children: React.Rea
 function ReviewRow({ label, value, missing }: { label: string; value: string; missing?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <span className="text-xs text-zinc-500 shrink-0">{label}</span>
-      <span className={`text-xs text-right ${missing ? "text-amber-400 flex items-center gap-1" : "text-zinc-300"}`}>
+      <span className="text-xs text-foreground-muted shrink-0">{label}</span>
+      <span className={`text-xs text-right ${missing ? "text-warning-text flex items-center gap-1" : "text-foreground-muted"}`}>
         {missing && <AlertCircle className="w-3 h-3 shrink-0" />}{value}
       </span>
     </div>

@@ -1126,6 +1126,8 @@ app.post('/api/v1/knowledge/sources/:id/activate', authenticate, scopeGuard('wri
 app.post('/api/v1/knowledge/sources/:id/publish', authenticate, scopeGuard('write:content', '*'), KnowledgeController.publishSource);
 app.post('/api/v1/knowledge/sources/:id/restrict', authenticate, scopeGuard('write:content', '*'), KnowledgeController.restrictSource);
 app.post('/api/v1/knowledge/sources/:id/quarantine', authenticate, scopeGuard('write:content', '*'), KnowledgeController.quarantineSource);
+app.post('/api/v1/knowledge/sources/:id/classify-governance', authenticate, scopeGuard('write:content', '*'), KnowledgeController.classifySourceGovernance);
+app.post('/api/v1/knowledge/sources/:id/governance-decision', authenticate, scopeGuard('write:content', '*'), KnowledgeController.decideGovernanceCategory);
 app.post('/api/v1/knowledge/sources/:id/transfer/decision', authenticate, scopeGuard('write:content', '*'), KnowledgeController.decideSourceTransfer);
 
 // Stats
@@ -1288,6 +1290,7 @@ app.post('/api/v1/prompts/:id/pause', authenticate, govLifecycle, PromptControll
 app.post('/api/v1/prompts/:id/resume', authenticate, govLifecycle, PromptController.resumePrompt);
 app.post('/api/v1/prompts/:id/archive', authenticate, govLifecycle, PromptController.archivePrompt);
 app.post('/api/v1/prompts/:id/retire', authenticate, govLifecycle, PromptController.retirePrompt);
+app.post('/api/v1/prompts/:id/reactivate', authenticate, govLifecycle, PromptController.reactivatePrompt);
 app.post('/api/v1/prompts/:id/submit-review', authenticate, govLifecycle, PromptController.submitForReview);
 app.post('/api/v1/prompts/:id/rollback', authenticate, govLifecycle, PromptController.rollbackPrompt);
 

@@ -155,6 +155,16 @@ export function RoleProvider({ children }: { children: ReactNode }) {
           window.location.href = '/login?error=org_deleted';
         }
         return;
+      } else if (result.status === 401) {
+        // Backend rejected the session token (expired, project paused, or network issue
+        // between backend and Supabase). Sign out to clear stale state so the user can
+        // log in again with a fresh token.
+        clearCache();
+        await supabase.auth.signOut();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+        return;
       }
     } catch (err) {
       console.error("Failed to fetch user role context:", err);

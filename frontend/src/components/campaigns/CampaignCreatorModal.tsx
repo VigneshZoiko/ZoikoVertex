@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -6,12 +6,13 @@ import Image from "next/image";
 import {
   X, ChevronDown, ChevronLeft, Loader2, ImageIcon, Trash2,
   Monitor, Smartphone, Globe as InstaIcon, Check, Link2,
+  Globe2, Heart, MessageCircle, Send, Bookmark, ThumbsUp, ArrowRight
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import MediaVaultPicker from "@/components/MediaVaultPicker";
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— Types ——————————————————————————————————————————————————————
 
 interface MetaAccount {
   id: string; platform: string; account_name: string;
@@ -27,7 +28,7 @@ interface AdData {
   lead_form_id?: string;
 }
 
-// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— Constants —————————————————————————————————————————————————
 
 const OBJECTIVES = [
   { value: "TRAFFIC",     label: "Traffic",     desc: "Drive visitors to your website or marketing landing pages." },
@@ -84,7 +85,7 @@ const OPTIMIZE_OPTIONS: Record<string, OptimizeOption[]> = {
   ],
 };
 
-// â”€â”€ Placement definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— Placement definitions —————————————————————————————————————
 
 interface Placement {
   id: string; label: string; platform: string;
@@ -102,7 +103,7 @@ const ALL_PLACEMENTS: Placement[] = [
   { id: "facebook_news_feed",        label: "Facebook News Feed",                               platform: "Facebook",         device: "all" },
   { id: "instagram_feed",            label: "Instagram Feed",                                   platform: "Instagram",        device: "all" },
   { id: "facebook_marketplace",      label: "Facebook Marketplace",                             platform: "Facebook",         device: "mobile",  unavailableFor: ["TRAFFIC","ENGAGEMENT_POST_AD"] },
-  // facebook_video_feeds removed â€” deprecated in Meta API v17+
+  // facebook_video_feeds removed — deprecated in Meta API v17+
   { id: "facebook_right_column",     label: "Facebook Right Column",                            platform: "Facebook",         device: "desktop", unavailableFor: ["TRAFFIC","ENGAGEMENT_POST_AD","AWARENESS"] },
   { id: "instagram_explore",         label: "Instagram Explore",                                platform: "Instagram",        device: "mobile",  unavailableFor: ["TRAFFIC"] },
   { id: "messenger_inbox",           label: "Messenger Inbox",                                  platform: "Messenger",        device: "all",     unavailableFor: ["ENGAGEMENT_POST_AD","AWARENESS"] },
@@ -131,15 +132,15 @@ const SIDEBAR_STEPS = [
   { num: 4, label: "Publish campaign" },
 ];
 
-// â”€â”€ Input / Select helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— Input / Select helpers ————————————————————————————————————
 
-const inp = "w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors";
+const inp = "w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-border transition-colors";
 
 const Field = React.memo(function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-sm font-semibold text-zinc-200">{label}</p>
-      {hint && <p className="text-xs text-zinc-500">{hint}</p>}
+      <p className="text-sm font-semibold text-foreground">{label}</p>
+      {hint && <p className="text-xs text-foreground-muted">{hint}</p>}
       {children}
     </div>
   );
@@ -148,46 +149,46 @@ const Field = React.memo(function Field({ label, hint, children }: { label: stri
 const Radio = React.memo(function Radio({ value, checked, onChange, label, desc }: { value: string; checked: boolean; onChange: () => void; label: string; desc?: string }) {
   return (
     <label className="flex items-start gap-3 cursor-pointer group py-1">
-      <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? "border-white" : "border-zinc-600 group-hover:border-zinc-400"}`}>
+      <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${checked ? "border-white" : "border-border group-hover:border-zinc-400"}`}>
         {checked && <div className="w-2 h-2 rounded-full bg-white" />}
       </div>
       <input type="radio" className="hidden" value={value} checked={checked} onChange={onChange} />
       <div>
-        <p className={`text-sm font-medium ${checked ? "text-white" : "text-zinc-300"}`}>{label}</p>
-        {desc && <p className="text-xs text-zinc-500 mt-0.5">{desc}</p>}
+        <p className={`text-sm font-medium ${checked ? "text-foreground" : "text-foreground-muted"}`}>{label}</p>
+        {desc && <p className="text-xs text-foreground-muted mt-0.5">{desc}</p>}
       </div>
     </label>
   );
 });
 
-// â”€â”€ MessageDestPicker â€” reused for Sales, Engagement, Leads â”€â”€
+// —— MessageDestPicker — reused for Sales, Engagement, Leads ——
 
 const MessageDestPicker = React.memo(function MessageDestPicker({ msgDest, setMsgDest }: { msgDest: string; setMsgDest: (v: string) => void }) {
   return (
     <div className="ml-7 mt-2 space-y-1.5">
-      <p className="text-xs font-semibold text-zinc-400">Select destination</p>
-      <div className="border border-zinc-700 rounded-xl overflow-hidden divide-y divide-zinc-800">
-        <label className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-zinc-800/40 transition-colors">
-          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${msgDest === "messenger" ? "border-white" : "border-zinc-600"}`}>
+      <p className="text-xs font-semibold text-foreground-muted">Select destination</p>
+      <div className="border border-border rounded-xl overflow-hidden divide-y divide-border">
+        <label className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-surface-hover/40 transition-colors">
+          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${msgDest === "messenger" ? "border-white" : "border-border"}`}>
             {msgDest === "messenger" && <div className="w-2 h-2 rounded-full bg-white" />}
           </div>
           <input type="radio" className="hidden" checked={msgDest === "messenger"} onChange={() => setMsgDest("messenger")} />
-          <p className="text-sm text-zinc-200">Facebook Messenger</p>
+          <p className="text-sm text-foreground">Facebook Messenger</p>
         </label>
         <div className="px-4 py-3 opacity-50">
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-4 h-4 rounded-full border-2 border-zinc-700 shrink-0" />
-            <p className="text-sm text-zinc-400">Instagram DM</p>
+            <div className="w-4 h-4 rounded-full border-2 border-border shrink-0" />
+            <p className="text-sm text-foreground-muted">Instagram DM</p>
           </div>
-          <p className="text-[11px] text-zinc-500 ml-7">Selected ad account doesn&apos;t have Instagram connected</p>
-          <p className="text-[11px] text-zinc-600 ml-7 mt-0.5">Instagram DMs are disabled because the selected advertising account does not have Instagram logged in.</p>
+          <p className="text-[11px] text-foreground-muted ml-7">Selected ad account doesn&apos;t have Instagram connected</p>
+          <p className="text-[11px] text-foreground-muted ml-7 mt-0.5">Instagram DMs are disabled because the selected advertising account does not have Instagram logged in.</p>
         </div>
       </div>
     </div>
   );
 });
 
-// â”€â”€ Meta Account Picker Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— Meta Account Picker Modal —————————————————————————————————
 // Hootsuite-style: shows Facebook Pages + Ad Accounts from Meta API.
 
 interface MetaPage    { id: string; name: string; picture?: string; }
@@ -224,7 +225,7 @@ function MetaPickerModal({
       else if (aList.length === 1) setSelAdAcct(aList[0].id);
       if (pList.length === 1) setSelPage(pList[0].id);
       if (!adRes.success) setFetchErr(adRes.error || "Failed to load from Meta");
-    }).catch(() => setFetchErr("Could not reach Meta â€” check your connection"))
+    }).catch(() => setFetchErr("Could not reach Meta — check your connection"))
     .finally(() => setLoading(false));
   }, [accountId]);
 
@@ -238,38 +239,38 @@ function MetaPickerModal({
 
   const content = (
     <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "84vh" }}>
+      <div className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "84vh" }}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 shrink-0">
-          <h3 className="text-lg font-bold text-white">Which Facebook ad accounts do you want to add?</h3>
-          <button onClick={onClose} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors ml-4 shrink-0">
+          <h3 className="text-lg font-bold text-foreground">Which Facebook ad accounts do you want to add?</h3>
+          <button onClick={onClose} className="p-1.5 text-foreground-muted hover:text-white hover:bg-surface-hover rounded-lg transition-colors ml-4 shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto border-t border-zinc-800/60">
+        <div className="flex-1 overflow-y-auto border-t border-border/60">
           {loading ? (
             <div className="flex items-center justify-center py-16 gap-3">
-              <Loader2 className="w-5 h-5 animate-spin text-zinc-500" />
-              <span className="text-sm text-zinc-500">Loading from Metaâ€¦</span>
+              <Loader2 className="w-5 h-5 animate-spin text-foreground-muted" />
+              <span className="text-sm text-foreground-muted">Loading from Meta...</span>
             </div>
           ) : fetchErr ? (
             <div className="p-6 text-center space-y-2">
-              <p className="text-sm text-rose-400">{fetchErr}</p>
-              <p className="text-xs text-zinc-600">Token may be expired. Reconnect from Platform Accounts.</p>
+              <p className="text-sm text-error-text">{fetchErr}</p>
+              <p className="text-xs text-foreground-muted">Token may be expired. Reconnect from Platform Accounts.</p>
             </div>
           ) : (
             <>
               {/* Ad Accounts list */}
               {adAccounts.length === 0 ? (
                 <div className="px-6 py-8 text-center">
-                  <p className="text-sm text-zinc-400">No ad accounts found under this Facebook account.</p>
-                  <p className="text-xs text-zinc-600 mt-1">Create a Meta Business Manager account to get started.</p>
+                  <p className="text-sm text-foreground-muted">No ad accounts found under this Facebook account.</p>
+                  <p className="text-xs text-foreground-muted mt-1">Create a Meta Business Manager account to get started.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-zinc-800/40">
+                <div className="divide-y divide-border/40">
                   {adAccounts.map(a => {
                     const isSelected = selAdAcct === a.id;
                     const hasIssue   = a.status !== "Active";
@@ -279,8 +280,8 @@ function MetaPickerModal({
                       <div key={a.id}>
                         <button type="button"
                           onClick={() => setSelAdAcct(a.id)}
-                          className={`w-full flex items-start gap-4 px-6 py-4 text-left transition-colors hover:bg-zinc-900/60 cursor-pointer ${
-                            isSelected ? "bg-zinc-900/40" : ""
+                          className={`w-full flex items-start gap-4 px-6 py-4 text-left transition-colors hover:bg-card cursor-pointer ${
+                            isSelected ? "bg-surface/40" : ""
                           }`}>
                           {/* Checkbox */}
                           <div className={`mt-0.5 w-5 h-5 rounded border-2 shrink-0 flex items-center justify-center transition-colors ${
@@ -294,16 +295,16 @@ function MetaPickerModal({
                           </div>
                           {/* Account info */}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-white">{a.name}</p>
-                            <p className="text-[11px] text-zinc-500 mt-0.5">id: {a.id.replace("act_", "")}</p>
-                            <p className="text-[10px] text-zinc-600">{a.currency} Â· ${a.amount_spent} spent</p>
+                            <p className="text-sm font-semibold text-foreground">{a.name}</p>
+                            <p className="text-[11px] text-foreground-muted mt-0.5">id: {a.id.replace("act_", "")}</p>
+                            <p className="text-[10px] text-foreground-muted">{a.currency} · ${a.amount_spent} spent</p>
                           </div>
                         </button>
 
-                        {/* Warning row â€” shown but doesn't block selection */}
+                        {/* Warning row — shown but doesn't block selection */}
                         {hasIssue && (
                           <div className="px-6 pb-3 pl-[60px] space-y-1">
-                            <div className="flex items-center gap-1.5 text-[11px] text-amber-400">
+                            <div className="flex items-center gap-1.5 text-[11px] text-warning-text">
                               <svg viewBox="0 0 20 20" className="w-3.5 h-3.5 shrink-0" fill="currentColor">
                                 <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/>
                               </svg>
@@ -325,14 +326,14 @@ function MetaPickerModal({
 
               {/* Pages section */}
               {pages.length > 0 && (
-                <div className="border-t border-zinc-800/60">
-                  <p className="px-6 pt-4 pb-2 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Which Facebook page to use for ads?</p>
-                  <div className="divide-y divide-zinc-800/40">
+                <div className="border-t border-border/60">
+                  <p className="px-6 pt-4 pb-2 text-[10px] font-bold text-foreground-muted uppercase tracking-widest">Which Facebook page to use for ads?</p>
+                  <div className="divide-y divide-border/40">
                     {pages.map(p => {
                       const isSelected = selPage === p.id;
                       return (
                         <button key={p.id} type="button" onClick={() => setSelPage(isSelected ? "" : p.id)}
-                          className="w-full flex items-center gap-4 px-6 py-3.5 text-left hover:bg-zinc-900/60 transition-colors">
+                          className="w-full flex items-center gap-4 px-6 py-3.5 text-left hover:bg-card transition-colors">
                           <div className={`w-5 h-5 rounded border-2 shrink-0 flex items-center justify-center transition-colors ${
                             isSelected ? "bg-[#1877F2] border-[#1877F2]" : "border-zinc-500 hover:border-zinc-300"
                           }`}>
@@ -343,15 +344,15 @@ function MetaPickerModal({
                             )}
                           </div>
                           {p.picture ? (
-                            <Image src={p.picture} alt="" width={32} height={32} className="rounded-full shrink-0 border border-zinc-700 object-cover" unoptimized />
+                            <Image src={p.picture} alt="" width={32} height={32} className="rounded-full shrink-0 border border-border object-cover" unoptimized />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-[#1877F2]/20 flex items-center justify-center shrink-0">
                               <span className="text-xs font-bold text-[#1877F2]">{p.name.charAt(0)}</span>
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-white truncate">{p.name}</p>
-                            <p className="text-[11px] text-zinc-500">Facebook Page</p>
+                            <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
+                            <p className="text-[11px] text-foreground-muted">Facebook Page</p>
                           </div>
                         </button>
                       );
@@ -364,14 +365,14 @@ function MetaPickerModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800 bg-zinc-950 shrink-0">
-          <button onClick={onClose} className="px-5 py-2 text-sm text-zinc-400 hover:text-white transition-colors">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-card shrink-0">
+          <button onClick={onClose} className="px-5 py-2 text-sm text-foreground-muted hover:text-white transition-colors">
             Cancel
           </button>
           <button
             onClick={handleDone}
             disabled={!selAdAcct || saving || loading}
-            className="px-6 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-500 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-40 min-w-[80px]">
+            className="px-6 py-2 bg-surface hover:bg-surface-hover border border-border hover:border-border text-foreground text-sm font-bold rounded-lg transition-colors disabled:opacity-40 min-w-[80px]">
             {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Done"}
           </button>
         </div>
@@ -384,12 +385,13 @@ function MetaPickerModal({
   return createPortal(content, document.body);
 }
 
-// â”€â”€ Main Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— Main Modal ————————————————————————————————————————————————
 
-export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
+export default function CampaignCreatorModal({ onClose, onCreated, editId, prefill }: {
   onClose: () => void;
   onCreated: () => void;
   editId?: string;
+  prefill?: { pixel_id: string; pixel_name: string; objective: string };
 }) {
   const [step,       setStep]       = useState(1);
   const [saving,     setSaving]     = useState(false);
@@ -436,7 +438,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
     setShowMetaPicker(false);
   };
   const [campName,    setCampName]  = useState("New campaign");
-  const [objective,   setObjective] = useState("TRAFFIC");
+  const [objective,   setObjective] = useState(prefill?.objective || "TRAFFIC");
   const [optimize,    setOptimize]     = useState("LANDING_PAGE_VIEWS");
   const [optimizeOpen, setOptimizeOpen] = useState(false);
   const [convLocation, setConvLocation] = useState("website");
@@ -452,7 +454,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   const [location,    setLocation]       = useState(() => JSON.stringify([{ key: "US", display_name: "United States", type: "country" }]));
   const [interests,   setInterests]      = useState<{id:string;name:string}[]>([]);
   const [msgDest,        setMsgDest]        = useState("messenger");
-  const [trackingPixel,  setTrackingPixel]  = useState("");
+  const [trackingPixel,  setTrackingPixel]  = useState(prefill?.pixel_id || "");
   const [convEvent,      setConvEvent]      = useState("");
   const [pixelDropOpen,  setPixelDropOpen]  = useState(false);
   const [eventDropOpen,  setEventDropOpen]  = useState(false);
@@ -539,7 +541,34 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   const [showWelcomeErr,   setShowWelcomeErr]   = useState(false);
   const [imageUploading,   setImageUploading]   = useState(false);
   const [imageUploadErr,   setImageUploadErr]   = useState<string | null>(null);
+  const [isGeneratingCopy, setIsGeneratingCopy] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLength, setAiLength] = useState("");
   const uploadCounterRef = useRef(0);
+
+  const generateAdCopy = async () => {
+    if (!aiPrompt) return;
+    setIsGeneratingCopy(true);
+    setError(null);
+    try {
+      const res = await api.post("/api/v1/ai/generate-ad-copy", {
+        prompt: aiPrompt,
+        lengthInstructions: aiLength
+      });
+      if (res.success && res.copy) {
+        setAd(a => ({ ...a, copy: res.copy }));
+        setAiPrompt("");
+        setAiLength("");
+      } else {
+        setError(res.error || "Failed to generate ad copy");
+      }
+    } catch (err) {
+      setError("An error occurred while generating ad copy");
+    } finally {
+      setIsGeneratingCopy(false);
+    }
+  };
+
 
   const uploadAdImage = async (file: File) => {
     setImageUploading(true); setImageUploadErr(null);
@@ -657,7 +686,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       if (c.objective) setObjective(c.objective);
       if (c.platforms?.length) { /* platforms stored for reference */ }
 
-      // Budget / dates â€” prefer daily, fall back to total
+      // Budget / dates — prefer daily, fall back to total
       if (c.budget_daily)                     { setBudget(String(c.budget_daily)); setBudgetType("daily"); }
       else if (c.budget_total && !c.budget_daily) { setBudget(String(c.budget_total)); setBudgetType("total"); }
       if (c.start_at)  setStart(c.start_at.split("T")[0]);
@@ -706,7 +735,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       if (c.welcome_message)   setWelcomeMsg(c.welcome_message);
       if (c.selected_meta_account_id) setAcc(c.selected_meta_account_id);
 
-      // Creative â€” use ads_data array if present, fall back to single creative
+      // Creative — use ads_data array if present, fall back to single creative
       const cr = c.creative || {};
       const loadedAds: AdData[] = Array.isArray(c.ads_data) && c.ads_data.length > 0
         ? c.ads_data.map((a: any) => ({
@@ -737,7 +766,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       // Jump to step where user left off
       const ws = c.wizard_step || 1;
       setStep(ws > 4 ? 3 : ws);
-    }).catch(() => { /* silent â€” new campaign */ });
+    }).catch(() => { /* silent — new campaign */ });
   }, [editId]);  
 
   // Compute effective objective for placement filtering
@@ -759,7 +788,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
   }, [effectiveObjective]);
 
   // When objective changes, reset conversion location, optimize, and related state.
-  // Dep = [objective] only â€” effectiveObjective derives from convLocation, so including
+  // Dep = [objective] only — effectiveObjective derives from convLocation, so including
   // it here caused a loop: changing convLocation â†’ effectiveObjective changes â†’ useEffect
   // fires â†’ convLocation gets reset, making it impossible to select a conversion location.
   useEffect(() => {
@@ -794,7 +823,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       "Built audience",
       autoPlace ? "Automatic placements" : `Manual placements (${selectedPlacements.length})`,
       (objective === "CONVERSIONS" && convLocation !== "message" && optimize === "OFFSITE_CONVERSIONS") ? "Tracking" : "",
-      budgetAmt ? `Budget: ${(()=>{const c=adAccounts.find(a=>a.id===selectedAcc)?.ad_account_currency||"USD";const s:Record<string,string>={USD:"$",INR:"â‚¹",EUR:"â‚¬",GBP:"Â£",AUD:"A$",SGD:"S$",MYR:"RM",AED:"Ø¯.Ø¥"};return s[c]||(c+" ");})()}${budgetAmt} per ${budgetType === "daily" ? "day" : "total"}` : "",
+      budgetAmt ? `Budget: ${(()=>{const c=adAccounts.find(a=>a.id===selectedAcc)?.ad_account_currency||"USD";const s:Record<string,string>={USD:"$",INR:"₹",EUR:"€",GBP:"£",AUD:"A$",SGD:"S$",MYR:"RM",AED:"د.إ"};return s[c]||(c+" ");})()}${budgetAmt} per ${budgetType === "daily" ? "day" : "total"}` : "",
       startDate ? `From: ${new Date(startDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}` : "",
     ].filter(Boolean),
     3: ["Ads", ad.name],
@@ -894,9 +923,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
         if (!r.success) throw new Error(r.error || "Failed to update campaign");
       }
 
-      if (!cid) throw new Error("Failed to save campaign â€” no ID returned");
+      if (!cid) throw new Error("Failed to save campaign — no ID returned");
 
-      // 2. Publish to Meta Marketing API â€” use a separate status string, not the error state
+      // 2. Publish to Meta Marketing API — use a separate status string, not the error state
       setPublishingStatus("Publishing to Facebook...");
       const metaResult = await api.post(`/api/v1/campaigns/${cid}/publish-to-meta`, {});
       setPublishingStatus(null);
@@ -930,7 +959,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
       if (!selAccObj)
         errs.selectedAcc = "Select a Facebook account to continue";
       else if (!selAccObj.ad_account_id)
-        errs.selectedAcc = "Link an ad account before continuing â€” click \"Select accounts\"";
+        errs.selectedAcc = "Link an ad account before continuing — click \"Select accounts\"";
     }
 
     if (s === 2) {
@@ -980,13 +1009,13 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 
   const modal = createPortal(
     <div className="fixed inset-0 z-[99999] flex items-start justify-center bg-black/65 backdrop-blur-sm pt-3 px-4">
-      <div className="relative w-full bg-zinc-900 rounded-xl shadow-2xl flex flex-col overflow-hidden" style={{ maxWidth: 1100, height: "96vh" }}>
-        {/* Invisible overlay â€” closes all dropdowns when clicking outside them */}
+      <div className="relative w-full bg-surface rounded-xl shadow-2xl flex flex-col overflow-hidden" style={{ maxWidth: 1100, height: "96vh" }}>
+        {/* Invisible overlay — closes all dropdowns when clicking outside them */}
         {anyDropOpen && (
           <div className="absolute inset-0 z-[45]" onMouseDown={closeAllDropdowns} />
         )}
 
-        {/* Meta account picker â€” rendered as portal above this modal */}
+        {/* Meta account picker — rendered as portal above this modal */}
         {showMetaPicker && (() => {
           const accId  = pickerAccountId || selectedAcc || adAccounts[0]?.id;
           const accObj = adAccounts.find(a => a.id === accId);
@@ -1002,9 +1031,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
         })()}
 
         {/* Modal header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 shrink-0">
-          <h2 className="text-base font-bold text-white">{editId ? "Edit Facebook ad campaign" : "New Facebook ad campaign"}</h2>
-          <button onClick={onClose} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <h2 className="text-base font-bold text-foreground">{editId ? "Edit Facebook ad campaign" : "New Facebook ad campaign"}</h2>
+          <button onClick={onClose} className="p-1.5 text-foreground-muted hover:text-white hover:bg-surface-hover rounded-lg transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -1012,11 +1041,11 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
         {/* Body */}
         <div className="flex flex-1 overflow-hidden">
 
-          {/* Left sidebar â€” steps (collapsible) */}
-          <div className={`shrink-0 border-r border-zinc-800 flex flex-col transition-all duration-200 ${modalSidebarOpen ? "w-52" : "w-8"}`}>
+          {/* Left sidebar — steps (collapsible) */}
+          <div className={`shrink-0 border-r border-border flex flex-col transition-all duration-200 ${modalSidebarOpen ? "w-52" : "w-8"}`}>
             {/* Collapse toggle */}
             <button type="button" onClick={() => setModalSidebarOpen(o => !o)}
-              className="flex items-center justify-center w-full h-8 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/50 transition-colors shrink-0">
+              className="flex items-center justify-center w-full h-8 text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover transition-colors shrink-0">
               <svg viewBox="0 0 24 24" className={`w-3.5 h-3.5 transition-transform ${modalSidebarOpen ? "" : "rotate-180"}`} fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -1029,21 +1058,21 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
               return (
                 <div key={s.num}
                   className={`px-4 py-3 border-l-2 transition-colors ${
-                    current ? "border-amber-500 bg-amber-500/5" :
-                    done    ? "border-zinc-700 cursor-pointer hover:bg-zinc-800/50" :
+                    current ? "border-warning-border bg-warning-text/5" :
+                    done    ? "border-border cursor-pointer hover:bg-surface-hover" :
                               "border-transparent opacity-40"
                   }`}
                   onClick={() => done && setStep(s.num)}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                      current ? "bg-amber-500 text-zinc-900" :
-                      done    ? "bg-zinc-600 text-white" : "bg-zinc-800 text-zinc-500"
+                      current ? "bg-warning-text text-zinc-900" :
+                      done    ? "bg-zinc-600 text-foreground" : "bg-surface-hover text-foreground-muted"
                     }`}>{s.num}</div>
-                    <p className={`text-xs font-bold ${current ? "text-white" : "text-zinc-400"}`}>{s.label}</p>
+                    <p className={`text-xs font-bold ${current ? "text-foreground" : "text-foreground-muted"}`}>{s.label}</p>
                   </div>
                   {(current || done) && sums.map((line, i) => (
-                    <p key={i} className="text-[10px] text-zinc-500 pl-7 leading-snug">{line}</p>
+                    <p key={i} className="text-[10px] text-foreground-muted pl-7 leading-snug">{line}</p>
                   ))}
                 </div>
               );
@@ -1054,22 +1083,22 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
           {/* Right content area */}
           <div className="flex-1 overflow-y-auto">
 
-            {/* â”€â”€ STEP 1 â”€â”€ */}
+            {/* —— STEP 1 —— */}
             {step === 1 && (
               <div className="p-6 space-y-6">
                 <div className="space-y-4">
                   <div>
-                    <h4 className="text-sm font-bold text-white">Facebook Page and ad account</h4>
-                    <p className="text-xs text-zinc-500 mt-0.5">Choose the Facebook Page and ad account to use for this campaign.</p>
+                    <h4 className="text-sm font-bold text-foreground">Facebook Page and ad account</h4>
+                    <p className="text-xs text-foreground-muted mt-0.5">Choose the Facebook Page and ad account to use for this campaign.</p>
                   </div>
 
                   {adAccounts.length === 0 ? (
                     /* No Facebook accounts connected at all */
-                    <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-2">
-                      <p className="text-sm font-semibold text-amber-400">No Facebook accounts connected</p>
-                      <p className="text-xs text-zinc-500">Connect a Facebook account first to run ad campaigns.</p>
+                    <div className="p-4 bg-warning-text/5 border border-warning-border/20 rounded-xl space-y-2">
+                      <p className="text-sm font-semibold text-warning-text">No Facebook accounts connected</p>
+                      <p className="text-xs text-foreground-muted">Connect a Facebook account first to run ad campaigns.</p>
                       <a href="/accounts" target="_blank"
-                        className="inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 bg-[#1877F2] hover:bg-[#1877F2]/90 text-white text-xs font-semibold rounded-lg transition-colors">
+                        className="inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 bg-[#1877F2] hover:bg-[#1877F2]/90 text-foreground text-xs font-semibold rounded-lg transition-colors">
                         Connect Facebook account
                       </a>
                     </div>
@@ -1080,9 +1109,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         const sel = adAccounts.find(a => a.id === selectedAcc) || adAccounts[0];
                         const hasAdAccount = !!sel?.ad_account_id;
                         return (
-                          <div className="border border-zinc-700 rounded-xl overflow-hidden">
+                          <div className="border border-border rounded-xl overflow-hidden">
                             {/* Facebook account row */}
-                            <div className="flex items-center justify-between gap-3 px-4 py-3 bg-zinc-900/40">
+                            <div className="flex items-center justify-between gap-3 px-4 py-3 bg-surface/40">
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="w-8 h-8 rounded-full bg-[#1877F2]/20 border border-[#1877F2]/30 flex items-center justify-center shrink-0">
                                   <svg viewBox="0 0 24 24" className="w-4 h-4 fill-[#1877F2]">
@@ -1090,11 +1119,11 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                   </svg>
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-white truncate">{sel?.account_name || "Facebook"}</p>
+                                  <p className="text-sm font-semibold text-foreground truncate">{sel?.account_name || "Facebook"}</p>
                                   {adAccounts.length > 1 && (
                                     <div className="relative mt-0.5">
                                       <select value={selectedAcc} onChange={e => setAcc(e.target.value)}
-                                        className="text-[10px] text-zinc-500 bg-transparent outline-none cursor-pointer pr-3 appearance-none">
+                                        className="text-[10px] text-foreground-muted bg-transparent outline-none cursor-pointer pr-3 appearance-none">
                                         {adAccounts.map(a => (
                                           <option key={a.id} value={a.id}>{a.account_name}</option>
                                         ))}
@@ -1111,50 +1140,50 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             </div>
 
                             {/* Ad account + page status */}
-                            <div className="divide-y divide-zinc-800/60">
+                            <div className="divide-y divide-border/60">
                               <div className="flex items-center justify-between px-4 py-2.5">
                                 <div className="flex items-center gap-2">
-                                  <p className="text-[11px] text-zinc-500 w-20 shrink-0">Ad Account</p>
+                                  <p className="text-[11px] text-foreground-muted w-20 shrink-0">Ad Account</p>
                                   {hasAdAccount ? (
-                                    <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                    <span className="flex items-center gap-1 text-[11px] text-success-text font-medium">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-success-text shrink-0" />
                                       {sel!.ad_account_id}
                                     </span>
                                   ) : (
-                                    <span className="text-[11px] text-amber-400">Not linked â€” click &quot;Select accounts&quot;</span>
+                                    <span className="text-[11px] text-warning-text">Not linked — click &quot;Select accounts&quot;</span>
                                   )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 px-4 py-2.5">
-                                <p className="text-[11px] text-zinc-500 w-20 shrink-0">Page</p>
-                                <span className="text-[11px] text-zinc-300 truncate">{sel?.account_name || "â€”"}</span>
+                                <p className="text-[11px] text-foreground-muted w-20 shrink-0">Page</p>
+                                <span className="text-[11px] text-foreground-muted truncate">{sel?.account_name || "—"}</span>
                               </div>
-                              {/* Meta ad account balance â€” fetched from Meta Graph API */}
+                              {/* Meta ad account balance — fetched from Meta Graph API */}
                               {metaBalance && (
-                                <div className="px-4 py-2.5 flex items-center gap-4 bg-zinc-900/60 border-t border-zinc-800/60">
+                                <div className="px-4 py-2.5 flex items-center gap-4 bg-card border-t border-border/60">
                                   <div>
-                                    <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Account Balance</p>
-                                    <p className={`text-xs font-bold ${metaBalance.balance !== null ? "text-emerald-400" : "text-zinc-500"}`}>
+                                    <p className="text-[10px] text-foreground-muted uppercase tracking-wider mb-0.5">Account Balance</p>
+                                    <p className={`text-xs font-bold ${metaBalance.balance !== null ? "text-success-text" : "text-foreground-muted"}`}>
                                       {metaBalance.balance !== null
                                         ? `${metaBalance.currency} ${parseFloat(metaBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-                                        : "â€”"}
+                                        : "—"}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Spent</p>
-                                    <p className="text-xs font-semibold text-zinc-300">
+                                    <p className="text-[10px] text-foreground-muted uppercase tracking-wider mb-0.5">Spent</p>
+                                    <p className="text-xs font-semibold text-foreground-muted">
                                       {metaBalance.currency} {parseFloat(metaBalance.amount_spent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                     </p>
                                   </div>
                                   {metaBalance.spend_cap && (
                                     <div>
-                                      <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Spend Cap</p>
-                                      <p className="text-xs font-semibold text-zinc-400">
+                                      <p className="text-[10px] text-foreground-muted uppercase tracking-wider mb-0.5">Spend Cap</p>
+                                      <p className="text-xs font-semibold text-foreground-muted">
                                         {metaBalance.currency} {parseFloat(metaBalance.spend_cap).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                       </p>
                                     </div>
                                   )}
-                                  <p className="text-[10px] text-zinc-600 ml-auto">Live from Meta</p>
+                                  <p className="text-[10px] text-foreground-muted ml-auto">Live from Meta</p>
                                 </div>
                               )}
                             </div>
@@ -1163,38 +1192,38 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       })()}
 
                       <a href="/accounts" target="_blank"
-                        className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
-                        <span className="w-3.5 h-3.5 rounded-full border border-zinc-600 flex items-center justify-center text-[9px]">+</span>
+                        className="flex items-center gap-1.5 text-xs text-foreground-muted hover:text-foreground-muted transition-colors">
+                        <span className="w-3.5 h-3.5 rounded-full border border-border flex items-center justify-center text-[9px]">+</span>
                         Connect another Facebook account
                       </a>
                     </>
                   )}
                   {fieldErrors.selectedAcc && (
-                    <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>âš </span>{fieldErrors.selectedAcc}</p>
+                    <p className="text-[11px] text-error-text mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.selectedAcc}</p>
                   )}
                   {fieldErrors.selectedPage && (
-                    <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>âš </span>{fieldErrors.selectedPage}</p>
+                    <p className="text-[11px] text-error-text mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.selectedPage}</p>
                   )}
                 </div>
 
-                <div className="border-t border-zinc-800 pt-5 space-y-5">
+                <div className="border-t border-border pt-5 space-y-5">
                   <Field label="Campaign name" hint="Give your campaign a name. You can change it at any time.">
                     <input
                       value={campName}
                       onChange={e => { setCampName(e.target.value); clearErr("campName"); }}
-                      className={inp + (fieldErrors.campName ? " border-rose-500" : "")}
+                      className={inp + (fieldErrors.campName ? " border-error-border" : "")}
                       placeholder="New campaign"
                     />
-                    {fieldErrors.campName && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>âš </span>{fieldErrors.campName}</p>}
+                    {fieldErrors.campName && <p className="text-[11px] text-error-text mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.campName}</p>}
                   </Field>
                 </div>
 
-                <div className="border-t border-zinc-800 pt-5 space-y-4">
+                <div className="border-t border-border pt-5 space-y-4">
                   <div>
-                    <h4 className="text-sm font-bold text-white mb-0.5">Campaign objective</h4>
-                    <p className="text-xs text-zinc-500">Your campaign objective is the business outcome you want to achieve with your campaign.</p>
+                    <h4 className="text-sm font-bold text-foreground mb-0.5">Campaign objective</h4>
+                    <p className="text-xs text-foreground-muted">Your campaign objective is the business outcome you want to achieve with your campaign.</p>
                   </div>
-                  <p className="text-xs font-semibold text-zinc-400">Select a campaign objective</p>
+                  <p className="text-xs font-semibold text-foreground-muted">Select a campaign objective</p>
                   <div className="space-y-1">
                     {OBJECTIVES.map(o => (
                       <Radio key={o.value} value={o.value} checked={objective === o.value}
@@ -1211,20 +1240,20 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   </div>
                 </div>
 
-                {/* Conversion location â€” hidden for Awareness */}
+                {/* Conversion location — hidden for Awareness */}
                 {objective !== "AWARENESS" && (
-                <div className="border-t border-zinc-800 pt-5 space-y-4">
+                <div className="border-t border-border pt-5 space-y-4">
                   <div>
-                    <h4 className="text-sm font-bold text-white mb-0.5">Conversion location</h4>
-                    <p className="text-xs text-zinc-500">Choose where you want people to take your desired action.</p>
+                    <h4 className="text-sm font-bold text-foreground mb-0.5">Conversion location</h4>
+                    <p className="text-xs text-foreground-muted">Choose where you want people to take your desired action.</p>
                   </div>
 
-                  {/* Traffic â€” Website only */}
+                  {/* Traffic — Website only */}
                   {objective === "TRAFFIC" && (
                     <Radio value="website" checked label="Website" desc="Drive traffic to your website and marketing landing pages." onChange={() => setConvLocation("website")} />
                   )}
 
-                  {/* Sales â€” On your website + Message destination */}
+                  {/* Sales — On your website + Message destination */}
                   {objective === "CONVERSIONS" && (
                     <div className="space-y-2">
                       <Radio value="website" checked={convLocation !== "message"} label="On your website"
@@ -1237,7 +1266,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     </div>
                   )}
 
-                  {/* Leads â€” 3 conversion location options */}
+                  {/* Leads — 3 conversion location options */}
                   {objective === "LEAD_GENERATION" && (
                     <div className="space-y-1">
                       <Radio value="instant_form" checked={convLocation === "instant_form"}
@@ -1253,7 +1282,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     </div>
                   )}
 
-                  {/* Engagement â€” 3 options */}
+                  {/* Engagement — 3 options */}
                   {objective === "ENGAGEMENT" && (
                     <div className="space-y-1">
                       <Radio value="on_ad"   checked={convLocation === "on_ad"}   label="On your ad"
@@ -1269,17 +1298,17 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                 </div>
                 )}
 
-                {/* Engagement type selector â€” shown when "On your ad" */}
+                {/* Engagement type selector — shown when "On your ad" */}
                 {objective === "ENGAGEMENT" && convLocation === "on_ad" && (
                     <Field label="Select a type of engagement">
                       <div className="relative">
                         <button type="button" onClick={() => setEngTypeOpen(o => !o)}
                           className={inp + " flex items-center justify-between text-left"}>
                           <span>{engType === "POST_ENGAGEMENT" ? "Post engagement" : "Video views"}</span>
-                          <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${engTypeOpen ? "rotate-180" : ""}`} />
+                          <ChevronDown className={`w-4 h-4 text-foreground-muted transition-transform ${engTypeOpen ? "rotate-180" : ""}`} />
                         </button>
                         {engTypeOpen && (
-                          <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden">
+                          <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden">
                             {[
                               { value: "POST_ENGAGEMENT", label: "Post engagement" },
                               { value: "VIDEO_VIEWS",     label: "Video views"     },
@@ -1293,9 +1322,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                   setOptimize(OPTIMIZE_OPTIONS[key]?.[0]?.value || "");
                                 }}
                                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                                  engType === et.value ? "bg-amber-500/10 text-white" : "hover:bg-zinc-800 text-zinc-300"
+                                  engType === et.value ? "bg-warning-text/10 text-foreground" : "hover:bg-surface-hover text-foreground-muted"
                                 }`}>
-                                {engType === et.value && <span className="text-amber-400 text-xs">âœ“</span>}
+                                {engType === et.value && <span className="text-warning-text text-xs">✓</span>}
                                 {engType !== et.value && <span className="w-3" />}
                                 <span className="text-sm font-medium">{et.label}</span>
                               </button>
@@ -1306,10 +1335,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     </Field>
                 )}
 
-                <div className="border-t border-zinc-800 pt-5 space-y-3">
+                <div className="border-t border-border pt-5 space-y-3">
                   <div>
-                    <h4 className="text-sm font-bold text-white mb-0.5">Optimization for ad delivery</h4>
-                    <p className="text-xs text-zinc-500">Choose a key result you want Meta to optimize for. Your choice affects who will see your ads.</p>
+                    <h4 className="text-sm font-bold text-foreground mb-0.5">Optimization for ad delivery</h4>
+                    <p className="text-xs text-foreground-muted">Choose a key result you want Meta to optimize for. Your choice affects who will see your ads.</p>
                   </div>
                   <Field label="Optimize for" hint="The optimization event you choose is the outcome that you want Meta to get you as efficiently as possible. For example, if you choose to optimize for link clicks, Meta shows your ad to people who are most likely to click your link.">
                     <div className="relative">
@@ -1317,29 +1346,29 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       <button type="button" onClick={() => setOptimizeOpen(o => !o)}
                         className={inp + " flex items-center justify-between text-left"}>
                         <span>{OPTIMIZE_OPTIONS[effectiveObjective]?.find(o => o.value === optimize)?.label || optimize}</span>
-                        <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${optimizeOpen ? "rotate-180" : ""}`} />
+                        <ChevronDown className={`w-4 h-4 text-foreground-muted transition-transform ${optimizeOpen ? "rotate-180" : ""}`} />
                       </button>
                       {/* Dropdown */}
                       {optimizeOpen && (
-                        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden">
+                        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden">
                           {(OPTIMIZE_OPTIONS[effectiveObjective] || []).map(o => (
                             <button key={o.value} type="button"
                               onClick={() => { setOptimize(o.value); setOptimizeOpen(false); }}
-                              className={`w-full flex items-start gap-3 px-4 py-3.5 text-left transition-colors border-b border-zinc-800/50 last:border-0 ${
-                                optimize === o.value ? "bg-amber-500/10" : "hover:bg-zinc-800"
+                              className={`w-full flex items-start gap-3 px-4 py-3.5 text-left transition-colors border-b border-border last:border-0 ${
+                                optimize === o.value ? "bg-warning-text/10" : "hover:bg-surface-hover"
                               }`}>
                               <div className="mt-0.5 shrink-0">
                                 {optimize === o.value ? (
-                                  <div className="w-4 h-4 rounded-full border-2 border-amber-400 flex items-center justify-center">
-                                    <div className="w-2 h-2 rounded-full bg-amber-400" />
+                                  <div className="w-4 h-4 rounded-full border-2 border-warning-border flex items-center justify-center">
+                                    <div className="w-2 h-2 rounded-full bg-warning-text" />
                                   </div>
                                 ) : (
-                                  <div className="w-4 h-4 rounded-full border-2 border-zinc-600" />
+                                  <div className="w-4 h-4 rounded-full border-2 border-border" />
                                 )}
                               </div>
                               <div>
-                                <p className="text-sm font-semibold text-white">{o.label}</p>
-                                <p className="text-xs text-zinc-500 mt-0.5 leading-relaxed">{o.desc}</p>
+                                <p className="text-sm font-semibold text-foreground">{o.label}</p>
+                                <p className="text-xs text-foreground-muted mt-0.5 leading-relaxed">{o.desc}</p>
                               </div>
                             </button>
                           ))}
@@ -1349,22 +1378,22 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   </Field>
                 </div>
 
-                <div className="border-t border-zinc-800 pt-5 space-y-4">
+                <div className="border-t border-border pt-5 space-y-4">
                   <div>
-                    <p className="text-sm font-bold text-white mb-0.5">Is your ad in a special category?</p>
-                    <p className="text-xs text-zinc-500">If you are based in or targeting an audience in the United States and your ad relates to credit, employment, or housing, you must identify it to comply with Meta&apos;s advertising policies. Special ad categories have restricted targeting options. <span className="text-zinc-400 underline cursor-pointer">Learn more</span></p>
+                    <p className="text-sm font-bold text-foreground mb-0.5">Is your ad in a special category?</p>
+                    <p className="text-xs text-foreground-muted">If you are based in or targeting an audience in the United States and your ad relates to credit, employment, or housing, you must identify it to comply with Meta&apos;s advertising policies. Special ad categories have restricted targeting options. <span className="text-foreground-muted underline cursor-pointer">Learn more</span></p>
                   </div>
 
                   <label className="flex items-start gap-3 cursor-pointer group">
                     <input type="checkbox" checked={specialCat}
                       onChange={e => { setSpecial(e.target.checked); if (!e.target.checked) setSpecialCatType(""); }}
                       className="mt-0.5 w-4 h-4 accent-white rounded shrink-0" />
-                    <p className="text-sm text-zinc-300 group-hover:text-white transition-colors">
+                    <p className="text-sm text-foreground-muted group-hover:text-white transition-colors">
                       Yes, my ad relates to financial products and services, employment, or housing
                     </p>
                   </label>
 
-                  {/* When checked â€” category picker + restrictions */}
+                  {/* When checked — category picker + restrictions */}
                   {specialCat && (
                     <div className="space-y-3 ml-7">
                       {/* Category dropdown */}
@@ -1376,15 +1405,15 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           <option value="EMPLOYMENT">Employment</option>
                           <option value="CREDIT">Financial products and services</option>
                         </select>
-                        <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-2.5 pointer-events-none" />
+                        <ChevronDown className="w-4 h-4 text-foreground-muted absolute right-3 top-2.5 pointer-events-none" />
                       </div>
 
                       {/* Important info box */}
                       <div className="flex items-start gap-3 p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
-                        <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0 mt-0.5">i</div>
+                        <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-foreground text-[10px] font-bold shrink-0 mt-0.5">i</div>
                         <div className="space-y-2">
-                          <p className="text-sm font-bold text-white">Important information about special ad categories</p>
-                          <p className="text-xs text-zinc-400">To help you comply with Facebook&apos;s advertising policies, some audience targeting options are restricted for ads in special categories.</p>
+                          <p className="text-sm font-bold text-foreground">Important information about special ad categories</p>
+                          <p className="text-xs text-foreground-muted">To help you comply with Facebook&apos;s advertising policies, some audience targeting options are restricted for ads in special categories.</p>
                           <ul className="space-y-1.5 mt-2">
                             {[
                               { label: "Age:",                value: "Options are fixed to include ages 18 through 65+ and can't be changed." },
@@ -1395,8 +1424,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                               { label: "Custom Audiences:",   value: "Custom audiences must not discriminate against people based on certain personal characteristics." },
                               { label: "Saved Audiences:",    value: "Saved audiences are unavailable." },
                             ].map(({ label, value }) => (
-                              <li key={label} className="flex items-start gap-1.5 text-xs text-zinc-400">
-                                <span className="text-zinc-300 font-semibold shrink-0">{label}</span>
+                              <li key={label} className="flex items-start gap-1.5 text-xs text-foreground-muted">
+                                <span className="text-foreground-muted font-semibold shrink-0">{label}</span>
                                 <span>{value}</span>
                               </li>
                             ))}
@@ -1409,19 +1438,19 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
               </div>
             )}
 
-            {/* â”€â”€ STEP 2 â”€â”€ */}
+            {/* —— STEP 2 —— */}
             {step === 2 && (
               <div className="p-6 space-y-6">
                 <div>
-                  <h3 className="text-base font-bold text-white mb-1">Decide on your audience and budget</h3>
-                  <p className="text-sm text-zinc-500">Choose who you want to see your ad on Facebook, then set your budget and when you want your campaign to run.</p>
+                  <h3 className="text-base font-bold text-foreground mb-1">Decide on your audience and budget</h3>
+                  <p className="text-sm text-foreground-muted">Choose who you want to see your ad on Facebook, then set your budget and when you want your campaign to run.</p>
                 </div>
 
                 {/* Audience */}
-                <div className="border-t border-zinc-800 pt-5 space-y-4">
+                <div className="border-t border-border pt-5 space-y-4">
                   <div>
-                    <h4 className="text-sm font-bold text-white mb-0.5">Audience</h4>
-                    <p className="text-xs text-zinc-500">Your audience is the group of people who will potentially see your ad. Use our default audience settings or an audience you created on Facebook.</p>
+                    <h4 className="text-sm font-bold text-foreground mb-0.5">Audience</h4>
+                    <p className="text-xs text-foreground-muted">Your audience is the group of people who will potentially see your ad. Use our default audience settings or an audience you created on Facebook.</p>
                   </div>
 
                   {/* Audience type selector */}
@@ -1429,39 +1458,39 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     <div className="relative">
                       <button type="button" onClick={() => setAudDropOpen(o => !o)}
                         className={inp + " flex items-center justify-between text-left"}>
-                        <span className="text-white font-medium">Build your own audience</span>
-                        <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${audDropOpen ? "rotate-180" : ""}`} />
+                        <span className="text-foreground font-medium">Build your own audience</span>
+                        <ChevronDown className={`w-4 h-4 text-foreground-muted transition-transform ${audDropOpen ? "rotate-180" : ""}`} />
                       </button>
 
-                      {/* Dropdown â€” all audience options inside */}
+                      {/* Dropdown — all audience options inside */}
                       {audDropOpen && (
-                        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden">
-                          {/* Build your own â€” selected option */}
+                        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden">
+                          {/* Build your own — selected option */}
                           <button type="button" onClick={() => setAudDropOpen(false)}
-                            className="w-full flex items-start gap-3 px-4 py-3.5 text-left bg-amber-500/5 border-b border-zinc-800 hover:bg-amber-500/10 transition-colors">
-                            <span className="text-amber-400 text-xs mt-0.5 shrink-0">âœ“</span>
+                            className="w-full flex items-start gap-3 px-4 py-3.5 text-left bg-warning-text/5 border-b border-border hover:bg-warning-text/10 transition-colors">
+                            <span className="text-warning-text text-xs mt-0.5 shrink-0">✓</span>
                             <div>
-                              <p className="text-sm font-bold text-white">Build your own audience</p>
-                              <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">Choose who you want to see your ad based on targeting settings including their location, age, interests, and others.</p>
+                              <p className="text-sm font-bold text-foreground">Build your own audience</p>
+                              <p className="text-[11px] text-foreground-muted mt-0.5 leading-relaxed">Choose who you want to see your ad based on targeting settings including their location, age, interests, and others.</p>
                             </div>
                           </button>
 
                           {/* Use saved audience */}
-                          <div className="px-4 py-3.5 border-b border-zinc-800/50 opacity-60">
+                          <div className="px-4 py-3.5 border-b border-border opacity-60">
                             <div className="flex items-center justify-between mb-1">
-                              <p className="text-xs font-semibold text-zinc-400">Use saved audience</p>
-                              <span className="text-[10px] font-bold px-2 py-0.5 bg-zinc-700 text-zinc-400 rounded-full shrink-0 ml-2">NO EXISTING AUDIENCE</span>
+                              <p className="text-xs font-semibold text-foreground-muted">Use saved audience</p>
+                              <span className="text-[10px] font-bold px-2 py-0.5 bg-surface-hover text-foreground-muted rounded-full shrink-0 ml-2">NO EXISTING AUDIENCE</span>
                             </div>
-                            <p className="text-[11px] text-zinc-600 leading-relaxed">Choose a saved audience to reach people based on targeting options you&apos;ve already set on Facebook.</p>
+                            <p className="text-[11px] text-foreground-muted leading-relaxed">Choose a saved audience to reach people based on targeting options you&apos;ve already set on Facebook.</p>
                           </div>
 
                           {/* Use custom or lookalike */}
                           <div className="px-4 py-3.5 opacity-60">
                             <div className="flex items-center justify-between mb-1">
-                              <p className="text-xs font-semibold text-zinc-400">Use custom or lookalike audiences</p>
-                              <span className="text-[10px] font-bold px-2 py-0.5 bg-zinc-700 text-zinc-400 rounded-full shrink-0 ml-2">NO EXISTING AUDIENCE</span>
+                              <p className="text-xs font-semibold text-foreground-muted">Use custom or lookalike audiences</p>
+                              <span className="text-[10px] font-bold px-2 py-0.5 bg-surface-hover text-foreground-muted rounded-full shrink-0 ml-2">NO EXISTING AUDIENCE</span>
                             </div>
-                            <p className="text-[11px] text-zinc-600 leading-relaxed">Choose custom and lookalike audiences you&apos;ve created on Facebook to reach people who have already engaged with your brand, or to reach new people who are similar to the audiences you&apos;re already targeting.</p>
+                            <p className="text-[11px] text-foreground-muted leading-relaxed">Choose custom and lookalike audiences you&apos;ve created on Facebook to reach people who have already engaged with your brand, or to reach new people who are similar to the audiences you&apos;re already targeting.</p>
                           </div>
                         </div>
                       )}
@@ -1469,22 +1498,22 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   </Field>
 
                   {/* Current audience summary + Edit button */}
-                  <div className="bg-zinc-800/40 border border-zinc-700 rounded-xl p-4 space-y-2">
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Included people who match</p>
-                    <p className="text-xs text-zinc-300">Age: {ageMin} - {ageMax}</p>
-                    <p className="text-xs text-zinc-300">Gender: {gender === "ALL" ? "All" : gender.charAt(0) + gender.slice(1).toLowerCase()}</p>
-                    <p className="text-xs text-zinc-300">Location: {(() => { try { return (JSON.parse(location) as {display_name:string}[]).map(l => l.display_name).join(", "); } catch { return location || "â€”"; } })()}</p>
-                    {interests.length > 0 && <p className="text-xs text-zinc-300">Interests: {interests.map(i => i.name).join(", ")}</p>}
+                  <div className="bg-surface-hover/40 border border-border rounded-xl p-4 space-y-2">
+                    <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest">Included people who match</p>
+                    <p className="text-xs text-foreground-muted">Age: {ageMin} - {ageMax}</p>
+                    <p className="text-xs text-foreground-muted">Gender: {gender === "ALL" ? "All" : gender.charAt(0) + gender.slice(1).toLowerCase()}</p>
+                    <p className="text-xs text-foreground-muted">Location: {(() => { try { return (JSON.parse(location) as {display_name:string}[]).map(l => l.display_name).join(", "); } catch { return location || "—"; } })()}</p>
+                    {interests.length > 0 && <p className="text-xs text-foreground-muted">Interests: {interests.map(i => i.name).join(", ")}</p>}
                     {excludeLocations.length > 0 && (
-                      <p className="text-xs text-rose-400 flex items-start gap-1">
+                      <p className="text-xs text-error-text flex items-start gap-1">
                         <span className="shrink-0">Excluded:</span>
                         <span>{excludeLocations.map(l => l.display_name).join(", ")}</span>
                       </p>
                     )}
-                    <div className="pt-2 border-t border-zinc-700/50 flex items-center justify-between">
+                    <div className="pt-2 border-t border-border/50 flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] text-zinc-500">Potential reach</p>
-                        <p className="text-lg font-bold text-white">{reachLoading ? <span className="text-zinc-500 text-sm">Estimating...</span> : potentialReach}</p>
+                        <p className="text-[10px] text-foreground-muted">Potential reach</p>
+                        <p className="text-lg font-bold text-foreground">{reachLoading ? <span className="text-foreground-muted text-sm">Estimating...</span> : potentialReach}</p>
                       </div>
                       <button type="button"
                         onClick={() => {
@@ -1497,7 +1526,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           setTmpExcLocItems([...excludeLocations]); // pre-load saved exclude locations
                           setTmpInt(interests); setAudienceError(null); setShowEditAud(true);
                         }}
-                        className="px-3 py-1.5 text-xs font-semibold text-white border border-zinc-600 hover:border-zinc-400 rounded-lg transition-colors">
+                        className="px-3 py-1.5 text-xs font-semibold text-foreground border border-border hover:border-zinc-400 rounded-lg transition-colors">
                         Edit audience
                       </button>
                     </div>
@@ -1507,32 +1536,32 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                 {/* Edit Audience sub-modal */}
                 {showEditAud && (
                   <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70">
-                    <div className="w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: "85vh" }}>
+                    <div className="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: "85vh" }}>
                       {/* Header */}
-                      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-                        <h3 className="text-base font-bold text-white">Edit audience</h3>
-                        <button onClick={() => setShowEditAud(false)} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
+                      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                        <h3 className="text-base font-bold text-foreground">Edit audience</h3>
+                        <button onClick={() => setShowEditAud(false)} className="p-1.5 text-foreground-muted hover:text-white hover:bg-surface-hover rounded-lg transition-colors">
                           <X className="w-4 h-4" />
                         </button>
                       </div>
                       <div className="flex flex-1 overflow-hidden">
-                        {/* Left â€” form */}
+                        {/* Left — form */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
                           {/* Location */}
                           <div className="space-y-3">
-                            <p className="text-sm font-bold text-white">Location</p>
-                            <p className="text-xs text-zinc-500">Target people by including or excluding their location</p>
+                            <p className="text-sm font-bold text-foreground">Location</p>
+                            <p className="text-xs text-foreground-muted">Target people by including or excluding their location</p>
 
                             {/* Include */}
-                            <p className="text-xs font-semibold text-zinc-400">Include</p>
-                            <div className="border border-zinc-700 rounded-lg p-2 bg-zinc-900">
+                            <p className="text-xs font-semibold text-foreground-muted">Include</p>
+                            <div className="border border-border rounded-lg p-2 bg-surface">
                               <div className="flex flex-wrap gap-1.5 mb-2">
                                 {tmpLoc.map(l => (
-                                  <span key={l.key} className="flex items-center gap-1 text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-300">
+                                  <span key={l.key} className="flex items-center gap-1 text-xs bg-surface-hover border border-border rounded px-2 py-1 text-foreground-muted">
                                     <span className="w-2 h-2 rounded-full bg-zinc-500 inline-block" />
                                     {l.display_name}
-                                    <button onClick={() => setTmpLoc(tmpLoc.filter(x => x.key !== l.key))} className="text-zinc-500 hover:text-rose-400 ml-0.5">
+                                    <button onClick={() => setTmpLoc(tmpLoc.filter(x => x.key !== l.key))} className="text-foreground-muted hover:text-error-text ml-0.5">
                                       <X className="w-3 h-3" />
                                     </button>
                                   </span>
@@ -1543,12 +1572,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                     onChange={e => { setLocInputVal(e.target.value); searchLoc(e.target.value); }}
                                     onBlur={() => setTimeout(() => { setLocResults([]); }, 150)}
                                     placeholder="Search locations..."
-                                    className="w-full text-sm outline-none placeholder:text-zinc-600 text-white bg-transparent"
+                                    className="w-full text-sm outline-none placeholder:text-foreground-muted text-foreground bg-transparent"
                                   />
                                   {/* Location dropdown */}
                                   {(locResults.length > 0 || locLoading) && locInputVal.length >= 2 && (
-                                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl overflow-hidden max-h-48 overflow-y-auto min-w-56">
-                                      {locLoading && <p className="px-3 py-2 text-xs text-zinc-500">Searching...</p>}
+                                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-surface-hover border border-border rounded-lg shadow-xl overflow-hidden max-h-48 overflow-y-auto min-w-56">
+                                      {locLoading && <p className="px-3 py-2 text-xs text-foreground-muted">Searching...</p>}
                                       {locResults.map(l => (
                                         <button key={l.key} type="button"
                                           onClick={() => {
@@ -1557,7 +1586,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                             }
                                             setLocInputVal(""); setLocResults([]);
                                           }}
-                                          className="w-full text-left px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-700 transition-colors border-b border-zinc-700/50 last:border-0">
+                                          className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-surface-hover transition-colors border-b border-border/50 last:border-0">
                                           {l.display_name}
                                         </button>
                                       ))}
@@ -1566,24 +1595,24 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 </div>
                               </div>
                             </div>
-                            <p className="text-[11px] text-zinc-600">Locations powered by Meta Targeting API â€” requires connected Facebook account with ads_management scope.</p>
+                            <p className="text-[11px] text-foreground-muted">Locations powered by Meta Targeting API — requires connected Facebook account with ads_management scope.</p>
 
                             {/* Exclude toggle */}
                             <button type="button" onClick={() => setShowExclude(o => !o)}
                               className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1">
-                              {showExclude ? "â–¾" : "â–¸"} {showExclude ? "Hide" : "Exclude"} Location
+                              {showExclude ? "▾" : "▸"} {showExclude ? "Hide" : "Exclude"} Location
                             </button>
 
                             {showExclude && (
                               <div className="space-y-2">
-                                <p className="text-xs font-semibold text-zinc-400">Exclude</p>
-                                <div className="border border-zinc-700 rounded-lg p-2 bg-zinc-900">
+                                <p className="text-xs font-semibold text-foreground-muted">Exclude</p>
+                                <div className="border border-border rounded-lg p-2 bg-surface">
                                   <div className="flex flex-wrap gap-1.5 mb-2">
                                     {tmpExcLocItems.map(l => (
-                                      <span key={l.key} className="flex items-center gap-1 text-xs bg-rose-500/10 border border-rose-500/30 rounded px-2 py-1 text-rose-300">
-                                        <span className="w-2 h-2 rounded-full bg-rose-400 inline-block" />
+                                      <span key={l.key} className="flex items-center gap-1 text-xs bg-error-text/10 border border-error-border/30 rounded px-2 py-1 text-error-text">
+                                        <span className="w-2 h-2 rounded-full bg-error-text inline-block" />
                                         {l.display_name}
-                                        <button onClick={() => setTmpExcLocItems(tmpExcLocItems.filter(x => x.key !== l.key))} className="text-rose-400 hover:text-rose-200 ml-0.5">
+                                        <button onClick={() => setTmpExcLocItems(tmpExcLocItems.filter(x => x.key !== l.key))} className="text-error-text hover:text-error-text ml-0.5">
                                           <X className="w-3 h-3" />
                                         </button>
                                       </span>
@@ -1594,11 +1623,11 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                         onChange={e => { setExLocInput(e.target.value); searchExclude(e.target.value); }}
                                         onBlur={() => setTimeout(() => { setExLocResults([]); }, 150)}
                                         placeholder="Search locations to exclude..."
-                                        className="w-full text-sm outline-none placeholder:text-zinc-600 text-white bg-transparent"
+                                        className="w-full text-sm outline-none placeholder:text-foreground-muted text-foreground bg-transparent"
                                       />
                                       {(exLocResults.length > 0 || exLocLoading) && exLocInput.length >= 2 && (
-                                        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl overflow-hidden max-h-40 overflow-y-auto min-w-56">
-                                          {exLocLoading && <p className="px-3 py-2 text-xs text-zinc-500">Searching...</p>}
+                                        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-surface-hover border border-border rounded-lg shadow-xl overflow-hidden max-h-40 overflow-y-auto min-w-56">
+                                          {exLocLoading && <p className="px-3 py-2 text-xs text-foreground-muted">Searching...</p>}
                                           {exLocResults.map(l => (
                                             <button key={l.key} type="button"
                                               onClick={() => {
@@ -1607,7 +1636,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                                 }
                                                 setExLocInput(""); setExLocResults([]);
                                               }}
-                                              className="w-full text-left px-3 py-2 text-sm text-rose-200 hover:bg-zinc-700 transition-colors border-b border-zinc-700/50 last:border-0">
+                                              className="w-full text-left px-3 py-2 text-sm text-error-text hover:bg-surface-hover transition-colors border-b border-border/50 last:border-0">
                                               {l.display_name}
                                             </button>
                                           ))}
@@ -1620,20 +1649,20 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             )}
                           </div>
 
-                          <div className="border-t border-zinc-800" />
+                          <div className="border-t border-border" />
 
                           {/* Gender */}
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                              <p className="text-sm font-bold text-white">Gender</p>
-                              {specialCat && specialCatType && <span className="text-[10px] text-amber-400 font-semibold">Locked by special category</span>}
+                              <p className="text-sm font-bold text-foreground">Gender</p>
+                              {specialCat && specialCatType && <span className="text-[10px] text-warning-text font-semibold">Locked by special category</span>}
                             </div>
-                            <div className={`flex gap-0 border rounded-lg overflow-hidden w-fit ${specialCat && specialCatType ? "border-zinc-800 opacity-50 pointer-events-none" : "border-zinc-700"}`}>
+                            <div className={`flex gap-0 border rounded-lg overflow-hidden w-fit ${specialCat && specialCatType ? "border-border opacity-50 pointer-events-none" : "border-border"}`}>
                               {["ALL","FEMALE","MALE"].map((g, i) => (
                                 <button key={g} type="button" onClick={() => !specialCat && setTmpGender(g)}
                                   disabled={!!(specialCat && specialCatType)}
-                                  className={`px-6 py-2 text-sm font-medium transition-all ${i > 0 ? "border-l border-zinc-700" : ""} ${
-                                    tmpGender === g ? "bg-white text-zinc-900" : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                                  className={`px-6 py-2 text-sm font-medium transition-all ${i > 0 ? "border-l border-border" : ""} ${
+                                    tmpGender === g ? "bg-white text-zinc-900" : "bg-surface text-foreground-muted hover:bg-surface-hover hover:text-white"
                                   }`}>
                                   {g === "ALL" ? "All" : g === "FEMALE" ? "Female" : "Male"}
                                 </button>
@@ -1641,15 +1670,15 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             </div>
                           </div>
 
-                          <div className="border-t border-zinc-800" />
+                          <div className="border-t border-border" />
 
                           {/* Age */}
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                              <p className="text-sm font-bold text-white">Age</p>
-                              {specialCat && specialCatType && <span className="text-[10px] text-amber-400 font-semibold">Locked: 18â€“65+ by special category</span>}
+                              <p className="text-sm font-bold text-foreground">Age</p>
+                              {specialCat && specialCatType && <span className="text-[10px] text-warning-text font-semibold">Locked: 18–65+ by special category</span>}
                             </div>
-                            <p className="text-xs text-zinc-500">Select the minimum and maximum age for people who will see your ad.<br/>Note: the minimum age is 13, and the maximum age is 65 and over.</p>
+                            <p className="text-xs text-foreground-muted">Select the minimum and maximum age for people who will see your ad.<br/>Note: the minimum age is 13, and the maximum age is 65 and over.</p>
                             <div className="flex items-center gap-3">
                               <div className="relative">
                                 <select value={tmpAge[0]} onChange={e => setTmpAge([e.target.value, tmpAge[1]])}
@@ -1659,9 +1688,9 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                     <option key={a} value={a}>{a}</option>
                                   ))}
                                 </select>
-                                <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-2 top-2.5 pointer-events-none" />
+                                <ChevronDown className="w-4 h-4 text-foreground-muted absolute right-2 top-2.5 pointer-events-none" />
                               </div>
-                              <span className="text-zinc-500">â€“</span>
+                              <span className="text-foreground-muted">–</span>
                               <div className="relative">
                                 <select value={tmpAge[1]} onChange={e => setTmpAge([tmpAge[0], e.target.value])}
                                   disabled={!!(specialCat && specialCatType)}
@@ -1670,31 +1699,31 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                     <option key={a} value={a}>{a}</option>
                                   ))}
                                 </select>
-                                <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-2 top-2.5 pointer-events-none" />
+                                <ChevronDown className="w-4 h-4 text-foreground-muted absolute right-2 top-2.5 pointer-events-none" />
                               </div>
                             </div>
                           </div>
 
-                          <div className="border-t border-zinc-800" />
+                          <div className="border-t border-border" />
 
                           {/* Detailed targeting */}
                           <div className="space-y-3">
-                            <p className="text-sm font-bold text-white">Detailed targeting</p>
-                            <p className="text-xs text-zinc-500">
+                            <p className="text-sm font-bold text-foreground">Detailed targeting</p>
+                            <p className="text-xs text-foreground-muted">
                               Target your audience by demographics, interests, or behaviors.
                             </p>
                             <div className="p-2.5 bg-blue-500/5 border border-blue-500/20 rounded-lg">
                               <p className="text-[11px] text-blue-400 leading-relaxed">
-                                <span className="font-bold">How it works:</span> Interests are fetched from Meta&apos;s Targeting API using your connected ad account. Type to search â€” e.g. &quot;Technology&quot;, &quot;Travel&quot;, &quot;Fitness&quot;. No extra Meta setup needed â€” your existing <code className="text-xs bg-blue-500/10 px-1 rounded">ads_management</code> scope covers this.
+                                <span className="font-bold">How it works:</span> Interests are fetched from Meta&apos;s Targeting API using your connected ad account. Type to search — e.g. &quot;Technology&quot;, &quot;Travel&quot;, &quot;Fitness&quot;. No extra Meta setup needed — your existing <code className="text-xs bg-blue-500/10 px-1 rounded">ads_management</code> scope covers this.
                               </p>
                             </div>
-                            <p className="text-xs font-semibold text-zinc-400">Include</p>
-                            <div className="border border-zinc-700 rounded-lg p-2 bg-zinc-900">
+                            <p className="text-xs font-semibold text-foreground-muted">Include</p>
+                            <div className="border border-border rounded-lg p-2 bg-surface">
                               <div className="flex flex-wrap gap-1.5 mb-2">
                                 {tmpInt.map(t => (
-                                  <span key={t.id} className="flex items-center gap-1 text-xs bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-300">
+                                  <span key={t.id} className="flex items-center gap-1 text-xs bg-surface-hover border border-border rounded px-2 py-1 text-foreground-muted">
                                     {t.name}
-                                    <button onClick={() => setTmpInt(prev => prev.filter(x => x.id !== t.id))} className="text-zinc-500 hover:text-rose-400 ml-0.5">
+                                    <button onClick={() => setTmpInt(prev => prev.filter(x => x.id !== t.id))} className="text-foreground-muted hover:text-error-text ml-0.5">
                                       <X className="w-3 h-3" />
                                     </button>
                                   </span>
@@ -1705,12 +1734,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                     onChange={e => { setIntInputVal(e.target.value); searchInt(e.target.value); }}
                                     onBlur={() => setTimeout(() => { setIntResults([]); }, 150)}
                                     placeholder="Search interests..."
-                                    className="w-full text-sm outline-none placeholder:text-zinc-600 text-white bg-transparent"
+                                    className="w-full text-sm outline-none placeholder:text-foreground-muted text-foreground bg-transparent"
                                   />
                                   {/* Interests dropdown */}
                                   {(intResults.length > 0 || intLoading) && intInputVal.length >= 2 && (
-                                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl overflow-hidden max-h-48 overflow-y-auto min-w-56">
-                                      {intLoading && <p className="px-3 py-2 text-xs text-zinc-500">Searching...</p>}
+                                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-surface-hover border border-border rounded-lg shadow-xl overflow-hidden max-h-48 overflow-y-auto min-w-56">
+                                      {intLoading && <p className="px-3 py-2 text-xs text-foreground-muted">Searching...</p>}
                                       {intResults.map(i => (
                                         <button key={i.id} type="button"
                                           onClick={() => {
@@ -1719,7 +1748,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                             }
                                             setIntInputVal(""); setIntResults([]);
                                           }}
-                                          className="w-full text-left px-3 py-2 text-sm text-zinc-200 hover:bg-zinc-700 transition-colors border-b border-zinc-700/50 last:border-0">
+                                          className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-surface-hover transition-colors border-b border-border/50 last:border-0">
                                           {i.name}
                                         </button>
                                       ))}
@@ -1728,37 +1757,37 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 </div>
                               </div>
                             </div>
-                            <p className="text-[11px] text-zinc-600">Search and select interests from Meta&apos;s Targeting API. Requires a connected Facebook account.</p>
+                            <p className="text-[11px] text-foreground-muted">Search and select interests from Meta&apos;s Targeting API. Requires a connected Facebook account.</p>
                           </div>
                         </div>
 
-                        {/* Right â€” current details */}
-                        <div className="w-56 shrink-0 bg-zinc-900/50 border-l border-zinc-800 p-5 space-y-4">
-                          <p className="text-sm font-bold text-white">Current audience details</p>
+                        {/* Right — current details */}
+                        <div className="w-56 shrink-0 bg-card border-l border-border p-5 space-y-4">
+                          <p className="text-sm font-bold text-foreground">Current audience details</p>
                           <div className="space-y-2">
-                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1">
+                            <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest flex items-center gap-1">
                               <span>ðŸ‘¥</span> Included people who match
                             </p>
-                            <p className="text-xs text-zinc-400">Age: {tmpAge[0]} - {tmpAge[1]}</p>
-                            <p className="text-xs text-zinc-400">Gender: {tmpGender === "ALL" ? "All" : tmpGender.charAt(0) + tmpGender.slice(1).toLowerCase()}</p>
-                            <p className="text-xs text-zinc-400">Location: {tmpLoc.map(l => l.display_name).join(", ") || "â€”"}</p>
-                            {tmpExcLocItems.length > 0 && <p className="text-xs text-rose-400">Excluded: {tmpExcLocItems.map(l => l.display_name).join(", ")}</p>}
-                            {tmpInt.length > 0 && <p className="text-xs text-zinc-400">Interests: {tmpInt.map(i => i.name).join(", ")}</p>}
+                            <p className="text-xs text-foreground-muted">Age: {tmpAge[0]} - {tmpAge[1]}</p>
+                            <p className="text-xs text-foreground-muted">Gender: {tmpGender === "ALL" ? "All" : tmpGender.charAt(0) + tmpGender.slice(1).toLowerCase()}</p>
+                            <p className="text-xs text-foreground-muted">Location: {tmpLoc.map(l => l.display_name).join(", ") || "—"}</p>
+                            {tmpExcLocItems.length > 0 && <p className="text-xs text-error-text">Excluded: {tmpExcLocItems.map(l => l.display_name).join(", ")}</p>}
+                            {tmpInt.length > 0 && <p className="text-xs text-foreground-muted">Interests: {tmpInt.map(i => i.name).join(", ")}</p>}
                           </div>
-                          <div className="pt-3 border-t border-zinc-800">
-                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Potential reach</p>
-                            <p className="text-xl font-bold text-white">{potentialReach}</p>
+                          <div className="pt-3 border-t border-border">
+                            <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Potential reach</p>
+                            <p className="text-xl font-bold text-foreground">{potentialReach}</p>
                           </div>
                         </div>
                       </div>
 
                       {/* Footer */}
-                      <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800 bg-zinc-950">
+                      <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-card">
                         {audienceError && (
-                          <p className="text-xs text-rose-400 mr-auto">{audienceError}</p>
+                          <p className="text-xs text-error-text mr-auto">{audienceError}</p>
                         )}
                         <button onClick={() => { setShowEditAud(false); setAudienceError(null); }}
-                          className="px-5 py-2 text-sm text-zinc-400 border border-zinc-700 hover:border-zinc-500 hover:text-white rounded-lg font-medium transition-colors">
+                          className="px-5 py-2 text-sm text-foreground-muted border border-border hover:border-border hover:text-white rounded-lg font-medium transition-colors">
                           Cancel
                         </button>
                         <button
@@ -1774,7 +1803,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             setInterests([...tmpInt]);
                             setShowEditAud(false); setShowExclude(false);
                           }}
-                          className="px-5 py-2 text-sm bg-amber-500 hover:bg-amber-400 text-zinc-900 font-bold rounded-lg transition-colors">
+                          className="px-5 py-2 text-sm bg-warning-text hover:bg-warning-text text-zinc-900 font-bold rounded-lg transition-colors">
                           Change audience
                         </button>
                       </div>
@@ -1783,12 +1812,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                 )}
 
                 {/* EU targeting */}
-                <div className="border-t border-zinc-800 pt-5 space-y-4">
+                <div className="border-t border-border pt-5 space-y-4">
                   <div>
-                    <h4 className="text-sm font-bold text-white mb-1">Do your ads target audiences in the EU?</h4>
-                    <p className="text-xs text-zinc-500">
+                    <h4 className="text-sm font-bold text-foreground mb-1">Do your ads target audiences in the EU?</h4>
+                    <p className="text-xs text-foreground-muted">
                       Due to regulatory requirements in the European Union (EU), you will need to provide beneficiary and payer information if your ads target the EU or EU-associated territories. Please make sure to provide accurate information to keep your ads from being rejected by Meta.{" "}
-                      <span className="text-zinc-400 underline cursor-pointer">Learn more about EU requirements</span>
+                      <span className="text-foreground-muted underline cursor-pointer">Learn more about EU requirements</span>
                     </p>
                   </div>
 
@@ -1797,7 +1826,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     <input type="checkbox" checked={euTargeting}
                       onChange={e => { setEuTargeting(e.target.checked); if (!e.target.checked) { setEuConfirmed(false); setBeneficiary(""); setPayer(""); } }}
                       className="mt-0.5 w-4 h-4 accent-white rounded shrink-0" />
-                    <p className="text-sm text-zinc-300 group-hover:text-white transition-colors">
+                    <p className="text-sm text-foreground-muted group-hover:text-white transition-colors">
                       Yes, my ads target audiences in the EU
                     </p>
                   </label>
@@ -1809,7 +1838,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       <label className="flex items-start gap-3 cursor-pointer group">
                         <input type="checkbox" checked={euConfirmed} onChange={e => setEuConfirmed(e.target.checked)}
                           className="mt-0.5 w-4 h-4 accent-white rounded shrink-0" />
-                        <p className="text-xs text-zinc-400 group-hover:text-zinc-300 transition-colors leading-relaxed">
+                        <p className="text-xs text-foreground-muted group-hover:text-foreground-muted transition-colors leading-relaxed">
                           I confirm that I will provide accurate beneficiary and payer information for EU-targeted ads.
                         </p>
                       </label>
@@ -1817,10 +1846,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       {/* Beneficiary */}
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-semibold text-zinc-200">Beneficiary</p>
-                          <span className="text-rose-400 text-xs">*</span>
+                          <p className="text-sm font-semibold text-foreground">Beneficiary</p>
+                          <span className="text-error-text text-xs">*</span>
                         </div>
-                        <p className="text-xs text-zinc-500">Provide accurate beneficiary entity name</p>
+                        <p className="text-xs text-foreground-muted">Provide accurate beneficiary entity name</p>
                         <input
                           value={beneficiary}
                           onChange={e => setBeneficiary(e.target.value)}
@@ -1832,10 +1861,10 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       {/* Payer */}
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-semibold text-zinc-200">Payer</p>
-                          <span className="text-rose-400 text-xs">*</span>
+                          <p className="text-sm font-semibold text-foreground">Payer</p>
+                          <span className="text-error-text text-xs">*</span>
                         </div>
-                        <p className="text-xs text-zinc-500">Provide accurate payer entity name</p>
+                        <p className="text-xs text-foreground-muted">Provide accurate payer entity name</p>
                         <input
                           value={payer}
                           onChange={e => setPayer(e.target.value)}
@@ -1845,8 +1874,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       </div>
 
                       {(beneficiary || payer) && !euConfirmed && (
-                        <p className="text-[11px] text-amber-400 flex items-center gap-1.5">
-                          <span>âš </span> Please confirm your details are accurate above.
+                        <p className="text-[11px] text-warning-text flex items-center gap-1.5">
+                          <span>⚠</span> Please confirm your details are accurate above.
                         </p>
                       )}
                     </div>
@@ -1854,27 +1883,27 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                 </div>
 
                 {/* Placements */}
-                <div className="border-t border-zinc-800 pt-5 space-y-4">
+                <div className="border-t border-border pt-5 space-y-4">
                   <div>
-                    <h4 className="text-sm font-bold text-white mb-0.5">Placements</h4>
-                    <p className="text-xs text-zinc-500">
+                    <h4 className="text-sm font-bold text-foreground mb-0.5">Placements</h4>
+                    <p className="text-xs text-foreground-muted">
                       The automatic placements option is enabled by default, so that Facebook can show your ad where it performs best.
                       The automatic placements option maximises your budget and ensures that more people see your ad.{" "}
-                      <span className="text-zinc-400 underline cursor-pointer">Learn more about placements</span>
+                      <span className="text-foreground-muted underline cursor-pointer">Learn more about placements</span>
                     </p>
                   </div>
 
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" checked={!autoPlace} onChange={e => setAutoPlace(!e.target.checked)}
                       className="w-4 h-4 accent-white rounded" />
-                    <p className="text-sm text-zinc-300">I want to manually choose the placements</p>
+                    <p className="text-sm text-foreground-muted">I want to manually choose the placements</p>
                   </label>
 
                   {/* Automatic placements info */}
                   {autoPlace && (
-                    <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-3">
-                      <p className="text-xs font-semibold text-zinc-300">Automatic placements</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">Facebook, Instagram, Messenger, Audience Network</p>
+                    <div className="bg-surface-hover border border-border rounded-xl p-3">
+                      <p className="text-xs font-semibold text-foreground-muted">Automatic placements</p>
+                      <p className="text-xs text-foreground-muted mt-0.5">Facebook, Instagram, Messenger, Audience Network</p>
                     </div>
                   )}
 
@@ -1901,7 +1930,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     const PLATFORM_COLOR: Record<string, string> = {
                       "Facebook":         "text-blue-400",
                       "Instagram":        "text-pink-400",
-                      "Messenger":        "text-indigo-400",
+                      "Messenger":        "text-info-text",
                       "Audience Network": "text-purple-400",
                     };
 
@@ -1935,7 +1964,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       <div className="space-y-3">
                         {/* Device selector */}
                         <div>
-                          <p className="text-xs font-semibold text-zinc-400 mb-1.5">Select device</p>
+                          <p className="text-xs font-semibold text-foreground-muted mb-1.5">Select device</p>
                           <div className="relative w-44">
                             <select value={deviceType} onChange={e => setDeviceType(e.target.value)}
                               className={inp + " pr-8 appearance-none"}>
@@ -1943,28 +1972,28 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                               <option value="mobile">Mobile</option>
                               <option value="desktop">Desktop</option>
                             </select>
-                            <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-2.5 pointer-events-none" />
+                            <ChevronDown className="w-4 h-4 text-foreground-muted absolute right-3 top-2.5 pointer-events-none" />
                           </div>
                         </div>
 
                         {/* Counter */}
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-zinc-200">
-                            Selected placements <span className="text-zinc-500">({selCount} / {total})</span>
+                          <p className="text-sm font-semibold text-foreground">
+                            Selected placements <span className="text-foreground-muted">({selCount} / {total})</span>
                           </p>
                         </div>
 
                         {/* Placement rows */}
-                        <div className="border border-zinc-700 rounded-xl overflow-hidden divide-y divide-zinc-800/60 max-h-72 overflow-y-auto">
+                        <div className="border border-border rounded-xl overflow-hidden divide-y divide-border/60 max-h-72 overflow-y-auto">
 
                           {/* Available + device-compatible */}
                           {deviceFiltered.map(p => (
                             <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                               <PlacementToggle id={p.id} />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm text-zinc-200">{p.label}</p>
+                                <p className="text-sm text-foreground">{p.label}</p>
                               </div>
-                              <span className={`text-[10px] font-semibold shrink-0 ${PLATFORM_COLOR[p.platform] || "text-zinc-500"}`}>
+                              <span className={`text-[10px] font-semibold shrink-0 ${PLATFORM_COLOR[p.platform] || "text-foreground-muted"}`}>
                                 {p.platform}
                               </span>
                             </div>
@@ -1975,12 +2004,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             <div key={p.id} className="flex items-center gap-3 px-4 py-3 opacity-40">
                               <PlacementToggle id={p.id} disabled />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm text-zinc-400">{p.label}</p>
-                                <p className="text-[11px] text-zinc-600 mt-0.5">
+                                <p className="text-sm text-foreground-muted">{p.label}</p>
+                                <p className="text-[11px] text-foreground-muted mt-0.5">
                                   Not available for {deviceType === "mobile" ? "mobile" : "desktop"} devices.
                                 </p>
                               </div>
-                              <span className={`text-[10px] font-semibold shrink-0 ${PLATFORM_COLOR[p.platform] || "text-zinc-500"}`}>
+                              <span className={`text-[10px] font-semibold shrink-0 ${PLATFORM_COLOR[p.platform] || "text-foreground-muted"}`}>
                                 {p.platform}
                               </span>
                             </div>
@@ -1991,8 +2020,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             <div key={p.id} className="flex items-center gap-3 px-4 py-3 opacity-35">
                               <PlacementToggle id={p.id} disabled />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm text-zinc-500">{p.label}</p>
-                                <p className="text-[11px] text-zinc-600 mt-0.5">
+                                <p className="text-sm text-foreground-muted">{p.label}</p>
+                                <p className="text-[11px] text-foreground-muted mt-0.5">
                                   Not available with the {
                                     effectiveObjective === "ENGAGEMENT_POST_AD"  ? "Post Engagement" :
                                     effectiveObjective === "ENGAGEMENT_VIDEO_AD" ? "Video Views" :
@@ -2002,7 +2031,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                   } objective.
                                 </p>
                               </div>
-                              <span className={`text-[10px] font-semibold shrink-0 ${PLATFORM_COLOR[p.platform] || "text-zinc-500"}`}>
+                              <span className={`text-[10px] font-semibold shrink-0 ${PLATFORM_COLOR[p.platform] || "text-foreground-muted"}`}>
                                 {p.platform}
                               </span>
                             </div>
@@ -2013,7 +2042,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   })()}
                 </div>
 
-                {/* Tracking â€” Sales + On your website + Conversions only */}
+                {/* Tracking — Sales + On your website + Conversions only */}
                 {objective === "CONVERSIONS" && convLocation !== "message" && optimize === "OFFSITE_CONVERSIONS" && (() => {
                   // Real pixels are fetched from Meta API at publish time.
                   // Here users enter their Pixel ID manually (found in Meta Events Manager).
@@ -2029,17 +2058,17 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   );
 
                   return (
-                    <div className="border-t border-zinc-800 pt-5 space-y-4">
+                    <div className="border-t border-border pt-5 space-y-4">
                       <div>
-                        <h4 className="text-sm font-bold text-white mb-0.5">Tracking</h4>
-                        <p className="text-xs text-zinc-500">
+                        <h4 className="text-sm font-bold text-foreground mb-0.5">Tracking</h4>
+                        <p className="text-xs text-foreground-muted">
                           Use conversion tracking pixels to track and understand the actions people take on your website.
                           You can track actions or conversion events such as viewing or purchasing a product.{" "}
-                          <span className="text-zinc-400 underline cursor-pointer">Learn more about conversion tracking</span>
+                          <span className="text-foreground-muted underline cursor-pointer">Learn more about conversion tracking</span>
                         </p>
                       </div>
 
-                      {/* Pixel ID â€” entered manually; found in Meta Events Manager */}
+                      {/* Pixel ID — entered manually; found in Meta Events Manager */}
                       <Field label="Meta Pixel ID">
                         <input
                           type="text"
@@ -2048,7 +2077,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           placeholder="e.g. 1234567890123456"
                           className={inp}
                         />
-                        <p className="text-[11px] text-zinc-600 mt-1">
+                        <p className="text-[11px] text-foreground-muted mt-1">
                           Find your Pixel ID in{" "}
                           <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
                             Meta Events Manager
@@ -2064,14 +2093,14 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             onClick={() => { if (!trackingPixel) return; setEventDropOpen(o => !o); setPixelDropOpen(false); }}
                             disabled={!trackingPixel}
                             className={inp + " flex items-center justify-between text-left disabled:opacity-50 disabled:cursor-not-allowed"}>
-                            <span className={convEvent ? "text-white" : "text-zinc-600"}>
+                            <span className={convEvent ? "text-foreground" : "text-foreground-muted"}>
                               {convEvent || "Search for a conversion event"}
                             </span>
-                            <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${eventDropOpen ? "rotate-180" : ""}`} />
+                            <ChevronDown className={`w-4 h-4 text-foreground-muted transition-transform ${eventDropOpen ? "rotate-180" : ""}`} />
                           </button>
                           {eventDropOpen && (
-                            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden">
-                              <div className="p-2 border-b border-zinc-800">
+                            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-surface border border-border rounded-xl shadow-2xl overflow-hidden">
+                              <div className="p-2 border-b border-border">
                                 <input autoFocus value={eventSearch} onChange={e => setEventSearch(e.target.value)}
                                   placeholder="Search for a conversion event"
                                   className={inp + " text-sm"} />
@@ -2080,7 +2109,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                                 {filteredEvents.map(e => (
                                   <button key={e} type="button"
                                     onClick={() => { setConvEvent(e); setEventSearch(""); setEventDropOpen(false); }}
-                                    className="w-full text-left px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors border-b border-zinc-800/30 last:border-0">
+                                    className="w-full text-left px-4 py-2.5 text-sm text-foreground hover:bg-surface-hover transition-colors border-b border-border last:border-0">
                                     {e}
                                   </button>
                                 ))}
@@ -2088,7 +2117,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             </div>
                           )}
                         </div>
-                        {!trackingPixel && <p className="text-[11px] text-zinc-600 mt-1">Select a pixel first.</p>}
+                        {!trackingPixel && <p className="text-[11px] text-foreground-muted mt-1">Select a pixel first.</p>}
                       </Field>
                     </div>
                   );
@@ -2098,115 +2127,115 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                 {(() => {
                   const selAccObj  = adAccounts.find(a => a.id === selectedAcc);
                   const currency   = selAccObj?.ad_account_currency || "USD";
-                  const SYMBOLS: Record<string, string>  = { USD:"$", INR:"â‚¹", EUR:"â‚¬", GBP:"Â£", AUD:"A$", SGD:"S$", MYR:"RM", AED:"Ø¯.Ø¥" };
+                  const SYMBOLS: Record<string, string>  = { USD:"$", INR:"₹", EUR:"€", GBP:"£", AUD:"A$", SGD:"S$", MYR:"RM", AED:"د.إ" };
                   const MINS: Record<string, number>     = { USD:1, INR:97, EUR:1, GBP:1, AUD:2, SGD:2, MYR:5, AED:4 };
                   const symbol = SYMBOLS[currency] || (currency + " ");
                   const minAmt = MINS[currency] || 1;
                   return (
-                <div className="border-t border-zinc-800 pt-5 space-y-4">
+                <div className="border-t border-border pt-5 space-y-4">
                   <div>
-                    <h4 className="text-sm font-bold text-white mb-0.5">Budget and duration</h4>
-                    <p className="text-xs text-zinc-500">Set the budget and duration of your ad campaign.</p>
+                    <h4 className="text-sm font-bold text-foreground mb-0.5">Budget and duration</h4>
+                    <p className="text-xs text-foreground-muted">Set the budget and duration of your ad campaign.</p>
                   </div>
 
                   {/* Meta ad account live balance */}
                   {metaBalance ? (
-                    <div className="flex items-center gap-5 px-4 py-3 bg-zinc-900 border border-zinc-700/60 rounded-xl">
+                    <div className="flex items-center gap-5 px-4 py-3 bg-surface border border-border/60 rounded-xl">
                       <div className="flex-1">
-                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Account Balance</p>
-                        <p className={`text-base font-bold ${metaBalance.balance !== null ? "text-emerald-400" : "text-zinc-500"}`}>
+                        <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider mb-0.5">Account Balance</p>
+                        <p className={`text-base font-bold ${metaBalance.balance !== null ? "text-success-text" : "text-foreground-muted"}`}>
                           {metaBalance.balance !== null
                             ? `${symbol}${parseFloat(metaBalance.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                            : "â€”"}
+                            : "—"}
                         </p>
                       </div>
-                      <div className="w-px h-8 bg-zinc-800" />
+                      <div className="w-px h-8 bg-surface-hover" />
                       <div className="flex-1">
-                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Total Spent</p>
-                        <p className="text-base font-semibold text-zinc-300">
+                        <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider mb-0.5">Total Spent</p>
+                        <p className="text-base font-semibold text-foreground-muted">
                           {symbol}{parseFloat(metaBalance.amount_spent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                       </div>
                       {metaBalance.spend_cap && (
                         <>
-                          <div className="w-px h-8 bg-zinc-800" />
+                          <div className="w-px h-8 bg-surface-hover" />
                           <div className="flex-1">
-                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Spend Cap</p>
-                            <p className="text-base font-semibold text-zinc-400">
+                            <p className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider mb-0.5">Spend Cap</p>
+                            <p className="text-base font-semibold text-foreground-muted">
                               {symbol}{parseFloat(metaBalance.spend_cap).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                           </div>
                         </>
                       )}
-                      <p className="text-[10px] text-zinc-600 shrink-0">Live Â· Meta</p>
+                      <p className="text-[10px] text-foreground-muted shrink-0">Live · Meta</p>
                     </div>
                   ) : (
-                    <div className="h-[60px] flex items-center px-4 bg-zinc-900/50 border border-zinc-800 rounded-xl">
-                      <p className="text-xs text-zinc-600">Connecting to Meta ad accountâ€¦</p>
+                    <div className="h-[60px] flex items-center px-4 bg-card border border-border rounded-xl">
+                      <p className="text-xs text-foreground-muted">Connecting to Meta ad account...</p>
                     </div>
                   )}
 
                   <Field label="Budget" hint={`Enter in ${currency}. Meta minimum is ${symbol}${minAmt}/day for this ad account.`}>
                     <div className="flex items-center gap-4">
                       <div className="relative w-36">
-                        <span className="absolute left-3 top-2.5 text-zinc-400 text-sm">{symbol}</span>
+                        <span className="absolute left-3 top-2.5 text-foreground-muted text-sm">{symbol}</span>
                         <input type="number" value={budgetAmt}
                           onChange={e => { setBudget(e.target.value); clearErr("budget"); }}
                           min={minAmt}
-                          className={inp + " pl-7" + (fieldErrors.budget ? " border-rose-500" : "")} />
+                          className={inp + " pl-7" + (fieldErrors.budget ? " border-error-border" : "")} />
                       </div>
                       <div className="flex gap-3">
                         {[{v:"daily",l:"Per day"},{v:"total",l:"Total"}].map(({v,l}) => (
                           <label key={v} className="flex items-center gap-1.5 cursor-pointer">
-                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${budgetType === v ? "border-white" : "border-zinc-600"}`}>
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${budgetType === v ? "border-white" : "border-border"}`}>
                               {budgetType === v && <div className="w-2 h-2 rounded-full bg-white" />}
                             </div>
                             <input type="radio" className="hidden" checked={budgetType === v} onChange={() => setBudgetType(v as "daily"|"total")} />
-                            <span className="text-sm text-zinc-300">{l}</span>
+                            <span className="text-sm text-foreground-muted">{l}</span>
                           </label>
                         ))}
                       </div>
                     </div>
-                    {fieldErrors.budget && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>âš </span>{fieldErrors.budget}</p>}
+                    {fieldErrors.budget && <p className="text-[11px] text-error-text mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.budget}</p>}
                   </Field>
                   <Field label="Duration" hint="Choose how long your ad campaign will run.">
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
-                        <p className="text-[10px] text-zinc-500 mb-1">From</p>
+                        <p className="text-[10px] text-foreground-muted mb-1">From</p>
                         <input type="date" value={startDate} onChange={e => { setStart(e.target.value); clearErr("startDate"); }}
-                          className={inp + (fieldErrors.startDate ? " border-rose-500" : "")} />
+                          className={inp + (fieldErrors.startDate ? " border-error-border" : "")} />
                       </div>
                       <div className="flex-1">
-                        <p className="text-[10px] text-zinc-500 mb-1">To</p>
+                        <p className="text-[10px] text-foreground-muted mb-1">To</p>
                         <input type="date" value={endDate} onChange={e => setEnd(e.target.value)}
                           min={startDate} className={inp} placeholder="No end date" />
                       </div>
                     </div>
-                    {fieldErrors.startDate && <p className="text-[11px] text-rose-400 mt-1 flex items-center gap-1"><span>âš </span>{fieldErrors.startDate}</p>}
+                    {fieldErrors.startDate && <p className="text-[11px] text-error-text mt-1 flex items-center gap-1"><span>⚠</span>{fieldErrors.startDate}</p>}
                   </Field>
                 </div>
                   );
                 })()}
 
                 {/* Payment */}
-                <div className="border-t border-zinc-800 pt-5">
-                  <h4 className="text-sm font-bold text-white mb-1">Payment</h4>
-                  <p className="text-xs text-zinc-500">
+                <div className="border-t border-border pt-5">
+                  <h4 className="text-sm font-bold text-foreground mb-1">Payment</h4>
+                  <p className="text-xs text-foreground-muted">
                     Meta will bill your ad account when your ad is published. Review your payment method on Meta.{" "}
-                    <span className="text-blue-400 underline cursor-pointer">Learn more â†—</span>
+                    <span className="text-blue-400 underline cursor-pointer">Learn more <ArrowRight className="w-3 h-3 inline-block ml-0.5" /></span>
                   </p>
                 </div>
               </div>
             )}
 
-            {/* â”€â”€ STEP 3 â”€â”€ */}
+            {/* —— STEP 3 —— */}
             {step === 3 && (
               <div className="flex h-full overflow-hidden">
 
-                {/* â”€â”€ Ads List Sidebar (independent from step progress sidebar) â”€â”€ */}
-                <div className={`shrink-0 border-r border-zinc-800 flex flex-col transition-all duration-200 ${adsSidebarOpen ? "w-52" : "w-8"}`}>
+                {/* —— Ads List Sidebar (independent from step progress sidebar) —— */}
+                <div className={`shrink-0 border-r border-border flex flex-col transition-all duration-200 ${adsSidebarOpen ? "w-52" : "w-8"}`}>
                   <button type="button" onClick={() => setAdsSidebarOpen(o => !o)}
-                    className="flex items-center justify-center w-full h-8 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800/50 transition-colors shrink-0">
+                    className="flex items-center justify-center w-full h-8 text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover transition-colors shrink-0">
                     <svg viewBox="0 0 24 24" className={`w-3.5 h-3.5 transition-transform ${adsSidebarOpen ? "" : "rotate-180"}`} fill="none" stroke="currentColor" strokeWidth={2}>
                       <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
@@ -2214,11 +2243,11 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   {adsSidebarOpen && (
                     <div className="flex-1 flex flex-col overflow-hidden">
                       {/* Ads List header */}
-                      <div className="px-3 pt-1 pb-2 border-b border-zinc-800">
+                      <div className="px-3 pt-1 pb-2 border-b border-border">
                         <div className="flex items-center justify-between mb-0.5">
-                          <p className="text-xs font-bold text-white">Ads List</p>
+                          <p className="text-xs font-bold text-foreground">Ads List</p>
                         </div>
-                        <p className="text-[10px] text-zinc-500 mb-1.5">YOUR ADS ({ads.length}/50)</p>
+                        <p className="text-[10px] text-foreground-muted mb-1.5">YOUR ADS ({ads.length}/50)</p>
                         {ads.length < 50 && (
                           <button type="button"
                             onClick={() => { setAds(prev => [...prev, { name: `New ad`, copy: "", headline: "", website_url: "http://example.com", cta: "Learn more", image_url: "" }]); setSelectedAdIdx(ads.length); setShowSummary(false); }}
@@ -2233,16 +2262,16 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         {ads.map((a, idx) => (
                           <div key={idx}
                             className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors group ${
-                              !showSummary && selectedAdIdx === idx ? "bg-amber-500/10" : "hover:bg-zinc-800/40"
+                              !showSummary && selectedAdIdx === idx ? "bg-warning-text/10" : "hover:bg-surface-hover/40"
                             }`}
                             onClick={() => { setSelectedAdIdx(idx); setShowSummary(false); }}>
-                            <p className="text-xs text-zinc-300 flex-1 truncate">{a.name || "New ad"}</p>
+                            <p className="text-xs text-foreground-muted flex-1 truncate">{a.name || "New ad"}</p>
                             {!a.image_url && (
-                              <span className="text-amber-400 text-xs shrink-0" title="No image added">âš </span>
+                              <span className="text-warning-text text-xs shrink-0" title="No image added">⚠</span>
                             )}
                             <button type="button"
                               onClick={e => { e.stopPropagation(); if (ads.length === 1) return; setAds(prev => prev.filter((_, i) => i !== idx)); setSelectedAdIdx(Math.max(0, idx - 1)); }}
-                              className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-rose-400 transition-all shrink-0">
+                              className="opacity-0 group-hover:opacity-100 text-foreground-muted hover:text-error-text transition-all shrink-0">
                               <Trash2 className="w-3 h-3" />
                             </button>
                           </div>
@@ -2250,11 +2279,11 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       </div>
 
                       {/* Campaign / Summary */}
-                      <div className="border-t border-zinc-800 pt-2 pb-1">
-                        <p className="px-3 text-[9px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Campaign</p>
+                      <div className="border-t border-border pt-2 pb-1">
+                        <p className="px-3 text-[9px] font-bold text-foreground-muted uppercase tracking-widest mb-1">Campaign</p>
                         <button type="button"
                           onClick={() => setShowSummary(true)}
-                          className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${showSummary ? "bg-amber-500/10 text-amber-400" : "text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"}`}>
+                          className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors ${showSummary ? "bg-warning-text/10 text-warning-text" : "text-foreground-muted hover:bg-surface-hover/40 hover:text-foreground"}`}>
                           Summary
                         </button>
                       </div>
@@ -2262,45 +2291,45 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   )}
                 </div>
 
-                {/* â”€â”€ Main: Ad form or Summary â”€â”€ */}
+                {/* —— Main: Ad form or Summary —— */}
                 {showSummary ? (
                   /* Summary view */
                   <div className="flex-1 overflow-y-auto p-6">
-                    <h2 className="text-base font-bold text-white mb-5">Summary</h2>
-                    <div className="space-y-0 border border-zinc-800 rounded-xl overflow-hidden">
+                    <h2 className="text-base font-bold text-foreground mb-5">Summary</h2>
+                    <div className="space-y-0 border border-border rounded-xl overflow-hidden">
                       {[
-                        { label: "Page",                    value: pages.find(p => p.id === selectedPage)?.account_name || "â€”" },
-                        { label: "Ad account",              value: adAccounts.find(a => a.id === selectedAcc)?.account_name || "â€”" },
+                        { label: "Page",                    value: pages.find(p => p.id === selectedPage)?.account_name || "—" },
+                        { label: "Ad account",              value: adAccounts.find(a => a.id === selectedAcc)?.account_name || "—" },
                         { label: "Campaign name",           value: campName },
                         { label: "Objective",               value: OBJECTIVES.find(o => o.value === objective)?.label || objective },
                         { label: "Optimisation and delivery", value: OPTIMIZE_OPTIONS[effectiveObjective]?.find(o => o.value === optimize)?.label || optimize },
                         { label: "Special ad categories",   value: specialCat && specialCatType ? specialCatType.charAt(0) + specialCatType.slice(1).toLowerCase() : "No categories declared" },
                         { label: "Audience",                value: "Built audience" },
                         { label: "Placements",              value: autoPlace ? "Automatic placements" : `Manual placements (${selectedPlacements.length})` },
-                        { label: "Payment summary",         value: budgetAmt ? `${(()=>{const c=adAccounts.find(a=>a.id===selectedAcc)?.ad_account_currency||"USD";const s:Record<string,string>={USD:"$",INR:"â‚¹",EUR:"â‚¬",GBP:"Â£",AUD:"A$",SGD:"S$",MYR:"RM",AED:"Ø¯.Ø¥"};return s[c]||(c+" ");})()}${parseFloat(budgetAmt).toFixed(2)} ${budgetType === "daily" ? "per day" : "total"}` : "â€”" },
-                        { label: "Duration",                value: startDate ? `From - ${new Date(startDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : "â€”" },
+                        { label: "Payment summary",         value: budgetAmt ? `${(()=>{const c=adAccounts.find(a=>a.id===selectedAcc)?.ad_account_currency||"USD";const s:Record<string,string>={USD:"$",INR:"₹",EUR:"€",GBP:"£",AUD:"A$",SGD:"S$",MYR:"RM",AED:"د.إ"};return s[c]||(c+" ");})()}${parseFloat(budgetAmt).toFixed(2)} ${budgetType === "daily" ? "per day" : "total"}` : "—" },
+                        { label: "Duration",                value: startDate ? `From - ${new Date(startDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : "—" },
                         { label: "Created ads",             value: String(ads.length) },
                       ].map(({ label, value }, i) => (
-                        <div key={label} className={`flex items-start gap-4 px-5 py-3 ${i % 2 === 0 ? "bg-zinc-900/20" : ""} border-b border-zinc-800/50 last:border-0`}>
-                          <p className="text-sm font-semibold text-zinc-400 w-48 shrink-0">{label}</p>
-                          <p className="text-sm text-white">{value}</p>
+                        <div key={label} className={`flex items-start gap-4 px-5 py-3 ${i % 2 === 0 ? "bg-surface" : ""} border-b border-border last:border-0`}>
+                          <p className="text-sm font-semibold text-foreground-muted w-48 shrink-0">{label}</p>
+                          <p className="text-sm text-foreground">{value}</p>
                         </div>
                       ))}
                     </div>
                   </div>
                 ) : (
-                <div className="flex-1 flex flex-col overflow-hidden border-r border-zinc-800">
+                <div className="flex-1 flex flex-col overflow-hidden border-r border-border">
                   {/* Ad header row */}
-                  <div className="flex items-center gap-3 px-5 py-3 border-b border-zinc-800 shrink-0">
-                    <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                  <div className="flex items-center gap-3 px-5 py-3 border-b border-border shrink-0">
+                    <div className="w-2 h-2 rounded-full bg-warning-text shrink-0" />
                     <input value={ad.name} onChange={e => setAd(a => ({...a, name: e.target.value}))}
-                      className="bg-transparent text-sm font-semibold text-white outline-none border-b border-transparent hover:border-zinc-600 focus:border-zinc-400 transition-colors flex-1"
+                      className="bg-transparent text-sm font-semibold text-foreground outline-none border-b border-transparent hover:border-border focus:border-zinc-400 transition-colors flex-1"
                       placeholder="New ad" />
                   </div>
 
                   {/* Content tab */}
-                  <div className="flex border-b border-zinc-800 px-5 shrink-0">
-                    <button type="button" className="px-1 py-2.5 text-xs font-bold text-white border-b-2 border-white mr-4">Content</button>
+                  <div className="flex border-b border-border px-5 shrink-0">
+                    <button type="button" className="px-1 py-2.5 text-xs font-bold text-foreground border-b-2 border-white mr-4">Content</button>
                   </div>
 
                   {/* Ad form body */}
@@ -2312,19 +2341,52 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         className={inp} placeholder="New ad" />
                     </Field>
 
-                    {/* Copy textarea */}
-                    <div className="relative">
-                      <textarea
-                        value={ad.copy}
-                        onChange={e => setAd(a => ({...a, copy: e.target.value}))}
-                        maxLength={2200} rows={4}
-                        placeholder="Tell people about your offer..."
-                        className={inp + " resize-none text-sm"}
-                      />
-                      <p className="text-[10px] text-zinc-600 text-right mt-1">{ad.copy.length} / 2,200</p>
+                    {/* Copy textarea & AI Generator */}
+                    <div className="space-y-3">
+                      <div className="p-3 bg-surface border border-border rounded-xl space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-foreground">✨ AI Copy Generator</span>
+                        </div>
+                        <textarea
+                          value={aiPrompt}
+                          onChange={e => setAiPrompt(e.target.value)}
+                          placeholder="Describe your product or idea (e.g., 'A new summer collection of sneakers')..."
+                          className={inp + " resize-none text-xs"}
+                          rows={2}
+                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={aiLength}
+                            onChange={e => setAiLength(e.target.value)}
+                            placeholder="Length (e.g., '1000 words' or '100 lines')"
+                            className={inp + " flex-1 text-xs"}
+                          />
+                          <button
+                            type="button"
+                            onClick={generateAdCopy}
+                            disabled={!aiPrompt || isGeneratingCopy}
+                            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 text-xs font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 shrink-0"
+                          >
+                            {isGeneratingCopy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                            Generate
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="relative">
+                        <textarea
+                          value={ad.copy}
+                          onChange={e => setAd(a => ({...a, copy: e.target.value}))}
+                          maxLength={2200} rows={6}
+                          placeholder="Tell people about your offer..."
+                          className={inp + " resize-y min-h-[120px] max-h-[500px] text-sm"}
+                        />
+                        <p className="text-[10px] text-foreground-muted text-right mt-1">{ad.copy.length} / 2,200</p>
+                      </div>
                     </div>
 
-                    {/* Ad format selector â€” not shown for message destination */}
+                    {/* Ad format selector — not shown for message destination */}
                     {convLocation !== "message" && (
                       <Field label="Ad format">
                         <div className="flex gap-2">
@@ -2345,7 +2407,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                               className={`px-4 py-2 text-sm font-semibold rounded-xl border transition-all ${
                                 (ad.ad_type || "image_ad") === type.value
                                   ? "bg-white text-zinc-900 border-white"
-                                  : "bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-zinc-300"
+                                  : "bg-surface text-foreground-muted border-border hover:border-border hover:text-foreground-muted"
                               }`}>
                               {type.label}
                             </button>
@@ -2354,53 +2416,53 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       </Field>
                     )}
 
-                    {/* Video URL â€” shown when video_ad selected */}
+                    {/* Video URL — shown when video_ad selected */}
                     {(ad.ad_type || "image_ad") === "video_ad" && convLocation !== "message" && (
                       <Field label="Facebook Video ID or URL">
                         <input type="text" value={ad.video_url || ""}
                           onChange={e => setAd(a => ({ ...a, video_url: e.target.value }))}
                           className={inp} placeholder="e.g. 1234567890123456" />
-                        <p className="text-[11px] text-zinc-600 mt-1.5">Upload your video in Meta Ads Manager â†’ Creative Hub, then paste the video ID here.</p>
+                        <p className="text-[11px] text-foreground-muted mt-1.5">Upload your video in Meta Ads Manager <ArrowRight className="w-3 h-3 inline-block mx-0.5" /> Creative Hub, then paste the video ID here.</p>
                       </Field>
                     )}
 
-                    {/* Lead form ID â€” shown when lead_ad selected */}
+                    {/* Lead form ID — shown when lead_ad selected */}
                     {(ad.ad_type || "image_ad") === "lead_ad" && convLocation !== "message" && (
                       <Field label="Meta Lead Gen Form ID">
                         <input type="text" value={ad.lead_form_id || ""}
                           onChange={e => setAd(a => ({ ...a, lead_form_id: e.target.value }))}
                           className={inp} placeholder="e.g. 1234567890123456" />
-                        <p className="text-[11px] text-zinc-600 mt-1.5">Create your form in Meta Ads Manager â†’ Lead Ads Forms, then paste the Form ID here.</p>
+                        <p className="text-[11px] text-foreground-muted mt-1.5">Create your form in Meta Ads Manager <ArrowRight className="w-3 h-3 inline-block mx-0.5" /> Lead Ads Forms, then paste the Form ID here.</p>
                       </Field>
                     )}
 
-                    {/* Image upload â€” shown when image_ad selected */}
+                    {/* Image upload — shown when image_ad selected */}
                     {(ad.ad_type || "image_ad") === "image_ad" && convLocation !== "message" && (
                     <>{/* Image / video upload */}
                     {!ad.image_url ? (
                       <div className="space-y-2">
-                        {/* Warning â€” only shown after failed Next attempt */}
+                        {/* Warning — only shown after failed Next attempt */}
                         {(showMediaErr || fieldErrors.adImage) && (
-                          <div className="flex items-start gap-2.5 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-                            <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                              <span className="text-rose-400 text-xs font-bold">!</span>
+                          <div className="flex items-start gap-2.5 p-3 bg-error-text/10 border border-error-border/20 rounded-xl">
+                            <div className="w-5 h-5 rounded-full bg-error-text/20 flex items-center justify-center shrink-0 mt-0.5">
+                              <span className="text-error-text text-xs font-bold">!</span>
                             </div>
                             <div>
-                              <p className="text-xs font-semibold text-rose-300">Image or video required</p>
-                              <p className="text-[11px] text-rose-400/80 mt-0.5">Facebook requires an image or video to be included.</p>
+                              <p className="text-xs font-semibold text-error-text">Image or video required</p>
+                              <p className="text-[11px] text-error-text/80 mt-0.5">Facebook requires an image or video to be included.</p>
                             </div>
                           </div>
                         )}
                         {/* Upload buttons row */}
                         <div className="flex gap-3">
-                          <label className={`flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-xl transition-colors ${imageUploading ? "border-zinc-600 cursor-wait" : "border-zinc-700 hover:border-zinc-500 cursor-pointer"} group`}>
-                            <div className="w-10 h-10 bg-zinc-800 group-hover:bg-zinc-700 rounded-lg flex items-center justify-center transition-colors">
+                          <label className={`flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-xl transition-colors ${imageUploading ? "border-border cursor-wait" : "border-border hover:border-border cursor-pointer"} group`}>
+                            <div className="w-10 h-10 bg-surface-hover group-hover:bg-surface-hover rounded-lg flex items-center justify-center transition-colors">
                               {imageUploading
-                                ? <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
-                                : <ImageIcon className="w-5 h-5 text-zinc-400" />}
+                                ? <Loader2 className="w-5 h-5 text-foreground-muted animate-spin" />
+                                : <ImageIcon className="w-5 h-5 text-foreground-muted" />}
                             </div>
-                            <p className="text-xs text-zinc-500 group-hover:text-zinc-400">
-                              {imageUploading ? "Uploadingâ€¦" : "Add image"}
+                            <p className="text-xs text-foreground-muted group-hover:text-foreground-muted">
+                              {imageUploading ? "Uploading..." : "Add image"}
                             </p>
                             <input type="file" accept="image/*,image/jpeg,image/png,image/gif,image/webp" className="hidden"
                               disabled={imageUploading}
@@ -2410,18 +2472,18 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                               }} />
                           </label>
                           <button type="button" onClick={() => setShowVaultPicker(true)}
-                            className="flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-zinc-700 hover:border-zinc-500 rounded-xl cursor-pointer transition-colors group">
-                            <div className="w-10 h-10 bg-zinc-800 group-hover:bg-zinc-700 rounded-lg flex items-center justify-center transition-colors">
-                              <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            className="flex-1 flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-border hover:border-border rounded-xl cursor-pointer transition-colors group">
+                            <div className="w-10 h-10 bg-surface-hover group-hover:bg-surface-hover rounded-lg flex items-center justify-center transition-colors">
+                              <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                               </svg>
                             </div>
-                            <p className="text-xs text-zinc-500 group-hover:text-zinc-400">Add from library</p>
+                            <p className="text-xs text-foreground-muted group-hover:text-foreground-muted">Add from library</p>
                           </button>
                         </div>
                         {imageUploadErr && (
-                          <p className="text-[11px] text-rose-400 flex items-center gap-1">
-                            <span>âš </span>{imageUploadErr}
+                          <p className="text-[11px] text-error-text flex items-center gap-1">
+                            <span>⚠</span>{imageUploadErr}
                           </p>
                         )}
                         {/* Paste a direct public image URL */}
@@ -2429,14 +2491,14 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           <input type="text" value={ad.image_url}
                             onChange={e => { setAd(a => ({...a, image_url: e.target.value})); if (e.target.value) { setShowMediaErr(false); clearErr("adImage"); } }}
                             className={inp + " text-xs"} placeholder="Or paste a direct image URL ending in .jpg / .png" />
-                          <p className="text-[10px] text-zinc-600 mt-1">Must be a direct link (no redirects). Upload using the button above for best results.</p>
+                          <p className="text-[10px] text-foreground-muted mt-1">Must be a direct link (no redirects). Upload using the button above for best results.</p>
                         </div>
                       </div>
                     ) : (
-                      <div className="relative rounded-xl overflow-hidden border border-zinc-700">
+                      <div className="relative rounded-xl overflow-hidden border border-border">
                         <Image src={ad.image_url} alt="Ad creative" width={600} height={314} className="w-full object-cover max-h-48" unoptimized />
                         <button type="button" onClick={() => setAd(a => ({...a, image_url: ""}))}
-                          className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-white hover:bg-black transition-colors">
+                          className="absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-foreground hover:bg-black transition-colors">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -2449,7 +2511,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       <>
                         {/* Welcome message */}
                         <div className="space-y-1.5">
-                          <p className="text-sm font-semibold text-zinc-200">Welcome message</p>
+                          <p className="text-sm font-semibold text-foreground">Welcome message</p>
                           <textarea
                             value={welcomeMsg}
                             onChange={e => { setWelcomeMsg(e.target.value.slice(0, 300)); setShowWelcomeErr(false); }}
@@ -2457,13 +2519,13 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             placeholder="Hey you, welcome! Thanks for reaching out. How we can help you today?"
                             className={inp + " resize-none text-sm"}
                           />
-                          <p className="text-[10px] text-zinc-600 text-right">{welcomeMsg.length} / 300 characters</p>
+                          <p className="text-[10px] text-foreground-muted text-right">{welcomeMsg.length} / 300 characters</p>
                           {(showWelcomeErr || fieldErrors.welcomeMsg) && (
-                            <div className="flex items-start gap-2 p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-lg">
-                              <span className="text-rose-400 text-xs shrink-0 mt-0.5">âŠ˜</span>
+                            <div className="flex items-start gap-2 p-2.5 bg-error-text/10 border border-error-border/20 rounded-lg">
+                              <span className="text-error-text text-xs shrink-0 mt-0.5">⊘</span>
                               <div>
-                                <p className="text-xs font-semibold text-rose-300">Welcome message required</p>
-                                <p className="text-[11px] text-rose-400/80">Add a welcome message to proceed with this campaign type.</p>
+                                <p className="text-xs font-semibold text-error-text">Welcome message required</p>
+                                <p className="text-[11px] text-error-text/80">Add a welcome message to proceed with this campaign type.</p>
                               </div>
                             </div>
                           )}
@@ -2471,7 +2533,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                       </>
                     ) : (
                       <>
-                        {/* Headline â€” non-message */}
+                        {/* Headline — non-message */}
                         <Field label="Headline">
                           <input value={ad.headline} onChange={e => setAd(a => ({...a, headline: e.target.value}))}
                             className={inp} placeholder="Add a headline to get people's attention..." />
@@ -2483,8 +2545,8 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                             <input type="checkbox" checked={addWebsiteUrl} onChange={e => setAddWebsiteUrl(e.target.checked)}
                               className="mt-0.5 w-4 h-4 accent-white rounded shrink-0" />
                             <div>
-                              <p className="text-sm font-semibold text-zinc-200">Add a website URL</p>
-                              <p className="text-[11px] text-zinc-500 mt-0.5">
+                              <p className="text-sm font-semibold text-foreground">Add a website URL</p>
+                              <p className="text-[11px] text-foreground-muted mt-0.5">
                                 Enter a URL if you want people to go to a website when they click or tap on your ad.
                                 Otherwise, they&apos;ll go to your Facebook Page or Instagram account.
                               </p>
@@ -2505,7 +2567,7 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                           className={inp + " pr-8 appearance-none"}>
                           {CTA_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
-                        <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-2.5 pointer-events-none" />
+                        <ChevronDown className="w-4 h-4 text-foreground-muted absolute right-3 top-2.5 pointer-events-none" />
                       </div>
                     </Field>
                   </div>
@@ -2513,14 +2575,14 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
 
                 )} {/* end showSummary ternary */}
 
-                {/* Right: preview â€” always visible */}
+                {/* Right: preview — always visible */}
                 <div className="flex-1 flex flex-col overflow-hidden">
                   {/* Preview tabs */}
-                  <div className="flex border-b border-zinc-800 px-4">
+                  <div className="flex border-b border-border px-4">
                     {(["desktop","mobile","instagram"] as const).map(t => (
                       <button key={t} onClick={() => setPreview(t)}
                         className={`flex items-center gap-1.5 px-4 py-3 text-sm font-semibold border-b-2 transition-all capitalize ${
-                          previewTab === t ? "border-zinc-300 text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
+                          previewTab === t ? "border-zinc-300 text-foreground" : "border-transparent text-foreground-muted hover:text-foreground-muted"
                         }`}>
                         {t === "desktop" && <Monitor className="w-3.5 h-3.5" />}
                         {t === "mobile"  && <Smartphone className="w-3.5 h-3.5" />}
@@ -2531,45 +2593,45 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                   </div>
 
                   {/* Preview area */}
-                  <div className="flex-1 overflow-y-auto flex flex-col items-center justify-start p-5 bg-zinc-950/50 gap-3">
+                  <div className="flex-1 overflow-y-auto flex flex-col items-center justify-start p-5 bg-card/50 gap-3">
                     {(() => {
                       const pageName = pages.find(p => p.id === selectedPage)?.account_name || "Your Page";
                       const pageInitial = pageName.charAt(0).toUpperCase();
                       const imageEl = ad.image_url
                         ? <Image src={ad.image_url} alt="" width={400} height={previewTab === "instagram" ? 400 : 225} className="w-full object-cover" unoptimized />
-                        : <div className="w-full bg-zinc-100 flex items-center justify-center" style={{ aspectRatio: previewTab === "instagram" ? "1/1" : "16/9" }}><ImageIcon className="w-8 h-8 text-zinc-300" /></div>;
+                        : <div className="w-full bg-zinc-100 flex items-center justify-center" style={{ aspectRatio: previewTab === "instagram" ? "1/1" : "16/9" }}><ImageIcon className="w-8 h-8 text-foreground-muted" /></div>;
 
                       if (previewTab === "instagram") {
-                        // Message destination â€” messenger preview style
+                        // Message destination — messenger preview style
                         if (convLocation === "message") {
                           return (
-                            <div className="bg-white rounded-xl overflow-hidden shadow-lg w-64">
+                            <div className="bg-white rounded-xl overflow-hidden shadow-lg w-64 shrink-0">
                               <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-100">
                                 <div className="flex items-center gap-2">
-                                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600 p-0.5">
+                                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-info-text p-0.5">
                                     <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-[10px] font-bold text-zinc-800">{pageInitial}</div>
                                   </div>
                                   <div>
                                     <p className="text-xs font-bold text-zinc-900">{pageName}</p>
-                                    <p className="text-[9px] text-zinc-500">Sponsored Â· ðŸŒ</p>
+                                    <p className="text-[9px] text-foreground-muted flex items-center gap-1">Sponsored · <Globe2 className="w-2.5 h-2.5" /></p>
                                   </div>
                                 </div>
-                                <span className="text-zinc-400">Â·Â·Â·</span>
+                                <span className="text-foreground-muted">···</span>
                               </div>
                               {imageEl}
                               <div className="px-3 py-2">
                                 <div className="flex items-center justify-between">
-                                  <p className="text-xs text-zinc-400 truncate">{pageName.toLowerCase().replace(/ /g, "")}.com</p>
+                                  <p className="text-xs text-foreground-muted truncate">{pageName.toLowerCase().replace(/ /g, "")}.com</p>
                                   <button className="flex items-center gap-1 text-[11px] text-blue-500 font-bold shrink-0">
-                                    {ad.cta} <span className="text-xs">â€º</span>
+                                    {ad.cta} <span className="text-xs">º</span>
                                   </button>
                                 </div>
                               </div>
                               <div className="flex items-center justify-between px-3 py-1.5 border-t border-zinc-100">
-                                <div className="flex items-center gap-3 text-zinc-600">
-                                  <span>â™¡</span><span>ðŸ’¬</span><span>âŠ˜</span>
+                                <div className="flex items-center gap-3 text-foreground-muted">
+                                  <Heart className="w-4 h-4" /><MessageCircle className="w-4 h-4" /><Send className="w-4 h-4" />
                                 </div>
-                                <span className="text-zinc-600">ðŸ”–</span>
+                                <Bookmark className="w-4 h-4 text-foreground-muted" />
                               </div>
                               <div className="px-3 pb-2">
                                 <p className="text-[11px] font-bold text-zinc-900">{pageName}</p>
@@ -2579,82 +2641,93 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                         }
 
                         return (
-                          <div className="bg-white rounded-xl overflow-hidden shadow-lg w-64">
+                          <div className="bg-white rounded-xl overflow-hidden shadow-lg w-64 shrink-0">
                             {/* Instagram header */}
                             <div className="flex items-center justify-between px-3 py-2">
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600 p-0.5">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-info-text p-0.5">
                                   <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-xs font-bold text-zinc-800">{pageInitial}</div>
                                 </div>
                                 <div>
                                   <p className="text-xs font-bold text-zinc-900">{pageName}</p>
-                                  <p className="text-[9px] text-zinc-500">Sponsored Â· ðŸŒ</p>
+                                  <p className="text-[9px] text-foreground-muted flex items-center gap-1">Sponsored · <Globe2 className="w-2.5 h-2.5" /></p>
                                 </div>
                               </div>
-                              <span className="text-zinc-400">Â·Â·Â·</span>
+                              <span className="text-foreground-muted">···</span>
                             </div>
                             {/* Square image */}
                             {imageEl}
                             {/* Actions */}
                             <div className="px-3 pt-2 pb-1">
                               <div className="flex items-center justify-between mb-1.5">
-                                <div className="flex items-center gap-3 text-zinc-700">
-                                  <span className="text-lg">â™¡</span>
-                                  <span className="text-lg">ðŸ’¬</span>
-                                  <span className="text-lg">â†—</span>
+                                <div className="flex items-center gap-3 text-foreground-muted">
+                                  <Heart className="w-5 h-5" /><MessageCircle className="w-5 h-5" /><Send className="w-5 h-5" />
                                 </div>
-                                <span className="text-lg text-zinc-700">ðŸ”–</span>
+                                <Bookmark className="w-5 h-5 text-foreground-muted" />
                               </div>
                               {(ad.headline || ad.copy) && (
                                 <div className="flex items-center justify-between mt-1 border-t border-zinc-100 pt-1.5">
                                   <div className="flex-1 min-w-0">
-                                    {ad.website_url && <p className="text-[9px] text-zinc-400 uppercase truncate">{ad.website_url.replace(/https?:\/\//, "").split("/")[0]}</p>}
+                                    {ad.website_url && <p className="text-[9px] text-foreground-muted uppercase truncate">{ad.website_url.replace(/https?:\/\//, "").split("/")[0]}</p>}
                                     {ad.headline && <p className="text-[11px] font-bold text-zinc-900 truncate">{ad.headline}</p>}
                                   </div>
                                   <button className="ml-2 px-2 py-1 bg-zinc-100 text-zinc-800 text-[10px] font-bold rounded shrink-0">{ad.cta}</button>
                                 </div>
                               )}
                               <p className="text-[11px] font-bold text-zinc-900 mt-1">{pageName}</p>
+                              {ad.copy && (
+                                <div className="max-h-24 overflow-y-auto mt-1 pr-1">
+                                  <p className="text-[10px] text-zinc-800 leading-relaxed whitespace-pre-wrap">{ad.copy}</p>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
                       }
 
-                      // Desktop / Mobile â€” Facebook style
+                      // Desktop / Mobile — Facebook style
                       return (
-                        <div className={`bg-white rounded-xl overflow-hidden shadow-lg ${previewTab === "mobile" ? "w-64" : "w-80"}`}>
+                        <div className={`bg-white rounded-xl overflow-hidden shadow-lg shrink-0 ${previewTab === "mobile" ? "w-64" : "w-80"}`}>
                           <div className="p-3">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-zinc-300 flex items-center justify-center text-xs font-bold text-zinc-700">{pageInitial}</div>
+                                <div className="w-8 h-8 rounded-full bg-zinc-300 flex items-center justify-center text-xs font-bold text-foreground-muted">{pageInitial}</div>
                                 <div>
                                   <p className="text-xs font-bold text-zinc-900">{pageName}</p>
-                                  <p className="text-[10px] text-zinc-500">Sponsored Â· ðŸŒ</p>
+                                  <p className="text-[10px] text-foreground-muted flex items-center gap-1">Sponsored · <Globe2 className="w-3 h-3" /></p>
                                 </div>
                               </div>
-                              <span className="text-zinc-400 text-lg">Â·Â·Â·</span>
+                              <span className="text-foreground-muted text-lg">···</span>
                             </div>
-                            {ad.copy && <p className="text-xs text-zinc-800 mb-2 leading-relaxed">{ad.copy}</p>}
+                            {ad.copy && (
+                              <div className="max-h-32 overflow-y-auto mb-2 pr-2">
+                                <p className="text-xs text-zinc-800 leading-relaxed whitespace-pre-wrap">{ad.copy}</p>
+                              </div>
+                            )}
                             {imageEl}
                             {(ad.headline || ad.website_url) && (
                               <div className="mt-2 flex items-center justify-between">
                                 <div className="flex-1 min-w-0">
-                                  {ad.website_url && <p className="text-[10px] text-zinc-400 uppercase truncate">{ad.website_url.replace(/https?:\/\//, "").split("/")[0]}</p>}
+                                  {ad.website_url && <p className="text-[10px] text-foreground-muted uppercase truncate">{ad.website_url.replace(/https?:\/\//, "").split("/")[0]}</p>}
                                   {ad.headline && <p className="text-xs font-bold text-zinc-900 mt-0.5 truncate">{ad.headline}</p>}
                                 </div>
                                 <button className="ml-2 px-3 py-1.5 bg-zinc-200 text-zinc-800 text-[11px] font-bold rounded shrink-0">{ad.cta}</button>
                               </div>
                             )}
                             <div className="flex items-center gap-4 mt-3 pt-2 border-t border-zinc-100">
-                              {["ðŸ‘ Like", "ðŸ’¬ Comment", "â†— Share"].map(label => (
-                                <button key={label} className="flex-1 text-center text-[11px] text-zinc-500 font-semibold">{label}</button>
+                              {[
+                                { label: "Like", icon: <ThumbsUp className="w-3.5 h-3.5" /> },
+                                { label: "Comment", icon: <MessageCircle className="w-3.5 h-3.5" /> },
+                                { label: "Share", icon: <Send className="w-3.5 h-3.5" /> }
+                              ].map(({ label, icon }) => (
+                                <button key={label} className="flex-1 flex items-center justify-center gap-1.5 text-[11px] text-foreground-muted font-semibold">{icon}{label}</button>
                               ))}
                             </div>
                           </div>
                         </div>
                       );
                     })()}
-                    <p className="text-[10px] text-zinc-700 text-center px-4 max-w-xs">
+                    <p className="text-[10px] text-foreground-muted text-center px-4 max-w-xs">
                       Social networks regularly make updates to formatting, so your post may appear slightly different when published.{" "}
                       <span className="underline cursor-pointer">Learn more</span>
                     </p>
@@ -2663,12 +2736,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
               </div>
             )}
 
-            {/* â”€â”€ STEP 4 â”€â”€ */}
+            {/* —— STEP 4 —— */}
             {step === 4 && (
               <div className="p-6 space-y-6">
                 <div>
-                  <h3 className="text-base font-bold text-white mb-1">Review and publish</h3>
-                  <p className="text-sm text-zinc-500">Review your campaign settings before publishing to Meta.</p>
+                  <h3 className="text-base font-bold text-foreground mb-1">Review and publish</h3>
+                  <p className="text-sm text-foreground-muted">Review your campaign settings before publishing to Meta.</p>
                 </div>
                 <div className="space-y-4">
                   {[
@@ -2678,12 +2751,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                     { label: "Budget",             value: `$${parseFloat(budgetAmt || "0").toFixed(2)} per ${budgetType}` },
                     { label: "Start date",         value: startDate ? new Date(startDate).toLocaleDateString() : "Immediately" },
                     { label: "End date",           value: endDate ? new Date(endDate).toLocaleDateString() : "No end date" },
-                    { label: "Audience",           value: `Age ${ageMin}â€“${ageMax}, ${gender === "ALL" ? "All genders" : gender}, ${(() => { try { return (JSON.parse(location) as {display_name:string}[]).map(l => l.display_name).join(", "); } catch { return location || "â€”"; } })()}` },
-                    { label: "Ad headline",        value: ad.headline || "â€”" },
+                    { label: "Audience",           value: `Age ${ageMin}–${ageMax}, ${gender === "ALL" ? "All genders" : gender}, ${(() => { try { return (JSON.parse(location) as {display_name:string}[]).map(l => l.display_name).join(", "); } catch { return location || "—"; } })()}` },
+                    { label: "Ad headline",        value: ad.headline || "—" },
                   ].map(({ label, value }) => (
-                    <div key={label} className="flex items-start gap-4 py-3 border-b border-zinc-800/50">
-                      <p className="text-xs text-zinc-500 w-36 shrink-0 pt-0.5">{label}</p>
-                      <p className="text-sm text-zinc-300">{value}</p>
+                    <div key={label} className="flex items-start gap-4 py-3 border-b border-border">
+                      <p className="text-xs text-foreground-muted w-36 shrink-0 pt-0.5">{label}</p>
+                      <p className="text-sm text-foreground-muted">{value}</p>
                     </div>
                   ))}
                 </div>
@@ -2693,22 +2766,22 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-t border-zinc-800 bg-zinc-900">
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-t border-border bg-surface">
           <div className="flex items-center gap-3">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Cancel</button>
+            <button onClick={onClose} className="px-4 py-2 text-sm text-foreground-muted hover:text-white transition-colors">Cancel</button>
             {step > 1 && (
               <button onClick={() => { setStep(s => s - 1); setFieldErrors({}); }}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">
+                className="flex items-center gap-1.5 px-4 py-2 text-sm text-foreground-muted hover:text-white transition-colors">
                 <ChevronLeft className="w-4 h-4" />
                 {step === 2 ? "Campaign objective" : step === 3 ? "Audience and budget" : "Create your ads"}
               </button>
             )}
           </div>
           {publishingStatus && <p className="text-xs text-blue-400 animate-pulse">{publishingStatus}</p>}
-          {error && <p className="text-xs text-rose-400">{error}</p>}
+          {error && <p className="text-xs text-error-text">{error}</p>}
           <div className="flex items-center gap-3">
             <button onClick={saveAsDraft} disabled={saving}
-              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
+              className="px-4 py-2 bg-surface-hover hover:bg-surface-hover text-foreground text-sm font-semibold rounded-lg transition-colors disabled:opacity-50">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save as draft"}
             </button>
             {step < 4 ? (
@@ -2717,12 +2790,12 @@ export default function CampaignCreatorModal({ onClose, onCreated, editId }: {
                 setShowMediaErr(false); setShowWelcomeErr(false);
                 setStep(s => s + 1);
               }}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 text-sm font-bold rounded-lg transition-colors">
+                className="px-4 py-2 bg-warning-text hover:bg-warning-text text-zinc-900 text-sm font-bold rounded-lg transition-colors">
                 {nextLabel[step]}
               </button>
             ) : (
               <button onClick={publish} disabled={publishing}
-                className="flex items-center gap-2 px-5 py-2 bg-amber-500 hover:bg-amber-400 text-zinc-900 text-sm font-bold rounded-lg transition-colors disabled:opacity-50">
+                className="flex items-center gap-2 px-5 py-2 bg-warning-text hover:bg-warning-text text-zinc-900 text-sm font-bold rounded-lg transition-colors disabled:opacity-50">
                 {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Publish campaign
               </button>

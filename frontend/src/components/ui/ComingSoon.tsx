@@ -19,20 +19,20 @@ export default function ComingSoon({
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 text-center">
       {/* Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 blur-[120px] rounded-full -z-10 animate-pulse" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[var(--accent)]/10 blur-[120px] rounded-full -z-10 animate-pulse" />
       
       {/* Icon with Ring */}
       <div className="relative mb-8">
-        <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full" />
+        <div className="absolute inset-0 bg-[var(--accent)]/20 blur-2xl rounded-full" />
         <div className="relative w-24 h-24 bg-[var(--card)] border border-[var(--border)] rounded-3xl flex items-center justify-center shadow-2xl group transition-transform hover:scale-105 duration-500">
-          <Icon className="w-12 h-12 text-indigo-400 animate-bounce-slow" />
-          <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-amber-400 animate-pulse" />
+          <Icon className="w-12 h-12 text-[var(--accent)] animate-bounce-slow" />
+          <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-[var(--warning-text)] animate-pulse" />
         </div>
       </div>
 
       {/* Text Content */}
       <div className="max-w-md space-y-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-bold uppercase tracking-widest mb-2">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--info-bg)] border-[var(--info-border)] text-[var(--info-text)] text-xs font-bold uppercase tracking-widest mb-2">
           <Clock className="w-3 h-3" />
           Coming Soon
         </div>
@@ -55,7 +55,7 @@ export default function ComingSoon({
         </button>
         <button
           onClick={() => router.push('/')}
-          className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-500/25 active:scale-95"
+          className="px-8 py-3 bg-[var(--accent)] text-[var(--accent-foreground)] font-bold rounded-2xl transition-all shadow-lg shadow-[var(--accent)]/25 active:scale-95 hover:brightness-110"
         >
           Return to Dashboard
         </button>
@@ -68,7 +68,7 @@ export default function ComingSoon({
           <span>75%</span>
         </div>
         <div className="h-1.5 w-full bg-[var(--surface)] rounded-full overflow-hidden border border-[var(--border)]">
-          <div className="h-full bg-gradient-to-r from-indigo-600 to-indigo-400 w-[75%] rounded-full shadow-[0_0_10px_rgba(79,70,229,0.5)]" />
+          <div className="h-full bg-gradient-to-r from-[var(--accent)] to-[color-mix(in_srgb,var(--accent),black_40%)] w-[75%] rounded-full" />
         </div>
       </div>
     </div>

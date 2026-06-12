@@ -42,10 +42,10 @@ export default function WelcomeOverlay() {
       >
         <div className="relative inline-block">
           {/* Animated glow background */}
-          <div className="absolute inset-0 bg-indigo-500/20 blur-[100px] rounded-full animate-pulse" />
+          <div className="absolute inset-0 bg-[var(--accent)]/20 blur-[100px] rounded-full animate-pulse" />
 
           <div className="relative z-10 flex flex-col items-center">
-            <div className="relative w-24 h-24 rounded-3xl overflow-hidden flex items-center justify-center mb-8 shadow-2xl shadow-indigo-500/20">
+            <div className="relative w-24 h-24 rounded-3xl overflow-hidden flex items-center justify-center mb-8 shadow-2xl shadow-[var(--accent)]/20">
               <Image
                 src="/images/zoikovertexlogo.png"
                 alt="ZoikoVertex Logo"
@@ -54,14 +54,14 @@ export default function WelcomeOverlay() {
               />
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter mb-4">
-              Welcome to <span className="text-indigo-500">{BRAND.name}</span>
+            <h1 className="text-5xl md:text-7xl font-black text-foreground tracking-tighter mb-4">
+              Welcome to <span className="text-[var(--accent)]">{BRAND.name}</span>
             </h1>
 
-            <h2 className="text-4xl font-black text-white tracking-tighter mb-2">
+            <h2 className="text-4xl font-black text-foreground tracking-tighter mb-2">
               Vertex Identity Verified
             </h2>
-            <p className="text-zinc-400 text-lg max-w-md mx-auto">
+            <p className="text-foreground-muted text-lg max-w-md mx-auto">
               Your governance workspace is now live and secured. Welcome to the
               future of execution.
             </p>

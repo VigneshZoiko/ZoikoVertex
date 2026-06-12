@@ -244,22 +244,22 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
   };
 
   const resultIcon = overallResult === 'pass' ? (
-    <CheckCircle className="w-6 h-6 text-emerald-500" />
+    <CheckCircle className="w-6 h-6 text-success-text" />
   ) : overallResult === 'warning' ? (
-    <AlertTriangle className="w-6 h-6 text-amber-500" />
+    <AlertTriangle className="w-6 h-6 text-warning-text" />
   ) : (
-    <XCircle className="w-6 h-6 text-rose-500" />
+    <XCircle className="w-6 h-6 text-error-text" />
   );
 
   return (
     <div ref={modalRef} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay)] backdrop-blur-md animate-in fade-in duration-500">
       <div className="bg-[var(--card)] border border-[var(--card-border)] w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-        <div className="px-8 py-6 border-b border-[var(--card-border)] bg-indigo-600 text-white flex items-center justify-between shrink-0">
+        <div className="px-8 py-6 border-b border-[var(--card-border)] bg-info-text text-foreground flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <ShieldCheck className="w-8 h-8" />
             <div>
               <h2 className="text-xl font-bold">Certification Sandbox</h2>
-              <p className="text-indigo-100 text-xs">Adversarial testing · Upgrade to {targetLevel}</p>
+              <p className="text-info-text text-xs">Adversarial testing · Upgrade to {targetLevel}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-all">
@@ -274,7 +274,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
             </h3>
 
             {runError && (
-              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-xs font-semibold text-rose-500">
+              <div className="rounded-2xl border border-error-border bg-error-bg px-4 py-3 text-xs font-semibold text-error-text">
                 {runError}
               </div>
             )}
@@ -294,31 +294,31 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
 
               return (
                 <div key={cat} className={`p-4 rounded-2xl border transition-all ${
-                  result === 'pass' ? "bg-emerald-500/5 border-emerald-500/20" :
-                  result === 'fail' ? "bg-rose-500/5 border-rose-500/20" :
-                  result === 'warning' ? "bg-amber-500/5 border-amber-500/20" :
-                  testing && completedTests.length === i ? "bg-indigo-500/5 border-indigo-500/20" :
+                  result === 'pass' ? "bg-success-bg border-success-border" :
+                  result === 'fail' ? "bg-error-bg border-error-border" :
+                  result === 'warning' ? "bg-warning-bg border-warning-border" :
+                  testing && completedTests.length === i ? "bg-info-bg border-info-border" :
                   "bg-[var(--surface)] border-[var(--border)]"
                 }`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-bold text-xs text-[var(--foreground)]">{label}</span>
                     {result === 'pass' ? (
-                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      <CheckCircle className="w-4 h-4 text-success-text" />
                     ) : result === 'fail' ? (
-                      <XCircle className="w-4 h-4 text-rose-500" />
+                      <XCircle className="w-4 h-4 text-error-text" />
                     ) : result === 'warning' ? (
-                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                      <AlertTriangle className="w-4 h-4 text-warning-text" />
                     ) : testing && completedTests.length === i ? (
-                      <RefreshCw className="w-4 h-4 text-indigo-500 animate-spin" />
+                      <RefreshCw className="w-4 h-4 text-info-text animate-spin" />
                     ) : (
                       <div className="w-4 h-4 rounded-full border-2 border-[var(--border)]" />
                     )}
                   </div>
                   <p className="text-[10px] text-[var(--foreground-muted)] leading-relaxed">{description}</p>
                   <div className={`mt-2 text-[9px] uppercase tracking-widest font-black ${
-                    result === 'pass' ? "text-emerald-500" :
-                    result === 'fail' ? "text-rose-500" :
-                    result === 'warning' ? "text-amber-500" :
+                    result === 'pass' ? "text-success-text" :
+                    result === 'fail' ? "text-error-text" :
+                    result === 'warning' ? "text-warning-text" :
                     "text-[var(--foreground-muted)]"
                   }`}>
                     {statusText}
@@ -332,7 +332,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
               {!isCertified && !testing && (
                 <button
                   onClick={runSandbox}
-                  className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20"
+                  className="w-full flex items-center justify-center gap-2 bg-info-text hover:brightness-110 text-foreground py-3 rounded-xl font-bold transition-all shadow-lg shadow-info-bg/20"
                 >
                   <Play className="w-4 h-4" />
                   Run Adversarial Sandbox
@@ -351,12 +351,12 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
               {isCertified && !testing && (
                 <div className="space-y-4">
                   <div className={`p-4 rounded-2xl flex items-center gap-3 ${
-                    overallResult === 'pass' ? "bg-emerald-500/10 border border-emerald-500/20" :
-                    "bg-rose-500/10 border border-rose-500/20"
+                    overallResult === 'pass' ? "bg-success-bg border border-success-border" :
+                    "bg-error-bg border border-error-border"
                   }`}>
                     {resultIcon}
                     <div>
-                      <div className={`font-bold text-sm ${overallResult === 'pass' ? "text-emerald-600" : "text-rose-600"}`}>
+                      <div className={`font-bold text-sm ${overallResult === 'pass' ? "text-success-text" : "text-error-text"}`}>
                         {overallResult === 'pass' ? 'ALL TESTS PASSED' : 'BLOCKING FAILURES FOUND'}
                       </div>
                       <div className="text-[10px] text-[var(--foreground-muted)]">Confidence Score: {score}%</div>
@@ -364,7 +364,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
                   </div>
 
                   {finalizeError && (
-                    <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-500 font-semibold">
+                    <div className="p-3 bg-error-bg border border-error-border rounded-xl text-xs text-error-text font-semibold">
                       {finalizeError}
                     </div>
                   )}
@@ -373,7 +373,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
                     <button
                       onClick={handleFinalize}
                       disabled={finalizing}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full bg-success-text hover:brightness-110 text-foreground py-3 rounded-xl font-bold transition-all shadow-lg shadow-success-bg/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {finalizing ? (
                         <>
@@ -390,8 +390,8 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
                   )}
 
                   {overallResult === 'block' && (
-                    <div className="p-3 bg-rose-500/5 border border-rose-500/10 rounded-xl text-center">
-                      <p className="text-xs text-rose-500 font-bold">Blocking failures detected. Agent cannot be certified until all failures are resolved.</p>
+                    <div className="p-3 bg-error-bg border border-error-border rounded-xl text-center">
+                      <p className="text-xs text-error-text font-bold">Blocking failures detected. Agent cannot be certified until all failures are resolved.</p>
                     </div>
                   )}
                 </div>
@@ -407,18 +407,18 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
             <div className="flex-1 overflow-y-auto space-y-1.5 text-[11px] custom-scrollbar">
               {logs.map((log, i) => (
                 <div key={i} className={`flex gap-3 ${
-                  log.includes('[PASSED]') ? "text-emerald-400" :
-                  log.includes('[RUNNING]') ? "text-indigo-400" :
-                  log.includes('[COMPLETE]') ? "text-amber-400" :
+                  log.includes('[PASSED]') ? "text-success-text" :
+                  log.includes('[RUNNING]') ? "text-info-text" :
+                  log.includes('[COMPLETE]') ? "text-warning-text" :
                   log.includes('[SYSTEM]') ? "text-cyan-400" :
-                  "text-zinc-500"
+                  "text-foreground-muted"
                 }`}>
                   <span className="opacity-30 shrink-0">[{i.toString().padStart(2, '0')}]</span>
                   <span className="break-all">{log}</span>
                 </div>
               ))}
               {testing && (
-                <div className="flex gap-3 text-indigo-400 animate-pulse">
+                <div className="flex gap-3 text-info-text animate-pulse">
                   <span className="opacity-30 shrink-0">[{logs.length.toString().padStart(2, '0')}]</span>
                   <span>_</span>
                 </div>
@@ -428,7 +428,7 @@ export default function CertificationSandbox({ isOpen, onClose, agentId, agentNa
         </div>
 
         <div className="px-8 py-4 bg-[var(--surface)]/50 border-t border-[var(--card-border)] flex items-center gap-4 shrink-0">
-          <Activity className="w-4 h-4 text-indigo-400 shrink-0" />
+          <Activity className="w-4 h-4 text-info-text shrink-0" />
           <span className="text-[10px] text-[var(--foreground-muted)]">
             Results are hashed and stored on the <strong>ZoikoVertex Evidence Ledger</strong>. Revocation is automatic upon policy drift detection.
           </span>

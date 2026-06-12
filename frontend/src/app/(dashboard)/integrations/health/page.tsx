@@ -96,9 +96,9 @@ function timeAgo(iso: string) {
 }
 
 function scoreColor(s: number) {
-  if (s >= 90) return { text: "text-emerald-400", stroke: "#10b981", ring: "border-emerald-500/30", label: "Healthy" };
-  if (s >= 70) return { text: "text-amber-400",   stroke: "#f59e0b", ring: "border-amber-500/30",   label: "Degraded" };
-  return             { text: "text-rose-400",     stroke: "#f43f5e", ring: "border-rose-500/30",     label: "Critical" };
+  if (s >= 90) return { text: "text-success-text", stroke: "#10b981", ring: "border-success-border/30", label: "Healthy" };
+  if (s >= 70) return { text: "text-warning-text",   stroke: "#f59e0b", ring: "border-warning-border/30",   label: "Degraded" };
+  return             { text: "text-error-text",     stroke: "#f43f5e", ring: "border-error-border/30",     label: "Critical" };
 }
 
 function successRate(stat: PlatformStat) {
@@ -159,7 +159,7 @@ export default function HealthPage() {
   if (error && !data) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <AlertCircle className="w-8 h-8 text-rose-400" />
+        <AlertCircle className="w-8 h-8 text-error-text" />
         <p className="text-sm text-[var(--foreground-muted)]">{error}</p>
         <button onClick={fetchHealth} className="text-xs text-[var(--foreground-muted)] underline">Retry</button>
       </div>
@@ -232,9 +232,9 @@ export default function HealthPage() {
         </div>
 
         <StatCard icon={<Link2 className="w-4 h-4" />}        label="Connected"  value={data.stats.total_accounts} sub="accounts"      />
-        <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="Published"  value={data.stats.published}      sub="last 7 days"   accent="text-emerald-400" />
-        <StatCard icon={<XCircle className="w-4 h-4" />}      label="Failed"     value={data.stats.failed}         sub="last 7 days"   accent={data.stats.failed > 0 ? "text-rose-400" : undefined} />
-        <StatCard icon={<Webhook className="w-4 h-4" />}      label="Webhooks"   value={wh.active_count}           sub={wh.delivery_total > 0 ? `${wh.health_pct}% delivery rate` : "no deliveries"} accent={wh.health_pct < 80 ? "text-amber-400" : undefined} />
+        <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="Published"  value={data.stats.published}      sub="last 7 days"   accent="text-success-text" />
+        <StatCard icon={<XCircle className="w-4 h-4" />}      label="Failed"     value={data.stats.failed}         sub="last 7 days"   accent={data.stats.failed > 0 ? "text-error-text" : undefined} />
+        <StatCard icon={<Webhook className="w-4 h-4" />}      label="Webhooks"   value={wh.active_count}           sub={wh.delivery_total > 0 ? `${wh.health_pct}% delivery rate` : "no deliveries"} accent={wh.health_pct < 80 ? "text-warning-text" : undefined} />
       </div>
 
       {/* ── Connected Accounts + Platform Breakdown ── */}
@@ -267,7 +267,7 @@ export default function HealthPage() {
                       </div>
                     ) : (
                       <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-foreground text-xs font-bold shrink-0"
                         style={{ backgroundColor: meta.color }}
                       >
                         {acc.platform.charAt(0).toUpperCase()}
@@ -292,8 +292,8 @@ export default function HealthPage() {
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                      <span className="text-[11px] text-emerald-400 font-medium">Live</span>
+                      <span className="w-2 h-2 rounded-full bg-success-text" />
+                      <span className="text-[11px] text-success-text font-medium">Live</span>
                     </div>
                   </div>
                 );
@@ -327,7 +327,7 @@ export default function HealthPage() {
                     <div className="flex items-center justify-between mb-2.5">
                       <div className="flex items-center gap-2.5">
                         <div
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-bold shrink-0"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-foreground text-[11px] font-bold shrink-0"
                           style={{ backgroundColor: meta.color }}
                         >
                           {platform.charAt(0).toUpperCase()}
@@ -340,8 +340,8 @@ export default function HealthPage() {
                       <div className="flex items-center gap-3 text-[11px]">
                         {hasActivity ? (
                           <>
-                            <span className="text-emerald-400 font-semibold">{stat.published} ok</span>
-                            {stat.failed > 0    && <span className="text-rose-400 font-semibold">{stat.failed} failed</span>}
+                            <span className="text-success-text font-semibold">{stat.published} ok</span>
+                            {stat.failed > 0    && <span className="text-error-text font-semibold">{stat.failed} failed</span>}
                             {stat.scheduled > 0 && <span className="text-[var(--foreground-muted)]">{stat.scheduled} pending</span>}
                           </>
                         ) : (
@@ -380,7 +380,7 @@ export default function HealthPage() {
             <h2 className="text-sm font-semibold text-[var(--foreground)]">Active Webhooks</h2>
             <span className="ml-auto flex items-center gap-2 text-[11px]">
               {wh.delivery_total > 0 && (
-                <span className={wh.health_pct >= 90 ? "text-emerald-400 font-semibold" : "text-amber-400 font-semibold"}>
+                <span className={wh.health_pct >= 90 ? "text-success-text font-semibold" : "text-warning-text font-semibold"}>
                   {wh.health_pct}% delivery rate
                 </span>
               )}
@@ -396,7 +396,7 @@ export default function HealthPage() {
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   {ep.failure_count > 0 && (
-                    <span className="text-[11px] text-amber-400 font-semibold">{ep.failure_count} failures</span>
+                    <span className="text-[11px] text-warning-text font-semibold">{ep.failure_count} failures</span>
                   )}
                   {ep.last_triggered_at && (
                     <span className="text-[11px] text-[var(--foreground-muted)]">{timeAgo(ep.last_triggered_at)}</span>
@@ -424,9 +424,9 @@ export default function HealthPage() {
       {data.failed_jobs.length > 0 && (
         <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden">
           <div className="px-5 py-4 border-b border-[var(--border)] flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
+            <AlertTriangle className="w-4 h-4 text-warning-text" />
             <h2 className="text-sm font-semibold text-[var(--foreground)]">Failed Jobs</h2>
-            <span className="ml-auto px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold rounded-full">
+            <span className="ml-auto px-2 py-0.5 bg-error-text/10 border border-error-border/20 text-error-text text-[10px] font-bold rounded-full">
               {data.failed_jobs.length}
             </span>
           </div>
@@ -436,7 +436,7 @@ export default function HealthPage() {
               return (
                 <div key={i} className="flex items-start gap-4 px-5 py-3.5">
                   <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0 mt-0.5"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-foreground text-[10px] font-bold shrink-0 mt-0.5"
                     style={{ backgroundColor: meta.color }}
                   >
                     {job.post ? job.post.platform.charAt(0).toUpperCase() : "?"}
@@ -449,12 +449,12 @@ export default function HealthPage() {
                     <div className="flex items-center gap-3 mt-0.5">
                       <span className="text-[11px] text-[var(--foreground-muted)]">{meta.label}</span>
                       {job.retry_count > 0 && (
-                        <span className="text-[11px] text-amber-400">{job.retry_count} retries</span>
+                        <span className="text-[11px] text-warning-text">{job.retry_count} retries</span>
                       )}
                       <span className="text-[11px] text-[var(--foreground-muted)]">{timeAgo(job.created_at)}</span>
                     </div>
                   </div>
-                  <span className="flex items-center gap-1 px-2 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold rounded-full shrink-0">
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-error-text/10 border border-error-border/20 text-error-text text-[10px] font-bold rounded-full shrink-0">
                     <XCircle className="w-3 h-3" /> Failed
                   </span>
                 </div>
@@ -475,7 +475,7 @@ export default function HealthPage() {
           <div className="divide-y divide-[var(--border)]">
             {data.recent_errors.map((log, i) => (
               <div key={i} className="flex items-start gap-3 px-5 py-3">
-                <XCircle className="w-3.5 h-3.5 text-rose-400 mt-0.5 shrink-0" />
+                <XCircle className="w-3.5 h-3.5 text-error-text mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-[var(--foreground)] truncate">{log.message}</p>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -493,8 +493,8 @@ export default function HealthPage() {
 
       {/* ── All clear ── */}
       {data.failed_jobs.length === 0 && data.recent_errors.length === 0 && (
-        <div className="bg-[var(--card)] border border-emerald-500/20 rounded-2xl p-8 flex flex-col items-center gap-3">
-          <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+        <div className="bg-[var(--card)] border border-success-border/20 rounded-2xl p-8 flex flex-col items-center gap-3">
+          <CheckCircle2 className="w-8 h-8 text-success-text" />
           <p className="text-sm font-semibold text-[var(--foreground)]">All systems operational</p>
           <p className="text-xs text-[var(--foreground-muted)]">No failed jobs or errors in the last 7 days.</p>
         </div>

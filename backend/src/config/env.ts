@@ -10,6 +10,9 @@ const envSchema = z.object({
   SUPABASE_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   GROQ_API_KEY: z.string().optional(),
+  // Optional Gemini fallback for AI classification (used only if Groq is
+  // unavailable). Classification degrades gracefully when neither is set.
+  GEMINI_API_KEY: z.string().optional(),
   // Phase 6 — Optional real model validation flag.
   // Default 'false': server starts normally without GROQ_API_KEY, Phase 6
   // real adversarial + cross-model evaluation short-circuit to a clear
@@ -59,6 +62,8 @@ const envSchema = z.object({
   // Resend for email notifications
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default('ZoikoVertex <noreply@zoikovertex.com>'),
+  // Slack webhook URL for workflow notifications
+  SLACK_WEBHOOK_URL: z.string().optional(),
   // Phase 4 — Governed Prompt Execution. When 'true' AND NODE_ENV=production,
   // a model call site that still uses an inline prompt (no governed prompt
   // resolved) FAILS CLOSED. Default 'false' so rollout is deliberate and the

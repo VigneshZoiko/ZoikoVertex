@@ -202,10 +202,9 @@ export default function BillingPage() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loadingWallet, setLoadingWallet] = useState(true);
 
-  // Spend cap
-  const [spendCapEnabled, setSpendCapEnabled]   = useState(false);
-  const [spendCapAmount,  setSpendCapAmount]    = useState("");
-  const [spendCapLoading, setSpendCapLoading]   = useState(false);
+  // Overcharge
+  const [overchargeEnabled, setOverchargeEnabled] = useState(false);
+  const [overchargeLoading, setOverchargeLoading] = useState(false);
 
   // Payment cards
   const [cards, setCards]               = useState<PaymentMethod[]>([]);
@@ -227,6 +226,9 @@ export default function BillingPage() {
   const [upgradeConfirm, setUpgradeConfirm] = useState<{ planId: string; planName: string; price: number } | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [showCancelSub, setShowCancelSub] = useState(false);
+  const [spendCapEnabled, setSpendCapEnabled] = useState(false);
+  const [spendCapAmount, setSpendCapAmount] = useState("500");
+  const [spendCapLoading, setSpendCapLoading] = useState(false);
 
   // Load Data
   useEffect(() => {
@@ -246,10 +248,10 @@ export default function BillingPage() {
             setActivePlanId('starter');
           }
 
-          const [usageRes, walletRes, spendCapRes, cardsRes, settingsRes, subRes] = await Promise.allSettled([
+          const [usageRes, walletRes, overchargeRes, cardsRes, settingsRes, subRes] = await Promise.allSettled([
             api.get(`/api/v1/monitoring/usage?workspaceId=${ctx.data.workspace_id}`),
             api.get('/api/v1/billing/wallet'),
-            api.get('/api/v1/billing/spend-cap'),
+            api.get('/api/v1/billing/overcharge'),
             api.get('/api/v1/billing/payment-methods'),
             api.get('/api/v1/billing/settings'),
             api.get('/api/v1/billing/subscription'),
@@ -258,11 +260,10 @@ export default function BillingPage() {
           if (usageRes.status === 'fulfilled' && usageRes.value?.success)
             setSummary(usageRes.value.data?.summary || {});
 
-          if (spendCapRes.status === 'fulfilled' && spendCapRes.value?.success) {
-            setSpendCapEnabled(spendCapRes.value.data?.spend_cap_enabled ?? false);
-            if (spendCapRes.value.data?.spend_cap_amount != null) {
-              setSpendCapAmount(String(spendCapRes.value.data.spend_cap_amount));
-            }
+          if (overchargeRes.status === 'fulfilled' && overchargeRes.value?.success) {
+            const enabled = overchargeRes.value.data?.overcharge_enabled ?? false;
+            setOverchargeEnabled(enabled);
+            if (!enabled) setActiveTab('billing');
           }
 
           if (cardsRes.status === 'fulfilled' && cardsRes.value?.success) {
@@ -448,16 +449,20 @@ export default function BillingPage() {
     }
   };
 
-  const handleSpendCapSave = async () => {
-    setSpendCapLoading(true);
+  const handleOverchargeToggle = async () => {
+    const newVal = !overchargeEnabled;
+    setOverchargeEnabled(newVal);
+    if (!newVal) setActiveTab('billing');
+    setOverchargeLoading(true);
     try {
-      await api.patch('/api/v1/billing/spend-cap', {
-        spend_cap_enabled: spendCapEnabled,
-        spend_cap_amount:  spendCapAmount ? parseFloat(spendCapAmount) : null,
-      });
-      showToast("Spend cap updated", "success");
-    } catch { showToast("Failed to update spend cap", "error"); }
-    finally { setSpendCapLoading(false); }
+      await api.patch('/api/v1/billing/overcharge', { overcharge_enabled: newVal });
+      showToast(`Overcharge ${newVal ? 'enabled' : 'disabled'}`, 'success');
+    } catch {
+      setOverchargeEnabled(!newVal);
+      showToast('Failed to update overcharge setting', 'error');
+    } finally {
+      setOverchargeLoading(false);
+    }
   };
 
   const handleAddCard = async () => {
@@ -586,6 +591,17 @@ export default function BillingPage() {
     }
   };
 
+  const handleSpendCapSave = async () => {
+    setSpendCapLoading(true);
+    try {
+      await api.post("/api/v1/billing/spend-cap", {
+        enabled: spendCapEnabled,
+        amount: spendCapEnabled ? Number(spendCapAmount) : null,
+      });
+    } catch { /* non-blocking */ }
+    setSpendCapLoading(false);
+  };
+
   const handleDownloadCSV = () => {
     if (transactions.length === 0) return;
     const header = "Date,Description,Campaign,Type,Amount\n";
@@ -605,20 +621,22 @@ export default function BillingPage() {
     <div className="p-8 max-w-7xl mx-auto space-y-8 pb-24">
       {/* â"€â"€ Header â"€â"€ */}
       <div className="space-y-1">
-        <h1 className="text-3xl font-semibold text-white tracking-tight">Billing & Administration</h1>
-        <p className="text-sm text-zinc-400">Manage your workspace plan, platform usage, and credits.</p>
+        <h1 className="text-3xl font-semibold text-foreground tracking-tight">Billing & Administration</h1>
+        <p className="text-sm text-foreground-muted">Manage your workspace plan, platform usage, and credits.</p>
       </div>
 
       {/* â"€â"€ Tabs â"€â"€ */}
-      <div className="flex items-center gap-6 border-b border-zinc-800">
-        <button type="button"
-          onClick={() => setActiveTab("credits")}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "credits" ? "border-white text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
-          }`}
-        >
-          Credits
-        </button>
+      <div className="flex items-center gap-6 border-b border-border">
+        {overchargeEnabled && (
+          <button type="button"
+            onClick={() => setActiveTab("credits")}
+            className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
+              activeTab === "credits" ? "border-white text-foreground" : "border-transparent text-foreground-muted hover:text-foreground-muted"
+            }`}
+          >
+            Credits
+          </button>
+        )}
         <button 
           onClick={() => {
             setActiveTab("billing");
@@ -630,7 +648,7 @@ export default function BillingPage() {
             }
           }}
           className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "billing" ? "border-white text-white" : "border-transparent text-zinc-500 hover:text-zinc-300"
+            activeTab === "billing" ? "border-white text-foreground" : "border-transparent text-foreground-muted hover:text-foreground-muted"
           }`}
         >
           Billing & Usage
@@ -643,17 +661,17 @@ export default function BillingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Balance Card */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 flex flex-col justify-between">
+            <div className="bg-card border border-border rounded-xl p-6 flex flex-col justify-between">
               <div>
-                <h3 className="text-sm font-medium text-zinc-400 mb-2">Available Balance</h3>
+                <h3 className="text-sm font-medium text-foreground-muted mb-2">Available Balance</h3>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-semibold text-white">
+                  <span className="text-4xl font-semibold text-foreground">
                     {loadingWallet ? "--" : fmtCurrency(wallet.available_balance ?? wallet.balance, wallet.currency)}
                   </span>
                 </div>
                 {/* Processing credits */}
                 {(wallet.processing_balance ?? 0) > 0 && (
-                  <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-400">
+                  <div className="flex items-center gap-1.5 mt-2 text-xs text-warning-text">
                     <Clock className="w-3 h-3" />
                     <span>{fmtCurrency(wallet.processing_balance!, wallet.currency)} processing -- available within 48h</span>
                   </div>
@@ -669,9 +687,9 @@ export default function BillingPage() {
             </div>
 
             {/* Auto Top-up Settings */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+            <div className="bg-card border border-border rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-white">Auto Top-up</h3>
+                <h3 className="text-sm font-medium text-foreground">Auto Top-up</h3>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
                     type="checkbox" 
@@ -680,82 +698,82 @@ export default function BillingPage() {
                     onChange={(e) => handleAutoTopupChange({ auto_topup_enabled: e.target.checked })}
                     disabled={updatingAutoTopup}
                   />
-                  <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-zinc-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 peer-checked:after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white"></div>
+                  <div className="w-9 h-5 bg-surface-hover peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-zinc-900 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 peer-checked:after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-white"></div>
                 </label>
               </div>
               
               {wallet.auto_topup_enabled ? (
-                <div className="space-y-4 mt-4 pt-4 border-t border-zinc-800">
+                <div className="space-y-4 mt-4 pt-4 border-t border-border">
                   <div>
-                    <label className="block text-xs font-medium text-zinc-400 mb-1">When balance falls below</label>
+                    <label className="block text-xs font-medium text-foreground-muted mb-1">When balance falls below</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-muted">$</span>
                       <input
                         type="number"
                         value={wallet.auto_topup_threshold}
                         onBlur={(e) => handleAutoTopupChange({ auto_topup_threshold: Number(e.target.value) })}
                         onChange={(e) => setWallet({...wallet, auto_topup_threshold: Number(e.target.value)})}
                         disabled={updatingAutoTopup}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 pl-7 pr-3 text-sm text-white focus:outline-none focus:border-zinc-600 transition-colors disabled:opacity-50"
+                        className="w-full bg-card border border-border rounded-lg py-2 pl-7 pr-3 text-sm text-foreground focus:outline-none focus:border-border transition-colors disabled:opacity-50"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-zinc-400 mb-1">Auto-recharge with</label>
+                    <label className="block text-xs font-medium text-foreground-muted mb-1">Auto-recharge with</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-muted">$</span>
                       <input
                         type="number"
                         value={wallet.auto_topup_amount}
                         onBlur={(e) => handleAutoTopupChange({ auto_topup_amount: Number(e.target.value) })}
                         onChange={(e) => setWallet({...wallet, auto_topup_amount: Number(e.target.value)})}
                         disabled={updatingAutoTopup}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 pl-7 pr-3 text-sm text-white focus:outline-none focus:border-zinc-600 transition-colors disabled:opacity-50"
+                        className="w-full bg-card border border-border rounded-lg py-2 pl-7 pr-3 text-sm text-foreground focus:outline-none focus:border-border transition-colors disabled:opacity-50"
                       />
                     </div>
                   </div>
                 </div>
               ) : (
-                <p className="text-xs text-zinc-500 leading-relaxed">
+                <p className="text-xs text-foreground-muted leading-relaxed">
                   Never run out of funds. We will automatically recharge your balance when it falls below your threshold.
                 </p>
               )}
             </div>
 
             {/* Quick Stats or Instructions */}
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-              <h3 className="text-sm font-medium text-white mb-4">How Credits Work</h3>
-              <p className="text-sm text-zinc-400 leading-relaxed mb-4">
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h3 className="text-sm font-medium text-foreground mb-4">How Credits Work</h3>
+              <p className="text-sm text-foreground-muted leading-relaxed mb-4">
                 Credits fund your active campaigns and execution channels. Your balance is drawn down automatically as campaigns accrue spend. 
               </p>
               <div className="flex items-center gap-2 mt-4 text-sm">
-                <CheckCircle2 className="w-4 h-4 text-zinc-300" />
-                <span className="text-zinc-300">Funds are non-refundable.</span>
+                <CheckCircle2 className="w-4 h-4 text-foreground-muted" />
+                <span className="text-foreground-muted">Funds are non-refundable.</span>
               </div>
             </div>
           </div>
 
           {/* Spend Cap */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-white">Spend Cap</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Limit total ad spend charged to your credits per month.</p>
+                <h3 className="text-sm font-medium text-foreground">Spend Cap</h3>
+                <p className="text-xs text-foreground-muted mt-0.5">Limit total ad spend charged to your credits per month.</p>
               </div>
               <button type="button" onClick={() => { setSpendCapEnabled(!spendCapEnabled); }}
-                className={`relative w-11 h-6 rounded-full transition-colors ${spendCapEnabled ? "bg-white" : "bg-zinc-700"}`}>
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-zinc-900 shadow transition-transform ${spendCapEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                className={`relative w-11 h-6 rounded-full transition-colors ${spendCapEnabled ? "bg-white" : "bg-surface-hover"}`}>
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-surface shadow transition-transform ${spendCapEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
             </div>
             {spendCapEnabled && (
               <div className="flex gap-3 items-end">
                 <div className="flex-1">
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Monthly cap amount ({wallet.currency || 'USD'})</label>
+                  <label className="block text-xs font-medium text-foreground-muted mb-1.5">Monthly cap amount ({wallet.currency || 'USD'})</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-muted">$</span>
                     <input type="number" min="1" value={spendCapAmount}
                       onChange={e => setSpendCapAmount(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 pl-7 pr-3 text-sm text-white focus:outline-none focus:border-zinc-600"
+                      className="w-full bg-card border border-border rounded-lg py-2 pl-7 pr-3 text-sm text-foreground focus:outline-none focus:border-border"
                       placeholder="500" />
                   </div>
                 </div>
@@ -768,7 +786,7 @@ export default function BillingPage() {
             )}
             {!spendCapEnabled && (
               <button type="button" onClick={handleSpendCapSave} disabled={spendCapLoading}
-                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1.5">
+                className="text-xs text-foreground-muted hover:text-foreground-muted transition-colors flex items-center gap-1.5">
                 {spendCapLoading && <Loader2 className="w-3 h-3 animate-spin" />}
                 Save (disabled)
               </button>
@@ -776,13 +794,13 @@ export default function BillingPage() {
           </div>
 
           {/* Transactions Table */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
-            <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-white">Transaction History</h3>
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="p-5 border-b border-border flex items-center justify-between">
+              <h3 className="text-sm font-medium text-foreground">Transaction History</h3>
               <button type="button"
                 onClick={handleDownloadCSV}
                 disabled={transactions.length === 0}
-                className="text-xs font-medium text-zinc-400 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="text-xs font-medium text-foreground-muted hover:text-white transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Download className="w-3.5 h-3.5" /> Download CSV
               </button>
@@ -790,7 +808,7 @@ export default function BillingPage() {
             
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-zinc-900/50 text-zinc-400">
+                <thead className="bg-card text-foreground-muted">
                   <tr>
                     <th className="px-5 py-3 font-medium">Date</th>
                     <th className="px-5 py-3 font-medium">Description</th>
@@ -800,57 +818,57 @@ export default function BillingPage() {
                     <th className="px-5 py-3 font-medium text-right">Receipt</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/50 text-zinc-300">
+                <tbody className="divide-y divide-gray-200 dark:divide-border text-foreground-muted">
                   {loadingWallet ? (
                     <tr>
-                      <td colSpan={6} className="px-5 py-8 text-center text-zinc-500">
+                      <td colSpan={6} className="px-5 py-8 text-center text-foreground-muted">
                         <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
                         Loading transactions...
                       </td>
                     </tr>
                   ) : transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-5 py-8 text-center text-zinc-500">
+                      <td colSpan={6} className="px-5 py-8 text-center text-foreground-muted">
                         No transactions yet. Add credits to get started.
                       </td>
                     </tr>
                   ) : (
                     transactions.map(tx => (
-                      <tr key={tx.id} className={`hover:bg-zinc-800/30 transition-colors ${tx.status === "PROCESSING" ? "bg-amber-500/3" : ""}`}>
-                        <td className="px-5 py-3 whitespace-nowrap text-zinc-400">
+                      <tr key={tx.id} className={`hover:bg-surface-hover transition-colors ${tx.status === "PROCESSING" ? "bg-warning-text/3" : ""}`}>
+                        <td className="px-5 py-3 whitespace-nowrap text-foreground-muted">
                           <div>{new Date(tx.created_at).toLocaleDateString()}</div>
                           {tx.status === "PROCESSING" && tx.available_at && (
-                            <div className="text-[10px] text-amber-400">Avail. {new Date(tx.available_at).toLocaleDateString()}</div>
+                            <div className="text-[10px] text-warning-text">Avail. {new Date(tx.available_at).toLocaleDateString()}</div>
                           )}
                         </td>
                         <td className="px-5 py-3">
                           <div>{tx.description}</div>
                           {tx.stripe_fee && tx.stripe_fee > 0 && (
-                            <div className="text-[10px] text-zinc-600">Fee: ${Number(tx.stripe_fee).toFixed(2)}</div>
+                            <div className="text-[10px] text-foreground-muted">Fee: ${Number(tx.stripe_fee).toFixed(2)}</div>
                           )}
                         </td>
-                        <td className="px-5 py-3 text-zinc-400">{tx.campaign_name || "--"}</td>
+                        <td className="px-5 py-3 text-foreground-muted">{tx.campaign_name || "--"}</td>
                         <td className="px-5 py-3">
                           {tx.status === "PROCESSING" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-warning-bg text-warning-text border border-warning-border">
                               <Clock className="w-2.5 h-2.5" />PROCESSING
                             </span>
                           )}
                           {(tx.status === "AVAILABLE" || tx.status === "COMPLETED" || !tx.status) && tx.type === "CREDIT" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-success-bg text-success-text border border-success-border">
                               <CheckCircle2 className="w-2.5 h-2.5" />AVAILABLE
                             </span>
                           )}
                           {tx.type === "DEBIT" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-surface-hover text-foreground-muted border border-border">
                               SPENT
                             </span>
                           )}
                         </td>
-                        <td className={`px-5 py-3 text-right font-medium ${tx.type === 'CREDIT' ? 'text-zinc-200' : 'text-zinc-400'}`}>
+                        <td className={`px-5 py-3 text-right font-medium ${tx.type === 'CREDIT' ? 'text-foreground' : 'text-foreground-muted'}`}>
                           <div>{tx.type === 'CREDIT' ? '+' : '-'}{fmtCurrency(tx.net_amount ?? tx.amount, tx.currency || wallet.currency)}</div>
                           {tx.gross_amount && tx.gross_amount !== (tx.net_amount ?? tx.amount) && (
-                            <div className="text-[10px] text-zinc-600">Charged: {fmtCurrency(tx.gross_amount, tx.currency || wallet.currency)}</div>
+                            <div className="text-[10px] text-foreground-muted">Charged: {fmtCurrency(tx.gross_amount, tx.currency || wallet.currency)}</div>
                           )}
                         </td>
                         <td className="px-5 py-3 text-right">
@@ -859,7 +877,7 @@ export default function BillingPage() {
                               href={`https://dashboard.stripe.com/test/payments/${tx.stripe_charge_id}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition-colors"
+                              className="inline-flex items-center gap-1 text-xs text-foreground-muted hover:text-white transition-colors"
                               title="View receipt"
                             >
                               <FileText className="w-3 h-3" /> Receipt
@@ -879,15 +897,37 @@ export default function BillingPage() {
       {/* â"€â"€ Tab Content: Billing & Usage â"€â"€ */}
       {activeTab === "billing" && (
         <div className="space-y-6">
-          
+
+          {/* Enable Overcharge */}
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-white">Enable Overcharge</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">Allow usage beyond your plan quota — excess is charged automatically from your wallet.</p>
+              </div>
+              <button type="button" onClick={handleOverchargeToggle} disabled={overchargeLoading}
+                className={`relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${overchargeEnabled ? "bg-white" : "bg-zinc-700"}`}>
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-zinc-900 shadow transition-transform ${overchargeEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+            {overchargeEnabled ? (
+              <div className="bg-warning-bg border border-warning-border rounded-lg p-4 text-xs text-warning-text space-y-1">
+                <p className="font-medium">Overcharge active</p>
+                <p>Excess AI usage will be charged from your wallet. If balance hits $0, AI services suspend until you top up or your billing cycle resets.</p>
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-600">When disabled, AI features stop once your monthly quota is reached. No wallet charges apply. Enable to add credits and prevent service interruptions.</p>
+            )}
+          </div>
+
           {/* Active Plan Overview */}
-          <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+          <div className="bg-card border border-border rounded-xl p-6">
             {loadingPlan ? (
               <div className="flex items-center gap-3 animate-pulse">
-                <div className="w-10 h-10 rounded-lg bg-zinc-800" />
+                <div className="w-10 h-10 rounded-lg bg-surface-hover" />
                 <div className="space-y-2">
-                  <div className="h-4 w-36 rounded bg-zinc-800" />
-                  <div className="h-3 w-56 rounded bg-zinc-800" />
+                  <div className="h-4 w-36 rounded bg-surface-hover" />
+                  <div className="h-3 w-56 rounded bg-surface-hover" />
                 </div>
               </div>
             ) : (
@@ -896,25 +936,25 @@ export default function BillingPage() {
                 <div className="space-y-5 flex-1">
                   {/* Plan header */}
                   <div className="flex items-start gap-3">
-                    <div className="p-2.5 bg-zinc-800 rounded-lg border border-zinc-700 mt-0.5">
-                      <ActiveIcon className="w-5 h-5 text-zinc-300" />
+                    <div className="p-2.5 bg-surface-hover rounded-lg border border-border mt-0.5">
+                      <ActiveIcon className="w-5 h-5 text-foreground-muted" />
                     </div>
                     <div>
                       <div className="flex items-center gap-3 flex-wrap">
-                        <h2 className="text-lg font-semibold text-white">{activePlan.name}</h2>
-                        <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 uppercase tracking-wider">Active</span>
-                        <span className="text-sm font-semibold text-zinc-200">{activePlanPrice}</span>
+                        <h2 className="text-lg font-semibold text-foreground">{activePlan.name}</h2>
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-surface-hover text-foreground-muted border border-border uppercase tracking-wider">Active</span>
+                        <span className="text-sm font-semibold text-foreground">{activePlanPrice}</span>
                         {activePlan.annual && (
-                          <span className="text-xs text-zinc-500">(${activePlan.annual}/mo billed annually)</span>
+                          <span className="text-xs text-foreground-muted">(${activePlan.annual}/mo billed annually)</span>
                         )}
                         {planRenewalDate && (
-                          <span className="flex items-center gap-1 text-xs text-zinc-500">
+                          <span className="flex items-center gap-1 text-xs text-foreground-muted">
                             <Clock className="w-3 h-3" />
                             Renews {new Date(planRenewalDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-zinc-400 mt-1">{activePlan.desc}</p>
+                      <p className="text-sm text-foreground-muted mt-1">{activePlan.desc}</p>
                     </div>
                   </div>
 
@@ -926,9 +966,9 @@ export default function BillingPage() {
                       { label: "Brands/Workspaces", value: PLAN_STATS[activePlan.id]?.brands   ?? "--" },
                       { label: "AI Agents",         value: PLAN_STATS[activePlan.id]?.agents   ?? "--" },
                     ].map(stat => (
-                      <div key={stat.label} className="bg-zinc-800/50 rounded-lg px-3 py-2.5 border border-zinc-800">
-                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">{stat.label}</p>
-                        <p className="text-sm font-semibold text-zinc-100">{stat.value}</p>
+                      <div key={stat.label} className="bg-surface-hover rounded-lg px-3 py-2.5 border border-border">
+                        <p className="text-[10px] text-foreground-muted uppercase tracking-wider mb-1">{stat.label}</p>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-foreground">{stat.value}</p>
                       </div>
                     ))}
                   </div>
@@ -936,8 +976,8 @@ export default function BillingPage() {
                   {/* Included features */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 pt-2">
                     {activePlan.features.map((f, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs text-zinc-400">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-zinc-600 shrink-0 mt-0.5" />
+                      <div key={i} className="flex items-start gap-2 text-xs text-foreground-muted">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-foreground-muted shrink-0 mt-0.5" />
                         <span>{f}</span>
                       </div>
                     ))}
@@ -947,7 +987,7 @@ export default function BillingPage() {
                   {activePlan.limits.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       {activePlan.limits.map((l, i) => (
-                        <span key={i} className="text-[10px] px-2 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-600">{l}</span>
+                        <span key={i} className="text-[10px] px-2 py-1 rounded bg-surface border border-border text-foreground-muted">{l}</span>
                       ))}
                     </div>
                   )}
@@ -964,17 +1004,17 @@ export default function BillingPage() {
                   </button>
                   {subscription && !subscription.cancel_at_period_end && activePlan.id !== 'starter' && (
                     <button type="button" onClick={handleCancelSubscription}
-                      className="text-xs text-zinc-500 hover:text-rose-400 transition-colors w-full text-center">
+                      className="text-xs text-foreground-muted hover:text-error-text transition-colors w-full text-center">
                       Cancel subscription
                     </button>
                   )}
                   {subscription?.cancel_at_period_end && (
-                    <p className="text-xs text-amber-400 text-center">
+                    <p className="text-xs text-warning-text text-center">
                       Cancels {new Date(subscription.current_period_end).toLocaleDateString()}
                     </p>
                   )}
                   {subscribeError && (
-                    <p className="text-xs text-rose-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{subscribeError}</p>
+                    <p className="text-xs text-error-text flex items-center gap-1"><AlertCircle className="w-3 h-3" />{subscribeError}</p>
                   )}
                 </div>
 
@@ -985,9 +1025,9 @@ export default function BillingPage() {
           {/* Usage Metrics */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-zinc-400" />
-              <h3 className="text-sm font-medium text-white">Current Usage</h3>
-              {loadingUsage && <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin ml-2" />}
+              <Activity className="w-4 h-4 text-foreground-muted" />
+              <h3 className="text-sm font-medium text-foreground">Current Usage</h3>
+              {loadingUsage && <Loader2 className="w-3.5 h-3.5 text-foreground-muted animate-spin ml-2" />}
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -998,17 +1038,17 @@ export default function BillingPage() {
                 { key: "CONTENT_POSTS",   icon: FileText, label: "Content Published", unit: "posts",    fmt: (v: number) => v.toLocaleString() },
                 { key: "AGENT_RUNS",      icon: Activity, label: "Agent Runs",        unit: "runs",     fmt: (v: number) => v.toLocaleString() },
               ].map(({ key, icon: Icon, label, unit, fmt }) => (
-                <div key={key} className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
+                <div key={key} className="bg-card border border-border rounded-xl p-5">
                   <div className="flex items-center gap-2 mb-3">
-                    <Icon className="w-4 h-4 text-zinc-400" />
-                    <span className="text-sm font-medium text-zinc-300">{label}</span>
+                    <Icon className="w-4 h-4 text-foreground-muted" />
+                    <span className="text-sm font-medium text-foreground-muted">{label}</span>
                   </div>
-                  <p className="text-2xl font-semibold text-white">
+                  <p className="text-2xl font-semibold text-foreground">
                     {loadingUsage ? "--" : fmt(summary[key]?.quantity || 0)}
                   </p>
-                  <p className="text-xs text-zinc-500 mt-1">{unit} this period</p>
+                  <p className="text-xs text-foreground-muted mt-1">{unit} this period</p>
                   {summary[key]?.cost > 0 && (
-                    <p className="text-[11px] text-zinc-600 mt-0.5">${summary[key].cost.toFixed(4)} cost</p>
+                    <p className="text-[11px] text-foreground-muted mt-0.5">${summary[key].cost.toFixed(4)} cost</p>
                   )}
                 </div>
               ))}
@@ -1016,57 +1056,57 @@ export default function BillingPage() {
           </div>
 
           {/* Payment History */}
-          <div className="space-y-4 pt-4 border-t border-zinc-800/50">
+          <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-border">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-zinc-400" />
-              <h3 className="text-sm font-medium text-white">Payment History</h3>
-              {loadingInvoices && <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
+              <FileText className="w-4 h-4 text-foreground-muted" />
+              <h3 className="text-sm font-medium text-foreground">Payment History</h3>
+              {loadingInvoices && <Loader2 className="w-3.5 h-3.5 text-foreground-muted animate-spin" />}
             </div>
 
             {invoices.length === 0 && !loadingInvoices ? (
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-8 text-center">
-                <FileText className="w-8 h-8 text-zinc-700 mx-auto mb-3" />
-                <p className="text-sm font-medium text-zinc-400">No invoices yet</p>
-                <p className="text-xs text-zinc-600 mt-1">Plan subscription invoices will appear here after your first billing cycle.</p>
+              <div className="bg-card border border-border rounded-xl p-8 text-center">
+                <FileText className="w-8 h-8 text-foreground-muted mx-auto mb-3" />
+                <p className="text-sm font-medium text-foreground-muted">No invoices yet</p>
+                <p className="text-xs text-foreground-muted mt-1">Plan subscription invoices will appear here after your first billing cycle.</p>
               </div>
             ) : (
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden">
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-zinc-800">
-                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Date</th>
-                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Description</th>
-                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
-                      <th className="px-5 py-3 text-right text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-5 py-3 text-right text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Invoice</th>
+                    <tr className="border-b border-border">
+                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Date</th>
+                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Description</th>
+                      <th className="px-5 py-3 text-left text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Status</th>
+                      <th className="px-5 py-3 text-right text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Amount</th>
+                      <th className="px-5 py-3 text-right text-[11px] font-semibold text-foreground-muted uppercase tracking-wider">Invoice</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-800/50">
+                  <tbody className="divide-y divide-gray-200 dark:divide-border">
                     {invoices.map(inv => (
-                      <tr key={inv.id} className="hover:bg-zinc-800/20 transition-colors">
-                        <td className="px-5 py-3 text-zinc-400 whitespace-nowrap">
+                      <tr key={inv.id} className="hover:bg-surface transition-colors">
+                        <td className="px-5 py-3 text-foreground-muted whitespace-nowrap">
                           {new Date(inv.created * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </td>
-                        <td className="px-5 py-3 text-zinc-300">
+                        <td className="px-5 py-3 text-foreground-muted">
                           {inv.description || 'Subscription'}
                         </td>
                         <td className="px-5 py-3">
                           <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border ${
                             inv.status === 'paid'
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              ? 'bg-success-text/10 text-success-text border-success-border/20'
+                              : 'bg-warning-text/10 text-warning-text border-warning-border/20'
                           }`}>
                             {inv.status === 'paid' ? <CheckCircle2 className="w-2.5 h-2.5" /> : <Clock className="w-2.5 h-2.5" />}
                             {inv.status?.toUpperCase()}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-right font-medium text-zinc-200">
+                        <td className="px-5 py-3 text-right font-medium text-foreground">
                           ${(inv.amount_paid / 100).toFixed(2)} {inv.currency?.toUpperCase()}
                         </td>
                         <td className="px-5 py-3 text-right">
                           {inv.hosted_url && (
                             <a href={inv.hosted_url} target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-zinc-400 hover:text-white transition-colors flex items-center gap-1 justify-end">
+                              className="text-xs text-foreground-muted hover:text-white transition-colors flex items-center gap-1 justify-end">
                               <Download className="w-3 h-3" /> View
                             </a>
                           )}
@@ -1083,22 +1123,22 @@ export default function BillingPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-zinc-400" />
-                <h3 className="text-sm font-medium text-white">Payment Methods</h3>
-                {cardsLoading && <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin" />}
+                <CreditCard className="w-4 h-4 text-foreground-muted" />
+                <h3 className="text-sm font-medium text-foreground">Payment Methods</h3>
+                {cardsLoading && <Loader2 className="w-3.5 h-3.5 text-foreground-muted animate-spin" />}
               </div>
               <button type="button" onClick={handleAddCard} disabled={addingCard}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold rounded-lg transition-colors disabled:opacity-40">
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-hover hover:bg-surface-hover text-foreground-muted text-xs font-semibold rounded-lg transition-colors disabled:opacity-40">
                 {addingCard ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                 Add Card
               </button>
             </div>
-            {cardError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{cardError}</p>}
+            {cardError && <p className="text-xs text-error-text flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{cardError}</p>}
             {cards.length === 0 ? (
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 text-center">
-                <CreditCard className="w-7 h-7 text-zinc-700 mx-auto mb-2" />
-                <p className="text-sm text-zinc-400">No cards saved yet</p>
-                <p className="text-xs text-zinc-600 mt-1">Add a card to enable automatic top-ups and faster deposits.</p>
+              <div className="bg-card border border-border rounded-xl p-6 text-center">
+                <CreditCard className="w-7 h-7 text-foreground-muted mx-auto mb-2" />
+                <p className="text-sm text-foreground-muted">No cards saved yet</p>
+                <p className="text-xs text-foreground-muted mt-1">Add a card to enable automatic top-ups and faster deposits.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -1107,32 +1147,32 @@ export default function BillingPage() {
                   return (
                     <div key={card.id} className={`flex items-center justify-between p-4 border rounded-xl transition-all ${
                       card.is_default
-                        ? 'bg-zinc-900 border-zinc-700 ring-1 ring-white/10'
-                        : 'bg-zinc-900/50 border-zinc-800'
+                        ? 'bg-surface border-border ring-1 ring-border'
+                        : 'bg-card border-border'
                     }`}>
                       <div className="flex items-center gap-3">
-                        <div className={`w-9 h-6 rounded flex items-center justify-center ${card.is_default ? 'bg-white/10' : 'bg-zinc-800'}`}>
-                          <CreditCard className={`w-4 h-4 ${card.is_default ? 'text-white' : 'text-zinc-400'}`} />
+                        <div className={`w-9 h-6 rounded flex items-center justify-center ${card.is_default ? 'bg-white/10' : 'bg-surface-hover'}`}>
+                          <CreditCard className={`w-4 h-4 ${card.is_default ? 'text-foreground' : 'text-foreground-muted'}`} />
                         </div>
                         <div>
-                          <p className="text-sm text-white font-medium capitalize">{card.brand} &bull;&bull;&bull;&bull; {card.last4}</p>
-                          <p className="text-xs text-zinc-500">Expires {card.exp_month}/{card.exp_year}</p>
+                          <p className="text-sm text-foreground font-medium capitalize">{card.brand} &bull;&bull;&bull;&bull; {card.last4}</p>
+                          <p className="text-xs text-foreground-muted">Expires {card.exp_month}/{card.exp_year}</p>
                         </div>
                         {card.is_default && (
-                          <span className="text-[10px] px-2 py-0.5 bg-white/10 text-white border border-white/20 rounded uppercase tracking-wider font-semibold">Default</span>
+                          <span className="text-[10px] px-2 py-0.5 bg-white/10 text-foreground border border-white/20 rounded uppercase tracking-wider font-semibold">Default</span>
                         )}
                       </div>
                       <div className="flex items-center gap-1">
                         {!card.is_default && (
                           <button type="button" onClick={() => handleSetDefaultCard(card.id)}
-                            className="p-1.5 text-zinc-500 hover:text-amber-400 transition-colors" title="Set as default">
+                            className="p-1.5 text-foreground-muted hover:text-warning-text transition-colors" title="Set as default">
                             <Star className="w-3.5 h-3.5" />
                           </button>
                         )}
                         <button
                           onClick={() => handleDeleteCard(card.id)}
                           disabled={!canDelete}
-                          className={`p-1.5 transition-colors ${canDelete ? 'text-zinc-500 hover:text-rose-400' : 'text-zinc-700 cursor-not-allowed'}`}
+                          className={`p-1.5 transition-colors ${canDelete ? 'text-foreground-muted hover:text-error-text' : 'text-foreground-muted cursor-not-allowed'}`}
                           title={!canDelete ? (card.is_default ? 'Set another card as default first' : 'Must keep at least one card') : 'Remove card'}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1152,47 +1192,47 @@ export default function BillingPage() {
       {upgradeConfirm && mounted && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => { setUpgradeConfirm(null); setSubscribeError(null); }} />
-          <div className="relative z-10 w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl p-6 space-y-5">
+          <div className="relative z-10 w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl p-6 space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-white">Confirm Upgrade</h3>
-              <button type="button" onClick={() => { setUpgradeConfirm(null); setSubscribeError(null); }} className="p-1.5 text-zinc-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
+              <h3 className="text-base font-semibold text-foreground">Confirm Upgrade</h3>
+              <button type="button" onClick={() => { setUpgradeConfirm(null); setSubscribeError(null); }} className="p-1.5 text-foreground-muted hover:text-white transition-colors"><X className="w-4 h-4" /></button>
             </div>
 
             {/* Plan summary */}
-            <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl space-y-1">
-              <p className="text-sm font-semibold text-white">{upgradeConfirm.planName}</p>
-              <p className="text-2xl font-bold text-white">${upgradeConfirm.price}<span className="text-sm font-normal text-zinc-500"> / month</span></p>
-              <p className="text-xs text-zinc-500">Billed monthly, cancel anytime</p>
+            <div className="p-4 bg-surface border border-border rounded-xl space-y-1">
+              <p className="text-sm font-semibold text-foreground">{upgradeConfirm.planName}</p>
+              <p className="text-2xl font-bold text-foreground">${upgradeConfirm.price}<span className="text-sm font-normal text-foreground-muted"> / month</span></p>
+              <p className="text-xs text-foreground-muted">Billed monthly, cancel anytime</p>
             </div>
 
             {/* Payment method */}
             <div>
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-2">Payment Method</p>
+              <p className="text-xs font-semibold text-foreground-muted uppercase tracking-widest mb-2">Payment Method</p>
               {cards.length > 0 ? (
                 <div className="space-y-2">
                   {cards.map(card => (
                     <div key={card.id}
                       onClick={() => setSelectedCardId(card.id)}
-                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedCardId === card.id ? 'border-white/40 bg-zinc-800 ring-1 ring-white/20' : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-600'}`}>
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedCardId === card.id ? 'border-white' : 'border-zinc-600'}`}>
+                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedCardId === card.id ? 'border-white/40 bg-surface-hover ring-1 ring-border' : 'border-border bg-card hover:border-border'}`}>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${selectedCardId === card.id ? 'border-white' : 'border-border'}`}>
                         {selectedCardId === card.id && <div className="w-2 h-2 rounded-full bg-white" />}
                       </div>
-                      <CreditCard className="w-4 h-4 text-zinc-400 shrink-0" />
+                      <CreditCard className="w-4 h-4 text-foreground-muted shrink-0" />
                       <div className="flex-1">
-                        <p className="text-sm text-white capitalize">{card.brand} &bull;&bull;&bull;&bull; {card.last4}</p>
-                        <p className="text-xs text-zinc-500">Expires {card.exp_month}/{card.exp_year}</p>
+                        <p className="text-sm text-foreground capitalize">{card.brand} &bull;&bull;&bull;&bull; {card.last4}</p>
+                        <p className="text-xs text-foreground-muted">Expires {card.exp_month}/{card.exp_year}</p>
                       </div>
-                      {card.is_default && <span className="text-[10px] text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">Default</span>}
+                      {card.is_default && <span className="text-[10px] text-foreground-muted bg-surface-hover px-2 py-0.5 rounded border border-border">Default</span>}
                     </div>
                   ))}
                   <button type="button" onClick={() => { setUpgradeConfirm(null); handleAddCard(); }}
-                    className="w-full py-2 text-xs text-zinc-400 hover:text-white border border-dashed border-zinc-700 hover:border-zinc-500 rounded-xl transition-colors flex items-center justify-center gap-1.5">
+                    className="w-full py-2 text-xs text-foreground-muted hover:text-white border border-dashed border-border hover:border-border rounded-xl transition-colors flex items-center justify-center gap-1.5">
                     <Plus className="w-3 h-3" /> Use a different card
                   </button>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-400 flex items-start gap-2">
+                  <div className="p-3 bg-warning-text/10 border border-warning-border/20 rounded-xl text-xs text-warning-text flex items-start gap-2">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     No card on file. Add a card to continue.
                   </div>
@@ -1205,7 +1245,7 @@ export default function BillingPage() {
             </div>
 
             {subscribeError && (
-              <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{subscribeError}</p>
+              <p className="text-xs text-error-text flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{subscribeError}</p>
             )}
 
             {cards.length > 0 && (
@@ -1223,8 +1263,8 @@ export default function BillingPage() {
       {depositToast && mounted && createPortal(
         <div className={`fixed top-4 right-4 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl border text-sm font-semibold ${
           depositToast.type === "success"
-            ? "bg-emerald-950 border-emerald-500/30 text-emerald-300"
-            : "bg-rose-950 border-rose-500/30 text-rose-300"
+            ? "bg-success-text border-success-border/30 text-success-text"
+            : "bg-error-text border-error-border/30 text-error-text"
         }`}>
           {depositToast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           <span className="max-w-sm">{depositToast.msg}</span>
@@ -1237,21 +1277,21 @@ export default function BillingPage() {
       {showTopUpModal && mounted && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => { setShowTopUpModal(false); resetDeposit(); }} />
-          <div className="relative z-10 w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]">
+          <div className="relative z-10 w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]">
 
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-800">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-border">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-zinc-800 rounded-xl">
-                  <ArrowDownCircle className="w-4 h-4 text-emerald-400" />
+                <div className="p-2 bg-surface-hover rounded-xl">
+                  <ArrowDownCircle className="w-4 h-4 text-success-text" />
                 </div>
-                <h2 className="text-base font-semibold text-white">
+                <h2 className="text-base font-semibold text-foreground">
                   {depositStep === "amount"  && "Add Credits"}
                   {depositStep === "fees"    && "Review Fees"}
                   {depositStep === "confirm" && "Confirm Deposit"}
                 </h2>
               </div>
-              <button type="button" onClick={() => { setShowTopUpModal(false); resetDeposit(); }} className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
+              <button type="button" onClick={() => { setShowTopUpModal(false); resetDeposit(); }} className="p-2 text-foreground-muted hover:text-white hover:bg-surface-hover rounded-lg transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -1262,21 +1302,21 @@ export default function BillingPage() {
               {depositStep === "amount" && (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-zinc-400 mb-2">
+                    <label className="block text-xs font-medium text-foreground-muted mb-2">
                       How much do you want in your wallet?
                     </label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 font-bold text-lg">$</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground-muted font-bold text-lg">$</span>
                       <input
                         type="number" min="10" max="100000" step="1"
                         value={depositAmount}
                         onChange={e => { setDepositAmount(e.target.value); setDepositError(null); }}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 pl-10 text-white text-lg font-bold placeholder:text-zinc-600 focus:outline-none focus:border-white/30 transition-all"
+                        className="w-full bg-surface border border-border rounded-xl px-4 py-3 pl-10 text-foreground text-lg font-bold placeholder:text-foreground-muted focus:outline-none focus:border-white/30 transition-all"
                         placeholder="100"
                         autoFocus
                       />
                     </div>
-                    <p className="text-[11px] text-zinc-600 mt-1.5">Minimum $10 Â· Maximum $100,000</p>
+                    <p className="text-[11px] text-foreground-muted mt-1.5">Minimum $10 · Maximum $100,000</p>
                   </div>
                   {/* Quick amounts */}
                   <div className="grid grid-cols-4 gap-2">
@@ -1286,7 +1326,7 @@ export default function BillingPage() {
                         className={`py-2 text-center text-sm font-medium rounded-lg border transition-all ${
                           depositAmount === amt
                             ? "bg-white text-zinc-900 border-white"
-                            : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-600"
+                            : "bg-surface border-border text-foreground-muted hover:border-border"
                         }`}>
                         ${amt}
                       </button>
@@ -1296,7 +1336,7 @@ export default function BillingPage() {
                     <Info className="w-3.5 h-3.5 text-blue-400 mt-0.5 shrink-0" />
                     <p className="text-xs text-blue-300">Stripe processing fees (2.9% + $0.30) will be shown on the next screen.</p>
                   </div>
-                  {depositError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
+                  {depositError && <p className="text-xs text-error-text flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
                   <button type="button" onClick={handleCalculateFees} disabled={!depositAmount || loadingFees}
                     className="w-full flex items-center justify-center gap-2 py-3 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-bold rounded-xl disabled:opacity-40 transition-all">
                     {loadingFees && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -1308,29 +1348,29 @@ export default function BillingPage() {
               {/* Step 2 -- Fee breakdown */}
               {depositStep === "fees" && fees && (
                 <>
-                  <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl space-y-3">
-                    <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Fee Breakdown</p>
+                  <div className="p-4 bg-surface border border-border rounded-xl space-y-3">
+                    <p className="text-[11px] font-bold text-foreground-muted uppercase tracking-widest">Fee Breakdown</p>
                     {fees.breakdown.map((line, i) => (
-                      <div key={i} className={`flex items-center justify-between ${line.is_total ? "pt-3 border-t border-zinc-700" : ""}`}>
-                        <span className={`text-sm ${line.is_total ? "text-white font-bold" : "text-zinc-400"}`}>{line.label}</span>
-                        <span className={`text-sm font-bold ${line.is_total ? "text-white text-base" : "text-zinc-300"}`}>
+                      <div key={i} className={`flex items-center justify-between ${line.is_total ? "pt-3 border-t border-border" : ""}`}>
+                        <span className={`text-sm ${line.is_total ? "text-foreground font-bold" : "text-foreground-muted"}`}>{line.label}</span>
+                        <span className={`text-sm font-bold ${line.is_total ? "text-foreground text-base" : "text-foreground-muted"}`}>
                           {line.is_total ? fmtCurrency(line.amount, fees.currency) : `$${line.amount.toFixed(2)}`}
                         </span>
                       </div>
                     ))}
                   </div>
-                  <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-2">
+                  <div className="p-3 bg-warning-text/5 border border-warning-border/20 rounded-xl space-y-2">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
-                      <p className="text-xs text-amber-300 font-semibold">{fees.non_refundable_notice}</p>
+                      <AlertCircle className="w-3.5 h-3.5 text-warning-text mt-0.5 shrink-0" />
+                      <p className="text-xs text-warning-text font-semibold">{fees.non_refundable_notice}</p>
                     </div>
                     <div className="flex items-start gap-2">
-                      <Clock className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
-                      <p className="text-xs text-amber-300">{fees.processing_notice}</p>
+                      <Clock className="w-3.5 h-3.5 text-warning-text mt-0.5 shrink-0" />
+                      <p className="text-xs text-warning-text">{fees.processing_notice}</p>
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    <button type="button" onClick={() => setDepositStep("amount")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Back</button>
+                    <button type="button" onClick={() => setDepositStep("amount")} className="flex-1 py-2.5 bg-surface-hover hover:bg-surface-hover text-foreground-muted text-sm font-semibold rounded-xl">Back</button>
                     <button type="button" onClick={() => setDepositStep("confirm")} className="flex-1 py-2.5 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-bold rounded-xl">Proceed</button>
                   </div>
                 </>
@@ -1339,31 +1379,31 @@ export default function BillingPage() {
               {/* Step 3 -- Confirm */}
               {depositStep === "confirm" && fees && (
                 <>
-                  <div className="p-5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-center">
-                    <p className="text-xs text-zinc-500 mb-1">Total charge to your card</p>
-                    <p className="text-4xl font-bold text-white">{fmtCurrency(fees.total_charge, fees.currency)}</p>
-                    <p className="text-sm text-emerald-400 mt-1">{fmtCurrency(fees.net_credits, fees.currency)} campaign credits</p>
+                  <div className="p-5 bg-success-text/5 border border-success-border/20 rounded-xl text-center">
+                    <p className="text-xs text-foreground-muted mb-1">Total charge to your card</p>
+                    <p className="text-4xl font-bold text-foreground">{fmtCurrency(fees.total_charge, fees.currency)}</p>
+                    <p className="text-sm text-success-text mt-1">{fmtCurrency(fees.net_credits, fees.currency)} campaign credits</p>
                   </div>
-                  <label className="flex items-start gap-3 p-4 bg-zinc-900 border border-zinc-800 rounded-xl cursor-pointer group"
+                  <label className="flex items-start gap-3 p-4 bg-surface border border-border rounded-xl cursor-pointer group"
                     onClick={() => setConfirmed(!confirmed)}>
-                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${confirmed ? "bg-white border-white" : "border-zinc-600 group-hover:border-zinc-400"}`}>
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${confirmed ? "bg-white border-white" : "border-border group-hover:border-zinc-400"}`}>
                       {confirmed && <CheckCircle2 className="w-3.5 h-3.5 text-zinc-900" />}
                     </div>
-                    <span className="text-xs text-zinc-400 leading-relaxed">
-                      I understand this deposit of <strong className="text-white">{fmtCurrency(fees.total_charge, fees.currency)}</strong> is{" "}
-                      <strong className="text-rose-400">non-refundable</strong> and can only be used for{" "}
-                      <strong className="text-white">campaign ad spend</strong> within ZoikoVertex.
+                    <span className="text-xs text-foreground-muted leading-relaxed">
+                      I understand this deposit of <strong className="text-foreground">{fmtCurrency(fees.total_charge, fees.currency)}</strong> is{" "}
+                      <strong className="text-error-text">non-refundable</strong> and can only be used for{" "}
+                      <strong className="text-foreground">campaign ad spend</strong> within ZoikoVertex.
                     </span>
                   </label>
-                  <div className="flex items-center gap-2 p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
-                    <Shield className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                    <p className="text-xs text-zinc-500">Redirects to Stripe&apos;s secure checkout. Credits appear as Processing for up to 48h, then Available.</p>
+                  <div className="flex items-center gap-2 p-3 bg-surface border border-border rounded-xl">
+                    <Shield className="w-3.5 h-3.5 text-foreground-muted shrink-0" />
+                    <p className="text-xs text-foreground-muted">Redirects to Stripe&apos;s secure checkout. Credits appear as Processing for up to 48h, then Available.</p>
                   </div>
-                  {depositError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
+                  {depositError && <p className="text-xs text-error-text flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
                   <div className="flex gap-3">
-                    <button type="button" onClick={() => setDepositStep("fees")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl">Back</button>
+                    <button type="button" onClick={() => setDepositStep("fees")} className="flex-1 py-2.5 bg-surface-hover hover:bg-surface-hover text-foreground-muted text-sm font-semibold rounded-xl">Back</button>
                     <button type="button" onClick={handleConfirmDeposit} disabled={!confirmed || depositing}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-bold rounded-xl transition-all">
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-success-text hover:bg-success-text disabled:opacity-40 text-foreground text-sm font-bold rounded-xl transition-all">
                       {depositing ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
                       {depositing ? "Redirecting..." : `Pay ${fmtCurrency(fees.total_charge, fees.currency)}`}
                     </button>
@@ -1384,26 +1424,26 @@ export default function BillingPage() {
             className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" 
             onClick={() => setShowUpgradeModal(false)} 
           />
-          <div className="relative z-10 w-full max-w-5xl bg-zinc-950 border-l border-zinc-800 h-full overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-300">
-            <div className="sticky top-0 z-20 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800 p-6 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-white">Change subscription plan</h2>
+          <div className="relative z-10 w-full max-w-5xl bg-card border-l border-border h-full overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-300">
+            <div className="sticky top-0 z-20 bg-card/80 backdrop-blur-md border-b border-border p-6 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-foreground">Change subscription plan</h2>
               <button
                 onClick={() => setShowUpgradeModal(false)}
-                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
+                className="p-2 text-foreground-muted hover:text-white hover:bg-surface-hover rounded-lg transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
             
             {subscribeError && (
-              <div className="mx-6 mt-4 p-3 rounded-lg text-sm font-medium text-center bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center gap-2">
+              <div className="mx-6 mt-4 p-3 rounded-lg text-sm font-medium text-center bg-error-text/10 border border-error-border/20 text-error-text flex items-center justify-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />{subscribeError}
               </div>
             )}
             {planMessage && (
               <div className={`mx-6 mt-4 p-3 rounded-lg text-sm font-medium text-center ${
                 planMessage.type === 'success'
-                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-                  : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+                  ? 'bg-success-text/10 border border-success-border/20 text-success-text'
+                  : 'bg-error-text/10 border border-error-border/20 text-error-text'
               }`}>
                 {planMessage.text}
               </div>
@@ -1415,28 +1455,28 @@ export default function BillingPage() {
                 const isActive = plan.id === activePlanId;
                 const isChanging = changingPlan === plan.id;
                 return (
-                  <div key={plan.id} className={`p-5 rounded-xl border flex flex-col ${isActive ? 'bg-zinc-900 border-zinc-600 ring-1 ring-white/10' : 'bg-zinc-900/50 border-zinc-800'}`}>
-                    <Icon className="w-6 h-6 text-zinc-300 mb-4" />
-                    <h3 className="text-lg font-semibold text-white">{plan.name}</h3>
-                    <p className="text-2xl font-bold text-white mt-2">
+                  <div key={plan.id} className={`p-5 rounded-xl border flex flex-col ${isActive ? 'bg-surface border-border ring-1 ring-border' : 'bg-card border-border'}`}>
+                    <Icon className="w-6 h-6 text-foreground-muted mb-4" />
+                    <h3 className="text-lg font-semibold text-foreground">{plan.name}</h3>
+                    <p className="text-2xl font-bold text-foreground mt-2">
                       {plan.price !== null && plan.price > 0 ? `$${plan.price}` : plan.price === 0 ? "Free" : "Custom"}
-                      <span className="text-sm font-normal text-zinc-500">
+                      <span className="text-sm font-normal text-foreground-muted">
                         {plan.price !== null && plan.price > 0 ? plan.period : ""}
                       </span>
                     </p>
-                    <p className="text-xs text-zinc-400 mt-3 min-h-[48px]">{plan.desc}</p>
+                    <p className="text-xs text-foreground-muted mt-3 min-h-[48px]">{plan.desc}</p>
 
                     <ul className="mt-6 mb-6 space-y-3 flex-1">
                       {plan.features.slice(0, 4).map((f, i) => (
-                        <li key={i} className="flex items-start gap-2 text-xs text-zinc-300">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-zinc-500 shrink-0 mt-0.5" />
+                        <li key={i} className="flex items-start gap-2 text-xs text-foreground-muted">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-foreground-muted shrink-0 mt-0.5" />
                           <span>{f}</span>
                         </li>
                       ))}
                     </ul>
 
                     {isActive ? (
-                      <button type="button" disabled className="w-full py-2.5 rounded-lg text-sm font-medium bg-zinc-800 text-zinc-500 cursor-not-allowed">
+                      <button type="button" disabled className="w-full py-2.5 rounded-lg text-sm font-medium bg-surface-hover text-foreground-muted cursor-not-allowed">
                         Current Plan
                       </button>
                     ) : plan.id === 'corporate' ? (
@@ -1456,10 +1496,10 @@ export default function BillingPage() {
                           {isChanging ? 'Switching...' : subscribing ? 'Processing...' : (activePlanId && PLANS.findIndex(p=>p.id===plan.id) < PLANS.findIndex(p=>p.id===activePlanId) ? 'Downgrade' : 'Upgrade')}
                         </button>
                         {plan.id !== 'starter' && cards.length === 0 && (
-                          <p className="text-[10px] text-amber-400 text-center">Add a card first to subscribe</p>
+                          <p className="text-[10px] text-warning-text text-center">Add a card first to subscribe</p>
                         )}
                         {plan.id !== 'starter' && cards.length > 0 && (
-                          <p className="text-[10px] text-zinc-600 text-center">Charged to your default card</p>
+                          <p className="text-[10px] text-foreground-muted text-center">Charged to your default card</p>
                         )}
                       </div>
                     )}

@@ -366,56 +366,56 @@ END OF GOVERNED PROMPT
 const STATUS_CONFIG = {
   PASS: {
     icon: CheckCircle2,
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/20",
-    badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
+    color: "text-success-text",
+    bg: "bg-success-bg",
+    border: "border-success-border",
+    badge: "bg-success-bg text-success-text border-success-border",
     label: "PASS",
   },
   WARN: {
     icon: AlertTriangle,
-    color: "text-amber-400",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/20",
-    badge: "bg-amber-500/15 text-amber-400 border-amber-500/25",
+    color: "text-warning-text",
+    bg: "bg-warning-bg",
+    border: "border-warning-border",
+    badge: "bg-warning-bg text-warning-text border-warning-border/25",
     label: "WARN",
   },
   FAIL: {
     icon: XCircle,
-    color: "text-rose-400",
-    bg: "bg-rose-500/10",
-    border: "border-rose-500/20",
-    badge: "bg-rose-500/15 text-rose-400 border-rose-500/25",
+    color: "text-error-text",
+    bg: "bg-error-bg",
+    border: "border-error-border",
+    badge: "bg-error-bg text-error-text border-error-border/25",
     label: "FAIL",
   },
 };
 
 const VERDICT_CONFIG = {
   APPROVED: {
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/25",
+    color: "text-success-text",
+    bg: "bg-success-bg",
+    border: "border-success-border",
     icon: ShieldCheck,
   },
   "CONDITIONALLY APPROVED": {
-    color: "text-amber-400",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/25",
+    color: "text-warning-text",
+    bg: "bg-warning-bg",
+    border: "border-warning-border/25",
     icon: ShieldAlert,
   },
   BLOCKED: {
-    color: "text-rose-400",
-    bg: "bg-rose-500/10",
-    border: "border-rose-500/25",
+    color: "text-error-text",
+    bg: "bg-error-bg",
+    border: "border-error-border/25",
     icon: ShieldX,
   },
 };
 
 const TIER_CONFIG: Record<RiskTier, { color: string; bg: string; border: string }> = {
-  "Tier 1 Low": { color: "text-sky-400", bg: "bg-sky-500/10", border: "border-sky-500/25" },
-  "Tier 2 Medium": { color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/25" },
-  "Tier 3 High": { color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/25" },
-  "Tier 4 Critical": { color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/25" },
+  "Tier 1 Low": { color: "text-info-text", bg: "bg-info-bg", border: "border-info-border" },
+  "Tier 2 Medium": { color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border/25" },
+  "Tier 3 High": { color: "text-warning-text", bg: "bg-warning-bg", border: "border-orange-500/25" },
+  "Tier 4 Critical": { color: "text-error-text", bg: "bg-error-bg", border: "border-error-border/25" },
 };
 
 // ─── Score Ring ───────────────────────────────────────────────────────────────
@@ -486,8 +486,8 @@ export default function PromptAuditorPage() {
 
       {/* Header */}
       <div className="flex items-start gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
-          <ShieldCheck className="w-6 h-6 text-violet-400" />
+        <div className="w-12 h-12 rounded-2xl bg-info-bg border border-info-border flex items-center justify-center shrink-0">
+          <ShieldCheck className="w-6 h-6 text-info-text" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-[var(--foreground)] tracking-tight">
@@ -502,7 +502,7 @@ export default function PromptAuditorPage() {
       {/* Input Section */}
       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 space-y-5">
         <div className="flex items-center gap-2 mb-1">
-          <Zap className="w-4 h-4 text-violet-400" />
+          <Zap className="w-4 h-4 text-info-text" />
           <span className="text-sm font-semibold text-[var(--foreground)]">Audit Configuration</span>
         </div>
 
@@ -515,7 +515,7 @@ export default function PromptAuditorPage() {
             <select
               value={riskTier}
               onChange={(e) => setRiskTier(e.target.value as RiskTier)}
-              className="w-full appearance-none bg-[var(--background)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 cursor-pointer transition-colors pr-10"
+              className="w-full appearance-none bg-[var(--background)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border focus:ring-1 focus:ring-info-border cursor-pointer transition-colors pr-10"
             >
               <option value="Tier 1 Low">Tier 1 — Low Risk</option>
               <option value="Tier 2 Medium">Tier 2 — Medium Risk</option>
@@ -536,7 +536,7 @@ export default function PromptAuditorPage() {
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Paste the prompt you want to audit here..."
             rows={10}
-            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 resize-none font-mono transition-colors leading-relaxed"
+            className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl px-4 py-3 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border focus:ring-1 focus:ring-info-border resize-none font-mono transition-colors leading-relaxed"
           />
           <div className="flex justify-between items-center text-xs text-[var(--foreground-muted)]">
             <span>{prompt.length} characters</span>
@@ -549,7 +549,7 @@ export default function PromptAuditorPage() {
           <button
             onClick={handleAudit}
             disabled={!prompt.trim() || isRunning}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-info-text text-foreground text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isRunning ? (
               <>
@@ -582,7 +582,7 @@ export default function PromptAuditorPage() {
           {/* ── SECTION 1: Score Summary ─────────────────────────────────────── */}
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-6">
-              <div className="w-1.5 h-5 rounded-full bg-violet-500" />
+              <div className="w-1.5 h-5 rounded-full bg-info-text" />
               <h2 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-widest">
                 Section 1 — Score Summary
               </h2>
@@ -620,15 +620,15 @@ export default function PromptAuditorPage() {
                 {/* Pass/Warn/Fail */}
                 <div className="p-3 rounded-xl border border-[var(--border)] bg-[var(--background)] grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <div className="text-lg font-bold text-emerald-400">{report.passCount}</div>
+                    <div className="text-lg font-bold text-success-text">{report.passCount}</div>
                     <div className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider">Pass</div>
                   </div>
                   <div>
-                    <div className="text-lg font-bold text-amber-400">{report.warnCount}</div>
+                    <div className="text-lg font-bold text-warning-text">{report.warnCount}</div>
                     <div className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider">Warn</div>
                   </div>
                   <div>
-                    <div className="text-lg font-bold text-rose-400">{report.failCount}</div>
+                    <div className="text-lg font-bold text-error-text">{report.failCount}</div>
                     <div className="text-[10px] text-[var(--foreground-muted)] uppercase tracking-wider">Fail</div>
                   </div>
                 </div>
@@ -639,7 +639,7 @@ export default function PromptAuditorPage() {
           {/* ── SECTION 2: Model Findings ─────────────────────────────────────── */}
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
             <div className="flex items-center gap-2 p-6 pb-4 border-b border-[var(--border)]">
-              <div className="w-1.5 h-5 rounded-full bg-violet-500" />
+              <div className="w-1.5 h-5 rounded-full bg-info-text" />
               <h2 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-widest">
                 Section 2 — Model Findings
               </h2>
@@ -694,12 +694,12 @@ export default function PromptAuditorPage() {
                           </div>
                           {model.fix && (
                             <div>
-                              <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">Fix Required</span>
+                              <span className="text-xs font-bold text-warning-text uppercase tracking-widest">Fix Required</span>
                               <p className="text-sm text-[var(--foreground-muted)] mt-1 leading-relaxed">{model.fix}</p>
                             </div>
                           )}
                           {!model.fix && (
-                            <div className="flex items-center gap-2 text-sm text-emerald-400">
+                            <div className="flex items-center gap-2 text-sm text-success-text">
                               <CheckCircle2 className="w-4 h-4" />
                               No fix required
                             </div>
@@ -716,7 +716,7 @@ export default function PromptAuditorPage() {
           {/* ── SECTION 3: Executive Summary ──────────────────────────────────── */}
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-1.5 h-5 rounded-full bg-violet-500" />
+              <div className="w-1.5 h-5 rounded-full bg-info-text" />
               <h2 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-widest">
                 Section 3 — Executive Summary
               </h2>
@@ -728,10 +728,10 @@ export default function PromptAuditorPage() {
 
           {/* ── SECTION 4: Rebuilt Prompt ──────────────────────────────────────── */}
           {report.rebuiltPrompt && (
-            <div className="bg-[var(--surface)] border border-rose-500/20 rounded-2xl overflow-hidden">
+            <div className="bg-[var(--surface)] border border-error-border rounded-2xl overflow-hidden">
               <div className="flex items-center justify-between p-6 pb-4 border-b border-[var(--border)]">
                 <div className="flex items-center gap-3">
-                  <div className="w-1.5 h-5 rounded-full bg-rose-500" />
+                  <div className="w-1.5 h-5 rounded-full bg-error-text" />
                   <div>
                     <h2 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-widest">
                       Section 4 — Rebuilt Prompt
@@ -743,20 +743,20 @@ export default function PromptAuditorPage() {
                 </div>
                 <button
                   onClick={handleCopyRebuilt}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)] text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-violet-500/40 transition-all duration-200 shrink-0"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--background)] border border-[var(--border)] text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:border-info-border transition-all duration-200 shrink-0"
                 >
                   {copiedRebuilt ? (
-                    <><Check className="w-4 h-4 text-emerald-400" /> Copied!</>
+                    <><Check className="w-4 h-4 text-success-text" /> Copied!</>
                   ) : (
                     <><Copy className="w-4 h-4" /> Copy Prompt</>
                   )}
                 </button>
               </div>
               <div className="p-6">
-                <div className="flex items-start gap-2 mb-4 p-3 rounded-xl bg-rose-500/5 border border-rose-500/15">
-                  <Lock className="w-4 h-4 text-rose-400 mt-0.5 shrink-0" />
-                  <p className="text-xs text-rose-300/80 leading-relaxed">
-                    Replace all <code className="bg-rose-500/10 px-1 rounded text-rose-400">[BRACKETED PLACEHOLDERS]</code> with your actual values before deploying this prompt to production.
+                <div className="flex items-start gap-2 mb-4 p-3 rounded-xl bg-error-bg border border-error-border">
+                  <Lock className="w-4 h-4 text-error-text mt-0.5 shrink-0" />
+                  <p className="text-xs text-error-text/80 leading-relaxed">
+                    Replace all <code className="bg-error-bg px-1 rounded text-error-text">[BRACKETED PLACEHOLDERS]</code> with your actual values before deploying this prompt to production.
                   </p>
                 </div>
                 <pre className="text-xs text-[var(--foreground-muted)] font-mono leading-relaxed whitespace-pre-wrap bg-[var(--background)] border border-[var(--border)] rounded-xl p-5 overflow-x-auto max-h-[480px] overflow-y-auto">
@@ -768,10 +768,10 @@ export default function PromptAuditorPage() {
 
           {/* Score OK — no rebuild needed */}
           {!report.rebuiltPrompt && (
-            <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-success-bg border border-success-border">
+              <CheckCircle2 className="w-5 h-5 text-success-text shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-emerald-400">No Rebuild Required</p>
+                <p className="text-sm font-semibold text-success-text">No Rebuild Required</p>
                 <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
                   This prompt scored {report.overallScore}/100 with no FAIL conditions — it is approved for deployment at {report.riskTier}.
                 </p>
@@ -784,8 +784,8 @@ export default function PromptAuditorPage() {
       {/* Empty State */}
       {!report && !isRunning && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-4">
-            <ShieldCheck className="w-8 h-8 text-violet-400" />
+          <div className="w-16 h-16 rounded-2xl bg-info-bg border border-info-border flex items-center justify-center mb-4">
+            <ShieldCheck className="w-8 h-8 text-info-text" />
           </div>
           <h3 className="text-base font-semibold text-[var(--foreground)] mb-2">Ready to Audit</h3>
           <p className="text-sm text-[var(--foreground-muted)] max-w-sm leading-relaxed">

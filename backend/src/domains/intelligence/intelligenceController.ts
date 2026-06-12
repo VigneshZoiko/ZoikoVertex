@@ -69,7 +69,7 @@ export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFu
           logger.warn(`[Intelligence] ${modelId} unavailable, trying next model`);
         }
       }
-      throw new Error('All Groq vision models unavailable');
+      return '';
     };
 
     // Phase 4.E — prefer the governed 'vision_image_summary' prompt; on governance
@@ -89,13 +89,30 @@ export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFu
       await GovernedModelGate.legacyInlineFallback('vision_image_summary', req.user?.workspace_id as string | undefined, `governed prompt unavailable: ${governedVision.code}`);
       analysis = await callVision(INLINE_VISION_PROMPT);
     }
-    if (!analysis) throw new Error('Vision analysis returned empty');
+    if (!analysis) {
+      return res.status(200).json({ success: false, error: 'Vision analysis is currently unavailable. The image AI service is not responding.' });
+    }
     await logToDatabase('info', 'AI', `Vision analysis completed for user ${userId}`, { userId, agent_id: 'agent-content-gen-v1', agent_contract_version: 'v1' });
 
     const analyzeWorkspaceId = req.user?.workspace_id as string | undefined;
     if (analyzeWorkspaceId) {
       const qty = analyzeImageTokens > 0 ? analyzeImageTokens : 512;
       trackUsage({ workspaceId: analyzeWorkspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'image_analysis', metadata: { model: 'groq-vision', estimated: analyzeImageTokens === 0 } });
+    }
+
+    // Tier-0 Safety Layer: evaluate analysis output against active policies
+    if (analyzeWorkspaceId) {
+      const safetyCheck = await evaluatePayloadAgainstPolicies({ analysis }, analyzeWorkspaceId);
+      if (['block', 'quarantine', 'hold_for_review'].includes(safetyCheck.outcome)) {
+        logger.warn({ outcome: safetyCheck.outcome, rule: safetyCheck.rule_id }, '[Safety Layer] Image analysis output blocked by active policy.');
+        return res.status(403).json({
+          success: false,
+          error: 'Safety Layer Interception: Analysis output violated active policies.',
+          reason: safetyCheck.reason,
+          outcome: safetyCheck.outcome,
+          rule_id: safetyCheck.rule_id,
+        });
+      }
     }
 
     res.status(200).json({ success: true, analysis });
@@ -180,7 +197,7 @@ export const generateContent = async (req: AuthRequest, res: Response, next: Nex
 
     if (!env.GROQ_API_KEY) {
       logger.error('[Intelligence] GROQ_API_KEY missing');
-      return fallbackMock(topic, contentType, tone, length, res);
+      return res.status(503).json({ success: false, error: 'AI service unavailable — GROQ_API_KEY not configured' });
     }
 
     const groq = new OpenAI({
@@ -345,7 +362,7 @@ ${blocks.join('\n\n')}
 
     // ─── Tier-0 Safety Layer: Guardrail Interception ────────────────────────
     const workspaceId = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
-    const safetyCheck = evaluatePayloadAgainstPolicies(parsed, workspaceId);
+    const safetyCheck = await evaluatePayloadAgainstPolicies(parsed, workspaceId);
 
     if (['block', 'quarantine', 'hold_for_review'].includes(safetyCheck.outcome)) {
       logger.warn({ outcome: safetyCheck.outcome, rule: safetyCheck.rule_id }, '[Safety Layer] Payload intercepted and blocked by active policy.');
@@ -413,14 +430,46 @@ const formatTimes = (hours: SuggestedHour[]) => {
   }));
 };
 
-const fallbackMock = (topic: string, contentType: string, tone: string, length: string, res: Response) => {
-  logger.warn('[Intelligence] Fallback mock used');
-  const tonePrefix = "Update on";
-  const baseDescription = `${tonePrefix} ${topic}. ${contentType} is evolving fast.`;
 
-  res.status(200).json({
-    success: true,
-    description: baseDescription,
-    suggestedTimes: []
-  });
+export const generateAdCopy = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { prompt, lengthInstructions } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    if (!env.GROQ_API_KEY) {
+      return res.status(500).json({ success: false, error: 'GROQ_API_KEY is not configured.' });
+    }
+
+    const groq = new OpenAI({
+      apiKey: env.GROQ_API_KEY,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+
+    const systemPrompt = `You are a World-Class Copywriter for marketing campaigns.
+The user will provide a product idea or description.
+Your goal is to generate compelling, high-converting ad copy for this product.
+${lengthInstructions ? `IMPORTANT: Follow these length instructions strictly: ${lengthInstructions}` : ''}
+Do not include conversational filler like "Here is your copy". Just output the copy directly.`;
+
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7,
+    });
+
+    const copy = completion.choices[0]?.message?.content || "";
+
+    res.status(200).json({
+      success: true,
+      copy
+    });
+  } catch (error) {
+    logger.error({ error }, '[Intelligence] generateAdCopy failed');
+    next(error);
+  }
 };

@@ -3,6 +3,7 @@ import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { PromptService } from './PromptService';
+import { PostGovernanceService } from './PostGovernanceService';
 import { PromptVersionService } from './PromptVersionService';
 import { PromptTestService } from './PromptTestService';
 import { PromptApprovalService } from './PromptApprovalService';
@@ -1100,6 +1101,27 @@ export class PromptController {
 
       await auditPromptEvent('prompt.retired', { prompt_id: promptId, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || '', before_state: { status: prompt.status }, after_state: { status: PROMPT_STATUS.RETIRED } }, req, { critical: true });
       const data = await PromptService.updateStatus(promptId, 'RETIRED', workspaceId);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Bring a retired/archived prompt back into the working set. Governance does not
+  // allow a direct jump to production (that would bypass approvals), so the prompt
+  // is reactivated as a DRAFT and must re-enter the lifecycle. DB DELETE is blocked
+  // by design (prompts immutability trigger); RETIRED/ARCHIVED is the terminal
+  // hidden state and reactivation is its reversible counterpart.
+  static async reactivatePrompt(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      const prompt = await PromptService.requireById(getParam(req, 'id'), workspaceId);
+      if (![PROMPT_STATUS.RETIRED, PROMPT_STATUS.ARCHIVED].includes(prompt.status)) {
+        return res.status(409).json({ error: 'Only retired or archived prompts can be reactivated.' });
+      }
+      const promptId = getParam(req, 'id');
+      await auditPromptEvent('prompt.reactivated', { prompt_id: promptId, workspace_id: workspaceId, actor_id: req.user?.id, risk_tier: prompt.risk_tier, reason: req.body.reason || 'Reactivated to draft', before_state: { status: prompt.status }, after_state: { status: PROMPT_STATUS.DRAFT } }, req, { critical: true });
+      const data = await PromptService.updateStatus(promptId, 'DRAFT', workspaceId);
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -3685,6 +3707,30 @@ export class PromptController {
           audit_events: { count: audit.length, recent: audit.slice(-10).map((e) => ({ event_type: e.event_type, created_at: e.created_at })) },
         },
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Test Center — Classify post description through the governance pipeline ──
+  static async classifyTestDescription(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { description, platform } = req.body || {};
+      if (!description || !description.trim()) {
+        return res.status(400).json({ success: false, error: 'description is required' });
+      }
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      if (!workspaceId) {
+        return res.status(400).json({ success: false, error: 'Workspace context required' });
+      }
+
+      const result = await PostGovernanceService.classify(
+        description.trim(),
+        platform || 'linkedin',
+        workspaceId,
+      );
+
+      res.json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

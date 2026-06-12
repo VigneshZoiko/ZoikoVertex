@@ -444,14 +444,14 @@ function FormatChip({
       className={[
         'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all relative',
         isBlocked
-          ? 'opacity-35 cursor-not-allowed border-zinc-700/50 bg-zinc-800/30 text-zinc-600 line-through'
+          ? 'opacity-35 cursor-not-allowed border-border/50 bg-surface-hover text-foreground-muted line-through'
           : selected
           ? isWarning
-            ? 'bg-amber-500/15 border-amber-500/60 text-amber-300'
-            : 'bg-indigo-600 border-indigo-500 text-white'
+            ? 'bg-warning-text/15 border-warning-border/60 text-warning-text'
+            : 'bg-info-text border-info-border text-foreground'
           : isWarning
-          ? 'bg-amber-500/5 border-amber-500/30 text-amber-400 hover:bg-amber-500/15'
-          : 'bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-indigo-500/40 hover:text-[var(--foreground)]',
+          ? 'bg-warning-text/5 border-warning-border/30 text-warning-text hover:bg-warning-text/15'
+          : 'bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-info-border/40 hover:text-[var(--foreground)]',
       ].join(' ')}
     >
       <FmtIcon icon={def.icon} className="w-3 h-3" />
@@ -548,16 +548,16 @@ function PlatformDropdown({
         className={[
           'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left',
           allBlocked
-            ? 'border-rose-500/20 opacity-40 cursor-not-allowed bg-[var(--surface)]'
+            ? 'border-error-border/20 opacity-40 cursor-not-allowed bg-[var(--surface)]'
             : open
-            ? 'border-indigo-500/40 bg-[var(--surface)]'
+            ? 'border-info-border/40 bg-[var(--surface)]'
             : selectedInPlatform.length > 0
-            ? 'border-indigo-500/30 bg-indigo-500/5 hover:border-indigo-500/50'
+            ? 'border-info-border/30 bg-info-text/5 hover:border-info-border/50'
             : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--card-border)]',
         ].join(' ')}
       >
         {/* Platform icon */}
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0" style={{ backgroundColor: meta.color }}>
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center text-foreground shrink-0" style={{ backgroundColor: meta.color }}>
           <Icon className="w-3.5 h-3.5" />
         </div>
 
@@ -574,7 +574,7 @@ function PlatformDropdown({
                 className={[
                   'text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide border',
                   a?.status === 'warning'
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    ? 'bg-warning-text/10 border-warning-border/30 text-warning-text'
                     : 'bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)]',
                 ].join(' ')}
               >
@@ -584,18 +584,18 @@ function PlatformDropdown({
           })}
 
           {hasAnyWarning && !allBlocked && (
-            <span className="text-[10px] text-amber-400 flex items-center gap-0.5">
+            <span className="text-[10px] text-warning-text flex items-center gap-0.5">
               <AlertTriangle className="w-3 h-3" /> Limited
             </span>
           )}
           {allBlocked && (
-            <span className="text-[10px] text-rose-400 font-semibold">Unsupported media</span>
+            <span className="text-[10px] text-error-text font-semibold">Unsupported media</span>
           )}
 
           {selectedInPlatform.map(acc => (
             <span
               key={acc.id}
-              className="flex items-center gap-1 px-2 py-0.5 bg-indigo-500/15 border border-indigo-500/30 rounded-full text-[10px] font-semibold text-indigo-400 max-w-[120px]"
+              className="flex items-center gap-1 px-2 py-0.5 bg-info-text/15 border border-info-border/30 rounded-full text-[10px] font-semibold text-info-text max-w-[120px]"
             >
               {acc.avatar_url && (
                 <span className="w-3 h-3 rounded-full overflow-hidden inline-block shrink-0 relative">
@@ -631,9 +631,9 @@ function PlatformDropdown({
 
           {/* Warning banner */}
           {firstWarningReason && (
-            <div className="px-3 py-2 bg-amber-500/8 border-b border-amber-500/20 flex items-start gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
-              <p className="text-[10px] text-amber-300 leading-relaxed">{firstWarningReason}</p>
+            <div className="px-3 py-2 bg-warning-text/8 border-b border-warning-border/20 flex items-start gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-warning-text mt-0.5 shrink-0" />
+              <p className="text-[10px] text-warning-text leading-relaxed">{firstWarningReason}</p>
             </div>
           )}
 
@@ -641,7 +641,7 @@ function PlatformDropdown({
           {fmtDefs.length > 1 && onFormatsChange && (
             <div className="px-3 py-3 border-b border-[var(--border)] bg-[var(--surface)]/50">
               <div className="flex items-center gap-1.5 mb-2.5">
-                <Zap className="w-3 h-3 text-amber-400" />
+                <Zap className="w-3 h-3 text-warning-text" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)]">
                   Format — Select all that apply
                 </p>
@@ -660,7 +660,7 @@ function PlatformDropdown({
               </div>
               {/* Caption note for story-only selections */}
               {effectiveFormats.every(fmt => fmtDefs.find(d => d.value === fmt)?.noCaption) && (
-                <p className="text-[9px] text-amber-400/80 mt-2 italic flex items-center gap-1">
+                <p className="text-[9px] text-warning-text/80 mt-2 italic flex items-center gap-1">
                   <AlertTriangle className="w-2.5 h-2.5" />
                   All selected formats ignore captions — your description won&apos;t be shown
                 </p>
@@ -682,7 +682,7 @@ function PlatformDropdown({
                   <FmtIcon icon={def.icon} className="w-3 h-3 text-[var(--foreground-muted)]" />
                   <span className="text-[10px] text-[var(--foreground-muted)]">{def.hint}</span>
                   {status === 'warning' && reason && (
-                    <span className="text-[9px] text-amber-400 flex items-center gap-0.5">
+                    <span className="text-[9px] text-warning-text flex items-center gap-0.5">
                       <AlertTriangle className="w-2.5 h-2.5" />{reason}
                     </span>
                   )}
@@ -701,7 +701,7 @@ function PlatformDropdown({
                     key={account.id}
                     type="button"
                     onClick={() => onToggleAccount(account.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[var(--surface)] transition-colors text-left ${isSelected ? 'bg-indigo-500/8' : ''}`}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[var(--surface)] transition-colors text-left ${isSelected ? 'bg-info-text/8' : ''}`}
                   >
                     <div className="w-7 h-7 rounded-full overflow-hidden border border-[var(--border)] shrink-0 relative bg-[var(--surface)] flex items-center justify-center">
                       {account.avatar_url
@@ -715,8 +715,8 @@ function PlatformDropdown({
                         <p className="text-[10px] text-[var(--foreground-muted)] truncate">@{account.account_handle.replace(/^@/, '')}</p>
                       )}
                     </div>
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-[var(--border)]'}`}>
-                      {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all ${isSelected ? 'bg-info-text border-info-border' : 'border-[var(--border)]'}`}>
+                      {isSelected && <CheckCircle2 className="w-3 h-3 text-foreground" />}
                     </div>
                   </button>
                 );
@@ -725,7 +725,7 @@ function PlatformDropdown({
           ) : (
             <div className="px-3 py-4 text-center">
               <p className="text-xs text-[var(--foreground-muted)] mb-2">No {meta.label} accounts connected.</p>
-              <a href="/accounts" className="inline-flex items-center gap-1 text-xs text-indigo-400 font-semibold hover:underline">
+              <a href="/accounts" className="inline-flex items-center gap-1 text-xs text-info-text font-semibold hover:underline">
                 <Plus className="w-3 h-3" /> Connect account
               </a>
             </div>
@@ -755,7 +755,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2">
-          <Globe className="w-4 h-4 text-indigo-400" />
+          <Globe className="w-4 h-4 text-info-text" />
           Post To
         </h2>
         <div className="flex items-center gap-3">
@@ -763,7 +763,7 @@ const PlatformSelector: React.FC<PlatformSelectorProps> = ({
             {selectedAccountIds.length} selected
           </span>
           {userRole?.toUpperCase() !== 'CREATOR' && (
-            <a href="/accounts" className="text-[10px] text-indigo-400 font-bold uppercase hover:underline">
+            <a href="/accounts" className="text-[10px] text-info-text font-bold uppercase hover:underline">
               Manage
             </a>
           )}

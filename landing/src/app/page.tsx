@@ -1,5 +1,4 @@
 import {
-  Navbar,
   Hero,
   TrustedBy,
   Stats,
@@ -22,16 +21,15 @@ import {
 export default function LandingPage() {
   return (
     <main className="min-h-screen">
-      <Navbar />
-      <Hero />        {/* dark  #152238 */}
-      <TrustedBy />   {/* dark  #0f1b2e */}
-      <Stats />       {/* light #F5F7FA */}
-      <FeatureBlock />{/* light #FFFFFF */}
-      <Pricing />     {/* dark  #080E1A */}
-      <Architecture />{/* light #FFFFFF */}
-      <PainPoints />  {/* dark  #080E1A */}
-      <AgentsGrid />  {/* light #FFFFFF */}
-      <Accountability />{/* dark  #152238 */}
+      <Hero />           {/* dark  #080812 */}
+      <TrustedBy />      {/* dark  #0f1b2e */}
+      <Stats />          {/* light #F5F7FA */}
+      <Pricing />        {/* dark  #080E1A */}
+      <FeatureBlock />   {/* light #FFFFFF */}
+      <Architecture />   {/* light #FFFFFF */}
+      <PainPoints />     {/* dark  #080812 */}
+      <AgentsGrid />     {/* light #FFFFFF */}
+      <Accountability /> {/* dark  #152238 */}
       <EnterpriseBanner />{/* dark  #0f1b2e */}
       <EnterpriseFeatures />
       <Industries />  {/* light #F5F7FA */}

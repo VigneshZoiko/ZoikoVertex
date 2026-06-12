@@ -802,6 +802,17 @@ export const api = {
     return this.delete(`/api/v1/knowledge/sources/${id}`);
   },
 
+  // AI-assisted governance category check (Groq primary, Gemini optional fallback).
+  async classifySourceGovernance(id: string) {
+    return this.post(`/api/v1/knowledge/sources/${id}/classify-governance`, {});
+  },
+
+  // Admin / workspace owner resolves a governance-category check.
+  // decision: 'accept' | 'keep' | 'review'
+  async decideSourceGovernance(id: string, body: { decision: "accept" | "keep" | "review"; reason?: string }) {
+    return this.post(`/api/v1/knowledge/sources/${id}/governance-decision`, body);
+  },
+
   async listKnowledgeReviews(sourceId: string) {
     return this.get(`/api/v1/knowledge/reviews?source_id=${encodeURIComponent(sourceId)}`);
   },

@@ -20,7 +20,7 @@
 //     so no DB schema change is required.
 // ============================================================
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import ConfirmActionModal from "@/components/ConfirmActionModal";
 import { useRoleContext } from "@/lib/context/RoleContext";
 import { supabase, isSupabaseReady } from "@/lib/supabase";
@@ -47,6 +47,7 @@ import {
   History,
   Layers,
   AlertTriangle,
+  Sparkles,
   Inbox,
   RefreshCw,
   Upload,
@@ -81,6 +82,7 @@ interface SourceMetadata {
   keywords?: string[];
   match_action?: MatchAction;
   citation_reference?: string;
+  governance_category?: string;
   [k: string]: unknown;
 }
 
@@ -135,6 +137,18 @@ const SOURCE_TYPES = [
   "URL",
 ];
 
+// Governance categories — align a source with the runtime governance path it
+// supports (mirrors the 5 governed prompts / Test Center possibilities).
+// Changing this on an approved source forces admin / workspace-owner re-approval.
+const GOVERNANCE_CATEGORIES: { id: string; label: string }[] = [
+  { id: "BASIC_CONTENT", label: "Basic Content" },
+  { id: "CLAIM_VALIDATION", label: "Claim Validation" },
+  { id: "KNOWLEDGE_VERIFICATION", label: "Knowledge Verification" },
+  { id: "HIGH_RISK_REVIEW", label: "High-Risk Review" },
+  { id: "POLICY_SAFETY", label: "Policy / Safety" },
+];
+const GOV_CATEGORY_LABEL: Record<string, string> = Object.fromEntries(GOVERNANCE_CATEGORIES.map((c) => [c.id, c.label]));
+
 // ─────────────────────────────────────────────────────────────
 // Status helpers
 // ─────────────────────────────────────────────────────────────
@@ -157,6 +171,14 @@ const getAuthorEmail = (s?: KBSource): string => {
   return "";
 };
 const getCitation = (s?: KBSource): string => (meta(s).citation_reference as string) || "";
+const getGovernanceCategory = (s?: KBSource): string => (meta(s).governance_category as string) || "";
+// AI-assisted governance classification (stored in metadata — no new columns).
+const getAiCategory = (s?: KBSource): string => (meta(s).ai_suggested_governance_category as string) || "";
+const getAiConfidence = (s?: KBSource): number => Number(meta(s).ai_category_confidence) || 0;
+const getAiReason = (s?: KBSource): string => (meta(s).ai_category_reason as string) || "";
+const getAiMatchAction = (s?: KBSource): string => (meta(s).ai_suggested_match_action as string) || "";
+const getCategoryReviewStatus = (s?: KBSource): string => (meta(s).category_review_status as string) || "";
+const isCategoryUnresolved = (s?: KBSource): boolean => ["mismatch", "review_required"].includes(getCategoryReviewStatus(s));
 
 // Current owner (updated on an approved ownership transfer; defaults to creator).
 const getOwnerName = (s?: KBSource): string => (meta(s).owner_username as string) || getAuthor(s);
@@ -183,6 +205,13 @@ function StatusBadge({ source }: { source?: KBSource }) {
   if (isActiveLive(source)) return <Chip cls="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" icon={<CheckCircle2 className="w-3 h-3" />} label="Active" />;
   if (isApproved(source)) return <Chip cls="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" icon={<ShieldCheck className="w-3 h-3" />} label="Approved" />;
   return <Chip cls="bg-zinc-500/10 text-zinc-400 border-zinc-500/20" icon={null} label={source?.status || "Draft"} />;
+}
+
+// Governance category shown beside the status. Indigo = governance metadata.
+function GovCategoryChip({ source }: { source?: KBSource }) {
+  const cat = getGovernanceCategory(source);
+  if (!cat) return null;
+  return <Chip cls="bg-indigo-500/10 text-indigo-300 border-indigo-500/20" icon={<ShieldCheck className="w-3 h-3" />} label={GOV_CATEGORY_LABEL[cat] || cat} />;
 }
 
 function Chip({ cls, icon, label }: { cls: string; icon: React.ReactNode; label: string }) {
@@ -367,14 +396,14 @@ export default function KnowledgeBasePage() {
   // Create as DRAFT only — no governance choice at creation. Opens it as a file.
   // Optional upload: JSON / TXT are read in the browser so their content opens
   // straight in the editor; PDF / Word are uploaded for the backend to extract.
-  const createDraftSource = async (title: string, sourceType: string, file?: File | null, fileText?: string | null) => {
+  const createDraftSource = async (title: string, sourceType: string, file?: File | null, fileText?: string | null, governanceCategory?: string) => {
     if (!selectedCollectionId) return;
     setBusy("source");
     try {
       const fd = new FormData();
       fd.append("title", title);
       fd.append("source_type", sourceType);
-      fd.append("metadata", JSON.stringify({ author: fullName || myEmail || "", author_email: myEmail, keywords: [] }));
+      fd.append("metadata", JSON.stringify({ author: fullName || myEmail || "", author_email: myEmail, keywords: [], ...(governanceCategory ? { governance_category: governanceCategory } : {}) }));
 
       let attached = "no file";
       if (fileText != null && fileText.length > 0) {
@@ -434,6 +463,95 @@ export default function KnowledgeBasePage() {
     },
     [refreshAll, flash],
   );
+
+  // Governance category change. If the source is already approved/active, the
+  // change invalidates that approval — status drops to REVIEW_REQUIRED so the
+  // admin / workspace owner must re-approve it (same gate as initial approval).
+  const changeGovernanceCategory = useCallback(
+    async (s: KBSource, category: string) => {
+      if (category === getGovernanceCategory(s)) return;
+      setBusy(s.id);
+      try {
+        const needsReapproval = isApproved(s); // APPROVED or ACTIVE
+        const top: Record<string, unknown> = { metadata: { ...meta(s), governance_category: category } };
+        if (needsReapproval) top.status = "REVIEW_REQUIRED";
+        const r = await api.updateKnowledgeSource(s.id, top);
+        if (!r?.success) throw new Error("save failed");
+        await refreshAll();
+        flash(
+          "ok",
+          needsReapproval
+            ? `Governance category changed — "${s.title}" needs admin / workspace-owner re-approval.`
+            : `Governance category updated for "${s.title}".`,
+        );
+      } catch {
+        flash("err", "Could not update the governance category.");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [refreshAll, flash],
+  );
+
+  // ── AI-assisted governance classification ──────────────────
+  // Groq primary / Gemini optional fallback (backend). Result is stored in the
+  // source metadata and surfaced as a reminder in the source header.
+  const [classifying, setClassifying] = useState(false);
+  const autoClassified = useRef<Set<string>>(new Set());
+
+  const classifyGovernance = useCallback(
+    async (s: KBSource, opts?: { silent?: boolean }) => {
+      setClassifying(true);
+      try {
+        const r = await api.classifySourceGovernance(s.id);
+        if (r?.success) {
+          await refreshAll();
+          if (!opts?.silent) {
+            flash("ok", r.classified === false ? "AI check unavailable (no classifier configured)." : "AI governance check complete.");
+          }
+        } else if (!opts?.silent) {
+          flash("err", "AI governance check failed.");
+        }
+      } catch {
+        if (!opts?.silent) flash("err", "AI governance check failed.");
+      } finally {
+        setClassifying(false);
+      }
+    },
+    [refreshAll, flash],
+  );
+
+  // Admin / workspace owner resolves the category check: accept / keep / review.
+  const decideGovernance = useCallback(
+    async (s: KBSource, decision: "accept" | "keep" | "review", reason?: string) => {
+      setBusy(s.id);
+      try {
+        const r = await api.decideSourceGovernance(s.id, { decision, reason });
+        if (r?.success) {
+          await refreshAll();
+          flash("ok", decision === "review" ? "Source sent for review." : decision === "accept" ? "AI suggestion accepted." : "Selection kept.");
+        } else {
+          flash("err", (r?.error as string) || "Could not resolve the category check.");
+        }
+      } catch {
+        flash("err", "Could not resolve the category check.");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [refreshAll, flash],
+  );
+
+  // Auto-run the AI governance check once per source when opened and not yet
+  // classified. Silent; the backend no-ops on empty content. Stored on first run
+  // so reopening shows the saved result without re-calling the model.
+  useEffect(() => {
+    if (!selectedSource) return;
+    if (getAiCategory(selectedSource)) return;
+    if (autoClassified.current.has(selectedSource.id)) return;
+    autoClassified.current.add(selectedSource.id);
+    void classifyGovernance(selectedSource, { silent: true });
+  }, [selectedSource, classifyGovernance]);
 
   const runSourceAction = async (
     source: KBSource,
@@ -816,7 +934,10 @@ export default function KnowledgeBasePage() {
                         <p className="text-sm font-medium text-[var(--foreground)] truncate">{s.title}</p>
                         <p className="text-[11px] text-[var(--foreground-muted)]">{s.source_type || "—"} · by {getAuthor(s) || "—"}</p>
                       </div>
-                      <StatusBadge source={s} />
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <StatusBadge source={s} />
+                        <GovCategoryChip source={s} />
+                      </div>
                     </div>
 
                     {getKeywords(s).length > 0 && (
@@ -830,7 +951,7 @@ export default function KnowledgeBasePage() {
                     <div className="flex items-center justify-end mt-2.5">
                       <div className="flex items-center gap-1">
                         {canEditSource(s) && (
-                          <ToggleActiveRetired source={s} busy={busy === s.id} disabled={isReview(s) || isBlocked(s)} onActivate={(e) => { e.stopPropagation(); runSourceAction(s, "activate"); }} onRetire={(e) => { e.stopPropagation(); runSourceAction(s, "retire"); }} />
+                          <ToggleActiveRetired source={s} busy={busy === s.id} disabled={isReview(s) || isBlocked(s) || isCategoryUnresolved(s)} onActivate={(e) => { e.stopPropagation(); runSourceAction(s, "activate"); }} onRetire={(e) => { e.stopPropagation(); runSourceAction(s, "retire"); }} />
                         )}
                         <IconBtn title="Open" onClick={(e) => { e.stopPropagation(); setSelectedSourceId(s.id); }}>
                           <Eye className="w-3.5 h-3.5" />
@@ -867,7 +988,10 @@ export default function KnowledgeBasePage() {
                   onSave={(v) => patchSourceTop(selectedSource, { title: v })}
                 />
               </div>
-              <StatusBadge source={selectedSource} />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <StatusBadge source={selectedSource} />
+                <GovCategoryChip source={selectedSource} />
+              </div>
               <button onClick={() => setSelectedSourceId(null)} title="Close" className="w-7 h-7 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)] shrink-0">
                 <X className="w-4 h-4" />
               </button>
@@ -882,6 +1006,25 @@ export default function KnowledgeBasePage() {
                 <span className="text-xs text-[var(--foreground)] truncate max-w-[200px]" title={getOwnerEmail(selectedSource)}>{getOwnerEmail(selectedSource) || "—"}</span>
               </span>
               <MetaInline label="Citation" value={getCitation(selectedSource)} readOnly={!canEditSource(selectedSource)} onSave={(v) => patchSourceMeta(selectedSource, { citation_reference: v })} />
+              {/* Governance Category — changing it on an approved source forces re-approval. */}
+              <span className="inline-flex items-center gap-1.5 min-w-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)] shrink-0">Governance Category</span>
+                {canEditSource(selectedSource) ? (
+                  <select
+                    value={getGovernanceCategory(selectedSource)}
+                    disabled={busy === selectedSource.id}
+                    onChange={(e) => changeGovernanceCategory(selectedSource, e.target.value)}
+                    className="bg-[var(--background)] border border-[var(--border)] rounded px-1.5 py-0.5 text-xs text-[var(--foreground)] focus:outline-none focus:border-[var(--border-hover)]"
+                  >
+                    <option value="">— none —</option>
+                    {GOVERNANCE_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  </select>
+                ) : (
+                  <span className={`text-xs ${getGovernanceCategory(selectedSource) ? "text-[var(--foreground)] font-medium" : "italic text-[var(--foreground-muted)]"}`}>
+                    {GOV_CATEGORY_LABEL[getGovernanceCategory(selectedSource)] || "—"}
+                  </span>
+                )}
+              </span>
               {/* Tags inline */}
               <span className="inline-flex flex-wrap items-center gap-1.5 min-w-0">
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--foreground-muted)] flex items-center gap-1"><Tag className="w-3 h-3" /> Tags</span>
@@ -924,6 +1067,68 @@ export default function KnowledgeBasePage() {
                 )}
               </div>
             )}
+
+            {/* AI governance check — smart reminder in the source header */}
+            {(() => {
+              const aiCat = getAiCategory(selectedSource);
+              const userCat = getGovernanceCategory(selectedSource);
+              const status = getCategoryReviewStatus(selectedSource);
+              const unresolved = isCategoryUnresolved(selectedSource);
+              if (!aiCat) {
+                if (classifying) {
+                  return (
+                    <div className="shrink-0 px-4 py-2 border-b border-[var(--border)] flex items-center gap-2 text-[11px] text-[var(--foreground-muted)]">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Running AI governance check…
+                    </div>
+                  );
+                }
+                return null;
+              }
+              const detail = (
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px]">
+                  <span><span className="text-[var(--foreground-muted)]">User Selected:</span> <b className="text-[var(--foreground)]">{GOV_CATEGORY_LABEL[userCat] || "— none —"}</b></span>
+                  <span><span className="text-[var(--foreground-muted)]">AI Suggested:</span> <b className="text-[var(--foreground)]">{GOV_CATEGORY_LABEL[aiCat] || aiCat}</b></span>
+                  <span><span className="text-[var(--foreground-muted)]">Confidence:</span> <b className="text-[var(--foreground)]">{getAiConfidence(selectedSource)}%</b></span>
+                  {getAiMatchAction(selectedSource) && <span><span className="text-[var(--foreground-muted)]">Suggested Match Action:</span> <b className="text-[var(--foreground)]">{getAiMatchAction(selectedSource)}</b></span>}
+                </div>
+              );
+              return (
+                <div className={`shrink-0 px-4 py-2.5 border-b ${unresolved ? "border-amber-500/30 bg-amber-500/5" : "border-emerald-500/25 bg-emerald-500/5"} space-y-1.5`}>
+                  <div className="flex items-center gap-2">
+                    {unresolved ? <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" /> : <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                    <span className={`text-[11px] font-semibold ${unresolved ? "text-amber-300" : "text-emerald-300"}`}>
+                      {unresolved ? "Category mismatch detected. This source may require stricter governance." : "AI check passed — category appears correct."}
+                    </span>
+                    {canEditSource(selectedSource) && (
+                      <button onClick={() => classifyGovernance(selectedSource)} disabled={classifying} className="ml-auto inline-flex items-center gap-1 text-[10px] text-[var(--foreground-muted)] hover:text-[var(--foreground)] disabled:opacity-50">
+                        {classifying ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Re-check
+                      </button>
+                    )}
+                  </div>
+                  {detail}
+                  {getAiReason(selectedSource) && (
+                    <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed"><span className="font-semibold">Reason:</span> {getAiReason(selectedSource)}</p>
+                  )}
+                  {unresolved && isApprover && (
+                    /* Admin / workspace owner = the reviewer: adopt AI, or keep the user's selection. */
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      <ActionBtn tone="emerald" label="Accept AI Suggestion" icon={<CheckCircle2 className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => decideGovernance(selectedSource, "accept")} />
+                      <ActionBtn tone="zinc" label="Keep My Selection" icon={<ShieldCheck className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => decideGovernance(selectedSource, "keep", window.prompt("Reason for keeping your selected category (recorded in evidence):") || "")} />
+                    </div>
+                  )}
+                  {unresolved && !isApprover && canEditSource(selectedSource) && (
+                    /* Source editor (non-admin): adopt AI, or escalate so an admin can decide. */
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      <ActionBtn tone="emerald" label="Accept AI Suggestion" icon={<CheckCircle2 className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => decideGovernance(selectedSource, "accept")} />
+                      <ActionBtn tone="amber" label="Send to Review" icon={<Clock className="w-3.5 h-3.5" />} busy={busy === selectedSource.id} onClick={() => decideGovernance(selectedSource, "review")} />
+                    </div>
+                  )}
+                  {unresolved && !isApprover && !canEditSource(selectedSource) && (
+                    <p className="text-[10px] text-[var(--foreground-muted)] italic">An admin / workspace owner must resolve this before the source can be activated.</p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Scrollable body — content dominates, like a clean text file */}
             <div className="flex-1 overflow-y-auto px-5 py-3">
@@ -1269,8 +1474,8 @@ function IconBtn({ children, title, onClick, danger }: { children: React.ReactNo
   );
 }
 
-function ActionBtn({ tone, label, icon, onClick, busy, disabled }: { tone: "emerald" | "amber" | "rose"; label: string; icon: React.ReactNode; onClick: () => void; busy?: boolean; disabled?: boolean }) {
-  const tones = { emerald: "bg-emerald-600 hover:bg-emerald-500", amber: "bg-amber-600 hover:bg-amber-500", rose: "bg-rose-600 hover:bg-rose-500" };
+function ActionBtn({ tone, label, icon, onClick, busy, disabled }: { tone: "emerald" | "amber" | "rose" | "zinc"; label: string; icon: React.ReactNode; onClick: () => void; busy?: boolean; disabled?: boolean }) {
+  const tones = { emerald: "bg-emerald-600 hover:bg-emerald-500", amber: "bg-amber-600 hover:bg-amber-500", rose: "bg-rose-600 hover:bg-rose-500", zinc: "bg-zinc-600 hover:bg-zinc-500" };
   return (
     <button onClick={onClick} disabled={busy || disabled} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition disabled:opacity-40 disabled:cursor-not-allowed ${tones[tone]}`}>
       {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : icon}
@@ -1480,9 +1685,10 @@ function CollectionModal({ edit, busy, onClose, onSave }: { edit?: KBCollection;
 // Create captures ONLY a name + type. The source is created as a DRAFT and
 // opens like a file — author, keywords, citation, content, and match action
 // are all edited inline in the source header afterwards.
-function CreateSourceModal({ busy, onClose, onCreate }: { busy?: boolean; onClose: () => void; onCreate: (title: string, sourceType: string, file?: File | null, fileText?: string | null) => void }) {
+function CreateSourceModal({ busy, onClose, onCreate }: { busy?: boolean; onClose: () => void; onCreate: (title: string, sourceType: string, file?: File | null, fileText?: string | null, governanceCategory?: string) => void }) {
   const [title, setTitle] = useState("");
   const [sourceType, setSourceType] = useState("MANUAL_ARTICLE");
+  const [governanceCategory, setGovernanceCategory] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileText, setFileText] = useState<string | null>(null);
 
@@ -1517,7 +1723,7 @@ function CreateSourceModal({ busy, onClose, onCreate }: { busy?: boolean; onClos
       footer={
         <>
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[var(--border)] text-sm font-semibold text-[var(--foreground)] hover:bg-[var(--surface-hover)]">Cancel</button>
-          <button onClick={() => onCreate(title.trim(), sourceType, file, fileText)} disabled={!title.trim() || busy} className="flex-1 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold disabled:opacity-40 flex items-center justify-center gap-2">
+          <button onClick={() => onCreate(title.trim(), sourceType, file, fileText, governanceCategory)} disabled={!title.trim() || busy} className="flex-1 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold disabled:opacity-40 flex items-center justify-center gap-2">
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
             Create draft
           </button>
@@ -1525,12 +1731,20 @@ function CreateSourceModal({ busy, onClose, onCreate }: { busy?: boolean; onClos
       }
     >
       <Field label="Source Name">
-        <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. 2026 Pricing Sheet" className={inputCls} onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) onCreate(title.trim(), sourceType, file, fileText); }} />
+        <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. 2026 Pricing Sheet" className={inputCls} onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) onCreate(title.trim(), sourceType, file, fileText, governanceCategory); }} />
       </Field>
       <Field label="Source Type">
         <select value={sourceType} onChange={(e) => setSourceType(e.target.value)} className={inputCls}>
           {SOURCE_TYPES.map((t) => (
             <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Governance Category">
+        <select value={governanceCategory} onChange={(e) => setGovernanceCategory(e.target.value)} className={inputCls}>
+          <option value="">— none —</option>
+          {GOVERNANCE_CATEGORIES.map((c) => (
+            <option key={c.id} value={c.id}>{c.label}</option>
           ))}
         </select>
       </Field>

@@ -12,7 +12,9 @@
     "test:prompts": "vitest run src/test/prompts",
     "verify:governance": "ts-node scripts/verifyGovernance.ts",
     "verify:governance:migrations": "ts-node scripts/verifyGovernanceMigrations.ts",
-    "verify:governance:append-only": "ts-node scripts/verifyGovernanceAppendOnly.ts"
+    "verify:governance:append-only": "ts-node scripts/verifyGovernanceAppendOnly.ts",
+    "seed:governed-prompts": "ts-node scripts/seedGovernedPrompts.ts",
+    "seed:sample-governance": "ts-node scripts/seedSampleGovernancePrompts.ts"
   },
   "keywords": [],
   "author": "",

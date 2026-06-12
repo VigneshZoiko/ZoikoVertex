@@ -213,7 +213,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         title: '✅ Media Approved by Reviewer',
         body: `Your media "${item.title}" has been reviewed and approved. ${note ? 'Reviewer note: ' + note : ''}`,
         type: 'GOVERNANCE',
-        link: '/library',
+        link: '/review-queue',
         read: false,
       });
 
@@ -222,6 +222,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         summary: `Review item "${item.title}" approved`,
         itemType: item.item_type, riskLevel: item.risk_level,
       });
+
+      if (item.source_module === 'media_library' && item.source_entity_id) {
+        await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+      }
 
       return res.json({ success: true, data: updated });
     }
@@ -243,7 +247,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         title: '❌ Media Rejected by Reviewer',
         body: `Your media "${item.title}" was rejected. Reason: ${reason}. ${note ? 'Note: ' + note : ''}`,
         type: 'GOVERNANCE',
-        link: '/library',
+        link: '/review-queue',
         read: false,
       });
 
@@ -252,6 +256,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         summary: `Review item "${item.title}" rejected: ${reason}`,
         itemType: item.item_type, riskLevel: item.risk_level,
       });
+
+      if (item.source_module === 'media_library' && item.source_entity_id) {
+        await supabaseAdmin.from('media_library').update({ status: 'blocked' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+      }
 
       return res.json({ success: true, data: updated });
     }
@@ -273,7 +281,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         title: '🔄 Media Returned — Revision Required',
         body: `Your media "${item.title}" was returned by the reviewer with revision instructions: ${note}. Please correct and resubmit.`,
         type: 'GOVERNANCE',
-        link: '/library',
+        link: '/review-queue',
         read: false,
       });
 
@@ -302,6 +310,45 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         itemType: item.item_type, riskLevel: item.risk_level,
       });
 
+      // Notify all admins and governance admins in the workspace
+      try {
+        const { data: adminMembers } = await supabaseAdmin
+          .from('workspace_members')
+          .select('user_id')
+          .eq('workspace_id', tenantId)
+          .in('role', ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN']);
+        const adminIds: string[] = (adminMembers || []).map((m: any) => m.user_id).filter(Boolean);
+        if (adminIds.length > 0) {
+          await supabaseAdmin.from('notifications').insert(
+            adminIds.map((adminId: string) => ({
+              id: uuidv4(),
+              user_id: adminId,
+              title: '🚨 Escalation Alert: Review Item Requires Your Attention',
+              body: `A review item "${item.title}" has been escalated and requires admin review. Reason: ${reason}${note ? '. Note: ' + note : ''}.`,
+              type: 'ESCALATION',
+              category: 'SECURITY',
+              priority: 'HIGH',
+              link: '/review-queue',
+              read: false,
+            }))
+          );
+        }
+        // Also notify the creator that their item was escalated
+        if (item.submitted_by && item.submitted_by !== userId) {
+          await supabaseAdmin.from('notifications').insert({
+            id: uuidv4(),
+            user_id: item.submitted_by,
+            title: '⬆️ Your Item Has Been Escalated',
+            body: `Your review item "${item.title}" was escalated for admin review. Reason: ${reason}.`,
+            type: 'ESCALATION',
+            category: 'WORKFLOW',
+            priority: 'HIGH',
+            link: '/review-queue',
+            read: false,
+          });
+        }
+      } catch { /* non-blocking — notifications never fail the main action */ }
+
       return res.json({ success: true, data: updated });
     }
 
@@ -326,6 +373,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         summary: `Override applied to "${item.title}": ${reason}`,
         itemType: item.item_type, riskLevel: item.risk_level,
       });
+
+      if (item.source_module === 'media_library' && item.source_entity_id) {
+        await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+      }
 
       return res.json({ success: true, data: updated });
     }
@@ -364,6 +415,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.released',
         summary: `Review item "${item.title}" released`, itemType: item.item_type, riskLevel: item.risk_level,
       });
+
+      if (item.source_module === 'media_library' && item.source_entity_id) {
+        await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+      }
 
       return res.json({ success: true, data: updated });
     }

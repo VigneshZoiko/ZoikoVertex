@@ -5,6 +5,23 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { moderate } from '../../modules/safety/moderationService';
 import { scanImage, type KeywordRule } from '../../modules/safety/imageScanner';
 import { v4 as uuidv4 } from 'uuid';
+import { trackUsage } from '../monitoring/usageController';
+
+/**
+ * Extracts the storage object path from a Supabase Storage public URL.
+ * URL format: https://<project>.supabase.co/storage/v1/object/public/<bucket>/<path>
+ */
+function extractStoragePath(url: string, bucket: string = 'media'): string | null {
+  try {
+    const parsed = new URL(url);
+    const prefix = `/storage/v1/object/public/${bucket}/`;
+    const idx = parsed.pathname.indexOf(prefix);
+    if (idx === -1) return null;
+    return parsed.pathname.slice(idx + prefix.length);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Lists media from the library with search and filtering
@@ -247,6 +264,8 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
     // Determine library status
     const libraryStatus = scan.safe ? 'available' : (scan.isVideo ? 'pending_review' : 'blocked');
 
+    const { file_size_bytes } = req.body;
+
     const { data: mediaAsset, error } = await supabaseAdmin
       .from('media_library')
       .insert({
@@ -258,11 +277,18 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
         uploader_id: userId,
         workspace_id: workspaceId,
         status: libraryStatus,
+        ...(file_size_bytes != null ? { file_size_bytes } : {}),
       })
       .select()
       .single();
 
     if (error) throw error;
+
+    // Track storage usage — use real size when available, fall back to rough estimate
+    if (mediaAsset && workspaceId) {
+      const actualMb = file_size_bytes ? file_size_bytes / (1024 * 1024) : urls.length * 0.5;
+      trackUsage({ workspaceId, resourceType: 'STORAGE_MB', quantity: actualMb, costUsd: 0, unit: 'MB', referenceId: mediaId, referenceType: 'media_upload', metadata: { file_type, url_count: urls.length } });
+    }
 
     // Determine validation status
     const validationStatus = scan.safe
@@ -331,7 +357,7 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
         });
 
       // Create a Review Queue item
-      await supabaseAdmin
+      const { error: reviewInsertError } = await supabaseAdmin
         .from('review_items')
         .insert({
           id: uuidv4(),
@@ -353,8 +379,11 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
           risk_level: 'HIGH',
           risk_category: scan.isVideo ? 'video_content' : 'content_safety',
           status: 'PENDING_REVIEW',
-          validation_status: 'FAILED',
+          // Videos await human review (not a safety failure); blocked images truly failed the scan.
+          validation_status: scan.isVideo ? 'NOT_RUN' : 'FAILED',
         });
+
+      if (reviewInsertError) throw reviewInsertError;
 
       // Notify creator
       await supabaseAdmin
@@ -389,24 +418,41 @@ export const addToLibrary = async (req: AuthRequest, res: Response, next: NextFu
 };
 
 /**
- * Deletes an asset from the library
+ * Deletes an asset from the library and its files from storage permanently.
  */
 export const deleteFromLibrary = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const userId = req.user?.id;
+    const userId      = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+    const role        = req.user?.role;
+    const isSuper     = req.user?.is_superadmin;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    if (!workspaceId && !isSuper) return res.status(403).json({ error: 'Workspace context missing' });
 
-    // Ensure the user is the uploader OR an admin
-    const { data: member } = await supabaseAdmin
-      .from('workspace_members')
-      .select('role, workspace_id')
-      .eq('user_id', userId)
-      .single();
+    const isAdmin = ['ADMIN', 'MANAGER', 'WORKSPACE_OWNER'].includes(role ?? '');
 
-    const isAdmin = member?.role === 'ADMIN' || member?.role === 'MANAGER';
-    const isSuper = (await supabaseAdmin.from('users').select('is_superadmin').eq('id', userId).single()).data?.is_superadmin;
+    // Fetch item to get storage paths before deleting
+    let fetchQuery = supabaseAdmin
+      .from('media_library')
+      .select('url, urls')
+      .eq('id', id);
+
+    if (!isSuper) {
+      fetchQuery = fetchQuery.eq('workspace_id', workspaceId);
+    }
+
+    const { data: item } = await fetchQuery.single();
+    if (item) {
+      const paths = [item.url, ...(item.urls || [])]
+        .filter(Boolean)
+        .map((u: string) => extractStoragePath(u))
+        .filter(Boolean) as string[];
+      if (paths.length > 0) {
+        await supabaseAdmin.storage.from('media').remove(paths);
+      }
+    }
 
     let query = supabaseAdmin
       .from('media_library')
@@ -414,18 +460,223 @@ export const deleteFromLibrary = async (req: AuthRequest, res: Response, next: N
       .eq('id', id);
 
     if (!isSuper) {
-      // If not superadmin, must be uploader OR workspace admin in the correct workspace
-      query = query.eq('workspace_id', member?.workspace_id);
+      query = query.eq('workspace_id', workspaceId);
       if (!isAdmin) {
         query = query.eq('uploader_id', userId);
       }
     }
 
     const { error } = await query;
-
     if (error) throw error;
 
+    // Clean up resource_usage so the Storage meter reflects the deletion (fire-and-forget)
+    supabaseAdmin.from('resource_usage')
+      .delete()
+      .eq('workspace_id', workspaceId ?? '')
+      .eq('resource_type', 'STORAGE_MB')
+      .contains('metadata', { reference_id: id })
+      .then(undefined, () => {});
+
     res.status(200).json({ success: true, message: 'Asset removed from library' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Lists ALL media items for the workspace — used by Manage Storage.
+ * No status filter: shows available, pending_review, and blocked items.
+ * Never crosses workspace boundaries.
+ * Lazy-backfills file_size_bytes from Supabase Storage for items that don't have it yet.
+ */
+export const listStorageItems = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId      = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+    if (!userId)      return res.status(401).json({ error: 'Unauthorized' });
+    if (!workspaceId) return res.status(403).json({ error: 'Workspace context missing' });
+
+    const { search, type } = req.query;
+
+    let query = supabaseAdmin
+      .from('media_library')
+      .select('id, title, url, urls, file_type, uploader_id, status, created_at, workspace_id, file_size_bytes')
+      .eq('workspace_id', workspaceId)   // always workspace-scoped, no cross-workspace leakage
+      .order('created_at', { ascending: false });  // no status filter — show all for management
+
+    if (type && type !== 'all') {
+      query = query.ilike('file_type', `${type}%`);
+    }
+
+    const { data: items, error } = await query;
+    if (error) throw error;
+    if (!items || items.length === 0) return res.status(200).json({ success: true, data: [] });
+
+    const uploaderIds = [...new Set(items.map((i: any) => i.uploader_id).filter(Boolean))];
+    const { data: uploaders } = await supabaseAdmin
+      .from('users')
+      .select('id, full_name, email')
+      .in('id', uploaderIds);
+
+    const uploaderMap: Record<string, { id: string; full_name: string; email: string }> = {};
+    ((uploaders as any[]) || []).forEach((u: any) => { uploaderMap[u.id] = u; });
+
+    const result = (items as any[]).map((item: any) => ({
+      id:              item.id,
+      title:           item.title,
+      url:             item.url,
+      urls:            item.urls || [item.url],
+      file_type:       item.file_type,
+      status:          item.status,
+      created_at:      item.created_at,
+      file_size_bytes: item.file_size_bytes as number | null,
+      uploader:        uploaderMap[item.uploader_id] || null,
+    }));
+
+    // Lazy-backfill: for items with no stored size, fetch from Supabase Storage metadata.
+    // Updates the response in-place AND saves to DB so subsequent requests skip this step.
+    const noSize = result.filter(r => r.file_size_bytes == null && r.url);
+    if (noSize.length > 0) {
+      const dbUpdates: { id: string; size: number }[] = [];
+
+      await Promise.all(noSize.map(async (item) => {
+        const storagePath = extractStoragePath(item.url);
+        if (!storagePath) return;
+
+        const lastSlash = storagePath.lastIndexOf('/');
+        const folder    = lastSlash >= 0 ? storagePath.slice(0, lastSlash) : '';
+        const filename  = lastSlash >= 0 ? storagePath.slice(lastSlash + 1) : storagePath;
+
+        try {
+          const { data: files } = await supabaseAdmin.storage
+            .from('media')
+            .list(folder, { search: filename, limit: 1 });
+
+          const meta = (files as any[])?.[0]?.metadata;
+          const size: number | undefined = meta?.size ?? meta?.contentLength;
+          if (size && size > 0) {
+            item.file_size_bytes = size;
+            dbUpdates.push({ id: item.id, size });
+          }
+        } catch {
+          // ignore — storage fetch failure is non-fatal
+        }
+      }));
+
+      // Fire-and-forget DB update so the next request reads sizes from the DB directly
+      for (const { id, size } of dbUpdates) {
+        supabaseAdmin.from('media_library')
+          .update({ file_size_bytes: size })
+          .eq('id', id)
+          .then(undefined, () => {});
+      }
+    }
+
+    let filtered = result;
+    if (search) {
+      const q = (search as string).toLowerCase();
+      filtered = result.filter((item) =>
+        item.title?.toLowerCase().includes(q) ||
+        item.uploader?.full_name?.toLowerCase().includes(q) ||
+        item.uploader?.email?.toLowerCase().includes(q),
+      );
+    }
+
+    res.status(200).json({ success: true, data: filtered, total: filtered.length });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkDeleteFromLibrary = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId      = req.user?.id;
+    const workspaceId = req.user?.workspace_id;
+    const role        = req.user?.role;
+    const isSuper     = req.user?.is_superadmin;
+
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    if (!workspaceId && !isSuper) return res.status(403).json({ error: 'Workspace context missing' });
+
+    const { ids } = req.body as { ids?: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'ids array is required' });
+    }
+    if (ids.length > 500) {
+      return res.status(400).json({ success: false, error: 'Cannot delete more than 500 items at once' });
+    }
+
+    const isAdmin = ['ADMIN', 'MANAGER', 'WORKSPACE_OWNER'].includes(role ?? '');
+
+    // Fetch items to get storage paths before deleting
+    let fetchQuery = supabaseAdmin
+      .from('media_library')
+      .select('id, url, urls')
+      .in('id', ids);
+
+    if (!isSuper) {
+      fetchQuery = fetchQuery.eq('workspace_id', workspaceId);
+      if (!isAdmin) {
+        fetchQuery = fetchQuery.eq('uploader_id', userId);
+      }
+    }
+
+    const { data: items } = await fetchQuery;
+
+    // Delete files from Supabase Storage first
+    if (items?.length) {
+      const paths: string[] = [];
+      for (const item of items) {
+        const urlsToCheck = [item.url, ...(item.urls || [])].filter(Boolean);
+        for (const url of urlsToCheck) {
+          const p = extractStoragePath(url);
+          if (p) paths.push(p);
+        }
+      }
+      if (paths.length > 0) {
+        const { error: storageErr } = await supabaseAdmin.storage.from('media').remove(paths);
+        if (storageErr) {
+          logger.warn({ storageErr, paths }, '[Library] Failed to remove some storage files');
+        }
+      }
+    }
+
+    let delQuery = supabaseAdmin
+      .from('media_library')
+      .delete()
+      .in('id', ids);
+
+    if (!isSuper) {
+      delQuery = delQuery.eq('workspace_id', workspaceId);
+      if (!isAdmin) {
+        delQuery = delQuery.eq('uploader_id', userId);
+      }
+    }
+
+    // .select() forces PostgREST to return deleted rows so we can verify the actual count.
+    const { data: deleted, error } = await (delQuery as any).select('id');
+    if (error) throw error;
+
+    const actualCount = (deleted as any[])?.length ?? 0;
+    if (actualCount === 0) {
+      logger.warn({ userId, workspaceId, requestedIds: ids }, '[Library] Bulk delete matched 0 rows');
+      return res.status(404).json({ success: false, error: 'No items were deleted. They may already be deleted or not belong to your workspace.' });
+    }
+
+    logger.info({ userId, workspaceId, count: actualCount }, '[Library] Bulk delete');
+
+    // Clean up resource_usage entries for each deleted item so storage meter resets (fire-and-forget)
+    const deletedIds = (deleted as any[]).map((r: any) => r.id);
+    for (const mediaId of deletedIds) {
+      supabaseAdmin.from('resource_usage')
+        .delete()
+        .eq('workspace_id', workspaceId ?? '')
+        .eq('resource_type', 'STORAGE_MB')
+        .contains('metadata', { reference_id: mediaId })
+        .then(undefined, () => {});
+    }
+
+    res.status(200).json({ success: true, deleted: actualCount });
   } catch (error) {
     next(error);
   }

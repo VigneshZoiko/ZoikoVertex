@@ -47,27 +47,27 @@ export default function MediaVaultPicker({
 
   return (
     <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
-            <h2 className="font-bold text-white text-sm">{title}</h2>
-            {hint && <p className="text-[11px] text-zinc-500 mt-0.5">{hint}</p>}
+            <h2 className="font-bold text-foreground text-sm">{title}</h2>
+            {hint && <p className="text-[11px] text-foreground-muted mt-0.5">{hint}</p>}
           </div>
-          <button onClick={onClose} className="p-1.5 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-1.5 text-foreground-muted hover:text-white hover:bg-surface-hover rounded-lg transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Search */}
-        <div className="px-5 py-3 border-b border-zinc-800 shrink-0">
+        <div className="px-5 py-3 border-b border-border shrink-0">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search media…"
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-white/30 transition-all"
+              className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2 text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-white/30 transition-all"
             />
           </div>
         </div>
@@ -76,13 +76,13 @@ export default function MediaVaultPicker({
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
             <div className="flex items-center justify-center h-40">
-              <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
+              <Loader2 className="w-6 h-6 animate-spin text-foreground-muted" />
             </div>
           ) : assets.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 gap-2">
-              <ImageIcon className="w-8 h-8 text-zinc-700" />
-              <p className="text-xs text-zinc-500">{search ? "No results for that search" : "No images in your Media Vault yet"}</p>
-              <p className="text-[11px] text-zinc-600">{search ? "Try a different keyword" : "Upload an image using the upload button — it will appear here automatically"}</p>
+              <ImageIcon className="w-8 h-8 text-foreground-muted" />
+              <p className="text-xs text-foreground-muted">{search ? "No results for that search" : "No images in your Media Vault yet"}</p>
+              <p className="text-[11px] text-foreground-muted">{search ? "Try a different keyword" : "Upload an image using the upload button — it will appear here automatically"}</p>
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -93,17 +93,17 @@ export default function MediaVaultPicker({
                   <button key={asset.id} type="button"
                     onClick={() => setSelected(isSelected ? null : url)}
                     className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all ${
-                      isSelected ? "border-white" : "border-transparent hover:border-zinc-600"
+                      isSelected ? "border-white" : "border-transparent hover:border-border"
                     }`}>
                     <Image src={url} alt={asset.title || ""} fill
                       className="object-cover" unoptimized />
                     {isSelected && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <CheckCircle2 className="w-6 h-6 text-white" />
+                        <CheckCircle2 className="w-6 h-6 text-foreground" />
                       </div>
                     )}
                     {asset.file_type === "video" && (
-                      <div className="absolute bottom-1 left-1 bg-black/70 rounded px-1 py-0.5 text-[9px] text-white font-bold">VIDEO</div>
+                      <div className="absolute bottom-1 left-1 bg-black/70 rounded px-1 py-0.5 text-[9px] text-foreground font-bold">VIDEO</div>
                     )}
                   </button>
                 );
@@ -113,9 +113,9 @@ export default function MediaVaultPicker({
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 px-5 py-4 border-t border-zinc-800 shrink-0">
+        <div className="flex gap-3 px-5 py-4 border-t border-border shrink-0">
           <button onClick={onClose}
-            className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold rounded-xl transition-all">
+            className="flex-1 py-2 bg-surface-hover hover:bg-surface-hover text-foreground-muted text-sm font-semibold rounded-xl transition-all">
             Cancel
           </button>
           <button

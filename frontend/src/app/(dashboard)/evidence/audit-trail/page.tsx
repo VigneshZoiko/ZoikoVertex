@@ -102,20 +102,20 @@ const TAB_OPTIONS: { id: TabId; label: string; icon: React.ElementType }[] = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const riskConfig: Record<string, { color: string; bg: string; border: string }> = {
-  low:    { color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20" },
-  medium: { color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20" },
-  high:   { color: "text-orange-400", bg: "bg-orange-400/10", border: "border-orange-400/20" },
-  critical: { color: "text-red-400", bg: "bg-red-400/10", border: "border-red-400/20" },
+  low:    { color: "text-success-text", bg: "bg-success-bg", border: "border-success-border" },
+  medium: { color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border" },
+  high:   { color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border" },
+  critical: { color: "text-error-text", bg: "bg-error-bg", border: "border-error-border" },
 };
 
 const statusConfig: Record<string, { color: string; icon: React.ElementType }> = {
-  success:    { color: "text-emerald-400", icon: CheckCircle2 },
-  failed:     { color: "text-red-400", icon: X },
-  blocked:    { color: "text-orange-400", icon: ShieldAlert },
-  pending:    { color: "text-amber-400", icon: Clock },
-  overridden: { color: "text-purple-400", icon: AlertTriangle },
-  preserved:  { color: "text-blue-400", icon: Lock },
-  sealed:     { color: "text-[#666]", icon: Archive },
+  success:    { color: "text-success-text", icon: CheckCircle2 },
+  failed:     { color: "text-error-text", icon: X },
+  blocked:    { color: "text-warning-text", icon: ShieldAlert },
+  pending:    { color: "text-warning-text", icon: Clock },
+  overridden: { color: "text-info-text", icon: AlertTriangle },
+  preserved:  { color: "text-info-text", icon: Lock },
+  sealed:     { color: "text-foreground-muted", icon: Archive },
 };
 
 const evidenceIcons: Record<string, React.ElementType> = {
@@ -163,7 +163,7 @@ export default function AuditTrailPage() {
   const [verifying, setVerifying] = useState(false);
 
   if (rolesLoading) {
-    return <div className="p-8 text-[#888888]">Loading governance context...</div>;
+    return <div className="p-8 text-foreground-muted">Loading governance context...</div>;
   }
 
   const handleVerifyChain = async () => {
@@ -181,7 +181,7 @@ export default function AuditTrailPage() {
   };
 
   if (!hasRole(["WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "ADMIN", "AUDITOR", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN"])) {
-    return <div className="p-8 text-red-400">Unauthorized. You need governance privileges to view the Audit Trail.</div>;
+    return <div className="p-8 text-error-text">Unauthorized. You need governance privileges to view the Audit Trail.</div>;
   }
 
   return (
@@ -189,26 +189,26 @@ export default function AuditTrailPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <FileSearch className="w-6 h-6 text-amber-500" />
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
+            <FileSearch className="w-6 h-6 text-warning-text" />
             Audit Trail
           </h1>
-          <p className="text-[#888888] mt-1">
+          <p className="text-foreground-muted mt-1">
             Cryptographically chained record of authority, evidence, and governance actions.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
             chainStatus.intact
-              ? "bg-emerald-400/10 border border-emerald-400/20"
-              : "bg-red-400/10 border border-red-400/20"
+              ? "bg-success-bg border border-success-border"
+              : "bg-error-bg border border-error-border"
           }`}>
             {chainStatus.intact ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-success-text" />
             ) : (
-              <AlertTriangle className="w-4 h-4 text-red-400" />
+              <AlertTriangle className="w-4 h-4 text-error-text" />
             )}
-            <span className={`text-xs font-medium ${chainStatus.intact ? "text-emerald-400" : "text-red-400"}`}>
+            <span className={`text-xs font-medium ${chainStatus.intact ? "text-success-text" : "text-error-text"}`}>
               {chainStatus.intact ? "Chain Intact" : "Chain Compromised"}
             </span>
             {chainStatus.lastVerified && (
@@ -218,7 +218,7 @@ export default function AuditTrailPage() {
           <button
             onClick={handleVerifyChain}
             disabled={verifying}
-            className="px-3 py-1.5 border border-[#333] rounded-lg text-xs text-[#888] hover:text-white hover:border-[#555] flex items-center gap-1.5 disabled:opacity-50"
+            className="px-3 py-1.5 border border-border rounded-lg text-xs text-foreground-muted hover:text-foreground hover:border-border flex items-center gap-1.5 disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${verifying ? "animate-spin" : ""}`} />
             {verifying ? "Verifying..." : "Verify Now"}
@@ -228,11 +228,11 @@ export default function AuditTrailPage() {
 
       {/* Chain Break P0 Banner */}
       {chainStatus.lastVerified && !chainStatus.intact && (
-        <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+        <div className="mb-4 bg-error-bg border border-error-border rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-error-text flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-sm font-medium text-red-400">Chain Integrity Compromised — P0</h4>
-            <p className="text-xs text-red-300 mt-1">
+            <h4 className="text-sm font-medium text-error-text">Chain Integrity Compromised — P0</h4>
+            <p className="text-xs text-error-text mt-1">
               Cryptographic hash chain verification has detected mismatched blocks. Unsafe exports and actions for affected ranges are disabled. Run Verify Now on the Integrity tab for details.
             </p>
           </div>
@@ -240,13 +240,13 @@ export default function AuditTrailPage() {
       )}
 
       {/* Index Lag Warning */}
-      <div className="mb-4 bg-amber-500/5 border border-amber-500/20 rounded-lg px-4 py-2 flex items-center gap-2 text-xs text-amber-400">
+      <div className="mb-4 bg-warning-bg border border-warning-border rounded-lg px-4 py-2 flex items-center gap-2 text-xs text-warning-text">
         <Info className="w-3.5 h-3.5" />
         Some recent events may still be indexing. Results reflect the indexed read model state.
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-[#222] mb-6">
+      <div className="flex border-b border-border mb-6">
         {TAB_OPTIONS.map(tab => {
           const Icon = tab.icon;
           return (
@@ -255,8 +255,8 @@ export default function AuditTrailPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? "text-amber-400 border-amber-400"
-                  : "text-[#666] border-transparent hover:text-white hover:border-[#444]"
+                  ? "text-warning-text border-warning-border"
+                  : "text-foreground-muted border-transparent hover:text-foreground hover:border-border"
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -414,10 +414,10 @@ function EventsTab() {
   const activeFilterCount = [selectedCategory, selectedEventType, selectedRisk, selectedStatus, selectedEvidenceState, selectedRetentionClass, policyRuleId, dataResidency, selectedActorId, selectedObjectId, workflowRunId, approvalChainId].filter(Boolean).length;
 
   const riskConfigMap: Record<string, { color: string; bg: string; border: string }> = {
-    low:    { color: "text-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/20" },
-    medium: { color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20" },
-    high:   { color: "text-orange-400", bg: "bg-orange-400/10", border: "border-orange-400/20" },
-    critical: { color: "text-red-400", bg: "bg-red-400/10", border: "border-red-400/20" },
+    low:    { color: "text-success-text", bg: "bg-success-bg", border: "border-success-border" },
+    medium: { color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border" },
+    high:   { color: "text-warning-text", bg: "bg-warning-bg", border: "border-warning-border" },
+    critical: { color: "text-error-text", bg: "bg-error-bg", border: "border-error-border" },
   };
 
   const handleActionModalConfirm = async (value?: string) => {
@@ -473,7 +473,7 @@ function EventsTab() {
       {/* Main Content */}
       <div className="flex-1 min-w-0">
         {message && (
-          <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-xs ${message.type === "error" ? "bg-red-500/10 border border-red-500/30 text-red-400" : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"}`}>
+          <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-xs ${message.type === "error" ? "bg-error-bg border border-error-border text-error-text" : "bg-success-bg border border-success-border text-success-text"}`}>
             {message.type === "error" ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
             {message.text}
             <button onClick={() => setMessage(null)} className="ml-auto opacity-60 hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
@@ -482,36 +482,36 @@ function EventsTab() {
         {/* Risk Summary Strip */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3 mb-4">
-            <StatCard label="Today" value={stats.events_today} color="text-white" />
-            <StatCard label="High Risk" value={stats.high_risk_events} color="text-orange-400" />
-            <StatCard label="Critical" value={stats.critical_events} color="text-red-400" />
-            <StatCard label="AI Events" value={stats.ai_events} color="text-purple-400" />
-            <StatCard label="Failed" value={stats.failed_events} color="text-red-400" />
-            <StatCard label="Override" value={stats.overridden_events} color="text-amber-400" />
-            <StatCard label="Blocked" value={stats.blocked_events} color="text-orange-400" />
-            <StatCard label="Preserved" value={stats.preserved_events} color="text-blue-400" />
-            <StatCard label="Legal Hold" value={stats.legal_hold_events} color="text-amber-400" />
+            <StatCard label="Today" value={stats.events_today} color="text-foreground" />
+            <StatCard label="High Risk" value={stats.high_risk_events} color="text-warning-text" />
+            <StatCard label="Critical" value={stats.critical_events} color="text-error-text" />
+            <StatCard label="AI Events" value={stats.ai_events} color="text-info-text" />
+            <StatCard label="Failed" value={stats.failed_events} color="text-error-text" />
+            <StatCard label="Override" value={stats.overridden_events} color="text-warning-text" />
+            <StatCard label="Blocked" value={stats.blocked_events} color="text-warning-text" />
+            <StatCard label="Preserved" value={stats.preserved_events} color="text-info-text" />
+            <StatCard label="Legal Hold" value={stats.legal_hold_events} color="text-warning-text" />
           </div>
         )}
 
         {/* Filter Bar */}
-        <div className="bg-[#111] border border-[#222] rounded-xl mb-4">
+        <div className="bg-surface border border-border rounded-xl mb-4">
           <div className="p-3 flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#666]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
               <input
                 type="text"
                 placeholder="Search event_id, title, summary, actor, object, type..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+                className="w-full bg-background border border-border rounded-lg pl-10 pr-4 py-2 text-sm text-foreground focus:outline-none focus:border-warning-border"
               />
             </div>
 
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"
+              className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-warning-border"
             >
               <option value="1h">Last Hour</option>
               <option value="24h">Last 24 Hours</option>
@@ -524,11 +524,11 @@ function EventsTab() {
               <div className="flex items-center gap-2">
                 <input type="datetime-local" value={customDateFrom}
                   onChange={e => setCustomDateFrom(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-2 py-2 text-xs text-white" />
-                <span className="text-[#666] text-xs">to</span>
+                  className="bg-background border border-border rounded-lg px-2 py-2 text-xs text-foreground" />
+                <span className="text-foreground-muted text-xs">to</span>
                 <input type="datetime-local" value={customDateTo}
                   onChange={e => setCustomDateTo(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-2 py-2 text-xs text-white" />
+                  className="bg-background border border-border rounded-lg px-2 py-2 text-xs text-foreground" />
               </div>
             )}
 
@@ -536,14 +536,14 @@ function EventsTab() {
               onClick={() => setShowFilters(!showFilters)}
               className={`px-3 py-2 border rounded-lg text-sm flex items-center gap-2 transition-colors ${
                 showFilters || activeFilterCount > 0
-                  ? "border-amber-500/50 text-amber-400 bg-amber-400/10"
-                  : "border-[#333] text-[#888] hover:border-[#555]"
+                  ? "border-warning-border text-warning-text bg-warning-bg"
+                  : "border-border text-foreground-muted hover:border-border"
               }`}
             >
               <SlidersHorizontal className="w-4 h-4" />
               Filters
               {activeFilterCount > 0 && (
-                <span className="bg-amber-500 text-black text-xs font-bold px-1.5 py-0.5 rounded-full">
+                <span className="bg-warning-text text-black text-xs font-bold px-1.5 py-0.5 rounded-full">
                   {activeFilterCount}
                 </span>
               )}
@@ -551,7 +551,7 @@ function EventsTab() {
 
             <button
               onClick={() => fetchEvents()}
-              className="px-3 py-2 border border-[#333] rounded-lg text-sm text-[#888] hover:border-[#555] flex items-center gap-2"
+              className="px-3 py-2 border border-border rounded-lg text-sm text-foreground-muted hover:border-border flex items-center gap-2"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -559,30 +559,30 @@ function EventsTab() {
 
           {/* Expanded Filters */}
           {showFilters && (
-            <div className="px-3 pb-3 border-t border-[#222] pt-3 space-y-3">
+            <div className="px-3 pb-3 border-t border-border pt-3 space-y-3">
               <div className="flex gap-3 flex-wrap">
                 <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[140px]">
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[140px]">
                   <option value="">All Categories</option>
                   {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
                 <input placeholder="Event Type (e.g. content.published)" value={selectedEventType}
                   onChange={e => setSelectedEventType(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[140px]" />
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[140px]" />
                 <select value={selectedRisk} onChange={e => setSelectedRisk(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[100px]">
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[100px]">
                   <option value="">All Risks</option>
                   {RISK_LEVELS.map(r => <option key={r} value={r}>{r.toUpperCase()}</option>)}
                 </select>
                 <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[100px]">
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[100px]">
                   <option value="">All Statuses</option>
                   {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                 </select>
               </div>
               <div className="flex gap-3 flex-wrap">
                 <select value={selectedEvidenceState} onChange={e => setSelectedEvidenceState(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[120px]">
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[120px]">
                   <option value="">All Evidence States</option>
                   <option value="not_preserved">Not Preserved</option>
                   <option value="preserved">Preserved</option>
@@ -591,7 +591,7 @@ function EventsTab() {
                   <option value="legal_hold">Legal Hold</option>
                 </select>
                 <select value={selectedRetentionClass} onChange={e => setSelectedRetentionClass(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[100px]">
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[100px]">
                   <option value="">All Retention</option>
                   <option value="STANDARD">Standard</option>
                   <option value="EXTENDED">Extended</option>
@@ -600,23 +600,23 @@ function EventsTab() {
                 </select>
                 <input placeholder="Actor ID" value={selectedActorId}
                   onChange={e => setSelectedActorId(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[120px]" />
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[120px]" />
                 <input placeholder="Object ID" value={selectedObjectId}
                   onChange={e => setSelectedObjectId(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[120px]" />
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[120px]" />
               </div>
               <div className="flex gap-3 flex-wrap">
                 <input placeholder="Workflow Run ID" value={workflowRunId}
                   onChange={e => setWorkflowRunId(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[130px]" />
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[130px]" />
                 <input placeholder="Approval Chain ID" value={approvalChainId}
                   onChange={e => setApprovalChainId(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[130px]" />
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[130px]" />
                 <input placeholder="Policy Rule ID" value={policyRuleId}
                   onChange={e => setPolicyRuleId(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[130px]" />
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[130px]" />
                 <select value={selectedDataResidency} onChange={e => setSelectedDataResidency(e.target.value)}
-                  className="bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-white flex-1 min-w-[100px]">
+                  className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground flex-1 min-w-[100px]">
                   <option value="">All Regions</option>
                   <option value="auto">Auto</option>
                   <option value="us">US</option>
@@ -632,7 +632,7 @@ function EventsTab() {
                     setPolicyRuleId(""); setDataResidency(""); setSelectedActorId(""); setSelectedObjectId("");
                     setWorkflowRunId(""); setApprovalChainId(""); setSearch("");
                   }}
-                  className="px-3 py-2 text-sm text-red-400 hover:text-red-300 flex items-center gap-1"
+                  className="px-3 py-2 text-sm text-error-text hover:text-error-text flex items-center gap-1"
                 >
                   <X className="w-4 h-4" /> Clear All Filters
                 </button>
@@ -642,48 +642,48 @@ function EventsTab() {
         </div>
 
         {/* Permission-filtered banner */}
-        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2 mb-3 flex items-center gap-2">
-          <EyeOff className="w-4 h-4 text-amber-400" />
-          <span className="text-xs text-amber-300">
+        <div className="bg-warning-bg border border-warning-border rounded-lg px-3 py-2 mb-3 flex items-center gap-2">
+          <EyeOff className="w-4 h-4 text-warning-text" />
+          <span className="text-xs text-warning-text">
             Showing permission-filtered results based on your role. Some fields may be redacted, hashed, or hidden per access control policy.
           </span>
         </div>
 
         {/* Event Table */}
-        <div className="bg-[#111] border border-[#222] rounded-xl overflow-hidden">
+        <div className="bg-surface border border-border rounded-xl overflow-hidden">
           <div className="overflow-auto max-h-[600px]">
             {loading && events.length === 0 ? (
-              <div className="flex items-center justify-center h-48 text-[#888888]">
+              <div className="flex items-center justify-center h-48 text-foreground-muted">
                 <Clock className="w-5 h-5 mr-2 animate-pulse" />
                 Loading events...
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
-                <thead className="bg-[#161616] sticky top-0 z-10">
+                <thead className="bg-surface sticky top-0 z-10">
                   <tr>
-                    <th className="py-3 px-3 text-xs font-medium text-[#888] uppercase tracking-wider border-b border-[#222] w-8">
+                    <th className="py-3 px-3 text-xs font-medium text-foreground-muted uppercase tracking-wider border-b border-border w-8">
                       <input
                         type="checkbox"
                         checked={events.length > 0 && selectedIds.size === events.length}
                         onChange={handleSelectAll}
-                        className="accent-amber-500"
+                        className="accent-warning-text"
                       />
                     </th>
-                    <th className="py-3 px-3 text-xs font-medium text-[#888] uppercase tracking-wider border-b border-[#222]">Time</th>
-                    <th className="py-3 px-3 text-xs font-medium text-[#888] uppercase tracking-wider border-b border-[#222]">Event</th>
-                    <th className="py-3 px-3 text-xs font-medium text-[#888] uppercase tracking-wider border-b border-[#222]">Actor</th>
-                    <th className="py-3 px-3 text-xs font-medium text-[#888] uppercase tracking-wider border-b border-[#222]">Object</th>
-                    <th className="py-3 px-3 text-xs font-medium text-[#888] uppercase tracking-wider border-b border-[#222]">Risk</th>
-                    <th className="py-3 px-3 text-xs font-medium text-[#888] uppercase tracking-wider border-b border-[#222]">Status</th>
-                    <th className="py-3 px-3 text-xs font-medium text-[#888] uppercase tracking-wider border-b border-[#222]">Evidence</th>
-                    <th className="py-3 px-3 text-xs font-medium text-[#888] uppercase tracking-wider border-b border-[#222]">Hash</th>
+                    <th className="py-3 px-3 text-xs font-medium text-foreground-muted uppercase tracking-wider border-b border-border">Time</th>
+                    <th className="py-3 px-3 text-xs font-medium text-foreground-muted uppercase tracking-wider border-b border-border">Event</th>
+                    <th className="py-3 px-3 text-xs font-medium text-foreground-muted uppercase tracking-wider border-b border-border">Actor</th>
+                    <th className="py-3 px-3 text-xs font-medium text-foreground-muted uppercase tracking-wider border-b border-border">Object</th>
+                    <th className="py-3 px-3 text-xs font-medium text-foreground-muted uppercase tracking-wider border-b border-border">Risk</th>
+                    <th className="py-3 px-3 text-xs font-medium text-foreground-muted uppercase tracking-wider border-b border-border">Status</th>
+                    <th className="py-3 px-3 text-xs font-medium text-foreground-muted uppercase tracking-wider border-b border-border">Evidence</th>
+                    <th className="py-3 px-3 text-xs font-medium text-foreground-muted uppercase tracking-wider border-b border-border">Hash</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#222]">
                   {events.map((event) => {
                     const riskCfg = riskConfigMap[event.risk_level] || riskConfigMap.low;
                     const StatusIcon = statusConfig[event.status]?.icon || CheckCircle2;
-                    const statusColor = statusConfig[event.status]?.color || "text-[#888]";
+                    const statusColor = statusConfig[event.status]?.color || "text-foreground-muted";
                     const EvidenceIcon = evidenceIcons[event.evidence_state] || Eye;
                     const ActorIcon = actorIcons[event.actor?.actor_type] || User;
 
@@ -691,7 +691,7 @@ function EventsTab() {
                       <tr
                         key={event.id}
                         onClick={() => handleEventClick(event)}
-                        className={`hover:bg-[#161616]/50 transition-colors cursor-pointer ${
+                        className={`hover:bg-surface/50 transition-colors cursor-pointer ${
                           event.risk_level === "critical" ? "border-l-2 border-l-red-500" :
                           event.risk_level === "high" ? "border-l-2 border-l-orange-500" : ""
                         }`}
@@ -701,27 +701,27 @@ function EventsTab() {
                             type="checkbox"
                             checked={selectedIds.has(event.id)}
                             onChange={() => handleSelect(event.id)}
-                            className="accent-amber-500"
+                            className="accent-warning-text"
                           />
                         </td>
-                        <td className="py-3 px-3 text-xs text-[#888] whitespace-nowrap">
+                        <td className="py-3 px-3 text-xs text-foreground-muted whitespace-nowrap">
                           <div>{formatTimestamp(event.timestamp_utc)}</div>
-                          <div className="text-[#555]">#{event.block_number}</div>
+                          <div className="text-foreground-muted">#{event.block_number}</div>
                         </td>
                         <td className="py-3 px-3 text-sm">
-                          <div className="text-white font-medium">{event.event_title || event.event_type}</div>
-                          <div className="text-[#666] text-xs font-mono">{event.event_type}</div>
+                          <div className="text-foreground font-medium">{event.event_title || event.event_type}</div>
+                          <div className="text-foreground-muted text-xs font-mono">{event.event_type}</div>
                         </td>
                         <td className="py-3 px-3 text-sm">
                           <div className="flex items-center gap-2">
-                            <ActorIcon className="w-3.5 h-3.5 text-[#666]" />
-                            <span className="text-[#ccc]">{actorLabel(event.actor)}</span>
+                            <ActorIcon className="w-3.5 h-3.5 text-foreground-muted" />
+                            <span className="text-foreground">{actorLabel(event.actor)}</span>
                           </div>
-                          <div className="text-[#555] text-xs">{event.actor?.role_at_event || ""}</div>
+                          <div className="text-foreground-muted text-xs">{event.actor?.role_at_event || ""}</div>
                         </td>
                         <td className="py-3 px-3 text-sm">
-                          <div className="text-[#ccc] truncate max-w-[150px]">{event.object?.object_name || event.object?.object_id || "-"}</div>
-                          <div className="text-[#555] text-xs">{event.object?.object_type || ""}</div>
+                          <div className="text-foreground truncate max-w-[150px]">{event.object?.object_name || event.object?.object_id || "-"}</div>
+                          <div className="text-foreground-muted text-xs">{event.object?.object_type || ""}</div>
                         </td>
                         <td className="py-3 px-3 text-sm">
                           <span className={`px-2 py-0.5 rounded text-xs font-medium border ${riskCfg.color} ${riskCfg.bg} ${riskCfg.border}`}>
@@ -736,14 +736,14 @@ function EventsTab() {
                         </td>
                         <td className="py-3 px-3 text-sm">
                           <div className="flex items-center gap-1.5">
-                            <EvidenceIcon className="w-3.5 h-3.5 text-[#666]" />
-                            <span className="text-xs text-[#888]">{event.evidence_state.replace("_", " ")}</span>
+                            <EvidenceIcon className="w-3.5 h-3.5 text-foreground-muted" />
+                            <span className="text-xs text-foreground-muted">{event.evidence_state.replace("_", " ")}</span>
                           </div>
                         </td>
                         <td className="py-3 px-3 text-sm">
                           <div className="flex items-center gap-1.5">
-                            <Hash className="w-3.5 h-3.5 text-[#555]" />
-                            <span className="text-xs font-mono text-[#666]">{shortHash(event.hash)}</span>
+                            <Hash className="w-3.5 h-3.5 text-foreground-muted" />
+                            <span className="text-xs font-mono text-foreground-muted">{shortHash(event.hash)}</span>
                           </div>
                         </td>
                       </tr>
@@ -751,11 +751,11 @@ function EventsTab() {
                   })}
                   {events.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="py-12 text-center text-[#888]">
-                        <FileSearch className="w-8 h-8 mx-auto mb-2 text-[#444]" />
+                      <td colSpan={9} className="py-12 text-center text-foreground-muted">
+                        <FileSearch className="w-8 h-8 mx-auto mb-2 text-foreground-muted" />
                         No events found matching your criteria.
                         <br />
-                        <button onClick={() => fetchEvents()} className="text-amber-500 text-sm mt-2 hover:text-amber-400">
+                        <button onClick={() => fetchEvents()} className="text-warning-text text-sm mt-2 hover:text-warning-text">
                           Clear filters and reload
                         </button>
                       </td>
@@ -768,11 +768,11 @@ function EventsTab() {
 
           {/* Pagination */}
           {nextCursor && events.length > 0 && (
-            <div className="px-4 py-3 border-t border-[#222] flex items-center justify-between">
-              <span className="text-xs text-[#888]">{total} total events</span>
+            <div className="px-4 py-3 border-t border-border flex items-center justify-between">
+              <span className="text-xs text-foreground-muted">{total} total events</span>
               <button
                 onClick={() => fetchEvents(nextCursor)}
-                className="px-4 py-1.5 border border-[#333] rounded-lg text-sm text-[#ccc] hover:border-[#555] flex items-center gap-2"
+                className="px-4 py-1.5 border border-border rounded-lg text-sm text-foreground hover:border-border flex items-center gap-2"
               >
                 Load More <ChevronRight className="w-4 h-4" />
               </button>
@@ -781,30 +781,30 @@ function EventsTab() {
 
           {/* Bulk Action Bar */}
           {selectedIds.size > 0 && (
-            <div className="px-4 py-3 border-t border-[#222] bg-amber-500/5 flex items-center justify-between">
-              <span className="text-sm text-[#ccc]">{selectedIds.size} event{selectedIds.size > 1 ? "s" : ""} selected</span>
+            <div className="px-4 py-3 border-t border-border bg-warning-bg flex items-center justify-between">
+              <span className="text-sm text-foreground">{selectedIds.size} event{selectedIds.size > 1 ? "s" : ""} selected</span>
               <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => setActionModal({ step: 'preserve', eventIds: Array.from(selectedIds) })}
-                  className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg text-xs hover:bg-blue-500/20 flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-info-bg border border-info-border text-info-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5"
                 >
                   <Lock className="w-3.5 h-3.5" /> Preserve
                 </button>
                 <button
                   onClick={() => setActionModal({ step: 'exportFormat', eventIds: Array.from(selectedIds) })}
-                  className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs hover:bg-emerald-500/20 flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-success-bg border border-success-border text-success-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5" /> Export
                 </button>
                 <button
                   onClick={() => setActionModal({ step: 'investigationTitle', eventIds: Array.from(selectedIds) })}
-                  className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-lg text-xs hover:bg-purple-500/20 flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-info-bg border border-info-border text-info-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5"
                 >
                   <Shield className="w-3.5 h-3.5" /> Investigate
                 </button>
                 <button
                   onClick={() => setActionModal({ step: 'legalHold', eventIds: Array.from(selectedIds) })}
-                  className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-lg text-xs hover:bg-rose-500/20 flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-error-bg border border-error-border text-error-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5"
                 >
                   <Gavel className="w-3.5 h-3.5" /> Legal Hold
                 </button>
@@ -814,11 +814,11 @@ function EventsTab() {
                     navigator.clipboard.writeText(links.join('\n'));
                     setSelectedIds(new Set());
                   }}
-                  className="px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 rounded-lg text-xs hover:bg-indigo-500/20 flex items-center gap-1.5"
+                  className="px-3 py-1.5 bg-info-bg border border-info-border text-info-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5"
                 >
                   <Link2 className="w-3.5 h-3.5" /> Copy Links
                 </button>
-                <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 text-[#888] hover:text-white text-xs">
+                <button onClick={() => setSelectedIds(new Set())} className="px-3 py-1.5 text-foreground-muted hover:text-foreground text-xs">
                   Cancel
                 </button>
               </div>
@@ -829,22 +829,22 @@ function EventsTab() {
 
       {/* Right Detail Drawer */}
       {selectedEvent && (
-        <div className="w-96 bg-[#111] border border-[#222] rounded-xl overflow-hidden flex-shrink-0 max-h-[800px] flex flex-col">
-          <div className="p-4 border-b border-[#222] flex items-center justify-between">
-            <h3 className="text-sm font-medium text-white">Event Details</h3>
-            <button onClick={() => { setSelectedEvent(null); setRelatedEvents([]); }} className="text-[#666] hover:text-white">
+        <div className="w-96 bg-surface border border-border rounded-xl overflow-hidden flex-shrink-0 max-h-[800px] flex flex-col">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <h3 className="text-sm font-medium text-foreground">Event Details</h3>
+            <button onClick={() => { setSelectedEvent(null); setRelatedEvents([]); }} className="text-foreground-muted hover:text-foreground">
               <X className="w-4 h-4" />
             </button>
           </div>
           <div className="flex-1 overflow-auto p-4 space-y-4">
             {/* Event Header */}
             <div>
-              <h4 className="text-base font-semibold text-white">{selectedEvent.event_title}</h4>
-              <p className="text-xs text-[#666] font-mono mt-0.5">{selectedEvent.event_type}</p>
+              <h4 className="text-base font-semibold text-foreground">{selectedEvent.event_title}</h4>
+              <p className="text-xs text-foreground-muted font-mono mt-0.5">{selectedEvent.event_type}</p>
             </div>
 
             {/* Doctrine Summary */}
-            <div className="bg-[#0a0a0a] border border-[#222] rounded-lg p-3 text-xs text-[#aaa] leading-relaxed">
+            <div className="bg-background border border-border rounded-lg p-3 text-xs text-foreground/70 leading-relaxed">
               {selectedEvent.actor?.actor_name || "Unknown"} ({selectedEvent.event_category.replace("_", " ")}) — {selectedEvent.event_summary || selectedEvent.event_type}
             </div>
 
@@ -859,44 +859,44 @@ function EventsTab() {
             </div>
 
             {/* Actor Panel */}
-            <div className="border border-[#222] rounded-lg p-3">
-              <h5 className="text-xs font-medium text-[#888] uppercase tracking-wider mb-2">Actor</h5>
+            <div className="border border-border rounded-lg p-3">
+              <h5 className="text-xs font-medium text-foreground-muted uppercase tracking-wider mb-2">Actor</h5>
               <div className="space-y-1.5 text-xs">
-                <p className="flex items-center gap-1"><span className="text-[#666] w-12">Name:</span> <FieldValue value={selectedEvent.actor?.actor_name} /></p>
-                <p className="flex items-center gap-1"><span className="text-[#666] w-12">Type:</span> <FieldValue value={selectedEvent.actor?.actor_type} /></p>
-                <p className="flex items-center gap-1"><span className="text-[#666] w-12">Role:</span> <FieldValue value={selectedEvent.actor?.role_at_event} /></p>
-                <p className="flex items-center gap-1"><span className="text-[#666] w-12">Session:</span> <FieldValue value={selectedEvent.actor?.session_id ? shortHash(selectedEvent.actor.session_id) : "-"} /></p>
+                <p className="flex items-center gap-1"><span className="text-foreground-muted w-12">Name:</span> <FieldValue value={selectedEvent.actor?.actor_name} /></p>
+                <p className="flex items-center gap-1"><span className="text-foreground-muted w-12">Type:</span> <FieldValue value={selectedEvent.actor?.actor_type} /></p>
+                <p className="flex items-center gap-1"><span className="text-foreground-muted w-12">Role:</span> <FieldValue value={selectedEvent.actor?.role_at_event} /></p>
+                <p className="flex items-center gap-1"><span className="text-foreground-muted w-12">Session:</span> <FieldValue value={selectedEvent.actor?.session_id ? shortHash(selectedEvent.actor.session_id) : "-"} /></p>
                 {selectedEvent.actor?.ip_address && (
-                  <p className="flex items-center gap-1"><span className="text-[#666] w-12">IP:</span> <FieldValue value={selectedEvent.actor?.ip_address} /></p>
+                  <p className="flex items-center gap-1"><span className="text-foreground-muted w-12">IP:</span> <FieldValue value={selectedEvent.actor?.ip_address} /></p>
                 )}
               </div>
             </div>
 
             {/* Object Panel */}
-            <div className="border border-[#222] rounded-lg p-3">
-              <h5 className="text-xs font-medium text-[#888] uppercase tracking-wider mb-2">Object</h5>
+            <div className="border border-border rounded-lg p-3">
+              <h5 className="text-xs font-medium text-foreground-muted uppercase tracking-wider mb-2">Object</h5>
               <div className="space-y-1.5 text-xs">
-                <p className="flex items-center gap-1"><span className="text-[#666] w-12">Type:</span> <FieldValue value={selectedEvent.object?.object_type} /></p>
-                <p className="flex items-center gap-1"><span className="text-[#666] w-12">ID:</span> <FieldValue value={selectedEvent.object?.object_id} /></p>
-                <p className="flex items-center gap-1"><span className="text-[#666] w-12">Name:</span> <FieldValue value={selectedEvent.object?.object_name} /></p>
+                <p className="flex items-center gap-1"><span className="text-foreground-muted w-12">Type:</span> <FieldValue value={selectedEvent.object?.object_type} /></p>
+                <p className="flex items-center gap-1"><span className="text-foreground-muted w-12">ID:</span> <FieldValue value={selectedEvent.object?.object_id} /></p>
+                <p className="flex items-center gap-1"><span className="text-foreground-muted w-12">Name:</span> <FieldValue value={selectedEvent.object?.object_name} /></p>
               </div>
             </div>
 
             {/* Authority Panel */}
             {selectedEvent.authority && Object.keys(selectedEvent.authority).length > 0 && (
-              <div className="border border-[#222] rounded-lg p-3">
-                <h5 className="text-xs font-medium text-[#888] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <div className="border border-border rounded-lg p-3">
+                <h5 className="text-xs font-medium text-foreground-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Shield className="w-3 h-3" /> Authority
                 </h5>
                 <div className="space-y-1.5 text-xs">
-                  <p className="flex items-center gap-1"><span className="text-[#666] w-16">Permission:</span> <FieldValue value={String(selectedEvent.authority.permission_used || "-")} /></p>
-                  <p className="flex items-center gap-1"><span className="text-[#666] w-16">Policy Rule:</span> <FieldValue value={String(selectedEvent.authority.policy_rule_id || "-")} /></p>
+                  <p className="flex items-center gap-1"><span className="text-foreground-muted w-16">Permission:</span> <FieldValue value={String(selectedEvent.authority.permission_used || "-")} /></p>
+                  <p className="flex items-center gap-1"><span className="text-foreground-muted w-16">Policy Rule:</span> <FieldValue value={String(selectedEvent.authority.policy_rule_id || "-")} /></p>
                   {selectedEvent.authority.approval_required !== undefined && (
-                    <p className="flex items-center gap-1"><span className="text-[#666] w-16">Approval:</span> <FieldValue value={String(selectedEvent.authority.approval_required)} /></p>
+                    <p className="flex items-center gap-1"><span className="text-foreground-muted w-16">Approval:</span> <FieldValue value={String(selectedEvent.authority.approval_required)} /></p>
                   )}
                   {!!selectedEvent.authority.override_reason && (
-                    <div className="bg-orange-500/5 border border-orange-500/20 rounded p-2 mt-1">
-                      <p className="text-orange-400 text-[10px] uppercase tracking-wider mb-0.5">Override Reason</p>
+                    <div className="bg-warning-bg border border-warning-border rounded p-2 mt-1">
+                      <p className="text-warning-text text-[10px] uppercase tracking-wider mb-0.5">Override Reason</p>
                       <FieldValue value={String(selectedEvent.authority.override_reason)} />
                     </div>
                   )}
@@ -906,18 +906,18 @@ function EventsTab() {
 
             {/* Change Panel */}
             {selectedEvent.change && Object.keys(selectedEvent.change).length > 0 && (
-              <div className="border border-[#222] rounded-lg p-3">
-                <h5 className="text-xs font-medium text-[#888] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <div className="border border-border rounded-lg p-3">
+                <h5 className="text-xs font-medium text-foreground-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Activity className="w-3 h-3" /> Change
                 </h5>
                 <div className="space-y-1.5 text-xs">
                   {!!selectedEvent.change.field_changed && (
-                    <p><span className="text-[#666]">Field:</span> <span className="text-[#ccc] font-mono">{String(selectedEvent.change.field_changed)}</span></p>
+                    <p><span className="text-foreground-muted">Field:</span> <span className="text-foreground font-mono">{String(selectedEvent.change.field_changed)}</span></p>
                   )}
                   {selectedEvent.change.previous_value !== undefined && (
-                    <div className="border border-red-500/20 bg-red-500/5 rounded p-1.5">
-                      <span className="text-red-400 text-[10px] uppercase">Was:</span>
-                      <div className="text-red-300 font-mono text-[10px] break-all mt-0.5">
+                    <div className="border border-error-border bg-error-bg rounded p-1.5">
+                      <span className="text-error-text text-[10px] uppercase">Was:</span>
+                      <div className="text-error-text font-mono text-[10px] break-all mt-0.5">
                         {typeof selectedEvent.change.previous_value === "object"
                           ? JSON.stringify(selectedEvent.change.previous_value)
                           : String(selectedEvent.change.previous_value as string)}
@@ -925,9 +925,9 @@ function EventsTab() {
                     </div>
                   )}
                   {selectedEvent.change.new_value !== undefined && (
-                    <div className="border border-emerald-500/20 bg-emerald-500/5 rounded p-1.5">
-                      <span className="text-emerald-400 text-[10px] uppercase">Now:</span>
-                      <div className="text-emerald-300 font-mono text-[10px] break-all mt-0.5">
+                    <div className="border border-success-border bg-success-bg rounded p-1.5">
+                      <span className="text-success-text text-[10px] uppercase">Now:</span>
+                      <div className="text-success-text font-mono text-[10px] break-all mt-0.5">
                         {typeof selectedEvent.change.new_value === "object"
                           ? JSON.stringify(selectedEvent.change.new_value)
                           : String(selectedEvent.change.new_value as string)}
@@ -935,7 +935,7 @@ function EventsTab() {
                     </div>
                   )}
                   {!!selectedEvent.change.change_reason && (
-                    <p className="text-[#888] italic mt-1">{String(selectedEvent.change.change_reason)}</p>
+                    <p className="text-foreground-muted italic mt-1">{String(selectedEvent.change.change_reason)}</p>
                   )}
                 </div>
               </div>
@@ -943,24 +943,24 @@ function EventsTab() {
 
             {/* AI Provenance Panel */}
             {selectedEvent.ai_context && Object.keys(selectedEvent.ai_context).length > 0 && (
-              <div className="border border-[#222] rounded-lg p-3">
-                <h5 className="text-xs font-medium text-[#888] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <div className="border border-border rounded-lg p-3">
+                <h5 className="text-xs font-medium text-foreground-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Bot className="w-3 h-3" /> AI Provenance
                 </h5>
                 <div className="space-y-1.5 text-xs">
-                  {!!selectedEvent.ai_context.agent_id && <p className="flex items-center gap-1"><span className="text-[#666] w-14">Agent:</span> <FieldValue value={String(selectedEvent.ai_context.agent_id)} /></p>}
-                  {!!selectedEvent.ai_context.agent_version && <p className="flex items-center gap-1"><span className="text-[#666] w-14">Version:</span> <FieldValue value={String(selectedEvent.ai_context.agent_version)} /></p>}
-                  {!!selectedEvent.ai_context.model_version && <p className="flex items-center gap-1"><span className="text-[#666] w-14">Model:</span> <FieldValue value={String(selectedEvent.ai_context.model_version)} /></p>}
+                  {!!selectedEvent.ai_context.agent_id && <p className="flex items-center gap-1"><span className="text-foreground-muted w-14">Agent:</span> <FieldValue value={String(selectedEvent.ai_context.agent_id)} /></p>}
+                  {!!selectedEvent.ai_context.agent_version && <p className="flex items-center gap-1"><span className="text-foreground-muted w-14">Version:</span> <FieldValue value={String(selectedEvent.ai_context.agent_version)} /></p>}
+                  {!!selectedEvent.ai_context.model_version && <p className="flex items-center gap-1"><span className="text-foreground-muted w-14">Model:</span> <FieldValue value={String(selectedEvent.ai_context.model_version)} /></p>}
                   {selectedEvent.ai_context.confidence !== undefined && (
-                    <p className="flex items-center gap-1"><span className="text-[#666] w-14">Confidence:</span> <span className="text-[#ccc]">{(Number(selectedEvent.ai_context.confidence) * 100).toFixed(0)}%</span></p>
+                    <p className="flex items-center gap-1"><span className="text-foreground-muted w-14">Confidence:</span> <span className="text-foreground">{(Number(selectedEvent.ai_context.confidence) * 100).toFixed(0)}%</span></p>
                   )}
-                  {!!selectedEvent.ai_context.prompt_id && <p className="flex items-center gap-1"><span className="text-[#666] w-14">Prompt:</span> <FieldValue value={String(selectedEvent.ai_context.prompt_id)} /></p>}
+                  {!!selectedEvent.ai_context.prompt_id && <p className="flex items-center gap-1"><span className="text-foreground-muted w-14">Prompt:</span> <FieldValue value={String(selectedEvent.ai_context.prompt_id)} /></p>}
                   {!!selectedEvent.ai_context.policy_checks && Array.isArray(selectedEvent.ai_context.policy_checks) && (
                     <div className="mt-1">
-                      <span className="text-[#666] text-[10px] uppercase">Policy Checks:</span>
+                      <span className="text-foreground-muted text-[10px] uppercase">Policy Checks:</span>
                       <div className="flex flex-wrap gap-1 mt-0.5">
                         {selectedEvent.ai_context.policy_checks.map((pc: string) => (
-                          <span key={pc} className="px-1.5 py-0.5 bg-emerald-400/10 text-emerald-400 rounded text-[10px]">{pc}</span>
+                          <span key={pc} className="px-1.5 py-0.5 bg-success-bg text-success-text rounded text-[10px]">{pc}</span>
                         ))}
                       </div>
                     </div>
@@ -970,41 +970,41 @@ function EventsTab() {
             )}
 
             {/* Chain Integrity Panel */}
-            <div className="border border-[#222] rounded-lg p-3">
-              <h5 className="text-xs font-medium text-[#888] uppercase tracking-wider mb-2">Chain Integrity</h5>
+            <div className="border border-border rounded-lg p-3">
+              <h5 className="text-xs font-medium text-foreground-muted uppercase tracking-wider mb-2">Chain Integrity</h5>
               <div className="space-y-1.5 text-xs">
-                <p><span className="text-[#666]">Hash:</span> <span className="text-[#ccc] font-mono text-[10px] break-all">{selectedEvent.hash}</span></p>
-                <p><span className="text-[#666]">Previous:</span> <span className="text-[#ccc] font-mono text-[10px] break-all">{selectedEvent.prev_hash || "Genesis"}</span></p>
-                <p><span className="text-[#666]">Chain:</span> <span className="text-[#ccc]">{selectedEvent.chain_id}</span></p>
+                <p><span className="text-foreground-muted">Hash:</span> <span className="text-foreground font-mono text-[10px] break-all">{selectedEvent.hash}</span></p>
+                <p><span className="text-foreground-muted">Previous:</span> <span className="text-foreground font-mono text-[10px] break-all">{selectedEvent.prev_hash || "Genesis"}</span></p>
+                <p><span className="text-foreground-muted">Chain:</span> <span className="text-foreground">{selectedEvent.chain_id}</span></p>
                 {selectedEvent.sealed_at && (
-                  <p><span className="text-[#666]">Sealed:</span> <span className="text-amber-400">{formatTimestamp(selectedEvent.sealed_at)}</span></p>
+                  <p><span className="text-foreground-muted">Sealed:</span> <span className="text-warning-text">{formatTimestamp(selectedEvent.sealed_at)}</span></p>
                 )}
               </div>
             </div>
 
             {/* Evidence State */}
-            <div className="border border-[#222] rounded-lg p-3">
-              <h5 className="text-xs font-medium text-[#888] uppercase tracking-wider mb-2">Evidence</h5>
+            <div className="border border-border rounded-lg p-3">
+              <h5 className="text-xs font-medium text-foreground-muted uppercase tracking-wider mb-2">Evidence</h5>
               <div className="space-y-1.5 text-xs">
-                <p className="flex items-center gap-1"><span className="text-[#666] w-14">State:</span> <FieldValue value={selectedEvent.evidence_state.replace("_", " ")} /></p>
-                <p className="flex items-center gap-1"><span className="text-[#666] w-14">Retention:</span> <FieldValue value={selectedEvent.retention_class} /></p>
+                <p className="flex items-center gap-1"><span className="text-foreground-muted w-14">State:</span> <FieldValue value={selectedEvent.evidence_state.replace("_", " ")} /></p>
+                <p className="flex items-center gap-1"><span className="text-foreground-muted w-14">Retention:</span> <FieldValue value={selectedEvent.retention_class} /></p>
                 {selectedEvent.retention_until && (
-                  <p className="flex items-center gap-1"><span className="text-[#666] w-14">Expires:</span> <FieldValue value={formatTimestamp(selectedEvent.retention_until)} /></p>
+                  <p className="flex items-center gap-1"><span className="text-foreground-muted w-14">Expires:</span> <FieldValue value={formatTimestamp(selectedEvent.retention_until)} /></p>
                 )}
               </div>
             </div>
 
             {/* Related Events */}
             {relatedEvents.length > 0 && (
-              <div className="border border-[#222] rounded-lg p-3">
-                <h5 className="text-xs font-medium text-[#888] uppercase tracking-wider mb-2">Related Events ({relatedEvents.length})</h5>
+              <div className="border border-border rounded-lg p-3">
+                <h5 className="text-xs font-medium text-foreground-muted uppercase tracking-wider mb-2">Related Events ({relatedEvents.length})</h5>
                 <div className="space-y-2">
                   {relatedEvents.slice(0, 5).map((rel) => (
-                    <div key={rel.id} className="text-xs text-[#888] flex items-start gap-2">
-                      <Activity className="w-3 h-3 mt-0.5 text-[#555] flex-shrink-0" />
+                    <div key={rel.id} className="text-xs text-foreground-muted flex items-start gap-2">
+                      <Activity className="w-3 h-3 mt-0.5 text-foreground-muted flex-shrink-0" />
                       <div>
-                        <div className="text-[#aaa]">{rel.event_type}</div>
-                        <div className="text-[#555]">{formatTimestamp(rel.timestamp_utc)}</div>
+                        <div className="text-foreground/70">{rel.event_type}</div>
+                        <div className="text-foreground-muted">{formatTimestamp(rel.timestamp_utc)}</div>
                       </div>
                     </div>
                   ))}
@@ -1016,20 +1016,20 @@ function EventsTab() {
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setActionModal({ step: 'preserve', eventIds: [selectedEvent.id] })}
-                className="flex-1 px-3 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 flex items-center justify-center gap-1.5"
+                className="flex-1 px-3 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-xs hover:brightness-110 flex items-center justify-center gap-1.5"
               >
                 <Lock className="w-3.5 h-3.5" /> Preserve
               </button>
               <button
                 onClick={() => setActionModal({ step: 'exportFormat', eventIds: [selectedEvent.id] })}
-                className="flex-1 px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs hover:bg-emerald-500/20 flex items-center justify-center gap-1.5"
+                className="flex-1 px-3 py-2 bg-success-bg border border-success-border text-success-text rounded-lg text-xs hover:brightness-110 flex items-center justify-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" /> Export
               </button>
             </div>
             <a
               href={`/evidence/audit-trail/events/${selectedEvent.id}`}
-              className="block w-full text-center px-3 py-2 border border-[#333] rounded-lg text-xs text-[#888] hover:text-white hover:border-[#555] mt-2"
+              className="block w-full text-center px-3 py-2 border border-border rounded-lg text-xs text-foreground-muted hover:text-foreground hover:border-border mt-2"
             >
               View Full Event Page →
             </a>
@@ -1112,30 +1112,30 @@ function SavedViewsTab() {
   };
 
   return (
-    <div className="bg-[#111] border border-[#222] rounded-xl p-6">
+    <div className="bg-surface border border-border rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-medium text-white">Saved Views</h3>
-          <p className="text-sm text-[#888]">Create and manage saved filter configurations.</p>
+          <h3 className="text-lg font-medium text-foreground">Saved Views</h3>
+          <p className="text-sm text-foreground-muted">Create and manage saved filter configurations.</p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-sm hover:bg-amber-500/20 flex items-center gap-2"
+          className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-sm hover:brightness-110 flex items-center gap-2"
         >
           <Plus className="w-4 h-4" /> {showForm ? "Cancel" : "New View"}
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-[#0a0a0a] border border-[#222] rounded-lg p-4 mb-4 flex gap-3">
+        <div className="bg-background border border-border rounded-lg p-4 mb-4 flex gap-3">
           <input
             placeholder="View name (e.g., Critical Today, My Security Events)"
             value={viewName}
             onChange={e => setViewName(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleCreate()}
-            className="flex-1 bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-white"
+            className="flex-1 bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground"
           />
-          <button onClick={handleCreate} className="px-4 py-2 bg-amber-500 text-black rounded-lg text-sm font-medium hover:bg-amber-400">
+          <button onClick={handleCreate} className="px-4 py-2 bg-warning-text text-black rounded-lg text-sm font-medium hover:brightness-110">
             Save
           </button>
         </div>
@@ -1143,15 +1143,15 @@ function SavedViewsTab() {
 
       {views.length === 0 ? (
         <div className="text-center py-12">
-          <BookmarkPlus className="w-10 h-10 mx-auto mb-3 text-[#444]" />
-          <p className="text-sm text-[#888]">No saved views yet.</p>
-          <p className="text-xs text-[#666] mt-1">Save your current filter configuration for quick access later.</p>
+          <BookmarkPlus className="w-10 h-10 mx-auto mb-3 text-foreground-muted" />
+          <p className="text-sm text-foreground-muted">No saved views yet.</p>
+          <p className="text-xs text-foreground-muted mt-1">Save your current filter configuration for quick access later.</p>
         </div>
       ) : (
         <div className="overflow-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="text-xs text-[#888] uppercase tracking-wider border-b border-[#222]">
+              <tr className="text-xs text-foreground-muted uppercase tracking-wider border-b border-border">
                 <th className="py-2 px-3">Name</th>
                 <th className="py-2 px-3">Created</th>
                 <th className="py-2 px-3">Actions</th>
@@ -1159,11 +1159,11 @@ function SavedViewsTab() {
             </thead>
             <tbody className="divide-y divide-[#222]">
               {views.map(v => (
-                <tr key={v.id} className="text-sm text-[#ccc]">
-                  <td className="py-2 px-3 font-medium text-white">{v.name}</td>
-                  <td className="py-2 px-3 text-xs text-[#888]">{formatTimestamp(v.createdAt)}</td>
+                <tr key={v.id} className="text-sm text-foreground">
+                  <td className="py-2 px-3 font-medium text-foreground">{v.name}</td>
+                  <td className="py-2 px-3 text-xs text-foreground-muted">{formatTimestamp(v.createdAt)}</td>
                   <td className="py-2 px-3">
-                    <button onClick={() => handleDelete(v.id)} className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1">
+                    <button onClick={() => handleDelete(v.id)} className="text-error-text hover:text-error-text text-xs flex items-center gap-1">
                       <Trash2 className="w-3 h-3" /> Delete
                     </button>
                   </td>
@@ -1200,27 +1200,27 @@ function ExportsTab() {
   }, [exports]);
 
   return (
-    <div className="bg-[#111] border border-[#222] rounded-xl p-6">
+    <div className="bg-surface border border-border rounded-xl p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-lg font-medium text-white">Export Jobs</h3>
-          <p className="text-sm text-[#888]">Async export jobs with download and notification path.</p>
+          <h3 className="text-lg font-medium text-foreground">Export Jobs</h3>
+          <p className="text-sm text-foreground-muted">Async export jobs with download and notification path.</p>
         </div>
-        {loading && <RefreshCw className="w-4 h-4 animate-spin text-[#888]" />}
+        {loading && <RefreshCw className="w-4 h-4 animate-spin text-foreground-muted" />}
       </div>
       {loading && exports.length === 0 ? (
-        <div className="text-center text-[#888] py-8">Loading exports...</div>
+        <div className="text-center text-foreground-muted py-8">Loading exports...</div>
       ) : exports.length === 0 ? (
         <div className="text-center py-8">
-          <Download className="w-10 h-10 mx-auto mb-3 text-[#444]" />
-          <p className="text-sm text-[#888]">No export jobs found.</p>
-          <p className="text-xs text-[#666] mt-1">Select events and use the Export action to create a new export.</p>
+          <Download className="w-10 h-10 mx-auto mb-3 text-foreground-muted" />
+          <p className="text-sm text-foreground-muted">No export jobs found.</p>
+          <p className="text-xs text-foreground-muted mt-1">Select events and use the Export action to create a new export.</p>
         </div>
       ) : (
         <div className="overflow-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="text-xs text-[#888] uppercase tracking-wider border-b border-[#222]">
+              <tr className="text-xs text-foreground-muted uppercase tracking-wider border-b border-border">
                 <th className="py-2 px-3">ID</th>
                 <th className="py-2 px-3">Format</th>
                 <th className="py-2 px-3">Reason</th>
@@ -1231,16 +1231,16 @@ function ExportsTab() {
             </thead>
             <tbody className="divide-y divide-[#222]">
               {exports.map((exp: any) => (
-                <tr key={exp.id} className="text-sm text-[#ccc]">
+                <tr key={exp.id} className="text-sm text-foreground">
                   <td className="py-2 px-3 font-mono text-xs">{exp.id.substring(0, 8)}</td>
                   <td className="py-2 px-3">{exp.format}</td>
                   <td className="py-2 px-3">{exp.reason}</td>
                   <td className="py-2 px-3">
                     <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium w-fit ${
-                      exp.status === "COMPLETED" ? "text-emerald-400 bg-emerald-400/10" :
-                      exp.status === "FAILED" ? "text-red-400 bg-red-400/10" :
-                      exp.status === "PROCESSING" ? "text-blue-400 bg-blue-400/10" :
-                      "text-amber-400 bg-amber-400/10"
+                      exp.status === "COMPLETED" ? "text-success-text bg-success-bg" :
+                      exp.status === "FAILED" ? "text-error-text bg-error-bg" :
+                      exp.status === "PROCESSING" ? "text-info-text bg-info-bg" :
+                      "text-warning-text bg-warning-bg"
                     }`}>
                       {exp.status === "PENDING" && <RefreshCw className="w-3 h-3 animate-spin" />}
                       {exp.status === "PROCESSING" && <RefreshCw className="w-3 h-3 animate-spin" />}
@@ -1249,18 +1249,18 @@ function ExportsTab() {
                       {exp.status}
                     </span>
                   </td>
-                  <td className="py-2 px-3 text-xs text-[#888]">
+                  <td className="py-2 px-3 text-xs text-foreground-muted">
                     {exp.status === "PENDING" ? "~30s" :
                      exp.status === "PROCESSING" ? "~15s" :
                      exp.status === "COMPLETED" ? "Done" : "—"}
                   </td>
-                  <td className="py-2 px-3 text-xs text-[#888]">{formatTimestamp(exp.created_at)}</td>
+                  <td className="py-2 px-3 text-xs text-foreground-muted">{formatTimestamp(exp.created_at)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {exports.some(e => e.status === "PENDING" || e.status === "PROCESSING") && (
-            <p className="text-xs text-[#888] mt-3 flex items-center gap-1">
+            <p className="text-xs text-foreground-muted mt-3 flex items-center gap-1">
               <RefreshCw className="w-3 h-3 animate-spin" /> Auto-refreshing every 15s. Results will notify via workspace notification.
             </p>
           )}
@@ -1290,16 +1290,16 @@ function IntegrityTab() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-[#111] border border-[#222] rounded-xl p-6">
+      <div className="bg-surface border border-border rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-medium text-white">Chain Integrity</h3>
-            <p className="text-sm text-[#888]">Verify the cryptographic hash chain of audit events.</p>
+            <h3 className="text-lg font-medium text-foreground">Chain Integrity</h3>
+            <p className="text-sm text-foreground-muted">Verify the cryptographic hash chain of audit events.</p>
           </div>
           <button
             onClick={handleVerify}
             disabled={verifying}
-            className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 bg-success-bg border border-success-border text-success-text rounded-lg text-sm hover:brightness-110 flex items-center gap-2 disabled:opacity-50"
           >
             {verifying ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1313,31 +1313,31 @@ function IntegrityTab() {
         {verifyResult && (
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-[#0a0a0a] border border-[#222] rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-white">{verifyResult.total_blocks}</div>
-                <div className="text-xs text-[#888]">Total Blocks</div>
+              <div className="bg-background border border-border rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-foreground">{verifyResult.total_blocks}</div>
+                <div className="text-xs text-foreground-muted">Total Blocks</div>
               </div>
-              <div className="bg-[#0a0a0a] border border-emerald-500/20 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-emerald-400">{verifyResult.verified_blocks}</div>
-                <div className="text-xs text-[#888]">Verified</div>
+              <div className="bg-background border border-success-border rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-success-text">{verifyResult.verified_blocks}</div>
+                <div className="text-xs text-foreground-muted">Verified</div>
               </div>
-              <div className={`bg-[#0a0a0a] border rounded-lg p-3 text-center ${
-                verifyResult.failed_blocks > 0 ? "border-red-500/20" : "border-[#222]"
+              <div className={`bg-background border rounded-lg p-3 text-center ${
+                verifyResult.failed_blocks > 0 ? "border-error-border" : "border-border"
               }`}>
-                <div className={`text-2xl font-bold ${verifyResult.failed_blocks > 0 ? "text-red-400" : "text-[#666]"}`}>
+                <div className={`text-2xl font-bold ${verifyResult.failed_blocks > 0 ? "text-error-text" : "text-foreground-muted"}`}>
                   {verifyResult.failed_blocks}
                 </div>
-                <div className="text-xs text-[#888]">Failed</div>
+                <div className="text-xs text-foreground-muted">Failed</div>
               </div>
             </div>
 
             {verifyResult.failed_blocks > 0 && (
-              <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-red-400 text-sm font-medium mb-2">
+              <div className="bg-error-bg border border-error-border rounded-lg p-3">
+                <div className="flex items-center gap-2 text-error-text text-sm font-medium mb-2">
                   <ShieldAlert className="w-4 h-4" />
                   Chain Integrity Issues Detected
                 </div>
-                <div className="space-y-1 text-xs text-red-300">
+                <div className="space-y-1 text-xs text-error-text">
                   {verifyResult.results?.filter((r: any) => !r.chain_verified).map((r: any) => (
                     <p key={r.block_number}>Block #{r.block_number}: {r.error_message}</p>
                   ))}
@@ -1346,9 +1346,9 @@ function IntegrityTab() {
             )}
 
             {verifyResult.failed_blocks === 0 && verifyResult.total_blocks > 0 && (
-              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm text-emerald-400">All blocks verified. Chain integrity is intact.</span>
+              <div className="bg-success-bg border border-success-border rounded-lg p-3 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-success-text" />
+                <span className="text-sm text-success-text">All blocks verified. Chain integrity is intact.</span>
               </div>
             )}
           </div>
@@ -1384,71 +1384,71 @@ function RetentionTab() {
   return (
     <div className="space-y-4">
       {/* Retention Policy Summary */}
-      <div className="bg-[#111] border border-[#222] rounded-xl p-6">
-        <h3 className="text-lg font-medium text-white mb-4">Retention Policies</h3>
+      <div className="bg-surface border border-border rounded-xl p-6">
+        <h3 className="text-lg font-medium text-foreground mb-4">Retention Policies</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Standard", duration: "2 years", color: "text-emerald-400", desc: "Default retention for routine audit events", badge: "bg-emerald-400/10 border-emerald-400/20" },
-            { label: "Extended", duration: "7 years", color: "text-blue-400", desc: "Compliance and regulatory events", badge: "bg-blue-400/10 border-blue-400/20" },
-            { label: "Regulated", duration: "10 years", color: "text-purple-400", desc: "GDPR, SOX, FINRA requirements", badge: "bg-purple-400/10 border-purple-400/20" },
-            { label: "Legal Hold", duration: "Indefinite", color: "text-amber-400", desc: "Suspended until hold is released", badge: "bg-amber-400/10 border-amber-400/20" },
+            { label: "Standard", duration: "2 years", color: "text-success-text", desc: "Default retention for routine audit events", badge: "bg-success-bg border-success-border" },
+            { label: "Extended", duration: "7 years", color: "text-info-text", desc: "Compliance and regulatory events", badge: "bg-info-bg border-info-border" },
+            { label: "Regulated", duration: "10 years", color: "text-info-text", desc: "GDPR, SOX, FINRA requirements", badge: "bg-info-bg border-info-border" },
+            { label: "Legal Hold", duration: "Indefinite", color: "text-warning-text", desc: "Suspended until hold is released", badge: "bg-warning-bg border-warning-border" },
           ].map((cls) => (
             <div key={cls.label} className={`${cls.badge} border rounded-lg p-4`}>
               <div className={`text-sm font-medium ${cls.color}`}>{cls.label}</div>
-              <div className="text-xs text-[#888] mt-0.5">{cls.duration}</div>
-              <p className="text-xs text-[#666] mt-2">{cls.desc}</p>
+              <div className="text-xs text-foreground-muted mt-0.5">{cls.duration}</div>
+              <p className="text-xs text-foreground-muted mt-2">{cls.desc}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Seal Expired Records */}
-      <div className="bg-[#111] border border-[#222] rounded-xl p-6">
+      <div className="bg-surface border border-border rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-medium text-white">Seal Expired Records</h3>
-            <p className="text-sm text-[#888]">
+            <h3 className="text-lg font-medium text-foreground">Seal Expired Records</h3>
+            <p className="text-sm text-foreground-muted">
               Seal records whose retention period has expired. Sealed records are locked from modification and can only be viewed by ADMIN, SECURITY, COMPLIANCE, and LEGAL roles, with all access logged.
             </p>
           </div>
           <button
             onClick={handleSealExpired}
             disabled={sealing}
-            className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-sm hover:bg-amber-500/20 flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-sm hover:brightness-110 flex items-center gap-2 disabled:opacity-50"
           >
             <Archive className="w-4 h-4" />
             {sealing ? "Sealing..." : "Seal Expired"}
           </button>
         </div>
         {sealResult && (
-          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm text-emerald-400">{sealResult.sealed_count} record(s) sealed</span>
+          <div className="bg-success-bg border border-success-border rounded-lg p-3 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-success-text" />
+            <span className="text-sm text-success-text">{sealResult.sealed_count} record(s) sealed</span>
           </div>
         )}
       </div>
 
       {/* Legal Holds */}
-      <div className="bg-[#111] border border-[#222] rounded-xl p-6">
+      <div className="bg-surface border border-border rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-medium text-white">Active Legal Holds</h3>
-            <p className="text-sm text-[#888]">Records under legal hold have their retention expiration suspended indefinitely.</p>
+            <h3 className="text-lg font-medium text-foreground">Active Legal Holds</h3>
+            <p className="text-sm text-foreground-muted">Records under legal hold have their retention expiration suspended indefinitely.</p>
           </div>
         </div>
         {loadingHolds ? (
-          <div className="text-center py-6 text-[#888] text-sm">Loading legal holds...</div>
+          <div className="text-center py-6 text-foreground-muted text-sm">Loading legal holds...</div>
         ) : legalHolds.length === 0 ? (
           <div className="text-center py-8">
-            <Gavel className="w-10 h-10 mx-auto mb-3 text-[#444]" />
-            <p className="text-sm text-[#888]">No active legal holds.</p>
-            <p className="text-xs text-[#666] mt-1">Apply legal holds from the event detail view or via the Legal Holds page.</p>
+            <Gavel className="w-10 h-10 mx-auto mb-3 text-foreground-muted" />
+            <p className="text-sm text-foreground-muted">No active legal holds.</p>
+            <p className="text-xs text-foreground-muted mt-1">Apply legal holds from the event detail view or via the Legal Holds page.</p>
           </div>
         ) : (
           <div className="overflow-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="text-xs text-[#888] uppercase tracking-wider border-b border-[#222]">
+                <tr className="text-xs text-foreground-muted uppercase tracking-wider border-b border-border">
                   <th className="py-2 px-3">Matter Ref</th>
                   <th className="py-2 px-3">Object</th>
                   <th className="py-2 px-3">Reason</th>
@@ -1458,12 +1458,12 @@ function RetentionTab() {
               </thead>
               <tbody className="divide-y divide-[#222]">
                 {legalHolds.map((lh: any) => (
-                  <tr key={lh.id} className="text-sm text-[#ccc]">
+                  <tr key={lh.id} className="text-sm text-foreground">
                     <td className="py-2 px-3 font-mono text-xs">{lh.matter_ref}</td>
                     <td className="py-2 px-3">{lh.object_type}:{lh.object_id?.substring(0, 12)}</td>
-                    <td className="py-2 px-3 text-xs text-[#888]">{lh.reason}</td>
+                    <td className="py-2 px-3 text-xs text-foreground-muted">{lh.reason}</td>
                     <td className="py-2 px-3 text-xs">{lh.applied_by?.substring(0, 12)}</td>
-                    <td className="py-2 px-3 text-xs text-[#888]">{lh.created_at ? formatTimestamp(lh.created_at) : "-"}</td>
+                    <td className="py-2 px-3 text-xs text-foreground-muted">{lh.created_at ? formatTimestamp(lh.created_at) : "-"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1515,76 +1515,76 @@ function StreamingTab() {
   return (
     <div className="space-y-4">
       {/* Streaming Backlog Warning */}
-      <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg px-4 py-3 flex items-start gap-3 text-xs">
-        <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+      <div className="bg-warning-bg border border-warning-border rounded-lg px-4 py-3 flex items-start gap-3 text-xs">
+        <AlertTriangle className="w-4 h-4 text-warning-text flex-shrink-0 mt-0.5" />
         <div>
-          <span className="text-amber-400 font-medium">Degraded Streaming</span>
-          <span className="text-amber-300 ml-1">
+          <span className="text-warning-text font-medium">Degraded Streaming</span>
+          <span className="text-warning-text ml-1">
             Events may be backlogged. 3 of {subs.length} subscriptions may be affected.
           </span>
-          <p className="text-[#888] mt-0.5">Admin/Security review recommended if backlog persists.</p>
+          <p className="text-foreground-muted mt-0.5">Admin/Security review recommended if backlog persists.</p>
         </div>
       </div>
 
-      <div className="bg-[#111] border border-[#222] rounded-xl p-6">
+      <div className="bg-surface border border-border rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg font-medium text-white">Real‑Time Event Streaming</h3>
-            <p className="text-sm text-[#888]">
+            <h3 className="text-lg font-medium text-foreground">Real‑Time Event Streaming</h3>
+            <p className="text-sm text-foreground-muted">
               Subscribe to audit events via SSE or webhook for real‑time monitoring, SIEM ingestion, and automated responses.
             </p>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-sm hover:bg-amber-500/20 flex items-center gap-2"
+            className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-sm hover:brightness-110 flex items-center gap-2"
           >
             <Plus className="w-4 h-4" /> {showForm ? "Cancel" : "New Subscription"}
           </button>
         </div>
 
         {showForm && (
-          <div className="bg-[#0a0a0a] border border-[#222] rounded-lg p-4 mb-4 space-y-3">
+          <div className="bg-background border border-border rounded-lg p-4 mb-4 space-y-3">
             <input
               placeholder="Subscription name"
               value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-              className="w-full bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-white"
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground"
             />
             <input
               placeholder="Webhook endpoint URL"
               value={form.endpoint_url}
               onChange={e => setForm(p => ({ ...p, endpoint_url: e.target.value }))}
-              className="w-full bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-white"
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground"
             />
             <input
               placeholder='Event filters (JSON, e.g. {"risk_levels":["critical","high"]})'
               value={form.event_filters}
               onChange={e => setForm(p => ({ ...p, event_filters: e.target.value }))}
-              className="w-full bg-[#111] border border-[#333] rounded-lg px-3 py-2 text-sm text-white font-mono"
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground font-mono"
             />
-            <div className="flex gap-2 text-xs text-[#888]">
-              <span className="px-2 py-1 bg-[#111] rounded">SSE: <code className="text-amber-400">GET /api/audit-events/subscribe</code></span>
-              <span className="px-2 py-1 bg-[#111] rounded">Webhook: POST to your endpoint</span>
+            <div className="flex gap-2 text-xs text-foreground-muted">
+              <span className="px-2 py-1 bg-surface rounded">SSE: <code className="text-warning-text">GET /api/audit-events/subscribe</code></span>
+              <span className="px-2 py-1 bg-surface rounded">Webhook: POST to your endpoint</span>
             </div>
-            <button onClick={handleCreate} className="px-4 py-2 bg-amber-500 text-black rounded-lg text-sm font-medium hover:bg-amber-400">
+            <button onClick={handleCreate} className="px-4 py-2 bg-warning-text text-black rounded-lg text-sm font-medium hover:brightness-110">
               Create Subscription
             </button>
           </div>
         )}
 
         {loading ? (
-          <div className="text-center py-8 text-[#888]">Loading subscriptions...</div>
+          <div className="text-center py-8 text-foreground-muted">Loading subscriptions...</div>
         ) : subs.length === 0 ? (
           <div className="text-center py-8">
-            <Wifi className="w-10 h-10 mx-auto mb-3 text-[#444]" />
-            <p className="text-sm text-[#888]">No subscriptions configured.</p>
-            <p className="text-xs text-[#666] mt-1">Create a webhook subscription or connect via SSE to start streaming audit events.</p>
+            <Wifi className="w-10 h-10 mx-auto mb-3 text-foreground-muted" />
+            <p className="text-sm text-foreground-muted">No subscriptions configured.</p>
+            <p className="text-xs text-foreground-muted mt-1">Create a webhook subscription or connect via SSE to start streaming audit events.</p>
           </div>
         ) : (
           <div className="overflow-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="text-xs text-[#888] uppercase tracking-wider border-b border-[#222]">
+                <tr className="text-xs text-foreground-muted uppercase tracking-wider border-b border-border">
                   <th className="py-2 px-3">Name</th>
                   <th className="py-2 px-3">Type</th>
                   <th className="py-2 px-3">Endpoint</th>
@@ -1595,24 +1595,24 @@ function StreamingTab() {
               </thead>
               <tbody className="divide-y divide-[#222]">
                 {subs.map((s: any) => (
-                  <tr key={s.id} className="text-sm text-[#ccc]">
+                  <tr key={s.id} className="text-sm text-foreground">
                     <td className="py-2 px-3">{s.name}</td>
                     <td className="py-2 px-3">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        s.subscription_type === 'webhook' ? 'text-blue-400 bg-blue-400/10' :
-                        s.subscription_type === 'sse' ? 'text-emerald-400 bg-emerald-400/10' :
-                        'text-purple-400 bg-purple-400/10'
+                        s.subscription_type === 'webhook' ? 'text-info-text bg-info-bg' :
+                        s.subscription_type === 'sse' ? 'text-success-text bg-success-bg' :
+                        'text-info-text bg-info-bg'
                       }`}>{s.subscription_type}</span>
                     </td>
-                    <td className="py-2 px-3 text-xs font-mono text-[#888]">{s.endpoint_url || "SSE (direct)"}</td>
+                    <td className="py-2 px-3 text-xs font-mono text-foreground-muted">{s.endpoint_url || "SSE (direct)"}</td>
                     <td className="py-2 px-3">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        s.status === 'ACTIVE' ? 'text-emerald-400 bg-emerald-400/10' : 'text-[#666] bg-[#222]'
+                        s.status === 'ACTIVE' ? 'text-success-text bg-success-bg' : 'text-foreground-muted bg-surface'
                       }`}>{s.status}</span>
                     </td>
-                    <td className="py-2 px-3 text-xs text-[#888]">{s.delivery_count || 0}</td>
+                    <td className="py-2 px-3 text-xs text-foreground-muted">{s.delivery_count || 0}</td>
                     <td className="py-2 px-3">
-                      <button onClick={() => handleDelete(s.id)} className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1">
+                      <button onClick={() => handleDelete(s.id)} className="text-error-text hover:text-error-text text-xs flex items-center gap-1">
                         <Trash2 className="w-3 h-3" /> Delete
                       </button>
                     </td>
@@ -1633,10 +1633,10 @@ const REDACTED_MARKER = "REDACTED_BY_ACCESS_POLICY";
 const HASHED_MARKER_PREFIX = "hash:";
 
 function FieldValue({ value, label }: { value: unknown; label?: string }) {
-  if (value === undefined || value === null) return <span className="text-[#555]">-</span>;
+  if (value === undefined || value === null) return <span className="text-foreground-muted">-</span>;
   if (typeof value === "string" && value === REDACTED_MARKER) {
     return (
-      <span className="inline-flex items-center gap-1 text-amber-500" title="This field has been redacted due to access control policy">
+      <span className="inline-flex items-center gap-1 text-warning-text" title="This field has been redacted due to access control policy">
         <EyeOff className="w-3 h-3" />
         <span className="text-xs italic">Redacted</span>
       </span>
@@ -1645,7 +1645,7 @@ function FieldValue({ value, label }: { value: unknown; label?: string }) {
   if (typeof value === "string" && value.startsWith(HASHED_MARKER_PREFIX)) {
     const prefix = value.substring(0, 24);
     return (
-      <span className="inline-flex items-center gap-1 text-orange-400" title="This field has been hashed for privacy protection">
+      <span className="inline-flex items-center gap-1 text-warning-text" title="This field has been hashed for privacy protection">
         <ShieldOff className="w-3 h-3" />
         <span className="text-xs font-mono">{prefix}…</span>
       </span>
@@ -1653,21 +1653,21 @@ function FieldValue({ value, label }: { value: unknown; label?: string }) {
   }
   if (typeof value === "string" && value === "SEALED_BY_RETENTION_POLICY") {
     return (
-      <span className="inline-flex items-center gap-1 text-blue-400" title="This record has been sealed by retention policy">
+      <span className="inline-flex items-center gap-1 text-info-text" title="This record has been sealed by retention policy">
         <Archive className="w-3 h-3" />
         <span className="text-xs italic">Sealed</span>
       </span>
     );
   }
-  return <span className="text-[#ccc]">{String(value)}</span>;
+  return <span className="text-foreground">{String(value)}</span>;
 }
 
 // ─── Shared Sub-components ─────────────────────────────────────────────────────
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="bg-[#111] border border-[#222] rounded-lg p-3" title={`${value} ${label}`}>
-      <div className="text-[#888] text-xs font-medium uppercase tracking-wider">{label}</div>
+    <div className="bg-surface border border-border rounded-lg p-3" title={`${value} ${label}`}>
+      <div className="text-foreground-muted text-xs font-medium uppercase tracking-wider">{label}</div>
       <div className={`text-lg font-bold ${color}`}>{value}</div>
     </div>
   );
@@ -1676,8 +1676,8 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 function InfoRow({ label, children, value }: { label: string; children?: React.ReactNode; value?: string }) {
   return (
     <div>
-      <span className="text-[#666]">{label}:</span>{" "}
-      {children || <span className="text-[#ccc]">{value}</span>}
+      <span className="text-foreground-muted">{label}:</span>{" "}
+      {children || <span className="text-foreground">{value}</span>}
     </div>
   );
 }

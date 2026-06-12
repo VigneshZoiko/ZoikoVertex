@@ -113,7 +113,7 @@ export default function SupportInbox() {
             onClick={() => setShowLog(!showLog)}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
               showLog
-                ? 'bg-[var(--accent)] text-white'
+                ? 'bg-[var(--accent)] text-foreground'
                 : 'bg-[var(--surface)] border border-[var(--border)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
             }`}
           >
@@ -125,7 +125,7 @@ export default function SupportInbox() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 text-sm text-red-700 dark:text-red-400">
+        <div className="bg-error-bg border border-error-border rounded-lg px-4 py-3 text-sm text-error-text">
           {error}
         </div>
       )}
@@ -160,19 +160,19 @@ export default function SupportInbox() {
                 <div className="flex items-center gap-2 mb-2.5">
                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
                     ticket.status === 'OPEN'
-                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400'
+                      ? 'bg-info-bg text-info-text'
                       : ticket.status === 'IN_PROGRESS'
-                        ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
-                        : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+                        ? 'bg-warning-bg text-warning-text'
+                        : 'bg-success-bg text-success-text'
                   }`}>
                     {ticket.status === 'IN_PROGRESS' ? 'IN PROGRESS' : ticket.status}
                   </span>
                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
                     ticket.urgency.includes('Critical')
-                      ? 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400'
+                      ? 'bg-error-bg text-error-text'
                       : ticket.urgency.includes('Urgent')
-                        ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
-                        : 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400'
+                        ? 'bg-warning-bg text-warning-text'
+                        : 'bg-info-bg text-info-text'
                   }`}>
                     {ticket.urgency.split(' ')[0]}
                   </span>
@@ -211,14 +211,14 @@ export default function SupportInbox() {
                         {ticket.status === 'OPEN' && (
                           <button
                             onClick={() => updateStatus(ticket.id, 'IN_PROGRESS')}
-                            className="px-2.5 py-1 bg-[var(--background)] hover:bg-[var(--surface-hover)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] hover:text-amber-600 dark:hover:text-amber-400 transition-colors flex items-center gap-1"
+                            className="px-2.5 py-1 bg-[var(--background)] hover:bg-[var(--surface-hover)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] hover:text-warning-text transition-colors flex items-center gap-1"
                           >
                             <Clock className="w-3 h-3" /> In Progress
                           </button>
                         )}
                         <button
                           onClick={() => updateStatus(ticket.id, 'RESOLVED')}
-                          className="px-2.5 py-1 bg-[var(--background)] hover:bg-[var(--surface-hover)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-1"
+                          className="px-2.5 py-1 bg-[var(--background)] hover:bg-[var(--surface-hover)] border border-[var(--border)] rounded text-xs text-[var(--foreground-muted)] hover:text-success-text dark:hover:text-success-text transition-colors flex items-center gap-1"
                         >
                           <CheckCircle2 className="w-3 h-3" /> Resolve
                         </button>

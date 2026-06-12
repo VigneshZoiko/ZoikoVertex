@@ -12,6 +12,7 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { logger } from '../shared/logger';
 import { moderate } from '../modules/safety/moderationService';
+import { PostGovernanceService } from '../modules/prompts/PostGovernanceService';
 
 const PUBLISHING_WORKFLOW_NAME = 'Publishing Workflow';
 
@@ -20,12 +21,20 @@ export interface PublishCheck {
   severity: string;
   risk: number; // 0..100
   flags: { category: string; text: string; severity: string }[];
+  governance?: {
+    possibility_key: string;
+    possibility_label: string;
+    governed_prompt: string;
+    decision: string;
+    kb_checked: boolean;
+    kb_matches: number;
+  };
 }
 
 /**
- * Run the agent's content safety + policy checks on a post (offensive/banned
- * words, PII/confidential, violence/self-harm, competitor/prompt-injection,
- * governance hard-blocks). Returns a verdict + the flagged terms. Best-effort.
+ * Run the full prompt governance pipeline on a post. First runs safety
+ * moderation, then classifies through the 5 governed prompts and checks
+ * the Knowledge Base. Returns a verdict with full governance trace.
  */
 async function runAgentChecks(
   content: string,
@@ -35,6 +44,7 @@ async function runAgentChecks(
 ): Promise<PublishCheck | null> {
   if (!content || !content.trim()) return null;
   try {
+    // 1. Safety moderation (existing)
     const m = await moderate({ content, subjectId: postId, workspaceId, platform });
     const seen = new Set<string>();
     const flags = (m.matches || [])
@@ -46,11 +56,54 @@ async function runAgentChecks(
         return true;
       })
       .slice(0, 8);
+
+    // 2. Run full governance classification pipeline
+    let governanceResult = null;
+    try {
+      governanceResult = await PostGovernanceService.classify(content, platform || 'linkedin', workspaceId);
+    } catch (govErr) {
+      logger.warn({ err: govErr instanceof Error ? govErr.message : String(govErr) }, '[publish-link] governance classification failed (non-blocking)');
+    }
+
+    // 3. Determine final verdict: safety check takes priority for blocks,
+    //    otherwise use governance decision
+    let verdict = m.verdict;
+    let risk = Math.round((m.overallRisk || 0) * 100);
+    let severity = m.severity;
+
+    if (governanceResult) {
+      if (governanceResult.decision === 'BLOCK' && m.verdict !== 'block') {
+        verdict = 'block';
+        severity = 'high';
+        risk = Math.max(risk, 90);
+      } else if (governanceResult.decision === 'REVIEW' && m.verdict === 'safe') {
+        verdict = 'review';
+        severity = 'medium';
+        risk = Math.max(risk, 55);
+      }
+
+      if (!flags.length && governanceResult.risk.categories) {
+        for (const [cat, active] of Object.entries(governanceResult.risk.categories)) {
+          if (active) {
+            flags.push({ category: cat, text: cat.replace(/_/g, ' '), severity: severity });
+          }
+        }
+      }
+    }
+
     return {
-      verdict: m.verdict,
-      severity: m.severity,
-      risk: Math.round((m.overallRisk || 0) * 100),
-      flags,
+      verdict,
+      severity,
+      risk,
+      flags: flags.slice(0, 8),
+      governance: governanceResult ? {
+        possibility_key: governanceResult.possibility.key,
+        possibility_label: governanceResult.possibility.label,
+        governed_prompt: governanceResult.governed_prompt.label,
+        decision: governanceResult.decision,
+        kb_checked: governanceResult.knowledge.checked,
+        kb_matches: governanceResult.knowledge.matches?.length || 0,
+      } : undefined,
     };
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[publish-link] agent checks failed (non-blocking)');
@@ -252,6 +305,12 @@ export async function linkPublishToWorkflow(params: LinkPublishParams): Promise<
     // Agent runs content safety + policy checks on the post.
     const check = await runAgentChecks(content || '', postId, workspaceId, platform);
 
+    const stepDesc = check
+      ? check.governance
+        ? `Governance: ${check.governance.governed_prompt} → ${check.governance.decision}`
+        : `Agent Check: ${check.verdict === 'block' ? 'Blocked' : check.verdict === 'review' ? 'Needs Review' : 'Safe'}`
+      : scheduled ? 'Scheduled Publish' : 'Publish';
+
     const triggerSource = JSON.stringify({
       src: 'publish_hub',
       agent_id: agent?.id || null,
@@ -259,11 +318,10 @@ export async function linkPublishToWorkflow(params: LinkPublishParams): Promise<
       post_id: postId || null,
       platform: platform || null,
       excerpt,
-      step: check
-        ? `Agent Check: ${check.verdict === 'block' ? 'Blocked' : check.verdict === 'review' ? 'Needs Review' : 'Safe'}`
-        : scheduled ? 'Scheduled Publish' : 'Publish',
+      step: stepDesc,
       scheduled: !!scheduled,
       check,
+      governance: check?.governance || null,
     });
 
     // Status reflects the agent's verdict so it reads correctly in Live Orchestrations.

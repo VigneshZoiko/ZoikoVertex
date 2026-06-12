@@ -6,7 +6,7 @@ import { AuthRequest }   from '../../shared/authMiddleware';
 import { env }           from '../../config/env';
 import { logger }        from '../../shared/logger';
 
-// â”€â”€ Stripe (optional â€” gracefully disabled if package not installed) â”€â”€
+// —— Stripe (optional — gracefully disabled if package not installed) ——
 let stripe: any = null;
 function getStripe(): any | null {
   if (stripe) return stripe;
@@ -15,11 +15,11 @@ function getStripe(): any | null {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const Stripe = require('stripe');
     stripe = new Stripe(env.STRIPE_SECRET_KEY, { apiVersion: '2024-06-20' });
-  } catch { logger.warn('[Wallet] stripe package not installed â€” run: npm install stripe in backend'); }
+  } catch { logger.warn('[Wallet] stripe package not installed — run: npm install stripe in backend'); }
   return stripe;
 }
 
-// â”€â”€ Fee constants (Stripe standard card rate) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— Fee constants (Stripe standard card rate) ————————————————
 const STRIPE_PCT   = 0.029;   // 2.9%
 const STRIPE_FIXED = 0.30;    // $0.30 per transaction
 
@@ -36,7 +36,7 @@ export function resolveBudgetTier(amount: number): { tier: string; approvals: nu
   return               { tier: 'LOW',    approvals: 1 };
 }
 
-// â”€â”€ Fee calculator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— Fee calculator ————————————————————————————————————————————
 // User specifies how much they want in wallet (desired_credits).
 // We calculate the gross charge so that after Stripe takes their
 // cut, the wallet receives exactly desired_credits.
@@ -49,7 +49,7 @@ export function calculateDepositFees(desiredCredits: number, taxRatePct = 0) {
   return { gross, stripeFee, taxAmount, totalCharge, netCredits: desiredCredits };
 }
 
-// â”€â”€ GET /api/v1/billing/wallet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— GET /api/v1/billing/wallet ————————————————————————————————
 
 export const getWalletData = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;
@@ -106,7 +106,7 @@ export const getWalletData = async (req: AuthRequest, res: Response, _next: Next
   }
 };
 
-// â”€â”€ GET /api/v1/billing/fees â€” calculate fees before deposit â”€â”€
+// —— GET /api/v1/billing/fees — calculate fees before deposit ——
 
 const FeesSchema = z.object({
   amount:   z.number().positive().max(100_000),
@@ -142,7 +142,7 @@ export const calculateFees = async (req: AuthRequest, res: Response, _next: Next
   });
 };
 
-// â”€â”€ POST /api/v1/billing/deposit/create â€” Stripe Checkout â”€â”€â”€â”€â”€
+// —— POST /api/v1/billing/deposit/create — Stripe Checkout —————
 
 const DepositSchema = z.object({
   amount:   z.number().positive().max(100_000),
@@ -373,7 +373,7 @@ export const syncDepositSession = async (req: AuthRequest, res: Response, _next:
   }
 };
 
-// â”€â”€ POST /api/v1/billing/webhook â€” Stripe webhook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— POST /api/v1/billing/webhook — Stripe webhook ————————————
 // Must use raw body (registered before express.json() in server.ts)
 
 export const stripeWebhook = async (req: Request, res: Response) => {
@@ -563,7 +563,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
   return res.json({ received: true });
 };
 
-// â”€â”€ POST /api/v1/billing/deposit/simulate (dev only) â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— POST /api/v1/billing/deposit/simulate (dev only) —————————
 // Allows testing the deposit flow without real Stripe in development.
 
 export const simulateDeposit = async (req: AuthRequest, res: Response, _next: NextFunction) => {
@@ -620,7 +620,7 @@ export const simulateDeposit = async (req: AuthRequest, res: Response, _next: Ne
   }
 };
 
-// â”€â”€ GET /api/v1/billing/wallet/balance â€” quick balance check â”€â”€
+// —— GET /api/v1/billing/wallet/balance — quick balance check ——
 
 export const getWalletBalance = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;
@@ -642,7 +642,51 @@ export const getWalletBalance = async (req: AuthRequest, res: Response, _next: N
   });
 };
 
-// â”€â”€ GET /api/v1/billing/spend-cap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— GET /api/v1/billing/spend-cap ————————————————————————————
+
+// ── GET /api/v1/billing/overcharge ────────────────────────────────────────────
+
+export const getOvercharge = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
+
+  try {
+    const [walletRes, wsRes] = await Promise.all([
+      supabaseAdmin.from('wallets').select('overcharge_enabled, balance').eq('workspace_id', workspaceId).maybeSingle(),
+      supabaseAdmin.from('workspaces').select('billing_status').eq('id', workspaceId).maybeSingle(),
+    ]);
+    return res.json({ success: true, data: {
+      overcharge_enabled: (walletRes.data as any)?.overcharge_enabled ?? false,
+      wallet_balance:     (walletRes.data as any)?.balance ?? 0,
+      billing_status:     (wsRes.data as any)?.billing_status ?? 'active',
+    }});
+  } catch {
+    return res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
+// ── PATCH /api/v1/billing/overcharge ──────────────────────────────────────────
+
+export const updateOvercharge = async (req: AuthRequest, res: Response, _next: NextFunction) => {
+  const workspaceId = req.user?.workspace_id;
+  if (!workspaceId) return res.status(400).json({ success: false, error: 'Missing workspace context' });
+
+  const { overcharge_enabled } = req.body as { overcharge_enabled?: boolean };
+  if (typeof overcharge_enabled !== 'boolean') {
+    return res.status(400).json({ success: false, error: 'overcharge_enabled must be a boolean' });
+  }
+
+  try {
+    const { error } = await supabaseAdmin
+      .from('wallets')
+      .upsert({ workspace_id: workspaceId, overcharge_enabled }, { onConflict: 'workspace_id', ignoreDuplicates: false });
+
+    if (error) throw error;
+    return res.json({ success: true, data: { overcharge_enabled } });
+  } catch {
+    return res.status(500).json({ success: false, error: 'Failed to update overcharge setting' });
+  }
+};
 
 export const getSpendCap = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;
@@ -664,7 +708,7 @@ export const getSpendCap = async (req: AuthRequest, res: Response, _next: NextFu
   }
 };
 
-// â”€â”€ PATCH /api/v1/billing/spend-cap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— PATCH /api/v1/billing/spend-cap ——————————————————————————
 
 export const updateSpendCap = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;
@@ -696,7 +740,7 @@ export const updateSpendCap = async (req: AuthRequest, res: Response, _next: Nex
   }
 };
 
-// â”€â”€ GET /api/v1/billing/settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— GET /api/v1/billing/settings —————————————————————————————
 
 export const getBillingSettings = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;
@@ -721,7 +765,7 @@ export const getBillingSettings = async (req: AuthRequest, res: Response, _next:
   }
 };
 
-// â”€â”€ PATCH /api/v1/billing/settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— PATCH /api/v1/billing/settings ———————————————————————————
 
 const BillingSettingsSchema = z.object({
   billing_email:      z.string().email().or(z.literal('')).optional(),
@@ -753,7 +797,7 @@ export const updateBillingSettings = async (req: AuthRequest, res: Response, _ne
   }
 };
 
-// â”€â”€ POST /api/v1/billing/payment-methods/setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— POST /api/v1/billing/payment-methods/setup ———————————————
 // Creates a Stripe SetupIntent so the frontend can collect card details
 // securely without card data touching our servers.
 
@@ -821,7 +865,7 @@ export const createSetupIntent = async (req: AuthRequest, res: Response, _next: 
   }
 };
 
-// â”€â”€ GET /api/v1/billing/payment-methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— GET /api/v1/billing/payment-methods ——————————————————————
 
 // POST /api/v1/billing/payment-methods/setup-checkout
 // Stripe Checkout in setup mode — no stripe.js required on frontend.
@@ -983,7 +1027,7 @@ export const listPaymentMethods = async (req: AuthRequest, res: Response, _next:
   }
 };
 
-// â”€â”€ DELETE /api/v1/billing/payment-methods/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— DELETE /api/v1/billing/payment-methods/:id ———————————————
 
 export const deletePaymentMethod = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;
@@ -1015,7 +1059,7 @@ export const deletePaymentMethod = async (req: AuthRequest, res: Response, _next
   }
 };
 
-// â”€â”€ POST /api/v1/billing/payment-methods/:id/default â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— POST /api/v1/billing/payment-methods/:id/default —————————
 
 export const setDefaultPaymentMethod = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;
@@ -1049,7 +1093,7 @@ export const setDefaultPaymentMethod = async (req: AuthRequest, res: Response, _
   }
 };
 
-// â”€â”€ GET /api/v1/billing/invoices â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— GET /api/v1/billing/invoices —————————————————————————————
 
 // ── POST /api/v1/billing/subscribe ───────────────────────────────────────────
 // Creates a Stripe subscription for the workspace using their default card.
@@ -1308,7 +1352,7 @@ export const listInvoices = async (req: AuthRequest, res: Response, _next: NextF
   }
 };
 
-// â”€â”€ PUT /api/v1/billing/wallet/auto-topup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// —— PUT /api/v1/billing/wallet/auto-topup ————————————————————
 
 export const updateAutoTopup = async (req: AuthRequest, res: Response, _next: NextFunction) => {
   const workspaceId = req.user?.workspace_id;
