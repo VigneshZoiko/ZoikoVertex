@@ -21,12 +21,12 @@ interface Quorum {
 }
 
 const DECISION_STYLES: Record<string, { bg: string; label: string }> = {
-  approved:       { bg: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400', label: 'Approved' },
-  rejected:       { bg: 'bg-rose-500/10 border-rose-500/20 text-rose-400',      label: 'Rejected' },
-  pending:        { bg: 'bg-amber-500/10 border-amber-500/20 text-amber-400',     label: 'Pending' },
+  approved:       { bg: 'bg-success-text/10 border-success-border/20 text-success-text', label: 'Approved' },
+  rejected:       { bg: 'bg-error-text/10 border-error-border/20 text-error-text',      label: 'Rejected' },
+  pending:        { bg: 'bg-warning-text/10 border-warning-border/20 text-warning-text',     label: 'Pending' },
   abstained:      { bg: 'bg-gray-500/10 border-gray-500/20 text-gray-400',         label: 'Abstained' },
-  needs_revision: { bg: 'bg-amber-500/10 border-amber-500/20 text-amber-400',     label: 'Needs Revision' },
-  returned:       { bg: 'bg-amber-500/10 border-amber-500/20 text-amber-400',     label: 'Returned' },
+  needs_revision: { bg: 'bg-warning-text/10 border-warning-border/20 text-warning-text',     label: 'Needs Revision' },
+  returned:       { bg: 'bg-warning-text/10 border-warning-border/20 text-warning-text',     label: 'Returned' },
 };
 
 export default function ApprovalChainPanel({ versionId }: { versionId: string | null }) {
@@ -63,7 +63,7 @@ export default function ApprovalChainPanel({ versionId }: { versionId: string | 
   );
 
   if (error) return (
-    <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+    <div className="flex items-start gap-2 p-3 rounded-xl bg-error-text/10 border border-error-border/20 text-error-text text-xs">
       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{error}
     </div>
   );
@@ -87,10 +87,10 @@ export default function ApprovalChainPanel({ versionId }: { versionId: string | 
           <Key className="w-3.5 h-3.5" />{quorum?.total || keys.length} Keys Required
         </span>
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[var(--border)] text-xs text-[var(--text-primary)]">
-          <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />{completed} Completed
+          <CheckCircle className="w-3.5 h-3.5 text-success-text" />{completed} Completed
         </span>
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[var(--border)] text-xs text-[var(--text-primary)]">
-          <Clock className="w-3.5 h-3.5 text-amber-400" />{required - completed} Pending
+          <Clock className="w-3.5 h-3.5 text-warning-text" />{required - completed} Pending
         </span>
       </div>
 
@@ -99,12 +99,12 @@ export default function ApprovalChainPanel({ versionId }: { versionId: string | 
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)]/10 p-3">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-semibold text-[var(--text-primary)]">Quorum</span>
-            <span className={`text-xs font-bold ${isComplete ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <span className={`text-xs font-bold ${isComplete ? 'text-success-text' : 'text-warning-text'}`}>
               {pct}%{isComplete ? ' — Complete' : ' — Incomplete'}
             </span>
           </div>
           <div className="w-full h-2 rounded-full bg-[var(--surface-hover)]/40 overflow-hidden">
-            <div className={`h-full rounded-full transition-all duration-500 ${isComplete ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${pct}%` }} />
+            <div className={`h-full rounded-full transition-all duration-500 ${isComplete ? 'bg-success-text' : 'bg-warning-text'}`} style={{ width: `${pct}%` }} />
           </div>
         </div>
       )}
@@ -140,7 +140,7 @@ export default function ApprovalChainPanel({ versionId }: { versionId: string | 
 
       {/* Quorum completed/incomplete indicator */}
       {quorum && (
-        <div className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-bold ${isComplete ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'}`}>
+        <div className={`flex items-center gap-2 p-3 rounded-xl border text-xs font-bold ${isComplete ? 'bg-success-text/10 border-success-border/20 text-success-text' : 'bg-warning-text/10 border-warning-border/20 text-warning-text'}`}>
           {isComplete ? <CheckCircle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
           {isComplete ? 'Quorum Met — All required approvals received.' : `Quorum Not Met — ${required - completed} more approval${required - completed !== 1 ? 's' : ''} needed.`}
         </div>

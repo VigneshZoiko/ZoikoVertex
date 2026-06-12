@@ -97,11 +97,11 @@ export default function AdminAdAccountsPage() {
     return (
       <div key={account.id}
         className={`p-5 rounded-2xl border transition-all ${
-          isDefault ? "bg-emerald-500/5 border-emerald-500/30" : "bg-surface/40 border-border"
+          isDefault ? "bg-success-text/5 border-success-border/30" : "bg-surface/40 border-border"
         }`}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            {isDefault && <Star className="w-4 h-4 text-emerald-400 fill-emerald-400" />}
+            {isDefault && <Star className="w-4 h-4 text-success-text fill-emerald-400" />}
             <div>
               <p className="text-sm font-bold text-foreground">{account.account_name}</p>
               <p className="text-[11px] text-foreground-muted">{account.account_handle || account.id}</p>
@@ -114,7 +114,7 @@ export default function AdminAdAccountsPage() {
               {account.platform}
             </span>
             {isDefault && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-success-text/10 text-success-text border border-success-border/20">
                 AGENCY DEFAULT
               </span>
             )}
@@ -123,7 +123,7 @@ export default function AdminAdAccountsPage() {
           <div className="flex items-center gap-2">
             {isDefault && (
               <button onClick={() => handleUnsetDefault(account.id)} disabled={!!saving}
-                className="text-xs text-foreground-muted hover:text-rose-400 transition-colors px-2 py-1 rounded-lg hover:bg-rose-500/10">
+                className="text-xs text-foreground-muted hover:text-error-text transition-colors px-2 py-1 rounded-lg hover:bg-error-text/10">
                 Remove default
               </button>
             )}
@@ -136,7 +136,7 @@ export default function AdminAdAccountsPage() {
               disabled={!!saving || (isDefault && !isEditing)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all disabled:opacity-40 ${
                 isDefault && !isEditing
-                  ? "bg-emerald-500/10 text-emerald-400 cursor-default"
+                  ? "bg-success-text/10 text-success-text cursor-default"
                   : "bg-white hover:bg-zinc-100 text-zinc-900"
               }`}>
               {isSavingThis ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -196,13 +196,13 @@ export default function AdminAdAccountsPage() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs">
+        <div className="flex items-center gap-2 p-3 bg-error-text/10 border border-error-border/20 rounded-xl text-error-text text-xs">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />{error}
           <button onClick={() => setError(null)} className="ml-auto"><X className="w-3 h-3" /></button>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs">
+        <div className="flex items-center gap-2 p-3 bg-success-text/10 border border-success-border/20 rounded-xl text-success-text text-xs">
           <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />{success}
           <button onClick={() => setSuccess(null)} className="ml-auto"><X className="w-3 h-3" /></button>
         </div>

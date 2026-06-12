@@ -41,19 +41,19 @@ function LoginForm() {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (!isSupabaseReady) return;
+    if (!isSupabaseReady) { setChecking(false); return; }
     supabase.auth.getSession().then(({ data: { session } }) => {
+      setChecking(false);
       if (session) {
         const next = searchParams.get("next");
         router.replace(next && next.startsWith("/") ? next : "/dashboard");
       }
-    }).catch((err: any) => {
-      if (err?.message?.includes?.("Invalid Refresh Token") || err?.message?.includes?.("Refresh Token Not Found")) {
-        supabase.auth.signOut();
-        setError("Your session has expired. Please sign in again.");
-      }
+    }).catch(() => {
+      setChecking(false);
+      supabase.auth.signOut();
     });
   }, [router, searchParams]);
 
@@ -98,16 +98,27 @@ function LoginForm() {
     }
   };
 
+  if (checking) return <div className="min-h-full bg-[#0B1120]" />;
+
+  const footer = (
+    <p className="text-center text-[14px] text-white/40">
+      Don&apos;t have an account?{" "}
+      <Link href="/signup" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">
+        Create one free
+      </Link>
+    </p>
+  );
+
   return (
-    <AuthLayout>
-      <div className="w-full max-w-[480px]">
+    <AuthLayout footer={footer} noCard>
+      <div className="w-full">
         <div className="mb-8">
           <h1 className="text-[1.75rem] font-bold text-white mb-1.5">Sign in to ZoikoVertex</h1>
           <p className="text-[14px] text-white/50">Access your corporate workspace.</p>
         </div>
 
         {error && (
-          <div className="mb-5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+          <div className="mb-5 rounded-xl border border-[var(--error-border)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[var(--error-text)]">
             {error}
           </div>
         )}
@@ -216,13 +227,6 @@ function LoginForm() {
           <Link href="/privacy" className="underline hover:text-white/50 transition">Privacy Policy</Link>
         </p>
 
-        {/* Sign up link */}
-        <p className="mt-6 text-center text-[14px] text-white/40">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-[#20E7F2] font-semibold hover:text-[#20E7F2]/80 transition">
-            Create one free
-          </Link>
-        </p>
       </div>
     </AuthLayout>
   );

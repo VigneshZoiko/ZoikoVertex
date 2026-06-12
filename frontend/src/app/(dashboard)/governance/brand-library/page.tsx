@@ -268,10 +268,10 @@ export default function BrandLibraryPage() {
 
   if (!hasRole(["WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "ADMIN", "BRAND_REVIEWER"])) {
     return (
-      <div className="max-w-md mx-auto py-24 px-8 text-center bg-red-950/20 border border-red-500/20 rounded-[2.5rem] mt-16 space-y-6">
-        <XCircle className="w-12 h-12 text-red-500 mx-auto" />
+      <div className="max-w-md mx-auto py-24 px-8 text-center bg-red-950/20 border border-error-border rounded-[2.5rem] mt-16 space-y-6">
+        <XCircle className="w-12 h-12 text-error-text mx-auto" />
         <h3 className="text-lg font-black text-foreground uppercase tracking-wider">Access Restrained</h3>
-        <p className="text-red-400/70 text-xs leading-relaxed">
+        <p className="text-error-text/70 text-xs leading-relaxed">
           You lack the required Governance credentials to manage linguistic sovereignty configurations. Please request Brand Manager or Governance Lead elevation.
         </p>
       </div>
@@ -309,8 +309,8 @@ export default function BrandLibraryPage() {
       {message && (
         <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs font-bold border transition-all ${
           message.type === "success" 
-            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
-            : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+            ? "bg-success-bg border-success-border text-success-text" 
+            : "bg-error-bg border-error-border text-error-text"
         }`}>
           {message.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
           {message.text}
@@ -345,7 +345,7 @@ export default function BrandLibraryPage() {
                       <h4 className="text-base font-black text-foreground group-hover:text-pink-400 transition-colors flex items-center gap-2">
                         {prof.name}
                         {prof.status === "ACTIVE" && (
-                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                          <span className="w-1.5 h-1.5 bg-success-text rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                         )}
                       </h4>
                       <p className="text-[#888888] text-xs leading-relaxed mt-2 font-medium">
@@ -354,7 +354,7 @@ export default function BrandLibraryPage() {
                     </div>
                     <span className={`text-[9px] font-black px-2 py-0.5 rounded border uppercase tracking-wider ${
                       prof.status === "ACTIVE" 
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                        ? "bg-success-bg text-success-text border-success-border" 
                         : "bg-surface-hover text-foreground-muted border-border"
                     }`}>
                       {prof.status}
@@ -376,7 +376,7 @@ export default function BrandLibraryPage() {
           <div className="bg-card border border-zinc-900 rounded-[2.5rem] p-8 space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black uppercase tracking-[0.3em] text-[#555] flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <ShieldCheck className="w-4 h-4 text-success-text" />
                 Claims Substantiation Ledger
               </h3>
               <button 
@@ -452,8 +452,8 @@ export default function BrandLibraryPage() {
                       </span>
                       <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${
                         claim.status === "VERIFIED" 
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
-                          : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                          ? "bg-success-bg text-success-text border border-success-border" 
+                          : "bg-warning-bg text-warning-text border border-warning-border"
                       }`}>
                         {claim.status}
                       </span>
@@ -468,7 +468,7 @@ export default function BrandLibraryPage() {
                   </div>
                   <button 
                     onClick={() => handleDeleteClaim(claim.id, claim.claim)}
-                    className="p-1.5 text-foreground-muted hover:text-rose-400 transition-colors shrink-0"
+                    className="p-1.5 text-foreground-muted hover:text-error-text transition-colors shrink-0"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -570,9 +570,9 @@ export default function BrandLibraryPage() {
             </div>
 
             <div className="p-4 bg-surface border border-zinc-900 rounded-2xl flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 animate-pulse" />
+              <ShieldCheck className="w-5 h-5 text-success-text shrink-0 animate-pulse" />
               <p className="text-[10px] text-foreground-muted leading-relaxed font-bold uppercase tracking-widest">
-                Linguistic checks execute asynchronously in <strong className="text-emerald-400">0.42ms</strong> prior to social routing.
+                Linguistic checks execute asynchronously in <strong className="text-success-text">0.42ms</strong> prior to social routing.
               </p>
             </div>
           </div>
@@ -617,17 +617,17 @@ export default function BrandLibraryPage() {
               
               {/* Allowed terms */}
               <div className="space-y-2">
-                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Sovereign Allowed Lexicon</span>
+                <span className="text-[9px] font-black text-success-text uppercase tracking-widest">Sovereign Allowed Lexicon</span>
                 <div className="flex flex-wrap gap-1.5">
                   {linguistic.allowedLexicon.map((term: string) => (
                     <span 
                       key={term}
-                      className="px-2.5 py-1 bg-emerald-500/5 border border-emerald-500/10 rounded-lg text-[10px] font-bold text-emerald-400 flex items-center gap-1.5 group"
+                      className="px-2.5 py-1 bg-success-bg border border-success-border rounded-lg text-[10px] font-bold text-success-text flex items-center gap-1.5 group"
                     >
                       {term}
                       <XCircle 
                         onClick={() => handleDeleteLexicon("allowed", term)}
-                        className="w-3 h-3 text-emerald-500/30 group-hover:text-emerald-400 cursor-pointer transition-colors" 
+                        className="w-3 h-3 text-success-text/30 group-hover:text-success-text cursor-pointer transition-colors" 
                       />
                     </span>
                   ))}
@@ -636,17 +636,17 @@ export default function BrandLibraryPage() {
 
               {/* Prohibited terms */}
               <div className="space-y-2">
-                <span className="text-[9px] font-black text-rose-400 uppercase tracking-widest">Strict Prohibited Lexicon</span>
+                <span className="text-[9px] font-black text-error-text uppercase tracking-widest">Strict Prohibited Lexicon</span>
                 <div className="flex flex-wrap gap-1.5">
                   {linguistic.prohibitedLexicon.map((term: string) => (
                     <span 
                       key={term}
-                      className="px-2.5 py-1 bg-rose-500/5 border border-rose-500/10 rounded-lg text-[10px] font-bold text-rose-400 flex items-center gap-1.5 group"
+                      className="px-2.5 py-1 bg-error-bg border border-error-border rounded-lg text-[10px] font-bold text-error-text flex items-center gap-1.5 group"
                     >
                       {term}
                       <XCircle 
                         onClick={() => handleDeleteLexicon("prohibited", term)}
-                        className="w-3 h-3 text-rose-500/30 group-hover:text-rose-400 cursor-pointer transition-colors" 
+                        className="w-3 h-3 text-error-text/30 group-hover:text-error-text cursor-pointer transition-colors" 
                       />
                     </span>
                   ))}

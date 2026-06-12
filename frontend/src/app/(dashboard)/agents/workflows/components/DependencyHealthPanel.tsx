@@ -17,19 +17,19 @@ interface Dependency {
 }
 
 const HEALTH_STYLES: Record<string, { dot: string; bg: string; label: string }> = {
-  healthy:          { dot: 'bg-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400', label: 'Healthy' },
-  stale:            { dot: 'bg-amber-400',   bg: 'bg-amber-500/10 border-amber-500/20 text-amber-400',    label: 'Stale' },
+  healthy:          { dot: 'bg-success-text', bg: 'bg-success-text/10 border-success-border/20 text-success-text', label: 'Healthy' },
+  stale:            { dot: 'bg-warning-text',   bg: 'bg-warning-text/10 border-warning-border/20 text-warning-text',    label: 'Stale' },
   paused:           { dot: 'bg-blue-400',    bg: 'bg-blue-500/10 border-blue-500/20 text-blue-400',        label: 'Paused' },
   missing:          { dot: 'bg-gray-400',    bg: 'bg-gray-500/10 border-gray-500/20 text-gray-400',        label: 'Missing' },
   deprecated:       { dot: 'bg-purple-400',  bg: 'bg-purple-500/10 border-purple-500/20 text-purple-400',  label: 'Deprecated' },
-  critical_failure: { dot: 'bg-rose-400',    bg: 'bg-rose-500/10 border-rose-500/20 text-rose-400',        label: 'Critical' },
+  critical_failure: { dot: 'bg-error-text',    bg: 'bg-error-text/10 border-error-border/20 text-error-text',        label: 'Critical' },
 };
 
 const IMPACT_COLORS: Record<string, string> = {
   low: 'text-[var(--text-muted)]',
-  medium: 'text-amber-400',
-  high: 'text-rose-400',
-  critical: 'text-rose-300 font-bold',
+  medium: 'text-warning-text',
+  high: 'text-error-text',
+  critical: 'text-error-text font-bold',
 };
 
 export default function DependencyHealthPanel({ workflowId }: { workflowId: string | null }) {
@@ -62,7 +62,7 @@ export default function DependencyHealthPanel({ workflowId }: { workflowId: stri
   );
 
   if (error) return (
-    <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+    <div className="flex items-start gap-2 p-3 rounded-xl bg-error-text/10 border border-error-border/20 text-error-text text-xs">
       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{error}
     </div>
   );
@@ -80,7 +80,7 @@ export default function DependencyHealthPanel({ workflowId }: { workflowId: stri
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Dependencies ({deps.length})</p>
         {blockingCount > 0 && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-text/10 border border-error-border/20 text-error-text text-[10px] font-bold">
             <XCircle className="w-3 h-3" />{blockingCount} Blocking
           </span>
         )}
@@ -99,7 +99,7 @@ export default function DependencyHealthPanel({ workflowId }: { workflowId: stri
                 <p className="text-[10px] text-[var(--text-muted)]">{dep.dependency_type}</p>
               </div>
               <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold uppercase ${style.bg}`}>{style.label}</span>
-              {dep.blocking && <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />}
+              {dep.blocking && <XCircle className="w-3.5 h-3.5 text-error-text shrink-0" />}
             </button>
             {isExpanded && (
               <div className="px-3 pb-3 space-y-1.5">

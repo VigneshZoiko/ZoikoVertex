@@ -226,7 +226,7 @@ export default function CreatorUploadPage() {
             <Film className="w-3.5 h-3.5 text-violet-400" /> Videos up to {MAX_VIDEO_MB} MB
           </span>
           <span className="flex items-center gap-1.5 text-xs text-[var(--foreground-muted)] bg-[var(--surface)] px-3 py-1.5 rounded-full border border-[var(--border)]">
-            <CloudUpload className="w-3.5 h-3.5 text-emerald-400" /> JPG, PNG, MP4, MOV, WebM
+            <CloudUpload className="w-3.5 h-3.5 text-success-text" /> JPG, PNG, MP4, MOV, WebM
           </span>
         </div>
       </div>
@@ -237,7 +237,7 @@ export default function CreatorUploadPage() {
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-              Asset Title <span className="text-rose-400">*</span>
+              Asset Title <span className="text-error-text">*</span>
             </label>
             <div className="relative">
               <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--foreground-muted)]" />
@@ -246,7 +246,7 @@ export default function CreatorUploadPage() {
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 placeholder="e.g., Summer Campaign Hero Shot"
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-4 pl-12 pr-4 text-[var(--foreground)] focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-4 pl-12 pr-4 text-[var(--foreground)] focus:ring-2 focus:ring-info-text transition-all outline-none"
                 required
               />
             </div>
@@ -262,14 +262,14 @@ export default function CreatorUploadPage() {
               onChange={e => setDescription(e.target.value)}
               placeholder="Brief notes for the manager — usage context, campaign, restrictions…"
               rows={2}
-              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3 px-4 text-[var(--foreground)] focus:ring-2 focus:ring-indigo-500 transition-all outline-none resize-none text-sm"
+              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl py-3 px-4 text-[var(--foreground)] focus:ring-2 focus:ring-info-text transition-all outline-none resize-none text-sm"
             />
           </div>
 
           {/* Drop Zone */}
           <div>
             <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-              Media Files <span className="text-rose-400">*</span>
+              Media Files <span className="text-error-text">*</span>
             </label>
 
             <div
@@ -279,10 +279,10 @@ export default function CreatorUploadPage() {
               onDrop={handleDrop}
               className={`relative border-2 border-dashed rounded-3xl transition-all ${
                 isDragging
-                  ? 'border-indigo-500 bg-indigo-500/5 scale-[1.01]'
+                  ? 'border-info-border bg-info-text/5 scale-[1.01]'
                   : entries.length === 0
-                    ? 'border-[var(--border)] bg-[var(--surface)] hover:border-indigo-500/50 hover:bg-indigo-500/5'
-                    : 'border-emerald-500/40 bg-emerald-500/5'
+                    ? 'border-[var(--border)] bg-[var(--surface)] hover:border-info-border/50 hover:bg-info-text/5'
+                    : 'border-success-border/40 bg-success-text/5'
               }`}
             >
               {/* Empty drop zone */}
@@ -298,7 +298,7 @@ export default function CreatorUploadPage() {
                   <div className="flex flex-col items-center">
                     <div className="w-16 h-16 bg-[var(--card)] rounded-2xl flex items-center justify-center mb-4 border border-[var(--border)]">
                       {isDragging
-                        ? <CloudUpload className="w-7 h-7 text-indigo-400" />
+                        ? <CloudUpload className="w-7 h-7 text-info-text" />
                         : <Upload className="w-7 h-7 text-[var(--foreground-muted)]" />
                       }
                     </div>
@@ -358,7 +358,7 @@ export default function CreatorUploadPage() {
                           <button
                             type="button"
                             onClick={() => removeEntry(idx)}
-                            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-rose-600 text-foreground flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-all hover:bg-rose-500 hover:scale-110 shadow-lg z-10"
+                            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-error-text text-foreground flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-all hover:bg-error-text hover:scale-110 shadow-lg z-10"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -369,7 +369,7 @@ export default function CreatorUploadPage() {
                           <div className="absolute inset-x-0 bottom-0">
                             <div className="h-1.5 bg-black/40">
                               <div
-                                className="h-full bg-indigo-500 transition-all duration-300"
+                                className="h-full bg-info-text transition-all duration-300"
                                 style={{ width: `${entry.progress}%` }}
                               />
                             </div>
@@ -381,13 +381,13 @@ export default function CreatorUploadPage() {
 
                         {/* Done / Error overlay */}
                         {entry.status === 'done' && (
-                          <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
-                            <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                          <div className="absolute inset-0 bg-success-text/20 flex items-center justify-center">
+                            <CheckCircle2 className="w-6 h-6 text-success-text" />
                           </div>
                         )}
                         {entry.status === 'error' && (
-                          <div className="absolute inset-0 bg-rose-500/20 flex items-center justify-center">
-                            <AlertCircle className="w-5 h-5 text-rose-400" />
+                          <div className="absolute inset-0 bg-error-text/20 flex items-center justify-center">
+                            <AlertCircle className="w-5 h-5 text-error-text" />
                           </div>
                         )}
 
@@ -401,7 +401,7 @@ export default function CreatorUploadPage() {
 
                     {/* Add more */}
                     {!isUploading && (
-                      <label className="relative aspect-video rounded-xl border-2 border-dashed border-[var(--border)] hover:border-indigo-500 bg-[var(--surface)] hover:bg-indigo-500/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 group/add">
+                      <label className="relative aspect-video rounded-xl border-2 border-dashed border-[var(--border)] hover:border-info-border bg-[var(--surface)] hover:bg-info-text/5 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 group/add">
                         <input
                           type="file"
                           multiple
@@ -409,8 +409,8 @@ export default function CreatorUploadPage() {
                           accept="image/*,video/*"
                           className="sr-only"
                         />
-                        <Plus className="w-6 h-6 text-[var(--foreground-muted)] group-hover/add:text-indigo-400 transition-colors" />
-                        <span className="text-xs text-[var(--foreground-muted)] group-hover/add:text-indigo-400 transition-colors font-medium">Add more</span>
+                        <Plus className="w-6 h-6 text-[var(--foreground-muted)] group-hover/add:text-info-text transition-colors" />
+                        <span className="text-xs text-[var(--foreground-muted)] group-hover/add:text-info-text transition-colors font-medium">Add more</span>
                       </label>
                     )}
                   </div>
@@ -439,7 +439,7 @@ export default function CreatorUploadPage() {
             {validationErrors.length > 0 && (
               <div className="mt-3 space-y-1">
                 {validationErrors.map((err, i) => (
-                  <p key={i} className="text-xs text-rose-400 flex items-center gap-1.5">
+                  <p key={i} className="text-xs text-error-text flex items-center gap-1.5">
                     <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {err}
                   </p>
                 ))}
@@ -451,8 +451,8 @@ export default function CreatorUploadPage() {
           {message && (
             <div className={`p-4 rounded-2xl flex items-center gap-3 ${
               message.type === 'success'
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                ? 'bg-success-text/10 text-success-text border border-success-border/20'
+                : 'bg-error-text/10 text-error-text border border-error-border/20'
             }`}>
               {message.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
               <p className="text-sm font-medium">{message.text}</p>
@@ -466,7 +466,7 @@ export default function CreatorUploadPage() {
             className={`w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all ${
               isUploading || entries.length === 0 || !title.trim()
                 ? 'bg-[var(--surface)] text-[var(--foreground-muted)] cursor-not-allowed'
-                : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-foreground hover:shadow-lg hover:shadow-indigo-500/20 active:scale-[0.98]'
+                : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-foreground hover:shadow-lg hover:shadow-info-text/20 active:scale-[0.98]'
             }`}
           >
             {isUploading ? (
@@ -489,7 +489,7 @@ export default function CreatorUploadPage() {
         <span>•</span>
         <button
           onClick={() => router.push('/library')}
-          className="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
+          className="text-info-text hover:text-info-text transition-colors flex items-center gap-1"
         >
           View Library <ArrowRight className="w-4 h-4" />
         </button>

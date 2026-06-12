@@ -20,11 +20,11 @@ export const PLAN_DISPLAY: Record<Plan, string> = {
 };
 
 export const PLAN_BADGE_COLOR: Record<Plan, string> = {
-  FREE:       'text-zinc-400 bg-zinc-400/10 border-zinc-400/20',
-  STARTER:    'text-zinc-400 bg-zinc-400/10 border-zinc-400/20',
-  GROWTH:     'text-blue-400 bg-blue-400/10 border-blue-400/20',
-  SCALE:      'text-violet-400 bg-violet-400/10 border-violet-400/20',
-  ENTERPRISE: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
+  FREE:       'text-foreground-muted bg-surface border',
+  STARTER:    'text-foreground-muted bg-surface border',
+  GROWTH:     'text-[var(--info-text)] bg-[var(--info-bg)] border-[var(--info-border)]',
+  SCALE:      'text-[var(--accent)] bg-[var(--accent-subtle)] border-[var(--info-border)]',
+  ENTERPRISE: 'text-[var(--warning-text)] bg-[var(--warning-bg)] border-[var(--warning-border)]',
 };
 
 // All plan-gated features

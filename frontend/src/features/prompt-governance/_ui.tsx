@@ -15,7 +15,7 @@ export function Spinner({ label }: { label?: string }) {
 
 export function ErrorNote({ msg }: { msg: string }) {
   return (
-    <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">
+    <div className="rounded-xl border border-error-border bg-error-bg p-3 text-sm text-error-text">
       {msg}
     </div>
   );
@@ -27,7 +27,7 @@ export function Empty({ msg }: { msg: string }) {
 
 export function PermissionDenied() {
   return (
-    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+    <div className="rounded-xl border border-warning-border bg-warning-bg p-4 text-sm text-warning-text">
       You don&rsquo;t have permission to view this Prompt Governance data. Ask a
       Governance Admin or Agent Architect.
     </div>
@@ -47,9 +47,9 @@ export function Field({ k, v }: { k: string; v: React.ReactNode }) {
 
 export function PassFail({ ok }: { ok: boolean }) {
   return ok ? (
-    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+    <CheckCircle2 className="h-4 w-4 text-success-text shrink-0" />
   ) : (
-    <XCircle className="h-4 w-4 text-rose-400 shrink-0" />
+    <XCircle className="h-4 w-4 text-error-text shrink-0" />
   );
 }
 
@@ -88,7 +88,7 @@ export function ValidationDisabled({ scope }: { scope: "evaluation" | "adversari
         ? "Real cross-model evaluation"
         : "Real model validation";
   return (
-    <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-3 text-sm text-sky-200">
+    <div className="rounded-xl border border-info-border bg-info-bg p-3 text-sm text-info-text">
       <div className="flex items-center gap-2 font-semibold">
         <ShieldOff className="h-4 w-4" /> Validation Disabled
       </div>

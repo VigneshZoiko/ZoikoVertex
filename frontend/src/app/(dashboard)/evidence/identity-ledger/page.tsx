@@ -123,7 +123,7 @@ export default function IdentityLedgerDashboard() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-            <Fingerprint className="w-6 h-6 text-amber-500" />
+            <Fingerprint className="w-6 h-6 text-warning-text" />
             Identity Ledger
           </h1>
           <p className="text-foreground-muted mt-1">
@@ -140,7 +140,7 @@ export default function IdentityLedgerDashboard() {
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs border-b-2 transition-colors ${
-              activeTab === tab.id ? "text-amber-400 border-amber-400" : "text-foreground-muted border-transparent hover:text-foreground hover:border-border"
+              activeTab === tab.id ? "text-warning-text border-warning-border" : "text-foreground-muted border-transparent hover:text-foreground hover:border-border"
             }`}>
             <tab.icon className="w-3.5 h-3.5" /> {tab.label}
           </button>
@@ -149,10 +149,10 @@ export default function IdentityLedgerDashboard() {
 
       {/* Error Banner */}
       {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
-          <p className="text-xs text-red-400">{error}</p>
-          <button onClick={() => setError(null)} className="ml-auto text-red-400/60 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+        <div className="mb-4 p-3 bg-error-bg border border-error-border rounded-lg flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-error-text shrink-0" />
+          <p className="text-xs text-error-text">{error}</p>
+          <button onClick={() => setError(null)} className="ml-auto text-error-text/60 hover:text-error-text"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
 
@@ -160,7 +160,7 @@ export default function IdentityLedgerDashboard() {
       <div className="min-h-[400px]">
         {loading ? (
           <div className="flex items-center justify-center py-24">
-            <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+            <Loader2 className="w-8 h-8 text-warning-text animate-spin" />
           </div>
         ) : (
           <>
@@ -226,20 +226,20 @@ export default function IdentityLedgerDashboard() {
                             <td className="p-3 text-foreground-muted text-[11px] uppercase tracking-wider">{actor.actor_type.replace(/_/g, ' ')}</td>
                             <td className="p-3">
                               <span className={`inline-block px-2 py-0.5 rounded text-[10px] border ${
-                                actor.state === 'break_glass_active' ? 'text-amber-400 border-amber-400/30 bg-amber-400/10' :
-                                actor.state === 'active' ? 'text-green-400 border-green-400/30 bg-green-400/10' :
-                                actor.state === 'revoked' ? 'text-red-400 border-red-400/30 bg-red-400/10' :
-                                actor.state === 'suspended' ? 'text-orange-400 border-orange-400/30 bg-orange-400/10' :
-                                'text-slate-400 border-slate-400/30 bg-slate-400/10'
+                                actor.state === 'break_glass_active' ? 'text-warning-text border-warning-border bg-warning-bg' :
+                                actor.state === 'active' ? 'text-success-text border-success-border bg-success-bg' :
+                                actor.state === 'revoked' ? 'text-error-text border-error-border bg-error-bg' :
+                                actor.state === 'suspended' ? 'text-warning-text border-warning-border bg-warning-bg' :
+                                'text-info-text border-info-border bg-info-bg'
                               }`}>{actor.state.replace(/_/g, ' ')}</span>
                             </td>
                             <td className="p-3 text-foreground-muted text-[11px]">{actor.authority_class}</td>
                             <td className="p-3">
                               <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${
-                                actor.risk_level === 'critical' ? 'bg-red-400/10 text-red-400' :
-                                actor.risk_level === 'high' ? 'bg-orange-400/10 text-orange-400' :
-                                actor.risk_level === 'medium' ? 'bg-amber-400/10 text-amber-400' :
-                                'bg-blue-400/10 text-blue-400'
+                                actor.risk_level === 'critical' ? 'bg-error-bg text-error-text' :
+                                actor.risk_level === 'high' ? 'bg-warning-bg text-warning-text' :
+                                actor.risk_level === 'medium' ? 'bg-warning-bg text-warning-text' :
+                                'bg-info-bg text-info-text'
                               }`}>{actor.risk_level}</span>
                             </td>
                             <td className="p-3 text-right">
@@ -283,9 +283,9 @@ export default function IdentityLedgerDashboard() {
                           <td className="p-3 font-mono text-[11px] text-foreground">{del.delegatee_id}</td>
                           <td className="p-3">
                             <span className={`inline-block px-2 py-0.5 rounded text-[10px] border ${
-                              del.status === 'ACTIVE' ? 'text-green-400 border-green-400/30 bg-green-400/10' :
-                              del.status === 'REVOKED' ? 'text-red-400 border-red-400/30 bg-red-400/10' :
-                              'text-slate-400 border-slate-400/30 bg-slate-400/10'
+                              del.status === 'ACTIVE' ? 'text-success-text border-success-border bg-success-bg' :
+                              del.status === 'REVOKED' ? 'text-error-text border-error-border bg-error-bg' :
+                              'text-info-text border-info-border bg-info-bg'
                             }`}>{del.status}</span>
                           </td>
                           <td className="p-3 text-foreground-muted text-[11px]">{fmt(del.expires_at)}</td>
@@ -324,9 +324,9 @@ export default function IdentityLedgerDashboard() {
                           <td className="p-3 text-foreground text-sm">{session.reason}</td>
                           <td className="p-3">
                             <span className={`inline-block px-2 py-0.5 rounded text-[10px] border ${
-                              session.status === 'ACTIVE' ? 'text-amber-400 border-amber-400/30 bg-amber-400/10 animate-pulse' :
-                              session.status === 'ENDED' ? 'text-slate-400 border-slate-400/30 bg-slate-400/10' :
-                              'text-red-400 border-red-400/30 bg-red-400/10'
+                              session.status === 'ACTIVE' ? 'text-warning-text border-warning-border bg-warning-bg animate-pulse' :
+                              session.status === 'ENDED' ? 'text-info-text border-info-border bg-info-bg' :
+                              'text-error-text border-error-border bg-error-bg'
                             }`}>{session.status}</span>
                           </td>
                           <td className="p-3 text-foreground-muted text-[11px]">{fmt(session.starts_at)}</td>
@@ -347,7 +347,7 @@ export default function IdentityLedgerDashboard() {
             {/* Verify Tab */}
             {activeTab === "verify" && (
               <div className="bg-card border border-border rounded-xl p-10 space-y-8 text-center max-w-3xl mx-auto">
-                <ShieldCheck className="w-16 h-16 text-amber-500/20 mx-auto" />
+                <ShieldCheck className="w-16 h-16 text-warning-text/20 mx-auto" />
                 <div className="space-y-3">
                   <h2 className="text-xl font-bold text-foreground">Ledger Chain Integrity Verification</h2>
                   <p className="text-sm text-foreground-muted">
@@ -358,7 +358,7 @@ export default function IdentityLedgerDashboard() {
                 <button
                   onClick={verifyChain}
                   disabled={verifying}
-                  className="px-6 py-3 bg-amber-500 text-black rounded-lg text-sm font-medium hover:bg-amber-400 disabled:opacity-50"
+                  className="px-6 py-3 bg-warning-text text-black rounded-lg text-sm font-medium hover:brightness-110 disabled:opacity-50"
                 >
                   {verifying ? (
                     <span className="flex items-center justify-center gap-2">
@@ -370,13 +370,13 @@ export default function IdentityLedgerDashboard() {
                 {verificationResult && (
                   <div className={`p-5 rounded-xl border text-left ${
                     verificationResult.status === 'verified'
-                      ? 'bg-green-500/10 border-green-500/30'
-                      : 'bg-red-500/10 border-red-500/30'
+                      ? 'bg-success-bg border-success-border'
+                      : 'bg-error-bg border-error-border'
                   }`}>
                     <div className="flex items-center gap-3 mb-2">
-                      <Activity className={`w-5 h-5 ${verificationResult.status === 'verified' ? 'text-green-400' : 'text-red-400'}`} />
+                      <Activity className={`w-5 h-5 ${verificationResult.status === 'verified' ? 'text-success-text' : 'text-error-text'}`} />
                       <div>
-                        <p className={`text-sm font-medium ${verificationResult.status === 'verified' ? 'text-green-400' : 'text-red-400'}`}>
+                        <p className={`text-sm font-medium ${verificationResult.status === 'verified' ? 'text-success-text' : 'text-error-text'}`}>
                           Chain {verificationResult.status as string}
                         </p>
                         <p className="text-xs text-foreground-muted mt-0.5">
@@ -409,7 +409,7 @@ export default function IdentityLedgerDashboard() {
             <div className="space-y-3">
               <div className="border border-border rounded-lg p-3">
                 <h5 className="text-[10px] font-medium text-foreground-muted uppercase tracking-wider mb-2">Authority Snapshot</h5>
-                <pre className="text-[10px] text-green-400 font-mono overflow-x-auto whitespace-pre-wrap">
+                <pre className="text-[10px] text-success-text font-mono overflow-x-auto whitespace-pre-wrap">
                   {JSON.stringify(actorDetails.current_authority_snapshot, null, 2)}
                 </pre>
               </div>

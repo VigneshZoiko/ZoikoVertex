@@ -117,8 +117,8 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
       <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="sticky top-0 bg-[var(--surface)] border-b border-[var(--border)] px-6 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-500/10 rounded-xl">
-              <GitBranch className="w-5 h-5 text-indigo-400" />
+            <div className="p-2 bg-info-text/10 rounded-xl">
+              <GitBranch className="w-5 h-5 text-info-text" />
             </div>
             <div>
               <h2 className="text-base font-semibold text-[var(--text-primary)]">Create Workflow</h2>
@@ -136,7 +136,7 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
           {error && (
-            <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-error-text/10 border border-error-border/20 text-error-text text-xs">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>{error}</span>
             </div>
@@ -144,14 +144,14 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
 
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
-              Workflow Name <span className="text-rose-400">*</span>
+              Workflow Name <span className="text-error-text">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. LinkedIn Campaign Approval Flow"
-              className="w-full px-3 py-2 text-sm rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/40"
+              className="w-full px-3 py-2 text-sm rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-info-border/40"
               required
               minLength={3}
               maxLength={120}
@@ -167,7 +167,7 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What does this workflow do? Who owns it? When does it run?"
-              className="w-full px-3 py-2 text-sm rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/40 resize-none"
+              className="w-full px-3 py-2 text-sm rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-info-border/40 resize-none"
               rows={3}
               maxLength={500}
               disabled={submitting}
@@ -181,7 +181,7 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-indigo-500/40"
+              className="w-full px-3 py-2 text-sm rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-info-border/40"
               disabled={submitting}
             >
               {WORKFLOW_TYPES.map((t) => (
@@ -192,7 +192,7 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
 
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
-              Risk Tier <span className="text-rose-400">*</span>
+              Risk Tier <span className="text-error-text">*</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
               {RISK_LEVELS.map((r) => (
@@ -203,7 +203,7 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
                   disabled={submitting}
                   className={`text-left p-2.5 rounded-xl border transition-colors ${
                     riskLevel === r.value
-                      ? "bg-indigo-500/10 border-indigo-500/40 text-[var(--text-primary)]"
+                      ? "bg-info-text/10 border-info-border/40 text-[var(--text-primary)]"
                       : "bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]"
                   }`}
                 >
@@ -227,7 +227,7 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
                   disabled={submitting}
                   className={`px-2.5 py-1 rounded-full text-[11px] font-medium capitalize border transition-colors ${
                     platforms.includes(p)
-                      ? "bg-indigo-500/10 border-indigo-500/40 text-indigo-400"
+                      ? "bg-info-text/10 border-info-border/40 text-info-text"
                       : "bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-muted)]"
                   }`}
                 >
@@ -249,7 +249,7 @@ export default function CreateWorkflowModal({ open, onClose, onCreated }: Create
             <button
               type="submit"
               disabled={submitting || !name.trim()}
-              className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:bg-indigo-500/50 disabled:cursor-not-allowed text-sm font-semibold text-foreground transition-colors flex items-center gap-2"
+              className="px-4 py-2 rounded-xl bg-info-text hover:bg-info-text disabled:bg-info-text/50 disabled:cursor-not-allowed text-sm font-semibold text-foreground transition-colors flex items-center gap-2"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               Create Draft

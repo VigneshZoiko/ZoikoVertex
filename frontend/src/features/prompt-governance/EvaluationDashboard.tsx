@@ -26,10 +26,10 @@ const BAND_LABELS: Record<PDIBand, string> = {
   WEAK: "Weak",
 };
 const BAND_COLOR: Record<PDIBand, string> = {
-  EXCELLENT: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  STRONG: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  MODERATE: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  WEAK: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  EXCELLENT: "bg-success-bg text-success-text border-success-border",
+  STRONG: "bg-info-bg text-info-text border-info-border",
+  MODERATE: "bg-warning-bg text-warning-text border-warning-border",
+  WEAK: "bg-error-bg text-error-text border-error-border",
 };
 const PROVIDER_DISPLAY: Record<ProviderId, string> = {
   google: "Google Gemini 2.5 Flash",

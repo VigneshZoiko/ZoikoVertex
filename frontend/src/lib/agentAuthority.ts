@@ -12,23 +12,23 @@ export type AutonomyLevel = typeof AUTONOMY_LEVELS[number];
 
 export const AUTONOMY_COLOR: Record<string, { text: string; bg: string; border: string }> = {
   L0: { text: 'text-[var(--foreground-muted)]', bg: 'bg-[var(--surface)]', border: 'border-[var(--border)]' },
-  L1: { text: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/20' },
-  L2: { text: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/20' },
-  L3: { text: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/20' },
-  L4: { text: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/20' },
-  L5: { text: 'text-indigo-400', bg: 'bg-indigo-400/10', border: 'border-indigo-400/20' },
-  L6: { text: 'text-indigo-400', bg: 'bg-indigo-400/10', border: 'border-indigo-400/20' },
+  L1: { text: 'text-success-text', bg: 'bg-success-bg', border: 'border-success-border' },
+  L2: { text: 'text-warning-text', bg: 'bg-warning-bg', border: 'border-warning-border' },
+  L3: { text: 'text-success-text', bg: 'bg-success-bg', border: 'border-success-border' },
+  L4: { text: 'text-success-text', bg: 'bg-success-bg', border: 'border-success-border' },
+  L5: { text: 'text-info-text', bg: 'bg-info-bg', border: 'border-info-border' },
+  L6: { text: 'text-info-text', bg: 'bg-info-bg', border: 'border-info-border' },
 };
 
 export const AGENT_STATES: Record<string, { label: string; color: string; bg: string }> = {
   DRAFT: { label: 'Draft', color: 'text-[var(--foreground-muted)]', bg: 'bg-[var(--surface)]' },
-  IN_REVIEW: { label: 'In Review', color: 'text-amber-400', bg: 'bg-amber-400/10' },
-  APPROVED: { label: 'Approved', color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-  ACTIVE: { label: 'Active', color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-  RESTRICTED: { label: 'Restricted', color: 'text-rose-400', bg: 'bg-rose-400/10' },
-  PAUSED: { label: 'Paused', color: 'text-amber-400', bg: 'bg-amber-400/10' },
-  SUSPENDED: { label: 'Suspended', color: 'text-rose-500', bg: 'bg-rose-500/10' },
-  PENDING_CERTIFICATION: { label: 'Pending Cert', color: 'text-amber-400', bg: 'bg-amber-400/10' },
+  IN_REVIEW: { label: 'In Review', color: 'text-warning-text', bg: 'bg-warning-bg' },
+  APPROVED: { label: 'Approved', color: 'text-success-text', bg: 'bg-success-bg' },
+  ACTIVE: { label: 'Active', color: 'text-success-text', bg: 'bg-success-bg' },
+  RESTRICTED: { label: 'Restricted', color: 'text-error-text', bg: 'bg-error-bg' },
+  PAUSED: { label: 'Paused', color: 'text-warning-text', bg: 'bg-warning-bg' },
+  SUSPENDED: { label: 'Suspended', color: 'text-error-text', bg: 'bg-error-bg' },
+  PENDING_CERTIFICATION: { label: 'Pending Cert', color: 'text-warning-text', bg: 'bg-warning-bg' },
   DISABLED: { label: 'Disabled', color: 'text-[var(--foreground-muted)]', bg: 'bg-[var(--surface)]' },
   RETIRED: { label: 'Retired', color: 'text-[var(--foreground-muted)]', bg: 'bg-[var(--surface)]' },
 };

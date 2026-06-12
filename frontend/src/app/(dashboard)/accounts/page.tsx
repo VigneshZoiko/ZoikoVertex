@@ -473,9 +473,9 @@ export default function AccountsPage() {
       {/* ── Stats ── */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Platforms Connected",   value: connectedPlatforms,                      icon: Link2,        color: "text-indigo-400",  bg: "bg-indigo-500/10"  },
-          { label: "Total Accounts",         value: totalAccounts,                            icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-          { label: "Available",              value: oauthPlatforms.length - connectedPlatforms, icon: Zap,       color: "text-amber-400",   bg: "bg-amber-500/10"   },
+          { label: "Platforms Connected",   value: connectedPlatforms,                      icon: Link2,        color: "text-info-text",  bg: "bg-info-text/10"  },
+          { label: "Total Accounts",         value: totalAccounts,                            icon: CheckCircle2, color: "text-success-text", bg: "bg-success-text/10" },
+          { label: "Available",              value: oauthPlatforms.length - connectedPlatforms, icon: Zap,       color: "text-warning-text",   bg: "bg-warning-text/10"   },
         ].map((s) => {
           const Icon = s.icon;
           return (
@@ -547,7 +547,7 @@ export default function AccountsPage() {
                       {platform.name}
                     </p>
                     {platform.comingSoon && platformAccounts.length === 0 && (
-                      <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold rounded-full">
+                      <span className="px-2 py-0.5 bg-warning-text/10 border border-warning-border/20 text-warning-text text-[10px] font-bold rounded-full">
                         Coming Soon
                       </span>
                     )}
@@ -558,9 +558,9 @@ export default function AccountsPage() {
                           e.stopPropagation();
                           togglePlatform(platform.id);
                         }}
-                        className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full hover:bg-emerald-500/20 transition-colors"
+                        className="flex items-center gap-1 px-2 py-0.5 bg-success-text/10 border border-success-border/20 text-success-text text-[10px] font-bold rounded-full hover:bg-success-text/20 transition-colors"
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-success-text" />
                         {platformAccounts.length} connected
                       </button>
                     ) : (
@@ -659,7 +659,7 @@ export default function AccountsPage() {
                             <div className="mt-1.5">
                               {account.ad_account_id ? (
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                                  <span className="flex items-center gap-1 text-[10px] font-semibold text-success-text">
                                     <CheckCircle2 className="w-3 h-3" /> Ad account: {account.ad_account_id}
                                   </span>
                                   {canManageAccounts && (
@@ -673,7 +673,7 @@ export default function AccountsPage() {
                               ) : canManageAccounts ? (
                                 <button onClick={() => fetchMetaAdAccounts(account.id)}
                                   disabled={adFetchLoading === account.id}
-                                  className="flex items-center gap-1 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                                  className="flex items-center gap-1 text-[11px] text-info-text hover:text-info-text transition-colors">
                                   {adFetchLoading === account.id
                                     ? <RefreshCw className="w-3 h-3 animate-spin" />
                                     : <Link2 className="w-3 h-3" />}
@@ -712,7 +712,7 @@ export default function AccountsPage() {
                                 </div>
                               )}
                               {adFetchErr && (
-                                <p className="text-[11px] text-rose-400 mt-1">{adFetchErr}</p>
+                                <p className="text-[11px] text-error-text mt-1">{adFetchErr}</p>
                               )}
                             </div>
                           )}
@@ -720,7 +720,7 @@ export default function AccountsPage() {
 
                         {/* Status + disconnect */}
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="hidden sm:flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                          <span className="hidden sm:flex items-center gap-1 text-[10px] font-semibold text-success-text">
                             <CheckCircle2 className="w-3 h-3" />
                             Active
                           </span>
@@ -731,7 +731,7 @@ export default function AccountsPage() {
                                 <button
                                   onClick={() => disconnectAccount(account.id)}
                                   disabled={disconnecting === account.id}
-                                  className="px-2.5 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 text-[11px] font-semibold rounded-lg transition-all duration-150 disabled:opacity-50"
+                                  className="px-2.5 py-1.5 bg-error-text/20 hover:bg-error-text/30 border border-error-border/30 text-error-text text-[11px] font-semibold rounded-lg transition-all duration-150 disabled:opacity-50"
                                 >
                                   Yes
                                 </button>
@@ -746,7 +746,7 @@ export default function AccountsPage() {
                               <button
                                 onClick={() => setConfirmingDisconnect(account.id)}
                                 disabled={disconnecting === account.id}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-[11px] font-semibold rounded-lg transition-all duration-150 disabled:opacity-50"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-error-text/10 hover:bg-error-text/20 border border-error-border/20 text-error-text text-[11px] font-semibold rounded-lg transition-all duration-150 disabled:opacity-50"
                               >
                                 {disconnecting === account.id
                                   ? <RefreshCw className="w-3 h-3 animate-spin" />

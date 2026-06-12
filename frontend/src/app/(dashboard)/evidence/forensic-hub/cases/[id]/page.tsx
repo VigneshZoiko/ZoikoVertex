@@ -51,10 +51,10 @@ interface CaseTask {
 type TabId = "overview" | "timeline" | "evidence" | "notes" | "tasks" | "actions" | "export" | "graph" | "ai" | "close";
 
 const SEVERITY_COLORS: Record<string, string> = {
-  critical: "text-red-400 bg-red-400/10 border-red-400/30",
-  high: "text-orange-400 bg-orange-400/10 border-orange-400/30",
-  medium: "text-amber-400 bg-amber-400/10 border-amber-400/30",
-  low: "text-blue-400 bg-blue-400/10 border-blue-400/30",
+  critical: "text-error-text bg-error-bg border-error-border",
+  high: "text-warning-text bg-warning-bg border-warning-border",
+  medium: "text-warning-text bg-warning-bg border-warning-border",
+  low: "text-info-text bg-info-bg border-info-border",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -406,17 +406,17 @@ export default function CaseDetailPage() {
   };
 
   if (loading) return <div className="p-8 text-[#888]">Loading case...</div>;
-  if (!caseData) return <div className="p-8 text-red-400">Case not found.</div>;
+  if (!caseData) return <div className="p-8 text-error-text">Case not found.</div>;
 
   const c = caseData;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       {error && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
-          <p className="text-xs text-red-400">{error}</p>
-          <button onClick={() => setError(null)} className="ml-auto text-red-400/60 hover:text-red-400"><X className="w-3.5 h-3.5" /></button>
+        <div className="mb-4 p-3 bg-error-bg border border-error-border rounded-lg flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-error-text shrink-0" />
+          <p className="text-xs text-error-text">{error}</p>
+          <button onClick={() => setError(null)} className="ml-auto text-error-text/60 hover:text-error-text"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
       {/* Back */}
@@ -434,10 +434,10 @@ export default function CaseDetailPage() {
                 {c.severity}
               </span>
               <span className={`text-xs px-2 py-0.5 rounded border ${
-                c.status === "escalated" ? "bg-red-400/10 border-red-400/30 text-red-400" :
-                c.status === "legal_hold" ? "bg-amber-400/10 border-amber-400/30 text-amber-400" :
-                c.status === "closed" ? "bg-emerald-400/10 border-emerald-400/30 text-emerald-400" :
-                c.status === "reopened" ? "bg-blue-400/10 border-blue-400/30 text-blue-400" :
+                c.status === "escalated" ? "bg-error-bg border-error-border text-error-text" :
+                c.status === "legal_hold" ? "bg-warning-bg border-warning-border text-warning-text" :
+                c.status === "closed" ? "bg-success-bg border-success-border text-success-text" :
+                c.status === "reopened" ? "bg-info-bg border-info-border text-info-text" :
                 "bg-[#0a0a0a] border-[#222] text-[#888]"
               }`}>
                 {STATUS_LABELS[c.status]}
@@ -447,12 +447,12 @@ export default function CaseDetailPage() {
           </div>
           <div className="flex items-center gap-2 text-xs">
             {c.legal_hold_active && (
-              <span className="flex items-center gap-1 px-2 py-1 bg-amber-400/10 border border-amber-400/30 rounded text-amber-400">
+              <span className="flex items-center gap-1 px-2 py-1 bg-warning-bg border border-warning-border rounded text-warning-text">
                 <Lock className="w-3 h-3" /> Legal Hold
               </span>
             )}
             {c.privilege_flag && (
-              <span className="flex items-center gap-1 px-2 py-1 bg-purple-400/10 border border-purple-400/30 rounded text-purple-400">
+              <span className="flex items-center gap-1 px-2 py-1 bg-info-bg border border-info-border rounded text-info-text">
                 <EyeOff className="w-3 h-3" /> Privileged
               </span>
             )}
@@ -470,10 +470,10 @@ export default function CaseDetailPage() {
           <div>Source: {c.source}</div>
           {c.owner_user_id && <div>Owner: {c.owner_user_id}</div>}
           {c.sla_due_at && (
-            <div className={`flex items-center gap-1 ${new Date(c.sla_due_at) < new Date() ? "text-red-400" : "text-amber-400"}`}>
+            <div className={`flex items-center gap-1 ${new Date(c.sla_due_at) < new Date() ? "text-error-text" : "text-warning-text"}`}>
               <Clock className="w-3 h-3" />
               SLA: {fmt(c.sla_due_at)}
-              {new Date(c.sla_due_at) < new Date() && <span className="text-[10px] px-1 bg-red-400/10 rounded">BREACHED</span>}
+              {new Date(c.sla_due_at) < new Date() && <span className="text-[10px] px-1 bg-error-bg rounded">BREACHED</span>}
             </div>
           )}
           {c.closed_at && <div>Closed: {fmt(c.closed_at)}</div>}
@@ -495,7 +495,7 @@ export default function CaseDetailPage() {
               value={updateReason} onChange={e => setUpdateReason(e.target.value)}
               className="flex-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
             <button onClick={handleStatusUpdate} disabled={!newStatus || !updateReason}
-              className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 disabled:opacity-50">
+              className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-xs hover:brightness-110 disabled:opacity-50">
               Update
             </button>
             <button onClick={() => router.push(`/evidence/audit-trail?create_case=${c.id}`)}
@@ -506,7 +506,7 @@ export default function CaseDetailPage() {
               onClick={() => setShowLegalHold(!showLegalHold)}
               className={`px-3 py-2 rounded-lg text-xs border flex items-center gap-1 ${
                 c.legal_hold_active
-                  ? "bg-amber-400/10 border-amber-400/30 text-amber-400"
+                  ? "bg-warning-bg border-warning-border text-warning-text"
                   : "border-[#333] text-[#888] hover:text-white"
               }`}
             >
@@ -522,7 +522,7 @@ export default function CaseDetailPage() {
         <div className="bg-[#111] border border-[#222] rounded-xl p-4 mb-4">
           {c.legal_hold_active ? (
             <button onClick={handleReleaseLegalHold}
-              className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-xs hover:bg-red-500/20">
+              className="px-4 py-2 bg-error-bg border border-error-border text-error-text rounded-lg text-xs hover:brightness-110">
               <Gavel className="w-3 h-3 inline mr-1" /> Release Legal Hold
             </button>
           ) : (
@@ -531,7 +531,7 @@ export default function CaseDetailPage() {
                 value={legalHoldReason} onChange={e => setLegalHoldReason(e.target.value)}
                 className="flex-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
               <button onClick={handleApplyLegalHold} disabled={!legalHoldReason}
-                className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 disabled:opacity-50">
+                className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-xs hover:brightness-110 disabled:opacity-50">
                 <Lock className="w-3 h-3 inline mr-1" /> Apply Legal Hold
               </button>
             </div>
@@ -546,7 +546,7 @@ export default function CaseDetailPage() {
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab.id ? "text-amber-400 border-amber-400" : "text-[#666] border-transparent hover:text-white hover:border-[#444]"
+                activeTab === tab.id ? "text-warning-text border-warning-border" : "text-[#666] border-transparent hover:text-white hover:border-[#444]"
               }`}>
               <Icon className="w-3.5 h-3.5" /> {tab.label}
             </button>
@@ -591,12 +591,12 @@ export default function CaseDetailPage() {
               <div className="space-y-2">
                 {c.status !== "closed" ? (
                   <button onClick={() => setActiveTab("close")}
-                    className="w-full px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs hover:bg-emerald-500/20 flex items-center justify-center gap-1.5">
+                    className="w-full px-3 py-2 bg-success-bg border border-success-border text-success-text rounded-lg text-xs hover:brightness-110 flex items-center justify-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5" /> Close Case
                   </button>
                 ) : (
                   <button onClick={handleReopen}
-                    className="w-full px-3 py-2 bg-orange-500/10 border border-orange-500/30 text-orange-400 rounded-lg text-xs hover:bg-orange-500/20 flex items-center justify-center gap-1.5">
+                    className="w-full px-3 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-xs hover:brightness-110 flex items-center justify-center gap-1.5">
                     <RefreshCw className="w-3.5 h-3.5" /> Reopen Case
                   </button>
                 )}
@@ -625,13 +625,13 @@ export default function CaseDetailPage() {
           )}
 
           {/* Phase 4: AI Recommendations */}
-          <div className="bg-gradient-to-r from-purple-500/5 to-transparent border border-purple-500/20 rounded-xl p-4">
+          <div className="bg-gradient-to-r from-info-text/5 to-transparent border border-info-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <Lightbulb className="w-4 h-4 text-purple-400" /> AI Recommendations
+                <Lightbulb className="w-4 h-4 text-info-text" /> AI Recommendations
               </h3>
               <button onClick={handleGenerateRecommendations} disabled={generatingRecommendations}
-                className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded text-[10px] hover:bg-purple-500/20 disabled:opacity-50 flex items-center gap-1">
+                className="px-3 py-1.5 bg-info-bg border border-info-border text-info-text rounded text-[10px] hover:brightness-110 disabled:opacity-50 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" /> {generatingRecommendations ? "Generating..." : "Generate"}
               </button>
             </div>
@@ -641,7 +641,7 @@ export default function CaseDetailPage() {
               <ul className="space-y-1.5">
                 {recommendations.map((r, i) => (
                   <li key={i} className="flex items-start gap-2 text-xs text-[#ccc]">
-                    <span className="text-purple-400 mt-0.5">•</span>
+                    <span className="text-info-text mt-0.5">•</span>
                     <span>{r}</span>
                   </li>
                 ))}
@@ -650,13 +650,13 @@ export default function CaseDetailPage() {
           </div>
 
           {/* Phase 4: Anomalies */}
-          <div className="bg-gradient-to-r from-red-500/5 to-transparent border border-red-500/20 rounded-xl p-4">
+          <div className="bg-gradient-to-r from-error-text/5 to-transparent border border-error-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-400" /> Anomaly Detection
+                <AlertTriangle className="w-4 h-4 text-error-text" /> Anomaly Detection
               </h3>
               <button onClick={handleDetectAnomalies} disabled={generatingAnomalies}
-                className="px-3 py-1.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded text-[10px] hover:bg-red-500/20 disabled:opacity-50 flex items-center gap-1">
+                className="px-3 py-1.5 bg-error-bg border border-error-border text-error-text rounded text-[10px] hover:brightness-110 disabled:opacity-50 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" /> {generatingAnomalies ? "Scanning..." : "Scan"}
               </button>
             </div>
@@ -668,7 +668,7 @@ export default function CaseDetailPage() {
                   <div key={i} className="bg-[#0a0a0a] border border-[#222] rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                        a.severity === "high" ? "bg-red-400/10 text-red-400" : "bg-amber-400/10 text-amber-400"
+                        a.severity === "high" ? "bg-error-bg text-error-text" : "bg-warning-bg text-warning-text"
                       }`}>{a.anomaly_type}</span>
                       <span className="text-xs text-foreground">{a.label}</span>
                     </div>
@@ -686,7 +686,7 @@ export default function CaseDetailPage() {
         <div className="bg-[#111] border border-[#222] rounded-xl p-6">
           <h3 className="text-sm font-medium text-foreground mb-4">Reconstructed Timeline</h3>
           <p className="text-xs text-[#888] mb-4">
-            Deterministic correlation from audit event keys. Confidence labels: <span className="text-emerald-400">Deterministic</span>, <span className="text-blue-400">High</span>, <span className="text-amber-400">Medium</span>, <span className="text-[#666]">Suggestive</span>.
+            Deterministic correlation from audit event keys. Confidence labels: <span className="text-success-text">Deterministic</span>, <span className="text-info-text">High</span>, <span className="text-warning-text">Medium</span>, <span className="text-[#666]">Suggestive</span>.
           </p>
           {timeline.length === 0 ? (
             <p className="text-xs text-[#888]">No timeline events yet.</p>
@@ -696,9 +696,9 @@ export default function CaseDetailPage() {
                 <div key={i} className="flex gap-3">
                   <div className="flex flex-col items-center">
                     <div className={`w-2.5 h-2.5 rounded-full border-2 ${
-                      item.confidence === "deterministic" ? "bg-emerald-400 border-emerald-600" :
-                      item.confidence === "high" ? "bg-blue-400 border-blue-600" :
-                      item.confidence === "medium" ? "bg-amber-400 border-amber-600" :
+                      item.confidence === "deterministic" ? "bg-success-text border-success-border" :
+                      item.confidence === "high" ? "bg-info-text border-info-border" :
+                      item.confidence === "medium" ? "bg-warning-text border-warning-border" :
                       "bg-[#555] border-[#444]"
                     }`} />
                     {i < timeline.length - 1 && <div className="w-px flex-1 bg-[#222]" />}
@@ -707,21 +707,21 @@ export default function CaseDetailPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-medium text-foreground">{item.label}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                        item.confidence === "deterministic" ? "text-emerald-400 bg-emerald-400/10" :
-                        item.confidence === "high" ? "text-blue-400 bg-blue-400/10" :
-                        item.confidence === "medium" ? "text-amber-400 bg-amber-400/10" :
+                        item.confidence === "deterministic" ? "text-success-text bg-success-bg" :
+                        item.confidence === "high" ? "text-info-text bg-info-bg" :
+                        item.confidence === "medium" ? "text-warning-text bg-warning-bg" :
                         "text-[#666] bg-[#0a0a0a]"
                       }`}>{item.confidence}</span>
                       {item.correlation_label && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-400/10 text-purple-400">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-info-bg text-info-text">
                           {item.correlation_label}
                         </span>
                       )}
                       {item.is_pinned && (
-                        <span className="text-[10px] text-amber-400">📌</span>
+                        <span className="text-[10px] text-warning-text">📌</span>
                       )}
                       {item.vault_status && item.vault_status !== "not_preserved" && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/10 text-emerald-400">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-success-bg text-success-text">
                           Vault: {item.vault_status}
                         </span>
                       )}
@@ -732,7 +732,7 @@ export default function CaseDetailPage() {
                       <span>by {item.actor}</span>
                       {item.source_id && <span className="font-mono">#{item.source_id.substring(0, 8)}</span>}
                       {item.audit_event_id && (
-                        <span className="font-mono text-amber-400/60">audit:{item.audit_event_id.substring(0, 12)}</span>
+                        <span className="font-mono text-warning-text/60">audit:{item.audit_event_id.substring(0, 12)}</span>
                       )}
                     </div>
                     {item.nearby_events && item.nearby_events.length > 0 && (
@@ -764,7 +764,7 @@ export default function CaseDetailPage() {
         <div className="space-y-4">
           <div className="flex justify-end">
             <button onClick={() => setShowEvidenceForm(!showEvidenceForm)}
-              className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 flex items-center gap-1.5">
+              className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5">
               <Plus className="w-3.5 h-3.5" /> {showEvidenceForm ? "Cancel" : "Add Evidence"}
             </button>
           </div>
@@ -786,7 +786,7 @@ export default function CaseDetailPage() {
                 value={evidenceForm.added_reason} onChange={e => setEvidenceForm(p => ({ ...p, added_reason: e.target.value }))}
                 className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
               <button onClick={handleAddEvidence}
-                className="px-4 py-2 bg-amber-500 text-black rounded-lg text-xs font-medium hover:bg-amber-400">
+                className="px-4 py-2 bg-warning-text text-black rounded-lg text-xs font-medium hover:brightness-110">
                 Add to Case
               </button>
             </div>
@@ -795,13 +795,13 @@ export default function CaseDetailPage() {
           <div className="flex items-center gap-2">
             {selectedEvidence.size > 0 && (
               <button onClick={handlePreserveToVault} disabled={preserving}
-                className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs hover:bg-emerald-500/20 disabled:opacity-50 flex items-center gap-1.5">
+                className="px-4 py-2 bg-success-bg border border-success-border text-success-text rounded-lg text-xs hover:brightness-110 disabled:opacity-50 flex items-center gap-1.5">
                 <Archive className="w-3.5 h-3.5" />
                 {preserving ? "Preserving..." : `Preserve to Vault (${selectedEvidence.size})`}
               </button>
             )}
             {preserveResult && (
-              <div className="text-xs text-emerald-400">
+              <div className="text-xs text-success-text">
                 Preserved in manifest: {preserveResult.manifest_id}
               </div>
             )}
@@ -829,38 +829,38 @@ export default function CaseDetailPage() {
                 </thead>
                 <tbody className="divide-y divide-[#222]">
                   {evidence.map(e => (
-                    <tr key={e.id} className={`text-xs text-[#ccc] ${selectedEvidence.has(e.id) ? "bg-emerald-400/5" : ""}`}>
+                    <tr key={e.id} className={`text-xs text-[#ccc] ${selectedEvidence.has(e.id) ? "bg-success-bg" : ""}`}>
                       <td className="py-3 px-4">
                         <input type="checkbox"
                           checked={selectedEvidence.has(e.id)}
                           onChange={() => toggleEvidenceSelection(e.id)}
-                          className="accent-amber-500" />
+                          className="accent-warning-text" />
                       </td>
                       <td className="py-3 px-4">{e.source_type.replace(/_/g, " ")}</td>
                       <td className="py-3 px-4 font-mono">{e.source_id.substring(0, 16)}</td>
                       <td className="py-3 px-4">
                         <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                          e.relevance === "primary" ? "text-emerald-400 bg-emerald-400/10" :
-                          e.relevance === "supporting" ? "text-blue-400 bg-blue-400/10" :
-                          e.relevance === "disputed" ? "text-red-400 bg-red-400/10" :
+                          e.relevance === "primary" ? "text-success-text bg-success-bg" :
+                          e.relevance === "supporting" ? "text-info-text bg-info-bg" :
+                          e.relevance === "disputed" ? "text-error-text bg-error-bg" :
                           "text-[#888] bg-[#0a0a0a]"
                         }`}>{e.relevance}</span>
                       </td>
                       <td className="py-3 px-4">
                         {e.vault_status === "preserved" || e.metadata?.legal_hold_at ? (
-                          <span className="text-emerald-400 text-[10px] bg-emerald-400/10 px-1.5 py-0.5 rounded">
+                          <span className="text-success-text text-[10px] bg-success-bg px-1.5 py-0.5 rounded">
                             {e.metadata?.legal_hold_at ? "Legal Hold" : "Preserved"}
                           </span>
                         ) : (
                           <span className="text-[#555]">{e.vault_status}</span>
                         )}
                       </td>
-                      <td className="py-3 px-4">{e.is_pinned ? <Bookmark className="w-3.5 h-3.5 text-amber-400" /> : "—"}</td>
+                      <td className="py-3 px-4">{e.is_pinned ? <Bookmark className="w-3.5 h-3.5 text-warning-text" /> : "—"}</td>
                       <td className="py-3 px-4 text-[#888]">{fmt(e.added_at)}</td>
                       <td className="py-3 px-4">
                         {!e.is_pinned && (
                           <button onClick={() => handlePinEvidence(e.id)}
-                            className="text-[#888] hover:text-amber-400">
+                            className="text-[#888] hover:text-warning-text">
                             <Bookmark className="w-3.5 h-3.5" />
                           </button>
                         )}
@@ -888,7 +888,7 @@ export default function CaseDetailPage() {
               value={noteContent} onChange={e => setNoteContent(e.target.value)}
               className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground resize-none h-24" />
             <button onClick={handleAddNote}
-              className="px-4 py-2 bg-amber-500 text-black rounded-lg text-xs font-medium hover:bg-amber-400">
+              className="px-4 py-2 bg-warning-text text-black rounded-lg text-xs font-medium hover:brightness-110">
               Add Note
             </button>
           </div>
@@ -904,8 +904,8 @@ export default function CaseDetailPage() {
                 <div key={n.id} className="bg-[#111] border border-[#222] rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                      n.note_class === "legal_privileged" ? "text-purple-400 bg-purple-400/10" :
-                      n.note_class === "external_shareable" ? "text-blue-400 bg-blue-400/10" :
+                      n.note_class === "legal_privileged" ? "text-info-text bg-info-bg" :
+                      n.note_class === "external_shareable" ? "text-info-text bg-info-bg" :
                       "text-[#888] bg-[#0a0a0a]"
                     }`}>
                       {n.note_class.replace(/_/g, " ")}
@@ -926,7 +926,7 @@ export default function CaseDetailPage() {
         <div className="space-y-4">
           <div className="flex justify-end">
             <button onClick={() => setShowTaskForm(!showTaskForm)}
-              className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 flex items-center gap-1.5">
+              className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5">
               <Plus className="w-3.5 h-3.5" /> {showTaskForm ? "Cancel" : "Add Task"}
             </button>
           </div>
@@ -943,7 +943,7 @@ export default function CaseDetailPage() {
                 onChange={e => setTaskForm(p => ({ ...p, owner_id: e.target.value }))}
                 className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
               <button onClick={handleAddTask}
-                className="px-4 py-2 bg-amber-500 text-black rounded-lg text-xs font-medium hover:bg-amber-400">
+                className="px-4 py-2 bg-warning-text text-black rounded-lg text-xs font-medium hover:brightness-110">
                 Create Task
               </button>
             </div>
@@ -967,8 +967,8 @@ export default function CaseDetailPage() {
                     </div>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                    t.status === "completed" ? "text-emerald-400 bg-emerald-400/10" :
-                    t.status === "open" ? "text-amber-400 bg-amber-400/10" :
+                    t.status === "completed" ? "text-success-text bg-success-bg" :
+                    t.status === "open" ? "text-warning-text bg-warning-bg" :
                     "text-[#888] bg-[#0a0a0a]"
                   }`}>{t.status}</span>
                 </div>
@@ -1005,7 +1005,7 @@ export default function CaseDetailPage() {
                     <td className="py-3 px-4 text-[#888]">{a.reason}</td>
                     <td className="py-3 px-4">
                       {a.audit_event_id
-                        ? <span className="font-mono text-[10px] text-amber-400">{a.audit_event_id.substring(0, 12)}</span>
+                        ? <span className="font-mono text-[10px] text-warning-text">{a.audit_event_id.substring(0, 12)}</span>
                         : <span className="text-[#555]">—</span>
                       }
                     </td>
@@ -1024,7 +1024,7 @@ export default function CaseDetailPage() {
           <div className="flex justify-between items-center">
             <h3 className="text-sm font-medium text-foreground">Export Packages</h3>
             <button onClick={() => setShowExportForm(!showExportForm)}
-              className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs hover:bg-amber-500/20 flex items-center gap-1.5">
+              className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-xs hover:brightness-110 flex items-center gap-1.5">
               <Plus className="w-3.5 h-3.5" /> {showExportForm ? "Cancel" : "New Export"}
             </button>
           </div>
@@ -1061,7 +1061,7 @@ export default function CaseDetailPage() {
                 value={exportForm.reason} onChange={e => setExportForm(p => ({ ...p, reason: e.target.value }))}
                 className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
               <button onClick={handleCreateExport} disabled={!exportForm.reason}
-                className="px-4 py-2 bg-amber-500 text-black rounded-lg text-xs font-medium hover:bg-amber-400">
+                className="px-4 py-2 bg-warning-text text-black rounded-lg text-xs font-medium hover:brightness-110">
                 Request Export
               </button>
             </div>
@@ -1078,15 +1078,15 @@ export default function CaseDetailPage() {
                 <div key={exp.id} className="bg-[#111] border border-[#222] rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-amber-400" />
+                      <FileText className="w-4 h-4 text-warning-text" />
                       <span className="text-sm font-medium text-foreground">{exp.package_type.replace(/_/g, " ")}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                        exp.status === "ready" ? "text-emerald-400 bg-emerald-400/10" :
-                        exp.status === "generating" ? "text-blue-400 bg-blue-400/10" :
-                        exp.status === "approved" ? "text-green-400 bg-green-400/10" :
-                        exp.status === "rejected" ? "text-red-400 bg-red-400/10" :
+                        exp.status === "ready" ? "text-success-text bg-success-bg" :
+                        exp.status === "generating" ? "text-info-text bg-info-bg" :
+                        exp.status === "approved" ? "text-success-text bg-success-bg" :
+                        exp.status === "rejected" ? "text-error-text bg-error-bg" :
                         exp.status === "draft" ? "text-[#888] bg-[#0a0a0a]" :
-                        "text-amber-400 bg-amber-400/10"
+                        "text-warning-text bg-warning-bg"
                       }`}>{exp.status}</span>
                     </div>
                     <span className="text-[10px] text-[#555]">{exp.format.toUpperCase()}</span>
@@ -1101,18 +1101,18 @@ export default function CaseDetailPage() {
                   <div className="flex items-center gap-2 mt-2">
                     {(exp.status === "draft" || exp.status === "approved") && (
                       <button onClick={() => handleGenerateExport(exp.id)} disabled={generatingId === exp.id}
-                        className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded text-[10px] hover:bg-emerald-500/20 disabled:opacity-50">
+                        className="px-3 py-1.5 bg-success-bg border border-success-border text-success-text rounded text-[10px] hover:brightness-110 disabled:opacity-50">
                         {generatingId === exp.id ? "Generating..." : "Generate"}
                       </button>
                     )}
                     {exp.status === "pending_approval" && (
                       <button onClick={() => handleApproveExport(exp.id)}
-                        className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded text-[10px] hover:bg-blue-500/20">
+                        className="px-3 py-1.5 bg-info-bg border border-info-border text-info-text rounded text-[10px] hover:brightness-110">
                         Approve
                       </button>
                     )}
                     {exp.status === "ready" && exp.hash && (
-                      <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                      <span className="text-[10px] text-success-text flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" /> Package ready
                       </span>
                     )}
@@ -1180,10 +1180,10 @@ export default function CaseDetailPage() {
                   {graphData.nodes.map((node: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 text-xs py-1">
                       <span className={`w-2 h-2 rounded-full ${
-                        node.type === "case" ? "bg-amber-400" :
-                        node.type === "user" ? "bg-blue-400" :
-                        node.type === "evidence" ? "bg-emerald-400" :
-                        node.type === "audit_event" ? "bg-purple-400" :
+                        node.type === "case" ? "bg-warning-text" :
+                        node.type === "user" ? "bg-info-text" :
+                        node.type === "evidence" ? "bg-success-text" :
+                        node.type === "audit_event" ? "bg-info-text" :
                         "bg-[#555]"
                       }`} />
                       <span className="text-foreground flex-1 truncate">{node.label}</span>
@@ -1199,9 +1199,9 @@ export default function CaseDetailPage() {
                 <div className="max-h-48 overflow-y-auto space-y-1">
                   {graphData.edges.map((edge: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 text-[11px]">
-                      <span className="text-blue-400 truncate max-w-[120px]">{edge.from.substring(0, 16)}</span>
-                      <span className="text-amber-400/60 text-[10px]">—{edge.relation}→</span>
-                      <span className="text-emerald-400 truncate max-w-[120px]">{edge.to.substring(0, 16)}</span>
+                      <span className="text-info-text truncate max-w-[120px]">{edge.from.substring(0, 16)}</span>
+                      <span className="text-warning-text/60 text-[10px]">—{edge.relation}→</span>
+                      <span className="text-success-text truncate max-w-[120px]">{edge.to.substring(0, 16)}</span>
                     </div>
                   ))}
                 </div>
@@ -1215,13 +1215,13 @@ export default function CaseDetailPage() {
       {activeTab === "ai" && (
         <div className="space-y-4">
           {/* AI Case Summary */}
-          <div className="bg-gradient-to-r from-purple-500/5 to-transparent border border-purple-500/20 rounded-xl p-6">
+          <div className="bg-gradient-to-r from-info-text/5 to-transparent border border-info-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-400" /> AI Case Summary
+                <Sparkles className="w-4 h-4 text-info-text" /> AI Case Summary
               </h3>
               <button onClick={handleGenerateSummary} disabled={generatingSummary}
-                className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded text-[10px] hover:bg-purple-500/20 disabled:opacity-50">
+                className="px-3 py-1.5 bg-info-bg border border-info-border text-info-text rounded text-[10px] hover:brightness-110 disabled:opacity-50">
                 {generatingSummary ? "Generating..." : "Generate Summary"}
               </button>
             </div>
@@ -1236,9 +1236,9 @@ export default function CaseDetailPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-medium text-foreground">{s.summary_type.replace(/_/g, " ")}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          s.status === "approved" ? "bg-emerald-400/10 text-emerald-400" :
-                          s.status === "rejected" ? "bg-red-400/10 text-red-400" :
-                          "bg-amber-400/10 text-amber-400"
+                          s.status === "approved" ? "bg-success-bg text-success-text" :
+                          s.status === "rejected" ? "bg-error-bg text-error-text" :
+                          "bg-warning-bg text-warning-text"
                         }`}>{s.status}</span>
                       </div>
                       <span className="text-[10px] text-[#555]">{fmt(s.created_at)}</span>
@@ -1256,11 +1256,11 @@ export default function CaseDetailPage() {
                     {s.status === "draft" && (
                       <div className="flex gap-2 mt-3">
                         <button onClick={() => handleApproveSummary(s.id)}
-                          className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded text-[10px] hover:bg-emerald-500/20">
+                          className="px-3 py-1 bg-success-bg border border-success-border text-success-text rounded text-[10px] hover:brightness-110">
                           Approve
                         </button>
                         <button onClick={() => handleRejectSummary(s.id)}
-                          className="px-3 py-1 bg-red-500/10 border border-red-500/30 text-red-400 rounded text-[10px] hover:bg-red-500/20">
+                          className="px-3 py-1 bg-error-bg border border-error-border text-error-text rounded text-[10px] hover:brightness-110">
                           Reject
                         </button>
                       </div>
@@ -1275,10 +1275,10 @@ export default function CaseDetailPage() {
           <div className="bg-[#111] border border-[#222] rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <Activity className="w-4 h-4 text-blue-400" /> Timeline Explanation
+                <Activity className="w-4 h-4 text-info-text" /> Timeline Explanation
               </h3>
               <button onClick={handleGenerateExplanation} disabled={generatingExplanation}
-                className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded text-[10px] hover:bg-blue-500/20 disabled:opacity-50">
+                className="px-3 py-1.5 bg-info-bg border border-info-border text-info-text rounded text-[10px] hover:brightness-110 disabled:opacity-50">
                 {generatingExplanation ? "Generating..." : "Explain Timeline"}
               </button>
             </div>
@@ -1297,9 +1297,9 @@ export default function CaseDetailPage() {
           <h3 className="text-sm font-medium text-foreground">Close Investigation Case</h3>
           {c.status === "closed" ? (
             <div className="text-center py-8">
-              <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-emerald-400" />
+              <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-success-text" />
               <p className="text-sm text-[#888]">This case is already closed.</p>
-              <button onClick={handleReopen} className="mt-3 px-4 py-2 bg-orange-500/10 border border-orange-500/30 text-orange-400 rounded-lg text-xs hover:bg-orange-500/20">
+              <button onClick={handleReopen} className="mt-3 px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-xs hover:brightness-110">
                 Reopen Case
               </button>
             </div>
@@ -1320,7 +1320,7 @@ export default function CaseDetailPage() {
                 value={closeForm.findings} onChange={e => setCloseForm(p => ({ ...p, findings: e.target.value }))}
                 className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground resize-none h-20" />
               <button onClick={handleClose} disabled={!closeForm.outcome || !closeForm.rationale}
-                className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/20 disabled:opacity-50">
+                className="px-4 py-2 bg-success-bg border border-success-border text-success-text rounded-lg text-sm hover:brightness-110 disabled:opacity-50">
                 Close Case
               </button>
             </>
