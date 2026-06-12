@@ -78,7 +78,8 @@ export default function PublishedContentPanel({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
+        <div className="overflow-y-auto max-h-[420px] p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {data.map((item) => (
             <div
               key={`${item.source}-${item.id}`}
@@ -175,6 +176,7 @@ export default function PublishedContentPanel({
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
     </div>

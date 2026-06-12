@@ -1,28 +1,26 @@
 "use client";
 
 import React from 'react';
-import { GitMerge, Loader2, Clock, CheckCircle2, AlertCircle, XCircle, Pause, BarChart2 } from 'lucide-react';
-
-// Per doc section 8 — Runtime Operations Requirements
-// Read-only monitoring surface: workflow name, instance ID, current step, owner,
-// SLA, risk score, confidence score, status, blocker. Resolution of flagged
-// posts happens in the Review Queue, not here.
+import { GitMerge, Loader2, Clock, CheckCircle2, AlertCircle, XCircle, Pause } from 'lucide-react';
 
 interface Orchestration {
   id: string;
   workflowId: string;
   workflowName: string;
-  currentStep: string;
   agentAssigned: string;
-  owner?: string;
   status: string;
   timeInStep: string;
-  startedAt: string;
   riskScore?: number;
+  prompt?: string;
+  knowledgeBaseSource?: string;
+  nextStep?: string;
+  currentStep?: string;
+  owner?: string;
   confidenceScore?: number;
-  sla?: string;
   blocker?: string;
+  sla?: string;
   post?: { platform?: string; excerpt?: string };
+  startedAt?: string;
 }
 
 const STATUS_MAP: Record<string, { cls: string; icon: React.ReactNode }> = {
@@ -60,12 +58,23 @@ const STATUS_MAP: Record<string, { cls: string; icon: React.ReactNode }> = {
   },
 };
 
+const NEXT_STEP_MAP: Record<string, string> = {
+  'In Progress': 'Monitor',
+  Processing: 'Monitor',
+  Pending: 'Queue for Review',
+  Waiting: 'Awaiting Approval',
+  Blocked: 'Resolve Block',
+  Paused: 'Resume',
+  Completed: '—',
+  Failed: 'Review & Retry',
+};
+
 const StatusBadge = ({ status }: { status: string }) => {
   const style = STATUS_MAP[status] ?? { cls: 'bg-gray-500/10 text-gray-400 border-gray-500/20', icon: null };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${style.cls}`}>
       {style.icon}
-      {typeof status === 'object' ? 'Unknown' : status}
+      {status}
     </span>
   );
 };
@@ -77,17 +86,18 @@ const RiskBar = ({ score }: { score: number }) => {
       <div className="w-16 h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
       </div>
-      <span className="text-[10px] text-[var(--text-muted)]">{typeof score === 'object' ? '—' : score}</span>
+      <span className="text-[10px] text-[var(--text-muted)]">{score}</span>
     </div>
   );
 };
 
 export default function ActiveOrchestrations({
   data,
+  onRowClick,
 }: {
   data?: Orchestration[];
-  /** Retained for caller compatibility; this panel is read-only and takes no actions. */
   onActionComplete?: () => void;
+  onRowClick?: (run: Orchestration) => void;
 }) {
   if (!data) {
     return <div className="h-64 animate-pulse bg-[var(--surface)] rounded-2xl" />;
@@ -98,15 +108,15 @@ export default function ActiveOrchestrations({
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface-hover)]/30">
+      <div className="px-6 py-5 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface)]">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-info-text/10 rounded-xl">
             <GitMerge className="w-5 h-5 text-info-text" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">Live Orchestrations</h2>
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">Live Workflow Runs</h2>
             <p className="text-xs text-[var(--text-secondary)]">
-              Real-time workflow instance monitoring — step, owner, risk, confidence, blocker
+              Real-time workflow instance monitoring
             </p>
           </div>
         </div>
@@ -124,23 +134,25 @@ export default function ActiveOrchestrations({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto max-h-[380px]">
         <table className="w-full text-sm text-left">
-          <thead className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--surface-hover)]/20">
+          <thead className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--surface-hover)]/20 sticky top-0 z-10">
             <tr>
-              <th className="px-5 py-3 font-medium">Instance</th>
-              <th className="px-5 py-3 font-medium">Current Step</th>
-              <th className="px-5 py-3 font-medium">Agent / Owner</th>
-              <th className="px-5 py-3 font-medium">Risk</th>
-              <th className="px-5 py-3 font-medium">Confidence</th>
-              <th className="px-5 py-3 font-medium">Time in Step</th>
-              <th className="px-5 py-3 font-medium">Status</th>
+              <th className="px-5 py-3 font-medium bg-[var(--surface)]">Name</th>
+              <th className="px-5 py-3 font-medium bg-[var(--surface)]">Status</th>
+              <th className="px-5 py-3 font-medium bg-[var(--surface)]">Next Step</th>
+              <th className="px-5 py-3 font-medium bg-[var(--surface)]">Risk Score</th>
+
+              <th className="px-5 py-3 font-medium bg-[var(--surface)]">Agent Linked</th>
+              <th className="px-5 py-3 font-medium bg-[var(--surface)]">Prompt</th>
+              <th className="px-5 py-3 font-medium bg-[var(--surface)]">Knowledge Base Source</th>
+              <th className="px-5 py-3 font-medium bg-[var(--surface)]">Time</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--border)]">
             {data.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-12 text-center text-sm text-[var(--text-muted)]">
+                <td colSpan={8} className="px-5 py-12 text-center text-sm text-[var(--text-muted)]">
                   No active workflow instances. When workflows run, instances appear here in real time.
                 </td>
               </tr>
@@ -148,41 +160,22 @@ export default function ActiveOrchestrations({
             {data.map((orch) => (
               <tr
                 key={orch.id}
-                className={`hover:bg-[var(--surface-hover)] transition-colors ${
+                onClick={() => onRowClick?.(orch)}
+                className={`cursor-pointer hover:bg-[var(--surface-hover)] transition-colors ${
                   orch.status === 'Blocked' ? 'bg-error-text/5' : ''
                 }`}
               >
                 <td className="px-5 py-4">
-                  <p className="font-medium text-[var(--text-primary)] truncate max-w-[180px]">{orch.workflowName}</p>
-                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{orch.id}</p>
-                  {orch.post && (orch.post.excerpt || orch.post.platform) && (
-                    <div className="mt-1 flex items-start gap-1.5 max-w-[220px]">
-                      {orch.post.platform && (
-                        <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-info-text/10 text-info-text border border-info-border/20 text-[9px] font-bold uppercase tracking-wide">
-                          {orch.post.platform}
-                        </span>
-                      )}
-                      {orch.post.excerpt && (
-                        <span className="text-[10px] text-[var(--text-secondary)] line-clamp-2">{orch.post.excerpt}</span>
-                      )}
-                    </div>
-                  )}
-                  {orch.blocker && (
-                    <p className="text-[10px] text-error-text mt-0.5 flex items-center gap-1">
-                      <XCircle className="w-3 h-3" /> {orch.blocker}
-                    </p>
-                  )}
+                  <p className="font-medium text-[var(--text-primary)] truncate max-w-[160px]">{orch.workflowName}</p>
+                  <p className="text-[10px] text-[var(--text-muted)] mt-0.5 font-mono">{orch.id.slice(0, 8)}</p>
                 </td>
                 <td className="px-5 py-4">
-                  <span className="px-2.5 py-1 rounded-lg bg-[var(--sidebar-active)] text-info-text text-xs font-medium border border-info-border/20">
-                    {orch.currentStep}
+                  <StatusBadge status={orch.status} />
+                </td>
+                <td className="px-5 py-4">
+                  <span className="text-xs text-[var(--text-secondary)] font-medium">
+                    {orch.nextStep || NEXT_STEP_MAP[orch.status] || '—'}
                   </span>
-                </td>
-                <td className="px-5 py-4">
-                  <p className="text-xs text-[var(--text-secondary)]">{orch.agentAssigned}</p>
-                  {orch.owner && (
-                    <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Owner: {orch.owner}</p>
-                  )}
                 </td>
                 <td className="px-5 py-4">
                   {orch.riskScore != null ? (
@@ -191,27 +184,24 @@ export default function ActiveOrchestrations({
                     <span className="text-xs text-[var(--text-muted)]">—</span>
                   )}
                 </td>
-                <td className="px-5 py-4">
-                  {orch.confidenceScore != null ? (
-                    <div className="flex items-center gap-1.5">
-                      <BarChart2 className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-                      <span className="text-xs text-[var(--text-secondary)]">{orch.confidenceScore}%</span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-[var(--text-muted)]">—</span>
-                  )}
+                <td className="px-5 py-4 text-xs text-[var(--text-secondary)]">
+                  {orch.agentAssigned}
                 </td>
                 <td className="px-5 py-4">
-                  <span className="flex items-center gap-1.5 text-[var(--text-secondary)] text-xs">
-                    <Clock className="w-3.5 h-3.5" />
+                  <span className="text-xs text-[var(--text-secondary)] max-w-[140px] block truncate">
+                    {orch.prompt || '—'}
+                  </span>
+                </td>
+                <td className="px-5 py-4">
+                  <span className="text-xs text-[var(--text-secondary)] max-w-[140px] block truncate">
+                    {orch.knowledgeBaseSource || '—'}
+                  </span>
+                </td>
+                <td className="px-5 py-4">
+                  <span className="flex items-center gap-1.5 text-[var(--text-secondary)] text-xs whitespace-nowrap">
+                    <Clock className="w-3 h-3" />
                     {orch.timeInStep}
                   </span>
-                  {orch.sla && (
-                    <p className="text-[10px] text-[var(--text-muted)] mt-0.5">SLA: {orch.sla}</p>
-                  )}
-                </td>
-                <td className="px-5 py-4">
-                  <StatusBadge status={orch.status} />
                 </td>
               </tr>
             ))}
