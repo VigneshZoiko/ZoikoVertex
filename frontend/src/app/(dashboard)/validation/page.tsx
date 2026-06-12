@@ -377,9 +377,9 @@ export default function ValidationDeskPage() {
           <ArrowRight className="w-3 h-3 text-foreground-muted" />
           <span className="px-2 py-0.5 bg-surface border border-border rounded text-foreground-muted">AI Scan</span>
           <ArrowRight className="w-3 h-3 text-foreground-muted" />
-          <span className="px-2 py-0.5 bg-success-text/10 border border-success-border/20 rounded text-success-text">Safe â†’ Vault</span>
+          <span className="px-2 py-0.5 bg-success-text/10 border border-success-border/20 rounded text-success-text">Safe → Vault</span>
           <span className="text-foreground-muted">or</span>
-          <span className="px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded text-red-400">Violations â†’ Blocked</span>
+          <span className="px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded text-red-400">Violations → Blocked</span>
           <ArrowRight className="w-3 h-3 text-foreground-muted" />
           <span className="px-2 py-0.5 bg-warning-text/10 border border-warning-border/20 rounded text-warning-text">Review Queue (human)</span>
         </div>
