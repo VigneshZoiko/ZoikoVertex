@@ -27,7 +27,6 @@ const WORKFLOW_TYPES = [
   { value: "publishing",        label: "Publishing" },
   { value: "moderation",        label: "Moderation" },
   { value: "reporting",         label: "Reporting" },
-  { value: "incident_response", label: "Incident Response" },
   { value: "campaign_handoff",  label: "Campaign Handoff" },
   { value: "custom",            label: "Custom" },
 ];

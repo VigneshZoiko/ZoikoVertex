@@ -33,7 +33,6 @@ interface SearchItem {
 const allRoutes: SearchItem[] = [
   // Overview
   { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard className="w-4 h-4" />, keywords: "home overview main" },
-  { label: "Analytics", href: "/analytics", icon: <BarChart3 className="w-4 h-4" />, keywords: "charts metrics stats reports" },
   { label: "Operations", href: "/agents/operations", icon: <Settings className="w-4 h-4" />, keywords: "manage control" },
 
   // Publishing
@@ -89,7 +88,6 @@ const allRoutes: SearchItem[] = [
   { label: "Notifications", href: "/admin/notifications", icon: <FileText className="w-4 h-4" />, keywords: "alerts email preferences configure" },
   { label: "System Status", href: "/admin/status", icon: <BarChart3 className="w-4 h-4" />, keywords: "health uptime performance monitoring" },
   { label: "Security Center", href: "/admin/security", icon: <Shield className="w-4 h-4" />, keywords: "password 2fa mfa audit login" },
-  { label: "Crisis Management", href: "/admin/crisis", icon: <Shield className="w-4 h-4" />, keywords: "emergency incident response critical" },
 
   // SuperAdmin
   { label: "SuperAdmin", href: "/superadmin", icon: <Shield className="w-4 h-4" />, keywords: "admin console master" },
