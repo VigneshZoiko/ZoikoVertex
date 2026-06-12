@@ -54,28 +54,28 @@ function toneForSeverity(severity?: string) {
   switch (severity) {
     case "critical":
     case "blocked":
-      return "border-rose-500/30 bg-rose-500/10 text-rose-300";
+      return "border-error-border bg-error-bg text-error-text";
     case "warning":
-      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+      return "border-warning-border bg-warning-bg text-warning-text";
     case "attention":
-      return "border-sky-500/30 bg-sky-500/10 text-sky-300";
+      return "border-info-border bg-info-bg text-info-text";
     default:
-      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+      return "border-success-border bg-success-bg text-success-text";
   }
 }
 
 function statusTone(status?: string) {
   switch (status) {
     case "RUNNING":
-      return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+      return "border-success-border bg-success-bg text-success-text";
     case "FAILED":
     case "POLICY_BLOCKED":
     case "QUARANTINED":
-      return "border-rose-500/30 bg-rose-500/10 text-rose-300";
+      return "border-error-border bg-error-bg text-error-text";
     case "PAUSED":
     case "WAITING_HUMAN_REVIEW":
     case "QUEUED":
-      return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+      return "border-warning-border bg-warning-bg text-warning-text";
     default:
       return "border-slate-500/30 bg-slate-500/10 text-slate-300";
   }
@@ -142,7 +142,7 @@ function VirtualizedRunsTable({ runs, selectedRunId, onOpen, onAction }: { runs:
   if (runs.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-10 text-center">
-        <ShieldCheck className="mx-auto h-8 w-8 text-emerald-400" />
+        <ShieldCheck className="mx-auto h-8 w-8 text-success-text" />
         <h3 className="mt-3 text-lg font-semibold text-[var(--foreground)]">No matching active operations</h3>
         <p className="mt-1 text-sm text-[var(--foreground-muted)]">Try scheduled, completed, or recent failed runs, or check workflow health.</p>
       </div>
@@ -185,13 +185,13 @@ function VirtualizedRunsTable({ runs, selectedRunId, onOpen, onAction }: { runs:
                   <span className="block"><Badge className={toneForSeverity(String(run.severity))}>{String(run.severity || "normal")}</Badge></span>
                 </span>
                 <span>
-                  <Badge className={run.policy_result === "failed" || run.status === "POLICY_BLOCKED" ? "border-rose-500/30 bg-rose-500/10 text-rose-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}>
+                  <Badge className={run.policy_result === "failed" || run.status === "POLICY_BLOCKED" ? "border-error-border bg-error-bg text-error-text" : "border-success-border bg-success-bg text-success-text"}>
                     {String(run.policy_result || "pending").replace(/_/g, " ")}
                   </Badge>
                   <span className="mt-1 block text-xs text-[var(--foreground-muted)]">{run.evidence_status || "evidence pending"}</span>
                 </span>
                 <span className="text-xs">
-                  <span className={`block font-semibold ${due !== null && due < 0 ? "text-rose-300" : "text-[var(--foreground)]"}`}>
+                  <span className={`block font-semibold ${due !== null && due < 0 ? "text-error-text" : "text-[var(--foreground)]"}`}>
                     {due === null ? "No SLA" : due < 0 ? `${Math.abs(due)}m breached` : `${due}m left`}
                   </span>
                   <span className="mt-1 block text-[var(--foreground-muted)]">{run.owner_name || "Unassigned"}</span>
@@ -233,11 +233,11 @@ function QueuePanel({ queues, onAssign, onResolve }: { queues: QueueItem[]; onAs
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-[var(--foreground)]">Queue and Exceptions</h2>
-        <Badge className="border-sky-500/30 bg-sky-500/10 text-sky-300">{filtered.length} open</Badge>
+        <Badge className="border-info-border bg-info-bg text-info-text">{filtered.length} open</Badge>
       </div>
       <div className="mt-4 flex gap-2 overflow-auto pb-1">
         {QUEUE_TABS.map((item) => (
-          <button key={item} onClick={() => setTab(item)} className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize ${tab === item ? "border-sky-500/40 bg-sky-500/10 text-sky-300" : "border-[var(--border)] text-[var(--foreground-muted)]"}`}>
+          <button key={item} onClick={() => setTab(item)} className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize ${tab === item ? "border-info-border bg-info-bg text-info-text" : "border-[var(--border)] text-[var(--foreground-muted)]"}`}>
             {item.replace(/_/g, " ")}
           </button>
         ))}
@@ -251,7 +251,7 @@ function QueuePanel({ queues, onAssign, onResolve }: { queues: QueueItem[]; onAs
                 <div>
                   <p className="text-sm font-semibold capitalize text-[var(--foreground)]">{item.queue_type.replace(/_/g, " ")}</p>
                   <p className="mt-1 text-xs text-[var(--foreground-muted)]">Priority {item.priority} · {item.status} · {item.assignee_name || "unassigned"}</p>
-                  <p className={`mt-1 text-xs ${due !== null && due < 0 ? "text-rose-300" : "text-[var(--foreground-muted)]"}`}>{due === null ? "No SLA due time" : due < 0 ? `SLA breached by ${Math.abs(due)}m` : `SLA due in ${due}m`}</p>
+                  <p className={`mt-1 text-xs ${due !== null && due < 0 ? "text-error-text" : "text-[var(--foreground-muted)]"}`}>{due === null ? "No SLA due time" : due < 0 ? `SLA breached by ${Math.abs(due)}m` : `SLA due in ${due}m`}</p>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => onAssign(item)} className="rounded-lg border border-[var(--border)] px-2 py-1 text-xs">Claim</button>
@@ -299,7 +299,7 @@ function RunDetailDrawer({ open, detail, timeline, loading, onClose, onAction }:
       <div className="border-b border-[var(--border)] px-5 py-3">
         <div className="flex gap-2 overflow-auto">
           {tabs.map((item) => (
-            <button key={item} onClick={() => setTab(item)} className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize ${tab === item ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-[var(--border)] text-[var(--foreground-muted)]"}`}>
+            <button key={item} onClick={() => setTab(item)} className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize ${tab === item ? "border-success-border bg-success-bg text-success-text" : "border-[var(--border)] text-[var(--foreground-muted)]"}`}>
               {item}
             </button>
           ))}
@@ -350,7 +350,7 @@ function RunDetailDrawer({ open, detail, timeline, loading, onClose, onAction }:
               <div key={policy.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-[var(--foreground)]">{policy.failed_rule || (policy.policy_id ? <Link href={`/governance/policies?id=${policy.policy_id}`} className="underline underline-offset-2 decoration-[var(--border)] hover:decoration-[var(--gold)]">{policy.policy_id}</Link> : policy.policy_id)}</p>
-                  <Badge className={policy.outcome === "FAIL" || policy.outcome === "ESCALATE" ? "border-rose-500/30 bg-rose-500/10 text-rose-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}>{policy.outcome}</Badge>
+                  <Badge className={policy.outcome === "FAIL" || policy.outcome === "ESCALATE" ? "border-error-border bg-error-bg text-error-text" : "border-success-border bg-success-bg text-success-text"}>{policy.outcome}</Badge>
                 </div>
                 <p className="mt-1 text-xs text-[var(--foreground-muted)]">Version {policy.policy_version || "unknown"} · Severity {policy.severity} · Remediation {policy.remediation_required ? "required" : "not required"}</p>
               </div>
@@ -476,7 +476,7 @@ function ActionModal({ action, run, evidenceBundle, onClose, onComplete }: { act
           </div>
           <button onClick={onClose} className="rounded-xl border border-[var(--border)] p-2"><X className="h-4 w-4" /></button>
         </div>
-        <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-200">
+        <div className="mt-4 rounded-xl border border-warning-border bg-warning-bg p-3 text-sm text-warning-text">
           {impact}
         </div>
         {action === "create_incident" ? (
@@ -487,17 +487,17 @@ function ActionModal({ action, run, evidenceBundle, onClose, onComplete }: { act
         ) : null}
         <label className="mt-4 block text-sm text-[var(--foreground-muted)]">
           Required reason <span className="text-[var(--foreground-muted)]">(minimum 8 characters)</span>
-          <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={4} className={`mt-1 w-full rounded-xl border bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-amber-500/60" : "border-[var(--border)]"}`} placeholder="Record the operational reason, expected impact, and any reviewer handoff (at least 8 characters)." />
-          <span className={`mt-1 block text-xs ${reason.trim().length < 8 ? "text-amber-400" : "text-emerald-400"}`}>
+          <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={4} className={`mt-1 w-full rounded-xl border bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] ${reason.trim().length > 0 && reason.trim().length < 8 ? "border-warning-border" : "border-[var(--border)]"}`} placeholder="Record the operational reason, expected impact, and any reviewer handoff (at least 8 characters)." />
+          <span className={`mt-1 block text-xs ${reason.trim().length < 8 ? "text-warning-text" : "text-success-text"}`}>
             {reason.trim().length < 8
               ? `At least 8 characters required — ${8 - reason.trim().length} more to go (${reason.trim().length}/8).`
               : `Reason looks good (${reason.trim().length} characters).`}
           </span>
         </label>
-        {error ? <p className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{error}</p> : null}
+        {error ? <p className="mt-3 rounded-xl border border-error-border bg-error-bg p-3 text-sm text-error-text">{error}</p> : null}
         <div className="mt-5 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-xl border border-[var(--border)] px-4 py-2 text-sm">Cancel</button>
-          <button disabled={pending || reason.trim().length < 8} onClick={submit} className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">{pending ? "Applying..." : "Confirm and audit"}</button>
+          <button disabled={pending || reason.trim().length < 8} onClick={submit} className="rounded-xl bg-success-text px-4 py-2 text-sm font-semibold text-black disabled:opacity-50">{pending ? "Applying..." : "Confirm and audit"}</button>
         </div>
       </div>
     </div>
@@ -513,12 +513,12 @@ export function AgentOperationsPage() {
   const health = useMemo(() => {
     const s = ops.stats;
     return [
-      { label: "Active Agents", value: s?.active_runs ?? "—", sub: "live runtime executions", icon: Activity, tone: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" },
-      { label: "Queued Tasks", value: s?.queue_depth ?? "—", sub: `${s?.pending_queues ?? 0} unresolved queue items`, icon: TimerReset, tone: "border-sky-500/30 bg-sky-500/10 text-sky-300" },
-      { label: "Failed Runs", value: s?.failed_runs ?? "—", sub: `${s?.failure_rate ?? 0}% failure rate`, icon: AlertTriangle, tone: "border-rose-500/30 bg-rose-500/10 text-rose-300" },
-      { label: "Policy Blocks", value: s?.policy_blocked_runs ?? "—", sub: `${s?.policy_block_rate ?? 0}% block rate`, icon: ShieldAlert, tone: "border-amber-500/30 bg-amber-500/10 text-amber-300" },
-      { label: "Evidence Ready", value: `${ops.analytics?.evidence_completeness ?? 0}%`, sub: "locked bundle coverage", icon: FileLock2, tone: "border-indigo-500/30 bg-indigo-500/10 text-indigo-300" },
-      { label: "SLA Breach", value: `${ops.analytics?.sla_breach_rate ?? 0}%`, sub: "due-item breach rate", icon: Clock3, tone: "border-orange-500/30 bg-orange-500/10 text-orange-300" },
+      { label: "Active Agents", value: s?.active_runs ?? "—", sub: "live runtime executions", icon: Activity, tone: "border-success-border bg-success-bg text-success-text" },
+      { label: "Queued Tasks", value: s?.queue_depth ?? "—", sub: `${s?.pending_queues ?? 0} unresolved queue items`, icon: TimerReset, tone: "border-info-border bg-info-bg text-info-text" },
+      { label: "Failed Runs", value: s?.failed_runs ?? "—", sub: `${s?.failure_rate ?? 0}% failure rate`, icon: AlertTriangle, tone: "border-error-border bg-error-bg text-error-text" },
+      { label: "Policy Blocks", value: s?.policy_blocked_runs ?? "—", sub: `${s?.policy_block_rate ?? 0}% block rate`, icon: ShieldAlert, tone: "border-warning-border bg-warning-bg text-warning-text" },
+      { label: "Evidence Ready", value: `${ops.analytics?.evidence_completeness ?? 0}%`, sub: "locked bundle coverage", icon: FileLock2, tone: "border-info-border bg-info-bg text-info-text" },
+      { label: "SLA Breach", value: `${ops.analytics?.sla_breach_rate ?? 0}%`, sub: "due-item breach rate", icon: Clock3, tone: "border-warning-border bg-warning-bg text-warning-text" },
     ];
   }, [ops.stats, ops.analytics]);
 
@@ -542,15 +542,15 @@ export function AgentOperationsPage() {
       <section className="rounded-3xl border border-[var(--border)] bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_32%),var(--card)] p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-emerald-300">Agent Operations</p>
+            <p className="text-xs uppercase tracking-[0.22em] text-success-text">Agent Operations</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-[var(--foreground)]">Runtime control room</h1>
             <p className="mt-2 max-w-3xl text-sm text-[var(--foreground-muted)]">Monitor live and scheduled runs, control interventions safely, inspect policy and evidence, and route incidents without leaving the operating surface.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {ops.degradedRealtime ? <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-300">Degraded realtime · polling fallback</Badge> : <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300">Realtime ready</Badge>}
+            {ops.degradedRealtime ? <Badge className="border-warning-border bg-warning-bg text-warning-text">Degraded realtime · polling fallback</Badge> : <Badge className="border-success-border bg-success-bg text-success-text">Realtime ready</Badge>}
             <span className="text-xs text-[var(--foreground-muted)]">Last refresh {ops.lastUpdated ? ops.lastUpdated.toLocaleTimeString() : "pending"}</span>
             <button onClick={ops.refresh} className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm font-semibold"><RefreshCcw className="h-4 w-4" /> Refresh</button>
-            <button onClick={() => openAction(selectedRun, "create_incident")} className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-3 py-2 text-sm font-semibold text-foreground"><Siren className="h-4 w-4" /> Incident</button>
+            <button onClick={() => openAction(selectedRun, "create_incident")} className="inline-flex items-center gap-2 rounded-xl bg-error-text px-3 py-2 text-sm font-semibold text-foreground"><Siren className="h-4 w-4" /> Incident</button>
           </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
@@ -558,8 +558,8 @@ export function AgentOperationsPage() {
         </div>
       </section>
 
-      {ops.staleWarning ? <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">Displayed state may be stale — no update received in over 2 minutes. <button onClick={ops.refresh} className="underline font-semibold">Refresh now</button>.</div> : null}
-  {ops.error ? <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">{ops.error}</div> : null}
+      {ops.staleWarning ? <div className="rounded-2xl border border-warning-border bg-warning-bg p-4 text-sm text-warning-text">Displayed state may be stale — no update received in over 2 minutes. <button onClick={ops.refresh} className="underline font-semibold">Refresh now</button>.</div> : null}
+  {ops.error ? <div className="rounded-2xl border border-error-border bg-error-bg p-4 text-sm text-error-text">{ops.error}</div> : null}
 
       <section className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 lg:grid-cols-[1fr_160px_160px_140px_160px_140px_auto]">
         <label className="relative">
@@ -587,7 +587,7 @@ export function AgentOperationsPage() {
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-[var(--foreground)]">Open incidents</h2>
-              <Badge className="border-rose-500/30 bg-rose-500/10 text-rose-300">{ops.incidents.length}</Badge>
+              <Badge className="border-error-border bg-error-bg text-error-text">{ops.incidents.length}</Badge>
             </div>
             <div className="mt-4 space-y-3">
               {ops.incidents.slice(0, 5).map((incident) => (
@@ -614,12 +614,12 @@ export function AgentOperationsPage() {
               </button>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-[var(--surface)] p-3"><Gauge className="h-4 w-4 text-sky-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">24h throughput</p><p className="text-lg font-bold">{ops.analytics?.throughput?.["24h"] ?? 0}</p></div>
-              <div className="rounded-xl bg-[var(--surface)] p-3"><CheckCircle2 className="h-4 w-4 text-emerald-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">7d policy block</p><p className="text-lg font-bold">{ops.analytics?.policy_block_rate?.["7d"] ?? 0}%</p></div>
-              <div className="rounded-xl bg-[var(--surface)] p-3"><UserCheck className="h-4 w-4 text-indigo-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">Evidence completeness</p><p className="text-lg font-bold">{ops.analytics?.evidence_completeness ?? 0}%</p></div>
-              <div className="rounded-xl bg-[var(--surface)] p-3"><AlertTriangle className="h-4 w-4 text-rose-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">30d failure</p><p className="text-lg font-bold">{ops.analytics?.failure_rate?.["30d"] ?? 0}%</p></div>
-              <div className="rounded-xl bg-[var(--surface)] p-3"><Clock3 className="h-4 w-4 text-amber-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">Avg human review</p><p className="text-lg font-bold">{ops.analytics?.human_review_time?.value ?? "—"}</p><p className="text-xs text-[var(--foreground-muted)]">min (30d)</p></div>
-              <div className="rounded-xl bg-[var(--surface)] p-3"><TimerReset className="h-4 w-4 text-violet-300" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">Avg incident closure</p><p className="text-lg font-bold">{ops.analytics?.incident_closure_time?.value ?? "—"}</p><p className="text-xs text-[var(--foreground-muted)]">hours (30d)</p></div>
+              <div className="rounded-xl bg-[var(--surface)] p-3"><Gauge className="h-4 w-4 text-info-text" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">24h throughput</p><p className="text-lg font-bold">{ops.analytics?.throughput?.["24h"] ?? 0}</p></div>
+              <div className="rounded-xl bg-[var(--surface)] p-3"><CheckCircle2 className="h-4 w-4 text-success-text" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">7d policy block</p><p className="text-lg font-bold">{ops.analytics?.policy_block_rate?.["7d"] ?? 0}%</p></div>
+              <div className="rounded-xl bg-[var(--surface)] p-3"><UserCheck className="h-4 w-4 text-info-text" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">Evidence completeness</p><p className="text-lg font-bold">{ops.analytics?.evidence_completeness ?? 0}%</p></div>
+              <div className="rounded-xl bg-[var(--surface)] p-3"><AlertTriangle className="h-4 w-4 text-error-text" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">30d failure</p><p className="text-lg font-bold">{ops.analytics?.failure_rate?.["30d"] ?? 0}%</p></div>
+              <div className="rounded-xl bg-[var(--surface)] p-3"><Clock3 className="h-4 w-4 text-warning-text" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">Avg human review</p><p className="text-lg font-bold">{ops.analytics?.human_review_time?.value ?? "—"}</p><p className="text-xs text-[var(--foreground-muted)]">min (30d)</p></div>
+              <div className="rounded-xl bg-[var(--surface)] p-3"><TimerReset className="h-4 w-4 text-info-text" /><p className="mt-2 text-xs text-[var(--foreground-muted)]">Avg incident closure</p><p className="text-lg font-bold">{ops.analytics?.incident_closure_time?.value ?? "—"}</p><p className="text-xs text-[var(--foreground-muted)]">hours (30d)</p></div>
             </div>
           </section>
         </aside>

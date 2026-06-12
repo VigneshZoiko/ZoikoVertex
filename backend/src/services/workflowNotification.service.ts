@@ -115,7 +115,6 @@ export async function createInAppNotification(params: {
   metadata?: Record<string, unknown>;
 }): Promise<string> {
   const id = uuidv4();
-  const severity = EVENT_SEVERITY[params.eventType];
   const title = buildTitle(params.eventType, params.workflowName);
   const message = buildMessage(params.eventType, params.workflowName, params.metadata || {});
 
@@ -123,18 +122,10 @@ export async function createInAppNotification(params: {
     id,
     user_id: params.userId,
     title,
-    message,
+    body: message,
     type: `workflow_${params.eventType}`,
-    category: 'workflow',
-    severity,
+    link: `/agents/workflows/${params.workflowId}`,
     read: false,
-    metadata: {
-      event_type: params.eventType,
-      workflow_id: params.workflowId,
-      workflow_name: params.workflowName,
-      version_id: params.versionId || null,
-      ...(params.metadata || {}),
-    },
     created_at: new Date().toISOString(),
   });
 

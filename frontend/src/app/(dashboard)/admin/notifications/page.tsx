@@ -15,11 +15,11 @@ export default function NotificationsPage() {
 
   const getPriorityColor = (priority: NotificationPriority) => {
     switch (priority) {
-      case 'URGENT': return 'bg-rose-500/10 text-rose-500 border-rose-500/20';
-      case 'HIGH': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-      case 'MEDIUM': return 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
+      case 'URGENT': return 'bg-error-bg text-error-text border-error-border';
+      case 'HIGH': return 'bg-warning-bg text-warning-text border-warning-border';
+      case 'MEDIUM': return 'bg-info-bg text-info-text border-info-border';
       case 'LOW': return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
-      default: return 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
+      default: return 'bg-info-bg text-info-text border-info-border';
     }
   };
 
@@ -53,7 +53,7 @@ export default function NotificationsPage() {
           <button 
             onClick={clearAll}
             disabled={state.notifications.length === 0}
-            className="flex items-center px-4 py-2 text-sm font-semibold rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-colors disabled:opacity-50"
+            className="flex items-center px-4 py-2 text-sm font-semibold rounded-lg bg-error-bg text-error-text hover:brightness-110 hover:text-white transition-colors disabled:opacity-50"
           >
             <Trash2 className="w-4 h-4 mr-2" />
             Clear all
@@ -76,7 +76,7 @@ export default function NotificationsPage() {
           >
             Unread
             {state.notifications.filter(n => !n.read).length > 0 && (
-              <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${filter === 'UNREAD' ? 'bg-[var(--background)] text-[var(--foreground)]' : 'bg-indigo-500 text-foreground'}`}>
+              <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${filter === 'UNREAD' ? 'bg-[var(--background)] text-[var(--foreground)]' : 'bg-info-text text-foreground'}`}>
                 {state.notifications.filter(n => !n.read).length}
               </span>
             )}
@@ -87,8 +87,8 @@ export default function NotificationsPage() {
         <div className="flex-1 overflow-y-auto">
           {notifications.length === 0 ? (
             <div className="py-24 px-6 text-center h-full flex flex-col items-center justify-center">
-              <div className="w-20 h-20 bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-indigo-500/10">
-                <Bell className="w-10 h-10 text-indigo-500/40" />
+              <div className="w-20 h-20 bg-gradient-to-tr from-info-text/10 to-info-text/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-info-border">
+                <Bell className="w-10 h-10 text-info-text/40" />
               </div>
               <h3 className="text-xl font-bold text-[var(--foreground)] mb-2">You&apos;re all caught up!</h3>
               <p className="text-sm text-[var(--foreground-muted)] max-w-sm mx-auto">
@@ -100,7 +100,7 @@ export default function NotificationsPage() {
               {notifications.map((notif) => (
                 <div 
                   key={notif.id} 
-                  className={`p-6 transition-colors group relative flex gap-6 hover:bg-[var(--surface-hover)]/40 ${!notif.read ? 'bg-indigo-500/[0.02]' : ''}`}
+                  className={`p-6 transition-colors group relative flex gap-6 hover:bg-[var(--surface-hover)]/40 ${!notif.read ? 'bg-info-bg' : ''}`}
                 >
                   {/* Icon */}
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${getPriorityColor(notif.priority)}`}>
@@ -132,7 +132,7 @@ export default function NotificationsPage() {
                               href={action.href}
                               className={`text-sm px-4 py-2 rounded-xl font-bold flex items-center transition-colors ${
                                 action.primary 
-                                  ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20' 
+                                  ? 'bg-info-bg text-info-text hover:brightness-110' 
                                   : 'bg-[var(--background)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)]'
                               }`}
                             >
@@ -145,7 +145,7 @@ export default function NotificationsPage() {
                               onClick={(e) => { e.stopPropagation(); action.onClick?.(); }}
                               className={`text-sm px-4 py-2 rounded-xl font-bold flex items-center transition-colors ${
                                 action.primary 
-                                  ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20' 
+                                  ? 'bg-info-bg text-info-text hover:brightness-110' 
                                   : 'bg-[var(--background)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border)]'
                               }`}
                             >
@@ -160,7 +160,7 @@ export default function NotificationsPage() {
                         {!notif.read && (
                           <button
                             onClick={() => markAsRead(notif.id)}
-                            className="p-2 rounded-lg text-indigo-400 hover:bg-indigo-500/10 transition-colors tooltip-trigger"
+                            className="p-2 rounded-lg text-info-text hover:brightness-110 transition-colors tooltip-trigger"
                             title="Mark as read"
                           >
                             <Check className="w-4 h-4" />
@@ -168,7 +168,7 @@ export default function NotificationsPage() {
                         )}
                         <button
                           onClick={() => dispatch({ type: 'REMOVE', payload: notif.id })}
-                          className="p-2 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          className="p-2 rounded-lg text-error-text hover:brightness-110 transition-colors"
                           title="Remove notification"
                         >
                           <X className="w-4 h-4" />
@@ -179,7 +179,7 @@ export default function NotificationsPage() {
 
                   {/* Unread indicator bar */}
                   {!notif.read && (
-                    <div className="absolute left-0 top-6 bottom-6 w-1 bg-indigo-500 rounded-r-full" />
+                    <div className="absolute left-0 top-6 bottom-6 w-1 bg-info-text rounded-r-full" />
                   )}
                 </div>
               ))}

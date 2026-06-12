@@ -69,7 +69,7 @@ export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFu
           logger.warn(`[Intelligence] ${modelId} unavailable, trying next model`);
         }
       }
-      throw new Error('All Groq vision models unavailable');
+      return '';
     };
 
     // Phase 4.E — prefer the governed 'vision_image_summary' prompt; on governance
@@ -89,13 +89,30 @@ export const analyzeImage = async (req: AuthRequest, res: Response, next: NextFu
       await GovernedModelGate.legacyInlineFallback('vision_image_summary', req.user?.workspace_id as string | undefined, `governed prompt unavailable: ${governedVision.code}`);
       analysis = await callVision(INLINE_VISION_PROMPT);
     }
-    if (!analysis) throw new Error('Vision analysis returned empty');
+    if (!analysis) {
+      return res.status(200).json({ success: false, error: 'Vision analysis is currently unavailable. The image AI service is not responding.' });
+    }
     await logToDatabase('info', 'AI', `Vision analysis completed for user ${userId}`, { userId, agent_id: 'agent-content-gen-v1', agent_contract_version: 'v1' });
 
     const analyzeWorkspaceId = req.user?.workspace_id as string | undefined;
     if (analyzeWorkspaceId) {
       const qty = analyzeImageTokens > 0 ? analyzeImageTokens : 512;
       trackUsage({ workspaceId: analyzeWorkspaceId, resourceType: 'AI_TOKENS', quantity: qty, costUsd: qty * 0.0000001, unit: 'tokens', referenceType: 'image_analysis', metadata: { model: 'groq-vision', estimated: analyzeImageTokens === 0 } });
+    }
+
+    // Tier-0 Safety Layer: evaluate analysis output against active policies
+    if (analyzeWorkspaceId) {
+      const safetyCheck = await evaluatePayloadAgainstPolicies({ analysis }, analyzeWorkspaceId);
+      if (['block', 'quarantine', 'hold_for_review'].includes(safetyCheck.outcome)) {
+        logger.warn({ outcome: safetyCheck.outcome, rule: safetyCheck.rule_id }, '[Safety Layer] Image analysis output blocked by active policy.');
+        return res.status(403).json({
+          success: false,
+          error: 'Safety Layer Interception: Analysis output violated active policies.',
+          reason: safetyCheck.reason,
+          outcome: safetyCheck.outcome,
+          rule_id: safetyCheck.rule_id,
+        });
+      }
     }
 
     res.status(200).json({ success: true, analysis });

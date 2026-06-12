@@ -134,7 +134,7 @@ Website: https://zoikovertex.com`,
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
+    <div className="min-h-full bg-[#0a0a0f] text-white">
 
       {/* Header */}
       <header className="border-b border-white/10 px-6 py-4">

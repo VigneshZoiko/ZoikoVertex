@@ -9,14 +9,10 @@ import {
   RefreshCw,
   Power,
   CheckCircle,
-  Clock,
   TrendingUp,
   TrendingDown,
   Minus,
-  Lock,
-  Unlock,
   Layers,
-  Info,
 } from "lucide-react";
 
 interface SlaExposure {
@@ -185,9 +181,9 @@ export default function SafetyOverviewPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-foreground p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500 mb-4"></div>
-        <p className="text-[#888] font-medium tracking-wide">Assembling safety telemetry...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-warning-text mb-4"></div>
+        <p className="text-foreground-muted font-medium tracking-wide">Assembling safety telemetry...</p>
       </div>
     );
   }
@@ -200,413 +196,244 @@ export default function SafetyOverviewPage() {
     switch (status) {
       case "healthy":
       case "verified":
-        return "text-emerald-400 border-emerald-500/20 bg-emerald-500/10";
+        return "text-success-text border-success-border bg-success-bg";
       case "watch":
       case "warning":
-        return "text-amber-400 border-amber-500/20 bg-amber-500/10";
+        return "text-warning-text border-warning-border bg-warning-bg";
       case "degraded":
-        return "text-orange-400 border-orange-500/20 bg-orange-500/10";
+        return "text-warning-text border-warning-border bg-warning-bg";
       case "critical":
       case "unavailable":
-        return "text-rose-400 border-rose-500/20 bg-rose-500/10";
+        return "text-error-text border-error-border bg-error-bg";
       default:
-        return "text-neutral-400 border-neutral-800 bg-neutral-900";
+        return "text-neutral-400 border-neutral-800 bg-surface";
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#ddd] pb-20 font-sans selection:bg-amber-500/30 selection:text-white">
+    <div className="min-h-screen bg-background text-foreground pb-20 font-sans selection:bg-warning-bg selection:text-white">
       {/* Global Safety Bar */}
-      <div className="bg-[#111] border-b border-[#222] sticky top-0 z-40 backdrop-blur-md bg-opacity-95">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-surface border-b border-border sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-mono px-2.5 py-1 bg-[#1a1a1a] border border-[#333] rounded text-[#888]">
-              Tenant: <span className="text-foreground font-bold">{data?.tenant_id}</span>
+            <span className="text-xs font-mono px-2 py-0.5 bg-surface border border-border rounded text-foreground-muted">
+              Tenant: <span className="text-white font-bold">{data?.tenant_id}</span>
             </span>
-            <span className="text-xs font-mono px-2.5 py-1 bg-[#1a1a1a] border border-[#333] rounded text-[#888]">
-              Workspace: <span className="text-foreground font-bold">{data?.workspace_id?.substring(0, 8)}</span>
+            <span className="text-xs font-mono px-2 py-0.5 bg-surface border border-border rounded text-foreground-muted">
+              Workspace: <span className="text-white font-bold">{data?.workspace_id?.substring(0, 8)}</span>
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#888] font-medium">Posture Status:</span>
-              <span className={`text-xs px-2.5 py-0.5 rounded-full border font-black uppercase ${getStatusColor(data?.posture_status || "healthy")}`}>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-foreground-muted">Posture:</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-black uppercase ${getStatusColor(data?.posture_status || "healthy")}`}>
                 {data?.posture_status}
               </span>
             </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#888] font-medium">Active Mode:</span>
-              <span className={`text-xs px-2.5 py-0.5 rounded-full border font-black uppercase ${
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-foreground-muted">Mode:</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-black uppercase ${
                 isEmergencyPaused 
-                  ? "text-rose-400 border-rose-500/20 bg-rose-500/10 animate-pulse" 
+                  ? "text-error-text border-error-border bg-error-bg animate-pulse" 
                   : data?.active_mode === "restricted_operations" 
-                  ? "text-orange-400 border-orange-500/20 bg-orange-500/10" 
-                  : "text-emerald-400 border-emerald-500/20 bg-emerald-500/10"
+                  ? "text-warning-text border-warning-border bg-warning-bg" 
+                  : "text-success-text border-success-border bg-success-bg"
               }`}>
                 {data?.active_mode?.replace("_", " ")}
               </span>
             </div>
-
-            {data?.critical_holds_count !== undefined && (
-              <button 
-                onClick={handleReviewCriticalQueue}
-                className="text-xs font-bold text-amber-400 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded transition-colors"
-              >
-                Critical Holds: {data.critical_holds_count}
-              </button>
-            )}
-
-            <button
-              onClick={() => setIsPauseModalOpen(true)}
-              className={`text-xs font-bold px-3 py-1 rounded flex items-center gap-1.5 transition-all shadow-md ${
-                isEmergencyPaused
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-foreground shadow-emerald-900/10"
-                  : "bg-rose-600 hover:bg-rose-700 text-foreground shadow-rose-900/10"
-              }`}
-            >
-              <Power className="w-3.5 h-3.5" />
-              {isEmergencyPaused ? "Resume Operations" : "Emergency Pause"}
+            <button onClick={handleReviewCriticalQueue} className="text-[10px] font-bold text-warning-text bg-warning-bg hover:brightness-110 border border-warning-border px-2.5 py-1 rounded">
+              Holds: {data?.critical_holds_count ?? 0}
+            </button>
+            <button onClick={() => setIsPauseModalOpen(true)}
+              className={`text-[10px] font-bold px-2.5 py-1 rounded flex items-center gap-1.5 ${
+                isEmergencyPaused ? "bg-success-text hover:brightness-110 text-white" : "bg-error-text hover:brightness-110 text-white"
+              }`}>
+              <Power className="w-3 h-3" />
+              {isEmergencyPaused ? "Resume" : "Pause"}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Info Message Banner */}
       {infoMessage && (
-        <div className="bg-emerald-500/10 border-b border-emerald-500/30 text-emerald-400 py-3 px-4 text-center text-sm font-semibold flex items-center justify-center gap-2">
-          <CheckCircle className="w-5 h-5 flex-shrink-0" />
+        <div className="bg-success-bg border-b border-success-border text-success-text py-1.5 px-4 text-center text-xs font-semibold flex items-center justify-center gap-1">
+          <CheckCircle className="w-3 h-3" />
           <span>{infoMessage}</span>
         </div>
       )}
 
-      {/* Degradation Banner / Warning Area */}
       {isDegraded && (
-        <div className="bg-rose-500/10 border-b border-rose-500/30 text-rose-400 py-3 px-4 text-center text-sm font-semibold flex items-center justify-center gap-2 animate-pulse">
-          <AlertOctagon className="w-5 h-5 flex-shrink-0" />
-           <span>SAFETY LAYER DEGRADED: All material operations are locked. System defaulting to fail-closed &ldquo;hold-for-review&rdquo; mode.</span>
+        <div className="bg-error-bg border-b border-error-border text-error-text py-1.5 px-4 text-center text-xs font-semibold flex items-center justify-center gap-1 animate-pulse">
+          <AlertOctagon className="w-3 h-3" />
+           <span>SAFETY LAYER DEGRADED — All operations locked. Fail-closed mode.</span>
         </div>
       )}
 
       {/* Main Content Area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-5 space-y-5">
         
         {/* Header Strip with Page Title, Action Buttons and Simulation Toggle */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#222] pb-6">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <Layers className="w-8 h-8 text-amber-500" />
-              <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Safety Layer Overview</h1>
-            </div>
-            <p className="text-[#888] text-sm mt-1">
-              Document 01 Command Surface · Tier-0 Real-Time Operational Controls
-            </p>
+        <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
+          <div className="flex items-center gap-2.5">
+            <Layers className="w-6 h-6 text-warning-text" />
+            <h1 className="text-xl font-extrabold text-white">Safety Layer Overview</h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4">
-            <button
-              onClick={() => fetchOverview(true)}
-              className="p-2.5 bg-[#141414] hover:bg-[#1f1f1f] border border-[#2d2d2d] hover:border-[#444] rounded-xl transition-all flex items-center justify-center"
-              aria-label="Refresh telemetry data"
-            >
-              <RefreshCw className={`w-4 h-4 text-foreground ${isRefreshing ? "animate-spin" : ""}`} />
+          <div className="flex items-center gap-3">
+            <button onClick={() => fetchOverview(true)} className="p-2 bg-surface hover:bg-surface-hover border border-border rounded-lg" aria-label="Refresh">
+              <RefreshCw className={`w-4 h-4 text-white ${isRefreshing ? "animate-spin" : ""}`} />
             </button>
-
-            <button
-              onClick={handleReviewCriticalQueue}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black font-extrabold rounded-xl transition-all shadow-lg shadow-amber-500/10 text-sm"
-            >
+            <button onClick={handleReviewCriticalQueue} className="px-4 py-2 bg-warning-text hover:brightness-110 text-black font-extrabold rounded-lg text-xs">
               Review Critical Queue
             </button>
           </div>
         </div>
 
         {/* Posture Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Card 1: Posture Score */}
-          <div className="bg-[#111] border border-[#222] rounded-2xl p-6 relative overflow-hidden transition-all hover:border-[#333]">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs font-bold text-[#888] uppercase tracking-wider">Safety Posture Score</p>
-                <h3 className="text-4xl font-black text-foreground mt-2">{data?.posture_score}%</h3>
-              </div>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${getStatusColor(data?.posture_status || "healthy")}`}>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-surface border border-border rounded-xl p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-bold text-foreground-muted uppercase tracking-wider">Posture</p>
+              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${getStatusColor(data?.posture_status || "healthy")}`}>
                 {data?.posture_status}
               </span>
             </div>
-            {/* Visual Bar Indicator */}
-            <div className="w-full bg-[#222] h-2 rounded-full mt-4 overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all duration-500 ${
-                  (data?.posture_score || 0) > 85 ? "bg-emerald-500" : (data?.posture_score || 0) > 60 ? "bg-amber-500" : "bg-rose-500"
-                }`}
-                style={{ width: `${data?.posture_score || 0}%` }}
-              />
+            <h3 className="text-3xl font-black text-white mt-2">{data?.posture_score}%</h3>
+            <div className="w-full bg-surface h-2 rounded-full mt-2 overflow-hidden">
+              <div className={`h-full rounded-full ${(data?.posture_score || 0) > 85 ? "bg-success-text" : (data?.posture_score || 0) > 60 ? "bg-warning-text" : "bg-error-text"}`}
+                style={{ width: `${data?.posture_score || 0}%` }} />
             </div>
-            <p className="text-[11px] text-[#666] mt-2">Real-time composite trust score</p>
           </div>
 
-          {/* Card 2: Critical Holds */}
-          <div className="bg-[#111] border border-[#222] rounded-2xl p-6 transition-all hover:border-[#333]">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs font-bold text-[#888] uppercase tracking-wider">Critical Holds</p>
-                <h3 className={`text-4xl font-black mt-2 ${data?.critical_holds_count && data.critical_holds_count > 0 ? "text-rose-400" : "text-foreground"}`}>
-                  {data?.critical_holds_count || 0}
-                </h3>
-              </div>
-              <ShieldAlert className="w-5 h-5 text-[#666]" />
+          <div className="bg-surface border border-border rounded-xl p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-bold text-foreground-muted uppercase tracking-wider">Critical Holds</p>
+              <ShieldAlert className="w-4 h-4 text-foreground-muted" />
             </div>
-            <p className="text-[11px] text-[#666] mt-6">Held / quarantined actions pending approval</p>
+            <h3 className={`text-3xl font-black mt-2 ${data?.critical_holds_count && data.critical_holds_count > 0 ? "text-error-text" : "text-white"}`}>
+              {data?.critical_holds_count || 0}
+            </h3>
           </div>
 
-          {/* Card 3: Agent Safety Health */}
-          <div className="bg-[#111] border border-[#222] rounded-2xl p-6 transition-all hover:border-[#333]">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs font-bold text-[#888] uppercase tracking-wider">Agent Safety Health</p>
-                <h3 className="text-4xl font-black text-foreground mt-2 capitalize">{data?.agent_safety_health || "healthy"}</h3>
-              </div>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${getStatusColor(data?.agent_safety_health || "healthy")}`}>
+          <div className="bg-surface border border-border rounded-xl p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-bold text-foreground-muted uppercase tracking-wider">Agent Health</p>
+              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${getStatusColor(data?.agent_safety_health || "healthy")}`}>
                 {data?.agent_safety_health}
               </span>
             </div>
-            <p className="text-[11px] text-[#666] mt-6">Tracking autonomy levels & drift</p>
-          </div>
-
-          {/* Card 4: SLA Exposure */}
-          <div className="bg-[#111] border border-[#222] rounded-2xl p-6 transition-all hover:border-[#333]">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-xs font-bold text-[#888] uppercase tracking-wider">SLA Exposure</p>
-                <div className="flex items-baseline gap-3 mt-2">
-                  <span className="text-3xl font-black text-rose-500" title="Breached SLA">{data?.sla_exposure.breached || 0} <span className="text-xs font-medium text-[#666]">br</span></span>
-                  <span className="text-3xl font-black text-amber-500" title="At Risk SLA">{data?.sla_exposure.at_risk || 0} <span className="text-xs font-medium text-[#666]">ar</span></span>
-                  <span className="text-3xl font-black text-emerald-500" title="On Track SLA">{data?.sla_exposure.on_track || 0} <span className="text-xs font-medium text-[#666]">ot</span></span>
-                </div>
-              </div>
-              <Clock className="w-5 h-5 text-[#666]" />
-            </div>
-            <p className="text-[11px] text-[#666] mt-4">Holds exceeding review SLA</p>
+            <h3 className="text-3xl font-black text-white mt-2 capitalize">{data?.agent_safety_health || "healthy"}</h3>
           </div>
         </div>
 
-        {/* Middle Section: Component Registry + Live Safety Queue */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Component Registry Card Grid */}
-          <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Layers className="w-5 h-5 text-amber-500" />
-              Component Registry
-            </h2>
+        {/* Middle Section: Live Safety Queue Summary */}
+        <div className="space-y-3">
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-warning-text" />
+            Live Safety Queue
+          </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {data?.component_health.map((component, idx) => (
-                <div
-                  key={component.name}
-                  className="bg-[#111] border border-[#222] rounded-2xl p-5 flex flex-col justify-between h-36"
-                >
-                  <div className="flex justify-between items-start w-full">
-                    <div>
-                      <span className="text-[10px] font-mono text-[#555]">Component 0{idx + 1}</span>
-                      <h4 className="text-sm font-extrabold text-foreground mt-1 line-clamp-1">{component.name}</h4>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${getStatusColor(component.health)}`}>
-                      {component.health}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between mt-4 w-full">
-                    <span className="text-[10px] text-[#666]">Backlog: <strong className="text-foreground font-semibold">{component.backlog}</strong></span>
-                    <span className="text-[10px] text-[#666]">Owner: <strong className="text-foreground font-semibold">{component.owner}</strong></span>
-                  </div>
-                </div>
-              ))}
+          <div className="bg-surface border border-border rounded-xl flex flex-col h-[360px] overflow-hidden">
+            <div className="p-3 border-b border-border flex justify-between items-center">
+              <span className="text-xs font-bold text-white">Telemetry Stream</span>
+              <span className="text-[10px] text-foreground-muted">Sorted by criticality & recency</span>
             </div>
-          </div>
 
-          {/* Live Safety Queue Summary */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-amber-500" />
-              Live Safety Queue
-            </h2>
-
-            <div className="bg-[#111] border border-[#222] rounded-2xl flex flex-col h-[525px] overflow-hidden">
-              <div className="p-4 border-b border-[#222] flex justify-between items-center">
-                <span className="text-xs font-bold text-foreground">Telemetry Stream</span>
-                <span className="text-[10px] text-[#666]">Sorted by criticality & recency</span>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
                 {data?.recent_material_decisions && data.recent_material_decisions.length > 0 ? (
                   data.recent_material_decisions.map((decision) => (
                     <div 
                       key={decision.decision_id} 
-                      className="bg-[#161616] border border-[#2d2d2d] rounded-xl p-4 hover:border-[#444] transition-all space-y-2.5"
+                      className="bg-surface border border-border rounded-lg p-3 space-y-1.5"
                     >
-                      <div className="flex justify-between items-start gap-2">
+                      <div className="flex items-center justify-between gap-2">
                         <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${
-                          decision.risk_level === 'CRITICAL' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                          decision.risk_level === 'CRITICAL' ? 'bg-error-bg text-error-text border border-error-border' : 'bg-warning-bg text-warning-text border border-warning-border'
                         }`}>
                           {decision.risk_level}
                         </span>
-                        <span className="text-[10px] text-[#666] font-mono capitalize">{decision.platform}</span>
-                      </div>
-
-                      <p className="text-xs text-[#ddd] line-clamp-2 leading-relaxed">
-                        {decision.content}
-                      </p>
-
-                      <div className="flex justify-between items-center pt-1 border-t border-[#222]">
-                        <span className="text-[9px] text-[#555]">
-                          {new Date(decision.created_at).toLocaleTimeString()}
-                        </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-[9px] text-[#888] font-bold">
-                            Score: {decision.risk_score}
-                          </span>
-                          <span className={`w-2 h-2 rounded-full ${
-                            decision.status === 'GOVERNANCE_BLOCKED' ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'
-                          }`} title={decision.status} />
+                          <span className="text-[9px] text-foreground-muted font-bold">Score: {decision.risk_score}</span>
+                          <span className={`w-2 h-2 rounded-full ${decision.status === 'GOVERNANCE_BLOCKED' ? 'bg-error-text animate-pulse' : 'bg-warning-text'}`} />
                         </div>
+                      </div>
+                      <p className="text-xs text-foreground line-clamp-1">{decision.content}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] text-foreground-muted">{new Date(decision.created_at).toLocaleTimeString()}</span>
+                        <span className="text-[9px] text-foreground-muted font-mono">{decision.platform}</span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-20 text-xs text-[#666] font-mono">
+                  <div className="text-center py-10 text-xs text-foreground-muted font-mono">
                     No material holds active. Workspace operations stable.
                   </div>
                 )}
               </div>
             </div>
-          </div>
-
         </div>
 
-        {/* Bottom Widgets: Top Rule Hits & Containment Modes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Top Rule Hits widget */}
-          <div className="bg-[#111] border border-[#222] rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-amber-500" />
+        {/* Bottom Widget: Top Rule Hits */}
+        <div>
+          <div className="bg-surface border border-border rounded-xl p-4">
+            <h3 className="text-base font-bold text-white mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-warning-text" />
               Top Rule Hits
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-2">
               {data?.top_rule_hits.map((rule) => (
-                <div key={rule.rule_name} className="flex items-center justify-between p-3.5 bg-[#141414] border border-[#222] rounded-xl hover:border-[#333] transition-colors">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-bold text-foreground">{rule.rule_name}</h4>
-                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
-                        rule.severity === 'CRITICAL' ? 'bg-rose-500/10 text-rose-400' : 'bg-amber-500/10 text-amber-400'
-                      }`}>
-                        {rule.severity}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-[#666] mt-1">Scope: {rule.impacted_scope}</p>
+                <div key={rule.rule_name} className="flex items-center justify-between p-2.5 bg-surface border border-border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs font-bold text-white">{rule.rule_name}</h4>
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
+                      rule.severity === 'CRITICAL' ? 'bg-error-bg text-error-text' : 'bg-warning-bg text-warning-text'
+                    }`}>
+                      {rule.severity}
+                    </span>
                   </div>
 
-                  <div className="flex items-center gap-3 text-right">
-                    <div>
-                      <span className="text-sm font-black text-foreground">{rule.count}</span>
-                      <p className="text-[9px] text-[#666]">Hits</p>
-                    </div>
-                    <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-[#222]">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-white">{rule.count}</span>
+                    <span className="flex items-center justify-center w-5 h-5 rounded bg-surface">
                       {rule.trend === 'up' ? (
-                        <TrendingUp className="w-3.5 h-3.5 text-rose-400" />
+                        <TrendingUp className="w-3 h-3 text-error-text" />
                       ) : rule.trend === 'down' ? (
-                        <TrendingDown className="w-3.5 h-3.5 text-emerald-400" />
+                        <TrendingDown className="w-3 h-3 text-success-text" />
                       ) : (
-                        <Minus className="w-3.5 h-3.5 text-neutral-400" />
+                        <Minus className="w-3 h-3 text-neutral-400" />
                       )}
-                    </div>
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Containment Modes widget */}
-          <div className="bg-[#111] border border-[#222] rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-              <Power className="w-5 h-5 text-amber-500" />
-              Containment & Operations Modes
-            </h3>
-            
-            <div className="space-y-4">
-              <div className={`p-4 rounded-xl border flex items-start gap-3 transition-colors ${
-                data?.active_mode === "normal" 
-                  ? "bg-emerald-500/5 border-emerald-500/30 text-emerald-400" 
-                  : "bg-neutral-900 border-[#222] text-[#888]"
-              }`}>
-                <Unlock className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">Normal Operations</h4>
-                  <p className="text-[10px] text-[#666] mt-1">Full autonomous scheduling and publishing enabled within guardrails.</p>
-                </div>
-              </div>
 
-              <div className={`p-4 rounded-xl border flex items-start gap-3 transition-colors ${
-                data?.active_mode === "elevated_watch" 
-                  ? "bg-amber-500/5 border-amber-500/30 text-amber-400" 
-                  : "bg-neutral-900 border-[#222] text-[#888]"
-              }`}>
-                <Info className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">Elevated Watch</h4>
-                  <p className="text-[10px] text-[#666] mt-1">Heightened safety evaluation latency and enhanced operational telemetry active.</p>
-                </div>
-              </div>
-
-              <div className={`p-4 rounded-xl border flex items-start gap-3 transition-colors ${
-                data?.active_mode === "restricted_operations" 
-                  ? "bg-orange-500/5 border-orange-500/30 text-orange-400" 
-                  : "bg-neutral-900 border-[#222] text-[#888]"
-              }`}>
-                <Power className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">Restricted Operations Mode</h4>
-                  <p className="text-[10px] text-[#666] mt-1">Publishing limited. Only authorized pre-approved campaigns proceed.</p>
-                </div>
-              </div>
-
-              <div className={`p-4 rounded-xl border flex items-start gap-3 transition-colors ${
-                isEmergencyPaused 
-                  ? "bg-rose-500/5 border-rose-500/30 text-rose-400 animate-pulse" 
-                  : "bg-neutral-900 border-[#222] text-[#888]"
-              }`}>
-                <Lock className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">Emergency Pause</h4>
-                  <p className="text-[10px] text-[#666] mt-1">Immediate halt to all autonomous releases. Human clearance required.</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
       </div>
 
       {/* Footer Strip */}
-      <footer className="mt-20 border-t border-[#222] bg-[#0c0c0c] py-6 text-xs text-[#555]">
+      <footer className="mt-12 border-t border-border bg-background py-4 text-xs text-foreground-muted">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center gap-4 font-mono">
-          <span>Last Evaluated: <strong className="text-[#888]">{data?.evaluated_at ? new Date(data.evaluated_at).toLocaleTimeString() : "Pending"}</strong></span>
-          <span>Evidence Chain: <strong className={data?.evidence_chain_health === "verified" ? "text-emerald-500" : "text-rose-500"}>{data?.evidence_chain_health?.toUpperCase()}</strong></span>
+          <span>Last Evaluated: <strong className="text-foreground-muted">{data?.evaluated_at ? new Date(data.evaluated_at).toLocaleTimeString() : "Pending"}</strong></span>
+          <span>Evidence Chain: <strong className={data?.evidence_chain_health === "verified" ? "text-success-text" : "text-error-text"}>{data?.evidence_chain_health?.toUpperCase()}</strong></span>
         </div>
       </footer>
 
       {/* Emergency Pause / Resume MFA Modal */}
       {isPauseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="bg-[#111] border border-[#222] w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="bg-surface border border-border w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Power className="w-5 h-5 text-rose-500" />
+              <Power className="w-5 h-5 text-error-text" />
               {isEmergencyPaused ? "Deactivate Emergency Pause" : "Request Emergency Pause"}
             </h3>
             
-            <p className="text-[#888] text-xs mt-2 leading-relaxed">
+            <p className="text-foreground-muted text-xs mt-2 leading-relaxed">
               {isEmergencyPaused 
                 ? "Resuming workspace publishing requires explicit justification and token re-verification."
                 : "You are initiating a global pause. This will halt all scheduled content publishing and agent operations immediately."}
@@ -614,21 +441,21 @@ export default function SafetyOverviewPage() {
 
             <form onSubmit={handleEmergencyPauseSubmit} className="mt-5 space-y-4">
               <div>
-                <label className="block text-xs text-[#888] font-bold mb-1.5">Justification Reason *</label>
+                <label className="block text-xs text-foreground-muted font-bold mb-1.5">Justification Reason *</label>
                 <textarea
                   value={pauseReason}
                   onChange={(e) => setPauseReason(e.target.value)}
                   placeholder="Describe why this change is being requested (minimum 10 characters)..."
-                  className="w-full h-24 bg-black border border-[#333] focus:border-[#555] rounded-xl p-3 text-xs text-foreground placeholder-[#555] focus:outline-none resize-none"
+                  className="w-full h-24 bg-background border border-border focus:border-border rounded-xl p-3 text-xs text-foreground placeholder-foreground-muted focus:outline-none resize-none"
                   required
                 />
               </div>
 
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs text-[#888] font-bold">MFA Verification Code *</label>
+                  <label className="block text-xs text-foreground-muted font-bold">MFA Verification Code *</label>
                   {mfaSent && (
-                    <span className="text-[9px] text-emerald-500">Code sent to your email</span>
+                    <span className="text-[9px] text-success-text">Code sent to your email</span>
                   )}
                 </div>
                 {!mfaSent ? (
@@ -636,7 +463,7 @@ export default function SafetyOverviewPage() {
                     type="button"
                     onClick={handleSendMfaCode}
                     disabled={sendingMfa}
-                    className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-neutral-700 text-foreground font-bold rounded-xl px-4 py-2.5 text-xs transition-colors"
+                    className="w-full bg-warning-text hover:brightness-110 disabled:bg-neutral-700 text-foreground font-bold rounded-xl px-4 py-2.5 text-xs transition-colors"
                   >
                     {sendingMfa ? "Sending..." : "Send MFA Code to Email"}
                   </button>
@@ -647,14 +474,14 @@ export default function SafetyOverviewPage() {
                     onChange={(e) => setMfaCode(e.target.value)}
                     placeholder="Enter 6-digit code"
                     maxLength={6}
-                    className="w-full bg-black border border-[#333] focus:border-[#555] rounded-xl px-4 py-2.5 text-sm text-center text-foreground tracking-widest focus:outline-none"
+                    className="w-full bg-background border border-border focus:border-border rounded-xl px-4 py-2.5 text-sm text-center text-foreground tracking-widest focus:outline-none"
                     required
                   />
                 )}
               </div>
 
               {modalError && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl text-xs font-semibold flex items-center gap-2">
+                <div className="p-3 bg-error-bg border border-error-border text-error-text rounded-xl text-xs font-semibold flex items-center gap-2">
                   <AlertOctagon className="w-4 h-4" />
                   <span>{modalError}</span>
                 </div>
@@ -668,7 +495,7 @@ export default function SafetyOverviewPage() {
                     setModalError(null);
                     setMfaSent(false);
                   }}
-                  className="px-4 py-2 bg-neutral-900 border border-[#333] hover:bg-neutral-800 text-foreground rounded-xl text-xs font-bold transition-colors"
+                  className="px-4 py-2 bg-surface border border-border hover:bg-neutral-800 text-foreground rounded-xl text-xs font-bold transition-colors"
                 >
                   Cancel
                 </button>
@@ -677,8 +504,8 @@ export default function SafetyOverviewPage() {
                   disabled={submittingPause}
                   className={`px-4 py-2 text-xs font-bold rounded-xl text-foreground transition-all shadow-md ${
                     isEmergencyPaused 
-                      ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-950/20"
-                      : "bg-rose-600 hover:bg-rose-700 shadow-rose-950/20"
+                      ? "bg-success-text hover:brightness-110 shadow-success-text/20"
+                      : "bg-error-text hover:brightness-110 shadow-error-text/20"
                   }`}
                 >
                   {submittingPause ? "Processing..." : isEmergencyPaused ? "Resume Operations" : "Confirm Pause"}

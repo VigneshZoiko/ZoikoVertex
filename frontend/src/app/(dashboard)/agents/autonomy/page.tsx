@@ -45,43 +45,43 @@ interface NKS {
 const LEVEL_CONFIG: Record<Level, { name: string; color: string; bg: string; border: string; dot: string; minTrust: number }> = {
   L0: { name: "Disabled",                     color: "text-[#555]",     bg: "bg-[#333]/20",      border: "border-[#444]",      dot: "bg-[#555]",     minTrust: 0  },
   L1: { name: "Assistive",                     color: "text-foreground-muted",   bg: "bg-zinc-500/10",    border: "border-zinc-500/30", dot: "bg-zinc-400",   minTrust: 0  },
-  L2: { name: "Creative",                      color: "text-blue-400",   bg: "bg-blue-500/10",    border: "border-blue-500/30", dot: "bg-blue-400",   minTrust: 0  },
-  L3: { name: "Guided",                        color: "text-amber-400",  bg: "bg-amber-500/10",   border: "border-amber-500/30",dot: "bg-amber-400",  minTrust: 60 },
-  L4: { name: "Validated",                     color: "text-emerald-400",bg: "bg-emerald-500/10", border: "border-emerald-500/30",dot:"bg-emerald-400",minTrust: 70 },
+  L2: { name: "Creative",                      color: "text-info-text",   bg: "bg-info-bg",    border: "border-info-border", dot: "bg-blue-400",   minTrust: 0  },
+  L3: { name: "Guided",                        color: "text-warning-text",  bg: "bg-warning-bg",   border: "border-warning-border",dot: "bg-warning-text",  minTrust: 60 },
+  L4: { name: "Validated",                     color: "text-success-text",bg: "bg-success-bg", border: "border-success-border",dot:"bg-success-text",minTrust: 70 },
   L5: { name: "Conditional",                   color: "text-teal-400",   bg: "bg-teal-500/10",    border: "border-teal-500/30", dot: "bg-teal-400",   minTrust: 80 },
-  L6: { name: "Enterprise",                    color: "text-indigo-400", bg: "bg-indigo-500/10",  border: "border-indigo-500/30",dot:"bg-indigo-400", minTrust: 90 },
+  L6: { name: "Enterprise",                    color: "text-info-text", bg: "bg-info-bg",  border: "border-info-border",dot:"bg-info-text", minTrust: 90 },
 };
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string }> = {
-  ACTIVE:        { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-  MONITORED:     { color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/20" },
-  SUPERVISED:    { color: "text-orange-400",  bg: "bg-orange-500/10 border-orange-500/20" },
-  RESTRICTED:    { color: "text-orange-400",  bg: "bg-orange-500/10 border-orange-500/20" },
-  SUSPENDED:     { color: "text-rose-400",    bg: "bg-rose-500/10 border-rose-500/20" },
-  DEAUTHORIZED:  { color: "text-red-400",     bg: "bg-red-500/10 border-red-500/20" },
+  ACTIVE:        { color: "text-success-text", bg: "bg-success-bg border-success-border" },
+  MONITORED:     { color: "text-warning-text",   bg: "bg-warning-bg border-warning-border" },
+  SUPERVISED:    { color: "text-warning-text",  bg: "bg-warning-bg border-warning-border" },
+  RESTRICTED:    { color: "text-warning-text",  bg: "bg-warning-bg border-warning-border" },
+  SUSPENDED:     { color: "text-error-text",    bg: "bg-error-bg border-error-border" },
+  DEAUTHORIZED:  { color: "text-error-text",     bg: "bg-error-bg border-error-border" },
   DRAFT:         { color: "text-[#666]",      bg: "bg-white/5 border-white/10" },
 };
 
 const LOCK_LEVEL_CONFIG: Record<string, { label: string; color: string }> = {
-  L1: { label: "Agent Lock",     color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-  L2: { label: "Workflow Lock",  color: "text-orange-400 bg-orange-500/10 border-orange-500/20" },
-  L3: { label: "Workspace Lock", color: "text-rose-400 bg-rose-500/10 border-rose-500/20" },
-  L4: { label: "Enterprise Lock",color: "text-red-400 bg-red-500/10 border-red-500/20" },
+  L1: { label: "Agent Lock",     color: "text-warning-text bg-warning-bg border-warning-border" },
+  L2: { label: "Workflow Lock",  color: "text-warning-text bg-warning-bg border-warning-border" },
+  L3: { label: "Workspace Lock", color: "text-error-text bg-error-bg border-error-border" },
+  L4: { label: "Enterprise Lock",color: "text-error-text bg-error-bg border-error-border" },
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
-  BLOCK:             "text-red-400 bg-red-500/10 border-red-500/20",
-  ESCALATE:          "text-orange-400 bg-orange-500/10 border-orange-500/20",
-  WARN:              "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  REQUIRE_APPROVAL:  "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  BLOCK:             "text-error-text bg-error-bg border-error-border",
+  ESCALATE:          "text-warning-text bg-warning-bg border-warning-border",
+  WARN:              "text-warning-text bg-warning-bg border-warning-border",
+  REQUIRE_APPROVAL:  "text-info-text bg-info-bg border-info-border",
 };
 
 function trustColor(pct: number): string {
-  if (pct >= 90) return "bg-emerald-500";
+  if (pct >= 90) return "bg-success-text";
   if (pct >= 80) return "bg-teal-500";
-  if (pct >= 70) return "bg-amber-500";
-  if (pct >= 60) return "bg-orange-500";
-  return "bg-rose-500";
+  if (pct >= 70) return "bg-warning-text";
+  if (pct >= 60) return "bg-warning-text";
+  return "bg-error-text";
 }
 
 function trustLabel(pct: number): string {
@@ -275,13 +275,13 @@ export default function AutonomyPage() {
           <p className="text-[#888] text-sm">Govern, limit, monitor, and revoke agent autonomy across the workspace.</p>
         </div>
         <button onClick={fetchAll} className="p-2.5 bg-[var(--card)] border border-[var(--border)] rounded-xl text-[#888] hover:text-white transition-all group">
-          <RefreshCcw className={`w-4 h-4 ${loading ? "animate-spin text-indigo-400" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+          <RefreshCcw className={`w-4 h-4 ${loading ? "animate-spin text-info-text" : "group-hover:rotate-180 transition-transform duration-500"}`} />
         </button>
       </div>
 
       {/* Toast */}
       {message && (
-        <div className={`p-3.5 rounded-xl flex items-center gap-3 text-sm font-medium ${message.type === "success" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border border-rose-500/20 text-rose-400"}`}>
+        <div className={`p-3.5 rounded-xl flex items-center gap-3 text-sm font-medium ${message.type === "success" ? "bg-success-bg border border-success-border text-success-text" : "bg-error-bg border border-error-border text-error-text"}`}>
           <AlertCircle className="w-4 h-4 shrink-0" />
           {message.text}
         </div>
@@ -292,9 +292,9 @@ export default function AutonomyPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "Total Agents",  val: stats.total,      color: "text-foreground" },
-            { label: "Active",        val: stats.active,     color: "text-emerald-400" },
-            { label: "Suspended",     val: stats.suspended,  color: "text-rose-400" },
-            { label: "Avg Trust",     val: `${stats.avg_trust}%`, color: stats.avg_trust >= 80 ? "text-emerald-400" : stats.avg_trust >= 60 ? "text-amber-400" : "text-rose-400" },
+            { label: "Active",        val: stats.active,     color: "text-success-text" },
+            { label: "Suspended",     val: stats.suspended,  color: "text-error-text" },
+            { label: "Avg Trust",     val: `${stats.avg_trust}%`, color: stats.avg_trust >= 80 ? "text-success-text" : stats.avg_trust >= 60 ? "text-warning-text" : "text-error-text" },
           ].map(s => (
             <div key={s.label} className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
               <p className={`text-xl font-bold ${s.color}`}>{s.val}</p>
@@ -327,12 +327,12 @@ export default function AutonomyPage() {
             key={t.key}
             onClick={() => setTab(t.key as typeof tab)}
             className={`px-4 py-2.5 text-sm font-semibold transition-all border-b-2 flex items-center gap-2 ${
-              tab === t.key ? "border-indigo-500 text-foreground" : "border-transparent text-[#666] hover:text-[#aaa]"
+              tab === t.key ? "border-info-border text-foreground" : "border-transparent text-[#666] hover:text-[#aaa]"
             }`}
           >
             {t.label}
             {t.count > 0 && (
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${t.urgent ? "bg-rose-500/20 text-rose-400" : "bg-white/5 text-[#888]"}`}>
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${t.urgent ? "bg-error-text/20 text-error-text" : "bg-white/5 text-[#888]"}`}>
                 {t.count}
               </span>
             )}
@@ -345,7 +345,7 @@ export default function AutonomyPage() {
         <div>
           {loading ? (
             <div className="flex items-center justify-center py-16 text-[#666]">
-              <Loader2 className="w-6 h-6 animate-spin text-indigo-400 mr-3" />Loading agents…
+              <Loader2 className="w-6 h-6 animate-spin text-info-text mr-3" />Loading agents…
             </div>
           ) : agents.length === 0 ? (
             <div className="text-center py-16">
@@ -364,8 +364,8 @@ export default function AutonomyPage() {
                   <div key={agent.id} className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden">
                     <div className="p-4 flex items-center gap-4">
                       {/* Avatar */}
-                      <div className="w-9 h-9 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center shrink-0">
-                        <Bot className="w-5 h-5 text-indigo-400" />
+                      <div className="w-9 h-9 bg-info-bg border border-info-border rounded-xl flex items-center justify-center shrink-0">
+                        <Bot className="w-5 h-5 text-info-text" />
                       </div>
 
                       {/* Name + type */}
@@ -383,7 +383,7 @@ export default function AutonomyPage() {
                       <div className="hidden md:flex flex-col w-24 shrink-0">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-[10px] text-[#555]">Trust</span>
-                          <span className={`text-[10px] font-bold ${trustPct >= 80 ? "text-emerald-400" : trustPct >= 60 ? "text-amber-400" : "text-rose-400"}`}>{trustPct}%</span>
+                          <span className={`text-[10px] font-bold ${trustPct >= 80 ? "text-success-text" : trustPct >= 60 ? "text-warning-text" : "text-error-text"}`}>{trustPct}%</span>
                         </div>
                         <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                           <div className={`h-full rounded-full transition-all ${trustColor(trustPct)}`} style={{ width: `${trustPct}%` }} />
@@ -412,12 +412,12 @@ export default function AutonomyPage() {
                         <div className="grid grid-cols-2 gap-3">
                           <div className="bg-white/3 border border-[var(--border)]/50 rounded-xl p-3">
                             <p className="text-[10px] text-[#555] mb-1">Trust Score</p>
-                            <p className={`text-lg font-bold ${trustPct >= 80 ? "text-emerald-400" : trustPct >= 60 ? "text-amber-400" : "text-rose-400"}`}>{trustPct}%</p>
+                            <p className={`text-lg font-bold ${trustPct >= 80 ? "text-success-text" : trustPct >= 60 ? "text-warning-text" : "text-error-text"}`}>{trustPct}%</p>
                             <p className="text-[10px] text-[#555]">{trustLabel(trustPct)}</p>
                           </div>
                           <div className="bg-white/3 border border-[var(--border)]/50 rounded-xl p-3">
                             <p className="text-[10px] text-[#555] mb-1">Faithfulness Score</p>
-                            <p className={`text-lg font-bold ${faithPct >= 85 ? "text-emerald-400" : faithPct >= 70 ? "text-amber-400" : "text-rose-400"}`}>{faithPct}%</p>
+                            <p className={`text-lg font-bold ${faithPct >= 85 ? "text-success-text" : faithPct >= 70 ? "text-warning-text" : "text-error-text"}`}>{faithPct}%</p>
                             <p className="text-[10px] text-[#555]">{faithPct >= 92 ? "Eligible for L5/L6" : faithPct >= 85 ? "Requires validation" : "Block from publishing"}</p>
                           </div>
                         </div>
@@ -450,7 +450,7 @@ export default function AutonomyPage() {
                             placeholder="Reason for change (required for audit)"
                             value={levelReason[agent.id] || ""}
                             onChange={e => setLevelReason(prev => ({ ...prev, [agent.id]: e.target.value }))}
-                            className="mt-2 w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50"
+                            className="mt-2 w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs text-foreground placeholder-[#444] outline-none focus:border-info-border"
                           />
                         </div>
 
@@ -460,7 +460,7 @@ export default function AutonomyPage() {
                             <button
                               onClick={() => handleSuspend(agent.id, agent.name)}
                               disabled={!!actionId}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 rounded-xl text-[11px] font-bold transition-all disabled:opacity-50"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-error-bg hover:bg-error-text text-error-text hover:text-white border border-error-border rounded-xl text-[11px] font-bold transition-all disabled:opacity-50"
                             >
                               {actionId === agent.id + "suspend" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
                               Suspend Agent
@@ -470,7 +470,7 @@ export default function AutonomyPage() {
                             <button
                               onClick={() => handleLevelChange(agent.id, "L1")}
                               disabled={!!actionId}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border border-emerald-500/20 rounded-xl text-[11px] font-bold transition-all disabled:opacity-50"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-success-bg hover:bg-success-text text-success-text hover:text-white border border-success-border rounded-xl text-[11px] font-bold transition-all disabled:opacity-50"
                             >
                               <Unlock className="w-3.5 h-3.5" />
                               Restore to L1
@@ -492,15 +492,15 @@ export default function AutonomyPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-[#888]">Emergency locks immediately stop autonomous agent activity at the selected scope.</p>
-            <button onClick={() => setShowLockForm(!showLockForm)} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 rounded-xl text-xs font-bold transition-all">
+            <button onClick={() => setShowLockForm(!showLockForm)} className="flex items-center gap-1.5 px-3 py-1.5 bg-error-bg hover:bg-error-text text-error-text hover:text-white border border-error-border rounded-xl text-xs font-bold transition-all">
               <ShieldAlert className="w-3.5 h-3.5" />
               Apply Emergency Lock
             </button>
           </div>
 
           {showLockForm && (
-            <div className="bg-[var(--card)] border border-rose-500/20 rounded-2xl p-5 space-y-3">
-              <p className="text-sm font-bold text-rose-400 flex items-center gap-2"><ShieldAlert className="w-4 h-4" />Apply Emergency Lock</p>
+            <div className="bg-[var(--card)] border border-error-border rounded-2xl p-5 space-y-3">
+              <p className="text-sm font-bold text-error-text flex items-center gap-2"><ShieldAlert className="w-4 h-4" />Apply Emergency Lock</p>
               <div className="grid grid-cols-4 gap-2">
                 {["L1","L2","L3","L4"].map(lv => {
                   const cfg = LOCK_LEVEL_CONFIG[lv];
@@ -513,12 +513,12 @@ export default function AutonomyPage() {
                 })}
               </div>
               <input placeholder="Scope (e.g. Workspace, Campaign Name, Agent ID)" value={lockForm.scope} onChange={e => setLockForm(f => ({...f,scope:e.target.value}))}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-rose-500/50" />
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-error-border" />
               <textarea rows={3} placeholder="Reason for emergency lock (required for audit record)…" value={lockForm.reason} onChange={e => setLockForm(f => ({...f,reason:e.target.value}))}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-rose-500/50 resize-none" />
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-error-border resize-none" />
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowLockForm(false)} className="px-3 py-1.5 text-[#666] hover:text-white text-xs font-bold transition-all"><X className="w-4 h-4" /></button>
-                <button onClick={handleCreateLock} disabled={actionId === "lock" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-rose-500 hover:bg-rose-400 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
+                <button onClick={handleCreateLock} disabled={actionId === "lock" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-error-text hover:brightness-110 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "lock" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
                   Apply Lock
                 </button>
@@ -528,8 +528,8 @@ export default function AutonomyPage() {
 
           {locks.length === 0 ? (
             <div className="text-center py-12 bg-[var(--card)] border border-[var(--border)] rounded-2xl">
-              <ShieldCheck className="w-10 h-10 text-emerald-400/30 mx-auto mb-3" />
-              <p className="text-emerald-400 font-semibold text-sm">No active emergency locks</p>
+              <ShieldCheck className="w-10 h-10 text-success-text/30 mx-auto mb-3" />
+              <p className="text-success-text font-semibold text-sm">No active emergency locks</p>
               <p className="text-[#555] text-xs mt-1">The workspace is operating normally.</p>
             </div>
           ) : (
@@ -537,7 +537,7 @@ export default function AutonomyPage() {
               {locks.map(lock => {
                 const lcfg = LOCK_LEVEL_CONFIG[lock.level] ?? LOCK_LEVEL_CONFIG.L1;
                 return (
-                  <div key={lock.id} className="bg-[var(--card)] border border-rose-500/20 rounded-2xl p-4 flex items-start gap-4">
+                  <div key={lock.id} className="bg-[var(--card)] border border-error-border rounded-2xl p-4 flex items-start gap-4">
                     <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border ${lcfg.color} shrink-0`}>{lcfg.label}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground">{lock.scope}</p>
@@ -545,7 +545,7 @@ export default function AutonomyPage() {
                       <p className="text-[10px] text-[#555] mt-1">{new Date(lock.created_at).toLocaleString()}</p>
                     </div>
                     <button onClick={() => handleLiftLock(lock.id)} disabled={actionId === lock.id}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-emerald-500/20 text-[#888] hover:text-emerald-400 border border-[var(--border)] rounded-xl text-[11px] font-bold transition-all shrink-0">
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-success-text/20 text-[#888] hover:text-success-text border border-[var(--border)] rounded-xl text-[11px] font-bold transition-all shrink-0">
                       {actionId === lock.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlock className="w-3.5 h-3.5" />}
                       Lift
                     </button>
@@ -562,25 +562,25 @@ export default function AutonomyPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-[#888]">Define when content or agent actions must be routed to a human reviewer.</p>
-            <button onClick={() => setShowHITLForm(!showHITLForm)} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all">
+            <button onClick={() => setShowHITLForm(!showHITLForm)} className="flex items-center gap-1.5 px-3 py-1.5 bg-info-bg hover:bg-info-text/20 text-info-text border border-info-border rounded-xl text-xs font-bold transition-all">
               <Plus className="w-3.5 h-3.5" />Add Rule
             </button>
           </div>
 
           {showHITLForm && (
-            <div className="bg-[var(--card)] border border-indigo-500/20 rounded-2xl p-5 space-y-3">
-              <p className="text-sm font-bold text-indigo-400">New HITL Rule</p>
+            <div className="bg-[var(--card)] border border-info-border rounded-2xl p-5 space-y-3">
+              <p className="text-sm font-bold text-info-text">New HITL Rule</p>
               <div className="grid grid-cols-3 gap-3">
                 <input placeholder="Trigger (e.g. RISK_HIGH)" value={hitlForm.trigger} onChange={e => setHitlForm(f => ({...f,trigger:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-info-border" />
                 <input placeholder="Action (e.g. ROUTE_TO_REVIEW)" value={hitlForm.action} onChange={e => setHitlForm(f => ({...f,action:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-info-border" />
                 <input placeholder="Route to Role (e.g. VALIDATOR)" value={hitlForm.route_to_role} onChange={e => setHitlForm(f => ({...f,route_to_role:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-info-border" />
               </div>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowHITLForm(false)} className="p-1.5 text-[#666] hover:text-white transition-all"><X className="w-4 h-4" /></button>
-                <button onClick={handleCreateHITL} disabled={actionId === "hitl" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
+                <button onClick={handleCreateHITL} disabled={actionId === "hitl" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-info-text hover:brightness-110 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "hitl" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                   Create
                 </button>
@@ -593,17 +593,17 @@ export default function AutonomyPage() {
               <div key={rule.id} className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 flex items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded">{rule.trigger}</span>
+                    <span className="text-[10px] font-bold text-info-text bg-info-bg border border-info-border px-2 py-0.5 rounded">{rule.trigger}</span>
                     <span className="text-[#444]">→</span>
-                    <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">{rule.action}</span>
+                    <span className="text-[10px] font-bold text-warning-text bg-warning-bg border border-warning-border px-2 py-0.5 rounded">{rule.action}</span>
                   </div>
                   <p className="text-[11px] text-[#666]">Route to: <span className="text-[#aaa]">{rule.route_to_role}</span></p>
                 </div>
                 <button onClick={() => handleToggleHITL(rule)} disabled={actionId === rule.id || !canManageAutonomy}
-                  className={`w-10 h-6 rounded-full relative transition-all shrink-0 ${rule.enabled ? "bg-indigo-600" : "bg-white/10"}`}>
+                  className={`w-10 h-6 rounded-full relative transition-all shrink-0 ${rule.enabled ? "bg-info-text" : "bg-white/10"}`}>
                   <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${rule.enabled ? "left-5" : "left-1"}`} />
                 </button>
-                <button onClick={() => handleDeleteHITL(rule.id)} disabled={actionId === rule.id || !canManageAutonomy} className="p-1.5 text-[#444] hover:text-rose-400 transition-colors">
+                <button onClick={() => handleDeleteHITL(rule.id)} disabled={actionId === rule.id || !canManageAutonomy} className="p-1.5 text-[#444] hover:text-error-text transition-colors">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -617,33 +617,33 @@ export default function AutonomyPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-[#888]">Define prohibited terms, claims, and semantic guardrails agents must never output.</p>
-            <button onClick={() => setShowNKSForm(!showNKSForm)} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all">
+            <button onClick={() => setShowNKSForm(!showNKSForm)} className="flex items-center gap-1.5 px-3 py-1.5 bg-info-bg hover:bg-info-text/20 text-info-text border border-info-border rounded-xl text-xs font-bold transition-all">
               <Plus className="w-3.5 h-3.5" />Add Set
             </button>
           </div>
 
           {showNKSForm && (
-            <div className="bg-[var(--card)] border border-indigo-500/20 rounded-2xl p-5 space-y-3">
-              <p className="text-sm font-bold text-indigo-400">New Negative Knowledge Set</p>
+            <div className="bg-[var(--card)] border border-info-border rounded-2xl p-5 space-y-3">
+              <p className="text-sm font-bold text-info-text">New Negative Knowledge Set</p>
               <div className="grid grid-cols-2 gap-3">
                 <input placeholder="Set Name" value={nksForm.name} onChange={e => setNksForm(f => ({...f,name:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-info-border" />
                 <input placeholder="Scope (e.g. Healthcare Division, USA)" value={nksForm.scope} onChange={e => setNksForm(f => ({...f,scope:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-info-border" />
               </div>
               <textarea rows={2} placeholder="Prohibited terms (comma-separated): cure, guaranteed, FDA-approved, …" value={nksForm.terms} onChange={e => setNksForm(f => ({...f,terms:e.target.value}))}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50 resize-none" />
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-info-border resize-none" />
               <div className="grid grid-cols-2 gap-3">
                 <select value={nksForm.severity} onChange={e => setNksForm(f => ({...f,severity:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-indigo-500/50">
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-info-border">
                   {["BLOCK","ESCALATE","WARN","REQUIRE_APPROVAL"].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <input placeholder="Owner Role" value={nksForm.owner_role} onChange={e => setNksForm(f => ({...f,owner_role:e.target.value}))}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-indigo-500/50" />
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-foreground placeholder-[#444] outline-none focus:border-info-border" />
               </div>
               <div className="flex justify-end gap-2">
                 <button onClick={() => setShowNKSForm(false)} className="p-1.5 text-[#666] hover:text-white"><X className="w-4 h-4" /></button>
-                <button onClick={handleCreateNKS} disabled={actionId === "nks" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
+                <button onClick={handleCreateNKS} disabled={actionId === "nks" || !canManageAutonomy} className="flex items-center gap-1.5 px-4 py-1.5 bg-info-text hover:brightness-110 text-foreground rounded-xl text-xs font-bold transition-all disabled:opacity-50">
                   {actionId === "nks" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                   Create Set
                 </button>
@@ -676,7 +676,7 @@ export default function AutonomyPage() {
                     </div>
                     <p className="text-[10px] text-[#555]">Scope: {nks.scope} · Owner: {nks.owner_role}</p>
                   </div>
-                  <button onClick={() => handleDeleteNKS(nks.id)} disabled={actionId === nks.id || !canManageAutonomy} className="p-1.5 text-[#444] hover:text-rose-400 transition-colors shrink-0">
+                  <button onClick={() => handleDeleteNKS(nks.id)} disabled={actionId === nks.id || !canManageAutonomy} className="p-1.5 text-[#444] hover:text-error-text transition-colors shrink-0">
                     {actionId === nks.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                   </button>
                 </div>

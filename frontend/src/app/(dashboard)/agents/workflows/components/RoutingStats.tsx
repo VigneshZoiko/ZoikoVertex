@@ -23,32 +23,32 @@ export default function RoutingStats({ data }: { data?: Stats }) {
       title: 'Workflow Completion Rate',
       value: `${data.completionRate}%`,
       icon: Activity,
-      color: 'text-emerald-500',
-      bg: 'bg-emerald-500/10',
+      color: 'text-success-text',
+      bg: 'bg-success-text/10',
       desc: 'Instances completed successfully'
     },
     {
       title: 'Active Orchestrations',
       value: data.activeOrchestrations,
       icon: GitMerge,
-      color: 'text-indigo-500',
-      bg: 'bg-indigo-500/10',
+      color: 'text-info-text',
+      bg: 'bg-info-text/10',
       desc: 'Live workflow instances running'
     },
     {
       title: 'Avg. Handoff Delay',
       value: data.avgHandoffDelay,
       icon: Clock,
-      color: 'text-amber-500',
-      bg: 'bg-amber-500/10',
+      color: 'text-warning-text',
+      bg: 'bg-warning-text/10',
       desc: 'Step-to-step transition time'
     },
     {
       title: 'Escalation Rate',
       value: `${data.escalationRate}%`,
       icon: ShieldAlert,
-      color: 'text-rose-500',
-      bg: 'bg-rose-500/10',
+      color: 'text-error-text',
+      bg: 'bg-error-text/10',
       desc: 'Runs routed to higher authority'
     },
     {

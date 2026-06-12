@@ -4,7 +4,6 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logCampaignEvent } from './campaignsController';
 import { AutoCampaignBoostService } from './autoCampaignBoostService';
-import { pushCampaignToMeta } from './adsController';
 import { toggleMetaCampaignStatus } from './metaCampaignPublisher';
 import { logger } from '../../shared/logger';
 
@@ -99,7 +98,7 @@ function evaluateLaunchGate(campaign: Record<string, unknown>, actorRole: string
       id:     '07',
       label:  'At least one ad platform selected',
       passed: platforms.length > 0,
-      reason: platforms.length === 0 ? 'Select at least one platform (Meta or Google) in the campaign settings' : null,
+      reason: platforms.length === 0 ? 'Select at least one platform in the campaign settings' : null,
     },
     {
       id:     '08',
@@ -380,19 +379,7 @@ export const launchCampaign = async (req: AuthRequest, res: Response, next: Next
     if (newStatus === 'ACTIVE') {
       AutoCampaignBoostService.processActiveCampaignPosts(campaign.id, workspaceId)
         .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Launch] processActiveCampaignPosts failed (non-fatal)'));
-
-      // Auto-push to Meta Ads if campaign targets Meta, has an ad account, and hasn't already been published
-      // (guard against duplicate Meta campaigns if the user also presses the explicit publish button)
-      const hasMeta        = (campaign.platforms as string[] | undefined)?.includes('Meta');
-      const hasMetaAccount = !!(campaign.boost_settings as Record<string, unknown> | null)?.meta_connected_account_id;
-      const alreadyOnMeta  = !!(campaign as any).meta_campaign_id;
-      if (hasMeta && hasMetaAccount && !alreadyOnMeta) {
-        pushCampaignToMeta(campaign, workspaceId, userId)
-          .then(r => {
-            if (!r.success) logger.warn({ campaignId: campaign.id, reason: r.error }, '[Launch] Meta push failed (non-fatal)');
-          })
-          .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Launch] Meta push threw (non-fatal)'));
-      }
+      // Meta publishing is handled explicitly by the frontend via POST /publish-to-meta — no auto-push here.
     }
 
     res.json({
@@ -433,17 +420,26 @@ export const pauseCampaign = async (req: AuthRequest, res: Response, next: NextF
       return res.status(400).json({ error: `Cannot pause campaign in status: ${campaign.status}` });
     }
 
-    // Pause on Meta immediately if the campaign is live there
+    // Pause on Meta — await the call so we know whether it succeeded
+    let metaError: string | undefined;
     if ((campaign as any).meta_campaign_id) {
-      toggleMetaCampaignStatus(String(req.params.id), workspaceId, true)
-        .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Pause] Meta pause failed (non-fatal)'));
+      const metaResult = await toggleMetaCampaignStatus(String(req.params.id), workspaceId, true)
+        .catch((err: any) => ({ success: false, error: String(err?.message ?? err) }));
+      if (!metaResult.success) {
+        metaError = metaResult.error ?? 'Meta pause call failed';
+        logger.warn({ metaError, campaignId: campaign.id }, '[Pause] Meta pause failed');
+      }
     }
 
     const newStatus = campaign.status === 'ACTIVE' ? 'PAUSING' : 'PAUSED';
 
     const { data: updated, error } = await supabaseAdmin
       .from('campaigns')
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .update({
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+        ...(metaError ? { meta_error: metaError } : {}),
+      })
       .eq('id', req.params.id)
       .eq('workspace_id', workspaceId)
       .select()
@@ -462,9 +458,12 @@ export const pauseCampaign = async (req: AuthRequest, res: Response, next: NextF
     res.json({
       success: true,
       data: updated,
-      message: newStatus === 'PAUSING'
-        ? 'Pause request sent. Campaign status set to PAUSING — spend may continue briefly until confirmed.'
-        : 'Campaign paused.',
+      meta_warning: metaError,
+      message: metaError
+        ? `Campaign status set to ${newStatus} but Meta pause failed: ${metaError}`
+        : newStatus === 'PAUSING'
+          ? 'Pause request sent. Campaign status set to PAUSING — spend may continue briefly until confirmed.'
+          : 'Campaign paused.',
     });
   } catch (err) { next(err); }
 };
@@ -493,12 +492,18 @@ export const emergencyPauseCampaign = async (req: AuthRequest, res: Response, ne
 
     const { data: campaign } = await supabaseAdmin
       .from('campaigns')
-      .select('id, status')
+      .select('id, status, meta_campaign_id')
       .eq('id', req.params.id)
       .eq('workspace_id', workspaceId)
       .single();
 
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    // Pause on Meta immediately — fire-and-forget with logging (don't block emergency pause if Meta call fails)
+    if ((campaign as any).meta_campaign_id) {
+      toggleMetaCampaignStatus(String(req.params.id), workspaceId, true)
+        .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[EmergencyPause] Meta pause call failed (non-fatal)'));
+    }
 
     const { data: updated, error } = await supabaseAdmin
       .from('campaigns')
@@ -723,7 +728,7 @@ export const resumeCampaign = async (req: AuthRequest, res: Response, next: Next
 
     const { data: campaign } = await supabaseAdmin
       .from('campaigns')
-      .select('id, status, budget_total, spend_recorded')
+      .select('id, status, budget_total, spend_recorded, meta_campaign_id')
       .eq('id', req.params.id)
       .eq('workspace_id', workspaceId)
       .single();
@@ -744,21 +749,30 @@ export const resumeCampaign = async (req: AuthRequest, res: Response, next: Next
       });
     }
 
+    // Re-activate on Meta first — await so we surface failure
+    let metaError: string | undefined;
+    if (campaign.meta_campaign_id) {
+      const metaResult = await toggleMetaCampaignStatus(String(req.params.id), workspaceId, false)
+        .catch((err: any) => ({ success: false, error: String(err?.message ?? err) }));
+      if (!metaResult.success) {
+        metaError = metaResult.error ?? 'Meta activation failed';
+        logger.warn({ metaError, campaignId: campaign.id }, '[Resume] Meta activation failed');
+      }
+    }
+
     const { data: updated, error } = await supabaseAdmin
       .from('campaigns')
-      .update({ status: 'ACTIVE', updated_at: new Date().toISOString() })
+      .update({
+        status: 'ACTIVE',
+        updated_at: new Date().toISOString(),
+        ...(metaError ? { meta_error: metaError } : { meta_error: null }),
+      })
       .eq('id', req.params.id)
       .eq('workspace_id', workspaceId)
       .select()
       .single();
 
     if (error) throw error;
-
-    // Re-activate on Meta if campaign was published there
-    if ((campaign as any).meta_campaign_id) {
-      toggleMetaCampaignStatus(String(req.params.id), workspaceId, false)
-        .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Resume] Meta activation failed (non-fatal)'));
-    }
 
     await logCampaignEvent(
       workspaceId, campaign.id,
@@ -768,7 +782,14 @@ export const resumeCampaign = async (req: AuthRequest, res: Response, next: Next
       { reason: parsed.data.reason, resumed_by: userId },
     );
 
-    res.json({ success: true, data: updated, message: 'Campaign resumed and is now active.' });
+    res.json({
+      success: true,
+      data: updated,
+      meta_warning: metaError,
+      message: metaError
+        ? `Campaign DB status set to ACTIVE but Meta re-activation failed: ${metaError}`
+        : 'Campaign resumed and is now active.',
+    });
   } catch (err) { next(err); }
 };
 

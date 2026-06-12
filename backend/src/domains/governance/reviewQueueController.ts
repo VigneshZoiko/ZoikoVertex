@@ -213,7 +213,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         title: '✅ Media Approved by Reviewer',
         body: `Your media "${item.title}" has been reviewed and approved. ${note ? 'Reviewer note: ' + note : ''}`,
         type: 'GOVERNANCE',
-        link: '/library',
+        link: '/review-queue',
         read: false,
       });
 
@@ -243,7 +243,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         title: '❌ Media Rejected by Reviewer',
         body: `Your media "${item.title}" was rejected. Reason: ${reason}. ${note ? 'Note: ' + note : ''}`,
         type: 'GOVERNANCE',
-        link: '/library',
+        link: '/review-queue',
         read: false,
       });
 
@@ -273,7 +273,7 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         title: '🔄 Media Returned — Revision Required',
         body: `Your media "${item.title}" was returned by the reviewer with revision instructions: ${note}. Please correct and resubmit.`,
         type: 'GOVERNANCE',
-        link: '/library',
+        link: '/review-queue',
         read: false,
       });
 

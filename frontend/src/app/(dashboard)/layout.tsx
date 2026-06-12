@@ -86,7 +86,12 @@ export default function DashboardLayout({
   useEffect(() => {
     if (isLoading) return;
     if (!isSuperAdmin && orgStatus === 'NO_WORKSPACE') return;
-    if (role === null && !isSuperAdmin) return;
+    if (role === null && !isSuperAdmin) {
+      // Loading finished but no role resolved (auth failure, backend unreachable, etc.).
+      // Unblock the skeleton so the auth guard can redirect to /login; don't show content.
+      setAccessDenied(false);
+      return;
+    }
     const result = canAccess(pathname, role, isSuperAdmin, planType);
     setAccessDenied(result.allowed ? false : result);
   }, [pathname, isLoading, role, isSuperAdmin, orgStatus, planType]);
@@ -191,8 +196,8 @@ function PlanBlockView({ requiredPlan, feature, onBack }: { requiredPlan: Plan; 
   const displayName = PLAN_DISPLAY[minPlan];
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 page-enter">
-      <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-6">
-        <Lock className="w-7 h-7 text-amber-400" />
+      <div className="w-16 h-16 rounded-2xl bg-warning-text/10 border border-warning-border/20 flex items-center justify-center mb-6">
+        <Lock className="w-7 h-7 text-warning-text" />
       </div>
       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border mb-4 ${badgeClass}`}>
         {displayName}
@@ -209,7 +214,7 @@ function PlanBlockView({ requiredPlan, feature, onBack }: { requiredPlan: Plan; 
         </button>
         <button
           onClick={() => router.push('/admin/billing')}
-          className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black rounded-xl text-sm font-bold transition-all duration-200"
+          className="flex items-center gap-2 px-5 py-2.5 bg-warning-text hover:bg-warning-text text-black rounded-xl text-sm font-bold transition-all duration-200"
         >
           View Plans
           <ArrowRight className="w-4 h-4" />
@@ -224,8 +229,8 @@ function UnauthorizedView({ pathname, onBack }: { pathname: string; onBack: () =
   const label   = section ? section.charAt(0).toUpperCase() + section.slice(1).replace(/-/g, ' ') : 'this page';
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 page-enter">
-      <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-6">
-        <ShieldOff className="w-7 h-7 text-rose-400" />
+      <div className="w-16 h-16 rounded-2xl bg-error-text/10 border border-error-border/20 flex items-center justify-center mb-6">
+        <ShieldOff className="w-7 h-7 text-error-text" />
       </div>
       <h1 className="text-2xl font-bold text-[var(--foreground)] mb-2 tracking-tight">Access Restricted</h1>
       <p className="text-[var(--foreground-muted)] text-sm max-w-sm leading-relaxed mb-8">

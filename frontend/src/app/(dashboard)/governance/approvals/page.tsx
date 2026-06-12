@@ -21,7 +21,7 @@ type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 type ItemType = "SOCIAL_POST" | "INBOX_REPLY" | "CAMPAIGN_ASSET" | "AGENT_ACTION" | "WORKFLOW_OUTPUT" | "VALIDATION_OVERRIDE" | "EXCEPTION_OUTCOME" | "RESTRICTED_OPERATION" | "COMPLIANCE_SENSITIVE_ITEM" | "PUBLISHING_ACTION";
 type EligibilityState = "APPROVAL_ELIGIBLE" | "REJECTION_ELIGIBLE" | "CHANGES_REQUEST_ELIGIBLE" | "CONDITIONAL_APPROVAL_ELIGIBLE" | "ESCALATION_REQUIRED" | "WAITING_ON_PRIOR_STAGE" | "MISSING_REQUIRED_APPROVER" | "VALIDATION_BLOCKED" | "REVALIDATION_REQUIRED" | "PERMISSION_DENIED" | "ALREADY_DECIDED" | "WORKFLOW_COMPLETED";
 type TabId = "queue" | "assigned" | "waiting" | "approved" | "rejected" | "changes" | "escalated" | "overdue" | "conditional" | "completed";
-type WorkspaceTabId = "summary" | "preview" | "validation" | "grounding" | "risk" | "path" | "history" | "evidence" | "comments" | "next-destination";
+type WorkspaceTabId = "summary" | "path" | "history" | "comments";
 
 interface ApprovalItem {
   id: string; title: string; item_type: ItemType; source_module: string;
@@ -83,21 +83,21 @@ interface AlertDef {
 
 const STATUS_BADGE: Record<ApprovalStatus, { color: string; bg: string }> = {
   PENDING_APPROVAL:       { color: "text-slate-400", bg: "bg-slate-500/10 border-slate-500/30" },
-  IN_REVIEW:              { color: "text-blue-400",  bg: "bg-blue-500/10 border-blue-500/30" },
-  WAITING_ON_OTHERS:      { color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/30" },
-  APPROVED:               { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30" },
-  REJECTED:               { color: "text-rose-400",  bg: "bg-rose-500/10 border-rose-500/30" },
-  CHANGES_REQUESTED:      { color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/30" },
-  ESCALATED:              { color: "text-red-400",   bg: "bg-red-500/10 border-red-500/30" },
-  CONDITIONAL_APPROVAL:   { color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/30" },
-  BLOCKED:                { color: "text-rose-400",  bg: "bg-rose-500/10 border-rose-500/30" },
+  IN_REVIEW:              { color: "text-info-text",  bg: "bg-info-bg border-info-border" },
+  WAITING_ON_OTHERS:      { color: "text-warning-text", bg: "bg-warning-bg border-warning-border" },
+  APPROVED:               { color: "text-success-text", bg: "bg-success-bg border-success-border" },
+  REJECTED:               { color: "text-error-text",  bg: "bg-error-bg border-error-border" },
+  CHANGES_REQUESTED:      { color: "text-warning-text", bg: "bg-warning-bg border-warning-border" },
+  ESCALATED:              { color: "text-error-text",   bg: "bg-error-bg border-error-border" },
+  CONDITIONAL_APPROVAL:   { color: "text-info-text", bg: "bg-info-bg border-info-border" },
+  BLOCKED:                { color: "text-error-text",  bg: "bg-error-bg border-error-border" },
   CANCELLED:              { color: "text-slate-500", bg: "bg-slate-500/10 border-slate-500/30" },
-  COMPLETED:              { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30" },
+  COMPLETED:              { color: "text-success-text", bg: "bg-success-bg border-success-border" },
   ARCHIVED:               { color: "text-slate-600", bg: "bg-slate-500/5 border-slate-500/20" },
 };
 
 const RISK_DOT: Record<RiskLevel, string> = {
-  LOW: "bg-emerald-400", MEDIUM: "bg-amber-400", HIGH: "bg-orange-400", CRITICAL: "bg-red-400",
+  LOW: "bg-success-text", MEDIUM: "bg-warning-text", HIGH: "bg-orange-400", CRITICAL: "bg-red-400",
 };
 
 const ITEM_TYPE_LABEL: Record<ItemType, string> = {
@@ -116,26 +116,23 @@ const TAB_LABELS: Record<TabId, string> = {
 };
 
 const WORKSPACE_TAB_LABELS: Record<WorkspaceTabId, string> = {
-  summary: "Approval Summary", preview: "Content/Item Preview",
-  validation: "Validation Results", grounding: "Source Grounding",
-  risk: "Risk & Compliance", path: "Approval Path",
-  history: "Decision History", evidence: "Evidence",
-  comments: "Comments", "next-destination": "Next Destination",
+  summary: "Approval Summary", path: "Approval Path",
+  history: "Decision History", comments: "Comments",
 };
 
 const ELIGIBILITY_LABEL: Record<EligibilityState, { label: string; color: string }> = {
-  APPROVAL_ELIGIBLE:            { label: "Approval Eligible",       color: "text-emerald-400" },
-  REJECTION_ELIGIBLE:           { label: "Rejection Eligible",      color: "text-rose-400" },
-  CHANGES_REQUEST_ELIGIBLE:     { label: "Changes Request Eligible", color: "text-orange-400" },
-  CONDITIONAL_APPROVAL_ELIGIBLE:{ label: "Conditional Eligible",   color: "text-purple-400" },
-  ESCALATION_REQUIRED:          { label: "Escalation Required",    color: "text-red-400" },
-  WAITING_ON_PRIOR_STAGE:       { label: "Waiting on Prior Stage", color: "text-amber-400" },
-  MISSING_REQUIRED_APPROVER:    { label: "Missing Approver",       color: "text-rose-400" },
-  VALIDATION_BLOCKED:           { label: "Validation Blocked",     color: "text-red-400" },
-  REVALIDATION_REQUIRED:        { label: "Revalidation Required",  color: "text-amber-400" },
-  PERMISSION_DENIED:            { label: "Permission Denied",      color: "text-rose-400" },
+  APPROVAL_ELIGIBLE:            { label: "Approval Eligible",       color: "text-success-text" },
+  REJECTION_ELIGIBLE:           { label: "Rejection Eligible",      color: "text-error-text" },
+  CHANGES_REQUEST_ELIGIBLE:     { label: "Changes Request Eligible", color: "text-warning-text" },
+  CONDITIONAL_APPROVAL_ELIGIBLE:{ label: "Conditional Eligible",   color: "text-info-text" },
+  ESCALATION_REQUIRED:          { label: "Escalation Required",    color: "text-error-text" },
+  WAITING_ON_PRIOR_STAGE:       { label: "Waiting on Prior Stage", color: "text-warning-text" },
+  MISSING_REQUIRED_APPROVER:    { label: "Missing Approver",       color: "text-error-text" },
+  VALIDATION_BLOCKED:           { label: "Validation Blocked",     color: "text-error-text" },
+  REVALIDATION_REQUIRED:        { label: "Revalidation Required",  color: "text-warning-text" },
+  PERMISSION_DENIED:            { label: "Permission Denied",      color: "text-error-text" },
   ALREADY_DECIDED:              { label: "Already Decided",        color: "text-slate-500" },
-  WORKFLOW_COMPLETED:           { label: "Workflow Completed",     color: "text-emerald-400" },
+  WORKFLOW_COMPLETED:           { label: "Workflow Completed",     color: "text-success-text" },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -147,7 +144,7 @@ function timeAgo(date: string): string {
 }
 
 function slaColor(status?: string): string {
-  if (status === "Breached") return "text-rose-400"; if (status === "Overdue" || status === "Due Soon") return "text-red-400"; return "text-emerald-400";
+  if (status === "Breached") return "text-error-text"; if (status === "Overdue" || status === "Due Soon") return "text-error-text"; return "text-success-text";
 }
 
 function Badge({ status }: { status: ApprovalStatus }) {
@@ -218,12 +215,12 @@ export default function ApprovalsPage() {
 
   // ─── Derived metrics from real stats ──────────────────────────────────
   const activeMetrics: MetricCardDef[] = [
-    { id: "m1", label: "Pending Approval",   count: stats?.counts.pending_approval   ?? 0, icon: Clock,         color: "text-blue-400",    filterTab: "queue"     },
-    { id: "m2", label: "Assigned to Me",     count: stats?.counts.in_review          ?? 0, icon: UserPlus,      color: "text-indigo-400",  filterTab: "assigned"  },
-    { id: "m3", label: "Approved",           count: stats?.counts.approved            ?? 0, icon: CheckCircle2,  color: "text-emerald-400", filterTab: "approved"  },
-    { id: "m4", label: "Changes Requested",  count: stats?.counts.changes_requested  ?? 0, icon: AlertTriangle, color: "text-orange-400",  filterTab: "changes"   },
-    { id: "m5", label: "Escalated",          count: stats?.counts.escalated           ?? 0, icon: ArrowUpRight,  color: "text-red-400",     filterTab: "escalated" },
-    { id: "m6", label: "Overdue",            count: stats?.counts.overdue             ?? 0, icon: AlertCircle,   color: "text-rose-400",    filterTab: "overdue"   },
+    { id: "m1", label: "Pending Approval",   count: stats?.counts.pending_approval   ?? 0, icon: Clock,         color: "text-info-text",    filterTab: "queue"     },
+    { id: "m2", label: "Assigned to Me",     count: stats?.counts.in_review          ?? 0, icon: UserPlus,      color: "text-info-text",  filterTab: "assigned"  },
+    { id: "m3", label: "Approved",           count: stats?.counts.approved            ?? 0, icon: CheckCircle2,  color: "text-success-text", filterTab: "approved"  },
+    { id: "m4", label: "Changes Requested",  count: stats?.counts.changes_requested  ?? 0, icon: AlertTriangle, color: "text-warning-text",  filterTab: "changes"   },
+    { id: "m5", label: "Escalated",          count: stats?.counts.escalated           ?? 0, icon: ArrowUpRight,  color: "text-error-text",     filterTab: "escalated" },
+    { id: "m6", label: "Overdue",            count: stats?.counts.overdue             ?? 0, icon: AlertCircle,   color: "text-error-text",    filterTab: "overdue"   },
   ];
 
   const handleAction = async (action: string, id: string, body?: Record<string, any>) => {
@@ -350,9 +347,9 @@ export default function ApprovalsPage() {
         <div className="flex gap-2 px-4 pt-2 pb-1 overflow-x-auto shrink-0">
           {visibleAlerts.map(a => (
             <div key={a.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs shrink-0 border ${
-              a.severity === "critical" ? "bg-rose-500/10 border-rose-500/20 text-rose-300" :
-              a.severity === "warning" ? "bg-amber-500/10 border-amber-500/20 text-amber-300" :
-              "bg-blue-500/10 border-blue-500/20 text-blue-300"
+              a.severity === "critical" ? "bg-error-bg border-error-border text-error-text" :
+              a.severity === "warning" ? "bg-warning-bg border-warning-border text-warning-text" :
+              "bg-info-bg border-info-border text-blue-300"
             }`}>
               {a.severity === "critical" ? <AlertCircle className="w-3 h-3 shrink-0" /> :
                a.severity === "warning" ? <AlertTriangle className="w-3 h-3 shrink-0" /> : <Info className="w-3 h-3 shrink-0" />}
@@ -412,12 +409,12 @@ export default function ApprovalsPage() {
           })}
           <button onClick={() => { setBulkMode(!bulkMode); setBulkSelected(new Set()); }}
             className={`p-2 border rounded-lg transition-all ml-1 ${
-              bulkMode ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" : "bg-[#161616] border-[#2d2d2d] text-[#888] hover:text-white"
+              bulkMode ? "bg-info-bg border-info-border text-info-text" : "bg-[#161616] border-[#2d2d2d] text-[#888] hover:text-white"
             }`}>
             <ClipboardList className="w-3.5 h-3.5" />
           </button>
           <button onClick={fetchItems} className="p-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-[#888] hover:text-white ml-1">
-            <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-indigo-400" : ""}`} />
+            <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-info-text" : ""}`} />
           </button>
         </div>
       </div>
@@ -443,7 +440,7 @@ export default function ApprovalsPage() {
         {(Object.entries(TAB_LABELS) as [TabId, string][]).map(([id, label]) => (
           <button key={id} onClick={() => setActiveTab(id)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-              activeTab === id ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/20" : "text-[#666] hover:text-white hover:bg-white/5"
+              activeTab === id ? "bg-info-bg text-info-text border border-info-border" : "text-[#666] hover:text-white hover:bg-white/5"
             }`}>
             {label}
           </button>
@@ -452,13 +449,13 @@ export default function ApprovalsPage() {
 
       {/* ─── Error Banner ────────────────────────────────────────────────── */}
       {error && (
-        <div className="mx-4 mt-2 p-2.5 rounded-lg flex items-center gap-2 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 shrink-0">
+        <div className="mx-4 mt-2 p-2.5 rounded-lg flex items-center gap-2 text-xs bg-error-bg border border-error-border text-error-text shrink-0">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {error}
         </div>
       )}
       {message && (
         <div className={`mx-4 mt-2 p-2.5 rounded-lg flex items-center gap-2 text-xs shrink-0 ${
-          message.type === "success" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border border-rose-500/20 text-rose-400"
+          message.type === "success" ? "bg-success-bg border border-success-border text-success-text" : "bg-error-bg border border-error-border text-error-text"
         }`}>
           {message.type === "success" ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
           {message.text}
@@ -471,20 +468,20 @@ export default function ApprovalsPage() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#555]" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by title, source module..."
-            className="w-full bg-[#111] border border-[#2d2d2d] rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
+            className="w-full bg-[#111] border border-[#2d2d2d] rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-[#555] focus:outline-none focus:border-info-border" />
         </div>
         <button onClick={() => setShowFilters(!showFilters)}
           className={`p-1.5 rounded-lg border text-xs flex items-center gap-1.5 transition-colors ${
-            showFilters ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-300" : "bg-[#161616] border-[#2d2d2d] text-[#666]"
+            showFilters ? "bg-info-bg border-info-border text-info-text" : "bg-[#161616] border-[#2d2d2d] text-[#666]"
           }`}>
           <Filter className="w-3.5 h-3.5" /> Filters
         </button>
         <button onClick={() => setShowLeft(!showLeft)}
-          className={`p-1.5 rounded-lg border text-xs ${showLeft ? "bg-[#161616] border-[#2d2d2d] text-[#888]" : "bg-indigo-500/10 border-indigo-500/30 text-indigo-300"}`}>
+          className={`p-1.5 rounded-lg border text-xs ${showLeft ? "bg-[#161616] border-[#2d2d2d] text-[#888]" : "bg-info-bg border-info-border text-info-text"}`}>
           <Eye className="w-3.5 h-3.5" />
         </button>
         <button onClick={() => setShowRight(!showRight)}
-          className={`p-1.5 rounded-lg border text-xs ${showRight ? "bg-[#161616] border-[#2d2d2d] text-[#888]" : "bg-indigo-500/10 border-indigo-500/30 text-indigo-300"}`}>
+          className={`p-1.5 rounded-lg border text-xs ${showRight ? "bg-[#161616] border-[#2d2d2d] text-[#888]" : "bg-info-bg border-info-border text-info-text"}`}>
           <EyeOff className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -551,11 +548,11 @@ export default function ApprovalsPage() {
                       }
                     }}
                     className={`w-full text-left p-3 hover:bg-white/[0.02] transition-colors ${
-                      isBulkChecked ? "bg-indigo-500/10 border-l-2 border-indigo-500" : selectedId === item.id ? "bg-indigo-500/5 border-l-2 border-indigo-500" : "border-l-2 border-transparent"
+                      isBulkChecked ? "bg-info-bg border-l-2 border-info-border" : selectedId === item.id ? "bg-info-bg border-l-2 border-info-border" : "border-l-2 border-transparent"
                     }`}>
                     <div className="flex items-start gap-2">
                       {bulkMode && (
-                        <div className={`w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isBulkChecked ? "bg-indigo-500 border-indigo-500" : "border-[#555]"}`}>
+                        <div className={`w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isBulkChecked ? "bg-info-text border-info-border" : "border-[#555]"}`}>
                           {isBulkChecked && <CheckCircle2 className="w-3 h-3 text-foreground" />}
                         </div>
                       )}
@@ -617,7 +614,7 @@ export default function ApprovalsPage() {
                 {(Object.entries(WORKSPACE_TAB_LABELS) as [WorkspaceTabId, string][]).map(([id, label]) => (
                   <button key={id} onClick={() => setWorkspaceTab(id)}
                     className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors whitespace-nowrap ${
-                      workspaceTab === id ? "bg-indigo-500/15 text-indigo-300" : "text-[#555] hover:text-white"
+                      workspaceTab === id ? "bg-info-bg text-info-text" : "text-[#555] hover:text-white"
                     }`}>
                     {label}
                   </button>
@@ -677,8 +674,8 @@ export default function ApprovalsPage() {
                             {selectedPath.stages.map((s, i) => (
                               <div key={s.id} className="flex-1">
                                 <div className={`p-2.5 rounded-lg border text-center text-[10px] ${
-                                  s.stage_status === "COMPLETED" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" :
-                                  s.stage_status === "IN_PROGRESS" ? "bg-blue-500/10 border-blue-500/30 text-blue-300" :
+                                  s.stage_status === "COMPLETED" ? "bg-success-bg border-success-border text-success-text" :
+                                  s.stage_status === "IN_PROGRESS" ? "bg-info-bg border-info-border text-blue-300" :
                                   "bg-[#0a0a0a] border-[#2d2d2d] text-[#555]"
                                 }`}>
                                   <p className="font-bold">Stage {s.stage_order}</p>
@@ -709,23 +706,23 @@ export default function ApprovalsPage() {
                         {selectedDecisions.map(d => (
                           <div key={d.id} className="flex items-start gap-3 p-3 bg-[#0a0a0a] rounded-lg border border-[#2d2d2d]">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                              d.decision === "APPROVED" ? "bg-emerald-500/10" :
-                              d.decision === "REJECTED" ? "bg-rose-500/10" : "bg-orange-500/10"
+                              d.decision === "APPROVED" ? "bg-success-bg" :
+                              d.decision === "REJECTED" ? "bg-error-bg" : "bg-warning-bg"
                             }`}>
-                              {d.decision === "APPROVED" ? <ThumbsUp className="w-3 h-3 text-emerald-400" /> :
-                               d.decision === "REJECTED" ? <ThumbsDown className="w-3 h-3 text-rose-400" /> :
-                               <MessageCircle className="w-3 h-3 text-orange-400" />}
+                              {d.decision === "APPROVED" ? <ThumbsUp className="w-3 h-3 text-success-text" /> :
+                               d.decision === "REJECTED" ? <ThumbsDown className="w-3 h-3 text-error-text" /> :
+                               <MessageCircle className="w-3 h-3 text-warning-text" />}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-foreground">{d.approver_name || d.approver_id}</span>
                                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                                  d.decision === "APPROVED" ? "text-emerald-400 bg-emerald-500/10" :
-                                  d.decision === "REJECTED" ? "text-rose-400 bg-rose-500/10" : "text-orange-400 bg-orange-500/10"
+                                  d.decision === "APPROVED" ? "text-success-text bg-success-bg" :
+                                  d.decision === "REJECTED" ? "text-error-text bg-error-bg" : "text-warning-text bg-warning-bg"
                                 }`}>{d.decision.replace(/_/g, " ")}</span>
                               </div>
                               {d.decision_reason && <p className="text-[10px] text-[#888] mt-1">{d.decision_reason}</p>}
-                              {d.condition_text && <p className="text-[10px] text-purple-400 mt-1">Condition: {d.condition_text}</p>}
+                              {d.condition_text && <p className="text-[10px] text-info-text mt-1">Condition: {d.condition_text}</p>}
                               <p className="text-[10px] text-[#555] mt-1">{timeAgo(d.decided_at)}</p>
                             </div>
                           </div>
@@ -741,14 +738,14 @@ export default function ApprovalsPage() {
                     <div className="flex gap-2 mb-4">
                       <input value={commentText} onChange={e => setCommentText(e.target.value)}
                         placeholder="Add a comment..."
-                        className="flex-1 bg-[#0a0a0a] border border-[#2d2d2d] rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
+                        className="flex-1 bg-[#0a0a0a] border border-[#2d2d2d] rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-[#555] focus:outline-none focus:border-info-border" />
                       <button onClick={() => {
                         if (commentText.trim() && selectedId) {
                           api.post(`/api/v1/approvals-v2/items/${selectedId}/comments`, { body: commentText, visibility: 'internal_only' })
                             .then(r => { if (r.success) { setCommentText(""); fetchItemDetails(selectedId); } });
                         }
                       }}
-                        className="px-3 py-2 bg-indigo-500/20 text-indigo-300 rounded-lg text-xs font-medium hover:bg-indigo-500/30">Send</button>
+                        className="px-3 py-2 bg-info-bg text-info-text rounded-lg text-xs font-medium hover:bg-info-text/30">Send</button>
                     </div>
                     {detailsLoading ? (
                       <p className="text-xs text-[#555]">Loading...</p>
@@ -770,18 +767,6 @@ export default function ApprovalsPage() {
                   </div>
                 )}
 
-                {(workspaceTab === "preview" || workspaceTab === "validation" || workspaceTab === "grounding" || workspaceTab === "risk") && (
-                  <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 text-center">
-                    <p className="text-xs text-[#555]">Content preview and detailed analysis available when source module provides data</p>
-                  </div>
-                )}
-
-                {(workspaceTab === "evidence" || workspaceTab === "next-destination") && (
-                  <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 text-center">
-                    <p className="text-xs text-[#555]">This tab will display data once the approval workflow progresses</p>
-                  </div>
-                )}
-
                 {workspaceTab === "path" && (
                   <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
                     <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-3">Approval Path</p>
@@ -794,7 +779,7 @@ export default function ApprovalsPage() {
                         {selectedPath.stages.map(s => (
                           <div key={s.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-[#0a0a0a] border border-[#2d2d2d]">
                             <div className={`w-2 h-2 rounded-full ${
-                              s.stage_status === "COMPLETED" ? "bg-emerald-400" :
+                              s.stage_status === "COMPLETED" ? "bg-success-text" :
                               s.stage_status === "IN_PROGRESS" ? "bg-blue-400 animate-pulse" : "bg-[#333]"
                             }`} />
                             <div className="flex-1">
@@ -802,8 +787,8 @@ export default function ApprovalsPage() {
                               {s.assigned_user && <p className="text-[10px] text-[#555]">Assigned: {s.assigned_user}</p>}
                             </div>
                             <span className={`text-[10px] font-medium ${
-                              s.stage_status === "COMPLETED" ? "text-emerald-400" :
-                              s.stage_status === "IN_PROGRESS" ? "text-blue-400" : "text-[#555]"
+                              s.stage_status === "COMPLETED" ? "text-success-text" :
+                              s.stage_status === "IN_PROGRESS" ? "text-info-text" : "text-[#555]"
                             }`}>{s.stage_status.replace(/_/g, ' ')}</span>
                           </div>
                         ))}
@@ -834,19 +819,19 @@ export default function ApprovalsPage() {
                 <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Decision</p>
                 {canDecide ? (
                   <div className="space-y-1.5">
-                    <button onClick={() => selectedId && handleAction("approve", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-emerald-500/15 text-emerald-300 rounded-lg text-xs font-medium hover:bg-emerald-500/25 transition-colors">
+                    <button onClick={() => selectedId && handleAction("approve", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-success-bg text-success-text rounded-lg text-xs font-medium hover:bg-success-bg transition-colors">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                     </button>
-                    <button onClick={() => selectedId && handleAction("reject", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-rose-500/15 text-rose-300 rounded-lg text-xs font-medium hover:bg-rose-500/25 transition-colors">
+                    <button onClick={() => selectedId && handleAction("reject", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-error-bg text-error-text rounded-lg text-xs font-medium hover:brightness-110/25 transition-colors">
                       <XCircle className="w-3.5 h-3.5" /> Reject
                     </button>
-                    <button onClick={() => selectedId && handleAction("request_changes", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-orange-500/15 text-orange-300 rounded-lg text-xs font-medium hover:bg-orange-500/25 transition-colors">
+                    <button onClick={() => selectedId && handleAction("request_changes", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-warning-bg text-warning-text rounded-lg text-xs font-medium hover:bg-warning-text/25 transition-colors">
                       <MessageCircle className="w-3.5 h-3.5" /> Request Changes
                     </button>
                     <button onClick={() => selectedId && handleAction("conditional_approval", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/15 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-500/25 transition-colors">
                       <Flag className="w-3.5 h-3.5" /> Approve with Conditions
                     </button>
-                    <button onClick={() => selectedId && handleAction("escalate", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-red-500/15 text-red-300 rounded-lg text-xs font-medium hover:bg-red-500/25 transition-colors">
+                    <button onClick={() => selectedId && handleAction("escalate", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-error-bg text-error-text rounded-lg text-xs font-medium hover:bg-error-text/25 transition-colors">
                       <ArrowUpRight className="w-3.5 h-3.5" /> Escalate
                     </button>
                   </div>
@@ -888,10 +873,10 @@ export default function ApprovalsPage() {
                     {selectedPath.stages.map(s => (
                       <div key={s.id} className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${
-                          s.stage_status === "COMPLETED" ? "bg-emerald-400" :
+                          s.stage_status === "COMPLETED" ? "bg-success-text" :
                           s.stage_status === "IN_PROGRESS" ? "bg-blue-400 animate-pulse" : "bg-[#333]"
                         }`} />
-                        <span className={`text-[10px] ${s.stage_status === "COMPLETED" ? "text-emerald-300" : s.stage_status === "IN_PROGRESS" ? "text-blue-300" : "text-[#555]"}`}>
+                        <span className={`text-[10px] ${s.stage_status === "COMPLETED" ? "text-success-text" : s.stage_status === "IN_PROGRESS" ? "text-blue-300" : "text-[#555]"}`}>
                           Stage {s.stage_order} · {s.required_role || s.stage_type}
                         </span>
                       </div>
@@ -911,7 +896,7 @@ export default function ApprovalsPage() {
                   <div className="space-y-2">
                     {selectedAuditLog.slice(0, 10).map(entry => (
                       <div key={entry.id} className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-400/50 mt-1 shrink-0" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-info-text/50 mt-1 shrink-0" />
                         <div>
                           <p className="text-[10px] text-[#888]">{entry.action.replace(/_/g, ' ')}{entry.new_value ? ` → ${entry.new_value}` : ""}</p>
                           <p className="text-[9px] text-[#555]">{timeAgo(entry.performed_at)}</p>

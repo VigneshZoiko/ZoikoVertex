@@ -91,24 +91,24 @@ interface ReviewNote {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   PENDING_REVIEW:    { label: "Pending",     color: "bg-blue-500/10 text-blue-300 border-blue-500/20" },
-  ASSIGNED:          { label: "Assigned",    color: "bg-indigo-500/10 text-indigo-300 border-indigo-500/20" },
-  IN_REVIEW:         { label: "In Review",   color: "bg-amber-500/10 text-amber-300 border-amber-500/20" },
+  ASSIGNED:          { label: "Assigned",    color: "bg-info-text/10 text-info-text border-info-border/20" },
+  IN_REVIEW:         { label: "In Review",   color: "bg-warning-text/10 text-warning-text border-warning-border/20" },
   AWAITING_REVISION: { label: "Returned",    color: "bg-orange-500/10 text-orange-300 border-orange-500/20" },
   RESUBMITTED:       { label: "Resubmitted", color: "bg-teal-500/10 text-teal-300 border-teal-500/20" },
-  APPROVED:          { label: "Approved",    color: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20" },
+  APPROVED:          { label: "Approved",    color: "bg-success-text/10 text-success-text border-success-border/20" },
   REJECTED:          { label: "Rejected",    color: "bg-red-500/10 text-red-400 border-red-500/20" },
   RETURNED:          { label: "Returned",    color: "bg-orange-500/10 text-orange-300 border-orange-500/20" },
   GOVERNANCE_BLOCKED:{ label: "Blocked",     color: "bg-red-600/10 text-red-400 border-red-600/20" },
   PENDING_VALIDATION:{ label: "Pending",     color: "bg-blue-500/10 text-blue-300 border-blue-500/20" },
   PENDING_AUTHORIZATION: { label: "Pending", color: "bg-blue-500/10 text-blue-300 border-blue-500/20" },
   PENDING_GOVERNANCE:{ label: "Pending",     color: "bg-blue-500/10 text-blue-300 border-blue-500/20" },
-  ESCALATED:         { label: "Escalated",   color: "bg-rose-500/10 text-rose-300 border-rose-500/20" },
-  RELEASED:          { label: "Released",    color: "bg-emerald-600/10 text-emerald-300 border-emerald-600/20" },
+  ESCALATED:         { label: "Escalated",   color: "bg-error-text/10 text-error-text border-error-border/20" },
+  RELEASED:          { label: "Released",    color: "bg-success-text/10 text-success-text border-success-border/20" },
 };
 
 const RISK_CONFIG: Record<string, string> = {
-  LOW:      "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  MEDIUM:   "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  LOW:      "bg-success-text/10 text-success-text border-success-border/20",
+  MEDIUM:   "bg-warning-text/10 text-warning-text border-warning-border/20",
   HIGH:     "bg-orange-500/10 text-orange-400 border-orange-500/20",
   CRITICAL: "bg-red-500/10 text-red-400 border-red-500/20",
 };
@@ -310,8 +310,8 @@ export default function ReviewQueuePage() {
       {message && (
         <div className={`mb-5 p-3 rounded-lg flex items-center gap-2.5 text-xs font-medium border ${
           message.type === "success"
-            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-            : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+            ? "bg-success-text/10 border-success-border/20 text-success-text"
+            : "bg-error-text/10 border-error-border/20 text-error-text"
         }`}>
           {message.type === "success" ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
           {message.text}
@@ -324,9 +324,9 @@ export default function ReviewQueuePage() {
         <div className="grid grid-cols-4 gap-4 mb-8">
           {[
             { label: "Needs Review", value: counts.needs_review,                              color: "text-blue-400" },
-            { label: "Resolve",      value: counts.resolve,                                   color: "text-amber-400" },
-            { label: "Approved",     value: stats.approved,                                   color: "text-emerald-400" },
-            { label: "Returned",     value: stats.rejected + stats.awaiting_revision,          color: "text-rose-400" },
+            { label: "Resolve",      value: counts.resolve,                                   color: "text-warning-text" },
+            { label: "Approved",     value: stats.approved,                                   color: "text-success-text" },
+            { label: "Returned",     value: stats.rejected + stats.awaiting_revision,          color: "text-error-text" },
           ].map(s => (
             <div key={s.label} className="p-4 bg-surface border border-border rounded-lg">
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -342,13 +342,13 @@ export default function ReviewQueuePage() {
         <div className="flex items-center gap-2 text-[10px] text-foreground-muted flex-1 flex-wrap">
           {["Upload", "AI Scan Flags", "Review Queue (shared)"].map((step, i, arr) => (
             <span key={step} className="flex items-center gap-2">
-              <span className={`px-2 py-0.5 bg-surface-hover border border-border rounded text-foreground-muted ${step.includes("shared") ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : ""}`}>{step}</span>
+              <span className={`px-2 py-0.5 bg-surface-hover border border-border rounded text-foreground-muted ${step.includes("shared") ? "text-warning-text border-warning-border/30 bg-warning-text/10" : ""}`}>{step}</span>
               {i < arr.length - 1 && <ArrowRight className="w-3 h-3 text-foreground-muted" />}
             </span>
           ))}
           <ArrowRight className="w-3 h-3 text-foreground-muted" />
           <span className="text-foreground-muted">Reviewer →</span>
-          <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 rounded text-emerald-400">Approve</span>
+          <span className="px-2 py-0.5 bg-success-text/10 border border-success-border/20 rounded text-success-text">Approve</span>
           <span className="text-foreground-muted">|</span>
           <span className="px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded text-red-400">Reject</span>
           <span className="text-foreground-muted">|</span>
@@ -386,7 +386,7 @@ export default function ReviewQueuePage() {
             ))}
           </div>
 
-          <div className="space-y-1.5 max-h-[600px] overflow-y-auto scrollbar-none">
+          <div className="space-y-1.5 h-[360px] overflow-y-auto scrollbar-none">
             {loading ? (
               <div className="flex flex-col items-center py-12 text-foreground-muted gap-3">
                 <div className="w-5 h-5 border-2 border-border border-t-zinc-400 rounded-full animate-spin" />
@@ -506,7 +506,7 @@ export default function ReviewQueuePage() {
                       )}
                       {isAgentItem && !agentPending && (
                         <div className={`rounded-lg p-2.5 text-center text-[10px] font-semibold border ${
-                          selectedItem.status === "APPROVED" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                          selectedItem.status === "APPROVED" ? "bg-success-text/10 text-success-text border-success-border/20" :
                           selectedItem.status === "REJECTED" || selectedItem.status === "GOVERNANCE_BLOCKED" ? "bg-red-500/10 text-red-400 border-red-500/20" :
                           "bg-orange-500/10 text-orange-400 border-orange-500/20"
                         }`}>
@@ -543,7 +543,7 @@ export default function ReviewQueuePage() {
                       )}
                       {!isAgentItem && isResolved && (
                         <div className={`rounded-lg p-2.5 text-center text-[10px] font-semibold border ${
-                          selectedItem.status === "APPROVED" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                          selectedItem.status === "APPROVED" ? "bg-success-text/10 text-success-text border-success-border/20" :
                           selectedItem.status === "REJECTED" ? "bg-red-500/10 text-red-400 border-red-500/20" :
                           "bg-orange-500/10 text-orange-400 border-orange-500/20"
                         }`}>

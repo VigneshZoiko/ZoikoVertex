@@ -146,9 +146,9 @@ export default function HumanReviewConsolePage() {
     const due = new Date(dueAt).getTime();
     const diff = due - now;
     
-    if (diff < 0) return { text: "BREACHED", color: "text-rose-500 bg-rose-500/10 border-rose-500/20 animate-pulse" };
-    if (diff < 30 * 60 * 1000) return { text: "AT RISK", color: "text-orange-500 bg-orange-500/10 border-orange-500/20" }; // < 30 mins
-    return { text: "ON TRACK", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" };
+    if (diff < 0) return { text: "BREACHED", color: "text-error-text bg-error-bg border-error-border animate-pulse" };
+    if (diff < 30 * 60 * 1000) return { text: "AT RISK", color: "text-warning-text bg-warning-bg border-warning-border" }; // < 30 mins
+    return { text: "ON TRACK", color: "text-success-text bg-success-bg border-success-border" };
   };
 
   const formatTimeDiff = (dueAt: string) => {
@@ -184,35 +184,35 @@ export default function HumanReviewConsolePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-foreground">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500 mb-4"></div>
-        <p className="text-[#888] font-medium font-mono text-sm">Initializing Human-in-the-Loop Console...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-warning-border mb-4"></div>
+        <p className="text-foreground-muted font-medium font-mono text-sm">Initializing Human-in-the-Loop Console...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#ddd] flex font-sans overflow-hidden h-screen selection:bg-amber-500/30 selection:text-white">
+    <div className="min-h-screen bg-background text-foreground flex font-sans overflow-hidden h-screen selection:bg-warning-bg selection:text-white">
       
       {/* -------------------------------------------------------------
           LEFT PANEL: REVIEW QUEUE
           ------------------------------------------------------------- */}
-      <div className="w-[450px] border-r border-[#222] bg-[#111] flex flex-col h-full flex-shrink-0">
-        <div className="p-4 border-b border-[#222] bg-[#141414]">
+      <div className="w-[450px] border-r border-border bg-surface flex flex-col h-full flex-shrink-0">
+        <div className="p-4 border-b border-border bg-surface">
           <h2 className="text-lg font-black text-foreground flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-amber-500" />
+            <ShieldAlert className="w-5 h-5 text-warning-text" />
             Active Review Queue
           </h2>
           <div className="flex items-center justify-between mt-3">
             <div className="relative flex-1 mr-3">
-              <Search className="w-3.5 h-3.5 text-[#666] absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-foreground-muted absolute left-3 top-1/2 -translate-y-1/2" />
               <input 
                 type="text" 
                 placeholder="Filter items..." 
-                className="w-full bg-black border border-[#2d2d2d] focus:border-[#555] rounded-lg pl-9 pr-4 py-1.5 text-xs text-foreground focus:outline-none"
+                className="w-full bg-background border border-border focus:border-border rounded-lg pl-9 pr-4 py-1.5 text-xs text-foreground focus:outline-none"
               />
             </div>
-            <button onClick={fetchQueue} className="p-2 bg-[#222] hover:bg-[#333] border border-[#333] rounded-lg text-foreground transition-colors">
+            <button onClick={fetchQueue} className="p-2 bg-surface hover:bg-surface-hover border border-border rounded-lg text-foreground transition-colors">
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -229,20 +229,20 @@ export default function HumanReviewConsolePage() {
                 onClick={() => fetchDetail(item.id)}
                 className={`p-3 rounded-xl border transition-all cursor-pointer select-none group ${
                   isSelected 
-                    ? "bg-[#1a1a1a] border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]" 
-                    : "bg-[#141414] border-[#222] hover:border-[#444]"
+                    ? "bg-surface border-warning-border shadow-[0_0_15px_rgba(245,158,11,0.1)]" 
+                    : "bg-surface border-border hover:border-border"
                 }`}
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex gap-2">
                     <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${
-                      item.priority === 'Critical' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-                      item.priority === 'High' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
-                      'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      item.priority === 'Critical' ? 'bg-error-bg text-error-text border-error-border' :
+                      item.priority === 'High' ? 'bg-warning-bg text-warning-text border-warning-border' :
+                      'bg-warning-bg text-warning-text border-warning-border'
                     }`}>
                       {item.priority}
                     </span>
-                    {item.priority === 'Critical' && <span className="text-[10px] text-[#666] font-bold">📌 Pinned</span>}
+                    {item.priority === 'Critical' && <span className="text-[10px] text-foreground-muted font-bold">📌 Pinned</span>}
                   </div>
                   <div className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[9px] font-bold ${sla.color}`}>
                     <Clock className="w-3 h-3" />
@@ -251,17 +251,17 @@ export default function HumanReviewConsolePage() {
                 </div>
 
                 <h4 className="text-xs font-bold text-foreground leading-tight mb-1">{item.brand} — {item.item_type}</h4>
-                <p className="text-[10px] text-[#888] line-clamp-2 leading-relaxed mb-3">{item.trigger_summary}</p>
+                <p className="text-[10px] text-foreground-muted line-clamp-2 leading-relaxed mb-3">{item.trigger_summary}</p>
 
-                <div className="flex justify-between items-center pt-2 border-t border-[#222]">
-                  <span className="text-[9px] font-mono text-[#666]">{item.id}</span>
+                <div className="flex justify-between items-center pt-2 border-t border-border">
+                  <span className="text-[9px] font-mono text-foreground-muted">{item.id}</span>
                   <div className="flex gap-2">
                     {item.owner === 'Unassigned' ? (
-                      <button className="px-2 py-1 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 rounded border border-amber-500/30 text-[9px] font-bold">
+                      <button className="px-2 py-1 bg-warning-bg text-warning-text hover:brightness-110 rounded border border-warning-border text-[9px] font-bold">
                         Assign Self
                       </button>
                     ) : (
-                      <span className="text-[9px] text-[#888] bg-[#222] px-2 py-1 rounded">
+                      <span className="text-[9px] text-foreground-muted bg-surface px-2 py-1 rounded">
                         <User className="w-2.5 h-2.5 inline mr-1" />{item.owner}
                       </span>
                     )}
@@ -270,7 +270,7 @@ export default function HumanReviewConsolePage() {
               </div>
             );
           }) : (
-            <div className="text-center py-10 text-xs text-[#666] font-mono">No items in queue.</div>
+            <div className="text-center py-10 text-xs text-foreground-muted font-mono">No items in queue.</div>
           )}
         </div>
       </div>
@@ -278,21 +278,21 @@ export default function HumanReviewConsolePage() {
       {/* -------------------------------------------------------------
           CENTER PANEL: DECISION CANVAS
           ------------------------------------------------------------- */}
-      <div className="flex-1 bg-[#0a0a0a] flex flex-col h-full relative z-10 overflow-hidden">
+      <div className="flex-1 bg-background flex flex-col h-full relative z-10 overflow-hidden">
         {selectedItem ? (
           <>
-            <div className="p-6 border-b border-[#222] bg-[#111]/80 backdrop-blur flex justify-between items-center">
+            <div className="p-6 border-b border-border bg-surface/80 backdrop-blur flex justify-between items-center">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-mono text-amber-500">Decision Canvas</span>
-                  <span className="px-2 py-0.5 bg-[#222] text-[#888] text-[9px] font-bold rounded uppercase">{selectedItem.decision_state}</span>
+                  <span className="text-xs font-mono text-warning-text">Decision Canvas</span>
+                  <span className="px-2 py-0.5 bg-surface text-foreground-muted text-[9px] font-bold rounded uppercase">{selectedItem.decision_state}</span>
                 </div>
                 <h1 className="text-2xl font-black text-foreground">{selectedItem.item_type} Review</h1>
               </div>
               {isConflictOfInterest && (
-                <div className="px-4 py-2 bg-rose-500/10 border border-rose-500/30 rounded-lg flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-rose-400" />
-                  <span className="text-xs font-bold text-rose-400">Conflict of Interest: Self-Approval Disabled</span>
+                <div className="px-4 py-2 bg-error-bg border border-error-border rounded-lg flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-error-text" />
+                  <span className="text-xs font-bold text-error-text">Conflict of Interest: Self-Approval Disabled</span>
                 </div>
               )}
             </div>
@@ -300,42 +300,42 @@ export default function HumanReviewConsolePage() {
             <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
               
               {/* Content Preview */}
-              <div className="bg-[#111] border border-[#222] rounded-xl overflow-hidden">
-                <div className="bg-[#141414] px-4 py-3 border-b border-[#222] flex justify-between items-center">
-                  <span className="text-xs font-bold text-[#888] uppercase tracking-wider flex items-center gap-2">
+              <div className="bg-surface border border-border rounded-xl overflow-hidden">
+                <div className="bg-surface px-4 py-3 border-b border-border flex justify-between items-center">
+                  <span className="text-xs font-bold text-foreground-muted uppercase tracking-wider flex items-center gap-2">
                     <Eye className="w-4 h-4" /> Content / Action Preview
                   </span>
-                  <span className="text-[10px] text-[#666] font-mono">Autonomy Band: {selectedItem.autonomy_band}</span>
+                  <span className="text-[10px] text-foreground-muted font-mono">Autonomy Band: {selectedItem.autonomy_band}</span>
                 </div>
-                <div className="p-6 text-sm text-foreground font-serif leading-relaxed italic border-l-4 border-amber-500/50 bg-[#151515]">
+                <div className="p-6 text-sm text-foreground font-serif leading-relaxed italic border-l-4 border-warning-border bg-surface">
                   {"\u201C"}{selectedItem.content_preview}{"\u201D"}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
                 {/* Risk Summary */}
-                <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-                  <h3 className="text-xs font-bold text-[#888] uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-orange-500" /> Risk Summary
+                <div className="bg-surface border border-border rounded-xl p-5">
+                  <h3 className="text-xs font-bold text-foreground-muted uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-warning-text" /> Risk Summary
                   </h3>
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center border-b border-[#222] pb-2">
-                      <span className="text-[11px] text-[#666]">Base Tier</span>
-                      <span className="text-xs font-black text-rose-400">{selectedItem.priority}</span>
+                    <div className="flex justify-between items-center border-b border-border pb-2">
+                      <span className="text-[11px] text-foreground-muted">Base Tier</span>
+                      <span className="text-xs font-black text-error-text">{selectedItem.priority}</span>
                     </div>
-                    <div className="flex justify-between items-center border-b border-[#222] pb-2">
-                      <span className="text-[11px] text-[#666]">Risk Factors</span>
+                    <div className="flex justify-between items-center border-b border-border pb-2">
+                      <span className="text-[11px] text-foreground-muted">Risk Factors</span>
                       <div className="flex flex-wrap gap-1 justify-end">
                         {selectedItem.risk_factors?.map(rf => (
-                          <span key={rf} className="px-1.5 py-0.5 bg-[#222] text-[#ddd] text-[9px] rounded font-medium">{rf}</span>
+                          <span key={rf} className="px-1.5 py-0.5 bg-surface text-foreground text-[9px] rounded font-medium">{rf}</span>
                         ))}
                       </div>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-[11px] text-[#666]">Jurisdictions</span>
+                      <span className="text-[11px] text-foreground-muted">Jurisdictions</span>
                       <div className="flex flex-wrap gap-1 justify-end">
                         {selectedItem.jurisdictions?.map(j => (
-                          <span key={j} className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] rounded font-medium">{j}</span>
+                          <span key={j} className="px-1.5 py-0.5 bg-info-bg text-info-text border border-info-border text-[9px] rounded font-medium">{j}</span>
                         ))}
                       </div>
                     </div>
@@ -344,53 +344,53 @@ export default function HumanReviewConsolePage() {
 
                 {/* AI Rec & Policy Trigger */}
                 <div className="space-y-6">
-                  <div className="bg-[#141414] border border-[#222] rounded-xl p-4 flex gap-3">
-                    <Cpu className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                  <div className="bg-surface border border-border rounded-xl p-4 flex gap-3">
+                    <Cpu className="w-5 h-5 text-info-text flex-shrink-0" />
                     <div>
-                      <span className="text-[10px] font-bold text-[#888] uppercase block mb-1">AI Recommendation (Informational)</span>
-                      <span className="text-sm font-black text-purple-400 uppercase tracking-wide">{selectedItem.ai_recommendation?.replace(/_/g, ' ')}</span>
-                      <p className="text-[9px] text-[#666] mt-1 italic">AI recommendations do not pre-select decision buttons.</p>
+                      <span className="text-[10px] font-bold text-foreground-muted uppercase block mb-1">AI Recommendation (Informational)</span>
+                      <span className="text-sm font-black text-info-text uppercase tracking-wide">{selectedItem.ai_recommendation?.replace(/_/g, ' ')}</span>
+                      <p className="text-[9px] text-foreground-muted mt-1 italic">AI recommendations do not pre-select decision buttons.</p>
                     </div>
                   </div>
 
-                  <div className="bg-[#111] border border-rose-500/20 rounded-xl p-4">
-                    <span className="text-[10px] font-bold text-rose-400 uppercase block mb-1 flex items-center gap-1.5">
+                  <div className="bg-surface border border-error-border rounded-xl p-4">
+                    <span className="text-[10px] font-bold text-error-text uppercase block mb-1 flex items-center gap-1.5">
                       <ShieldAlert className="w-3.5 h-3.5" /> Policy Trigger Stack
                     </span>
                     <span className="text-xs text-foreground font-mono">{selectedItem.policy_match}</span>
-                    <p className="text-[10px] text-[#888] mt-2 line-clamp-2">{selectedItem.trigger_summary}</p>
+                    <p className="text-[10px] text-foreground-muted mt-2 line-clamp-2">{selectedItem.trigger_summary}</p>
                   </div>
                 </div>
               </div>
 
               {/* Action Area */}
-              <div className="bg-[#111] border border-[#333] rounded-2xl p-6 shadow-2xl relative">
+              <div className="bg-surface border border-border rounded-2xl p-6 shadow-2xl relative">
                 
                 {requiresDualControl && (
-                  <div className="absolute -top-3 left-6 px-3 py-1 bg-indigo-500/20 border border-indigo-500/50 text-indigo-400 text-[10px] font-black rounded uppercase tracking-wider flex items-center gap-1.5 backdrop-blur-md">
+                  <div className="absolute -top-3 left-6 px-3 py-1 bg-info-bg border border-info-border text-info-text text-[10px] font-black rounded uppercase tracking-wider flex items-center gap-1.5 backdrop-blur-md">
                     <Lock className="w-3 h-3" /> Dual-Control Validation Required
                   </div>
                 )}
 
                 <div className="mb-5">
-                  <label className="block text-xs font-bold text-[#888] mb-2">Mandatory Rationale *</label>
+                  <label className="block text-xs font-bold text-foreground-muted mb-2">Mandatory Rationale *</label>
                   <textarea 
                     value={rationale}
                     onChange={(e) => setRationale(e.target.value)}
                     placeholder="Provide explicit reasoning for the decision. This is immutable and visible in audits."
-                    className="w-full h-24 bg-[#050505] border border-[#333] focus:border-amber-500/50 rounded-xl p-4 text-xs text-foreground placeholder-[#555] resize-none focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                    className="w-full h-24 bg-background border border-border focus:border-warning-border rounded-xl p-4 text-xs text-foreground placeholder-foreground-muted resize-none focus:outline-none focus:ring-warning-border"
                   />
                   {actionError && (
-                    <div className="mt-2 text-[10px] text-rose-400 font-semibold flex items-center gap-1">
+                    <div className="mt-2 text-[10px] text-error-text font-semibold flex items-center gap-1">
                       <AlertOctagon className="w-3 h-3" /> {actionError}
                     </div>
                   )}
                 </div>
 
                 {/* Downstream Impact Preview */}
-                <div className="bg-[#050505] border border-[#222] rounded-lg p-3 mb-6 min-h-[48px] flex items-center gap-2">
-                  <CornerDownRight className="w-4 h-4 text-[#555]" />
-                  <span className={`text-[10px] font-mono ${hoveredAction ? 'text-amber-400' : 'text-[#666]'}`}>
+                <div className="bg-background border border-border rounded-lg p-3 mb-6 min-h-[48px] flex items-center gap-2">
+                  <CornerDownRight className="w-4 h-4 text-foreground-muted" />
+                  <span className={`text-[10px] font-mono ${hoveredAction ? 'text-warning-text' : 'text-foreground-muted'}`}>
                     {getDownstreamPreview()}
                   </span>
                 </div>
@@ -401,7 +401,7 @@ export default function HumanReviewConsolePage() {
                     onMouseEnter={() => setHoveredAction('Approve')} onMouseLeave={() => setHoveredAction(null)}
                     onClick={() => handleDecision('Approve')}
                     disabled={isConflictOfInterest || submitting}
-                    className="py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-foreground text-xs font-black rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-1"
+                    className="py-3 px-4 bg-success-text hover:brightness-110 disabled:opacity-50 text-foreground text-xs font-black rounded-xl transition-all shadow-lg flex flex-col items-center justify-center gap-1"
                   >
                     <CheckCircle className="w-4 h-4" />
                     {requiresDualControl && !isFirstKeyTurned ? "Submit First Approval" : "Approve & Release"}
@@ -411,7 +411,7 @@ export default function HumanReviewConsolePage() {
                     onMouseEnter={() => setHoveredAction('Reject')} onMouseLeave={() => setHoveredAction(null)}
                     onClick={() => handleDecision('Reject')}
                     disabled={submitting}
-                    className="py-3 px-4 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-foreground text-xs font-black rounded-xl transition-all flex flex-col items-center justify-center gap-1"
+                    className="py-3 px-4 bg-error-text hover:brightness-110 disabled:opacity-50 text-foreground text-xs font-black rounded-xl transition-all flex flex-col items-center justify-center gap-1"
                   >
                     <XCircle className="w-4 h-4" />
                     Reject & Block
@@ -421,7 +421,7 @@ export default function HumanReviewConsolePage() {
                     onMouseEnter={() => setHoveredAction('Request Changes')} onMouseLeave={() => setHoveredAction(null)}
                     onClick={() => handleDecision('Request Changes')}
                     disabled={submitting}
-                    className="py-3 px-4 bg-[#222] hover:bg-[#333] border border-[#444] text-foreground text-xs font-bold rounded-xl transition-all flex flex-col items-center justify-center gap-1"
+                    className="py-3 px-4 bg-surface hover:bg-surface-hover border border-border text-foreground text-xs font-bold rounded-xl transition-all flex flex-col items-center justify-center gap-1"
                   >
                     <MessageSquare className="w-4 h-4" />
                     Request Changes
@@ -431,7 +431,7 @@ export default function HumanReviewConsolePage() {
                     onMouseEnter={() => setHoveredAction('Escalate')} onMouseLeave={() => setHoveredAction(null)}
                     onClick={() => handleDecision('Escalate')}
                     disabled={submitting}
-                    className="py-3 px-4 bg-orange-600 hover:bg-orange-700 text-foreground text-xs font-bold rounded-xl transition-all flex flex-col items-center justify-center gap-1"
+                    className="py-3 px-4 bg-warning-text hover:brightness-110 text-foreground text-xs font-bold rounded-xl transition-all flex flex-col items-center justify-center gap-1"
                   >
                     <AlertTriangle className="w-4 h-4" />
                     Escalate
@@ -442,14 +442,14 @@ export default function HumanReviewConsolePage() {
                    <button 
                     onMouseEnter={() => setHoveredAction('Quarantine')} onMouseLeave={() => setHoveredAction(null)}
                     onClick={() => handleDecision('Quarantine')}
-                    className="text-[10px] text-[#666] hover:text-white transition-colors uppercase font-bold tracking-widest mr-4"
+                    className="text-[10px] text-foreground-muted hover:text-foreground transition-colors uppercase font-bold tracking-widest mr-4"
                   >
                     Quarantine
                   </button>
                   <button 
                     onMouseEnter={() => setHoveredAction('Pause Agent')} onMouseLeave={() => setHoveredAction(null)}
                     onClick={() => handleDecision('Pause Agent')}
-                    className="text-[10px] text-rose-500 hover:text-rose-400 transition-colors uppercase font-bold tracking-widest"
+                    className="text-[10px] text-error-text hover:text-error-text transition-colors uppercase font-bold tracking-widest"
                   >
                     Emergency Pause Agent
                   </button>
@@ -459,7 +459,7 @@ export default function HumanReviewConsolePage() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-[#555]">
+          <div className="flex-1 flex flex-col items-center justify-center text-foreground-muted">
             <ShieldCheck className="w-16 h-16 mb-4 opacity-20" />
             <p className="text-sm font-medium">Select an item from the queue to begin review.</p>
           </div>
@@ -469,10 +469,10 @@ export default function HumanReviewConsolePage() {
       {/* -------------------------------------------------------------
           RIGHT PANEL: EVIDENCE DRAWER
           ------------------------------------------------------------- */}
-      <div className="w-[380px] border-l border-[#222] bg-[#111] flex flex-col h-full flex-shrink-0 z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
-        <div className="p-4 border-b border-[#222] bg-[#141414] flex justify-between items-center">
+      <div className="w-[380px] border-l border-border bg-surface flex flex-col h-full flex-shrink-0 z-20 shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
+        <div className="p-4 border-b border-border bg-surface flex justify-between items-center">
           <h2 className="text-sm font-black text-foreground flex items-center gap-2 uppercase tracking-widest">
-            <Archive className="w-4 h-4 text-[#888]" />
+            <Archive className="w-4 h-4 text-foreground-muted" />
             Evidence Drawer
           </h2>
         </div>
@@ -481,73 +481,73 @@ export default function HumanReviewConsolePage() {
           <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
             
             {/* Export Hash */}
-            <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-xl flex items-start gap-3">
-              <Download className="w-4 h-4 text-blue-400 mt-0.5" />
+            <div className="p-3 bg-info-bg border border-info-border rounded-xl flex items-start gap-3">
+              <Download className="w-4 h-4 text-info-text mt-0.5" />
               <div>
-                <span className="text-[10px] font-bold text-blue-400 block mb-0.5">Export Immutable Evidence</span>
-                <span className="text-[9px] text-[#666] font-mono block break-all">{selectedItem.evidence_hash}</span>
+                <span className="text-[10px] font-bold text-info-text block mb-0.5">Export Immutable Evidence</span>
+                <span className="text-[9px] text-foreground-muted font-mono block break-all">{selectedItem.evidence_hash}</span>
               </div>
             </div>
 
             {/* Provenance */}
             <div>
-              <h4 className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-3">Provenance & Lineage</h4>
+              <h4 className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider mb-3">Provenance & Lineage</h4>
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span className="text-[#666]">Agent Identity</span>
+                  <span className="text-foreground-muted">Agent Identity</span>
                   <span className="text-foreground font-mono">{selectedItem.agent_id}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-[#666]">Source Workspace</span>
+                  <span className="text-foreground-muted">Source Workspace</span>
                   <span className="text-foreground font-mono">{selectedItem.workspace_id?.substring(0,8)}</span>
                 </div>
                 <div className="mt-3">
-                  <span className="text-[10px] text-[#666] block mb-1">Execution Chain:</span>
-                  <div className="flex gap-2 font-mono text-[9px] text-amber-500">
+                  <span className="text-[10px] text-foreground-muted block mb-1">Execution Chain:</span>
+                  <div className="flex gap-2 font-mono text-[9px] text-warning-text">
                     {selectedItem.provenance?.map((p, i) => (
-                      <span key={i} className="px-1.5 py-0.5 bg-[#222] border border-[#333] rounded">{p}</span>
+                      <span key={i} className="px-1.5 py-0.5 bg-surface border border-border rounded">{p}</span>
                     ))}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="h-px bg-[#222] w-full" />
+            <div className="h-px bg-surface w-full" />
 
             {/* Classification */}
             <div>
-              <h4 className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-3">Intake Classification</h4>
-              <div className="bg-[#141414] border border-[#222] rounded-lg p-3 space-y-2">
+              <h4 className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider mb-3">Intake Classification</h4>
+              <div className="bg-surface border border-border rounded-lg p-3 space-y-2">
                 <div className="flex justify-between text-[10px]">
-                  <span className="text-[#666]">Outcome Code</span>
-                  <span className="text-emerald-400 font-mono font-bold">hold_for_review</span>
+                  <span className="text-foreground-muted">Outcome Code</span>
+                  <span className="text-success-text font-mono font-bold">hold_for_review</span>
                 </div>
                 <div className="flex justify-between text-[10px]">
-                  <span className="text-[#666]">Intake Confidence</span>
+                  <span className="text-foreground-muted">Intake Confidence</span>
                   <span className="text-foreground">99.4%</span>
                 </div>
               </div>
             </div>
             
-            <div className="h-px bg-[#222] w-full" />
+            <div className="h-px bg-surface w-full" />
 
             {/* Prior Decisions */}
             <div>
-              <h4 className="text-[10px] font-bold text-[#888] uppercase tracking-wider mb-3">Prior Decisions (Context)</h4>
+              <h4 className="text-[10px] font-bold text-foreground-muted uppercase tracking-wider mb-3">Prior Decisions (Context)</h4>
               <div className="space-y-2">
-                <div className="p-2 border border-[#333] rounded bg-[#1a1a1a] text-[10px]">
+                <div className="p-2 border border-border rounded bg-surface text-[10px]">
                   <div className="flex justify-between mb-1">
-                    <span className="text-rose-400 font-bold uppercase">Block</span>
-                    <span className="text-[#666]">14d ago</span>
+                    <span className="text-error-text font-bold uppercase">Block</span>
+                    <span className="text-foreground-muted">14d ago</span>
                   </div>
-                  <p className="text-[#888] truncate">Same policy triggered by AGT-FIN-01.</p>
+                  <p className="text-foreground-muted truncate">Same policy triggered by AGT-FIN-01.</p>
                 </div>
               </div>
             </div>
 
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-[#555]">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-foreground-muted">
             <FileText className="w-10 h-10 mb-3 opacity-20" />
             <p className="text-xs">Context will populate automatically upon review selection.</p>
           </div>

@@ -69,7 +69,7 @@ import { api } from "@/lib/api";
 // ── Platform colour map ────────────────────────────────────────────────────────
 const PLATFORM_COLORS: Record<string, string> = {
   facebook:  'bg-blue-600',
-  instagram: 'bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600',
+  instagram: 'bg-gradient-to-br from-yellow-400 via-pink-500 to-info-text',
   twitter:   'bg-black',
   x:         'bg-black',
   linkedin:  'bg-blue-700',
@@ -153,8 +153,8 @@ function PostPreview({
             onClick={() => setActivePlatform(p)}
             className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all border ${
               activePlatform === p
-                ? 'bg-indigo-600 text-foreground border-indigo-600'
-                : 'bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)] hover:border-indigo-500/50'
+                ? 'bg-info-text text-foreground border-info-border'
+                : 'bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)] hover:border-info-border/50'
             }`}
           >
             {PLATFORM_LABEL[p] || p}
@@ -251,7 +251,7 @@ function PostPreview({
         {/* ── Instagram header ── */}
         {isInstagram && (
           <div className="flex items-center gap-2.5 px-3 py-2.5">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600 p-0.5 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-info-text p-0.5 shrink-0">
               <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-xs font-bold text-zinc-900">
                 {initials}
               </div>
@@ -436,7 +436,7 @@ function AccountDropdown({
     <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4" ref={dropRef}>
       <div className="flex items-center justify-between mb-2">
         <label className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
-          <Globe className="w-3.5 h-3.5 text-indigo-400" />
+          <Globe className="w-3.5 h-3.5 text-info-text" />
           Post To
         </label>
         {selectedAccs.length > 0 && (
@@ -455,7 +455,7 @@ function AccountDropdown({
               <span className="text-[11px] font-semibold text-[var(--foreground)] truncate max-w-[100px]">
                 {a.account_name || a.account_handle || a.platform}
               </span>
-              <button onClick={() => toggleAccountSelection(a.id)} className="text-[var(--foreground-muted)] hover:text-rose-400 transition-colors ml-0.5">
+              <button onClick={() => toggleAccountSelection(a.id)} className="text-[var(--foreground-muted)] hover:text-error-text transition-colors ml-0.5">
                 <XCircle className="w-3 h-3" />
               </button>
             </div>
@@ -467,7 +467,7 @@ function AccountDropdown({
       <div className="relative">
         <button
           onClick={() => setOpen(o => !o)}
-          className="w-full flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] hover:border-indigo-500/50 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-muted)] transition-all text-left"
+          className="w-full flex items-center gap-2 bg-[var(--surface)] border border-[var(--border)] hover:border-info-border/50 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-muted)] transition-all text-left"
         >
           <Globe className="w-4 h-4 shrink-0" />
           <span className="flex-1">{selectedAccs.length === 0 ? 'Select social accounts…' : 'Add more accounts…'}</span>
@@ -483,7 +483,7 @@ function AccountDropdown({
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search accounts…"
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-info-border transition-colors"
               />
             </div>
             {/* List — capped at ~4 accounts (56px each) with scroll */}
@@ -507,9 +507,9 @@ function AccountDropdown({
                       disabled={blocked}
                       className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left ${
                         blocked
-                          ? 'opacity-40 cursor-not-allowed bg-rose-500/5'
+                          ? 'opacity-40 cursor-not-allowed bg-error-text/5'
                           : isSel
-                            ? 'bg-indigo-500/5 hover:bg-indigo-500/10'
+                            ? 'bg-info-text/5 hover:bg-info-text/10'
                             : 'hover:bg-[var(--surface)]'
                       }`}
                     >
@@ -519,17 +519,17 @@ function AccountDropdown({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-[var(--foreground)] truncate">{a.account_name || a.account_handle}</p>
                         {blocked ? (
-                          <p className="text-[11px] text-rose-400 truncate">Not supported — {warning || 'incompatible media'}</p>
+                          <p className="text-[11px] text-error-text truncate">Not supported — {warning || 'incompatible media'}</p>
                         ) : warning ? (
-                          <p className="text-[11px] text-amber-400 truncate">{warning}</p>
+                          <p className="text-[11px] text-warning-text truncate">{warning}</p>
                         ) : (
                           <p className="text-[11px] text-[var(--foreground-muted)] capitalize">{a.platform}{a.account_handle ? ` · @${a.account_handle}` : ''}</p>
                         )}
                       </div>
                       {blocked ? (
-                        <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                        <XCircle className="w-4 h-4 text-error-text shrink-0" />
                       ) : (
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isSel ? 'bg-indigo-600 border-indigo-600' : 'border-[var(--border)]'}`}>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${isSel ? 'bg-info-text border-info-border' : 'border-[var(--border)]'}`}>
                           {isSel && <CheckCircle2 className="w-3 h-3 text-foreground" />}
                         </div>
                       )}
@@ -542,7 +542,7 @@ function AccountDropdown({
             {selectedAccs.length > 0 && (
               <div className="p-3 border-t border-[var(--border)] flex items-center justify-between">
                 <span className="text-[11px] text-[var(--foreground-muted)]">{selectedAccs.length} selected</span>
-                <button onClick={() => setOpen(false)} className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors">Done</button>
+                <button onClick={() => setOpen(false)} className="text-xs font-bold text-info-text hover:text-info-text transition-colors">Done</button>
               </div>
             )}
           </div>
@@ -550,7 +550,7 @@ function AccountDropdown({
       </div>
 
       {postableAccounts.length === 0 && (
-        <p className="text-[11px] text-amber-400 mt-2">
+        <p className="text-[11px] text-warning-text mt-2">
           No social accounts connected yet — <a href="/accounts" className="underline">connect platforms</a> to start posting.
         </p>
       )}
@@ -976,7 +976,6 @@ function PublishPageInner() {
         const data = await api.post("/api/v1/ai/analyze-image", {
           imageBase64: optimizedBase64,
         });
-        console.log("[VISION] Analysis Result:", data);
         if (data.success && data.analysis) {
           sessionStorage.setItem("lastImageAnalysis", data.analysis);
           setHasImageAnalysis(true);
@@ -1568,7 +1567,7 @@ function PublishPageInner() {
   if (loading || userRole === null) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-[var(--foreground-muted)] space-y-4">
-        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-10 h-10 border-4 border-info-border border-t-transparent rounded-full animate-spin"></div>
         <p className="text-sm font-bold uppercase tracking-widest animate-pulse">
           Syncing Environment...
         </p>
@@ -1581,7 +1580,7 @@ function PublishPageInner() {
       {/* Decent Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 border-b border-[var(--border)] pb-8">
         <div className="flex items-center gap-4">
-          <div className="relative w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl shadow-indigo-500/20">
+          <div className="relative w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl shadow-info-text/20">
             <Image
               src="/images/zoikovertexlogo.png"
               alt="Logo"
@@ -1605,7 +1604,7 @@ function PublishPageInner() {
           {isDirty && userRole === "MANAGER" && (
             <button
               onClick={handleDiscard}
-              className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 rounded-xl text-xs font-bold transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-error-text/10 border border-error-border/20 text-error-text hover:bg-error-text/20 rounded-xl text-xs font-bold transition-all"
             >
               <Trash2 className="w-4 h-4" />
               Discard Draft
@@ -1614,7 +1613,7 @@ function PublishPageInner() {
           {revisions.length > 0 && userRole === "CREATOR" && (
             <button
               onClick={() => router.push("/review")}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-xl text-xs font-bold"
+              className="flex items-center gap-2 px-4 py-2 bg-warning-text/10 border border-warning-border/20 text-warning-text rounded-xl text-xs font-bold"
             >
               <AlertCircle className="w-4 h-4" />
               {revisions.length} Tasks Awaiting Review
@@ -1622,7 +1621,7 @@ function PublishPageInner() {
           )}
           <div className="px-4 py-1.5 bg-[var(--card)] border border-[var(--border)] rounded-lg flex items-center gap-2">
             <div
-              className={`w-1.5 h-1.5 rounded-full ${userRole?.toUpperCase() === "ADMIN" ? "bg-rose-500" : "bg-emerald-500"}`}
+              className={`w-1.5 h-1.5 rounded-full ${userRole?.toUpperCase() === "ADMIN" ? "bg-error-text" : "bg-success-text"}`}
             />
             <span className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-widest">
               {userRole}
@@ -1633,10 +1632,10 @@ function PublishPageInner() {
 
       {/* Revisions Banner */}
       {revisions.length > 0 && userRole === "CREATOR" && (
-        <div className="mb-8 p-6 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
+        <div className="mb-8 p-6 bg-warning-text/5 border border-warning-border/20 rounded-2xl">
           <div className="flex items-center gap-3 mb-4">
-            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-            <p className="text-sm font-black text-amber-500 uppercase tracking-tight">
+            <AlertCircle className="w-5 h-5 text-warning-text shrink-0" />
+            <p className="text-sm font-black text-warning-text uppercase tracking-tight">
               Revisions Requested: {revisions.length} Drafts
             </p>
           </div>
@@ -1651,7 +1650,7 @@ function PublishPageInner() {
                 </p>
                 <button
                   onClick={() => loadRevision(rev)}
-                  className="w-full py-1.5 bg-amber-500/20 text-amber-500 text-[10px] font-bold rounded-lg uppercase hover:bg-amber-500/30 transition-all"
+                  className="w-full py-1.5 bg-warning-text/20 text-warning-text text-[10px] font-bold rounded-lg uppercase hover:bg-warning-text/30 transition-all"
                 >
                   Edit Revision
                 </button>
@@ -1663,7 +1662,7 @@ function PublishPageInner() {
 
       {message && (
         <div
-          className={`mb-8 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in fade-in duration-300 ${message.type === "success" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border border-rose-500/20 text-rose-400"}`}
+          className={`mb-8 p-4 rounded-xl flex items-center gap-3 text-sm font-medium animate-in fade-in duration-300 ${message.type === "success" ? "bg-success-text/10 border border-success-border/20 text-success-text" : "bg-error-text/10 border border-error-border/20 text-error-text"}`}
         >
           {message.type === "success" ? (
             <CheckCircle2 className="w-4 h-4" />
@@ -1683,10 +1682,10 @@ function PublishPageInner() {
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
-                <FolderKanban className="w-3.5 h-3.5 text-indigo-400" />
+                <FolderKanban className="w-3.5 h-3.5 text-info-text" />
                 Campaign <span className="text-[var(--foreground-muted)] font-normal">(optional)</span>
               </label>
-              <Link href="/campaigns" className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+              <Link href="/campaigns" className="text-[11px] text-info-text hover:text-info-text transition-colors">
                 Manage campaigns →
               </Link>
             </div>
@@ -1698,7 +1697,7 @@ function PublishPageInner() {
               <select
                 value={selectedCampaignId}
                 onChange={e => setSelectedCampaignId(e.target.value)}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border transition-colors"
               >
                 <option value="">Select a campaign…</option>
                 {publishCampaigns.map(c => (
@@ -1707,7 +1706,7 @@ function PublishPageInner() {
               </select>
             )}
             {selectedCampaignId && (
-              <p className="text-[11px] text-emerald-400 mt-2 flex items-center gap-1">
+              <p className="text-[11px] text-success-text mt-2 flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3" />
                 Post will be linked to this campaign and can be boosted after publishing.
               </p>
@@ -1733,7 +1732,7 @@ function PublishPageInner() {
                 Media
               </h3>
               {mediaUrls.length > 1 && (
-                <span className="text-xs text-indigo-400 font-bold bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-lg">
+                <span className="text-xs text-info-text font-bold bg-info-text/10 border border-info-border/20 px-3 py-1 rounded-lg">
                   Pack · {mediaUrls.length} files
                 </span>
               )}
@@ -1875,7 +1874,7 @@ function PublishPageInner() {
                           setCarouselIndex(i);
                           setMediaPreview(url);
                         }}
-                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 relative transition-all ${i === carouselIndex ? "border-indigo-500" : "border-transparent opacity-60 hover:opacity-100"}`}
+                        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 relative transition-all ${i === carouselIndex ? "border-info-border" : "border-transparent opacity-60 hover:opacity-100"}`}
                       >
                         <Image
                           src={url}
@@ -1954,7 +1953,7 @@ function PublishPageInner() {
                       setIsPlatformSpecific(true);
                       if (!activePlatformTab) setActivePlatformTab("Instagram");
                     }}
-                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? "bg-indigo-600 text-foreground shadow-sm shadow-indigo-500/20" : "text-[var(--foreground-muted)] hover:text-[var(--foreground-muted)]"}`}
+                    className={`px-4 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${isPlatformSpecific ? "bg-info-text text-foreground shadow-sm shadow-info-text/20" : "text-[var(--foreground-muted)] hover:text-[var(--foreground-muted)]"}`}
                   >
                     Per Platform
                   </button>
@@ -1978,7 +1977,7 @@ function PublishPageInner() {
                           }));
                         }
                       }}
-                      className={`px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${activePlatformTab === p ? "bg-amber-500/10 border-amber-500 text-amber-500" : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--card-border)]"}`}
+                      className={`px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${activePlatformTab === p ? "bg-warning-text/10 border-warning-border text-warning-text" : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-[var(--card-border)]"}`}
                     >
                       {p}
                     </button>
@@ -2016,14 +2015,14 @@ function PublishPageInner() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setShowAIWriter(!showAIWriter)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${showAIWriter ? "bg-indigo-600 text-foreground" : "bg-[var(--surface)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"}`}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${showAIWriter ? "bg-info-text text-foreground" : "bg-[var(--surface)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"}`}
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       AI Studio
                     </button>
                     <button
                       onClick={() => setUseEmojis(!useEmojis)}
-                      className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border ${useEmojis ? "bg-amber-500/10 border-amber-500/20 text-amber-500" : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)]"}`}
+                      className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all border ${useEmojis ? "bg-warning-text/10 border-warning-border/20 text-warning-text" : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground-muted)]"}`}
                     >
                       😊
                     </button>
@@ -2034,7 +2033,7 @@ function PublishPageInner() {
                         isPlatformSpecific &&
                         (platformCaptions[activePlatformTab]?.length || 0) >
                           (PLATFORM_LIMITS[activePlatformTab] || 9999)
-                          ? "text-rose-500"
+                          ? "text-error-text"
                           : "text-[var(--foreground-muted)]"
                       }`}
                     >
@@ -2050,7 +2049,7 @@ function PublishPageInner() {
                     {isPlatformSpecific &&
                       (platformCaptions[activePlatformTab]?.length || 0) >
                         (PLATFORM_LIMITS[activePlatformTab] || 9999) && (
-                        <span className="text-[9px] text-rose-400 font-bold flex items-center gap-1 mt-1">
+                        <span className="text-[9px] text-error-text font-bold flex items-center gap-1 mt-1">
                           <AlertTriangle className="w-2.5 h-2.5" />
                           Exceeds limit
                         </span>
@@ -2094,7 +2093,7 @@ function PublishPageInner() {
                     </div>
                     <div className="w-24 h-1.5 bg-[var(--surface)] rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-indigo-500"
+                        className="h-full bg-info-text"
                         style={{ width: `${metrics.viral_score}%` }}
                       />
                     </div>
@@ -2104,7 +2103,7 @@ function PublishPageInner() {
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--foreground-muted)] block mb-1">
                     Sentiment
                   </label>
-                  <div className="text-xl font-bold text-emerald-400">
+                  <div className="text-xl font-bold text-success-text">
                     {metrics.sentiment_score && metrics.sentiment_score > 0.7
                       ? "Positive"
                       : "Balanced"}
@@ -2210,29 +2209,29 @@ function PublishPageInner() {
             return (
               <div className="space-y-2">
                 {blocking.map((v, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-                    <AlertTriangle className="w-4 h-4 text-rose-400 mt-0.5 shrink-0" />
+                  <div key={i} className="flex items-start gap-3 p-3 bg-error-text/10 border border-error-border/20 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-error-text mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-bold text-rose-400 capitalize">{v.platform} — not supported</p>
-                      <p className="text-[11px] text-rose-300 mt-0.5">{v.message}</p>
+                      <p className="text-xs font-bold text-error-text capitalize">{v.platform} — not supported</p>
+                      <p className="text-[11px] text-error-text mt-0.5">{v.message}</p>
                     </div>
                   </div>
                 ))}
                 {metaFormatHints.map((hint, i) => (
-                  <div key={`hint-${i}`} className="flex items-start gap-3 p-3 bg-amber-500/8 border border-amber-500/20 rounded-xl">
-                    <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                  <div key={`hint-${i}`} className="flex items-start gap-3 p-3 bg-warning-text/8 border border-warning-border/20 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-warning-text mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-bold text-amber-400">Meta Format Warning</p>
-                      <p className="text-[11px] text-amber-300 mt-0.5">{hint}</p>
+                      <p className="text-xs font-bold text-warning-text">Meta Format Warning</p>
+                      <p className="text-[11px] text-warning-text mt-0.5">{hint}</p>
                     </div>
                   </div>
                 ))}
                 {warnings.filter(v => !metaFormatHints.length).map((v, i) => (
-                  <div key={`w-${i}`} className="flex items-start gap-3 p-3 bg-amber-500/8 border border-amber-500/20 rounded-xl">
-                    <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                  <div key={`w-${i}`} className="flex items-start gap-3 p-3 bg-warning-text/8 border border-warning-border/20 rounded-xl">
+                    <AlertTriangle className="w-4 h-4 text-warning-text mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-xs font-bold text-amber-400 capitalize">{v.platform}</p>
-                      <p className="text-[11px] text-amber-300 mt-0.5">{v.message}</p>
+                      <p className="text-xs font-bold text-warning-text capitalize">{v.platform}</p>
+                      <p className="text-[11px] text-warning-text mt-0.5">{v.message}</p>
                     </div>
                   </div>
                 ))}
@@ -2252,13 +2251,13 @@ function PublishPageInner() {
 
             return (
               <div className={`hidden bg-[var(--card)] border rounded-2xl p-4 space-y-3 transition-all ${
-                hasBlocking ? "border-rose-500/30 opacity-50" : "border-[var(--border)]"
+                hasBlocking ? "border-error-border/30 opacity-50" : "border-[var(--border)]"
               }`}>
                 <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
-                  <FolderKanban className="w-3.5 h-3.5 text-indigo-400" />
+                  <FolderKanban className="w-3.5 h-3.5 text-info-text" />
                   Link to Campaign
                   {hasBlocking && (
-                    <span className="ml-auto text-[10px] text-rose-400 font-semibold">Fix media issues first</span>
+                    <span className="ml-auto text-[10px] text-error-text font-semibold">Fix media issues first</span>
                   )}
                 </h3>
                 {publishCampaigns.length === 0 ? (
@@ -2269,7 +2268,7 @@ function PublishPageInner() {
                     onChange={e => setSelectedCampaignId(e.target.value)}
                     disabled={hasBlocking}
                     title={hasBlocking ? "Fix media format errors above before linking to a campaign" : undefined}
-                    className={`w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-indigo-500 transition-colors ${
+                    className={`w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm text-[var(--foreground)] focus:outline-none focus:border-info-border transition-colors ${
                       hasBlocking ? "cursor-not-allowed opacity-50" : ""
                     }`}
                   >
@@ -2280,7 +2279,7 @@ function PublishPageInner() {
                   </select>
                 )}
                 {!hasBlocking && selectedCampaignId && (
-                  <p className="text-[11px] text-emerald-400">
+                  <p className="text-[11px] text-success-text">
                     ✓ This post will be linked to the campaign and can be boosted as a paid ad after publishing.
                   </p>
                 )}
@@ -2296,7 +2295,7 @@ function PublishPageInner() {
             onClick={handleSubmitIntent}
             disabled={submitting || !canPublish}
             title={!canPublish ? "Your role cannot publish content" : undefined}
-            className="w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-indigo-600 text-foreground hover:bg-indigo-500"
+            className="w-full py-4 font-bold rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 bg-info-text text-foreground hover:bg-info-text"
           >
             {submitting ? (
               <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -2316,7 +2315,7 @@ function PublishPageInner() {
           {/* Post Preview */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4">
             <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2 mb-3">
-              <Eye className="w-3.5 h-3.5 text-indigo-400" />
+              <Eye className="w-3.5 h-3.5 text-info-text" />
               Post Preview
             </h3>
             <PostPreview
@@ -2339,7 +2338,7 @@ function PublishPageInner() {
           <div className="hidden bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 hidden-week-cal">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
-                <Calendar className="w-3 h-3 text-indigo-400" />
+                <Calendar className="w-3 h-3 text-info-text" />
                 This Week
               </h3>
             </div>
@@ -2357,12 +2356,12 @@ function PublishPageInner() {
                   return (
                     <div key={day} className="text-center">
                       <div
-                        className={`text-[10px] font-medium mb-1 ${isToday ? "text-indigo-400" : "text-[var(--foreground-muted)]"}`}
+                        className={`text-[10px] font-medium mb-1 ${isToday ? "text-info-text" : "text-[var(--foreground-muted)]"}`}
                       >
                         {day}
                       </div>
                       <div
-                        className={`text-sm font-bold mb-2 ${isToday ? "text-indigo-400" : "text-[var(--foreground)]"}`}
+                        className={`text-sm font-bold mb-2 ${isToday ? "text-info-text" : "text-[var(--foreground)]"}`}
                       >
                         {date.getDate()}
                       </div>
@@ -2370,7 +2369,7 @@ function PublishPageInner() {
                         {posts.slice(0, 2).map((post) => (
                           <div
                             key={post.id}
-                            className={`h-1.5 rounded-full ${post.status === "SCHEDULED" ? "bg-emerald-500" : post.status === "PUBLISHED" ? "bg-blue-500" : "bg-rose-500"}`}
+                            className={`h-1.5 rounded-full ${post.status === "SCHEDULED" ? "bg-success-text" : post.status === "PUBLISHED" ? "bg-blue-500" : "bg-error-text"}`}
                           />
                         ))}
                         {posts.length > 2 && (
@@ -2389,7 +2388,7 @@ function PublishPageInner() {
           {/* Scheduled Posts — moved to Calendar page */}
           <div className="hidden bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
             <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2 mb-2">
-              <Clock className="w-3 h-3 text-emerald-400" />
+              <Clock className="w-3 h-3 text-success-text" />
               Scheduled ({scheduledPosts.length})
             </h3>
             {scheduledPosts.length === 0 ? (
@@ -2408,11 +2407,11 @@ function PublishPageInner() {
                     className="w-full p-3 bg-[var(--surface)] border border-[var(--border)] rounded-xl hover:border-[var(--card-border)] transition-all text-left"
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-indigo-400">
+                      <span className="text-xs font-bold text-info-text">
                         {post.platform}
                       </span>
                       <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded ${post.status === "SCHEDULED" ? "bg-emerald-500/20 text-emerald-400" : "bg-[var(--surface-hover)] text-[var(--foreground-muted)]"}`}
+                        className={`text-[10px] px-1.5 py-0.5 rounded ${post.status === "SCHEDULED" ? "bg-success-text/20 text-success-text" : "bg-[var(--surface-hover)] text-[var(--foreground-muted)]"}`}
                       >
                         {post.status}
                       </span>
@@ -2437,7 +2436,7 @@ function PublishPageInner() {
           <div className="hidden bg-[var(--card)] border border-[var(--border)] rounded-xl p-3">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-2">
-                <ListTodo className="w-3 h-3 text-indigo-400" />
+                <ListTodo className="w-3 h-3 text-info-text" />
                 Recent Posts
               </h3>
               <button
@@ -2469,21 +2468,21 @@ function PublishPageInner() {
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold text-indigo-400 uppercase">
+                        <span className="text-[10px] font-bold text-info-text uppercase">
                           {post.platform}
                         </span>
                         <span
                           className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                             isPub
-                              ? "bg-emerald-500/20 text-emerald-400"
+                              ? "bg-success-text/20 text-success-text"
                               : isFailed || isRejected
-                                ? "bg-rose-500/20 text-rose-400"
+                                ? "bg-error-text/20 text-error-text"
                                 : isReturned
                                   ? "bg-orange-500/20 text-orange-400"
                                   : isPending
                                     ? "bg-blue-500/20 text-blue-400"
                                     : isApproved
-                                      ? "bg-amber-500/20 text-amber-400"
+                                      ? "bg-warning-text/20 text-warning-text"
                                       : "bg-[var(--surface-hover)] text-[var(--foreground-muted)]"
                           }`}
                         >
@@ -2509,7 +2508,7 @@ function PublishPageInner() {
                         <p className={`text-[9px] rounded px-1.5 py-1 mt-1 break-words ${
                           isReturned
                             ? "text-orange-400 bg-orange-500/10"
-                            : "text-rose-400 bg-rose-500/10"
+                            : "text-error-text bg-error-text/10"
                         }`}>
                           {isReturned ? "Reviewer: " : ""}{reviewerNote}
                         </p>
@@ -2530,7 +2529,7 @@ function PublishPageInner() {
           {/* AI Scheduler */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5">
             <h3 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2 mb-4">
-              <Sparkles className="w-4 h-4 text-amber-400" />
+              <Sparkles className="w-4 h-4 text-warning-text" />
               AI Scheduler
             </h3>
 
@@ -2568,8 +2567,8 @@ function PublishPageInner() {
                         onClick={() => { setSchedulerDate(dateStr); setSuggestedTimes([]); }}
                         className={`flex flex-col items-center py-1.5 rounded-lg border text-center transition-all ${
                           schedulerDate === dateStr
-                            ? 'bg-amber-500/20 border-amber-500/50 text-amber-400'
-                            : 'bg-[var(--surface)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-amber-500/30 hover:text-[var(--foreground)]'
+                            ? 'bg-warning-text/20 border-warning-border/50 text-warning-text'
+                            : 'bg-[var(--surface)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-warning-border/30 hover:text-[var(--foreground)]'
                         }`}
                       >
                         <span className="text-[8px] font-bold uppercase leading-none">{dayLabel}</span>
@@ -2589,14 +2588,14 @@ function PublishPageInner() {
                       setSuggestedTimes([]);
                     }
                   }}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none focus:border-amber-500/50 transition-colors"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none focus:border-warning-border/50 transition-colors"
                 />
               </div>
 
               <select
                 value={audienceRegion}
                 onChange={(e) => setAudienceRegion(e.target.value)}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none focus:border-amber-500/50"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none focus:border-warning-border/50"
               >
                 <option value="Global">Global Audience</option>
                 <option value="US (EST)">US (EST)</option>
@@ -2610,7 +2609,7 @@ function PublishPageInner() {
               <select
                 value={audienceAgeGroup}
                 onChange={(e) => setAudienceAgeGroup(e.target.value)}
-                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none focus:border-amber-500/50"
+                className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-xs outline-none focus:border-warning-border/50"
               >
                 <option value="All Ages">All Ages</option>
                 <option value="18-24">18-24 Gen Z</option>
@@ -2622,7 +2621,7 @@ function PublishPageInner() {
               <button
                 onClick={handleMagicSchedule}
                 disabled={isFetchingRecommendations}
-                className="w-full bg-amber-500 hover:bg-amber-400 text-zinc-900 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                className="w-full bg-warning-text hover:bg-warning-text text-zinc-900 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
               >
                 {isFetchingRecommendations ? (
                   <div className="w-4 h-4 border-2 border-zinc-900/30 border-t-zinc-900 rounded-full animate-spin" />
@@ -2643,11 +2642,11 @@ function PublishPageInner() {
                 {suggestedTimes.map((rec, i) => (
                   <div key={i} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-lg font-black text-emerald-400 tabular-nums">
+                      <span className="text-lg font-black text-success-text tabular-nums">
                         {rec.label}
                       </span>
                       <div className="flex flex-col items-end gap-0.5">
-                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded-full font-bold">
+                        <span className="text-[10px] bg-success-text/20 text-success-text px-1.5 py-0.5 rounded-full font-bold">
                           {Math.round(rec.confidence_score * 100)}%
                         </span>
                         {rec.audience_time && rec.audience_timezone && (
@@ -2660,7 +2659,7 @@ function PublishPageInner() {
                     <ul className="space-y-1 mb-2.5">
                       {(rec.reasoning_points || []).slice(0, 4).map((pt: string, j: number) => (
                         <li key={j} className="text-[10px] text-[var(--foreground-muted)] flex items-start gap-1.5 leading-relaxed">
-                          <span className="text-emerald-500 font-bold mt-0.5 shrink-0">·</span>
+                          <span className="text-success-text font-bold mt-0.5 shrink-0">·</span>
                           <span>{pt}</span>
                         </li>
                       ))}
@@ -2674,8 +2673,8 @@ function PublishPageInner() {
                       }}
                       className={`w-full py-1.5 text-[10px] font-bold rounded-lg transition-colors ${
                         selectedTime === rec.time
-                          ? 'bg-emerald-600 text-foreground'
-                          : 'bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400'
+                          ? 'bg-success-text text-foreground'
+                          : 'bg-success-text/20 hover:bg-success-text/40 text-success-text'
                       }`}
                     >
                       {selectedTime === rec.time ? '✓ Noted — see scheduler below' : 'Note this slot'}
@@ -2684,7 +2683,7 @@ function PublishPageInner() {
                 ))}
                 <p className="text-[10px] text-[var(--foreground-muted)] text-center pt-1">
                   Publishing Hub posts immediately through governance. To schedule at a specific time, use the{' '}
-                  <a href="/calendar" className="text-indigo-400 hover:text-indigo-300 underline">Calendar</a>.
+                  <a href="/calendar" className="text-info-text hover:text-info-text underline">Calendar</a>.
                 </p>
               </div>
             )}
@@ -2692,7 +2691,7 @@ function PublishPageInner() {
           {/* Manual Scheduler */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-5">
             <h3 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-indigo-400" />
+              <Clock className="w-4 h-4 text-info-text" />
               Schedule for Later
             </h3>
             <div className="space-y-3">
@@ -2704,7 +2703,7 @@ function PublishPageInner() {
                     value={manualScheduleDate}
                     min={new Date().toISOString().split('T')[0]}
                     onChange={e => setManualScheduleDate(e.target.value)}
-                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-2 text-[var(--foreground)] text-xs outline-none focus:border-indigo-500/60 transition-colors"
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-2 text-[var(--foreground)] text-xs outline-none focus:border-info-border/60 transition-colors"
                   />
                 </div>
                 <div>
@@ -2713,15 +2712,15 @@ function PublishPageInner() {
                     type="time"
                     value={manualScheduleTime}
                     onChange={e => setManualScheduleTime(e.target.value)}
-                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-2 text-[var(--foreground)] text-xs outline-none focus:border-indigo-500/60 transition-colors"
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-2 text-[var(--foreground)] text-xs outline-none focus:border-info-border/60 transition-colors"
                   />
                 </div>
               </div>
 
               {manualScheduleDate && manualScheduleTime && (
-                <div className="bg-indigo-500/8 border border-indigo-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
-                  <Calendar className="w-3 h-3 text-indigo-400 shrink-0" />
-                  <p className="text-[10px] text-indigo-300 font-medium">
+                <div className="bg-info-text/8 border border-info-border/20 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <Calendar className="w-3 h-3 text-info-text shrink-0" />
+                  <p className="text-[10px] text-info-text font-medium">
                     {new Date(`${manualScheduleDate}T${manualScheduleTime}:00`).toLocaleString('en', {
                       weekday: 'short', month: 'short', day: 'numeric',
                       hour: '2-digit', minute: '2-digit',
@@ -2731,7 +2730,7 @@ function PublishPageInner() {
               )}
 
               {selectedAccountIds.length === 0 && (
-                <p className="text-[10px] text-amber-400/80 flex items-center gap-1">
+                <p className="text-[10px] text-warning-text/80 flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3 shrink-0" />
                   Select accounts in &quot;Post To&quot; first
                 </p>
@@ -2741,7 +2740,7 @@ function PublishPageInner() {
                 onClick={handleManualSchedule}
                 disabled={submitting || !manualScheduleDate || !manualScheduleTime || selectedAccountIds.length === 0 || !canPublish}
                 title={!canPublish ? "Your role cannot schedule posts" : undefined}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-foreground font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
+                className="w-full bg-info-text hover:bg-info-text text-foreground font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
               >
                 {submitting ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -2795,7 +2794,7 @@ function PublishPageInner() {
                 <textarea
                   defaultValue={selectedScheduledPost.content}
                   id="editContent"
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-emerald-500 min-h-[100px]"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-success-border min-h-[100px]"
                 />
               </div>
               <div>
@@ -2809,7 +2808,7 @@ function PublishPageInner() {
                     16,
                   )}
                   id="editTime"
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-emerald-500"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] text-sm outline-none focus:border-success-border"
                 />
               </div>
               <div className="flex gap-3 pt-4">
@@ -2829,7 +2828,7 @@ function PublishPageInner() {
                       new Date(newTime).toISOString(),
                     );
                   }}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-foreground font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-success-text hover:bg-success-text text-foreground font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
                 >
                   <Edit3 className="w-4 h-4" />
                   Save Changes
@@ -2838,7 +2837,7 @@ function PublishPageInner() {
                   onClick={() =>
                     handleCancelScheduledPost(selectedScheduledPost.id)
                   }
-                  className="px-6 py-3 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 font-bold rounded-xl transition-colors flex items-center gap-2"
+                  className="px-6 py-3 bg-error-text/20 hover:bg-error-text/30 text-error-text font-bold rounded-xl transition-colors flex items-center gap-2"
                 >
                   <Trash2 className="w-4 h-4" />
                   Cancel Post
@@ -2857,7 +2856,7 @@ export default function PublishPage() {
     <Suspense
       fallback={
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-[var(--foreground-muted)]">
-          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <div className="w-10 h-10 border-4 border-info-border border-t-transparent rounded-full animate-spin mb-4"></div>
           <p className="text-sm font-bold uppercase tracking-widest">
             Warming Engine...
           </p>

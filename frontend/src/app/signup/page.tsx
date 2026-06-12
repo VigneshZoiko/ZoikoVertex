@@ -39,7 +39,7 @@ function StepDots({ current, total }: { current: number; total: number }) {
             key={i}
             className={[
               "rounded-full transition-all duration-300",
-              done   ? "w-2.5 h-2.5 bg-emerald-400" :
+              done   ? "w-2.5 h-2.5 bg-success-text" :
               active ? "w-6 h-2.5 bg-[#20E7F2]" :
                        "w-2.5 h-2.5 bg-white/20",
             ].join(" ")}
@@ -263,10 +263,10 @@ export default function SignupPage() {
   );
 
   return (
-    <AuthLayout footer={step < 4 ? signInFooter : undefined}>
+    <AuthLayout footer={signInFooter} noCard>
       <div className="w-full">
         {error && (
-          <div className="mb-5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+          <div className="mb-5 rounded-xl border border-error-border/30 bg-error-text/10 px-4 py-3 text-sm text-error-text">
             {error}
           </div>
         )}
@@ -431,8 +431,8 @@ export default function SignupPage() {
         {step === 3 && (
           <div className="space-y-6">
             <div className="flex flex-col items-center text-center space-y-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/25">
-                <Mail className="h-7 w-7 text-emerald-400" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success-text/10 border border-success-border/25">
+                <Mail className="h-7 w-7 text-success-text" />
               </div>
 
               <div>
@@ -452,7 +452,7 @@ export default function SignupPage() {
             <OtpInput value={otp} onChange={setOtp} />
 
             {verifyError && (
-              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400 text-center">
+              <div className="rounded-xl border border-error-border/30 bg-error-text/10 px-4 py-3 text-sm text-error-text text-center">
                 {verifyError}
               </div>
             )}
@@ -484,8 +484,8 @@ export default function SignupPage() {
         {/* ── STEP 4: Welcome ── */}
         {step === 4 && (
           <div className="text-center space-y-6">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-900/40 border border-emerald-500/30">
-              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success-text/40 border border-success-border/30">
+              <CheckCircle2 className="h-8 w-8 text-success-text" />
             </div>
             <div>
               <div className="flex items-center justify-center gap-2 mb-3">

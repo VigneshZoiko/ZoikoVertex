@@ -90,8 +90,8 @@ export default function SupportPage() {
 
         {submitted ? (
           <div className="py-12 px-6 text-center">
-            <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ShieldCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+            <div className="w-12 h-12 bg-success-bg dark:bg-success-text/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck className="w-6 h-6 text-success-text dark:text-success-text" />
             </div>
             <h3 className="text-base font-semibold text-[var(--foreground)] mb-1">Request Received</h3>
             <p className="text-sm text-[var(--foreground-muted)] max-w-md mx-auto mb-5">

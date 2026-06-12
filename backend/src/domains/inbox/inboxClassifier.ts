@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { env } from '../../config/env';
 import { GovernedModelGate } from '../../modules/prompts/GovernedModelGate';
+import { trackUsage } from '../monitoring/usageController';
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type Sentiment = 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
@@ -122,6 +123,9 @@ LOW: general inquiry, neutral or positive message`;
     const validSentiment: Sentiment[] = ['POSITIVE', 'NEUTRAL', 'NEGATIVE'];
     if (!validRisk.includes(parsed.risk_level as RiskLevel) || !validSentiment.includes(parsed.sentiment as Sentiment)) {
       return null;
+    }
+    if (workspaceId) {
+      trackUsage({ workspaceId, resourceType: 'AI_TOKENS', quantity: 100, costUsd: 0.00001, unit: 'tokens', referenceType: 'inbox_classification', metadata: { model: 'llama-3.3-70b-versatile', estimated: true } });
     }
     return { risk_level: parsed.risk_level as RiskLevel, sentiment: parsed.sentiment as Sentiment };
   } catch {

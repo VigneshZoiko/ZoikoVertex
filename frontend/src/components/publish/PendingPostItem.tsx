@@ -42,7 +42,7 @@ const PendingPostItem: React.FC<PendingPostItemProps> = ({
         <div className="space-y-3 bg-[var(--card)]/30 p-3 rounded-xl border border-[var(--border)]/50">
           {Object.entries(JSON.parse(post.content)).map(([platform, text]: [string, any]) => (
             <div key={platform}>
-              <p className="text-[9px] font-black text-indigo-400/70 uppercase tracking-[0.1em]">{platform}</p>
+              <p className="text-[9px] font-black text-info-text/70 uppercase tracking-[0.1em]">{platform}</p>
               <p className="text-[11px] text-[var(--foreground-muted)] leading-tight italic line-clamp-2">&quot;{text}&quot;</p>
             </div>
           ))}
@@ -64,19 +64,19 @@ const PendingPostItem: React.FC<PendingPostItemProps> = ({
               placeholder="Feedback for Manager..."
               value={reviewComment}
               onChange={(e) => onReviewCommentChange(e.target.value)}
-              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-xs text-[var(--foreground)] outline-none focus:border-amber-500/50 min-h-[70px] transition-all"
+              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-xs text-[var(--foreground)] outline-none focus:border-warning-border min-h-[70px] transition-all"
             />
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => onAction('APPROVED')} className="flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-foreground text-[10px] font-bold rounded-xl uppercase tracking-wider transition-all">
+              <button onClick={() => onAction('APPROVED')} className="flex items-center justify-center gap-2 py-2.5 bg-success-text hover:brightness-110 text-foreground text-[10px] font-bold rounded-xl uppercase tracking-wider transition-all">
                 <CheckCircle2 className="w-3 h-3" />
                 Approve
               </button>
-              <button onClick={() => onAction('REJECTED')} className="flex items-center justify-center gap-2 py-2.5 bg-rose-600 hover:bg-rose-500 text-foreground text-[10px] font-bold rounded-xl uppercase tracking-wider transition-all">
+              <button onClick={() => onAction('REJECTED')} className="flex items-center justify-center gap-2 py-2.5 bg-error-text hover:brightness-110 text-foreground text-[10px] font-bold rounded-xl uppercase tracking-wider transition-all">
                 <XCircle className="w-3 h-3" />
                 Reject
               </button>
             </div>
-            <button onClick={() => onAction('PENDING_MANAGER')} className="w-full py-2.5 bg-[var(--surface)] border border-amber-500/30 hover:bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-xl uppercase tracking-wider transition-all flex items-center justify-center gap-2">
+            <button onClick={() => onAction('PENDING_MANAGER')} className="w-full py-2.5 bg-[var(--surface)] border border-warning-border hover:bg-warning-bg text-warning-text text-[10px] font-bold rounded-xl uppercase tracking-wider transition-all flex items-center justify-center gap-2">
               <Send className="w-3 h-3" />
               Escalate to Manager
             </button>
@@ -84,8 +84,8 @@ const PendingPostItem: React.FC<PendingPostItemProps> = ({
         ) : userRole === 'MANAGER' ? (
           <>
             {post.feedback && (
-              <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl mb-1">
-                <p className="text-[9px] text-amber-500 font-black uppercase tracking-widest mb-1">Admin Feedback:</p>
+              <div className="p-3 bg-warning-bg border border-warning-border rounded-xl mb-1">
+                <p className="text-[9px] text-warning-text font-black uppercase tracking-widest mb-1">Admin Feedback:</p>
                 <p className="text-[10px] text-[var(--foreground-muted)] italic font-medium leading-relaxed">&quot;{post.feedback}&quot;</p>
               </div>
             )}
@@ -93,9 +93,9 @@ const PendingPostItem: React.FC<PendingPostItemProps> = ({
               placeholder="Feedback for Creator..."
               value={reviewComment}
               onChange={(e) => onReviewCommentChange(e.target.value)}
-              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-xs text-[var(--foreground)] outline-none focus:border-indigo-500/50 min-h-[70px] transition-all"
+              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 text-xs text-[var(--foreground)] outline-none focus:border-info-border min-h-[70px] transition-all"
             />
-            <button onClick={() => onAction('RETURNED')} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-foreground text-[10px] font-bold rounded-xl uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/20">
+            <button onClick={() => onAction('RETURNED')} className="w-full py-3 bg-info-text hover:brightness-110 text-foreground text-[10px] font-bold rounded-xl uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-info-text/20">
               <RefreshCcw className="w-3.5 h-3.5" />
               Return for Revision
             </button>
