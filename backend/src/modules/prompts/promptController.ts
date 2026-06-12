@@ -3,6 +3,7 @@ import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { PromptService } from './PromptService';
+import { PostGovernanceService } from './PostGovernanceService';
 import { PromptVersionService } from './PromptVersionService';
 import { PromptTestService } from './PromptTestService';
 import { PromptApprovalService } from './PromptApprovalService';
@@ -3517,6 +3518,30 @@ export class PromptController {
           audit_events: { count: audit.length, recent: audit.slice(-10).map((e) => ({ event_type: e.event_type, created_at: e.created_at })) },
         },
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ─── Test Center — Classify post description through the governance pipeline ──
+  static async classifyTestDescription(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { description, platform } = req.body || {};
+      if (!description || !description.trim()) {
+        return res.status(400).json({ success: false, error: 'description is required' });
+      }
+      const workspaceId = await PromptController.resolveWorkspaceId(req);
+      if (!workspaceId) {
+        return res.status(400).json({ success: false, error: 'Workspace context required' });
+      }
+
+      const result = await PostGovernanceService.classify(
+        description.trim(),
+        platform || 'linkedin',
+        workspaceId,
+      );
+
+      res.json({ success: true, data: result });
     } catch (error) {
       next(error);
     }
