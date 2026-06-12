@@ -219,6 +219,7 @@ export const submitIntent = async (
       const col = missing[1];
       strippedColumns.push(col);
       rowsToInsert = rowsToInsert.map((r) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [col]: _omit, ...rest } = r;
         return rest;
       });
