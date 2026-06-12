@@ -10,7 +10,6 @@ interface CampaignStats {
   in_review: number;
   approval_pending: number;
   active: number;
-  pausing: number;
   paused: number;
   completed: number;
   risk_flags: number;
@@ -72,9 +71,8 @@ export default function SocialPerformancePage() {
         { label: 'Draft', count: campaigns.draft, color: 'bg-slate-500' },
         { label: 'In Review', count: campaigns.in_review, color: 'bg-blue-500' },
         { label: 'Approval Pending', count: campaigns.approval_pending, color: 'bg-amber-500' },
-        { label: 'Active', count: campaigns.active, color: 'bg-emerald-500' },
-        { label: 'Pausing', count: campaigns.pausing, color: 'bg-orange-400' },
-        { label: 'Paused', count: campaigns.paused, color: 'bg-orange-600' },
+        { label: 'Active', count: campaigns.active, color: 'bg-emerald-400' },
+        { label: 'Paused', count: campaigns.paused, color: 'bg-zinc-400' },
         { label: 'Completed', count: campaigns.completed, color: 'bg-indigo-500' },
       ]
     : [];

@@ -223,6 +223,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         itemType: item.item_type, riskLevel: item.risk_level,
       });
 
+      if (item.source_module === 'media_library' && item.source_entity_id) {
+        await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+      }
+
       return res.json({ success: true, data: updated });
     }
 
@@ -252,6 +256,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         summary: `Review item "${item.title}" rejected: ${reason}`,
         itemType: item.item_type, riskLevel: item.risk_level,
       });
+
+      if (item.source_module === 'media_library' && item.source_entity_id) {
+        await supabaseAdmin.from('media_library').update({ status: 'blocked' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+      }
 
       return res.json({ success: true, data: updated });
     }
@@ -366,6 +374,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         itemType: item.item_type, riskLevel: item.risk_level,
       });
 
+      if (item.source_module === 'media_library' && item.source_entity_id) {
+        await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+      }
+
       return res.json({ success: true, data: updated });
     }
 
@@ -403,6 +415,10 @@ export async function takeAction(req: AuthRequest, res: Response, next: NextFunc
         workspaceId: tenantId, userId, itemId: id, action: 'review.item.released',
         summary: `Review item "${item.title}" released`, itemType: item.item_type, riskLevel: item.risk_level,
       });
+
+      if (item.source_module === 'media_library' && item.source_entity_id) {
+        await supabaseAdmin.from('media_library').update({ status: 'available' }).eq('id', item.source_entity_id).eq('workspace_id', tenantId);
+      }
 
       return res.json({ success: true, data: updated });
     }

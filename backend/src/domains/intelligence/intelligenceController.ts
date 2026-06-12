@@ -441,3 +441,46 @@ const fallbackMock = (topic: string, contentType: string, tone: string, length: 
     suggestedTimes: []
   });
 };
+
+export const generateAdCopy = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { prompt, lengthInstructions } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    if (!env.GROQ_API_KEY) {
+      return res.status(500).json({ success: false, error: 'GROQ_API_KEY is not configured.' });
+    }
+
+    const groq = new OpenAI({
+      apiKey: env.GROQ_API_KEY,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+
+    const systemPrompt = `You are a World-Class Copywriter for marketing campaigns.
+The user will provide a product idea or description.
+Your goal is to generate compelling, high-converting ad copy for this product.
+${lengthInstructions ? `IMPORTANT: Follow these length instructions strictly: ${lengthInstructions}` : ''}
+Do not include conversational filler like "Here is your copy". Just output the copy directly.`;
+
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7,
+    });
+
+    const copy = completion.choices[0]?.message?.content || "";
+
+    res.status(200).json({
+      success: true,
+      copy
+    });
+  } catch (error) {
+    logger.error({ error }, '[Intelligence] generateAdCopy failed');
+    next(error);
+  }
+};
