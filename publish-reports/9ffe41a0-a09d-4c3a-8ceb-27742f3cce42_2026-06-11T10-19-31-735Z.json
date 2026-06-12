@@ -1,0 +1,308 @@
+{
+  "campaign_id": "9ffe41a0-a09d-4c3a-8ceb-27742f3cce42",
+  "workspace_id": "00000000-0000-0000-0000-000000000000",
+  "published_at": "2026-06-11T10:19:31.735Z",
+  "outcome": "SUCCESS",
+  "steps": [
+    {
+      "step": "load_campaign",
+      "status": "ok",
+      "received": {
+        "id": "9ffe41a0-a09d-4c3a-8ceb-27742f3cce42",
+        "name": "Test1",
+        "objective": "TRAFFIC",
+        "status": "DRAFT",
+        "budget_daily": 1,
+        "budget_total": null,
+        "budget_currency": "USD",
+        "start_at": "2026-06-11T00:00:00+00:00",
+        "end_at": "2026-06-16T00:00:00+00:00"
+      },
+      "timestamp": "2026-06-11T10:19:32.060Z"
+    },
+    {
+      "step": "resolve_meta_account",
+      "status": "ok",
+      "received": {
+        "account_id": "9d4d45f3-f3ec-4368-92d6-27c3159d2969",
+        "account_name": "ZoikoVertex",
+        "account_handle": "1153572221164614",
+        "ad_account_id": "act_2023628388237933",
+        "token_source": "refresh_token (user token)",
+        "page_id_stored": "1153572221164614"
+      },
+      "timestamp": "2026-06-11T10:19:32.375Z"
+    },
+    {
+      "step": "check_token_permissions",
+      "status": "ok",
+      "notes": "User token has pages_manage_ads ✓ and ads_management: true",
+      "received": {
+        "granted": [
+          "email",
+          "read_insights",
+          "pages_show_list",
+          "ads_management",
+          "ads_read",
+          "business_management",
+          "instagram_basic",
+          "instagram_manage_comments",
+          "instagram_manage_insights",
+          "instagram_content_publish",
+          "pages_read_engagement",
+          "pages_read_user_content",
+          "pages_manage_ads",
+          "pages_manage_posts",
+          "pages_manage_engagement",
+          "public_profile"
+        ],
+        "declined": [],
+        "is_user_token": true
+      },
+      "timestamp": "2026-06-11T10:19:32.873Z"
+    },
+    {
+      "step": "resolve_page_id",
+      "status": "ok",
+      "notes": "Used stored page_id from connected_accounts",
+      "received": {
+        "page_id": "1153572221164614"
+      },
+      "timestamp": "2026-06-11T10:19:32.873Z"
+    },
+    {
+      "step": "check_page_adaccount_link",
+      "status": "ok",
+      "notes": "Ad account is authorized to promote page 1153572221164614",
+      "received": {
+        "promote_pages": [
+          {
+            "id": "1153572221164614",
+            "name": "ZoikoVertex"
+          }
+        ],
+        "error": null
+      },
+      "timestamp": "2026-06-11T10:19:33.349Z"
+    },
+    {
+      "step": "check_ad_account_status",
+      "status": "ok",
+      "notes": "Ad account is ACTIVE (USD)",
+      "received": {
+        "account_status": 1,
+        "disable_reason": 0,
+        "currency": "USD",
+        "id": "act_2023628388237933"
+      },
+      "timestamp": "2026-06-11T10:19:33.861Z"
+    },
+    {
+      "step": "create_campaign",
+      "status": "ok",
+      "notes": "Sending campaign to Meta...",
+      "sent": {
+        "name": "Test1",
+        "objective": "OUTCOME_TRAFFIC",
+        "status": "PAUSED",
+        "special_ad_categories": [
+          "NONE"
+        ],
+        "is_adset_budget_sharing_enabled": false
+      },
+      "timestamp": "2026-06-11T10:19:33.861Z"
+    },
+    {
+      "step": "create_campaign_response",
+      "status": "ok",
+      "meta_id": "120250307900200401",
+      "received": {
+        "id": "120250307900200401"
+      },
+      "timestamp": "2026-06-11T10:19:34.887Z"
+    },
+    {
+      "step": "create_adset",
+      "status": "ok",
+      "notes": "Sending ad set to Meta...",
+      "sent": {
+        "name": "Test1 — Ad Set",
+        "campaign_id": "120250307900200401",
+        "optimization_goal": "LANDING_PAGE_VIEWS",
+        "billing_event": "IMPRESSIONS",
+        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+        "targeting": {
+          "age_min": 18,
+          "age_max": 30,
+          "genders": [
+            1
+          ],
+          "geo_locations": {
+            "countries": [
+              "US"
+            ]
+          },
+          "targeting_automation": {
+            "advantage_audience": 0
+          }
+        },
+        "status": "PAUSED",
+        "daily_budget": 100,
+        "end_time": "2026-06-16T00:00:00.000Z"
+      },
+      "timestamp": "2026-06-11T10:19:34.887Z"
+    },
+    {
+      "step": "create_adset_response",
+      "status": "ok",
+      "meta_id": "120250307901330401",
+      "received": {
+        "id": "120250307901330401"
+      },
+      "timestamp": "2026-06-11T10:19:36.307Z"
+    },
+    {
+      "step": "create_creative_ad0",
+      "status": "ok",
+      "notes": "Sending creative for ad[0] \"New ad\" to Meta...",
+      "sent": {
+        "name": "New ad — Creative",
+        "object_story_spec": {
+          "page_id": "1153572221164614",
+          "link_data": {
+            "link": "https://getzoikovertex.com/",
+            "call_to_action": {
+              "type": "SIGN_UP",
+              "value": {
+                "link": "https://getzoikovertex.com/"
+              }
+            },
+            "name": "vertex",
+            "picture": "https://wcudapbmavuyafllfyft.supabase.co/storage/v1/object/public/campaign-images/9b2ff550-77eb-4198-9564-954bcfff4b7b/2_ZoikoVertex_SM_Post.jpg.jpeg.jpeg"
+          }
+        }
+      },
+      "timestamp": "2026-06-11T10:19:36.308Z"
+    },
+    {
+      "step": "create_creative_ad0_response",
+      "status": "ok",
+      "meta_id": "4293608780913755",
+      "received": {
+        "id": "4293608780913755"
+      },
+      "notes": "ad[0] \"New ad\"",
+      "timestamp": "2026-06-11T10:19:42.878Z"
+    },
+    {
+      "step": "create_ad_ad0",
+      "status": "ok",
+      "notes": "Sending ad[0] \"New ad\" to Meta...",
+      "sent": {
+        "name": "New ad",
+        "adset_id": "120250307901330401",
+        "creative": {
+          "creative_id": "4293608780913755"
+        },
+        "status": "PAUSED"
+      },
+      "timestamp": "2026-06-11T10:19:42.878Z"
+    },
+    {
+      "step": "create_ad_ad0_response",
+      "status": "ok",
+      "meta_id": "120250307909110401",
+      "received": {
+        "id": "120250307909110401"
+      },
+      "notes": "ad[0] \"New ad\"",
+      "timestamp": "2026-06-11T10:19:46.631Z"
+    },
+    {
+      "step": "activate_adset",
+      "status": "ok",
+      "notes": "Activating ad set 120250307901330401",
+      "sent": {
+        "status": "ACTIVE"
+      },
+      "timestamp": "2026-06-11T10:19:46.632Z"
+    },
+    {
+      "step": "activate_adset_response",
+      "status": "ok",
+      "received": {
+        "success": true
+      },
+      "timestamp": "2026-06-11T10:19:48.266Z"
+    },
+    {
+      "step": "activate_campaign",
+      "status": "ok",
+      "notes": "Activating campaign 120250307900200401",
+      "sent": {
+        "status": "ACTIVE"
+      },
+      "timestamp": "2026-06-11T10:19:48.266Z"
+    },
+    {
+      "step": "activate_campaign_response",
+      "status": "ok",
+      "received": {
+        "success": true
+      },
+      "timestamp": "2026-06-11T10:19:49.293Z"
+    },
+    {
+      "step": "activate_ad_120250307909110401",
+      "status": "ok",
+      "notes": "Activating ad 120250307909110401",
+      "sent": {
+        "status": "ACTIVE"
+      },
+      "timestamp": "2026-06-11T10:19:49.293Z"
+    },
+    {
+      "step": "activate_ad_120250307909110401_response",
+      "status": "ok",
+      "received": {
+        "success": true
+      },
+      "timestamp": "2026-06-11T10:19:50.735Z"
+    },
+    {
+      "step": "save_to_db",
+      "status": "ok",
+      "notes": "Campaign status set to ACTIVE",
+      "sent": {
+        "meta_campaign_id": "120250307900200401",
+        "meta_adset_id": "120250307901330401",
+        "meta_creative_id": "4293608780913755",
+        "meta_ad_id": "120250307909110401",
+        "status": "ACTIVE",
+        "published_at": "2026-06-11T10:19:50.735Z",
+        "meta_error": null,
+        "updated_at": "2026-06-11T10:19:50.735Z"
+      },
+      "timestamp": "2026-06-11T10:19:50.735Z"
+    }
+  ],
+  "meta_ids": {
+    "creative_ids": [
+      "4293608780913755"
+    ],
+    "ad_ids": [
+      "120250307909110401"
+    ],
+    "campaign_id": "120250307900200401",
+    "adset_id": "120250307901330401",
+    "first_creative_id": "4293608780913755",
+    "first_ad_id": "120250307909110401"
+  },
+  "summary": {
+    "total_steps": 21,
+    "ok": 21,
+    "errors": 0,
+    "skipped": 0
+  },
+  "report_file": "F:\\CodeSpace\\ZoikoVertex\\publish-reports\\9ffe41a0-a09d-4c3a-8ceb-27742f3cce42_2026-06-11T10-19-31-735Z.json"
+}

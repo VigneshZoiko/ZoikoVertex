@@ -1,0 +1,142 @@
+{
+  "campaign_id": "53354920-1c70-4bda-8866-958bd09c091f",
+  "workspace_id": "00000000-0000-0000-0000-000000000000",
+  "published_at": "2026-06-11T09:48:46.884Z",
+  "outcome": "FAILED",
+  "steps": [
+    {
+      "step": "load_campaign",
+      "status": "ok",
+      "received": {
+        "id": "53354920-1c70-4bda-8866-958bd09c091f",
+        "name": "PixelTest",
+        "objective": "CONVERSIONS",
+        "status": "DRAFT",
+        "budget_daily": 1,
+        "budget_total": null,
+        "budget_currency": "USD",
+        "start_at": "2026-06-11T00:00:00+00:00",
+        "end_at": "2026-06-14T00:00:00+00:00"
+      },
+      "timestamp": "2026-06-11T09:48:47.370Z"
+    },
+    {
+      "step": "resolve_meta_account",
+      "status": "ok",
+      "received": {
+        "account_id": "9d4d45f3-f3ec-4368-92d6-27c3159d2969",
+        "account_name": "ZoikoVertex",
+        "account_handle": "1153572221164614",
+        "ad_account_id": "act_2023628388237933",
+        "token_source": "refresh_token (user token)",
+        "page_id_stored": "1153572221164614"
+      },
+      "timestamp": "2026-06-11T09:48:48.198Z"
+    },
+    {
+      "step": "check_token_permissions",
+      "status": "ok",
+      "notes": "User token has pages_manage_ads ✓ and ads_management: true",
+      "received": {
+        "granted": [
+          "email",
+          "read_insights",
+          "pages_show_list",
+          "ads_management",
+          "ads_read",
+          "business_management",
+          "instagram_basic",
+          "instagram_manage_comments",
+          "instagram_manage_insights",
+          "instagram_content_publish",
+          "pages_read_engagement",
+          "pages_read_user_content",
+          "pages_manage_ads",
+          "pages_manage_posts",
+          "pages_manage_engagement",
+          "public_profile"
+        ],
+        "declined": [],
+        "is_user_token": true
+      },
+      "timestamp": "2026-06-11T09:48:48.667Z"
+    },
+    {
+      "step": "resolve_page_id",
+      "status": "ok",
+      "notes": "Used stored page_id from connected_accounts",
+      "received": {
+        "page_id": "1153572221164614"
+      },
+      "timestamp": "2026-06-11T09:48:48.668Z"
+    },
+    {
+      "step": "check_page_adaccount_link",
+      "status": "ok",
+      "notes": "Ad account is authorized to promote page 1153572221164614",
+      "received": {
+        "promote_pages": [
+          {
+            "id": "1153572221164614",
+            "name": "ZoikoVertex"
+          }
+        ],
+        "error": null
+      },
+      "timestamp": "2026-06-11T09:48:49.167Z"
+    },
+    {
+      "step": "check_ad_account_status",
+      "status": "ok",
+      "notes": "Ad account is ACTIVE (USD)",
+      "received": {
+        "account_status": 1,
+        "disable_reason": 0,
+        "currency": "USD",
+        "id": "act_2023628388237933"
+      },
+      "timestamp": "2026-06-11T09:48:49.520Z"
+    },
+    {
+      "step": "create_campaign",
+      "status": "ok",
+      "notes": "Sending campaign to Meta...",
+      "sent": {
+        "name": "PixelTest",
+        "objective": "OUTCOME_SALES",
+        "status": "PAUSED",
+        "special_ad_categories": [
+          "NONE"
+        ]
+      },
+      "timestamp": "2026-06-11T09:48:49.521Z"
+    },
+    {
+      "step": "create_campaign_response",
+      "status": "error",
+      "error": "You must specify True or False in the field is_adset_budget_sharing_enabled  if you are not using campaign budget. Passing in True will enable your ad sets to share 20% of their budget to optimize overall performance.",
+      "received": {
+        "message": "Invalid parameter",
+        "type": "OAuthException",
+        "code": 100,
+        "error_subcode": 4834011,
+        "is_transient": false,
+        "error_user_title": "Must specify True or False in is_adset_budget_sharing_enabled field",
+        "error_user_msg": "You must specify True or False in the field is_adset_budget_sharing_enabled  if you are not using campaign budget. Passing in True will enable your ad sets to share 20% of their budget to optimize overall performance.",
+        "fbtrace_id": "ApEOGytVNxhKk6PbpAcyhWh"
+      },
+      "timestamp": "2026-06-11T09:48:49.985Z"
+    }
+  ],
+  "meta_ids": {
+    "creative_ids": [],
+    "ad_ids": []
+  },
+  "summary": {
+    "total_steps": 8,
+    "ok": 7,
+    "errors": 1,
+    "skipped": 0
+  },
+  "report_file": "F:\\CodeSpace\\ZoikoVertex\\publish-reports\\53354920-1c70-4bda-8866-958bd09c091f_2026-06-11T09-48-46-884Z.json"
+}

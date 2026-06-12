@@ -73,23 +73,23 @@ interface WorkflowCanvasProps {
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const NODE_STYLES: Record<string, { cls: string; shape: 'rect' | 'diamond' }> = {
-  trigger:   { cls: 'bg-indigo-500 text-white border-indigo-600 shadow-indigo-500/30',   shape: 'rect' },
-  agent:     { cls: 'bg-emerald-500 text-white border-emerald-600 shadow-emerald-500/30', shape: 'rect' },
-  prompt:    { cls: 'bg-sky-500 text-white border-sky-600 shadow-sky-500/30',             shape: 'rect' },
-  knowledge: { cls: 'bg-violet-500 text-white border-violet-600 shadow-violet-500/30',   shape: 'rect' },
-  policy:    { cls: 'bg-amber-500 text-white border-amber-600 shadow-amber-500/30',       shape: 'diamond' },
-  human:     { cls: 'bg-rose-500 text-white border-rose-600 shadow-rose-500/30',          shape: 'rect' },
-  approval:  { cls: 'bg-pink-500 text-white border-pink-600 shadow-pink-500/30',          shape: 'diamond' },
-  schedule:  { cls: 'bg-cyan-500 text-white border-cyan-600 shadow-cyan-500/30',          shape: 'rect' },
-  publish:   { cls: 'bg-teal-500 text-white border-teal-600 shadow-teal-500/30',          shape: 'rect' },
-  notify:    { cls: 'bg-blue-400 text-white border-blue-500 shadow-blue-400/30',          shape: 'rect' },
-  escalate:  { cls: 'bg-orange-500 text-white border-orange-600 shadow-orange-500/30',   shape: 'rect' },
-  evidence:  { cls: 'bg-cyan-600 text-white border-cyan-700 shadow-cyan-600/30',          shape: 'rect' },
-  branch:    { cls: 'bg-amber-500 text-white border-amber-600 shadow-amber-500/30',       shape: 'diamond' },
-  delay:     { cls: 'bg-gray-400 text-white border-gray-500 shadow-gray-400/30',          shape: 'rect' },
-  end:       { cls: 'bg-gray-600 text-white border-gray-700 shadow-gray-600/30',          shape: 'rect' },
-  condition: { cls: 'bg-amber-500 text-white border-amber-600 shadow-amber-500/30',       shape: 'diamond' },
-  action:    { cls: 'bg-teal-500 text-white border-teal-600 shadow-teal-500/30',          shape: 'rect' },
+  trigger:   { cls: 'bg-info-text text-foreground border-info-border shadow-info-text/30',   shape: 'rect' },
+  agent:     { cls: 'bg-success-text text-foreground border-success-border shadow-emerald-500/30', shape: 'rect' },
+  prompt:    { cls: 'bg-sky-500 text-foreground border-sky-600 shadow-sky-500/30',             shape: 'rect' },
+  knowledge: { cls: 'bg-violet-500 text-foreground border-violet-600 shadow-violet-500/30',   shape: 'rect' },
+  policy:    { cls: 'bg-warning-text text-foreground border-warning-border shadow-amber-500/30',       shape: 'diamond' },
+  human:     { cls: 'bg-error-text text-foreground border-error-border shadow-rose-500/30',          shape: 'rect' },
+  approval:  { cls: 'bg-pink-500 text-foreground border-pink-600 shadow-pink-500/30',          shape: 'diamond' },
+  schedule:  { cls: 'bg-cyan-500 text-foreground border-cyan-600 shadow-cyan-500/30',          shape: 'rect' },
+  publish:   { cls: 'bg-teal-500 text-foreground border-teal-600 shadow-teal-500/30',          shape: 'rect' },
+  notify:    { cls: 'bg-blue-400 text-foreground border-blue-500 shadow-blue-400/30',          shape: 'rect' },
+  escalate:  { cls: 'bg-orange-500 text-foreground border-orange-600 shadow-orange-500/30',   shape: 'rect' },
+  evidence:  { cls: 'bg-cyan-600 text-foreground border-cyan-700 shadow-cyan-600/30',          shape: 'rect' },
+  branch:    { cls: 'bg-warning-text text-foreground border-warning-border shadow-amber-500/30',       shape: 'diamond' },
+  delay:     { cls: 'bg-gray-400 text-foreground border-gray-500 shadow-gray-400/30',          shape: 'rect' },
+  end:       { cls: 'bg-gray-600 text-foreground border-gray-700 shadow-gray-600/30',          shape: 'rect' },
+  condition: { cls: 'bg-warning-text text-foreground border-warning-border shadow-amber-500/30',       shape: 'diamond' },
+  action:    { cls: 'bg-teal-500 text-foreground border-teal-600 shadow-teal-500/30',          shape: 'rect' },
 };
 
 const NODE_LABELS: Partial<Record<string, string>> = {
@@ -268,7 +268,7 @@ function EditableStepConfigDrawer({
       <div className="sticky top-0 bg-[var(--surface)] border-b border-[var(--border)] px-4 py-3 flex items-start justify-between gap-2 z-10">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className={`p-1.5 rounded-lg ${accentBg}/20 shrink-0`}>
-            <IconComponent className={`w-4 h-4 text-white`} />
+            <IconComponent className={`w-4 h-4 text-foreground`} />
           </div>
           <div className="min-w-0">
             <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
@@ -284,7 +284,7 @@ function EditableStepConfigDrawer({
 
       <div className="flex-1 px-4 py-4 space-y-4">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-white ${accentBg}`}>
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold text-foreground ${accentBg}`}>
             {NODE_LABELS[node.type] ?? node.type}
           </span>
           <span className="text-[10px] text-[var(--text-muted)] font-mono">{node.id}</span>
@@ -293,7 +293,7 @@ function EditableStepConfigDrawer({
         {node.warnings && node.warnings.length > 0 && (
           <div className="space-y-1.5">
             {node.warnings.map((w, i) => (
-              <div key={i} className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
+              <div key={i} className="flex items-start gap-2 p-2.5 rounded-xl bg-warning-text/10 border border-warning-border/20 text-warning-text text-xs">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 {w}
               </div>
@@ -311,7 +311,7 @@ function EditableStepConfigDrawer({
               type="text"
               value={node.label}
               onChange={(e) => onUpdate({ label: e.target.value })}
-              className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-indigo-500/40"
+              className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-info-border/40"
             />
           )}
         </div>
@@ -332,7 +332,7 @@ function EditableStepConfigDrawer({
                   <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{label}</p>
                   {isEmpty ? (
                     <p className="text-xs text-[var(--text-muted)] italic mt-1 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3 text-amber-400" />
+                      <AlertTriangle className="w-3 h-3 text-warning-text" />
                       Not configured
                     </p>
                   ) : (
@@ -370,7 +370,7 @@ function EditableStepConfigDrawer({
                     value={isEmpty ? '' : value}
                     onChange={(e) => onUpdate({ [key]: e.target.value || undefined } as any)}
                     rows={2}
-                    className="w-full px-2 py-1 text-xs rounded-lg bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-indigo-500/40 resize-none"
+                    className="w-full px-2 py-1 text-xs rounded-lg bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-info-border/40 resize-none"
                     placeholder={`Enter ${label.toLowerCase()}...`}
                   />
                 </div>
@@ -385,7 +385,7 @@ function EditableStepConfigDrawer({
                     type="number"
                     value={isEmpty ? '' : value}
                     onChange={(e) => onUpdate({ [key]: e.target.value ? Number(e.target.value) : undefined } as any)}
-                    className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-indigo-500/40"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-info-border/40"
                     placeholder={`Enter ${label.toLowerCase()}...`}
                   />
                 </div>
@@ -399,7 +399,7 @@ function EditableStepConfigDrawer({
                   type="text"
                   value={isEmpty ? '' : value}
                   onChange={(e) => onUpdate({ [key]: e.target.value || undefined } as any)}
-                  className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-indigo-500/40"
+                  className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-info-border/40"
                   placeholder={`Enter ${label.toLowerCase()}...`}
                 />
               </div>
@@ -412,15 +412,15 @@ function EditableStepConfigDrawer({
             <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-1.5">Required Policy Checks</p>
             <div className="flex flex-wrap gap-1.5">
               {node.required_policy_checks.map((p) => (
-                <span key={p} className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-medium">{p}</span>
+                <span key={p} className="px-2 py-0.5 rounded-full bg-warning-text/10 border border-warning-border/20 text-warning-text text-[10px] font-medium">{p}</span>
               ))}
             </div>
           </div>
         )}
 
         {!readOnly && (
-          <div className="p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10">
-            <p className="text-[10px] text-indigo-400 leading-relaxed">
+          <div className="p-3 rounded-xl bg-info-text/5 border border-info-border/10">
+            <p className="text-[10px] text-info-text leading-relaxed">
               Changes apply immediately on the canvas. Remember to save the workflow to persist your edits.
             </p>
           </div>
@@ -458,7 +458,7 @@ function ContextMenu({
     >
       <button
         onClick={() => { onDelete(); onClose(); }}
-        className="flex items-center gap-2 w-full px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 transition-colors text-left"
+        className="flex items-center gap-2 w-full px-3 py-2 text-xs text-error-text hover:bg-error-text/10 transition-colors text-left"
       >
         <Trash2 className="w-3.5 h-3.5" />
         Delete Node
@@ -487,7 +487,7 @@ function NodePalette({ onAddNode }: { onAddNode: (type: NodeType) => void }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search nodes..."
-          className="flex-1 px-2.5 py-1.5 text-xs rounded-lg bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/40"
+          className="flex-1 px-2.5 py-1.5 text-xs rounded-lg bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-info-border/40"
         />
         <span className="text-[10px] text-[var(--text-muted)] whitespace-nowrap">
           {PALETTE_ITEMS.length} node types
@@ -501,7 +501,7 @@ function NodePalette({ onAddNode }: { onAddNode: (type: NodeType) => void }) {
             <button
               key={item.type}
               onClick={() => onAddNode(item.type)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-white ${style.cls} hover:scale-105 transition-transform cursor-pointer shrink-0`}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-foreground ${style.cls} hover:scale-105 transition-transform cursor-pointer shrink-0`}
               title={`Add ${item.label} node`}
             >
               <IconComp className="w-3 h-3" />
@@ -747,7 +747,7 @@ export default function WorkflowCanvas({
 
   // ── Helpers ──
   const getNodeStyle = (type: string) =>
-    NODE_STYLES[type] ?? { cls: 'bg-gray-500 text-white border-gray-600', shape: 'rect' as const };
+    NODE_STYLES[type] ?? { cls: 'bg-gray-500 text-foreground border-gray-600', shape: 'rect' as const };
 
   const isDiamond = (type: string) => getNodeStyle(type).shape === 'diamond';
 
@@ -779,7 +779,7 @@ export default function WorkflowCanvas({
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
             Workflow Canvas
             {editMode && (
-              <span className="ml-2 text-xs text-amber-400 font-medium">(Builder Mode)</span>
+              <span className="ml-2 text-xs text-warning-text font-medium">(Builder Mode)</span>
             )}
           </h2>
           <p className="text-xs text-[var(--text-secondary)]">
@@ -793,7 +793,7 @@ export default function WorkflowCanvas({
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 disabled:cursor-not-allowed text-xs font-semibold text-white transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success-text hover:bg-success-text disabled:bg-success-text/50 disabled:cursor-not-allowed text-xs font-semibold text-foreground transition-colors"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               {saving ? 'Saving...' : 'Save'}
@@ -804,7 +804,7 @@ export default function WorkflowCanvas({
               onClick={() => { setEditMode((prev) => !prev); setEditingNode(null); setSelectedNodeId(null); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
                 editMode
-                  ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
+                  ? 'bg-info-text/10 border-info-border/30 text-info-text'
                   : 'bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
@@ -816,10 +816,10 @@ export default function WorkflowCanvas({
           {readOnly && (
             <div className="hidden xl:flex items-center gap-2 flex-wrap justify-end">
               {[
-                { label: 'Trigger', cls: 'bg-indigo-500' },
-                { label: 'Agent', cls: 'bg-emerald-500' },
-                { label: 'Policy?', cls: 'bg-amber-500' },
-                { label: 'Human', cls: 'bg-rose-500' },
+                { label: 'Trigger', cls: 'bg-info-text' },
+                { label: 'Agent', cls: 'bg-success-text' },
+                { label: 'Policy?', cls: 'bg-warning-text' },
+                { label: 'Human', cls: 'bg-error-text' },
                 { label: 'Approval?', cls: 'bg-pink-500' },
                 { label: 'Evidence', cls: 'bg-cyan-600' },
               ].map((l) => (
@@ -835,10 +835,10 @@ export default function WorkflowCanvas({
 
       {/* Error banner */}
       {error && (
-        <div className="px-4 py-2 bg-rose-500/10 border-b border-rose-500/20 flex items-center gap-2 text-xs text-rose-400">
+        <div className="px-4 py-2 bg-error-text/10 border-b border-error-border/20 flex items-center gap-2 text-xs text-error-text">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           {typeof error === 'object' ? 'Unknown error' : error}
-          <button onClick={() => setError(null)} className="ml-auto hover:text-rose-300"><X className="w-3 h-3" /></button>
+          <button onClick={() => setError(null)} className="ml-auto hover:text-error-text"><X className="w-3 h-3" /></button>
         </div>
       )}
 
@@ -956,8 +956,8 @@ export default function WorkflowCanvas({
                 <div
                   data-handle-node={node.id}
                   onMouseDown={(e) => handleHandleMouseDown(e, node.id)}
-                  className={`absolute w-3 h-3 rounded-full bg-indigo-400 border-2 border-[var(--surface)] cursor-crosshair z-10 hover:scale-150 transition-transform ${
-                    connectingFrom?.nodeId === node.id ? 'scale-150 bg-indigo-300' : ''
+                  className={`absolute w-3 h-3 rounded-full bg-info-text border-2 border-[var(--surface)] cursor-crosshair z-10 hover:scale-150 transition-transform ${
+                    connectingFrom?.nodeId === node.id ? 'scale-150 bg-info-text' : ''
                   }`}
                   style={{
                     left: node.x + (diamond ? 24 : 40),
@@ -972,8 +972,8 @@ export default function WorkflowCanvas({
               {!readOnly && (
                 <div
                   data-handle-node={node.id}
-                  className={`absolute w-3 h-3 rounded-full bg-indigo-400/60 border-2 border-[var(--surface)] z-10 ${
-                    connectingFrom ? 'hover:scale-150 hover:bg-indigo-300 transition-transform' : 'opacity-40'
+                  className={`absolute w-3 h-3 rounded-full bg-info-text/60 border-2 border-[var(--surface)] z-10 ${
+                    connectingFrom ? 'hover:scale-150 hover:bg-info-text transition-transform' : 'opacity-40'
                   }`}
                   style={{
                     left: node.x - (diamond ? 24 : 40),
@@ -1052,7 +1052,7 @@ export default function WorkflowCanvas({
           <span>{nodes.length} nodes · {edges.length} connections</span>
           <span>
             {editMode ? (
-              <span className="text-amber-400">Drag to reposition · Connect handles · <kbd className="px-1 py-0.5 rounded bg-[var(--surface-hover)] border border-[var(--border)]">Del</kbd> to delete</span>
+              <span className="text-warning-text">Drag to reposition · Connect handles · <kbd className="px-1 py-0.5 rounded bg-[var(--surface-hover)] border border-[var(--border)]">Del</kbd> to delete</span>
             ) : (
               'View mode'
             )}

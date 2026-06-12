@@ -1,25 +1,35 @@
+import { createHmac } from 'crypto';
 import { Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logger } from '../../shared/logger';
+import { env } from '../../config/env';
 import { resolveAgencyAccount, resolveMetaAdAccountId, resolveMetaPageId } from './agencyAccountResolver';
 
 const META_GRAPH = 'https://graph.facebook.com/v21.0';
 
+function appSecretProof(token: string): string {
+  const secret = env.META_APP_SECRET;
+  if (!secret) return '';
+  return createHmac('sha256', secret).update(token).digest('hex');
+}
+
 // ── Meta API helper ────────────────────────────────────────────
 
 async function metaGet(path: string, token: string): Promise<Record<string, unknown>> {
-  const sep = path.includes('?') ? '&' : '?';
-  const r = await fetch(`${META_GRAPH}${path}${sep}access_token=${token}`);
+  const sep   = path.includes('?') ? '&' : '?';
+  const proof = appSecretProof(token);
+  const r = await fetch(`${META_GRAPH}${path}${sep}access_token=${token}${proof ? `&appsecret_proof=${proof}` : ''}`);
   return r.json();
 }
 
 async function metaPost(path: string, token: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const proof = appSecretProof(token);
   const r = await fetch(`${META_GRAPH}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...body, access_token: token }),
+    body: JSON.stringify({ ...body, access_token: token, ...(proof ? { appsecret_proof: proof } : {}) }),
   });
   return r.json();
 }
@@ -31,13 +41,15 @@ function toAdAccountId(raw: string): string {
 // ── Objective mapping: internal → Meta API ────────────────────
 
 const META_OBJECTIVE_MAP: Record<string, string> = {
-  BRAND_AWARENESS:  'BRAND_AWARENESS',
+  BRAND_AWARENESS:  'OUTCOME_AWARENESS',
+  AWARENESS:        'OUTCOME_AWARENESS',
   TRAFFIC:          'OUTCOME_TRAFFIC',
   LEAD_GENERATION:  'OUTCOME_LEADS',
   CONVERSIONS:      'OUTCOME_SALES',
-  POST_ENGAGEMENT:  'POST_ENGAGEMENT',
-  VIDEO_VIEWS:      'VIDEO_VIEWS',
-  REACH:            'REACH',
+  ENGAGEMENT:       'OUTCOME_ENGAGEMENT',
+  POST_ENGAGEMENT:  'OUTCOME_ENGAGEMENT',
+  VIDEO_VIEWS:      'OUTCOME_TRAFFIC',
+  REACH:            'OUTCOME_AWARENESS',
 };
 
 function resolveMetaObjective(objective: string): string {
@@ -91,7 +103,7 @@ export async function pushCampaignToMeta(
       name:                  label,
       objective,
       status:                'ACTIVE',
-      special_ad_categories: [],
+      special_ad_categories: ['NONE'],
     }) as any;
 
     if (metaCampaign.error) {
@@ -440,7 +452,7 @@ export const createBoost = async (req: AuthRequest, res: Response, next: NextFun
       name:                  label,
       objective:             resolvedObjective,
       status:                'ACTIVE',
-      special_ad_categories: [],
+      special_ad_categories: ['NONE'],
     }) as any;
 
     if (metaCampaign.error) {
@@ -487,7 +499,7 @@ export const createBoost = async (req: AuthRequest, res: Response, next: NextFun
     let metaAdId:       string | null = null;
 
     // 4. Build creative based on boost type
-    const pageId = d.facebook_page_id || acct.account_handle || null;
+    const pageId = d.facebook_page_id || acct.agency_page_id || null;
 
     if (d.boost_type === 'POST' && objectStoryId) {
       // ── Post Boost: promote existing organic post ─────────────

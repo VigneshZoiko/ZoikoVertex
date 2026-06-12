@@ -4,7 +4,6 @@ import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logCampaignEvent } from './campaignsController';
 import { AutoCampaignBoostService } from './autoCampaignBoostService';
-import { pushCampaignToMeta } from './adsController';
 import { toggleMetaCampaignStatus } from './metaCampaignPublisher';
 import { logger } from '../../shared/logger';
 
@@ -99,7 +98,7 @@ function evaluateLaunchGate(campaign: Record<string, unknown>, actorRole: string
       id:     '07',
       label:  'At least one ad platform selected',
       passed: platforms.length > 0,
-      reason: platforms.length === 0 ? 'Select at least one platform (Meta or Google) in the campaign settings' : null,
+      reason: platforms.length === 0 ? 'Select at least one platform in the campaign settings' : null,
     },
     {
       id:     '08',
@@ -159,13 +158,12 @@ export const getCampaignStats = async (req: AuthRequest, res: Response, next: Ne
       in_review:         rows.filter(r => ['READY_FOR_REVIEW', 'IN_REVIEW', 'CHANGES_REQUESTED'].includes(r.status)).length,
       approval_pending:  rows.filter(r => r.status === 'APPROVED').length,
       active:            rows.filter(r => r.status === 'ACTIVE').length,
-      pausing:           rows.filter(r => r.status === 'PAUSING').length,
       paused:            rows.filter(r => r.status === 'PAUSED').length,
       completed:         rows.filter(r => r.status === 'COMPLETED').length,
       risk_flags:        rows.filter(r => ['high', 'critical'].includes(r.risk_tier)).length,
       budget_allocated:  rows.reduce((sum, r) => sum + (Number(r.budget_total) || 0), 0),
       spend_recorded:    rows.reduce((sum, r) => sum + (Number(r.spend_recorded) || 0), 0),
-      needs_action:      rows.filter(r => ['READY_FOR_REVIEW', 'IN_REVIEW', 'CHANGES_REQUESTED', 'PAUSING'].includes(r.status)).length,
+      needs_action:      rows.filter(r => ['READY_FOR_REVIEW', 'IN_REVIEW', 'CHANGES_REQUESTED'].includes(r.status)).length,
     };
 
     res.json({ success: true, data: stats });
@@ -380,19 +378,7 @@ export const launchCampaign = async (req: AuthRequest, res: Response, next: Next
     if (newStatus === 'ACTIVE') {
       AutoCampaignBoostService.processActiveCampaignPosts(campaign.id, workspaceId)
         .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Launch] processActiveCampaignPosts failed (non-fatal)'));
-
-      // Auto-push to Meta Ads if campaign targets Meta, has an ad account, and hasn't already been published
-      // (guard against duplicate Meta campaigns if the user also presses the explicit publish button)
-      const hasMeta        = (campaign.platforms as string[] | undefined)?.includes('Meta');
-      const hasMetaAccount = !!(campaign.boost_settings as Record<string, unknown> | null)?.meta_connected_account_id;
-      const alreadyOnMeta  = !!(campaign as any).meta_campaign_id;
-      if (hasMeta && hasMetaAccount && !alreadyOnMeta) {
-        pushCampaignToMeta(campaign, workspaceId, userId)
-          .then(r => {
-            if (!r.success) logger.warn({ campaignId: campaign.id, reason: r.error }, '[Launch] Meta push failed (non-fatal)');
-          })
-          .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Launch] Meta push threw (non-fatal)'));
-      }
+      // Meta publishing is handled explicitly by the frontend via POST /publish-to-meta — no auto-push here.
     }
 
     res.json({
@@ -429,21 +415,30 @@ export const pauseCampaign = async (req: AuthRequest, res: Response, next: NextF
 
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
 
-    if (!['ACTIVE', 'SCHEDULED', 'PAUSING'].includes(campaign.status)) {
+    if (!['ACTIVE', 'SCHEDULED'].includes(campaign.status)) {
       return res.status(400).json({ error: `Cannot pause campaign in status: ${campaign.status}` });
     }
 
-    // Pause on Meta immediately if the campaign is live there
+    // Pause on Meta — await the call so we know whether it succeeded
+    let metaError: string | undefined;
     if ((campaign as any).meta_campaign_id) {
-      toggleMetaCampaignStatus(String(req.params.id), workspaceId, true)
-        .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Pause] Meta pause failed (non-fatal)'));
+      const metaResult = await toggleMetaCampaignStatus(String(req.params.id), workspaceId, true)
+        .catch((err: any) => ({ success: false, error: String(err?.message ?? err) }));
+      if (!metaResult.success) {
+        metaError = metaResult.error ?? 'Meta pause call failed';
+        logger.warn({ metaError, campaignId: campaign.id }, '[Pause] Meta pause failed');
+      }
     }
 
-    const newStatus = campaign.status === 'ACTIVE' ? 'PAUSING' : 'PAUSED';
+    const newStatus = 'PAUSED';
 
     const { data: updated, error } = await supabaseAdmin
       .from('campaigns')
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .update({
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+        ...(metaError ? { meta_error: metaError } : {}),
+      })
       .eq('id', req.params.id)
       .eq('workspace_id', workspaceId)
       .select()
@@ -462,8 +457,9 @@ export const pauseCampaign = async (req: AuthRequest, res: Response, next: NextF
     res.json({
       success: true,
       data: updated,
-      message: newStatus === 'PAUSING'
-        ? 'Pause request sent. Campaign status set to PAUSING — spend may continue briefly until confirmed.'
+      meta_warning: metaError,
+      message: metaError
+        ? `Campaign status set to ${newStatus} but Meta pause failed: ${metaError}`
         : 'Campaign paused.',
     });
   } catch (err) { next(err); }
@@ -493,12 +489,18 @@ export const emergencyPauseCampaign = async (req: AuthRequest, res: Response, ne
 
     const { data: campaign } = await supabaseAdmin
       .from('campaigns')
-      .select('id, status')
+      .select('id, status, meta_campaign_id')
       .eq('id', req.params.id)
       .eq('workspace_id', workspaceId)
       .single();
 
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    // Pause on Meta immediately — fire-and-forget with logging (don't block emergency pause if Meta call fails)
+    if ((campaign as any).meta_campaign_id) {
+      toggleMetaCampaignStatus(String(req.params.id), workspaceId, true)
+        .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[EmergencyPause] Meta pause call failed (non-fatal)'));
+    }
 
     const { data: updated, error } = await supabaseAdmin
       .from('campaigns')
@@ -658,7 +660,7 @@ export const updateSpend = async (req: AuthRequest, res: Response, next: NextFun
       thresholdAlert = 'AUTO_PAUSED';
       await supabaseAdmin
         .from('campaigns')
-        .update({ status: 'PAUSING', updated_at: new Date().toISOString() })
+        .update({ status: 'PAUSED', updated_at: new Date().toISOString() })
         .eq('id', req.params.id)
         .eq('workspace_id', workspaceId);
 
@@ -678,7 +680,7 @@ export const updateSpend = async (req: AuthRequest, res: Response, next: NextFun
       }
 
       await logCampaignEvent(workspaceId, campaign.id, 'campaign.budget.auto_paused', userId, req.user?.role,
-        'ACTIVE', 'PAUSING',
+        'ACTIVE', 'PAUSED',
         { spend: parsed.data.spend_recorded, budget: budgetTotal, ratio: spendRatio, threshold: '100%', boosts_paused: (activeBoosts || []).length });
 
     } else if (spendRatio >= BUDGET_THRESHOLDS.WARNING) {
@@ -723,13 +725,13 @@ export const resumeCampaign = async (req: AuthRequest, res: Response, next: Next
 
     const { data: campaign } = await supabaseAdmin
       .from('campaigns')
-      .select('id, status, budget_total, spend_recorded')
+      .select('id, status, budget_total, spend_recorded, meta_campaign_id')
       .eq('id', req.params.id)
       .eq('workspace_id', workspaceId)
       .single();
 
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
-    if (!['PAUSED', 'PAUSING'].includes(campaign.status)) {
+    if (campaign.status !== 'PAUSED') {
       return res.status(400).json({ error: `Cannot resume campaign in status: ${campaign.status}` });
     }
 
@@ -744,21 +746,30 @@ export const resumeCampaign = async (req: AuthRequest, res: Response, next: Next
       });
     }
 
+    // Re-activate on Meta first — await so we surface failure
+    let metaError: string | undefined;
+    if (campaign.meta_campaign_id) {
+      const metaResult = await toggleMetaCampaignStatus(String(req.params.id), workspaceId, false)
+        .catch((err: any) => ({ success: false, error: String(err?.message ?? err) }));
+      if (!metaResult.success) {
+        metaError = metaResult.error ?? 'Meta activation failed';
+        logger.warn({ metaError, campaignId: campaign.id }, '[Resume] Meta activation failed');
+      }
+    }
+
     const { data: updated, error } = await supabaseAdmin
       .from('campaigns')
-      .update({ status: 'ACTIVE', updated_at: new Date().toISOString() })
+      .update({
+        status: 'ACTIVE',
+        updated_at: new Date().toISOString(),
+        ...(metaError ? { meta_error: metaError } : { meta_error: null }),
+      })
       .eq('id', req.params.id)
       .eq('workspace_id', workspaceId)
       .select()
       .single();
 
     if (error) throw error;
-
-    // Re-activate on Meta if campaign was published there
-    if ((campaign as any).meta_campaign_id) {
-      toggleMetaCampaignStatus(String(req.params.id), workspaceId, false)
-        .catch((err: any) => logger.warn({ err, campaignId: campaign.id }, '[Resume] Meta activation failed (non-fatal)'));
-    }
 
     await logCampaignEvent(
       workspaceId, campaign.id,
@@ -768,7 +779,14 @@ export const resumeCampaign = async (req: AuthRequest, res: Response, next: Next
       { reason: parsed.data.reason, resumed_by: userId },
     );
 
-    res.json({ success: true, data: updated, message: 'Campaign resumed and is now active.' });
+    res.json({
+      success: true,
+      data: updated,
+      meta_warning: metaError,
+      message: metaError
+        ? `Campaign DB status set to ACTIVE but Meta re-activation failed: ${metaError}`
+        : 'Campaign resumed and is now active.',
+    });
   } catch (err) { next(err); }
 };
 
@@ -852,7 +870,7 @@ export const completeCampaign = async (req: AuthRequest, res: Response, next: Ne
 
     if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
 
-    if (!['ACTIVE', 'PAUSED', 'PAUSING', 'SCHEDULED'].includes(campaign.status)) {
+    if (!['ACTIVE', 'PAUSED', 'SCHEDULED'].includes(campaign.status)) {
       return res.status(400).json({ error: `Cannot complete campaign in status: ${campaign.status}` });
     }
 
@@ -873,7 +891,7 @@ export const completeCampaign = async (req: AuthRequest, res: Response, next: Ne
       .from('campaign_boosts')
       .update({ status: 'COMPLETED', updated_at: now })
       .eq('campaign_id', campaign.id)
-      .in('status', ['ACTIVE', 'PAUSED', 'PAUSING', 'PENDING']);
+      .in('status', ['ACTIVE', 'PAUSED', 'PENDING']);
 
     await logCampaignEvent(
       workspaceId, campaign.id,
@@ -937,7 +955,7 @@ export const cancelCampaign = async (req: AuthRequest, res: Response, next: Next
       .from('campaign_boosts')
       .update({ status: 'CANCELLED', updated_at: now })
       .eq('campaign_id', campaign.id)
-      .in('status', ['ACTIVE', 'PAUSED', 'PAUSING', 'PENDING', 'SCHEDULED']);
+      .in('status', ['ACTIVE', 'PAUSED', 'PENDING', 'SCHEDULED']);
 
     // Meta charges the client's ad account directly — no wallet refund needed on cancel.
 

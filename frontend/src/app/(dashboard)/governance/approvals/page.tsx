@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   CheckCircle2, XCircle, Clock, AlertTriangle, ArrowUpRight,
   RefreshCcw, AlertCircle, Search, Filter,
-  ChevronRight, UserPlus, ShieldCheck, FileText, MessageSquare,
+  ChevronRight, UserPlus, ShieldCheck, FileText,
   Eye, EyeOff, Download, Settings,
   Flag, Activity, ThumbsUp,
   ThumbsDown, MessageCircle,
-  HelpCircle, Info, ExternalLink,
+  Info, ExternalLink,
   ClipboardList,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -21,7 +21,7 @@ type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 type ItemType = "SOCIAL_POST" | "INBOX_REPLY" | "CAMPAIGN_ASSET" | "AGENT_ACTION" | "WORKFLOW_OUTPUT" | "VALIDATION_OVERRIDE" | "EXCEPTION_OUTCOME" | "RESTRICTED_OPERATION" | "COMPLIANCE_SENSITIVE_ITEM" | "PUBLISHING_ACTION";
 type EligibilityState = "APPROVAL_ELIGIBLE" | "REJECTION_ELIGIBLE" | "CHANGES_REQUEST_ELIGIBLE" | "CONDITIONAL_APPROVAL_ELIGIBLE" | "ESCALATION_REQUIRED" | "WAITING_ON_PRIOR_STAGE" | "MISSING_REQUIRED_APPROVER" | "VALIDATION_BLOCKED" | "REVALIDATION_REQUIRED" | "PERMISSION_DENIED" | "ALREADY_DECIDED" | "WORKFLOW_COMPLETED";
 type TabId = "queue" | "assigned" | "waiting" | "approved" | "rejected" | "changes" | "escalated" | "overdue" | "conditional" | "completed";
-type WorkspaceTabId = "summary" | "preview" | "validation" | "grounding" | "risk" | "path" | "history" | "evidence" | "comments" | "next-destination";
+type WorkspaceTabId = "summary" | "path" | "history" | "comments";
 
 interface ApprovalItem {
   id: string; title: string; item_type: ItemType; source_module: string;
@@ -40,6 +40,37 @@ interface ApprovalDecision {
   decided_at: string;
 }
 
+interface ApprovalStage {
+  id: string; approval_path_id: string; stage_order: number; stage_type: string;
+  required_role?: string; assigned_user?: string; stage_status: string;
+  completed_by?: string; completed_at?: string; due_at?: string;
+}
+
+interface ApprovalPathData {
+  path: { id: string; path_type: string; current_stage: number; total_stages: number } | null;
+  stages: ApprovalStage[];
+}
+
+interface ApprovalAuditEntry {
+  id: string; action: string; previous_value?: string; new_value?: string;
+  performed_by: string; performed_at: string;
+}
+
+interface ApprovalComment {
+  id: string; comment_body: string; visibility: string;
+  created_by: string; created_at: string;
+  creator?: { full_name?: string; email?: string };
+}
+
+interface ApprovalStats {
+  counts: {
+    pending_approval: number; in_review: number; waiting_on_others: number;
+    approved: number; rejected: number; changes_requested: number;
+    escalated: number; blocked: number; overdue: number;
+  };
+  approval_rate: number | null;
+}
+
 interface MetricCardDef {
   id: string; label: string; count: number; icon: React.ElementType; color: string; filterTab?: TabId;
 }
@@ -52,21 +83,21 @@ interface AlertDef {
 
 const STATUS_BADGE: Record<ApprovalStatus, { color: string; bg: string }> = {
   PENDING_APPROVAL:       { color: "text-slate-400", bg: "bg-slate-500/10 border-slate-500/30" },
-  IN_REVIEW:              { color: "text-blue-400",  bg: "bg-blue-500/10 border-blue-500/30" },
-  WAITING_ON_OTHERS:      { color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/30" },
-  APPROVED:               { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30" },
-  REJECTED:               { color: "text-rose-400",  bg: "bg-rose-500/10 border-rose-500/30" },
-  CHANGES_REQUESTED:      { color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/30" },
-  ESCALATED:              { color: "text-red-400",   bg: "bg-red-500/10 border-red-500/30" },
-  CONDITIONAL_APPROVAL:   { color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/30" },
-  BLOCKED:                { color: "text-rose-400",  bg: "bg-rose-500/10 border-rose-500/30" },
+  IN_REVIEW:              { color: "text-info-text",  bg: "bg-info-bg border-info-border" },
+  WAITING_ON_OTHERS:      { color: "text-warning-text", bg: "bg-warning-bg border-warning-border" },
+  APPROVED:               { color: "text-success-text", bg: "bg-success-bg border-success-border" },
+  REJECTED:               { color: "text-error-text",  bg: "bg-error-bg border-error-border" },
+  CHANGES_REQUESTED:      { color: "text-warning-text", bg: "bg-warning-bg border-warning-border" },
+  ESCALATED:              { color: "text-error-text",   bg: "bg-error-bg border-error-border" },
+  CONDITIONAL_APPROVAL:   { color: "text-info-text", bg: "bg-info-bg border-info-border" },
+  BLOCKED:                { color: "text-error-text",  bg: "bg-error-bg border-error-border" },
   CANCELLED:              { color: "text-slate-500", bg: "bg-slate-500/10 border-slate-500/30" },
-  COMPLETED:              { color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30" },
+  COMPLETED:              { color: "text-success-text", bg: "bg-success-bg border-success-border" },
   ARCHIVED:               { color: "text-slate-600", bg: "bg-slate-500/5 border-slate-500/20" },
 };
 
 const RISK_DOT: Record<RiskLevel, string> = {
-  LOW: "bg-emerald-400", MEDIUM: "bg-amber-400", HIGH: "bg-orange-400", CRITICAL: "bg-red-400",
+  LOW: "bg-success-text", MEDIUM: "bg-warning-text", HIGH: "bg-orange-400", CRITICAL: "bg-red-400",
 };
 
 const ITEM_TYPE_LABEL: Record<ItemType, string> = {
@@ -85,75 +116,23 @@ const TAB_LABELS: Record<TabId, string> = {
 };
 
 const WORKSPACE_TAB_LABELS: Record<WorkspaceTabId, string> = {
-  summary: "Approval Summary", preview: "Content/Item Preview",
-  validation: "Validation Results", grounding: "Source Grounding",
-  risk: "Risk & Compliance", path: "Approval Path",
-  history: "Decision History", evidence: "Evidence",
-  comments: "Comments", "next-destination": "Next Destination",
+  summary: "Approval Summary", path: "Approval Path",
+  history: "Decision History", comments: "Comments",
 };
 
 const ELIGIBILITY_LABEL: Record<EligibilityState, { label: string; color: string }> = {
-  APPROVAL_ELIGIBLE:            { label: "Approval Eligible",       color: "text-emerald-400" },
-  REJECTION_ELIGIBLE:           { label: "Rejection Eligible",      color: "text-rose-400" },
-  CHANGES_REQUEST_ELIGIBLE:     { label: "Changes Request Eligible", color: "text-orange-400" },
-  CONDITIONAL_APPROVAL_ELIGIBLE:{ label: "Conditional Eligible",   color: "text-purple-400" },
-  ESCALATION_REQUIRED:          { label: "Escalation Required",    color: "text-red-400" },
-  WAITING_ON_PRIOR_STAGE:       { label: "Waiting on Prior Stage", color: "text-amber-400" },
-  MISSING_REQUIRED_APPROVER:    { label: "Missing Approver",       color: "text-rose-400" },
-  VALIDATION_BLOCKED:           { label: "Validation Blocked",     color: "text-red-400" },
-  REVALIDATION_REQUIRED:        { label: "Revalidation Required",  color: "text-amber-400" },
-  PERMISSION_DENIED:            { label: "Permission Denied",      color: "text-rose-400" },
+  APPROVAL_ELIGIBLE:            { label: "Approval Eligible",       color: "text-success-text" },
+  REJECTION_ELIGIBLE:           { label: "Rejection Eligible",      color: "text-error-text" },
+  CHANGES_REQUEST_ELIGIBLE:     { label: "Changes Request Eligible", color: "text-warning-text" },
+  CONDITIONAL_APPROVAL_ELIGIBLE:{ label: "Conditional Eligible",   color: "text-info-text" },
+  ESCALATION_REQUIRED:          { label: "Escalation Required",    color: "text-error-text" },
+  WAITING_ON_PRIOR_STAGE:       { label: "Waiting on Prior Stage", color: "text-warning-text" },
+  MISSING_REQUIRED_APPROVER:    { label: "Missing Approver",       color: "text-error-text" },
+  VALIDATION_BLOCKED:           { label: "Validation Blocked",     color: "text-error-text" },
+  REVALIDATION_REQUIRED:        { label: "Revalidation Required",  color: "text-warning-text" },
+  PERMISSION_DENIED:            { label: "Permission Denied",      color: "text-error-text" },
   ALREADY_DECIDED:              { label: "Already Decided",        color: "text-slate-500" },
-  WORKFLOW_COMPLETED:           { label: "Workflow Completed",     color: "text-emerald-400" },
-};
-
-// ─── Mock Data ───────────────────────────────────────────────────────────
-
-const MOCK_ITEMS: ApprovalItem[] = [
-  { id: "ai1", title: "Q2 LinkedIn Campaign — Executive Summary", item_type: "SOCIAL_POST", source_module: "Media Engine", campaign: "Q2 Brand Campaign", platform: "LinkedIn", approval_status: "PENDING_APPROVAL", required_approval_level: 3, submitted_by: "harsha@zoikovertex.com", submitter_name: "Harsha", validation_status: "Passed", risk_level: "HIGH", due_at: new Date(Date.now() + 7200000).toISOString(), sla_status: "On Track", last_activity: "2h ago", next_action: "Manager Review", created_at: "2026-05-22T08:00:00Z" },
-  { id: "ai2", title: "Legal Threat Response — Twitter DM", item_type: "INBOX_REPLY", source_module: "Inbox & Engagement", platform: "X", approval_status: "IN_REVIEW", required_approval_level: 4, assigned_approver_id: "user-legal", submitted_by: "naresh@zoikovertex.com", submitter_name: "Naresh", validation_status: "Warning", risk_level: "CRITICAL", due_at: new Date(Date.now() + 3600000).toISOString(), sla_status: "Due Soon", last_activity: "30m ago", next_action: "Legal Review", created_at: "2026-05-22T06:00:00Z" },
-  { id: "ai3", title: "Summer Sale — Facebook Carousel", item_type: "CAMPAIGN_ASSET", source_module: "Campaigns", campaign: "Summer Sale 2026", platform: "Instagram", approval_status: "WAITING_ON_OTHERS", required_approval_level: 2, submitted_by: "admin@zoikovertex.com", submitter_name: "Admin", validation_status: "Passed", risk_level: "MEDIUM", due_at: new Date(Date.now() + 86400000).toISOString(), sla_status: "On Track", last_activity: "4h ago", next_action: "Compliance Sign-Off", created_at: "2026-05-21T14:00:00Z" },
-  { id: "ai4", title: "AI Agent Action — Auto-Reply to Complaint", item_type: "AGENT_ACTION", source_module: "Agent Studio", platform: "All", approval_status: "APPROVED", required_approval_level: 3, assigned_approver_id: "user-agent-mgr", submitted_by: "system@zoikovertex.com", submitter_name: "System", validation_status: "Passed", risk_level: "HIGH", last_activity: "1h ago", next_action: "Execute", created_at: "2026-05-22T04:00:00Z" },
-  { id: "ai5", title: "Brand-Sensitive Inbox Reply — Zoiko", item_type: "INBOX_REPLY", source_module: "Inbox & Engagement", platform: "LinkedIn", approval_status: "REJECTED", required_approval_level: 3, submitted_by: "harsha@zoikovertex.com", submitter_name: "Harsha", validation_status: "Failed", risk_level: "HIGH", last_activity: "3h ago", next_action: "Revise", created_at: "2026-05-21T10:00:00Z" },
-  { id: "ai6", title: "Restricted Mode — Emergency Broadcast", item_type: "RESTRICTED_OPERATION", source_module: "Agent Operations", platform: "All", approval_status: "ESCALATED", required_approval_level: 5, submitted_by: "ops@zoikovertex.com", submitter_name: "Operations", validation_status: "Passed", risk_level: "CRITICAL", due_at: new Date(Date.now() + 1800000).toISOString(), sla_status: "Overdue", last_activity: "10m ago", next_action: "Executive Decision", created_at: "2026-05-22T02:00:00Z" },
-  { id: "ai7", title: "YouTube Sponsorship Script", item_type: "CAMPAIGN_ASSET", source_module: "Campaigns", campaign: "Sponsorship Q3", platform: "YouTube", approval_status: "CHANGES_REQUESTED", required_approval_level: 2, submitted_by: "naresh@zoikovertex.com", submitter_name: "Naresh", validation_status: "Warning", risk_level: "MEDIUM", due_at: new Date(Date.now() + 259200000).toISOString(), sla_status: "On Track", last_activity: "1d ago", next_action: "Submit Revision", created_at: "2026-05-20T09:00:00Z" },
-  { id: "ai8", title: "Workflow Output — Campaign Report", item_type: "WORKFLOW_OUTPUT", source_module: "AI Workflow Orchestration", campaign: "Monthly Report", approval_status: "CONDITIONAL_APPROVAL", required_approval_level: 2, submitted_by: "system@zoikovertex.com", submitter_name: "System", validation_status: "Passed", risk_level: "LOW", last_activity: "5h ago", next_action: "Condition Met", created_at: "2026-05-21T16:00:00Z" },
-  { id: "ai9", title: "Compliance Override — Policy Flag", item_type: "VALIDATION_OVERRIDE", source_module: "Validation Desk", platform: "All", approval_status: "BLOCKED", required_approval_level: 4, submitted_by: "validator@zoikovertex.com", submitter_name: "Validator", validation_status: "Failed", risk_level: "HIGH", due_at: new Date(Date.now() - 3600000).toISOString(), sla_status: "Breached", last_activity: "6h ago", next_action: "Revalidate", created_at: "2026-05-21T08:00:00Z" },
-  { id: "ai10", title: "TikTok Trend Post — Product Launch", item_type: "SOCIAL_POST", source_module: "Media Engine", campaign: "Product Launch", platform: "TikTok", approval_status: "PENDING_APPROVAL", required_approval_level: 1, submitted_by: "creator@zoikovertex.com", submitter_name: "Creator", validation_status: "Passed", risk_level: "LOW", last_activity: "20m ago", next_action: "Auto-Approve", created_at: "2026-05-22T10:00:00Z" },
-];
-
-const MOCK_METRICS: MetricCardDef[] = [
-  { id: "m1", label: "Pending Approval", count: 8, icon: Clock, color: "text-blue-400", filterTab: "queue" },
-  { id: "m2", label: "Assigned to Me", count: 3, icon: UserPlus, color: "text-indigo-400", filterTab: "assigned" },
-  { id: "m3", label: "Approved Today", count: 12, icon: CheckCircle2, color: "text-emerald-400", filterTab: "approved" },
-  { id: "m4", label: "Changes Requested", count: 5, icon: AlertTriangle, color: "text-orange-400", filterTab: "changes" },
-  { id: "m5", label: "Escalated", count: 2, icon: ArrowUpRight, color: "text-red-400", filterTab: "escalated" },
-  { id: "m6", label: "Overdue", count: 4, icon: AlertCircle, color: "text-rose-400", filterTab: "overdue" },
-];
-
-const MOCK_ALERTS: AlertDef[] = [
-  { id: "al1", type: "Critical Approvals Pending", message: "3 high-risk items past their SLA deadline require immediate attention", severity: "critical" },
-  { id: "al2", type: "SLA Breach", message: "Emergency Broadcast approval overdue — executive escalation required", severity: "critical" },
-  { id: "al3", type: "Validation Failure Present", message: "Validation Desk returned FAILED for 2 pending approvals", severity: "warning" },
-  { id: "al4", type: "Missing Approver", message: "Legal Threat Response has no assigned approver", severity: "warning" },
-  { id: "al5", type: "Blocked Approval Path", message: "Compliance Override has no valid approval path configured", severity: "warning" },
-  { id: "al6", type: "Restricted Operations Mode", message: "Restricted mode is active — all approvals require executive sign-off", severity: "info" },
-];
-
-const MOCK_DECISIONS: ApprovalDecision[] = [
-  { id: "d1", approver_id: "user-1", approver_name: "Harsha", decision: "APPROVED", decision_note: "LGTM", decided_at: "2026-05-22T09:00:00Z" },
-  { id: "d2", approver_id: "user-2", approver_name: "Naresh", decision: "REJECTED", decision_reason: "Content does not align with brand guidelines", decided_at: "2026-05-21T15:00:00Z" },
-  { id: "d3", approver_id: "user-3", approver_name: "Legal Bot", decision: "CHANGES_REQUESTED", decision_reason: "Legal disclaimer must be added", condition_owner: "user-1", condition_due_at: "2026-05-25T00:00:00Z", decided_at: "2026-05-21T10:00:00Z" },
-];
-
-const MOCK_PATH = {
-  path_type: "SEQUENTIAL" as const, current_stage: 2, total_stages: 4,
-  stages: [
-    { order: 1, label: "Manager Review", role: "Campaign Manager", status: "COMPLETED", completed_by: "Harsha", completed_at: "2026-05-22T08:00:00Z" },
-    { order: 2, label: "Legal Review", role: "Legal", status: "IN_PROGRESS", assigned: "Naresh" },
-    { order: 3, label: "Compliance", role: "Compliance", status: "PENDING" },
-    { order: 4, label: "Executive Sign-Off", role: "Executive", status: "PENDING" },
-  ],
+  WORKFLOW_COMPLETED:           { label: "Workflow Completed",     color: "text-success-text" },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -165,7 +144,7 @@ function timeAgo(date: string): string {
 }
 
 function slaColor(status?: string): string {
-  if (status === "Breached") return "text-rose-400"; if (status === "Overdue" || status === "Due Soon") return "text-red-400"; return "text-emerald-400";
+  if (status === "Breached") return "text-error-text"; if (status === "Overdue" || status === "Due Soon") return "text-error-text"; return "text-success-text";
 }
 
 function Badge({ status }: { status: ApprovalStatus }) {
@@ -184,7 +163,8 @@ export default function ApprovalsPage() {
   const canDecide = isSuperAdmin || ['APPROVER', 'VALIDATOR', 'GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER'].includes(role ?? '');
   const canAssign = isSuperAdmin || ['GOVERNANCE_ADMIN', 'ADMIN', 'WORKSPACE_OWNER'].includes(role ?? '');
 
-  const [items, setItems] = useState<ApprovalItem[]>(MOCK_ITEMS);
+  const [items, setItems] = useState<ApprovalItem[]>([]);
+  const [stats, setStats] = useState<ApprovalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("queue");
@@ -200,25 +180,70 @@ export default function ApprovalsPage() {
   const [showLeft, setShowLeft] = useState(true);
   const [showRight, setShowRight] = useState(true);
   const [alertDismissed, setAlertDismissed] = useState<Set<string>>(new Set());
-  const [eligibility, setEligibility] = useState<EligibilityState>("APPROVAL_ELIGIBLE");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [commentText, setCommentText] = useState("");
 
+  // Per-item detail state
+  const [selectedDecisions, setSelectedDecisions] = useState<ApprovalDecision[]>([]);
+  const [selectedPath, setSelectedPath] = useState<ApprovalPathData | null>(null);
+  const [selectedEligibility, setSelectedEligibility] = useState<EligibilityState>("APPROVAL_ELIGIBLE");
+  const [selectedAuditLog, setSelectedAuditLog] = useState<ApprovalAuditEntry[]>([]);
+  const [selectedComments, setSelectedComments] = useState<ApprovalComment[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
   const selectedItem = items.find(i => i.id === selectedId) || null;
 
-  const handleAction = async (action: string, id: string) => {
+  // ─── Derived alerts from real stats ───────────────────────────────────
+  const activeAlerts = useMemo((): AlertDef[] => {
+    if (!stats) return [];
+    const alerts: AlertDef[] = [];
+    if (stats.counts.overdue > 0) {
+      alerts.push({ id: "al-overdue", type: "SLA Breach", message: `${stats.counts.overdue} item${stats.counts.overdue !== 1 ? 's are' : ' is'} past their SLA deadline`, severity: "critical" });
+    }
+    if (stats.counts.escalated > 0) {
+      alerts.push({ id: "al-escalated", type: "Escalated Items", message: `${stats.counts.escalated} item${stats.counts.escalated !== 1 ? 's require' : ' requires'} an escalation decision`, severity: "critical" });
+    }
+    const failedValidation = items.filter(i => i.validation_status === 'Failed').length;
+    if (failedValidation > 0) {
+      alerts.push({ id: "al-validation", type: "Validation Failures", message: `${failedValidation} item${failedValidation !== 1 ? 's have' : ' has'} failed validation`, severity: "warning" });
+    }
+    if (stats.counts.blocked > 0) {
+      alerts.push({ id: "al-blocked", type: "Blocked Items", message: `${stats.counts.blocked} item${stats.counts.blocked !== 1 ? 's are' : ' is'} blocked from progressing`, severity: "warning" });
+    }
+    return alerts;
+  }, [stats, items]);
+
+  // ─── Derived metrics from real stats ──────────────────────────────────
+  const activeMetrics: MetricCardDef[] = [
+    { id: "m1", label: "Pending Approval",   count: stats?.counts.pending_approval   ?? 0, icon: Clock,         color: "text-info-text",    filterTab: "queue"     },
+    { id: "m2", label: "Assigned to Me",     count: stats?.counts.in_review          ?? 0, icon: UserPlus,      color: "text-info-text",  filterTab: "assigned"  },
+    { id: "m3", label: "Approved",           count: stats?.counts.approved            ?? 0, icon: CheckCircle2,  color: "text-success-text", filterTab: "approved"  },
+    { id: "m4", label: "Changes Requested",  count: stats?.counts.changes_requested  ?? 0, icon: AlertTriangle, color: "text-warning-text",  filterTab: "changes"   },
+    { id: "m5", label: "Escalated",          count: stats?.counts.escalated           ?? 0, icon: ArrowUpRight,  color: "text-error-text",     filterTab: "escalated" },
+    { id: "m6", label: "Overdue",            count: stats?.counts.overdue             ?? 0, icon: AlertCircle,   color: "text-error-text",    filterTab: "overdue"   },
+  ];
+
+  const handleAction = async (action: string, id: string, body?: Record<string, any>) => {
     try {
-      const result = await api.post(`/api/v1/approvals-v2/items/${id}/${action}`, {});
+      let result;
+      if (action === 'assign' || action === 'reassign') {
+        result = await api.patch(`/api/v1/approvals-v2/items/${id}/${action}`, body || {});
+      } else if (action === 'export') {
+        result = await api.post(`/api/v1/approvals-v2/items/${id}/export`, {});
+      } else {
+        result = await api.post(`/api/v1/approvals-v2/items/${id}/action`, { action, ...body });
+      }
       if (result.success) {
         fetchItems();
-        setMessage({ type: "success", text: `${action} action completed on ${id}` });
+        if (selectedId === id) fetchItemDetails(id);
+        setMessage({ type: "success", text: `${action.replace(/_/g, ' ')} completed` });
         setTimeout(() => setMessage(null), 3000);
       } else {
         setMessage({ type: "error", text: result.error || `${action} failed` });
         setTimeout(() => setMessage(null), 5000);
       }
     } catch {
-      setMessage({ type: "error", text: `${action} action failed — network error` });
+      setMessage({ type: "error", text: `${action} failed — network error` });
       setTimeout(() => setMessage(null), 5000);
     }
   };
@@ -245,18 +270,50 @@ export default function ApprovalsPage() {
   const fetchItems = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const result = await api.get("/api/v1/approvals-v2/items");
-      if (result.success) setItems(result.data);
+      const [itemsResult, statsResult] = await Promise.all([
+        api.get("/api/v1/approvals-v2/items"),
+        api.get("/api/v1/approvals-v2/stats"),
+      ]);
+      if (itemsResult.success) setItems(itemsResult.data);
+      if (statsResult.success) setStats(statsResult.data);
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to load approvals"); } finally { setLoading(false); }
   }, []);
 
+  const fetchItemDetails = useCallback(async (id: string) => {
+    setDetailsLoading(true);
+    try {
+      const [decisionsRes, pathRes, eligibilityRes, auditRes, commentsRes] = await Promise.all([
+        api.get(`/api/v1/approvals-v2/items/${id}/decisions`),
+        api.get(`/api/v1/approvals-v2/items/${id}/path`),
+        api.get(`/api/v1/approvals-v2/items/${id}/eligibility`),
+        api.get(`/api/v1/approvals-v2/items/${id}/audit-log`),
+        api.get(`/api/v1/approvals-v2/items/${id}/comments`),
+      ]);
+      if (decisionsRes.success) setSelectedDecisions(decisionsRes.data);
+      if (pathRes.success) setSelectedPath(pathRes.data);
+      if (eligibilityRes.success) setSelectedEligibility(eligibilityRes.data.eligibility);
+      if (auditRes.success) setSelectedAuditLog(auditRes.data);
+      if (commentsRes.success) setSelectedComments(commentsRes.data);
+    } catch {} finally { setDetailsLoading(false); }
+  }, []);
+
   useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  useEffect(() => {
+    if (selectedId) {
+      fetchItemDetails(selectedId);
+    } else {
+      setSelectedDecisions([]); setSelectedPath(null);
+      setSelectedEligibility("APPROVAL_ELIGIBLE");
+      setSelectedAuditLog([]); setSelectedComments([]);
+    }
+  }, [selectedId, fetchItemDetails]);
 
   const dismissAlert = (id: string) => {
     const next = new Set(alertDismissed); next.add(id); setAlertDismissed(next);
   };
 
-  const visibleAlerts = MOCK_ALERTS.filter(a => !alertDismissed.has(a.id));
+  const visibleAlerts = activeAlerts.filter(a => !alertDismissed.has(a.id));
 
   const filteredItems = items.filter(item => {
     const q = search.toLowerCase();
@@ -281,22 +338,7 @@ export default function ApprovalsPage() {
     return true;
   });
 
-  const activeMetrics = MOCK_METRICS.map(m => ({
-    ...m,
-    count: m.filterTab ? items.filter(i => {
-      switch (m.filterTab) {
-        case "queue": return i.approval_status === "PENDING_APPROVAL";
-        case "assigned": return i.approval_status === "IN_REVIEW";
-        case "approved": return i.approval_status === "APPROVED";
-        case "changes": return i.approval_status === "CHANGES_REQUESTED";
-        case "escalated": return i.approval_status === "ESCALATED";
-        case "overdue": return i.sla_status === "Breached" || i.sla_status === "Overdue";
-        default: return false;
-      }
-    }).length : m.count,
-  }));
-
-  const decisions = selectedId === "ai1" ? MOCK_DECISIONS : [];
+  const eligibilityInfo = ELIGIBILITY_LABEL[selectedEligibility] ?? { label: selectedEligibility, color: "text-slate-400" };
 
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col bg-[#0e0e0e]">
@@ -305,9 +347,9 @@ export default function ApprovalsPage() {
         <div className="flex gap-2 px-4 pt-2 pb-1 overflow-x-auto shrink-0">
           {visibleAlerts.map(a => (
             <div key={a.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs shrink-0 border ${
-              a.severity === "critical" ? "bg-rose-500/10 border-rose-500/20 text-rose-300" :
-              a.severity === "warning" ? "bg-amber-500/10 border-amber-500/20 text-amber-300" :
-              "bg-blue-500/10 border-blue-500/20 text-blue-300"
+              a.severity === "critical" ? "bg-error-bg border-error-border text-error-text" :
+              a.severity === "warning" ? "bg-warning-bg border-warning-border text-warning-text" :
+              "bg-info-bg border-info-border text-blue-300"
             }`}>
               {a.severity === "critical" ? <AlertCircle className="w-3 h-3 shrink-0" /> :
                a.severity === "warning" ? <AlertTriangle className="w-3 h-3 shrink-0" /> : <Info className="w-3 h-3 shrink-0" />}
@@ -325,7 +367,7 @@ export default function ApprovalsPage() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#2d2d2d] shrink-0">
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-lg font-bold text-white">Approvals</h1>
+            <h1 className="text-lg font-bold text-foreground">Approvals</h1>
             <p className="text-[11px] text-[#888]">Review and authorize content, actions, and workflow outputs</p>
           </div>
         </div>
@@ -348,8 +390,8 @@ export default function ApprovalsPage() {
                   onClick={() => {
                     if (roleBlocked) return;
                     if (btn.key === "bulk_approve" && bulkSelected.size > 0) {
-                      Array.from(bulkSelected).forEach(id => handleAction("approve", id));
-                      setBulkSelected(new Set()); setBulkMode(false);
+                      handleBulkAction("approve");
+                      setBulkMode(false);
                     } else if (selectedId) {
                       handleAction(btn.key, selectedId);
                     }
@@ -367,12 +409,12 @@ export default function ApprovalsPage() {
           })}
           <button onClick={() => { setBulkMode(!bulkMode); setBulkSelected(new Set()); }}
             className={`p-2 border rounded-lg transition-all ml-1 ${
-              bulkMode ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" : "bg-[#161616] border-[#2d2d2d] text-[#888] hover:text-white"
+              bulkMode ? "bg-info-bg border-info-border text-info-text" : "bg-[#161616] border-[#2d2d2d] text-[#888] hover:text-white"
             }`}>
             <ClipboardList className="w-3.5 h-3.5" />
           </button>
           <button onClick={fetchItems} className="p-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-[#888] hover:text-white ml-1">
-            <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-indigo-400" : ""}`} />
+            <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-info-text" : ""}`} />
           </button>
         </div>
       </div>
@@ -398,7 +440,7 @@ export default function ApprovalsPage() {
         {(Object.entries(TAB_LABELS) as [TabId, string][]).map(([id, label]) => (
           <button key={id} onClick={() => setActiveTab(id)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-              activeTab === id ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/20" : "text-[#666] hover:text-white hover:bg-white/5"
+              activeTab === id ? "bg-info-bg text-info-text border border-info-border" : "text-[#666] hover:text-white hover:bg-white/5"
             }`}>
             {label}
           </button>
@@ -407,13 +449,13 @@ export default function ApprovalsPage() {
 
       {/* ─── Error Banner ────────────────────────────────────────────────── */}
       {error && (
-        <div className="mx-4 mt-2 p-2.5 rounded-lg flex items-center gap-2 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 shrink-0">
+        <div className="mx-4 mt-2 p-2.5 rounded-lg flex items-center gap-2 text-xs bg-error-bg border border-error-border text-error-text shrink-0">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {error}
         </div>
       )}
       {message && (
         <div className={`mx-4 mt-2 p-2.5 rounded-lg flex items-center gap-2 text-xs shrink-0 ${
-          message.type === "success" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border border-rose-500/20 text-rose-400"
+          message.type === "success" ? "bg-success-bg border border-success-border text-success-text" : "bg-error-bg border border-error-border text-error-text"
         }`}>
           {message.type === "success" ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
           {message.text}
@@ -426,20 +468,20 @@ export default function ApprovalsPage() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#555]" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by title, source module..."
-            className="w-full bg-[#111] border border-[#2d2d2d] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
+            className="w-full bg-[#111] border border-[#2d2d2d] rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-[#555] focus:outline-none focus:border-info-border" />
         </div>
         <button onClick={() => setShowFilters(!showFilters)}
           className={`p-1.5 rounded-lg border text-xs flex items-center gap-1.5 transition-colors ${
-            showFilters ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-300" : "bg-[#161616] border-[#2d2d2d] text-[#666]"
+            showFilters ? "bg-info-bg border-info-border text-info-text" : "bg-[#161616] border-[#2d2d2d] text-[#666]"
           }`}>
           <Filter className="w-3.5 h-3.5" /> Filters
         </button>
         <button onClick={() => setShowLeft(!showLeft)}
-          className={`p-1.5 rounded-lg border text-xs ${showLeft ? "bg-[#161616] border-[#2d2d2d] text-[#888]" : "bg-indigo-500/10 border-indigo-500/30 text-indigo-300"}`}>
+          className={`p-1.5 rounded-lg border text-xs ${showLeft ? "bg-[#161616] border-[#2d2d2d] text-[#888]" : "bg-info-bg border-info-border text-info-text"}`}>
           <Eye className="w-3.5 h-3.5" />
         </button>
         <button onClick={() => setShowRight(!showRight)}
-          className={`p-1.5 rounded-lg border text-xs ${showRight ? "bg-[#161616] border-[#2d2d2d] text-[#888]" : "bg-indigo-500/10 border-indigo-500/30 text-indigo-300"}`}>
+          className={`p-1.5 rounded-lg border text-xs ${showRight ? "bg-[#161616] border-[#2d2d2d] text-[#888]" : "bg-info-bg border-info-border text-info-text"}`}>
           <EyeOff className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -506,12 +548,12 @@ export default function ApprovalsPage() {
                       }
                     }}
                     className={`w-full text-left p-3 hover:bg-white/[0.02] transition-colors ${
-                      isBulkChecked ? "bg-indigo-500/10 border-l-2 border-indigo-500" : selectedId === item.id ? "bg-indigo-500/5 border-l-2 border-indigo-500" : "border-l-2 border-transparent"
+                      isBulkChecked ? "bg-info-bg border-l-2 border-info-border" : selectedId === item.id ? "bg-info-bg border-l-2 border-info-border" : "border-l-2 border-transparent"
                     }`}>
                     <div className="flex items-start gap-2">
                       {bulkMode && (
-                        <div className={`w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isBulkChecked ? "bg-indigo-500 border-indigo-500" : "border-[#555]"}`}>
-                          {isBulkChecked && <CheckCircle2 className="w-3 h-3 text-white" />}
+                        <div className={`w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isBulkChecked ? "bg-info-text border-info-border" : "border-[#555]"}`}>
+                          {isBulkChecked && <CheckCircle2 className="w-3 h-3 text-foreground" />}
                         </div>
                       )}
                       <RiskDot risk={item.risk_level} />
@@ -556,7 +598,7 @@ export default function ApprovalsPage() {
                 <div className="flex items-center gap-3">
                   <RiskDot risk={selectedItem.risk_level} />
                   <div>
-                    <h2 className="text-sm font-bold text-white">{selectedItem.title}</h2>
+                    <h2 className="text-sm font-bold text-foreground">{selectedItem.title}</h2>
                     <p className="text-[10px] text-[#555]">
                       {ITEM_TYPE_LABEL[selectedItem.item_type]} · {selectedItem.source_module}
                       {selectedItem.platform && <> · {selectedItem.platform}</>}
@@ -572,7 +614,7 @@ export default function ApprovalsPage() {
                 {(Object.entries(WORKSPACE_TAB_LABELS) as [WorkspaceTabId, string][]).map(([id, label]) => (
                   <button key={id} onClick={() => setWorkspaceTab(id)}
                     className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors whitespace-nowrap ${
-                      workspaceTab === id ? "bg-indigo-500/15 text-indigo-300" : "text-[#555] hover:text-white"
+                      workspaceTab === id ? "bg-info-bg text-info-text" : "text-[#555] hover:text-white"
                     }`}>
                     {label}
                   </button>
@@ -619,57 +661,68 @@ export default function ApprovalsPage() {
                         ))}
                       </div>
                     </div>
-                    <div className="col-span-2 bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
-                      <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-3">Approval Path — {MOCK_PATH.path_type}</p>
-                      <div className="flex items-center gap-2">
-                        {MOCK_PATH.stages.map((s, i) => (
-                          <div key={s.order} className="flex-1">
-                            <div className={`p-2.5 rounded-lg border text-center text-[10px] ${
-                              s.status === "COMPLETED" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300" :
-                              s.status === "IN_PROGRESS" ? "bg-blue-500/10 border-blue-500/30 text-blue-300" :
-                              "bg-[#0a0a0a] border-[#2d2d2d] text-[#555]"
-                            }`}>
-                              <p className="font-bold">{s.label}</p>
-                              <p className="mt-0.5">{s.role}{s.assigned ? ` (${s.assigned})` : ""}</p>
-                              {s.completed_by && <p className="mt-0.5 opacity-60">by {s.completed_by}</p>}
-                            </div>
-                            {i < MOCK_PATH.stages.length - 1 && (
-                              <div className="flex justify-center py-1"><ChevronRight className="w-3 h-3 text-[#444]" /></div>
-                            )}
+                    {selectedPath && (
+                      <div className="col-span-2 bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
+                        <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-3">
+                          Approval Path — {selectedPath.path?.path_type ?? "—"}
+                          <span className="ml-2 text-[#555] normal-case font-normal">Stage {selectedPath.path?.current_stage} of {selectedPath.path?.total_stages}</span>
+                        </p>
+                        {selectedPath.stages.length === 0 ? (
+                          <p className="text-xs text-[#555]">No stages configured for this approval path.</p>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            {selectedPath.stages.map((s, i) => (
+                              <div key={s.id} className="flex-1">
+                                <div className={`p-2.5 rounded-lg border text-center text-[10px] ${
+                                  s.stage_status === "COMPLETED" ? "bg-success-bg border-success-border text-success-text" :
+                                  s.stage_status === "IN_PROGRESS" ? "bg-info-bg border-info-border text-blue-300" :
+                                  "bg-[#0a0a0a] border-[#2d2d2d] text-[#555]"
+                                }`}>
+                                  <p className="font-bold">Stage {s.stage_order}</p>
+                                  <p className="mt-0.5">{s.required_role || s.stage_type}{s.assigned_user ? ` (${s.assigned_user})` : ""}</p>
+                                  {s.completed_by && <p className="mt-0.5 opacity-60">by {s.completed_by}</p>}
+                                </div>
+                                {i < selectedPath.stages.length - 1 && (
+                                  <div className="flex justify-center py-1"><ChevronRight className="w-3 h-3 text-[#444]" /></div>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
                 {workspaceTab === "history" && (
                   <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
                     <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-3">Decision History</p>
-                    {decisions.length === 0 ? (
+                    {detailsLoading ? (
+                      <p className="text-xs text-[#555]">Loading...</p>
+                    ) : selectedDecisions.length === 0 ? (
                       <p className="text-xs text-[#555]">No decisions recorded yet</p>
                     ) : (
                       <div className="space-y-3">
-                        {decisions.map(d => (
+                        {selectedDecisions.map(d => (
                           <div key={d.id} className="flex items-start gap-3 p-3 bg-[#0a0a0a] rounded-lg border border-[#2d2d2d]">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                              d.decision === "APPROVED" ? "bg-emerald-500/10" :
-                              d.decision === "REJECTED" ? "bg-rose-500/10" : "bg-orange-500/10"
+                              d.decision === "APPROVED" ? "bg-success-bg" :
+                              d.decision === "REJECTED" ? "bg-error-bg" : "bg-warning-bg"
                             }`}>
-                              {d.decision === "APPROVED" ? <ThumbsUp className="w-3 h-3 text-emerald-400" /> :
-                               d.decision === "REJECTED" ? <ThumbsDown className="w-3 h-3 text-rose-400" /> :
-                               <MessageCircle className="w-3 h-3 text-orange-400" />}
+                              {d.decision === "APPROVED" ? <ThumbsUp className="w-3 h-3 text-success-text" /> :
+                               d.decision === "REJECTED" ? <ThumbsDown className="w-3 h-3 text-error-text" /> :
+                               <MessageCircle className="w-3 h-3 text-warning-text" />}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-white">{d.approver_name}</span>
+                                <span className="text-xs font-bold text-foreground">{d.approver_name || d.approver_id}</span>
                                 <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                                  d.decision === "APPROVED" ? "text-emerald-400 bg-emerald-500/10" :
-                                  d.decision === "REJECTED" ? "text-rose-400 bg-rose-500/10" : "text-orange-400 bg-orange-500/10"
+                                  d.decision === "APPROVED" ? "text-success-text bg-success-bg" :
+                                  d.decision === "REJECTED" ? "text-error-text bg-error-bg" : "text-warning-text bg-warning-bg"
                                 }`}>{d.decision.replace(/_/g, " ")}</span>
                               </div>
                               {d.decision_reason && <p className="text-[10px] text-[#888] mt-1">{d.decision_reason}</p>}
-                              {d.condition_text && <p className="text-[10px] text-purple-400 mt-1">Condition: {d.condition_text}</p>}
+                              {d.condition_text && <p className="text-[10px] text-info-text mt-1">Condition: {d.condition_text}</p>}
                               <p className="text-[10px] text-[#555] mt-1">{timeAgo(d.decided_at)}</p>
                             </div>
                           </div>
@@ -685,23 +738,62 @@ export default function ApprovalsPage() {
                     <div className="flex gap-2 mb-4">
                       <input value={commentText} onChange={e => setCommentText(e.target.value)}
                         placeholder="Add a comment..."
-                        className="flex-1 bg-[#0a0a0a] border border-[#2d2d2d] rounded-lg px-3 py-2 text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
-                      <button onClick={() => { if (commentText.trim() && selectedId) { handleAction("comment", selectedId); setCommentText(""); } }}
-                        className="px-3 py-2 bg-indigo-500/20 text-indigo-300 rounded-lg text-xs font-medium hover:bg-indigo-500/30">Send</button>
+                        className="flex-1 bg-[#0a0a0a] border border-[#2d2d2d] rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-[#555] focus:outline-none focus:border-info-border" />
+                      <button onClick={() => {
+                        if (commentText.trim() && selectedId) {
+                          api.post(`/api/v1/approvals-v2/items/${selectedId}/comments`, { body: commentText, visibility: 'internal_only' })
+                            .then(r => { if (r.success) { setCommentText(""); fetchItemDetails(selectedId); } });
+                        }
+                      }}
+                        className="px-3 py-2 bg-info-bg text-info-text rounded-lg text-xs font-medium hover:bg-info-text/30">Send</button>
                     </div>
-                    <p className="text-xs text-[#555] text-center py-4">No comments yet. Be the first to add feedback.</p>
+                    {detailsLoading ? (
+                      <p className="text-xs text-[#555]">Loading...</p>
+                    ) : selectedComments.length === 0 ? (
+                      <p className="text-xs text-[#555] text-center py-4">No comments yet. Be the first to add feedback.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {selectedComments.map(c => (
+                          <div key={c.id} className="p-3 bg-[#0a0a0a] rounded-lg border border-[#2d2d2d]">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-bold text-foreground">{c.creator?.full_name || c.creator?.email || c.created_by}</span>
+                              <span className="text-[9px] text-[#555]">{timeAgo(c.created_at)}</span>
+                            </div>
+                            <p className="text-[11px] text-[#888]">{c.comment_body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {(workspaceTab === "preview" || workspaceTab === "validation" || workspaceTab === "grounding" || workspaceTab === "risk") && (
-                  <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 text-center">
-                    <p className="text-xs text-[#555]">Content preview and detailed analysis available when source module provides data</p>
-                  </div>
-                )}
-
-                {(workspaceTab === "evidence" || workspaceTab === "next-destination" || workspaceTab === "path") && (
-                  <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4 text-center">
-                    <p className="text-xs text-[#555]">This tab will display data once the approval workflow progresses</p>
+                {workspaceTab === "path" && (
+                  <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
+                    <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-3">Approval Path</p>
+                    {detailsLoading ? (
+                      <p className="text-xs text-[#555]">Loading...</p>
+                    ) : !selectedPath?.path ? (
+                      <p className="text-xs text-[#555]">No approval path configured for this item.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedPath.stages.map(s => (
+                          <div key={s.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-[#0a0a0a] border border-[#2d2d2d]">
+                            <div className={`w-2 h-2 rounded-full ${
+                              s.stage_status === "COMPLETED" ? "bg-success-text" :
+                              s.stage_status === "IN_PROGRESS" ? "bg-blue-400 animate-pulse" : "bg-[#333]"
+                            }`} />
+                            <div className="flex-1">
+                              <p className="text-xs text-[#ccc]">Stage {s.stage_order} · {s.required_role || s.stage_type}</p>
+                              {s.assigned_user && <p className="text-[10px] text-[#555]">Assigned: {s.assigned_user}</p>}
+                            </div>
+                            <span className={`text-[10px] font-medium ${
+                              s.stage_status === "COMPLETED" ? "text-success-text" :
+                              s.stage_status === "IN_PROGRESS" ? "text-info-text" : "text-[#555]"
+                            }`}>{s.stage_status.replace(/_/g, ' ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -717,8 +809,8 @@ export default function ApprovalsPage() {
               <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-3">
                 <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Eligibility</p>
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-xs font-medium text-emerald-400">Approval Eligible</span>
+                  <ShieldCheck className={`w-3.5 h-3.5 ${eligibilityInfo.color}`} />
+                  <span className={`text-xs font-medium ${eligibilityInfo.color}`}>{eligibilityInfo.label}</span>
                 </div>
               </div>
 
@@ -727,19 +819,19 @@ export default function ApprovalsPage() {
                 <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Decision</p>
                 {canDecide ? (
                   <div className="space-y-1.5">
-                    <button onClick={() => selectedId && handleAction("approve", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-emerald-500/15 text-emerald-300 rounded-lg text-xs font-medium hover:bg-emerald-500/25 transition-colors">
+                    <button onClick={() => selectedId && handleAction("approve", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-success-bg text-success-text rounded-lg text-xs font-medium hover:bg-success-bg transition-colors">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                     </button>
-                    <button onClick={() => selectedId && handleAction("reject", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-rose-500/15 text-rose-300 rounded-lg text-xs font-medium hover:bg-rose-500/25 transition-colors">
+                    <button onClick={() => selectedId && handleAction("reject", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-error-bg text-error-text rounded-lg text-xs font-medium hover:brightness-110/25 transition-colors">
                       <XCircle className="w-3.5 h-3.5" /> Reject
                     </button>
-                    <button onClick={() => selectedId && handleAction("request_changes", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-orange-500/15 text-orange-300 rounded-lg text-xs font-medium hover:bg-orange-500/25 transition-colors">
+                    <button onClick={() => selectedId && handleAction("request_changes", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-warning-bg text-warning-text rounded-lg text-xs font-medium hover:bg-warning-text/25 transition-colors">
                       <MessageCircle className="w-3.5 h-3.5" /> Request Changes
                     </button>
                     <button onClick={() => selectedId && handleAction("conditional_approval", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-purple-500/15 text-purple-300 rounded-lg text-xs font-medium hover:bg-purple-500/25 transition-colors">
                       <Flag className="w-3.5 h-3.5" /> Approve with Conditions
                     </button>
-                    <button onClick={() => selectedId && handleAction("escalate", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-red-500/15 text-red-300 rounded-lg text-xs font-medium hover:bg-red-500/25 transition-colors">
+                    <button onClick={() => selectedId && handleAction("escalate", selectedId)} className="w-full flex items-center gap-2 px-3 py-2 bg-error-bg text-error-text rounded-lg text-xs font-medium hover:bg-error-text/25 transition-colors">
                       <ArrowUpRight className="w-3.5 h-3.5" /> Escalate
                     </button>
                   </div>
@@ -774,18 +866,18 @@ export default function ApprovalsPage() {
               </div>
 
               {/* Path Progress */}
-              {MOCK_PATH.stages.length > 0 && (
+              {selectedPath && selectedPath.stages.length > 0 && (
                 <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-3">
                   <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Path Progress</p>
                   <div className="space-y-2">
-                    {MOCK_PATH.stages.map(s => (
-                      <div key={s.order} className="flex items-center gap-2">
+                    {selectedPath.stages.map(s => (
+                      <div key={s.id} className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${
-                          s.status === "COMPLETED" ? "bg-emerald-400" :
-                          s.status === "IN_PROGRESS" ? "bg-blue-400 animate-pulse" : "bg-[#333]"
+                          s.stage_status === "COMPLETED" ? "bg-success-text" :
+                          s.stage_status === "IN_PROGRESS" ? "bg-blue-400 animate-pulse" : "bg-[#333]"
                         }`} />
-                        <span className={`text-[10px] ${s.status === "COMPLETED" ? "text-emerald-300" : s.status === "IN_PROGRESS" ? "text-blue-300" : "text-[#555]"}`}>
-                          {s.label} · {s.role}
+                        <span className={`text-[10px] ${s.stage_status === "COMPLETED" ? "text-success-text" : s.stage_status === "IN_PROGRESS" ? "text-blue-300" : "text-[#555]"}`}>
+                          Stage {s.stage_order} · {s.required_role || s.stage_type}
                         </span>
                       </div>
                     ))}
@@ -793,24 +885,26 @@ export default function ApprovalsPage() {
                 </div>
               )}
 
-              {/* Timeline */}
+              {/* Activity — from audit log */}
               <div className="bg-[#111] border border-[#2d2d2d] rounded-lg p-3">
                 <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Activity</p>
-                <div className="space-y-2">
-                  {[
-                    { event: "Submitted for approval", time: "2h ago" },
-                    { event: "Assigned to Campaign Manager", time: "1h 45m ago" },
-                    { event: "Manager review started", time: "1h ago" },
-                  ].map((a, i) => (
-                    <div key={`act-${i}`} className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400/50 mt-1 shrink-0" />
-                      <div>
-                        <p className="text-[10px] text-[#888]">{a.event}</p>
-                        <p className="text-[9px] text-[#555]">{a.time}</p>
+                {detailsLoading ? (
+                  <p className="text-[10px] text-[#555]">Loading...</p>
+                ) : selectedAuditLog.length === 0 ? (
+                  <p className="text-[10px] text-[#555]">No activity recorded yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedAuditLog.slice(0, 10).map(entry => (
+                      <div key={entry.id} className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-info-text/50 mt-1 shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-[#888]">{entry.action.replace(/_/g, ' ')}{entry.new_value ? ` → ${entry.new_value}` : ""}</p>
+                          <p className="text-[9px] text-[#555]">{timeAgo(entry.performed_at)}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

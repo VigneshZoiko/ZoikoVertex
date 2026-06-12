@@ -5,11 +5,7 @@
  * both call `getModelAdapter(provider)` from ModelExecutionAdapter.ts. In tests
  * the registry is populated by test code with deterministic stubs. In production
  * the registry is populated HERE, at server boot, by reading env keys and
- * wiring the matching provider SDKs (Google Gemini, Groq).
- *
- * **Prompt Governance real model validation is intentionally scoped to a
- * 2-provider matrix (Gemini + Groq).** OpenAI and Anthropic are NOT
- * registered or supported here.
+ * wiring two Groq model adapters (primary + fast/alt).
  *
  * Failure semantics match ModelExecutionAdapter.NullAdapter — adapters never
  * throw on model-side errors; they return a ModelExecutionResult with `error`
@@ -22,19 +18,11 @@
  *                                   adversarial + cross-model services return
  *                                   a clear "skipped" status. Phase 1–5
  *                                   governance is unaffected.
- *                                   When 'true': at least one of GEMINI_API_KEY
- *                                   or GROQ_API_KEY MUST be set; boot fails
- *                                   with a clear error if both are missing.
- *   GEMINI_API_KEY   — registers a Google Gemini adapter if set and validation enabled
- *   GROQ_API_KEY     — registers a Groq adapter (OpenAI-compatible) if set and validation enabled
- *
- * Tenant isolation: adapters receive `tenantId` in the request envelope and
- * MUST NOT echo it outside the LLM provider. The provider SDKs in use do not
- * log request bodies by default; we do not wrap them in a logger that would
- * surface tenant IDs.
+ *                                   When 'true': GROQ_API_KEY MUST be set;
+ *                                   boot fails if missing.
+ *   GROQ_API_KEY  — registers both groq and groq_alt adapters if set and validation enabled
  */
 import OpenAI from 'openai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../../config/env';
 import { logger } from '../../shared/logger';
 import {
@@ -67,12 +55,6 @@ function emptyResult(req: ModelExecutionRequest, error: string, latencyMs: numbe
 }
 
 function makeGroqAdapter(apiKey: string): AdapterFn {
-  // Groq exposes an OpenAI-compatible chat completions endpoint, so we reuse
-  // the OpenAI SDK with a different baseURL — same pattern used by
-  // intelligenceController.ts and inboxClassifier.ts. The OpenAI SDK is a
-  // dependency of Phases 1–5 and is also reused here as a generic HTTP
-  // client. We do NOT register an OpenAI-the-provider adapter in Prompt
-  // Governance — see crossModelProviders.ts.
   const client = new OpenAI({ apiKey, baseURL: 'https://api.groq.com/openai/v1' });
   return async (req: ModelExecutionRequest): Promise<ModelExecutionResult> => {
     const start = Date.now();
@@ -110,66 +92,6 @@ function makeGroqAdapter(apiKey: string): AdapterFn {
   };
 }
 
-function makeGoogleAdapter(apiKey: string): AdapterFn {
-  const client = new GoogleGenerativeAI(apiKey);
-  return async (req: ModelExecutionRequest): Promise<ModelExecutionResult> => {
-    const start = Date.now();
-    try {
-      const model = client.getGenerativeModel({ model: req.modelId });
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: req.userMessage }] }],
-        systemInstruction: { role: 'system', parts: [{ text: req.systemPrompt }] },
-        generationConfig: {
-          temperature: req.temperature ?? 0,
-          maxOutputTokens: req.maxTokens ?? 1024,
-        },
-      });
-      const output = result.response.text();
-      const usage = result.response.usageMetadata;
-      return {
-        output,
-        outputHash: hashOutput(output),
-        latencyMs: Date.now() - start,
-        finishReason: result.response.candidates?.[0]?.finishReason ?? 'unknown',
-        usage: usage
-          ? {
-              inputTokens: usage.promptTokenCount ?? 0,
-              outputTokens: usage.candidatesTokenCount ?? 0,
-              totalTokens: usage.totalTokenCount ?? 0,
-            }
-          : undefined,
-        provider: req.provider,
-        modelId: req.modelId,
-        error: null,
-        executedAt: nowIso(),
-      };
-    } catch (err) {
-      return emptyResult(req, err instanceof Error ? err.message : String(err), Date.now() - start);
-    }
-  };
-}
-
-/**
- * Boot-time registration. Idempotent — calling twice in the same process is a
- * no-op (the adapter map is shared, so the second call would overwrite anyway;
- * this guard makes that explicit and keeps the boot log clean).
- *
- * Behavior matrix:
- *   ENABLE_REAL_MODEL_VALIDATION=false (default):
- *     - registers nothing
- *     - logs "validation disabled"
- *     - returns { registered: [], skipped: ['google', 'groq'], disabled: true }
- *     - does NOT throw regardless of model key presence
- *
- *   ENABLE_REAL_MODEL_VALIDATION=true:
- *     - requires GEMINI_API_KEY and/or GROQ_API_KEY
- *     - throws if both are missing
- *     - registers the providers whose key is set, skips the rest
- *
- * Returns the list of providers that successfully wired up, the list of
- * providers whose API key was missing, and a `disabled` flag for downstream
- * services to short-circuit when validation is off.
- */
 export interface ProductionAdapterRegistration {
   registered: ProviderId[];
   skipped: ProviderId[];
@@ -177,7 +99,6 @@ export interface ProductionAdapterRegistration {
   disabled: boolean;
 }
 
-/** True iff ENABLE_REAL_MODEL_VALIDATION=true at boot time. */
 export function isRealModelValidationEnabled(): boolean {
   return env.ENABLE_REAL_MODEL_VALIDATION === 'true';
 }
@@ -191,10 +112,7 @@ export function registerProductionAdapters(): ProductionAdapterRegistration {
   const skipped: ProviderId[] = [];
   const validationEnabled = isRealModelValidationEnabled();
 
-  // Sanity check: if PROVIDER_CONFIGS does not list these two, the registry
-  // here has drifted from the cross-model taxonomy. Loud-fail so we do not
-  // ship a broken Phase 6.3.
-  const expected: ProviderId[] = ['google', 'groq'];
+  const expected: ProviderId[] = ['groq', 'groq_alt'];
   for (const id of expected) {
     if (!PROVIDER_CONFIGS[id]) {
       throw new Error(
@@ -205,11 +123,6 @@ export function registerProductionAdapters(): ProductionAdapterRegistration {
   }
 
   if (!validationEnabled) {
-    // Validation disabled: register nothing, never throw. The Phase 6
-    // services (runRealAdversarialSuite, runRealCrossModelComparison) will
-    // short-circuit with a clear "skipped" status when they detect an empty
-    // registry, instead of calling NullAdapter and producing a silent
-    // false-positive pass.
     _bootRegistered = true;
     logger.info(
       { registered, skipped: expected, disabled: true, env: env.NODE_ENV },
@@ -220,46 +133,32 @@ export function registerProductionAdapters(): ProductionAdapterRegistration {
     return { registered, skipped: expected, disabled: true };
   }
 
-  // Validation enabled: register available providers; fail-closed if both missing.
-  if (env.GEMINI_API_KEY) {
-    registerModelAdapter('google', makeGoogleAdapter(env.GEMINI_API_KEY));
-    registered.push('google');
-  } else {
-    skipped.push('google');
-  }
-
-  if (env.GROQ_API_KEY) {
-    registerModelAdapter('groq', makeGroqAdapter(env.GROQ_API_KEY));
-    registered.push('groq');
-  } else {
-    skipped.push('groq');
-  }
-
-  if (registered.length === 0) {
+  if (!env.GROQ_API_KEY) {
     _bootRegistered = true;
     throw new Error(
-      'ENABLE_REAL_MODEL_VALIDATION=true but neither GEMINI_API_KEY nor GROQ_API_KEY is set. ' +
-        'Set at least one of them, or set ENABLE_REAL_MODEL_VALIDATION=false to disable ' +
+      'ENABLE_REAL_MODEL_VALIDATION=true but GROQ_API_KEY is not set. ' +
+        'Set GROQ_API_KEY, or set ENABLE_REAL_MODEL_VALIDATION=false to disable ' +
         'real model validation (Phase 1–5 governance is unaffected).'
     );
   }
+
+  // Both groq and groq_alt use the same API key — different model IDs
+  registerModelAdapter('groq', makeGroqAdapter(env.GROQ_API_KEY));
+  registered.push('groq');
+
+  registerModelAdapter('groq_alt', makeGroqAdapter(env.GROQ_API_KEY));
+  registered.push('groq_alt');
 
   _bootRegistered = true;
 
   logger.info(
     { registered, skipped, disabled: false, env: env.NODE_ENV },
-    '[ModelProviders] Production adapters registered'
+    '[ModelProviders] Production adapters registered (Groq primary + Groq alt)'
   );
 
   return { registered, skipped, disabled: false };
 }
 
-/**
- * Reset the boot-registration guard. Used only by tests; never call from
- * production code paths. Tests that explicitly want to call
- * `registerProductionAdapters()` more than once in a single worker must
- * reset the flag between calls.
- */
 export function _resetBootRegistrationForTests(): void {
   _bootRegistered = false;
 }

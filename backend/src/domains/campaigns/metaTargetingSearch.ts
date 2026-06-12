@@ -4,12 +4,42 @@
  * Uses the client's own access token — no extra Meta setup needed.
  */
 
+import { createHmac } from 'crypto';
 import { Response } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { supabaseAdmin } from '../../shared/supabase';
 import { logger } from '../../shared/logger';
+import { env } from '../../config/env';
 
-const META_GRAPH = 'https://graph.facebook.com/v18.0';
+const META_GRAPH = 'https://graph.facebook.com/v21.0';
+
+function appSecretProof(token: string): string {
+  const secret = env.META_APP_SECRET;
+  if (!secret) return '';
+  return createHmac('sha256', secret).update(token).digest('hex');
+}
+
+function metaUrl(path: string, token: string, params: Record<string, string> = {}): string {
+  const proof = appSecretProof(token);
+  const qs = new URLSearchParams({ access_token: token, ...(proof ? { appsecret_proof: proof } : {}), ...params });
+  const sep = path.includes('?') ? '&' : '?';
+  return `${META_GRAPH}${path}${sep}${qs.toString()}`;
+}
+
+// ── Get client access token ───────────────────────────────────────────────────
+// Prefer refresh_token (long-lived User Token used for ads API)
+async function getClientToken(workspaceId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from('connected_accounts')
+    .select('access_token, refresh_token')
+    .eq('workspace_id', workspaceId)
+    .in('platform', ['facebook', 'instagram'])
+    .not('refresh_token', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  return data?.refresh_token || data?.access_token || null;
+}
 
 // ── POST /api/v1/campaigns/meta/reach-estimate ────────────────────────────────
 // Returns real potential reach from Meta's Reach Estimate API.
@@ -28,7 +58,6 @@ export const getReachEstimate = async (req: AuthRequest, res: Response) => {
     const token = await getClientToken(workspaceId);
     if (!token) return res.json({ success: true, data: { estimate: null } });
 
-    // Get ad account ID
     const { data: accs } = await supabaseAdmin
       .from('connected_accounts')
       .select('ad_account_id, agency_ad_account_id')
@@ -43,7 +72,6 @@ export const getReachEstimate = async (req: AuthRequest, res: Response) => {
     const rawId = acc.agency_ad_account_id || acc.ad_account_id;
     const adAccountId = rawId.startsWith('act_') ? rawId : `act_${rawId}`;
 
-    // Build targeting spec
     const genderNums = gender === 'MALE' ? [1] : gender === 'FEMALE' ? [2] : [1, 2];
     const geoLocations: Record<string, any> = {};
 
@@ -65,9 +93,11 @@ export const getReachEstimate = async (req: AuthRequest, res: Response) => {
       geo_locations: geoLocations,
     };
 
-    // delivery_estimate replaced the deprecated reachestimate endpoint (deprecated in v14.0)
     const goal = optimization_goal || 'REACH';
-    const url = `${META_GRAPH}/${adAccountId}/delivery_estimate?optimization_goal=${encodeURIComponent(goal)}&targeting_spec=${encodeURIComponent(JSON.stringify(targetingSpec))}&access_token=${token}`;
+    const url  = metaUrl(`/${adAccountId}/delivery_estimate`, token, {
+      optimization_goal: goal,
+      targeting_spec:    JSON.stringify(targetingSpec),
+    });
     const r = await fetch(url);
 
     const data = await r.json() as any;
@@ -76,19 +106,19 @@ export const getReachEstimate = async (req: AuthRequest, res: Response) => {
       return res.json({ success: true, data: { estimate: null, error: data.error.message } });
     }
 
-    const row = data.data?.[0];
+    const row   = data.data?.[0];
     const lower = row?.estimate_mau_lower_bound ?? row?.estimate_dau ?? null;
     const upper = row?.estimate_mau_upper_bound ?? null;
-    const users = lower !== null && upper !== null
+    const users = (lower !== null && upper !== null)
       ? Math.round((lower + upper) / 2)
       : lower;
 
     return res.json({
       success: true,
       data: {
-        estimate:     users ? users.toLocaleString() : null,
-        lower_bound:  lower,
-        upper_bound:  upper,
+        estimate:       users != null ? users.toLocaleString() : null,
+        lower_bound:    lower,
+        upper_bound:    upper,
         estimate_ready: row?.estimate_ready ?? true,
       },
     });
@@ -98,24 +128,7 @@ export const getReachEstimate = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// ── Get client access token ───────────────────────────────────────────────────
-
-async function getClientToken(workspaceId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin
-    .from('connected_accounts')
-    .select('access_token, refresh_token')
-    .eq('workspace_id', workspaceId)
-    .in('platform', ['facebook', 'instagram'])
-    .not('access_token', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-  return data?.access_token || data?.refresh_token || null;
-}
-
 // ── GET /api/v1/campaigns/meta/search/locations ───────────────────────────────
-// Returns location suggestions from Meta Targeting API.
-// query: "united states", "new york", "UK", etc.
 
 export const searchLocations = async (req: AuthRequest, res: Response) => {
   const workspaceId = req.user?.workspace_id;
@@ -123,13 +136,20 @@ export const searchLocations = async (req: AuthRequest, res: Response) => {
 
   if (!workspaceId) return res.status(400).json({ error: 'Missing workspace context' });
   if (!q || q.trim().length < 2) return res.json({ success: true, data: { locations: [] } });
+  if (q.trim().length > 200) return res.status(400).json({ error: 'Query too long' });
 
   try {
     const token = await getClientToken(workspaceId);
     if (!token) return res.status(400).json({ error: 'No Meta account connected. Connect your Facebook account first.' });
 
-    const url = `${META_GRAPH}/search?type=adgeolocation&q=${encodeURIComponent(q)}&location_types=["country","region","city"]&limit=10&access_token=${token}`;
-    const r = await fetch(url);
+    // location_types must be JSON-encoded and URL-encoded — not a raw string
+    const url = metaUrl('/search', token, {
+      type:           'adgeolocation',
+      q:              q.trim(),
+      location_types: JSON.stringify(['country', 'region', 'city']),
+      limit:          '10',
+    });
+    const r    = await fetch(url);
     const data = await r.json() as any;
 
     if (data.error) {
@@ -155,8 +175,6 @@ export const searchLocations = async (req: AuthRequest, res: Response) => {
 };
 
 // ── GET /api/v1/campaigns/meta/search/interests ───────────────────────────────
-// Returns interest suggestions from Meta Targeting API.
-// query: "technology", "travel", "fitness", etc.
 
 export const searchInterests = async (req: AuthRequest, res: Response) => {
   const workspaceId = req.user?.workspace_id;
@@ -164,13 +182,14 @@ export const searchInterests = async (req: AuthRequest, res: Response) => {
 
   if (!workspaceId) return res.status(400).json({ error: 'Missing workspace context' });
   if (!q || q.trim().length < 2) return res.json({ success: true, data: { interests: [] } });
+  if (q.trim().length > 200) return res.status(400).json({ error: 'Query too long' });
 
   try {
     const token = await getClientToken(workspaceId);
     if (!token) return res.status(400).json({ error: 'No Meta account connected. Connect your Facebook account first.' });
 
-    const url = `${META_GRAPH}/search?type=adinterest&q=${encodeURIComponent(q)}&limit=10&access_token=${token}`;
-    const r = await fetch(url);
+    const url  = metaUrl('/search', token, { type: 'adinterest', q: q.trim(), limit: '10' });
+    const r    = await fetch(url);
     const data = await r.json() as any;
 
     if (data.error) {
@@ -179,11 +198,11 @@ export const searchInterests = async (req: AuthRequest, res: Response) => {
     }
 
     const interests = (data.data || []).map((i: any) => ({
-      id:               i.id,
-      name:             i.name,
+      id:                        i.id,
+      name:                      i.name,
       audience_size_upper_bound: i.audience_size_upper_bound,
-      path:             i.path || [],
-      topic:            i.topic,
+      path:                      i.path || [],
+      topic:                     i.topic,
     }));
 
     return res.json({ success: true, data: { interests } });

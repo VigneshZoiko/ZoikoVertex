@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Response, NextFunction } from 'express';
+import { randomUUID } from 'crypto';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { KnowledgeFileService } from './KnowledgeFileService';
@@ -10,6 +11,7 @@ import { KnowledgeReviewService } from './KnowledgeReviewService';
 import { KnowledgeConflictService } from './KnowledgeConflictService';
 import { KnowledgeRetrievalService } from './KnowledgeRetrievalService';
 import { KnowledgeAccessService } from './KnowledgeAccessService';
+import { classifyGovernanceCategory, GovCategory } from './GovernanceClassifierService';
 import { getParam, getQueryNumber, getQueryValue } from '../../shared/request';
 import { trackUsage } from '../../domains/monitoring/usageController';
 
@@ -474,6 +476,7 @@ export class KnowledgeController {
 
       const data = await KnowledgeSourceService.create({
         collection_id: getParam(req, 'collectionId'),
+        workspace_id: workspaceId,
         title: req.body.title || (req.file ? req.file.originalname : 'Untitled'),
         content,
         source_url: req.body.source_url || '',
@@ -495,6 +498,11 @@ export class KnowledgeController {
         created_by: req.user?.id,
       });
 
+      if (req.file?.size && workspaceId) {
+        const sizeMb = req.file.size / (1024 * 1024);
+        trackUsage({ workspaceId, resourceType: 'STORAGE_MB', quantity: sizeMb, costUsd: 0, unit: 'MB', referenceId: (data as any)?.id, referenceType: 'knowledge_source', metadata: { filename: req.file.originalname, mime: req.file.mimetype } });
+      }
+
       res.status(201).json({ success: true, data });
     } catch (error) {
       next(error);
@@ -505,6 +513,90 @@ export class KnowledgeController {
     try {
       const data = await KnowledgeSourceService.update(getParam(req, 'id'), req.body);
       res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Admin / workspace owner decides a pending ownership transfer. On "allow" we
+  // re-verify (server-side) that the target is a real member of this org whose
+  // username matches, hand over ownership, record the prior owner in history,
+  // and notify the new owner with a professional message.
+  static async decideSourceTransfer(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const role = String(req.user?.role || '').toUpperCase();
+      const isAdmin = !!req.user?.is_superadmin || ['ADMIN', 'WORKSPACE_OWNER'].includes(role);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Only an admin or workspace owner can decide ownership transfers.' });
+
+      const decision = String(req.body?.decision || '').toLowerCase();
+      if (decision !== 'allow' && decision !== 'block') {
+        return res.status(400).json({ success: false, error: "decision must be 'allow' or 'block'." });
+      }
+
+      const sourceId = getParam(req, 'id');
+      const source = await KnowledgeSourceService.getById(sourceId);
+      if (!source) return res.status(404).json({ success: false, error: 'Source not found' });
+
+      const md = (source.metadata as any) || {};
+      const pending = md.pending_transfer;
+      if (!pending || !pending.to_email) return res.status(400).json({ success: false, error: 'No pending transfer for this source.' });
+
+      if (decision === 'block') {
+        const updated = await KnowledgeSourceService.update(sourceId, { metadata: { ...md, pending_transfer: null } });
+        return res.json({ success: true, data: updated });
+      }
+
+      // ── allow: verify the target is a real member of this workspace ──
+      const workspaceId = await KnowledgeController.getWorkspaceId(req.user?.id, req.user?.workspace_id);
+      const { data: memberRows } = await supabaseAdmin.from('workspace_members').select('user_id').eq('workspace_id', workspaceId);
+      const ids = (memberRows || []).map((m: any) => m.user_id).filter(Boolean);
+      const { data: users } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
+      const target = (users || []).find((u: any) => String(u.email || '').toLowerCase() === String(pending.to_email).toLowerCase());
+      if (!target) return res.status(400).json({ success: false, error: 'The requested user is no longer a member of this organization.' });
+      if (String(target.full_name || '').trim().toLowerCase() !== String(pending.to_username || '').trim().toLowerCase()) {
+        return res.status(400).json({ success: false, error: 'The username no longer matches the user for that email.' });
+      }
+
+      const prevOwner = {
+        email: md.owner_email || md.author_email || source.owner_name || '',
+        username: md.owner_username || md.author || '',
+        until: new Date().toISOString(),
+      };
+      const history = [prevOwner, ...(Array.isArray(md.owner_history) ? md.owner_history : [])].slice(0, 10);
+
+      const updated = await KnowledgeSourceService.update(sourceId, {
+        metadata: {
+          ...md,
+          owner_email: target.email,
+          owner_username: target.full_name,
+          author: target.full_name,
+          author_email: target.email,
+          owner_history: history,
+          pending_transfer: null,
+        },
+      });
+
+      // Notify the new owner (best-effort — never blocks the transfer).
+      try {
+        const fromLabel = prevOwner.username || prevOwner.email || 'the previous owner';
+        const approvedBy = req.user?.email || 'an administrator';
+        await supabaseAdmin.from('notifications').insert({
+          id: randomUUID(),
+          user_id: target.id,
+          title: 'Knowledge source ownership transferred to you',
+          body: `You are now the owner of the knowledge source "${source.title}". Ownership was transferred from ${fromLabel} and approved by ${approvedBy}. You can now manage, edit, and govern this source in the Knowledge Base.`,
+          type: 'GOVERNANCE',
+          link: '/agents/knowledge',
+          read: false,
+        });
+      } catch {
+        /* notifications table optional — transfer still succeeds */
+      }
+
+      res.json({ success: true, data: updated });
     } catch (error) {
       next(error);
     }
@@ -567,7 +659,126 @@ export class KnowledgeController {
   static async activateSource(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const sourceId = getParam(req, 'id');
+      // Do not auto-activate a source whose AI governance-category check is
+      // still unresolved (mismatch or pending review). It must be reconciled by
+      // an admin / workspace owner first.
+      const source = await KnowledgeSourceService.getById(sourceId);
+      const reviewStatus = String((source?.metadata as any)?.category_review_status || '');
+      if (reviewStatus === 'mismatch' || reviewStatus === 'review_required') {
+        return res.status(409).json({
+          success: false,
+          error: 'Resolve the governance-category check before activating — accept the AI suggestion, keep your selection, or send for review.',
+        });
+      }
       const updated = await KnowledgeSourceService.updateStatus(sourceId, 'ACTIVE');
+      res.json({ success: true, data: updated });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Run AI-assisted governance classification on the source content and store
+  // the result in metadata (no duplicate columns). Compares against the user's
+  // selected category to flag a mismatch. Never blocks — returns classified:false
+  // when no AI provider is configured/available.
+  static async classifySourceGovernance(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const sourceId = getParam(req, 'id');
+      const source = await KnowledgeSourceService.getById(sourceId);
+      if (!source) return res.status(404).json({ success: false, error: 'Source not found' });
+
+      const md = (source.metadata as any) || {};
+      const result = await classifyGovernanceCategory(String(source.content || ''));
+      if (!result) {
+        return res.json({ success: true, classified: false, data: source });
+      }
+
+      const userSelected = String(md.governance_category || '');
+      const reviewStatus = !userSelected || userSelected !== result.category ? 'mismatch' : 'confirmed';
+
+      const updated = await KnowledgeSourceService.update(sourceId, {
+        metadata: {
+          ...md,
+          ai_suggested_governance_category: result.category,
+          ai_category_confidence: result.confidence,
+          ai_category_reason: result.reason,
+          ai_suggested_match_action: result.suggested_match_action,
+          ai_category_model: result.model_used,
+          ai_category_checked_at: new Date().toISOString(),
+          category_review_status: reviewStatus,
+        },
+      });
+
+      // Evidence/audit: classification ran.
+      await KnowledgeReviewService.create({
+        source_id: sourceId,
+        reviewer_id: req.user?.id || 'system',
+        review_type: 'AI_GOVERNANCE_CLASSIFICATION',
+        decision: reviewStatus === 'confirmed' ? 'CONFIRMED' : 'MISMATCH',
+        comments: `AI (${result.model_used}) suggested ${result.category} @ ${result.confidence}% — ${result.reason}`,
+      }).catch(() => undefined);
+
+      res.json({ success: true, classified: true, data: updated, classification: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Admin / workspace owner resolves the governance-category check:
+  //   accept → adopt the AI suggestion as the selected category
+  //   keep   → keep the user's selection (reason recorded)
+  //   review → send the source to REVIEW_REQUIRED
+  // Each path clears the unresolved state (or moves it to review) and is audited.
+  static async decideGovernanceCategory(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const role = String(req.user?.role || '').toUpperCase();
+      const isAdmin = !!req.user?.is_superadmin || ['ADMIN', 'WORKSPACE_OWNER'].includes(role);
+
+      const sourceId = getParam(req, 'id');
+      const decision = String(req.body?.decision || '').toLowerCase();
+      const reason = String(req.body?.reason || '').trim();
+      if (!['accept', 'keep', 'review'].includes(decision)) {
+        return res.status(400).json({ success: false, error: "decision must be 'accept', 'keep', or 'review'." });
+      }
+      // 'keep' overrides a flagged mismatch to the user's looser choice — that is
+      // a privileged call (admin / workspace owner only). 'accept' (adopt the
+      // stricter AI suggestion) and 'review' (escalate to an admin) are available
+      // to source editors with write:content (enforced by the route guard).
+      if (decision === 'keep' && !isAdmin) {
+        return res.status(403).json({ success: false, error: 'Only an admin or workspace owner can keep a mismatched selection. Accept the AI suggestion or send it for review.' });
+      }
+
+      const source = await KnowledgeSourceService.getById(sourceId);
+      if (!source) return res.status(404).json({ success: false, error: 'Source not found' });
+      const md = (source.metadata as any) || {};
+      const aiCategory = String(md.ai_suggested_governance_category || '') as GovCategory | '';
+
+      let updated;
+      if (decision === 'accept') {
+        if (!aiCategory) return res.status(400).json({ success: false, error: 'No AI suggestion to accept.' });
+        updated = await KnowledgeSourceService.update(sourceId, {
+          metadata: { ...md, governance_category: aiCategory, category_review_status: 'confirmed', category_decision_reason: reason, category_decided_by: req.user?.email || req.user?.id, category_decided_at: new Date().toISOString() },
+        });
+      } else if (decision === 'keep') {
+        updated = await KnowledgeSourceService.update(sourceId, {
+          metadata: { ...md, category_review_status: 'confirmed', category_decision_reason: reason, category_decided_by: req.user?.email || req.user?.id, category_decided_at: new Date().toISOString() },
+        });
+      } else {
+        // review
+        await KnowledgeSourceService.updateStatus(sourceId, 'REVIEW_REQUIRED');
+        updated = await KnowledgeSourceService.update(sourceId, {
+          metadata: { ...md, category_review_status: 'review_required', category_decision_reason: reason, category_decided_by: req.user?.email || req.user?.id, category_decided_at: new Date().toISOString() },
+        });
+      }
+
+      await KnowledgeReviewService.create({
+        source_id: sourceId,
+        reviewer_id: req.user?.id || '',
+        review_type: 'GOVERNANCE_CATEGORY_DECISION',
+        decision: decision.toUpperCase(),
+        comments: reason || `Governance category decision: ${decision}.`,
+      }).catch(() => undefined);
+
       res.json({ success: true, data: updated });
     } catch (error) {
       next(error);
@@ -747,4 +958,5 @@ export class KnowledgeController {
       next(error);
     }
   }
+
 }

@@ -1,0 +1,185 @@
+{
+  "campaign_id": "87a88d11-f21f-459f-9d70-9b67c4969538",
+  "workspace_id": "0c8b0030-f673-42ae-a544-5d6bab2ea7d0",
+  "published_at": "2026-06-05T05:07:16.977Z",
+  "outcome": "FAILED",
+  "steps": [
+    {
+      "step": "load_campaign",
+      "status": "ok",
+      "received": {
+        "id": "87a88d11-f21f-459f-9d70-9b67c4969538",
+        "name": "test4",
+        "objective": "CONVERSIONS",
+        "status": "DRAFT",
+        "budget_daily": null,
+        "budget_total": 1,
+        "budget_currency": "USD",
+        "start_at": "2026-06-05T00:00:00+00:00",
+        "end_at": "2026-06-06T00:00:00+00:00"
+      },
+      "timestamp": "2026-06-05T05:07:17.324Z"
+    },
+    {
+      "step": "resolve_meta_account",
+      "status": "ok",
+      "received": {
+        "account_id": "4cac0e68-b4b8-44dc-a2d2-f83e4bd51cdc",
+        "account_name": "ZoikoVertex",
+        "account_handle": "1153572221164614",
+        "ad_account_id": "act_966067936206987",
+        "token_source": "access_token",
+        "page_id_stored": null
+      },
+      "timestamp": "2026-06-05T05:07:17.660Z"
+    },
+    {
+      "step": "resolve_page_id_strategy1",
+      "status": "skipped",
+      "notes": "promote_pages returned no valid page",
+      "received": {
+        "data": []
+      },
+      "timestamp": "2026-06-05T05:07:18.276Z"
+    },
+    {
+      "step": "resolve_page_id_strategy2",
+      "status": "skipped",
+      "notes": "/me/accounts returned no valid page",
+      "received": {
+        "message": "(#100) Tried accessing nonexisting field (accounts)",
+        "type": "OAuthException",
+        "code": 100,
+        "fbtrace_id": "Am6oAxyKbQG1DSw77kbsK8S"
+      },
+      "timestamp": "2026-06-05T05:07:18.787Z"
+    },
+    {
+      "step": "resolve_page_id",
+      "status": "ok",
+      "notes": "Strategy 3: username lookup",
+      "received": {
+        "page_id": "1153572221164614",
+        "page_name": "ZoikoVertex"
+      },
+      "timestamp": "2026-06-05T05:07:19.412Z"
+    },
+    {
+      "step": "create_campaign",
+      "status": "ok",
+      "notes": "Sending campaign to Meta...",
+      "sent": {
+        "name": "test4",
+        "objective": "OUTCOME_SALES",
+        "status": "PAUSED",
+        "special_ad_categories": [
+          "NONE"
+        ],
+        "is_adset_budget_sharing_enabled": false
+      },
+      "timestamp": "2026-06-05T05:07:19.946Z"
+    },
+    {
+      "step": "create_campaign_response",
+      "status": "ok",
+      "meta_id": "120246408003130378",
+      "received": {
+        "id": "120246408003130378"
+      },
+      "timestamp": "2026-06-05T05:07:21.453Z"
+    },
+    {
+      "step": "create_adset",
+      "status": "ok",
+      "notes": "Sending ad set to Meta...",
+      "sent": {
+        "name": "test4 — Ad Set",
+        "campaign_id": "120246408003130378",
+        "optimization_goal": "CONVERSATIONS",
+        "billing_event": "IMPRESSIONS",
+        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+        "targeting": {
+          "age_min": 18,
+          "age_max": 65,
+          "genders": [
+            1,
+            2
+          ],
+          "geo_locations": {
+            "countries": [
+              "US"
+            ]
+          },
+          "targeting_automation": {
+            "advantage_audience": 0
+          }
+        },
+        "status": "PAUSED",
+        "lifetime_budget": 100,
+        "start_time": "2026-06-05T00:00:00.000Z",
+        "end_time": "2026-06-06T00:00:00.000Z"
+      },
+      "timestamp": "2026-06-05T05:07:21.454Z"
+    },
+    {
+      "step": "create_adset_response",
+      "status": "ok",
+      "meta_id": "120246408003720378",
+      "received": {
+        "id": "120246408003720378"
+      },
+      "timestamp": "2026-06-05T05:07:23.912Z"
+    },
+    {
+      "step": "create_creative_ad0",
+      "status": "ok",
+      "notes": "Sending creative for ad[0] \"New ad\" to Meta...",
+      "sent": {
+        "name": "New ad — Creative",
+        "object_story_spec": {
+          "page_id": "1153572221164614",
+          "link_data": {
+            "message": "test4",
+            "link": "https://m.me/1153572221164614",
+            "name": "test4",
+            "call_to_action": {
+              "type": "MESSAGE_PAGE",
+              "value": {
+                "app_destination": "MESSENGER"
+              }
+            },
+            "picture": "https://wcudapbmavuyafllfyft.supabase.co/storage/v1/object/public/campaign-images/337d4e02-bf32-4398-859e-74bd801ac2df/2_ss_login.png.png",
+            "page_welcome_message": "{\"type\":\"VISUAL_EDITOR\",\"version\":2,\"greeting\":[{\"content\":{\"type\":\"text\",\"text\":\"test4vertex\"},\"tag\":\"DEFAULT\"}],\"call_to_actions\":[]}"
+          }
+        }
+      },
+      "timestamp": "2026-06-05T05:07:23.913Z"
+    },
+    {
+      "step": "create_creative_ad0_response",
+      "status": "error",
+      "error": "An unknown error has occurred.",
+      "received": {
+        "message": "An unknown error has occurred.",
+        "type": "OAuthException",
+        "code": 1,
+        "fbtrace_id": "AwVij_X7zETr6IkS3OfRlhK"
+      },
+      "notes": "ad[0] \"New ad\"",
+      "timestamp": "2026-06-05T05:07:24.524Z"
+    }
+  ],
+  "meta_ids": {
+    "creative_ids": [],
+    "ad_ids": [],
+    "campaign_id": "120246408003130378",
+    "adset_id": "120246408003720378"
+  },
+  "summary": {
+    "total_steps": 11,
+    "ok": 8,
+    "errors": 1,
+    "skipped": 2
+  },
+  "report_file": "F:\\CodeSpace\\ZoikoVertex\\publish-reports\\87a88d11-f21f-459f-9d70-9b67c4969538_2026-06-05T05-07-16-977Z.json"
+}

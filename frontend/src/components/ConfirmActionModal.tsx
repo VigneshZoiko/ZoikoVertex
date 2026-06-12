@@ -31,35 +31,35 @@ interface ConfirmActionModalProps {
 const VARIANT_STYLES: Record<Variant, { icon: typeof AlertTriangle; iconBg: string; iconColor: string; btnBg: string; btnHover: string; btnShadow: string }> = {
   danger: {
     icon: Trash2,
-    iconBg: 'bg-rose-500/10 border-rose-500/20',
-    iconColor: 'text-rose-400',
-    btnBg: 'bg-rose-600',
-    btnHover: 'hover:bg-rose-500',
-    btnShadow: 'shadow-lg shadow-rose-500/20',
+    iconBg: 'bg-[var(--error-bg)] border-[var(--error-border)]',
+    iconColor: 'text-[var(--error-text)]',
+    btnBg: 'bg-[var(--error-text)]',
+    btnHover: 'hover:brightness-110',
+    btnShadow: 'shadow-lg shadow-[var(--error-text)]/20',
   },
   warning: {
     icon: AlertTriangle,
-    iconBg: 'bg-amber-500/10 border-amber-500/20',
-    iconColor: 'text-amber-400',
-    btnBg: 'bg-amber-600',
-    btnHover: 'hover:bg-amber-500',
-    btnShadow: 'shadow-lg shadow-amber-500/20',
+    iconBg: 'bg-[var(--warning-bg)] border-[var(--warning-border)]',
+    iconColor: 'text-[var(--warning-text)]',
+    btnBg: 'bg-[var(--warning-text)]',
+    btnHover: 'hover:brightness-110',
+    btnShadow: 'shadow-lg shadow-[var(--warning-text)]/20',
   },
   info: {
     icon: ShieldAlert,
-    iconBg: 'bg-blue-500/10 border-blue-500/20',
-    iconColor: 'text-blue-400',
-    btnBg: 'bg-blue-600',
-    btnHover: 'hover:bg-blue-500',
-    btnShadow: 'shadow-lg shadow-blue-500/20',
+    iconBg: 'bg-[var(--info-bg)] border-[var(--info-border)]',
+    iconColor: 'text-[var(--info-text)]',
+    btnBg: 'bg-[var(--info-text)]',
+    btnHover: 'hover:brightness-110',
+    btnShadow: 'shadow-lg shadow-[var(--info-text)]/20',
   },
   default: {
     icon: AlertCircle,
-    iconBg: 'bg-zinc-500/10 border-zinc-500/20',
-    iconColor: 'text-zinc-400',
-    btnBg: 'bg-zinc-700',
-    btnHover: 'hover:bg-zinc-600',
-    btnShadow: 'shadow-lg shadow-zinc-500/20',
+    iconBg: 'bg-[var(--surface)] border-[var(--border)]',
+    iconColor: 'text-[var(--foreground-muted)]',
+    btnBg: 'bg-[var(--surface-hover)]',
+    btnHover: 'hover:bg-[var(--border)]',
+    btnShadow: 'shadow-lg shadow-black/20',
   },
 };
 
@@ -135,7 +135,7 @@ export default function ConfirmActionModal({
         onClick={onCancel}
       />
       <div className="relative z-10 w-full max-w-md bg-[var(--card)] border border-[var(--border)] rounded-3xl shadow-2xl shadow-black/50 animate-in zoom-in-95 duration-200">
-        <div className={`h-1 rounded-t-3xl bg-gradient-to-r ${variant === 'danger' ? 'from-rose-500 via-red-500 to-rose-500' : variant === 'warning' ? 'from-amber-500 via-orange-500 to-rose-500' : variant === 'info' ? 'from-blue-500 via-indigo-500 to-blue-500' : 'from-zinc-500 via-zinc-400 to-zinc-500'}`} />
+        <div className={`h-1 rounded-t-3xl ${variant === 'danger' ? 'bg-[var(--error-text)]' : variant === 'warning' ? 'bg-[var(--warning-text)]' : variant === 'info' ? 'bg-[var(--info-text)]' : 'bg-[var(--foreground-muted)]'}`} />
         <div className="p-8">
           <div className={`w-14 h-14 ${styles.iconBg} border rounded-2xl flex items-center justify-center mb-6`}>
             <Icon className={`w-7 h-7 ${styles.iconColor}`} />
@@ -182,7 +182,7 @@ export default function ConfirmActionModal({
             <button
               onClick={handleConfirm}
               disabled={loading || !canConfirm}
-              className={`flex-1 py-3 rounded-xl ${styles.btnBg} text-white font-bold text-sm ${styles.btnHover} active:scale-[0.98] transition-all ${styles.btnShadow} disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2`}
+              className={`flex-1 py-3 rounded-xl ${styles.btnBg} text-foreground font-bold text-sm ${styles.btnHover} active:scale-[0.98] transition-all ${styles.btnShadow} disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2`}
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               {confirmLabel || (mode === 'prompt' ? 'Submit' : 'Confirm')}

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Bricolage_Grotesque } from "next/font/google";
+import { Plus_Jakarta_Sans, Bricolage_Grotesque, JetBrains_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import CacheBuster from "@/components/CacheBuster";
+import NavbarWrapper from "@/components/NavbarWrapper";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -19,6 +20,13 @@ const bricolage = Bricolage_Grotesque({
   display: "swap",
 });
 
+const jetbrains = JetBrains_Mono({
+  variable: "--font-jetbrains",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "ZoikoVertex | Enterprise Agentic Governance",
   description: "The world's first Governed Autonomous Intelligence network. Sovereign evidence, predictive risk management, and scaleable execution.",
@@ -32,11 +40,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${jakarta.variable} ${bricolage.variable}`} suppressHydrationWarning>
-      <body suppressHydrationWarning>
+    <html lang="en" className={`dark ${jakarta.variable} ${bricolage.variable} ${jetbrains.variable}`} suppressHydrationWarning>
+      <body className="flex flex-col min-h-screen" suppressHydrationWarning>
         <Providers>
           <CacheBuster />
-          {children}
+          <NavbarWrapper />
+          <main className="flex-1">
+            {children}
+          </main>
         </Providers>
       </body>
     </html>

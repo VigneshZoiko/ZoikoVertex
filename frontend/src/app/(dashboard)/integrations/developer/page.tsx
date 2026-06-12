@@ -20,11 +20,11 @@ export default function DeveloperConsolePage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center gap-4 mb-8 border-b border-[#222] pb-6">
-        <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-          <Terminal className="w-6 h-6 text-indigo-400" />
+        <div className="w-12 h-12 rounded-xl bg-info-text/10 flex items-center justify-center">
+          <Terminal className="w-6 h-6 text-info-text" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">Developer Console</h1>
+          <h1 className="text-2xl font-bold text-foreground">Developer Console</h1>
           <p className="text-[#888] text-sm mt-1">Advanced platform management and technical integration tools.</p>
         </div>
       </div>
@@ -36,28 +36,28 @@ export default function DeveloperConsolePage() {
             <div
               key={opt.name}
               onClick={() => opt.href && router.push(opt.href)}
-              className={`p-5 rounded-2xl bg-[#111] border border-[#222] transition-all group ${opt.href ? "hover:border-indigo-500/30 cursor-pointer" : "opacity-60"}`}
+              className={`p-5 rounded-2xl bg-[#111] border border-[#222] transition-all group ${opt.href ? "hover:border-info-border/30 cursor-pointer" : "opacity-60"}`}
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="p-2 rounded-lg bg-[#1a1a1a] group-hover:bg-indigo-500/10 transition-colors">
-                  <Icon className="w-5 h-5 text-[#888] group-hover:text-indigo-400" />
+                <div className="p-2 rounded-lg bg-[#1a1a1a] group-hover:bg-info-text/10 transition-colors">
+                  <Icon className="w-5 h-5 text-[#888] group-hover:text-info-text" />
                 </div>
-                <span className="text-[10px] font-bold text-emerald-500/80 bg-emerald-500/5 px-2 py-0.5 rounded-full uppercase tracking-wider">{opt.status}</span>
+                <span className="text-[10px] font-bold text-success-text/80 bg-success-text/5 px-2 py-0.5 rounded-full uppercase tracking-wider">{opt.status}</span>
               </div>
-              <h3 className="text-white font-semibold text-sm mb-2">{opt.name}</h3>
+              <h3 className="text-foreground font-semibold text-sm mb-2">{opt.name}</h3>
               <p className="text-[#666] text-xs leading-relaxed">{opt.desc}</p>
             </div>
           );
         })}
       </div>
 
-      <div className="mt-12 p-6 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 flex flex-col items-center text-center">
-        <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center mb-4">
-          <Activity className="w-5 h-5 text-indigo-400 animate-pulse" />
+      <div className="mt-12 p-6 rounded-2xl bg-info-text/5 border border-info-border/10 flex flex-col items-center text-center">
+        <div className="w-10 h-10 rounded-full bg-info-text/10 flex items-center justify-center mb-4">
+          <Activity className="w-5 h-5 text-info-text animate-pulse" />
         </div>
-        <h4 className="text-white font-medium mb-2">Live System Health</h4>
+        <h4 className="text-foreground font-medium mb-2">Live System Health</h4>
         <p className="text-[#888] text-sm max-w-lg mb-4">All core platform services are operational. Latency for Decision Engine is currently 124ms.</p>
-        <button className="text-xs font-bold text-indigo-400 hover:text-white transition-colors uppercase tracking-widest">View Status Page &rarr;</button>
+        <button className="text-xs font-bold text-info-text hover:text-white transition-colors uppercase tracking-widest">View Status Page &rarr;</button>
       </div>
     </div>
   );

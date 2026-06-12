@@ -8,9 +8,9 @@ import { logger } from './shared/logger';
 import { errorHandler } from './shared/errorHandler';
 
 // Controllers
-import { provisionUser } from './domains/identity/identityController';
+import { provisionUser, resendVerificationEmail } from './domains/identity/identityController';
 import { generateContent, analyzeImage } from './domains/intelligence/intelligenceController';
-import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue } from './domains/governance/governanceController';
+import { transitionStatus, submitIntent, deleteIntent, listIntents, getQueue, reviewActionIntent } from './domains/governance/governanceController';
 import {
   getAuditTrail, getAuditStats, 
   getEvidenceArtifacts, getEvidenceArtifactDetail, getEvidenceStats,
@@ -43,7 +43,7 @@ import {
   updateSubscriptionRoute,
 } from './domains/evidence/auditTrailStreamingController';
 import { getRiskPulse, getActiveRiskFeed, getGovernanceGaps, triggerEmergencyPause } from './domains/governance/riskController';
-import { getSafetyOverview, getSafetyComponents, getSafetyQueueSummary, getSafetyRecentDecisions, reviewCriticalQueue, requestEmergencyPause, toggleDegradedState } from './domains/governance/safetyController';
+import { getSafetyOverview, getSafetyComponents, getSafetyQueueSummary, getSafetyRecentDecisions, reviewCriticalQueue, requestEmergencyPause } from './domains/governance/safetyController';
 import { getSafetySignals, getSafetySignalDetail, createManualSignal, classifySafetySignal, routeSafetySignal, mergeSafetySignals, splitSafetySignal, closeSafetySignal, getSafetyActionsHistory } from './domains/governance/signalsController';
 import { getPolicySummary, getPolicies, createPolicy, simulatePolicy, getEnforcementEvents } from './domains/governance/policyController';
 import { getReviewQueue, getReviewDetail, submitReviewDecision } from './domains/governance/reviewController';
@@ -180,6 +180,7 @@ import { requestBudgetAuth, getBudgetAuthForCampaign, listBudgetAuths, approveBu
 import { getMetaAdAccounts, linkAdAccount, createBoost, listBoosts, syncBoostMetrics, pauseBoost, resumeBoost, cancelBoost, getCampaignInsights, pushCampaignToMetaHandler } from './domains/campaigns/adsController';
 import { getGoogleAdsCustomers, linkGoogleAdsCustomer, createGoogleBoost, syncGoogleBoostMetrics as syncGoogleMetrics, pauseGoogleBoost, resumeGoogleBoost, cancelGoogleBoost } from './domains/campaigns/googleAdsController';
 import { listLibrary, addToLibrary, deleteFromLibrary } from './domains/content/libraryController';
+import { readRecentScans } from './modules/safety/scanLogger';
 import {
   listAgents, getAgent, registerAgent, certifyAgent, updateAutonomy,
   getAgentCapabilities, getAgentVersions, rollbackAgent,
@@ -222,7 +223,7 @@ import {
   exportExceptionRecord, closeExceptionCase, archiveExceptionCase, bulkExceptionAction,
 } from './domains/governance/exceptionV2Controller';
 import { listItems as listReviewItems, getItem as getReviewItem, takeAction as takeReviewAction, getStats as getReviewStats, getEligibility as getReviewEligibility, getAuditLog as getReviewAuditLog, createItem as createReviewItem, getReviewValidation, getReviewPolicyFlags, getReviewNotesHandler, getReviewRevisionHistory, assignReviewItemHandler, addReviewNoteHandler, bulkReviewAction } from './domains/governance/reviewQueueController';
-import {   createValidationItem, listValidationItems, getValidationItem, assignValidator, runValidation, revalidateItem, getValidationRunResults, requestRevision, sendToReviewQueue, sendToApprovals, escalateValidation, applyOverride, blockItem, completeManualCheck, addValidatorNote, getValidationAuditTrail, getValidationStats, getValidationEligibility, retryValidationCallback, exportValidationRecord, getValidationRuns, getValidationGrounding, getValidationNotesList, getValidationManualChecks, getValidationApprovalReadiness, getValidationRuleHistory } from './domains/governance/validationController';
+import {   createValidationItem, listValidationItems, getValidationItem, assignValidator, runValidation, revalidateItem, getValidationRunResults, requestRevision, sendToReviewQueue, sendToApprovals, escalateValidation, applyOverride, blockItem, completeManualCheck, addValidatorNote, getValidationAuditTrail, getValidationStats, getValidationEligibility, retryValidationCallback, exportValidationRecord, getValidationRuns, getValidationGrounding, getValidationNotesList, getValidationManualChecks, getValidationApprovalReadiness, getValidationRuleHistory, returnToCreator } from './domains/governance/validationController';
 import {
   KnowledgeController,
 } from './modules/knowledge/knowledgeController';
@@ -250,7 +251,7 @@ import {
   exportRuntimeTimeline,
   triggerWorkflowNotification,
 } from './domains/agents/workflowController';
-import { listRules, createRule, getRule, updateRule, submitRuleForReview, publishRule, deactivateRule, reactivateRule, archiveRule, cloneRule, getRuleScope, upsertRuleScope, getRulePath, upsertRulePath, getRuleVersions, getRuleAuditLog, getRuleConflicts, detectRuleConflicts, resolveRuleConflict, runRuleSimulation, getRuleStats, getRuleDetails, getRuleStagesHandler, getRuleEscalationsHandler, markRuleReadyToPublish, markRuleInvalid } from './domains/governance/ruleController';
+import { listRules, createRule, getRule, deleteRule, updateRule, submitRuleForReview, publishRule, deactivateRule, reactivateRule, archiveRule, cloneRule, getRuleScope, upsertRuleScope, getRulePath, upsertRulePath, getRuleVersions, getRuleAuditLog, getRuleConflicts, detectRuleConflicts, resolveRuleConflict, runRuleSimulation, getRuleStats, getRuleDetails, getRuleStagesHandler, getRuleEscalationsHandler, markRuleReadyToPublish, markRuleInvalid, suggestKeywords } from './domains/governance/ruleController';
 import {
   listWorkflows,
   getWorkflow,
@@ -271,6 +272,7 @@ import {
   getWorkflowGraphGeneral,
   validateReadiness,
   getActiveOrchestrations,
+  getPublishedContent,
   getWorkflowStats,
   getWorkflowAnalytics,
   getControlStrip,
@@ -368,6 +370,18 @@ const upload = multer({ dest: os.tmpdir() });
 const app = express();
 const port = env.PORT;
 
+// Guard: replace any undefined route handler with a 501 stub so the server
+// starts even when some controller exports are not yet implemented.
+(function patchUndefinedHandlers(a: express.Express) {
+  const stub = (path: string) => (_req: express.Request, res: express.Response) =>
+    res.status(501).json({ error: `Route ${path} not yet implemented` });
+  for (const m of ['get','post','put','patch','delete'] as const) {
+    const orig = (a as any)[m].bind(a);
+    (a as any)[m] = (path: string, ...handlers: any[]) =>
+      orig(path, ...handlers.map(h => (typeof h === 'function' ? h : stub(path))));
+  }
+})(app);
+
 // Middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
@@ -411,6 +425,7 @@ app.get('/api/v1/health', (req, res) => {
 app.post('/api/v1/auth/signup-enterprise', enterpriseSignup);
 app.post('/api/v1/onboarding/setup', authenticate, setupWorkspace);
 app.post('/api/v1/users/provision', provisionGuard, provisionUser);
+app.post('/api/v1/users/resend-verification', resendVerificationEmail);
 
 // Protected Intelligence/AI
 const acctView = requireRole('ADMIN', 'GOVERNANCE_ADMIN', 'WORKSPACE_OWNER', 'COMPLIANCE_REVIEWER', 'MANAGER', 'REVIEWER', 'SECURITY_ADMIN');
@@ -461,6 +476,7 @@ app.post('/api/v1/governance/submit', authenticate, planRateLimit('general'), sc
 app.get('/api/v1/governance/intents', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), listIntents);
 app.get('/api/v1/governance/queue', authenticate, planRateLimit('general'), scopeGuard('read:content', 'read:governance', '*'), getQueue);
 app.delete('/api/v1/governance/intents/:id', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), deleteIntent);
+app.post('/api/v1/governance/intents/:id/review-action', authenticate, planRateLimit('general'), scopeGuard('write:content', 'write:publish', '*'), reviewActionIntent);
 
 // Protected Evidence Vault & Audit Trail
 app.get('/api/v1/governance/audit/trail', authenticate, govGuard, scopeGuard('read:governance', '*'), getAuditTrail);
@@ -662,8 +678,6 @@ app.get('/api/safety/queue/summary', authenticate, getSafetyQueueSummary);
 app.get('/api/safety/recent-decisions', authenticate, getSafetyRecentDecisions);
 app.post('/api/safety/actions/review-critical-queue', authenticate, reviewCriticalQueue);
 app.post('/api/safety/actions/request-emergency-pause', authenticate, requestEmergencyPause);
-app.post('/api/safety/actions/toggle-degraded', authenticate, toggleDegradedState);
-
 // Safety Layer Risk Intake & Triage (Document 02) endpoints
 app.get('/api/safety/signals', authenticate, getSafetySignals);
 app.get('/api/safety/signals/:id', authenticate, getSafetySignalDetail);
@@ -813,6 +827,10 @@ app.delete('/api/v1/scheduler/posts/:id', authenticate, planRateLimit('general')
 app.get('/api/v1/library', authenticate, planRateLimit('general'), scopeGuard('read:content', '*'), listLibrary);
 app.post('/api/v1/library/upload', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), addToLibrary);
 app.delete('/api/v1/library/:id', authenticate, planRateLimit('general'), scopeGuard('write:content', '*'), deleteFromLibrary);
+app.get('/api/v1/library/scan-logs', authenticate, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+  res.json({ success: true, data: readRecentScans(limit) });
+});
 
 // Protected User Routes
 app.get('/api/v1/user/context', authenticate, getUserContext);
@@ -882,6 +900,7 @@ app.get('/api/v1/agents/workflows/stats', authenticate, workflowView, scopeGuard
 app.get('/api/v1/agents/workflows/control-strip', authenticate, workflowView, scopeGuard('read:agents', '*'), getControlStrip);
 app.get('/api/v1/agents/workflows/analytics', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflowAnalytics);
 app.get('/api/v1/agents/workflows/active', authenticate, workflowView, scopeGuard('read:agents', '*'), getActiveOrchestrations);
+app.get('/api/v1/agents/workflows/published-content', authenticate, workflowView, scopeGuard('read:agents', '*'), getPublishedContent);
 app.get('/api/v1/agents/workflows/graph', authenticate, workflowView, scopeGuard('read:agents', '*'), getWorkflowGraphGeneral);
 app.get('/api/v1/agents/workflows/escalations', authenticate, workflowView, scopeGuard('read:agents', '*'), getEscalationPaths);
 app.get('/api/v1/agents/workflows/approvals', authenticate, workflowView, scopeGuard('read:agents', '*'), getApprovals);
@@ -1107,6 +1126,9 @@ app.post('/api/v1/knowledge/sources/:id/activate', authenticate, scopeGuard('wri
 app.post('/api/v1/knowledge/sources/:id/publish', authenticate, scopeGuard('write:content', '*'), KnowledgeController.publishSource);
 app.post('/api/v1/knowledge/sources/:id/restrict', authenticate, scopeGuard('write:content', '*'), KnowledgeController.restrictSource);
 app.post('/api/v1/knowledge/sources/:id/quarantine', authenticate, scopeGuard('write:content', '*'), KnowledgeController.quarantineSource);
+app.post('/api/v1/knowledge/sources/:id/classify-governance', authenticate, scopeGuard('write:content', '*'), KnowledgeController.classifySourceGovernance);
+app.post('/api/v1/knowledge/sources/:id/governance-decision', authenticate, scopeGuard('write:content', '*'), KnowledgeController.decideGovernanceCategory);
+app.post('/api/v1/knowledge/sources/:id/transfer/decision', authenticate, scopeGuard('write:content', '*'), KnowledgeController.decideSourceTransfer);
 
 // Stats
 app.get('/api/v1/knowledge/stats', authenticate, scopeGuard('read:content', '*'), KnowledgeController.getStats);
@@ -1268,6 +1290,7 @@ app.post('/api/v1/prompts/:id/pause', authenticate, govLifecycle, PromptControll
 app.post('/api/v1/prompts/:id/resume', authenticate, govLifecycle, PromptController.resumePrompt);
 app.post('/api/v1/prompts/:id/archive', authenticate, govLifecycle, PromptController.archivePrompt);
 app.post('/api/v1/prompts/:id/retire', authenticate, govLifecycle, PromptController.retirePrompt);
+app.post('/api/v1/prompts/:id/reactivate', authenticate, govLifecycle, PromptController.reactivatePrompt);
 app.post('/api/v1/prompts/:id/submit-review', authenticate, govLifecycle, PromptController.submitForReview);
 app.post('/api/v1/prompts/:id/rollback', authenticate, govLifecycle, PromptController.rollbackPrompt);
 
@@ -1314,6 +1337,9 @@ app.get('/api/v1/prompts/versions/:versionId/tests/adversarial/runs', authentica
 app.get('/api/v1/prompts/versions/:versionId/tests/adversarial/runs/:runId', authenticate, govView, PromptController.getAdversarialResultDetail);
 // Phase 6.2 — Real adversarial attack execution
 app.post('/api/v1/prompts/versions/:versionId/tests/adversarial/real', authenticate, govEdit, PromptController.runRealAdversarialSuite);
+
+// Test Center — runtime governance classifier (post description → APPROVE/REVIEW/BLOCK)
+app.post('/api/v1/prompts/test-center/classify', authenticate, govView, PromptController.classifyTestDescription);
 
 // Policy Simulation (Phase 5D) — read-only what-if analysis
 app.post('/api/v1/prompts/simulate', authenticate, govView, PromptController.runPolicySimulation);
@@ -1388,8 +1414,10 @@ app.get('/api/v1/prompts/versions/:versionId/sealed-history', authenticate, govV
 // ─── Approval Rules Routes ───────────────────────────────────────────
 app.get('/api/v1/governance/rules', authenticate, acctView, scopeGuard('read:governance', '*'), listRules);
 app.post('/api/v1/governance/rules', authenticate, acctWrite, scopeGuard('write:governance', '*'), createRule);
+app.post('/api/v1/governance/rules/ai-suggest', authenticate, acctWrite, scopeGuard('write:governance', '*'), suggestKeywords);
 app.get('/api/v1/governance/rules/stats', authenticate, acctView, scopeGuard('read:governance', '*'), getRuleStats);
 app.get('/api/v1/governance/rules/:id', authenticate, acctView, scopeGuard('read:governance', '*'), getRule);
+app.delete('/api/v1/governance/rules/:id', authenticate, acctWrite, scopeGuard('write:governance', '*'), deleteRule);
 app.patch('/api/v1/governance/rules/:id', authenticate, acctWrite, scopeGuard('write:governance', '*'), updateRule);
 app.post('/api/v1/governance/rules/:id/submit-review', authenticate, acctWrite, scopeGuard('write:governance', '*'), submitRuleForReview);
 app.post('/api/v1/governance/rules/:id/publish', authenticate, acctWrite, scopeGuard('write:governance', '*'), publishRule);
@@ -1474,6 +1502,7 @@ app.post('/api/v1/validation/items/:id/run', authenticate, acctWrite, scopeGuard
 app.get('/api/v1/validation/runs/:runId/results', authenticate, acctView, scopeGuard('read:governance', '*'), getValidationRunResults);
 app.post('/api/v1/validation/items/:id/revalidate', authenticate, acctWrite, scopeGuard('write:governance', '*'), revalidateItem);
 app.post('/api/v1/validation/items/:id/request-revision', authenticate, acctWrite, scopeGuard('write:governance', '*'), requestRevision);
+app.post('/api/v1/validation/items/:id/return-to-creator', authenticate, acctWrite, scopeGuard('write:governance', '*'), returnToCreator);
 app.post('/api/v1/validation/items/:id/send-to-review-queue', authenticate, acctWrite, scopeGuard('write:governance', '*'), sendToReviewQueue);
 app.post('/api/v1/validation/items/:id/send-to-approvals', authenticate, acctWrite, scopeGuard('write:governance', '*'), sendToApprovals);
 app.post('/api/v1/validation/items/:id/escalate', authenticate, acctWrite, scopeGuard('write:governance', '*'), escalateValidation);

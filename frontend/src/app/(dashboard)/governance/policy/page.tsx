@@ -54,29 +54,29 @@ export default function PolicyPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)] flex items-center gap-3">
-            <Scale className="w-8 h-8 text-indigo-500" />
+            <Scale className="w-8 h-8 text-info-text" />
             Policy Center
           </h1>
           <p className="text-[var(--foreground-muted)] mt-1">
             Define the legal and ethical guardrails that govern your autonomous workforce.
           </p>
         </div>
-        <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-semibold transition-all shadow-lg shadow-indigo-600/20 active:scale-95 group">
+        <button className="flex items-center gap-2 bg-info-text hover:bg-info-text text-foreground px-5 py-2.5 rounded-xl font-semibold transition-all shadow-lg shadow-info-bg active:scale-95 group">
           <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
           Create Policy Tier
         </button>
       </div>
 
       {/* Alert Banner */}
-      <div className="bg-amber-500/10 border border-amber-500/20 rounded-3xl p-6 flex items-start gap-4">
-        <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-500 shrink-0">
+      <div className="bg-warning-bg border border-warning-border rounded-3xl p-6 flex items-start gap-4">
+        <div className="w-12 h-12 bg-warning-bg rounded-2xl flex items-center justify-center text-warning-text shrink-0">
           <AlertOctagon className="w-6 h-6" />
         </div>
         <div className="flex-1">
-          <h3 className="text-sm font-bold text-amber-700">Pending Policy Review</h3>
-          <p className="text-xs text-amber-700/70 mt-1">3 agents are currently operating under &quot;Experimental&quot; policies while handling production data. This exceeds the recommended risk threshold.</p>
+          <h3 className="text-sm font-bold text-warning-text">Pending Policy Review</h3>
+          <p className="text-xs text-warning-text/70 mt-1">3 agents are currently operating under &quot;Experimental&quot; policies while handling production data. This exceeds the recommended risk threshold.</p>
         </div>
-        <button className="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all self-center">
+        <button className="px-4 py-2 bg-warning-text text-foreground rounded-xl text-xs font-bold hover:bg-warning-text transition-all self-center">
           REVIEW RISK
         </button>
       </div>
@@ -84,24 +84,24 @@ export default function PolicyPage() {
       {/* Policy Tiers Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {POLICY_TIERS.map((tier) => (
-          <div key={tier.id} className="bg-[var(--card)] border border-[var(--card-border)] rounded-3xl p-8 flex flex-col space-y-6 group hover:border-indigo-500/30 transition-all">
+          <div key={tier.id} className="bg-[var(--card)] border border-[var(--card-border)] rounded-3xl p-8 flex flex-col space-y-6 group hover:border-info-border transition-all">
             <div className="flex items-start justify-between">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                tier.status === 'STRICT' ? 'bg-rose-500/10 text-rose-500' : 'bg-indigo-500/10 text-indigo-500'
+                tier.status === 'STRICT' ? 'bg-error-bg text-error-text' : 'bg-info-bg text-info-text'
               }`}>
                 <Shield className="w-6 h-6" />
               </div>
               <span className={`text-[10px] font-black px-2 py-0.5 rounded border uppercase ${
-                tier.status === 'STRICT' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 
-                tier.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 
-                'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                tier.status === 'STRICT' ? 'bg-error-bg text-error-text border-error-border' : 
+                tier.status === 'ACTIVE' ? 'bg-success-bg text-success-text border-success-border' : 
+                'bg-warning-bg text-warning-text border-warning-border'
               }`}>
                 {tier.status}
               </span>
             </div>
 
             <div>
-              <h3 className="text-xl font-bold group-hover:text-indigo-500 transition-colors">{tier.name}</h3>
+              <h3 className="text-xl font-bold group-hover:text-info-text transition-colors">{tier.name}</h3>
               <p className="text-xs text-[var(--foreground-muted)] mt-2 leading-relaxed">{tier.description}</p>
             </div>
 
@@ -110,7 +110,7 @@ export default function PolicyPage() {
                 <span className="text-sm font-black">{tier.agents}</span>
                 <span className="text-[10px] font-bold text-[var(--foreground-muted)] uppercase tracking-tight">Agents</span>
               </div>
-              <div className="flex flex-col text-rose-500">
+              <div className="flex flex-col text-error-text">
                 <span className="text-sm font-black">{tier.violations}</span>
                 <span className="text-[10px] font-bold uppercase tracking-tight">Violations</span>
               </div>
@@ -127,7 +127,7 @@ export default function PolicyPage() {
               </div>
             </div>
 
-            <button className="w-full py-3 bg-[var(--surface)] hover:bg-indigo-500 hover:text-white rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 group-hover:bg-indigo-500/10 group-hover:text-indigo-500 group-hover:border group-hover:border-indigo-500/20">
+            <button className="w-full py-3 bg-[var(--surface)] hover:bg-info-text hover:text-white rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 group-hover:bg-info-bg group-hover:text-info-text group-hover:border group-hover:border-info-border">
               CONFIGURE TIER
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -142,7 +142,7 @@ export default function PolicyPage() {
             <Zap className="w-4 h-4" />
             Governance Inheritance Tree
           </h3>
-          <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500">
+          <div className="flex items-center gap-2 text-[10px] font-bold text-success-text">
             <CheckCircle className="w-3 h-3" />
             SYSTEM WIDE COMPLIANCE: 94.2%
           </div>
@@ -150,9 +150,9 @@ export default function PolicyPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           <div className="space-y-6">
-            <div className="p-6 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl space-y-4">
+            <div className="p-6 bg-info-bg border border-info-border rounded-2xl space-y-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500 rounded-lg text-white">
+                <div className="p-2 bg-info-text rounded-lg text-foreground">
                   <Lock className="w-4 h-4" />
                 </div>
                 <div>
@@ -160,14 +160,14 @@ export default function PolicyPage() {
                   <p className="text-[10px] text-[var(--foreground-muted)]">Core governance rules cannot be overridden by individual agents.</p>
                 </div>
               </div>
-              <div className="w-full h-2 bg-indigo-500/10 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 w-[100%]" />
+              <div className="w-full h-2 bg-info-bg rounded-full overflow-hidden">
+                <div className="h-full bg-info-text w-[100%]" />
               </div>
             </div>
 
-            <div className="p-6 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl space-y-4">
+            <div className="p-6 bg-success-bg border border-success-border rounded-2xl space-y-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-500 rounded-lg text-white">
+                <div className="p-2 bg-success-text rounded-lg text-foreground">
                   <Globe className="w-4 h-4" />
                 </div>
                 <div>
@@ -175,8 +175,8 @@ export default function PolicyPage() {
                   <p className="text-[10px] text-[var(--foreground-muted)]">Automatic policy adjustment based on detected execution market.</p>
                 </div>
               </div>
-              <div className="w-full h-2 bg-emerald-500/10 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 w-[82%]" />
+              <div className="w-full h-2 bg-success-bg rounded-full overflow-hidden">
+                <div className="h-full bg-success-text w-[82%]" />
               </div>
             </div>
           </div>

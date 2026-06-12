@@ -11,6 +11,8 @@ import { evaluateIntent } from '../decisions/decisionEngine';
 import { ApprovalEngine } from '../decisions/approvalEngine';
 import { logAuditEvent } from './evidenceController';
 import { recordPublishIntentRun } from '../../services/operationsRunRecorder.service';
+import { linkPublishToWorkflow } from '../../services/workflowPublishLink.service';
+import { moderate } from '../../modules/safety/moderationService';
 
 const SubmitIntentSchema = z.object({
   content: z.object({
@@ -62,6 +64,34 @@ export const submitIntent = async (
     // story/idea formats suppress captions — platform doesn't display them
     const NO_CAPTION_FORMATS = new Set(['story', 'idea', 'idea-pin', 'idea_pin']);
 
+    // Auto-assignment load balancing
+    const { data: reviewers } = await supabaseAdmin
+      .from('workspace_members')
+      .select('user_id')
+      .eq('workspace_id', targetWorkspaceId)
+      .eq('role', 'REVIEWER');
+
+    const reviewerIds = (reviewers || []).map(r => r.user_id);
+    const loadMap: Record<string, number> = {};
+    reviewerIds.forEach(id => { loadMap[id] = 0; });
+
+    if (reviewerIds.length > 0) {
+      const { data: countsData } = await supabaseAdmin
+        .from('publish_intents')
+        .select('reviewer_id')
+        .eq('workspace_id', targetWorkspaceId)
+        .eq('status', 'PENDING_REVIEW')
+        .in('reviewer_id', reviewerIds);
+
+      if (countsData) {
+        countsData.forEach((row: any) => {
+          if (row.reviewer_id && loadMap[row.reviewer_id] !== undefined) {
+            loadMap[row.reviewer_id]++;
+          }
+        });
+      }
+    }
+
     const intentsToCreate = accounts.flatMap((acc) => {
       // Case-insensitive lookup: DB stores platform as lowercase, frontend keys may vary
       const platformKey = Object.keys(content.platforms || {}).find(
@@ -78,54 +108,196 @@ export const submitIntent = async (
           ? [rawFormats]
           : [null];
 
-      return formats.map(postType => ({
-        workspace_id: targetWorkspaceId,
-        creator_id: userId,
-        target_account_ids: [acc.id],
-        content: (postType && NO_CAPTION_FORMATS.has(postType.toLowerCase())) ? '' : finalCaption,
-        media_urls: urlsToSave,
-        media_url: urlsToSave[0] || null,
-        status: 'PUBLISHED',
-        platform: acc.platform,
-        ...(campaign_id ? { campaign_id } : {}),
-        ...(boost_budget_override != null ? { boost_budget_override } : {}),
-      }));
+      return formats.map(postType => {
+        let assignedReviewerId: string | null = null;
+        if (reviewerIds.length > 0) {
+          let minReviewerId = reviewerIds[0];
+          let minLoad = loadMap[minReviewerId];
+          for (const rId of reviewerIds) {
+            if (loadMap[rId] < minLoad) {
+              minLoad = loadMap[rId];
+              minReviewerId = rId;
+            }
+          }
+          assignedReviewerId = minReviewerId;
+          loadMap[minReviewerId]++; // Increment workload load-balancing locally for batch items
+        }
+
+        return {
+          workspace_id: targetWorkspaceId,
+          creator_id: userId,
+          target_account_ids: [acc.id],
+          content: (postType && NO_CAPTION_FORMATS.has(postType.toLowerCase())) ? '' : finalCaption,
+          media_urls: urlsToSave,
+          media_url: urlsToSave[0] || null,
+          status: 'PENDING_REVIEW',
+          platform: acc.platform,
+          reviewer_id: assignedReviewerId,
+          ...(campaign_id ? { campaign_id } : {}),
+          ...(boost_budget_override != null ? { boost_budget_override } : {}),
+        };
+      });
     });
 
-    const { data, error } = await supabaseAdmin
-      .from('publish_intents')
-      .insert(intentsToCreate)
-      .select();
+    // ── Safety-gated routing ──────────────────────────────────────────────
+    // Run the agent's safety check on each post and decide where it goes:
+    //   • 100% clean (zero detections) AND owning agent autonomy is L4–L6
+    //       → APPROVED, then auto-published below (no human review).
+    //   • anything else — even a 99% "safe" post, or any flag
+    //       → PENDING_REVIEW, so it lands in the Review Queue
+    //         (green when safe, red when flagged, via risk_level).
+    // Fail-safe: if the safety check errors, the post goes to review, never
+    // auto-publish.
+    const AUTO_PUBLISH_LEVELS = new Set(['L4', 'L5', 'L6']);
+    const { data: wsAgents } = await supabaseAdmin
+      .from('agents')
+      .select('id, name, type, status, platforms, linked_channels, autonomy_level')
+      .eq('workspace_id', targetWorkspaceId)
+      .limit(50);
+    const agentList = wsAgents || [];
+    const pickAgentForPlatform = (platform?: string): any => {
+      if (agentList.length === 0) return null;
+      const p = (platform || '').toLowerCase();
+      const isActive = (a: any) => ['ACTIVE', 'APPROVED', 'DEPLOYED'].includes(String(a.status || '').toUpperCase());
+      const matches = (a: any) => p && ([...(a.platforms || []), ...(a.linked_channels || [])] as string[]).some((c) => String(c).toLowerCase() === p);
+      const isContent = (a: any) => String(a.type || '').toLowerCase().includes('content');
+      return [...agentList].sort((a, b) => {
+        const score = (x: any) => (isActive(x) ? 4 : 0) + (matches(x) ? 2 : 0) + (isContent(x) ? 1 : 0);
+        return score(b) - score(a);
+      })[0] || null;
+    };
+    const SEVERITY_TO_RISK: Record<string, string> = { low: 'LOW', medium: 'MEDIUM', high: 'HIGH', critical: 'CRITICAL' };
+    // Dedupe moderation by caption so identical captions across accounts/formats
+    // only cost one safety check.
+    const modCache = new Map<string, { risk: number; severity: string }>();
+    const checkContent = async (text: string): Promise<{ risk: number; severity: string }> => {
+      const key = text || '';
+      const cached = modCache.get(key);
+      if (cached) return cached;
+      let result = { risk: 0, severity: 'low' };
+      if (key.trim()) {
+        try {
+          const m = await moderate({ content: key, workspaceId: targetWorkspaceId });
+          result = { risk: m.overallRisk || 0, severity: m.severity || 'low' };
+        } catch (err) {
+          logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[Governance] moderation failed — routing to review (fail-safe)');
+          result = { risk: 1, severity: 'high' }; // never auto-publish on error
+        }
+      }
+      modCache.set(key, result);
+      return result;
+    };
 
-    if (error) {
+    for (const row of intentsToCreate as any[]) {
+      const check = await checkContent(row.content || '');
+      const agent = pickAgentForPlatform(row.platform);
+      row.agent_id = agent?.id || null;
+      row.risk_level = SEVERITY_TO_RISK[check.severity] || 'LOW';
+      row.risk_score = Math.round((check.risk || 0) * 100);
+      const autonomyOk = !!agent && AUTO_PUBLISH_LEVELS.has(String(agent.autonomy_level || 'L0').toUpperCase());
+      // Only a 100%-clean post (zero detections) from an L4+ agent skips human
+      // review. Everything else stays in the Review Queue.
+      row.status = check.risk === 0 && autonomyOk ? 'APPROVED' : 'PENDING_REVIEW';
+    }
+
+    // Insert resiliently. risk_level / risk_score / agent_id are written for the
+    // Review Queue's risk display, but those columns may not exist yet in every
+    // environment (pending migration). Rather than 500 the entire publish on a
+    // missing display column, strip whatever column PostgREST reports as unknown
+    // and retry. The routing decision (status) and the workflow wiring below
+    // rely only on base columns, so stripping these never breaks publishing.
+    let data: any[] | null = null;
+    let error: any = null;
+    let rowsToInsert = intentsToCreate as any[];
+    const strippedColumns: string[] = [];
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const res2 = await supabaseAdmin.from('publish_intents').insert(rowsToInsert).select();
+      if (!res2.error) { data = res2.data; error = null; break; }
+      error = res2.error;
+      const missing = /Could not find the '([^']+)' column/.exec(res2.error.message || '');
+      if (!missing) break; // a different error — don't loop
+      const col = missing[1];
+      strippedColumns.push(col);
+      rowsToInsert = rowsToInsert.map((r) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [col]: _omit, ...rest } = r;
+        return rest;
+      });
+      logger.warn({ col }, '[Governance] publish_intents missing column — retrying insert without it');
+    }
+
+    if (error || !data) {
       logger.error({ error, sample: intentsToCreate[0] }, '[Governance] publish_intents insert failed');
       return res.status(500).json({
         success: false,
-        error: error.message || 'Insert failed',
-        detail: (error as any).details || (error as any).hint || null,
+        error: error?.message || 'Insert failed',
+        detail: (error as any)?.details || (error as any)?.hint || null,
       });
     }
-
-    // Fire execution immediately for all intents
-    for (const intent of data) {
-      internalEventBus.emit('execution.requested', { intentId: intent.id });
+    if (strippedColumns.length > 0) {
+      logger.warn({ strippedColumns }, '[Governance] published with missing columns stripped — apply migration to enable risk display');
     }
 
-    // Mirror each post into Agent Operations and run the policy checks against
-    // its caption. Non-blocking: recordPublishIntentRun swallows its own errors,
-    // so a recording/policy failure can never break publishing.
+    // Mirror each post into Agent Operations for policy checks (non-blocking).
     try {
       await Promise.all(data.map((intent: any) => recordPublishIntentRun(intent)));
     } catch (err) {
       logger.warn({ err }, '[Governance] operations mirror failed (non-blocking)');
     }
 
+    // Auto-publish the 100%-clean, high-autonomy posts (status pre-set to
+    // APPROVED above). Reuse the SAME governed path the manual approval flow
+    // uses: the Decision Engine still gets the final say, and on clearance we
+    // emit the same execution event. Best-effort per row — a failure here
+    // leaves the post APPROVED for a human to push, never silently published.
+    let autoPublished = 0;
+    const autoRows = (data || []).filter((r: any) => r.status === 'APPROVED');
+    for (const row of autoRows) {
+      try {
+        const decision = await evaluateIntent(row.id, '', targetWorkspaceId);
+        if (!decision.governance_cleared) {
+          await supabaseAdmin
+            .from('publish_intents')
+            .update({ status: 'GOVERNANCE_BLOCKED', decision_id: decision.decision_id, feedback: `Blocked by Decision Engine: ${decision.decision_class}` })
+            .eq('id', row.id);
+          continue;
+        }
+        await supabaseAdmin
+          .from('publish_intents')
+          .update({ decision_id: decision.decision_id })
+          .eq('id', row.id);
+        internalEventBus.emit('execution.requested', { intentId: row.id, orgId: targetWorkspaceId });
+        autoPublished++;
+        logger.info({ intentId: row.id }, '[Governance] auto-published (100% clean + L4+ autonomous agent)');
+      } catch (err) {
+        logger.warn({ err: err instanceof Error ? err.message : String(err), intentId: row.id }, '[Governance] auto-publish failed; left APPROVED for manual push');
+      }
+    }
+
+    // Additively link each published post to a governed Publishing Workflow
+    // instance (visible on the Workflows page). Best-effort — never blocks.
+    logger.info({ count: data.length, workspace: targetWorkspaceId }, '[publish-link] submitIntent → linking posts to workflow');
+    Promise.all(
+      data.map((intent: any) =>
+        linkPublishToWorkflow({
+          workspaceId: targetWorkspaceId,
+          startedBy: userId,
+          platform: intent.platform,
+          content: intent.caption ?? intent.content ?? '',
+          postId: intent.id,
+          scheduled: false,
+        }),
+      ),
+    )
+      .then((ids) => logger.info({ instanceIds: ids }, '[publish-link] submitIntent link result'))
+      .catch((err) => logger.warn({ err: err instanceof Error ? err.message : String(err) }, '[Governance] workflow link failed (non-blocking)'));
+
     try {
       await logAuditEvent({
         workspaceId: targetWorkspaceId,
         actorId: userId,
         actorType: 'USER',
-        action: `Directly publishing ${data.length} intents (testing mode)`,
+        action: `Submitted ${data.length} intent(s) for review`,
         objectType: 'PUBLISH_INTENT',
         module: 'Governance',
         metadata: { count: data.length },
@@ -138,6 +310,8 @@ export const submitIntent = async (
     res.status(200).json({
       success: true,
       count: data.length,
+      autoPublished,
+      inReview: data.length - autoPublished,
     });
   } catch (error) {
     next(error);
@@ -446,6 +620,87 @@ export const getQueue = async (
     }
 
     res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Review-queue action on an agent-routed post (publish_intents). Gives the
+// Agent Review Queue the same Approve / Reject / Return actions the rest of the
+// queue has, mapped onto the governed publish lifecycle:
+//   • approve → Decision Engine clears it → emits execution.requested (publish);
+//               if governance blocks, status becomes GOVERNANCE_BLOCKED.
+//   • reject  → REJECTED  (with reason as feedback)
+//   • return  → RETURNED  (back to the creator with the note)
+// ─────────────────────────────────────────────────────────────────────────────
+export const reviewActionIntent = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const intentId = String(req.params.id);
+    const { action, reason } = req.body as { action?: string; reason?: string };
+    if (!action || !['approve', 'reject', 'return'].includes(action)) {
+      return res.status(400).json({ success: false, error: 'action must be approve, reject, or return' });
+    }
+
+    const { data: intent, error: fetchErr } = await supabaseAdmin
+      .from('publish_intents')
+      .select('*')
+      .eq('id', intentId)
+      .single();
+    if (fetchErr || !intent) return res.status(404).json({ success: false, error: 'Post not found' });
+
+    const workspaceId = intent.workspace_id || req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+
+    const auditAction =
+      action === 'approve' ? 'Approved agent post' : action === 'reject' ? 'Rejected agent post' : 'Returned agent post to creator';
+    await logAuditEvent({
+      workspaceId, actorId: userId, actorType: 'USER', action: auditAction,
+      objectType: 'PUBLISH_INTENT', objectId: intentId, module: 'Review Queue',
+      metadata: { action, reason: reason || null },
+    }).catch(() => undefined);
+
+    if (action === 'approve') {
+      // Same governed path the manual approval + auto-publish use.
+      const decision = await evaluateIntent(intentId, '', workspaceId);
+      if (!decision.governance_cleared) {
+        await supabaseAdmin
+          .from('publish_intents')
+          .update({ status: 'GOVERNANCE_BLOCKED', decision_id: decision.decision_id, feedback: `Blocked by Decision Engine: ${decision.decision_class}` })
+          .eq('id', intentId);
+        return res.status(200).json({ success: true, blocked: true, data: { status: 'GOVERNANCE_BLOCKED', decision_class: decision.decision_class } });
+      }
+      await supabaseAdmin
+        .from('publish_intents')
+        .update({ status: 'APPROVED', decision_id: decision.decision_id, feedback: reason || null })
+        .eq('id', intentId);
+      internalEventBus.emit('execution.requested', { intentId, orgId: workspaceId });
+      return res.status(200).json({ success: true, data: { status: 'APPROVED' } });
+    }
+
+    if (action === 'reject') {
+      if (intent.agent_id) {
+        internalEventBus.emit('agent.trust.penalized', { agentId: intent.agent_id, reason: 'Agent post rejected in Review Queue.', penalty: -5 });
+      }
+      await supabaseAdmin
+        .from('publish_intents')
+        .update({ status: 'REJECTED', feedback: reason || null })
+        .eq('id', intentId);
+      return res.status(200).json({ success: true, data: { status: 'REJECTED' } });
+    }
+
+    // return → send back to creator for revision
+    await supabaseAdmin
+      .from('publish_intents')
+      .update({ status: 'RETURNED', feedback: reason || null })
+      .eq('id', intentId);
+    return res.status(200).json({ success: true, data: { status: 'RETURNED' } });
   } catch (error) {
     next(error);
   }

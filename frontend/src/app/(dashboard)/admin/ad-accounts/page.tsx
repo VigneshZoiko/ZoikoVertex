@@ -24,7 +24,7 @@ interface AdAccountsData {
   meta: AdAccount[];
 }
 
-const inp = "w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-white/30 transition-all";
+const inp = "w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-foreground text-sm placeholder:text-foreground-muted focus:outline-none focus:border-white/30 transition-all";
 
 export default function AdminAdAccountsPage() {
   const [data,    setData]    = useState<AdAccountsData | null>(null);
@@ -81,11 +81,11 @@ export default function AdminAdAccountsPage() {
     setEditPageId(account.agency_page_id || "");
   };
 
-  const labelCls = "block text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-1.5";
+  const labelCls = "block text-[11px] font-semibold text-foreground-muted uppercase tracking-widest mb-1.5";
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-8 h-8 animate-spin text-zinc-600" />
+      <Loader2 className="w-8 h-8 animate-spin text-foreground-muted" />
     </div>
   );
 
@@ -97,14 +97,14 @@ export default function AdminAdAccountsPage() {
     return (
       <div key={account.id}
         className={`p-5 rounded-2xl border transition-all ${
-          isDefault ? "bg-emerald-500/5 border-emerald-500/30" : "bg-zinc-900/40 border-zinc-800"
+          isDefault ? "bg-success-text/5 border-success-border/30" : "bg-surface/40 border-border"
         }`}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            {isDefault && <Star className="w-4 h-4 text-emerald-400 fill-emerald-400" />}
+            {isDefault && <Star className="w-4 h-4 text-success-text fill-emerald-400" />}
             <div>
-              <p className="text-sm font-bold text-white">{account.account_name}</p>
-              <p className="text-[11px] text-zinc-500">{account.account_handle || account.id}</p>
+              <p className="text-sm font-bold text-foreground">{account.account_name}</p>
+              <p className="text-[11px] text-foreground-muted">{account.account_handle || account.id}</p>
             </div>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${
               account.platform === "facebook"
@@ -114,7 +114,7 @@ export default function AdminAdAccountsPage() {
               {account.platform}
             </span>
             {isDefault && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-success-text/10 text-success-text border border-success-border/20">
                 AGENCY DEFAULT
               </span>
             )}
@@ -123,12 +123,12 @@ export default function AdminAdAccountsPage() {
           <div className="flex items-center gap-2">
             {isDefault && (
               <button onClick={() => handleUnsetDefault(account.id)} disabled={!!saving}
-                className="text-xs text-zinc-500 hover:text-rose-400 transition-colors px-2 py-1 rounded-lg hover:bg-rose-500/10">
+                className="text-xs text-foreground-muted hover:text-error-text transition-colors px-2 py-1 rounded-lg hover:bg-error-text/10">
                 Remove default
               </button>
             )}
             <button onClick={() => isEditing ? setEditingId(null) : startEdit(account)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl transition-all">
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-surface-hover hover:bg-surface-hover text-foreground-muted rounded-xl transition-all">
               {isEditing ? <><ChevronUp className="w-3 h-3" />Cancel</> : <><ChevronDown className="w-3 h-3" />Configure</>}
             </button>
             <button
@@ -136,7 +136,7 @@ export default function AdminAdAccountsPage() {
               disabled={!!saving || (isDefault && !isEditing)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all disabled:opacity-40 ${
                 isDefault && !isEditing
-                  ? "bg-emerald-500/10 text-emerald-400 cursor-default"
+                  ? "bg-success-text/10 text-success-text cursor-default"
                   : "bg-white hover:bg-zinc-100 text-zinc-900"
               }`}>
               {isSavingThis ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
@@ -146,25 +146,25 @@ export default function AdminAdAccountsPage() {
         </div>
 
         {!isEditing && (
-          <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-zinc-500">
-            <span>Ad Account: <span className="text-zinc-300">{account.agency_ad_account_id || account.ad_account_id || "Not set"}</span></span>
-            <span>Page ID: <span className="text-zinc-300">{account.agency_page_id || "Not set"}</span></span>
+          <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-foreground-muted">
+            <span>Ad Account: <span className="text-foreground-muted">{account.agency_ad_account_id || account.ad_account_id || "Not set"}</span></span>
+            <span>Page ID: <span className="text-foreground-muted">{account.agency_page_id || "Not set"}</span></span>
           </div>
         )}
 
         {isEditing && (
-          <div className="mt-4 pt-4 border-t border-zinc-800 space-y-3">
+          <div className="mt-4 pt-4 border-t border-border space-y-3">
             <div>
-              <label className={labelCls}>Meta Ad Account ID <span className="normal-case text-zinc-600 font-normal">(act_xxx format)</span></label>
+              <label className={labelCls}>Meta Ad Account ID <span className="normal-case text-foreground-muted font-normal">(act_xxx format)</span></label>
               <input value={editAdAccountId} onChange={e => setEditAdAccountId(e.target.value)}
                 className={inp} placeholder="act_123456789" />
-              <p className="text-[11px] text-zinc-600 mt-1">Find in Meta Business Manager → Ad Accounts</p>
+              <p className="text-[11px] text-foreground-muted mt-1">Find in Meta Business Manager → Ad Accounts</p>
             </div>
             <div>
-              <label className={labelCls}>Facebook Page ID <span className="normal-case text-zinc-600 font-normal">(for ad creatives)</span></label>
+              <label className={labelCls}>Facebook Page ID <span className="normal-case text-foreground-muted font-normal">(for ad creatives)</span></label>
               <input value={editPageId} onChange={e => setEditPageId(e.target.value)}
                 className={inp} placeholder="123456789012345" />
-              <p className="text-[11px] text-zinc-600 mt-1">Find in Meta Business Suite → Pages → About</p>
+              <p className="text-[11px] text-foreground-muted mt-1">Find in Meta Business Suite → Pages → About</p>
             </div>
           </div>
         )}
@@ -176,12 +176,12 @@ export default function AdminAdAccountsPage() {
     <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Agency Ad Accounts</h1>
-          <p className="text-sm text-zinc-500 mt-1">
+          <h1 className="text-2xl font-bold text-foreground">Agency Ad Accounts</h1>
+          <p className="text-sm text-foreground-muted mt-1">
             Set a Meta account as the agency default. All client campaigns will run through this account.
           </p>
         </div>
-        <button onClick={load} className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-500 hover:text-zinc-300 transition-all">
+        <button onClick={load} className="p-2.5 bg-surface border border-border rounded-xl text-foreground-muted hover:text-foreground-muted transition-all">
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
@@ -196,26 +196,26 @@ export default function AdminAdAccountsPage() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs">
+        <div className="flex items-center gap-2 p-3 bg-error-text/10 border border-error-border/20 rounded-xl text-error-text text-xs">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />{error}
           <button onClick={() => setError(null)} className="ml-auto"><X className="w-3 h-3" /></button>
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs">
+        <div className="flex items-center gap-2 p-3 bg-success-text/10 border border-success-border/20 rounded-xl text-success-text text-xs">
           <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />{success}
           <button onClick={() => setSuccess(null)} className="ml-auto"><X className="w-3 h-3" /></button>
         </div>
       )}
 
       <div className="space-y-3">
-        <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Meta (Facebook & Instagram)</h2>
+        <h2 className="text-xs font-bold text-foreground-muted uppercase tracking-widest">Meta (Facebook & Instagram)</h2>
         {data?.meta && data.meta.length > 0 ? (
           data.meta.map(a => renderAccountCard(a))
         ) : (
-          <div className="p-8 bg-zinc-900/40 border border-zinc-800 rounded-2xl text-center">
-            <p className="text-zinc-500 text-sm">No Meta accounts connected.</p>
-            <p className="text-zinc-600 text-xs mt-1">Go to <strong className="text-zinc-400">Platform Accounts</strong> and connect a Facebook account first.</p>
+          <div className="p-8 bg-surface/40 border border-border rounded-2xl text-center">
+            <p className="text-foreground-muted text-sm">No Meta accounts connected.</p>
+            <p className="text-foreground-muted text-xs mt-1">Go to <strong className="text-foreground-muted">Platform Accounts</strong> and connect a Facebook account first.</p>
           </div>
         )}
       </div>

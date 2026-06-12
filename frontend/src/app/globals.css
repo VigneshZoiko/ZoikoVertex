@@ -32,39 +32,67 @@
 
   --overlay: rgba(0, 0, 0, 0.7);
   --placeholder: #a1a1aa;
+
+  /* Semantic status tokens */
+  --success-bg: rgba(16, 185, 129, 0.08);
+  --success-border: rgba(16, 185, 129, 0.2);
+  --success-text: #059669;
+  --warning-bg: rgba(245, 158, 11, 0.08);
+  --warning-border: rgba(245, 158, 11, 0.2);
+  --warning-text: #D97706;
+  --error-bg: rgba(239, 68, 68, 0.08);
+  --error-border: rgba(239, 68, 68, 0.2);
+  --error-text: #DC2626;
+  --info-bg: rgba(99, 102, 241, 0.08);
+  --info-border: rgba(99, 102, 241, 0.2);
+  --info-text: #6366F1;
 }
 
 .dark {
-  /* Dark Mode */
-  --background: #09090b;
-  --background-subtle: #0a0a0a;
-  --foreground: #fafafa;
-  --foreground-muted: #a1a1aa;
+  /* Dark Mode — aligned with landing page palette */
+  --background: #152238;
+  --background-subtle: #0d1a30;
+  --foreground: #ffffff;
+  --foreground-muted: #A9B8C7;
 
-  --card: #18181b;
-  --card-border: #27272a;
+  --card: #0a1526;
+  --card-border: rgba(32, 231, 242, 0.12);
 
-  --surface: #18181b;
-  --surface-hover: #27272a;
+  --surface: #0d1a30;
+  --surface-hover: #1a2d48;
 
-  --border: #27272a;
-  --input: #27272a;
+  --border: rgba(32, 231, 242, 0.12);
+  --input: rgba(32, 231, 242, 0.12);
 
-  --accent: #6366f1;
-  --accent-subtle: #1e1b4b;
-  --accent-foreground: #ffffff;
+  --accent: #20E7F2;
+  --accent-subtle: rgba(32, 231, 242, 0.08);
+  --accent-foreground: #080E1A;
 
-  --sidebar-bg: #09090b;
-  --sidebar-border: #18181b;
-  --sidebar-text: #fafafa;
-  --sidebar-text-muted: #a1a1aa;
-  --sidebar-hover: #27272a;
-  --sidebar-active: #1e1b4b;
+  --sidebar-bg: #152238;
+  --sidebar-border: rgba(32, 231, 242, 0.08);
+  --sidebar-text: #ffffff;
+  --sidebar-text-muted: #A9B8C7;
+  --sidebar-hover: #1a2d48;
+  --sidebar-active: rgba(32, 231, 242, 0.08);
 
-  --header-bg: #09090b;
+  --header-bg: #152238;
 
   --overlay: rgba(0, 0, 0, 0.7);
-  --placeholder: #52525b;
+  --placeholder: #5E7A92;
+
+  /* Semantic status tokens */
+  --success-bg: rgba(16, 185, 129, 0.12);
+  --success-border: rgba(16, 185, 129, 0.3);
+  --success-text: #34D399;
+  --warning-bg: rgba(245, 158, 11, 0.12);
+  --warning-border: rgba(245, 158, 11, 0.3);
+  --warning-text: #FBBF24;
+  --error-bg: rgba(239, 68, 68, 0.12);
+  --error-border: rgba(239, 68, 68, 0.3);
+  --error-text: #F87171;
+  --info-bg: rgba(32, 231, 242, 0.08);
+  --info-border: rgba(32, 231, 242, 0.2);
+  --info-text: #20E7F2;
 }
 
 /* ─── Tailwind v4 Theme Mapping ──────────────────────────────────────────── */
@@ -89,8 +117,37 @@
   --color-header-bg: var(--header-bg);
   --color-overlay: var(--overlay);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+  --color-success-text: var(--success-text);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-warning-text: var(--warning-text);
+  --color-error-bg: var(--error-bg);
+  --color-error-border: var(--error-border);
+  --color-error-text: var(--error-text);
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
+  --color-info-text: var(--info-text);
+
+  --font-sans: var(--font-jakarta);
+  --font-mono: var(--font-jetbrains);
+  --font-display: var(--font-bricolage);
+
+  /* ── Figma landing/marketing tokens ── */
+  --lp-bg: #152238;
+  --lp-surface: #0a1526;
+  --lp-cyan: #20E7F2;
+  --lp-cyan-08: rgba(32, 231, 242, 0.08);
+  --lp-cyan-12: rgba(32, 231, 242, 0.12);
+  --lp-cyan-15: rgba(32, 231, 242, 0.15);
+  --lp-cyan-04: rgba(32, 231, 242, 0.04);
+  --lp-cyan-05: rgba(32, 231, 242, 0.05);
+  --lp-text: #FFFFFF;
+  --lp-text-muted: #A9B8C7;
+  --lp-text-secondary: #5E7A92;
+  --lp-border: rgba(32, 231, 242, 0.12);
+  --lp-shadow-menu: 0px 0px 0px 1px rgba(32, 231, 242, 0.05), 0px 20px 60px 0px rgba(0, 0, 0, 0.55);
 }
 
 /* ─── Base Styles ────────────────────────────────────────────────────────── */
@@ -160,7 +217,7 @@ h6 {
 
 /* ─── Selection ──────────────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(99, 102, 241, 0.2);
+  background: rgba(32, 231, 242, 0.2);
   color: inherit;
 }
 

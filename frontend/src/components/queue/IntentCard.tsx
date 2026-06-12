@@ -58,8 +58,8 @@ const IntentCard: React.FC<IntentCardProps> = ({
             {intent.content.startsWith('{') ? (
               <div className="space-y-4">
                 {Object.entries(JSON.parse(intent.content)).map(([platform, text]: [string, any]) => (
-                  <div key={platform} className="border-l-2 border-indigo-500/30 pl-3">
-                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{platform}</p>
+                  <div key={platform} className="border-l-2 border-info-border pl-3">
+                    <p className="text-[10px] font-black text-info-text uppercase tracking-widest mb-1">{platform}</p>
                     <p className="text-xs text-[var(--foreground)] leading-relaxed italic">&quot;{text}&quot;</p>
                   </div>
                 ))}
@@ -73,7 +73,7 @@ const IntentCard: React.FC<IntentCardProps> = ({
 
           <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]/50">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-indigo-500/10">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-info-text to-info-text flex items-center justify-center text-xs font-bold text-foreground shadow-lg shadow-info-text/10">
                 {intent.creator?.full_name?.charAt(0) || "U"}
               </div>
               <div className="text-xs">
@@ -89,24 +89,24 @@ const IntentCard: React.FC<IntentCardProps> = ({
                   placeholder="Feedback for Manager..."
                   value={feedbackText}
                   onChange={(e) => onFeedbackChange(e.target.value)}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--foreground)] outline-none focus:border-amber-500/50 min-h-[60px]"
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--foreground)] outline-none focus:border-warning-border min-h-[60px]"
                 />
                 <div className="flex gap-2 justify-end">
                   <button 
                     onClick={() => onUpdateStatus(intent.id, 'REJECTED')}
-                    className="px-4 py-1.5 bg-[var(--surface)] text-[var(--foreground)] hover:bg-rose-500 hover:text-white rounded-lg text-[10px] font-bold transition-all border border-[var(--border)] uppercase"
+                    className="px-4 py-1.5 bg-[var(--surface)] text-[var(--foreground)] hover:brightness-110 hover:text-white rounded-lg text-[10px] font-bold transition-all border border-[var(--border)] uppercase"
                   >
                     Reject
                   </button>
                   <button 
                     onClick={() => onUpdateStatus(intent.id, 'PENDING_MANAGER', feedbackText)}
-                    className="px-4 py-1.5 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-lg text-[10px] font-bold transition-all border border-amber-500/30 uppercase"
+                    className="px-4 py-1.5 bg-warning-bg text-warning-text hover:brightness-110 hover:text-white rounded-lg text-[10px] font-bold transition-all border border-warning-border uppercase"
                   >
                     Escalate
                   </button>
                   <button 
                     onClick={() => onUpdateStatus(intent.id, 'APPROVED')}
-                    className="px-4 py-1.5 bg-indigo-500 text-white hover:bg-indigo-400 rounded-lg text-[10px] font-bold transition-all shadow-lg shadow-indigo-500/20 uppercase"
+                    className="px-4 py-1.5 bg-info-text text-foreground hover:brightness-110 rounded-lg text-[10px] font-bold transition-all shadow-lg shadow-info-text/20 uppercase"
                   >
                     Approve
                   </button>
@@ -118,32 +118,32 @@ const IntentCard: React.FC<IntentCardProps> = ({
             {userRole?.toUpperCase() === 'MANAGER' && intent.status === 'PENDING_MANAGER' && (
               <div className="flex flex-col gap-3 w-full md:w-auto ml-4">
                 {intent.feedback && (
-                  <div className="bg-amber-500/5 border border-amber-500/10 p-2 rounded-lg mb-1">
-                    <p className="text-[9px] uppercase font-black text-amber-500">Admin Note: {intent.feedback}</p>
+                  <div className="bg-warning-text/5 border border-warning-border/10 p-2 rounded-lg mb-1">
+                    <p className="text-[9px] uppercase font-black text-warning-text">Admin Note: {intent.feedback}</p>
                   </div>
                 )}
                 <textarea 
                   placeholder="Review notes for Creator..."
                   value={feedbackText}
                   onChange={(e) => onFeedbackChange(e.target.value)}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--foreground)] outline-none focus:border-indigo-500/50 min-h-[60px]"
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-2 text-xs text-[var(--foreground)] outline-none focus:border-info-border min-h-[60px]"
                 />
                 <div className="flex justify-end gap-2">
                   <button 
                     onClick={() => onUpdateStatus(intent.id, 'REJECTED', feedbackText)}
-                    className="px-4 py-2 bg-[var(--surface)] text-[var(--foreground)] hover:bg-rose-500 hover:text-white rounded-xl text-[10px] font-bold transition-all border border-[var(--border)] uppercase"
+                    className="px-4 py-2 bg-[var(--surface)] text-[var(--foreground)] hover:brightness-110 hover:text-white rounded-xl text-[10px] font-bold transition-all border border-[var(--border)] uppercase"
                   >
                     Reject
                   </button>
                   <button 
                     onClick={() => onUpdateStatus(intent.id, 'RETURNED', feedbackText)}
-                    className="px-4 py-2 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white rounded-xl text-[10px] font-bold transition-all border border-amber-500/30 uppercase"
+                    className="px-4 py-2 bg-warning-bg text-warning-text hover:brightness-110 hover:text-white rounded-xl text-[10px] font-bold transition-all border border-warning-border uppercase"
                   >
                     Return to Creator
                   </button>
                   <button 
                     onClick={() => onUpdateStatus(intent.id, 'PENDING_ADMIN', feedbackText)}
-                    className="px-5 py-2 bg-indigo-600 text-white hover:bg-indigo-500 rounded-xl text-[10px] font-bold transition-all shadow-lg shadow-indigo-500/20 uppercase"
+                    className="px-5 py-2 bg-info-text text-foreground hover:brightness-110 rounded-xl text-[10px] font-bold transition-all shadow-lg shadow-info-text/20 uppercase"
                   >
                     Approve & Escalate
                   </button>

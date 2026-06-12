@@ -58,7 +58,7 @@ export default function AuditorViewPage() {
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mb-1">External Audit Ledger</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground mb-1">External Audit Ledger</h1>
           <p className="text-[var(--foreground-muted,#a0a0a0)] text-sm">
             Read-only, PII-redacted cryptographic view of the Identity Ledger.
           </p>
@@ -66,10 +66,10 @@ export default function AuditorViewPage() {
         <button
           onClick={handleVerifyChain}
           disabled={isVerifying}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/30 transition-colors font-medium text-sm disabled:opacity-50"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-success-text/10 text-success-text border border-success-border/20 hover:bg-success-text/20 hover:border-success-border/30 transition-colors font-medium text-sm disabled:opacity-50"
         >
           {isVerifying ? (
-            <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+            <div className="w-4 h-4 border-2 border-success-border/30 border-t-success-border rounded-full animate-spin" />
           ) : (
             <CheckCircle2 className="w-4 h-4" />
           )}
@@ -78,11 +78,11 @@ export default function AuditorViewPage() {
       </div>
 
       {verificationResult === "VERIFIED" && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5" />
+        <div className="p-4 rounded-xl bg-success-text/10 border border-success-border/20 flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 text-success-text mt-0.5" />
           <div>
-            <h3 className="text-emerald-400 font-medium">Chain Intact</h3>
-            <p className="text-emerald-400/80 text-sm mt-1">All {entries.length} cryptographic hashes have been verified against the ledger. No tampering detected.</p>
+            <h3 className="text-success-text font-medium">Chain Intact</h3>
+            <p className="text-success-text/80 text-sm mt-1">All {entries.length} cryptographic hashes have been verified against the ledger. No tampering detected.</p>
           </div>
         </div>
       )}

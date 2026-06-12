@@ -63,7 +63,7 @@ export default function MediaPackManager({
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] bg-[var(--surface)]/60">
         <div className="flex items-center gap-2">
-          <PackageCheck className="w-4 h-4 text-indigo-400" />
+          <PackageCheck className="w-4 h-4 text-info-text" />
           <span className="text-sm font-bold text-[var(--foreground)]">Media Pack Manager</span>
         </div>
         <span className="text-xs text-[var(--foreground-muted)]">
@@ -94,8 +94,8 @@ export default function MediaPackManager({
                   onDragOver={(e) => e.preventDefault()}
                    className={`relative group aspect-square rounded-xl overflow-hidden border-2 cursor-grab active:cursor-grabbing transition-all select-none ${
                      draggingIdx === idx
-                       ? "border-indigo-500 opacity-40 scale-95"
-                       : "border-[var(--border)] hover:border-indigo-400"
+                       ? "border-info-border opacity-40 scale-95"
+                       : "border-[var(--border)] hover:border-info-border"
                   }`}
                 >
                   {fileType === "video" ? (
@@ -105,19 +105,19 @@ export default function MediaPackManager({
                   )}
 
                   {/* Order badge */}
-                  <div className="absolute top-1 left-1 bg-indigo-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow pointer-events-none">
+                  <div className="absolute top-1 left-1 bg-info-text text-foreground text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow pointer-events-none">
                     {idx + 1}
                   </div>
 
                   {/* Drag handle indicator */}
                   <div className="absolute top-1 right-6 opacity-0 group-hover:opacity-70 transition-opacity pointer-events-none">
-                    <GripVertical className="w-3 h-3 text-white drop-shadow" />
+                    <GripVertical className="w-3 h-3 text-foreground drop-shadow" />
                   </div>
 
                   {/* ✕ Remove button */}
                   <button
                     onClick={() => removeFromPost(url)}
-                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:scale-110 shadow z-10 text-[10px] font-black leading-none"
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-error-text text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:brightness-110 hover:scale-110 shadow z-10 text-[10px] font-black leading-none"
                     title="Remove from post"
                   >
                     ✕
@@ -125,7 +125,7 @@ export default function MediaPackManager({
 
                   {/* Bottom overlay */}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <p className="text-[8px] text-white text-center font-bold">Drag to reorder</p>
+                    <p className="text-[8px] text-foreground text-center font-bold">Drag to reorder</p>
                   </div>
                 </div>
               ))}
@@ -158,7 +158,7 @@ export default function MediaPackManager({
                     className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-all"
                     title="Add to post"
                   >
-                    <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg hover:bg-emerald-400 hover:scale-110 transition-all">
+                    <div className="w-8 h-8 rounded-full bg-success-text text-foreground flex items-center justify-center shadow-lg hover:brightness-110 hover:scale-110 transition-all">
                       <Plus className="w-4 h-4" />
                     </div>
                   </button>
@@ -170,7 +170,7 @@ export default function MediaPackManager({
 
         {/* Footer */}
         <div className="pt-1 border-t border-[var(--border)] flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          <div className="w-1.5 h-1.5 rounded-full bg-success-text" />
           <p className="text-[10px] text-[var(--foreground-muted)]">
             <span className="text-[var(--foreground)] font-bold">{selectedUrls.length} file{selectedUrls.length !== 1 ? "s" : ""}</span> will be submitted as a carousel post.
             {removedUrls.length > 0 && <span className="text-[var(--foreground-muted)]"> {removedUrls.length} in available pool.</span>}

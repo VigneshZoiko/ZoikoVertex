@@ -23,9 +23,9 @@ interface EvidenceData {
 }
 
 const BUNDLE_STYLES: Record<string, string> = {
-  run: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  run: 'bg-success-text/10 text-success-text border-success-border/20',
   simulation: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-  approval: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  approval: 'bg-warning-text/10 text-warning-text border-warning-border/20',
   action: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
 };
 
@@ -122,7 +122,7 @@ export default function EvidencePanel({ instanceId, workflowId, onShowEvidence }
   );
 
   if (error) return (
-    <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+    <div className="flex items-start gap-2 p-3 rounded-xl bg-error-text/10 border border-error-border/20 text-error-text text-xs">
       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{error}
     </div>
   );
@@ -162,8 +162,8 @@ export default function EvidencePanel({ instanceId, workflowId, onShowEvidence }
               className="ml-auto text-[10px] font-semibold text-sky-400 hover:text-sky-300 disabled:opacity-50">
               {integrityStatus === 'idle' && 'Verify'}
               {integrityStatus === 'checking' && 'Verifying…'}
-              {integrityStatus === 'valid' && <span className="text-emerald-400"><CheckCircle className="w-3 h-3 inline mr-0.5" />Valid</span>}
-              {integrityStatus === 'tampered' && <span className="text-rose-400"><XCircle className="w-3 h-3 inline mr-0.5" />Tampered</span>}
+              {integrityStatus === 'valid' && <span className="text-success-text"><CheckCircle className="w-3 h-3 inline mr-0.5" />Valid</span>}
+              {integrityStatus === 'tampered' && <span className="text-error-text"><XCircle className="w-3 h-3 inline mr-0.5" />Tampered</span>}
             </button>
           </div>
         )}
@@ -191,9 +191,9 @@ export default function EvidencePanel({ instanceId, workflowId, onShowEvidence }
           <div className="space-y-1">
             {evidence.policy_results.map((p, i) => (
               <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)]/20">
-                <span className={`w-2 h-2 rounded-full ${p.status === 'passed' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                <span className={`w-2 h-2 rounded-full ${p.status === 'passed' ? 'bg-success-text' : 'bg-error-text'}`} />
                 <span className="flex-1 text-xs text-[var(--text-primary)]">{p.step_name || p.policy_check}</span>
-                <span className={`text-[10px] font-bold ${p.status === 'passed' ? 'text-emerald-400' : 'text-rose-400'}`}>{p.status}</span>
+                <span className={`text-[10px] font-bold ${p.status === 'passed' ? 'text-success-text' : 'text-error-text'}`}>{p.status}</span>
               </div>
             ))}
           </div>

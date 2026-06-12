@@ -3,6 +3,7 @@ import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
 import { logger } from '../../shared/logger';
+import { v4 as uuidv4 } from 'uuid';
 
 function makeError(message: string, statusCode: number): Error & { statusCode: number } {
   const err = new Error(message) as Error & { statusCode: number };
@@ -403,5 +404,22 @@ export const triggerSync = async (req: AuthRequest, res: Response, next: NextFun
         last_sync_at: new Date().toISOString()
       })
       .eq('id', id);
+
+    // Integration alert: notify the user who triggered the sync if it failed
+    if (syncStatus === 'FAILED' && req.user?.id) {
+      try {
+        await supabaseAdmin.from('notifications').insert({
+          id: uuidv4(),
+          user_id: req.user.id,
+          title: `⚠️ Integration Alert: Sync Failed — "${connector.name}"`,
+          body: `Data connector "${connector.name}" failed to sync. Error: ${errorMessage || 'Unknown error'}. Please check connector settings and retry.`,
+          type: 'ERROR',
+          category: 'SYSTEM',
+          priority: 'HIGH',
+          link: '/integrations/data',
+          read: false,
+        });
+      } catch { /* non-blocking */ }
+    }
   }
 };

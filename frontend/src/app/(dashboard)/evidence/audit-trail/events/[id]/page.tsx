@@ -57,10 +57,10 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
 ];
 
 const riskCfg: Record<string, string> = {
-  low: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-  medium: "text-amber-400 bg-amber-400/10 border-amber-400/20",
-  high: "text-orange-400 bg-orange-400/10 border-orange-400/20",
-  critical: "text-red-400 bg-red-400/10 border-red-400/20",
+  low: "text-success-text bg-success-bg border-success-border",
+  medium: "text-warning-text bg-warning-bg border-warning-border",
+  high: "text-warning-text bg-warning-bg border-warning-border",
+  critical: "text-error-text bg-error-bg border-error-border",
 };
 
 const statusIcon: Record<string, React.ElementType> = {
@@ -69,8 +69,8 @@ const statusIcon: Record<string, React.ElementType> = {
 };
 
 const statusColor: Record<string, string> = {
-  success: "text-emerald-400", failed: "text-red-400", blocked: "text-orange-400",
-  pending: "text-amber-400", overridden: "text-purple-400", preserved: "text-blue-400", sealed: "text-[#666]",
+  success: "text-success-text", failed: "text-error-text", blocked: "text-warning-text",
+  pending: "text-warning-text", overridden: "text-info-text", preserved: "text-info-text", sealed: "text-[#666]",
 };
 
 function fmt(ts: string) {
@@ -127,14 +127,14 @@ export default function FullEventPage() {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="bg-[#111] border border-[#222] rounded-xl p-12 text-center">
-          <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-red-400" />
-          <h2 className="text-lg font-medium text-white mb-1">Failed to Load Event</h2>
+          <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-error-text" />
+          <h2 className="text-lg font-medium text-foreground mb-1">Failed to Load Event</h2>
           <p className="text-sm text-[#888] mb-4">{error}</p>
           <div className="flex gap-3 justify-center">
-            <button onClick={() => router.back()} className="text-amber-500 hover:text-amber-400 text-sm flex items-center gap-1 mx-auto">
+            <button onClick={() => router.back()} className="text-warning-text hover:text-warning-text text-sm flex items-center gap-1 mx-auto">
               <ArrowLeft className="w-4 h-4" /> Back to Audit Trail
             </button>
-            <button onClick={() => { setError(null); setLoading(true); window.location.reload(); }} className="text-amber-500 hover:text-amber-400 text-sm flex items-center gap-1 mx-auto">
+            <button onClick={() => { setError(null); setLoading(true); window.location.reload(); }} className="text-warning-text hover:text-warning-text text-sm flex items-center gap-1 mx-auto">
               <ArrowLeft className="w-4 h-4" /> Retry
             </button>
           </div>
@@ -148,9 +148,9 @@ export default function FullEventPage() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="bg-[#111] border border-[#222] rounded-xl p-12 text-center">
           <FileSearch className="w-12 h-12 mx-auto mb-3 text-[#444]" />
-          <h2 className="text-lg font-medium text-white mb-1">Event Not Found</h2>
+          <h2 className="text-lg font-medium text-foreground mb-1">Event Not Found</h2>
           <p className="text-sm text-[#888] mb-4">This event may not exist or you may not have permission to view it.</p>
-          <button onClick={() => router.back()} className="text-amber-500 hover:text-amber-400 text-sm flex items-center gap-1 mx-auto">
+          <button onClick={() => router.back()} className="text-warning-text hover:text-warning-text text-sm flex items-center gap-1 mx-auto">
             <ArrowLeft className="w-4 h-4" /> Back to Audit Trail
           </button>
         </div>
@@ -173,7 +173,7 @@ export default function FullEventPage() {
       <div className="bg-[#111] border border-[#222] rounded-xl p-6 mb-4">
         <div className="flex items-start justify-between mb-3">
           <div>
-            <h1 className="text-xl font-bold text-white">{event.event_title || event.event_type}</h1>
+            <h1 className="text-xl font-bold text-foreground">{event.event_title || event.event_type}</h1>
             <p className="text-sm text-[#888] mt-1">{event.event_summary}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -199,12 +199,12 @@ export default function FullEventPage() {
           <div>{event.event_type}</div>
           <div>{event.event_category.replace("_", " ")}</div>
           {event.data_residency && event.data_residency !== "auto" && (
-            <div className="flex items-center gap-1 text-blue-400">
+            <div className="flex items-center gap-1 text-info-text">
               <Globe className="w-3 h-3" /> {event.data_residency}
             </div>
           )}
           {["security.alert", "security.incident", "chain.integrity_failure", "policy.override", "approval.emergency_used", "user.permission_elevated", "user.role_changed"].includes(event.event_type) && (
-            <div className="flex items-center gap-1 text-red-400">
+            <div className="flex items-center gap-1 text-error-text">
               <ShieldAlert className="w-3 h-3" /> Sensitive
             </div>
           )}
@@ -221,7 +221,7 @@ export default function FullEventPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
                 activeTab === tab.id
-                  ? "text-amber-400 border-amber-400"
+                  ? "text-warning-text border-warning-border"
                   : "text-[#666] border-transparent hover:text-white hover:border-[#444]"
               }`}
             >
@@ -249,8 +249,8 @@ function OverviewTab({ event }: { event: AuditEvent }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
-          <User className="w-4 h-4 text-amber-500" /> Actor
+        <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+          <User className="w-4 h-4 text-warning-text" /> Actor
         </h3>
         <div className="space-y-2 text-sm">
           <Row label="Name" value={event.actor?.actor_name || "-"} />
@@ -260,8 +260,8 @@ function OverviewTab({ event }: { event: AuditEvent }) {
         </div>
       </div>
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
-          <ExternalLink className="w-4 h-4 text-amber-500" /> Object
+        <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+          <ExternalLink className="w-4 h-4 text-warning-text" /> Object
         </h3>
         <div className="space-y-2 text-sm">
           <Row label="Type" value={event.object?.object_type || "-"} />
@@ -270,8 +270,8 @@ function OverviewTab({ event }: { event: AuditEvent }) {
         </div>
       </div>
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
-          <Shield className="w-4 h-4 text-amber-500" /> Authority
+        <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+          <Shield className="w-4 h-4 text-warning-text" /> Authority
         </h3>
         <div className="space-y-2 text-sm">
           <Row label="Permission Used" value={String(event.authority?.permission_used || "-")} />
@@ -280,8 +280,8 @@ function OverviewTab({ event }: { event: AuditEvent }) {
         </div>
       </div>
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
-          <Hash className="w-4 h-4 text-amber-500" /> Chain
+        <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+          <Hash className="w-4 h-4 text-warning-text" /> Chain
         </h3>
         <div className="space-y-2 text-sm">
           <Row label="Hash" value={event.hash || "-"} monospace small />
@@ -303,7 +303,7 @@ function TimelineTab({ event, related }: { event: AuditEvent; related: AuditEven
 
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-      <h3 className="text-sm font-medium text-white mb-4">Event Timeline ({allEvents.length} events)</h3>
+      <h3 className="text-sm font-medium text-foreground mb-4">Event Timeline ({allEvents.length} events)</h3>
       {allEvents.length === 0 ? (
         <p className="text-sm text-[#888]">No related events found.</p>
       ) : (
@@ -313,12 +313,12 @@ function TimelineTab({ event, related }: { event: AuditEvent; related: AuditEven
             return (
               <div key={evt.id} className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <div className={`w-3 h-3 rounded-full ${isTarget ? "bg-amber-500" : "bg-[#444]"}`} />
+                  <div className={`w-3 h-3 rounded-full ${isTarget ? "bg-warning-text" : "bg-[#444]"}`} />
                   {i < allEvents.length - 1 && <div className="w-px flex-1 bg-[#333]" />}
                 </div>
-                <div className={`pb-4 flex-1 ${isTarget ? "bg-amber-500/5 -mx-3 px-3 rounded" : ""}`}>
+                <div className={`pb-4 flex-1 ${isTarget ? "bg-warning-bg -mx-3 px-3 rounded" : ""}`}>
                   <div className="text-xs text-[#888]">{fmt(evt.timestamp_utc)}</div>
-                  <div className="text-sm text-white font-medium">{evt.event_title || evt.event_type}</div>
+                  <div className="text-sm text-foreground font-medium">{evt.event_title || evt.event_type}</div>
                   <div className="text-xs text-[#666]">{evt.event_type} · {evt.actor?.actor_name || evt.actor?.actor_type}</div>
                 </div>
               </div>
@@ -345,26 +345,26 @@ function DiffTab({ event }: { event: AuditEvent }) {
 
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-      <h3 className="text-sm font-medium text-white mb-4">Field Changes</h3>
+      <h3 className="text-sm font-medium text-foreground mb-4">Field Changes</h3>
       <div className="space-y-3">
         {change.field_changed ? (
           <div className="border border-[#222] rounded-lg p-3">
             <div className="text-xs text-[#888] uppercase tracking-wider mb-2">Field Changed</div>
-            <div className="text-sm text-white font-mono">{String(change.field_changed)}</div>
+            <div className="text-sm text-foreground font-mono">{String(change.field_changed)}</div>
           </div>
         ) : null}
         {change.previous_value !== undefined ? (
-          <div className="border border-red-500/20 bg-red-500/5 rounded-lg p-3">
-            <div className="text-xs text-red-400 uppercase tracking-wider mb-2">Previous Value</div>
-            <div className="text-sm text-red-300 font-mono whitespace-pre-wrap">
+          <div className="border border-error-border bg-error-bg rounded-lg p-3">
+            <div className="text-xs text-error-text uppercase tracking-wider mb-2">Previous Value</div>
+            <div className="text-sm text-error-text font-mono whitespace-pre-wrap">
               {typeof change.previous_value === "object" ? JSON.stringify(change.previous_value, null, 2) : String(change.previous_value as string)}
             </div>
           </div>
         ) : null}
         {change.new_value !== undefined ? (
-          <div className="border border-emerald-500/20 bg-emerald-500/5 rounded-lg p-3">
-            <div className="text-xs text-emerald-400 uppercase tracking-wider mb-2">New Value</div>
-            <div className="text-sm text-emerald-300 font-mono whitespace-pre-wrap">
+          <div className="border border-success-border bg-success-bg rounded-lg p-3">
+            <div className="text-xs text-success-text uppercase tracking-wider mb-2">New Value</div>
+            <div className="text-sm text-success-text font-mono whitespace-pre-wrap">
               {typeof change.new_value === "object" ? JSON.stringify(change.new_value, null, 2) : String(change.new_value as string)}
             </div>
           </div>
@@ -394,7 +394,7 @@ function AuthorityTab({ event }: { event: AuditEvent }) {
   const auth = event.authority;
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-      <h3 className="text-sm font-medium text-white mb-4">Permission & Policy Context</h3>
+      <h3 className="text-sm font-medium text-foreground mb-4">Permission & Policy Context</h3>
       {!auth || Object.keys(auth).length === 0 ? (
         <p className="text-sm text-[#888]">No authority data for this event.</p>
       ) : (
@@ -405,9 +405,9 @@ function AuthorityTab({ event }: { event: AuditEvent }) {
             <Row label="Approval Required" value={String(auth.approval_required)} />
           ) : null}
           {auth.override_reason ? (
-            <div className="border border-orange-500/20 bg-orange-500/5 rounded-lg p-3">
-              <div className="text-xs text-orange-400 uppercase tracking-wider mb-1">Override Reason</div>
-              <div className="text-sm text-orange-300">{String(auth.override_reason)}</div>
+            <div className="border border-warning-border bg-warning-bg rounded-lg p-3">
+              <div className="text-xs text-warning-text uppercase tracking-wider mb-1">Override Reason</div>
+              <div className="text-sm text-warning-text">{String(auth.override_reason)}</div>
             </div>
           ) : null}
           {auth.override_authority ? <Row label="Override Authority" value={String(auth.override_authority)} /> : null}
@@ -441,7 +441,7 @@ function IntegrityTab({ event }: { event: AuditEvent }) {
 
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-      <h3 className="text-sm font-medium text-white mb-4">Cryptographic Proof</h3>
+      <h3 className="text-sm font-medium text-foreground mb-4">Cryptographic Proof</h3>
       <div className="space-y-3 mb-4">
         <Row label="Event Hash" value={event.hash} monospace small />
         <Row label="Previous Hash" value={event.prev_hash || "Genesis"} monospace small />
@@ -453,18 +453,18 @@ function IntegrityTab({ event }: { event: AuditEvent }) {
         <button
           onClick={handleVerify}
           disabled={verifying}
-          className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
+          className="px-4 py-2 bg-success-bg border border-success-border text-success-text rounded-lg text-sm hover:brightness-110 flex items-center gap-2 disabled:opacity-50"
         >
           <Shield className="w-4 h-4" />
           {verifying ? "Verifying..." : "Verify This Block"}
         </button>
         {verified === true && (
-          <span className="flex items-center gap-1.5 text-emerald-400 text-sm">
+          <span className="flex items-center gap-1.5 text-success-text text-sm">
             <CheckCircle2 className="w-4 h-4" /> Verified
           </span>
         )}
         {verified === false && (
-          <span className="flex items-center gap-1.5 text-red-400 text-sm">
+          <span className="flex items-center gap-1.5 text-error-text text-sm">
             <AlertTriangle className="w-4 h-4" /> Integrity Check Failed
           </span>
         )}
@@ -515,18 +515,18 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
     <div className="space-y-4">
       {/* Vault Status */}
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
-          <Archive className="w-4 h-4 text-amber-500" /> Evidence Lifecycle
+        <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
+          <Archive className="w-4 h-4 text-warning-text" /> Evidence Lifecycle
         </h3>
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-[#0a0a0a] border border-[#222] rounded-lg p-4 text-center">
-            <div className={`text-lg font-bold ${isPreserved ? "text-emerald-400" : "text-[#666]"}`}>
+            <div className={`text-lg font-bold ${isPreserved ? "text-success-text" : "text-[#666]"}`}>
               {event.evidence_state?.replace("_", " ") || "not preserved"}
             </div>
             <div className="text-xs text-[#888] mt-1">Evidence State</div>
           </div>
           <div className="bg-[#0a0a0a] border border-[#222] rounded-lg p-4 text-center">
-            <div className={`text-lg font-bold ${isLegalHold ? "text-amber-400" : "text-blue-400"}`}>
+            <div className={`text-lg font-bold ${isLegalHold ? "text-warning-text" : "text-info-text"}`}>
               {event.retention_class}
             </div>
             <div className="text-xs text-[#888] mt-1">Retention Class</div>
@@ -547,11 +547,11 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
         )}
 
         {isLegalHold && (
-          <div className="mt-3 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 flex items-start gap-2">
-            <Gavel className="w-4 h-4 text-amber-400 mt-0.5" />
+          <div className="mt-3 bg-warning-bg border border-warning-border rounded-lg p-3 flex items-start gap-2">
+            <Gavel className="w-4 h-4 text-warning-text mt-0.5" />
             <div>
-              <p className="text-sm text-amber-300 font-medium">Legal Hold Active</p>
-              <p className="text-xs text-amber-200/70 mt-0.5">
+              <p className="text-sm text-warning-text font-medium">Legal Hold Active</p>
+              <p className="text-xs text-warning-text/70 mt-0.5">
                 Retention expiration is suspended until hold is released by authorized Legal approval.
               </p>
             </div>
@@ -559,11 +559,11 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
         )}
 
         {event.sealed_at && (
-          <div className="mt-3 bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 flex items-start gap-2">
-            <Archive className="w-4 h-4 text-blue-400 mt-0.5" />
+          <div className="mt-3 bg-info-bg border border-info-border rounded-lg p-3 flex items-start gap-2">
+            <Archive className="w-4 h-4 text-info-text mt-0.5" />
             <div>
-              <p className="text-sm text-blue-300 font-medium">Record Sealed</p>
-              <p className="text-xs text-blue-200/70 mt-0.5">
+              <p className="text-sm text-info-text font-medium">Record Sealed</p>
+              <p className="text-xs text-info-text/70 mt-0.5">
                 Sealed at {fmt(event.sealed_at)}{event.sealed_by ? ` by ${event.sealed_by}` : ""}.
                 Sealed records are immutable and locked from modification.
               </p>
@@ -574,30 +574,30 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
 
       {/* Custody Timeline */}
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
-          <History className="w-4 h-4 text-amber-500" /> Custody Timeline
+        <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
+          <History className="w-4 h-4 text-warning-text" /> Custody Timeline
         </h3>
         <div className="space-y-3">
           <div className="flex gap-3">
             <div className="flex flex-col items-center">
-              <div className="w-3 h-3 rounded-full bg-emerald-500" />
+              <div className="w-3 h-3 rounded-full bg-success-text" />
               <div className="w-px flex-1 bg-[#333]" />
             </div>
             <div>
               <div className="text-xs text-[#888]">{fmt(event.timestamp_utc)}</div>
-              <div className="text-sm text-white">Event Created</div>
+              <div className="text-sm text-foreground">Event Created</div>
               <div className="text-xs text-[#666]">{event.event_type} · Block #{event.block_number}</div>
             </div>
           </div>
           {isPreserved && (
             <div className="flex gap-3">
               <div className="flex flex-col items-center">
-                <div className="w-3 h-3 rounded-full bg-blue-500" />
+                <div className="w-3 h-3 rounded-full bg-info-text" />
                 <div className="w-px flex-1 bg-[#333]" />
               </div>
               <div>
                 <div className="text-xs text-[#888]">{fmt(event.received_at || event.created_at)}</div>
-                <div className="text-sm text-white">Preserved to Vault</div>
+                <div className="text-sm text-foreground">Preserved to Vault</div>
                 <div className="text-xs text-[#666]">Evidence state: {event.evidence_state}</div>
               </div>
             </div>
@@ -605,11 +605,11 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
           {isLegalHold && (
             <div className="flex gap-3">
               <div className="flex flex-col items-center">
-                <div className="w-3 h-3 rounded-full bg-amber-500" />
+                <div className="w-3 h-3 rounded-full bg-warning-text" />
               </div>
               <div>
                 <div className="text-xs text-[#888]">Active</div>
-                <div className="text-sm text-amber-300">Legal Hold Applied</div>
+                <div className="text-sm text-warning-text">Legal Hold Applied</div>
                 <div className="text-xs text-[#666]">Retention suspended until released</div>
               </div>
             </div>
@@ -619,8 +619,8 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
 
       {/* Exports */}
       <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-        <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
-          <Download className="w-4 h-4 text-amber-500" /> Exports
+        <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
+          <Download className="w-4 h-4 text-warning-text" /> Exports
         </h3>
         <p className="text-xs text-[#888]">
           Exports that include this event will appear here after the export manifest has been processed.
@@ -633,13 +633,13 @@ function EvidenceTab({ event }: { event: AuditEvent }) {
       <div className="flex gap-2">
         <button
           onClick={() => setActionModal({ step: 'preserve' })}
-          className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-sm hover:bg-amber-500/20 flex items-center gap-1.5"
+          className="px-4 py-2 bg-warning-bg border border-warning-border text-warning-text rounded-lg text-sm hover:brightness-110 flex items-center gap-1.5"
         >
           <Lock className="w-4 h-4" /> Preserve
         </button>
         <button
           onClick={() => setActionModal({ step: 'exportFormat' })}
-          className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/20 flex items-center gap-1.5"
+          className="px-4 py-2 bg-success-bg border border-success-border text-success-text rounded-lg text-sm hover:brightness-110 flex items-center gap-1.5"
         >
           <Download className="w-4 h-4" /> Export
         </button>
@@ -694,12 +694,12 @@ function AccessLogTab({ event }: { event: AuditEvent }) {
 
   return (
     <div className="bg-[#111] border border-[#222] rounded-xl p-5">
-      <h3 className="text-sm font-medium text-white mb-4 flex items-center gap-2">
-        <EyeOff className="w-4 h-4 text-amber-500" /> Access Log
+      <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
+        <EyeOff className="w-4 h-4 text-warning-text" /> Access Log
       </h3>
       <p className="text-xs text-[#888] mb-4">
         Every time an elevated view, export preview, or sealed payload retrieval accesses this event, an
-        <code className="text-amber-400"> audit.access</code> event is created.
+        <code className="text-warning-text"> audit.access</code> event is created.
       </p>
 
       {loading ? (

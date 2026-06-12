@@ -5,13 +5,13 @@ import {
   ShieldCheck, Search, AlertTriangle, CheckCircle2,
   BarChart3, FileText, Loader2, X,
   Activity, ArrowRight, Eye, RefreshCcw,
-  List, XCircle, AlertOctagon, Star,
-  Clock, Filter, Download, Settings, Users,
-  MessageSquare, Paperclip, RotateCcw, Lock,
+  List, XCircle, Star,
+  Clock, Filter, Download, Users,
+  MessageSquare, RotateCcw, Lock,
   Calendar, User, GitCompare, FileCheck,
   ClipboardList, Bug, Zap,
   Edit3, Upload, Ban,
-  AlertCircle, EyeOff,
+  AlertCircle, ChevronDown, Check
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -27,15 +27,9 @@ type ItemType =
   | "workflow_output" | "approval_decision" | "validation_override"
   | "escalation_outcome" | "published_content_check" | "sampled_item";
 
-type TabId =
-  | "audit_queue" | "assigned_to_me" | "in_audit" | "passed"
-  | "failed" | "needs_correction" | "high_severity_defects"
-  | "published_check" | "completed_audits";
+type TabId = "queue" | "assigned" | "correction" | "completed";
 
-type ComparisonTab =
-  | "ai_draft" | "human_edits" | "approved_version" | "published_version"
-  | "validation_results" | "approval_history" | "audit_findings"
-  | "evidence" | "corrective_actions";
+type ComparisonTab = "comparison" | "findings" | "evidence";
 
 type DefectSeverity = "minor" | "moderate" | "major" | "critical";
 type DefectCategory =
@@ -50,8 +44,6 @@ type CorrectiveActionStatus =
   | "open" | "assigned" | "in_progress" | "completed" | "overdue" | "escalated" | "closed";
 
 type ScoreBand = "excellent" | "acceptable" | "needs_improvement" | "poor" | "critical_failure";
-
-type AlertType = "critical_defects" | "published_mismatch" | "overdue" | "evidence_missing";
 
 interface AuditItem {
   id: string;
@@ -130,7 +122,6 @@ interface AuditNote {
   created_by: string;
   created_at: string;
   parent_id: string | null;
-  replies?: AuditNote[];
 }
 
 interface EvidenceItem {
@@ -156,46 +147,25 @@ interface Stats {
   missing_evidence: number;
 }
 
-interface AlertDef {
-  id: string; type: string; message: string; severity: "critical" | "warning" | "info";
-}
-
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: "audit_queue", label: "Audit Queue" },
-  { id: "assigned_to_me", label: "Assigned to Me" },
-  { id: "in_audit", label: "In Audit" },
-  { id: "passed", label: "Passed" },
-  { id: "failed", label: "Failed" },
-  { id: "needs_correction", label: "Needs Correction" },
-  { id: "high_severity_defects", label: "High-Severity Defects" },
-  { id: "published_check", label: "Published Check" },
-  { id: "completed_audits", label: "Completed Audits" },
-];
-
-const COMPARISON_TABS: { id: ComparisonTab; label: string }[] = [
-  { id: "ai_draft", label: "AI Draft" },
-  { id: "human_edits", label: "Human Edits" },
-  { id: "approved_version", label: "Approved Version" },
-  { id: "published_version", label: "Published/Sent Version" },
-  { id: "validation_results", label: "Validation Results" },
-  { id: "approval_history", label: "Approval History" },
-  { id: "audit_findings", label: "Audit Findings" },
-  { id: "evidence", label: "Evidence" },
-  { id: "corrective_actions", label: "Corrective Actions" },
+const FILTER_TABS: { id: TabId; label: string }[] = [
+  { id: "queue", label: "Audit Queue" },
+  { id: "assigned", label: "Assigned to Me" },
+  { id: "correction", label: "Needs Correction" },
+  { id: "completed", label: "Completed Audits" },
 ];
 
 const SCORECARD_CATEGORIES: { key: keyof Scorecard; label: string }[] = [
   { key: "accuracy", label: "Accuracy" },
   { key: "brand_voice", label: "Brand Voice" },
-  { key: "compliance_readiness", label: "Compliance Readiness" },
-  { key: "source_grounding", label: "Source Grounding" },
+  { key: "compliance_readiness", label: "Compliance" },
+  { key: "source_grounding", label: "Grounding" },
   { key: "platform_fit", label: "Platform Fit" },
-  { key: "tone_clarity", label: "Tone and Clarity" },
-  { key: "audience_relevance", label: "Audience Relevance" },
+  { key: "tone_clarity", label: "Tone & Clarity" },
+  { key: "audience_relevance", label: "Audience" },
   { key: "review_integrity", label: "Review Integrity" },
-  { key: "publication_consistency", label: "Publication Consistency" },
+  { key: "publication_consistency", label: "Consistency" },
 ];
 
 const DEFECT_CATEGORIES: { value: DefectCategory; label: string }[] = [
@@ -218,23 +188,23 @@ const DEFECT_CATEGORIES: { value: DefectCategory; label: string }[] = [
 ];
 
 const SEVERITY_COLORS: Record<DefectSeverity, string> = {
-  minor: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  moderate: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  major: "text-orange-400 bg-orange-500/10 border-orange-500/20",
-  critical: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+  minor: "text-info-text bg-info-bg border-info-border",
+  moderate: "text-warning-text bg-warning-bg border-warning-border",
+  major: "text-warning-text bg-warning-bg border-warning-border",
+  critical: "text-error-text bg-error-bg border-error-border",
 };
 
 const STATUS_COLORS: Record<AuditStatus, string> = {
-  audit_pending: "text-slate-400 bg-slate-500/10 border-slate-500/20",
-  in_audit: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
-  passed: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  failed: "text-rose-400 bg-rose-500/10 border-rose-500/20",
-  needs_correction: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  corrective_action_open: "text-orange-400 bg-orange-500/10 border-orange-500/20",
+  audit_pending: "text-foreground/70 bg-slate-500/10 border-slate-500/20",
+  in_audit: "text-info-text bg-info-bg border-info-border",
+  passed: "text-success-text bg-success-bg border-success-border",
+  failed: "text-error-text bg-error-bg border-error-border",
+  needs_correction: "text-warning-text bg-warning-bg border-warning-border",
+  corrective_action_open: "text-warning-text bg-warning-bg border-warning-border",
   corrective_action_complete: "text-teal-400 bg-teal-500/10 border-teal-500/20",
-  escalated: "text-purple-400 bg-purple-500/10 border-purple-500/20",
-  closed: "text-slate-400 bg-slate-500/10 border-slate-500/20",
-  archived: "text-slate-600 bg-slate-700/10 border-slate-700/20",
+  escalated: "text-info-text bg-info-bg border-info-border",
+  closed: "text-foreground/70 bg-slate-500/10 border-slate-500/20",
+  archived: "text-foreground-muted bg-slate-700/10 border-slate-700/20",
 };
 
 const ITEM_TYPE_LABELS: Record<ItemType, string> = {
@@ -246,38 +216,19 @@ const ITEM_TYPE_LABELS: Record<ItemType, string> = {
   approval_decision: "Approval Decision",
   validation_override: "Validation Override",
   escalation_outcome: "Escalation Outcome",
-  published_content_check: "Published Content Check",
+  published_content_check: "Published Check",
   sampled_item: "Sampled Item",
 };
-
-const CORRECTIVE_ACTION_STATUSES: { value: CorrectiveActionStatus; label: string }[] = [
-  { value: "open", label: "Open" },
-  { value: "assigned", label: "Assigned" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "completed", label: "Completed" },
-  { value: "overdue", label: "Overdue" },
-  { value: "escalated", label: "Escalated" },
-  { value: "closed", label: "Closed" },
-];
-
-const METRIC_CARDS = [
-  { key: "total_items", label: "Audit Items", icon: List, color: "text-indigo-400" },
-  { key: "in_audit", label: "In Audit", icon: Activity, color: "text-blue-400" },
-  { key: "passed", label: "Passed", icon: CheckCircle2, color: "text-emerald-400" },
-  { key: "failed", label: "Failed", icon: XCircle, color: "text-rose-400" },
-  { key: "needs_correction", label: "Needs Correction", icon: AlertTriangle, color: "text-amber-400" },
-  { key: "average_score", label: "Avg Quality Score", icon: Star, color: "text-purple-400", suffix: "%" },
-];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function calculateScoreBand(score: number | null): { band: ScoreBand | null; label: string; color: string } {
-  if (score === null) return { band: null, label: "Not Scored", color: "text-slate-500" };
-  if (score >= 90) return { band: "excellent", label: "Excellent", color: "text-emerald-400" };
-  if (score >= 75) return { band: "acceptable", label: "Acceptable", color: "text-blue-400" };
-  if (score >= 60) return { band: "needs_improvement", label: "Needs Improvement", color: "text-amber-400" };
-  if (score >= 40) return { band: "poor", label: "Poor", color: "text-orange-400" };
-  return { band: "critical_failure", label: "Critical Failure", color: "text-rose-400" };
+  if (score === null) return { band: null, label: "Not Scored", color: "text-foreground-muted" };
+  if (score >= 90) return { band: "excellent", label: "Excellent", color: "text-success-text" };
+  if (score >= 75) return { band: "acceptable", label: "Acceptable", color: "text-info-text" };
+  if (score >= 60) return { band: "needs_improvement", label: "Needs Imp.", color: "text-warning-text" };
+  if (score >= 40) return { band: "poor", label: "Poor", color: "text-warning-text" };
+  return { band: "critical_failure", label: "Failure", color: "text-error-text" };
 }
 
 function calculateOverallScore(card: Scorecard): number | null {
@@ -289,24 +240,12 @@ function calculateOverallScore(card: Scorecard): number | null {
 
 function formatDate(d: string | null): string {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function getStatusLabel(s: AuditStatus): string {
   return s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
-
-function StatusBadge({ status }: { status: AuditStatus }) {
-  const cfg = STATUS_COLORS[status] ?? "text-slate-400 bg-slate-500/10 border-slate-500/20";
-  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${cfg}`}>{getStatusLabel(status)}</span>;
-}
-
-function SeverityBadge({ severity }: { severity: DefectSeverity }) {
-  const cfg = SEVERITY_COLORS[severity] ?? "text-slate-400 bg-slate-500/10 border-slate-500/20";
-  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${cfg}`}>{severity}</span>;
-}
-
-// ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function QualityAuditPage() {
   // Data state
@@ -326,67 +265,65 @@ export default function QualityAuditPage() {
   // UI state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>("audit_queue");
-  const [comparisonTab, setComparisonTab] = useState<ComparisonTab>("ai_draft");
+  const [activeTab, setActiveTab] = useState<TabId>("queue");
+  const [comparisonTab, setComparisonTab] = useState<ComparisonTab>("comparison");
+  const [versionSubTab, setVersionSubTab] = useState<"ai" | "approved" | "published">("ai");
   const [search, setSearch] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [showLeft, setShowLeft] = useState(true);
-  const [showRight, setShowRight] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [showDefectModal, setShowDefectModal] = useState(false);
-  const [showCorrectiveModal, setShowCorrectiveModal] = useState(false);
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [permissionError, setPermissionError] = useState(false);
-  const [lockedError, setLockedError] = useState<string | null>(null);
-  const [callbackFailed, setCallbackFailed] = useState(false);
-  const [alertDismissed, setAlertDismissed] = useState<Set<string>>(new Set());
+  const [showMoreActions, setShowMoreActions] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Score override
-  const [showOverrideModal, setShowOverrideModal] = useState(false);
-  const [overrideReason, setOverrideReason] = useState("");
+  // Quick action states
+  const [feedbackText, setFeedbackText] = useState("");
+  const [showDefectForm, setShowDefectForm] = useState(false);
+  const [showCorrectiveForm, setShowCorrectiveForm] = useState(false);
 
-  // Filter state
-  const [filterItemType, setFilterItemType] = useState("");
-  const [filterSeverity, setFilterSeverity] = useState("");
-  const [filterModule, setFilterModule] = useState("");
+  // Defect/Corrective state
+  const [newDefect, setNewDefect] = useState<Partial<Defect>>({
+    defect_category: "accuracy_issue",
+    defect_severity: "minor",
+    defect_description: "",
+    evidence_reference: "",
+    responsible_source: "",
+    corrective_action_required: false,
+    owner: "",
+    due_at: "",
+  });
 
-  const scoreExplanations: Record<number, string> = {
-    0: "Critical failure / missing evidence",
-    1: "Major issue",
-    2: "Defective",
-    3: "Needs improvement",
-    4: "Strong / acceptable",
-    5: "Excellent",
-  };
+  const [newCorrective, setNewCorrective] = useState<Partial<CorrectiveAction>>({
+    title: "", owner: "", priority: "medium", required_action: "", due_at: "", status: "open",
+  });
 
   // ─── Data fetching ─────────────────────────────────────────────────────────
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setPermissionError(false);
     try {
       const [statsRes, itemsRes] = await Promise.all([
         api.get("/api/v1/quality-audit/stats"),
         api.get("/api/v1/quality-audit/items"),
       ]);
       if (statsRes.success) setStats(statsRes.data);
-      if (itemsRes.success) setItems(itemsRes.data);
-    } catch (err: any) {
-      if (err.message?.includes("permission") || err.message?.includes("403")) {
-        setPermissionError(true);
-      } else {
-        setError(err.message || "Quality Audit could not be loaded. Try again.");
+      if (itemsRes.success) {
+        const auditItems = (itemsRes.data || []) as AuditItem[];
+        setItems(auditItems);
+        if (auditItems.length > 0 && !selectedItem) {
+          handleSelectItem(auditItems[0]);
+        }
       }
+    } catch (err: any) {
+      setError(err.message || "Quality Audit data could not be loaded.");
     } finally {
       setLoading(false);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItem]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchItemDetail = async (itemId: string) => {
     try {
@@ -400,20 +337,17 @@ export default function QualityAuditPage() {
         setEvidence(d.evidence || []);
       }
     } catch (err: any) {
-      if (err.message?.includes("locked")) {
-        setLockedError(err.message);
-      } else if (err.message?.includes("permission")) {
-        setPermissionError(true);
-      }
+      console.warn("Failed to load details for " + itemId, err);
     }
   };
 
-  const handleSelectItem = async (item: AuditItem) => {
+  async function handleSelectItem(item: AuditItem) {
     setSelectedItem(item);
-    setLockedError(null);
-    setPermissionError(false);
-    setCallbackFailed(false);
-    setComparisonTab("ai_draft");
+    setComparisonTab("comparison");
+    setVersionSubTab("ai");
+    setFeedbackText("");
+    setShowDefectForm(false);
+    setShowCorrectiveForm(false);
     setScorecard({
       accuracy: -1, brand_voice: -1, compliance_readiness: -1,
       source_grounding: -1, platform_fit: -1, tone_clarity: -1,
@@ -424,30 +358,26 @@ export default function QualityAuditPage() {
     setNotes([]);
     setEvidence([]);
     await fetchItemDetail(item.id);
-  };
+  }
 
   // ─── Filtered items ────────────────────────────────────────────────────────
 
   const filteredItems = items.filter(item => {
     const q = search.toLowerCase();
-    if (q && !item.title.toLowerCase().includes(q) && !item.campaign.toLowerCase().includes(q) && !item.platform.toLowerCase().includes(q) && !(item.assigned_auditor || "").toLowerCase().includes(q) && !(item.original_reviewer || "").toLowerCase().includes(q) && !(item.agent_name || "").toLowerCase().includes(q)) {
+    if (q && !item.title.toLowerCase().includes(q) && !item.campaign.toLowerCase().includes(q) && !item.platform.toLowerCase().includes(q)) {
       return false;
     }
-    if (filterItemType && item.item_type !== filterItemType) return false;
-    if (filterSeverity && item.highest_defect_severity !== filterSeverity) return false;
-    if (filterModule && item.source_module !== filterModule) return false;
     switch (activeTab) {
-      case "audit_queue": return item.audit_status === "audit_pending";
-      case "assigned_to_me": return item.assigned_auditor !== null;
-      case "in_audit": return item.audit_status === "in_audit";
-      case "passed": return item.audit_status === "passed";
-      case "failed": return item.audit_status === "failed";
-      case "needs_correction": return item.audit_status === "needs_correction" || item.audit_status === "corrective_action_open";
-      case "high_severity_defects": return item.highest_defect_severity === "major" || item.highest_defect_severity === "critical";
-      case "published_check": return item.published_mismatch;
-      case "completed_audits": return item.audit_status === "closed" || item.audit_status === "archived";
+      case "queue": return item.audit_status === "audit_pending" || item.audit_status === "in_audit";
+      case "assigned": return item.assigned_auditor !== null;
+      case "correction": return item.audit_status === "needs_correction" || item.audit_status === "corrective_action_open";
+      case "completed": return item.audit_status === "passed" || item.audit_status === "failed" || item.audit_status === "closed" || item.audit_status === "archived";
       default: return true;
     }
+  });
+
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    return new Date(b.audit_due_at || 0).getTime() - new Date(a.audit_due_at || 0).getTime();
   });
 
   // ─── Score / Eligibility ───────────────────────────────────────────────────
@@ -455,37 +385,28 @@ export default function QualityAuditPage() {
   const overallScore = calculateOverallScore(scorecard);
   const scoreBand = calculateScoreBand(overallScore);
   const isScorecardComplete = Object.values(scorecard).every(v => v >= 0);
-  const hasCriticalDefects = defects.some(d => d.defect_severity === "critical");
   const hasMajorOrCriticalDefects = defects.some(d => d.defect_severity === "major" || d.defect_severity === "critical");
   const hasMissingEvidence = defects.some(d => d.defect_category === "missing_evidence") || selectedItem?.evidence_missing;
-  const pubConsistencyZero = scorecard.publication_consistency === 0;
-  const complianceLow = scorecard.compliance_readiness === 0 || scorecard.compliance_readiness === 1;
-  const sourceGroundingZero = scorecard.source_grounding === 0;
-
-  const passEligible = isScorecardComplete && !hasMajorOrCriticalDefects && !pubConsistencyZero && !hasMissingEvidence;
-  const failRequired = hasCriticalDefects || overallScore !== null && overallScore < 40;
-  const correctionRequired = !passEligible && !failRequired;
+  const passEligible = isScorecardComplete && !hasMajorOrCriticalDefects && !hasMissingEvidence;
 
   // ─── Actions ───────────────────────────────────────────────────────────────
 
   const handleAction = async (action: string, payload?: Record<string, unknown>) => {
     if (!selectedItem) return;
     setActionLoading(action);
+    setMessage(null);
+    setShowMoreActions(false);
     try {
       const res = await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/${action}`, payload || {});
       if (res.success) {
-        const statusMap: Record<string, AuditStatus> = {
-          start: "in_audit", pass: "passed", fail: "failed",
-          "needs-correction": "needs_correction", escalate: "escalated", close: "closed",
-        };
-        const newStatus = statusMap[action];
-        if (newStatus) {
-          setSelectedItem({ ...selectedItem, audit_status: newStatus, quality_score: overallScore, score_band: scoreBand.band });
-          setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, audit_status: newStatus, quality_score: overallScore, score_band: scoreBand.band } : i));
-        }
+        setMessage({ type: "success", text: `Audit ${action.replace(/-/g, " ")} completed.` });
+        fetchData();
+        fetchItemDetail(selectedItem.id);
+      } else {
+        setMessage({ type: "error", text: res.error || "Action failed." });
       }
-    } catch (err: any) {
-      if (err.message?.includes("callback")) setCallbackFailed(true);
+    } catch {
+      setMessage({ type: "error", text: "Connection error." });
     } finally {
       setActionLoading(null);
     }
@@ -497,54 +418,60 @@ export default function QualityAuditPage() {
     try {
       const res = await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/assign`, { auditor_id: "current_user" });
       if (res.success) {
-        setSelectedItem({ ...selectedItem, assigned_auditor: "current_user" });
-        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, assigned_auditor: "current_user" } : i));
+        setMessage({ type: "success", text: "Assigned auditor successfully." });
+        fetchData();
+        fetchItemDetail(selectedItem.id);
       }
-    } catch { setMessage({ type: "error", text: "Failed to assign auditor." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
+    } catch {
+      setMessage({ type: "error", text: "Failed to assign auditor." });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleGenerateSample = async () => {
     setActionLoading("sample");
     try {
-      const res = await api.post("/api/v1/quality-audit/generate-sample", { count: 10 });
-      if (res.success && res.data) setItems(prev => [...res.data, ...prev]);
-    } catch { setMessage({ type: "error", text: "Failed to generate sample." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
+      const res = await api.post("/api/v1/quality-audit/generate-sample", { count: 5 });
+      if (res.success) {
+        setMessage({ type: "success", text: "Generated 5 audit samples." });
+        fetchData();
+      }
+    } catch {
+      setMessage({ type: "error", text: "Failed to generate samples." });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleExportFindings = async () => {
     setActionLoading("export");
-    try { await api.post("/api/v1/quality-audit/export/findings", { item_ids: items.map(i => i.id) }); } catch { setMessage({ type: "error", text: "Failed to export findings." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
+    try {
+      await api.post("/api/v1/quality-audit/export/findings", { item_ids: items.map(i => i.id) });
+      setMessage({ type: "success", text: "Exported findings." });
+    } catch {
+      setMessage({ type: "error", text: "Export failed." });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleExportEvidence = async () => {
-    setActionLoading("export-evidence");
-    try { await api.post("/api/v1/quality-audit/export/evidence", { item_ids: selectedItem ? [selectedItem.id] : items.map(i => i.id) }); } catch { setMessage({ type: "error", text: "Failed to export evidence." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
-  };
-
-  const handleRetryCallback = async () => {
     if (!selectedItem) return;
-    setActionLoading("retry");
-    try { await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/retry-callback`, {}); setCallbackFailed(false); } catch { setMessage({ type: "error", text: "Failed to retry callback." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
+    setActionLoading("export-evidence");
+    try {
+      await api.post("/api/v1/quality-audit/export/evidence", { item_ids: [selectedItem.id] });
+      setMessage({ type: "success", text: "Exported evidence package." });
+    } catch {
+      setMessage({ type: "error", text: "Evidence export failed." });
+    } finally {
+      setActionLoading(null);
+    }
   };
-
-  // ─── Scorecard change ──────────────────────────────────────────────────────
 
   const handleScoreChange = (key: keyof Scorecard, value: number) => {
     setScorecard(prev => ({ ...prev, [key]: value }));
   };
-
-  // ─── Defect / Corrective / Note creation ───────────────────────────────────
-
-  const [newDefect, setNewDefect] = useState<Partial<Defect>>({
-    defect_category: "accuracy_issue",
-    defect_severity: "minor",
-    defect_description: "",
-    evidence_reference: "",
-    responsible_source: "",
-    corrective_action_required: false,
-    owner: "",
-    due_at: "",
-  });
 
   const handleCreateDefect = async () => {
     if (!selectedItem || !newDefect.defect_description) return;
@@ -552,19 +479,17 @@ export default function QualityAuditPage() {
     try {
       const res = await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/defects`, newDefect);
       if (res.success) {
+        setMessage({ type: "success", text: "Defect logged." });
         setDefects(prev => [...prev, res.data]);
-        setShowDefectModal(false);
+        setShowDefectForm(false);
         setNewDefect({ defect_category: "accuracy_issue", defect_severity: "minor", defect_description: "", evidence_reference: "", responsible_source: "", corrective_action_required: false, owner: "", due_at: "" });
-      } else {
-        setMessage({ type: "error", text: res.error || "Failed to create defect." });
-        setTimeout(() => setMessage(null), 5000);
       }
-    } catch { setMessage({ type: "error", text: "Failed to create defect." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
+    } catch {
+      setMessage({ type: "error", text: "Failed to log defect." });
+    } finally {
+      setActionLoading(null);
+    }
   };
-
-  const [newCorrective, setNewCorrective] = useState<Partial<CorrectiveAction>>({
-    title: "", owner: "", priority: "medium", required_action: "", due_at: "", status: "open",
-  });
 
   const handleCreateCorrective = async () => {
     if (!selectedItem || !newCorrective.title) return;
@@ -574,914 +499,594 @@ export default function QualityAuditPage() {
         ...newCorrective, defect_id: defects.length > 0 ? defects[0].id : null,
       });
       if (res.success) {
+        setMessage({ type: "success", text: "Corrective action created." });
         setCorrectiveActions(prev => [...prev, res.data]);
-        setShowCorrectiveModal(false);
+        setShowCorrectiveForm(false);
         setNewCorrective({ title: "", owner: "", priority: "medium", required_action: "", due_at: "", status: "open" });
-      } else {
-        setMessage({ type: "error", text: res.error || "Failed to create corrective action." });
-        setTimeout(() => setMessage(null), 5000);
       }
-    } catch { setMessage({ type: "error", text: "Failed to create corrective action." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
+    } catch {
+      setMessage({ type: "error", text: "Failed to create action." });
+    } finally {
+      setActionLoading(null);
+    }
   };
-
-  const [noteText, setNoteText] = useState("");
 
   const handleAddNote = async () => {
-    if (!selectedItem || !noteText.trim()) return;
+    if (!selectedItem || !feedbackText.trim()) return;
     setActionLoading("add-note");
     try {
-      const res = await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/notes`, { note_body: noteText, visibility: "internal" });
-      if (res.success) { setNotes(prev => [...prev, res.data]); setNoteText(""); setShowNoteModal(false); } else {
-        setMessage({ type: "error", text: res.error || "Failed to add note." });
-        setTimeout(() => setMessage(null), 5000);
+      const res = await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/notes`, { note_body: feedbackText, visibility: "internal" });
+      if (res.success) {
+        setMessage({ type: "success", text: "Note added." });
+        setNotes(prev => [...prev, res.data]);
+        setFeedbackText("");
       }
-    } catch { setMessage({ type: "error", text: "Failed to add note." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
+    } catch {
+      setMessage({ type: "error", text: "Failed to add note." });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleScoreOverride = async () => {
-    if (!selectedItem || !overrideReason.trim()) return;
-    setActionLoading("override");
-    try { await api.post(`/api/v1/quality-audit/items/${selectedItem.id}/scorecard/override`, { overall_score: overallScore, reason: overrideReason }); setShowOverrideModal(false); setOverrideReason(""); } catch { setMessage({ type: "error", text: "Failed to override score." }); setTimeout(() => setMessage(null), 5000); } finally { setActionLoading(null); }
-  };
+  // ─── Computed stats ────────────────────────────────────────────────────────
 
-  // ─── Alerts ────────────────────────────────────────────────────────────────
-
-  const activeAlerts: AlertDef[] = [];
-  if ((stats?.critical_defects || 0) > 0) activeAlerts.push({ id: "critical", type: "Critical Defects Found", message: `${stats?.critical_defects} critical defects require immediate attention`, severity: "critical" });
-  if ((stats?.published_mismatches || 0) > 0) activeAlerts.push({ id: "mismatch", type: "Published Mismatch", message: `${stats?.published_mismatches} items have published version mismatches`, severity: "warning" });
-  if ((stats?.overdue_actions || 0) > 0) activeAlerts.push({ id: "overdue", type: "Corrective Actions Overdue", message: `${stats?.overdue_actions} corrective actions are past due`, severity: "warning" });
-  if ((stats?.missing_evidence || 0) > 0) activeAlerts.push({ id: "evidence", type: "Evidence Missing", message: `${stats?.missing_evidence} items have missing evidence`, severity: "warning" });
-
-  const visibleAlerts = activeAlerts.filter(a => !alertDismissed.has(a.id));
-
-  const dismissAlert = (id: string) => {
-    const next = new Set(alertDismissed); next.add(id); setAlertDismissed(next);
-  };
-
-  // ─── Computed metrics ──────────────────────────────────────────────────────
-
-  const activeMetrics = METRIC_CARDS.map(m => ({
-    ...m,
-    value: m.key === "average_score"
-      ? (stats?.average_score ? `${Math.round(stats.average_score)}${m.suffix || ""}` : "—")
-      : String(stats?.[m.key as keyof Stats] ?? 0),
-  }));
-
-  // ─── Permission / Error / Loading ──────────────────────────────────────────
-
-  if (permissionError) {
-    return (
-      <div className="h-[calc(100vh-3.5rem)] flex flex-col bg-[#0e0e0e] items-center justify-center text-[#555] gap-3">
-        <Ban className="w-10 h-10 opacity-30" />
-        <p className="text-sm font-medium">Permission Denied</p>
-        <p className="text-xs">You do not have permission to audit items.</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="h-[calc(100vh-3.5rem)] flex flex-col bg-[#0e0e0e] items-center justify-center text-[#555] gap-3">
-        <AlertCircle className="w-10 h-10 opacity-30" />
-        <p className="text-sm font-medium">Load Error</p>
-        <p className="text-xs">{error}</p>
-        <button onClick={fetchData} className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium transition-colors">
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  // ─── Render ────────────────────────────────────────────────────────────────
+  const activeAudits = (stats?.in_audit || 0) + (items.filter(i => i.audit_status === "audit_pending").length);
+  const defectsFound = (stats?.failed || 0) + (stats?.needs_correction || 0);
+  const avgScore = stats?.average_score ? `${Math.round(stats.average_score)}%` : "—";
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col bg-[#0e0e0e]">
-      {/* ─── Alert Strip ─────────────────────────────────────────────────── */}
-      {visibleAlerts.length > 0 && (
-        <div className="flex gap-2 px-4 pt-2 pb-1 overflow-x-auto shrink-0">
-          {visibleAlerts.map(a => (
-            <div key={a.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs shrink-0 border ${
-              a.severity === "critical" ? "bg-rose-500/10 border-rose-500/20 text-rose-300" :
-              "bg-amber-500/10 border-amber-500/20 text-amber-300"
-            }`}>
-              {a.severity === "critical" ? <AlertCircle className="w-3 h-3 shrink-0" /> : <AlertTriangle className="w-3 h-3 shrink-0" />}
-              <span className="font-medium whitespace-nowrap">{a.type}:</span>
-              <span className="opacity-80 whitespace-nowrap">{a.message}</span>
-              <button onClick={() => dismissAlert(a.id)} className="opacity-40 hover:opacity-100 ml-1">
-                <XCircle className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
+    <div className="pb-16 px-4">
+      {/* ─── Header ─────────────────────────────────────────────────────────── */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-foreground mb-1">Quality Audit</h1>
+          <p className="text-[11px] text-foreground-muted">Audit content drafts, approval paths, and published checks to maintain high quality standards.</p>
         </div>
-      )}
-
-      {/* ─── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2d2d2d] shrink-0">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-lg font-bold text-white">Quality Audit</h1>
-            <p className="text-[11px] text-[#888]">Audit content, replies, agent outputs, and workflow decisions for quality and compliance</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {[
-            { label: "Start Audit", icon: ShieldCheck, key: "start", disabledTooltip: "Select an audit item to start", requiresItem: true },
-            { label: "Generate Sample", icon: Zap, key: "sample", disabledTooltip: "Generate an audit sample", requiresItem: false },
-            { label: "Assign Auditor", icon: Users, key: "assign", disabledTooltip: "Select an item to assign an auditor", requiresItem: true },
-            { label: "Export Findings", icon: Download, key: "export", disabledTooltip: "Export audit findings", requiresItem: false },
-            { label: "Export Evidence", icon: Upload, key: "export-evidence", disabledTooltip: "Export evidence package", requiresItem: true },
-            { label: "Settings", icon: Settings, key: "settings", disabledTooltip: "Quality audit settings (admin only)", requiresItem: false },
-          ].map(btn => {
-            const isDisabled = btn.key === "settings" ? true :
-              btn.key === "sample" ? false :
-              btn.key === "export" ? false :
-              !selectedItem;
-            return (
-              <div key={btn.label} className="group relative">
-                <button disabled={isDisabled}
-                  onClick={() => {
-                    if (btn.key === "start" && selectedItem) handleAction("start");
-                    else if (btn.key === "sample") handleGenerateSample();
-                    else if (btn.key === "assign" && selectedItem) handleAssignAuditor();
-                    else if (btn.key === "export") handleExportFindings();
-                    else if (btn.key === "export-evidence") handleExportEvidence();
-                  }}
-                  className={`p-2 border rounded-lg transition-all ${
-                    isDisabled ? "bg-[#161616] border-[#2d2d2d] text-[#555] cursor-not-allowed" : "bg-[#161616] border-[#2d2d2d] text-[#888] hover:text-white hover:border-[#444]"
-                  }`}>
-                  {actionLoading === btn.key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <btn.icon className="w-3.5 h-3.5" />}
-                </button>
-                <div className="absolute top-full mt-1 right-0 bg-[#1a1a1a] border border-[#2d2d2d] rounded-lg px-2.5 py-1.5 text-[10px] text-[#888] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 shadow-xl max-w-48">
-                  {btn.disabledTooltip}
-                </div>
-              </div>
-            );
-          })}
-          <button onClick={fetchData} className="p-2 bg-[#161616] border border-[#2d2d2d] rounded-lg text-[#888] hover:text-white ml-2">
-            <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-indigo-400" : ""}`} />
-          </button>
-        </div>
+        <button
+          onClick={fetchData}
+          className="p-2 bg-[var(--card)] border border-[var(--border)] rounded-xl text-foreground-muted hover:text-foreground transition-all"
+        >
+          <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-info-text" : ""}`} />
+        </button>
       </div>
 
-      {/* ─── Metric Cards ──────────────────────────────────────────────── */}
-      <div className="flex gap-2.5 px-4 py-3 overflow-x-auto shrink-0 border-b border-[#1a1a1a]">
-        {activeMetrics.map(m => (
-          <div key={m.key} className="flex items-center gap-2.5 px-3.5 py-2.5 bg-[#111] border border-[#2d2d2d] rounded-xl min-w-[140px] shrink-0">
-            <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center">
-              <m.icon className={`w-4 h-4 ${m.color}`} />
-            </div>
-            <div className="text-left">
-              <p className={`text-lg font-bold ${m.color}`}>{m.value}</p>
-              <p className="text-[10px] text-[#666] font-medium">{m.label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ─── Tab Bar ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-[#1a1a1a] overflow-x-auto shrink-0">
-        {TABS.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-              activeTab === tab.id ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/20" : "text-[#666] hover:text-white hover:bg-white/5"
-            }`}>
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ─── Callback Failed Banner ──────────────────────────────────────── */}
-      {callbackFailed && (
-        <div className="mx-4 mt-2 p-2.5 rounded-lg flex items-center justify-between text-xs bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            Audit outcome was saved, but the source module could not be updated. Retry callback.
-          </div>
-          <button onClick={handleRetryCallback} disabled={actionLoading === "retry"}
-            className="flex items-center gap-1 px-3 py-1 bg-amber-600 hover:bg-amber-500 disabled:bg-amber-800 text-white rounded-lg text-[10px] font-medium">
-            {actionLoading === "retry" ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* ─── Message Toast ───────────────────────────────────────────────── */}
+      {/* ─── Toast Messages ─────────────────────────────────────────────────── */}
       {message && (
-        <div className={`mx-4 mt-2 p-2.5 rounded-lg flex items-center gap-2 text-xs shrink-0 ${
-          message.type === "success" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border border-rose-500/20 text-rose-400"
+        <div className={`mb-4 p-3 rounded-xl flex items-center gap-2.5 text-xs font-semibold ${
+          message.type === "success"
+            ? "bg-success-bg border border-success-border text-success-text"
+            : "bg-error-bg border border-error-border text-error-text"
         }`}>
           {message.type === "success" ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
           {message.text}
         </div>
       )}
 
-      {/* ─── Error Banner ────────────────────────────────────────────────── */}
-      {error && (
-        <div className="mx-4 mt-2 p-2.5 rounded-lg flex items-center gap-2 text-xs bg-rose-500/10 border border-rose-500/20 text-rose-400 shrink-0">
-          <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {error}
+      {/* ─── Minimal Stats ──────────────────────────────────────────────────── */}
+      {stats && (
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="bg-surface border border-[var(--border)] rounded-xl p-3 flex items-center gap-3">
+            <div className="w-8 h-8 bg-info-bg text-info-text rounded-lg flex items-center justify-center shrink-0">
+              <Activity className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-foreground">{activeAudits}</p>
+              <p className="text-[9px] text-foreground-muted font-semibold uppercase tracking-wider leading-none">Active Audits</p>
+            </div>
+          </div>
+          <div className="bg-surface border border-[var(--border)] rounded-xl p-3 flex items-center gap-3">
+            <div className="w-8 h-8 bg-error-bg text-error-text rounded-lg flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-foreground">{defectsFound}</p>
+              <p className="text-[9px] text-foreground-muted font-semibold uppercase tracking-wider leading-none">Defects Found</p>
+            </div>
+          </div>
+          <div className="bg-surface border border-[var(--border)] rounded-xl p-3 flex items-center gap-3">
+            <div className="w-8 h-8 bg-success-bg text-success-text rounded-lg flex items-center justify-center shrink-0">
+              <Star className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-foreground">{avgScore}</p>
+              <p className="text-[9px] text-foreground-muted font-semibold uppercase tracking-wider leading-none">Average Score</p>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* ─── Search + Filter Bar ────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-[#1a1a1a] shrink-0">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#555]" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search items, campaigns, auditors..."
-            className="w-full bg-[#111] border border-[#2d2d2d] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
-        </div>
-        <button onClick={() => setShowFilters(!showFilters)}
-          className={`p-1.5 rounded-lg border text-xs flex items-center gap-1.5 transition-colors ${
-            showFilters ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-300" : "bg-[#161616] border-[#2d2d2d] text-[#666]"
-          }`}>
-          <Filter className="w-3.5 h-3.5" /> Filters
-        </button>
-        <button onClick={() => setShowLeft(!showLeft)}
-          className={`p-1.5 rounded-lg border text-xs ${showLeft ? "bg-[#161616] border-[#2d2d2d] text-[#888]" : "bg-indigo-500/10 border-indigo-500/30 text-indigo-300"}`}>
-          <Eye className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={() => setShowRight(!showRight)}
-          className={`p-1.5 rounded-lg border text-xs ${showRight ? "bg-[#161616] border-[#2d2d2d] text-[#888]" : "bg-indigo-500/10 border-indigo-500/30 text-indigo-300"}`}>
-          <EyeOff className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      {/* ─── 3-Panel Layout ─────────────────────────────────────────────────── */}
+      <div className="flex gap-4 items-start">
+        {/* ─── Left Panel: Minimal List ────────────────────────────────────── */}
+        <div className="w-[300px] shrink-0 flex flex-col gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-muted" />
+            <input
+              type="text"
+              placeholder="Search audit queue…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-surface border border-[var(--border)] text-foreground placeholder-foreground-muted focus:outline-none focus:border-info-border/40"
+            />
+          </div>
 
-      {/* ─── Filter Drawer ──────────────────────────────────────────────── */}
-      {showFilters && (
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-[#1a1a1a] bg-[#0a0a0a] shrink-0">
-          <select value={filterItemType} onChange={e => setFilterItemType(e.target.value)}
-            className="bg-[#111] border border-[#2d2d2d] rounded-lg px-2.5 py-1.5 text-xs text-[#aaa]">
-            <option value="">All Item Types</option>
-            {Object.entries(ITEM_TYPE_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
+          <div className="flex gap-1 border-b border-border pb-2">
+            {FILTER_TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-colors ${
+                  activeTab === tab.id
+                    ? "bg-info-bg text-info-text border border-info-border"
+                    : "text-foreground-muted hover:text-foreground-muted"
+                }`}
+              >
+                {tab.label}
+              </button>
             ))}
-          </select>
-          <select value={filterSeverity} onChange={e => setFilterSeverity(e.target.value)}
-            className="bg-[#111] border border-[#2d2d2d] rounded-lg px-2.5 py-1.5 text-xs text-[#aaa]">
-            <option value="">All Severities</option>
-            <option value="minor">Minor</option><option value="moderate">Moderate</option>
-            <option value="major">Major</option><option value="critical">Critical</option>
-          </select>
-          <select value={filterModule} onChange={e => setFilterModule(e.target.value)}
-            className="bg-[#111] border border-[#2d2d2d] rounded-lg px-2.5 py-1.5 text-xs text-[#aaa]">
-            <option value="">All Modules</option>
-            <option value="Media Engine">Media Engine</option>
-            <option value="Inbox & Engagement">Inbox & Engagement</option>
-            <option value="Campaigns">Campaigns</option>
-            <option value="Agent Studio">Agent Studio</option>
-            <option value="Approvals">Approvals</option>
-            <option value="Validation Desk">Validation Desk</option>
-          </select>
-        </div>
-      )}
+          </div>
 
-      {/* ─── 3-Panel Layout ─────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* ── Left Panel — Audit Items ──────────────────────────────────── */}
-        {showLeft && (
-          <div className="w-80 shrink-0 border-r border-[#1a1a1a] overflow-y-auto bg-[#0a0a0a]">
+          <div className="space-y-2 max-h-[550px] overflow-y-auto pr-1 scrollbar-none">
             {loading ? (
-              <div className="flex items-center justify-center py-12 text-[#555] text-xs">Loading...</div>
-            ) : filteredItems.length === 0 ? (
-              <div className="flex flex-col items-center py-12 text-[#555] gap-2 px-4 text-center">
-                {activeTab === "audit_queue" ? <><List className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">Audit queue is empty</p><p className="text-[10px]">Generate a sample to begin quality auditing.</p></> :
-                 activeTab === "assigned_to_me" ? <><Users className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No items assigned to you</p><p className="text-[10px]">Audit items assigned to you will appear here.</p></> :
-                 activeTab === "in_audit" ? <><Activity className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No items in audit</p><p className="text-[10px]">Items currently being audited will appear here.</p></> :
-                 activeTab === "passed" ? <><CheckCircle2 className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No passed audits</p><p className="text-[10px]">Items that passed quality audit will appear here.</p></> :
-                 activeTab === "failed" ? <><XCircle className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No failed audits</p><p className="text-[10px]">Items that failed quality audit will appear here.</p></> :
-                 activeTab === "needs_correction" ? <><AlertTriangle className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No items needing correction</p><p className="text-[10px]">Items requiring corrective action will appear here.</p></> :
-                 activeTab === "high_severity_defects" ? <><AlertOctagon className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No high-severity defects</p><p className="text-[10px]">Items with Major or Critical defects will appear here.</p></> :
-                 activeTab === "published_check" ? <><GitCompare className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No published checks</p><p className="text-[10px]">Items with published version mismatches will appear here.</p></> :
-                 activeTab === "completed_audits" ? <><FileCheck className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No completed audits</p><p className="text-[10px]">Completed and archived audits will appear here.</p></> :
-                 <><List className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No items found</p></>}
+              <div className="flex flex-col items-center py-10 text-foreground-muted gap-2">
+                <div className="w-5 h-5 border-2 border-info-text border-t-transparent rounded-full animate-spin" />
+                <p className="text-[10px]">Loading...</p>
+              </div>
+            ) : sortedItems.length === 0 ? (
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-6 text-center text-foreground-muted text-xs">
+                No audits in this filter.
               </div>
             ) : (
-              <div className="divide-y divide-[#1a1a1a]">
-                {filteredItems.map(item => (
-                  <button key={item.id} onClick={() => handleSelectItem(item)}
-                    className={`w-full text-left p-3 hover:bg-white/[0.02] transition-colors ${
-                      selectedItem?.id === item.id ? "bg-indigo-500/5 border-l-2 border-indigo-500" : "border-l-2 border-transparent"
-                    }`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-[#ccc] line-clamp-1">{item.title}</p>
-                        <p className="text-[10px] text-[#555] mt-0.5">{ITEM_TYPE_LABELS[item.item_type]} · {item.source_module}</p>
-                      </div>
+              sortedItems.map(item => {
+                const isSelected = selectedItem?.id === item.id;
+                const statusColor = STATUS_COLORS[item.audit_status] || "bg-surface text-foreground-muted";
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelectItem(item)}
+                    className={`w-full text-left bg-surface border rounded-xl p-3 hover:border-border transition-all border-l-4 ${
+                      isSelected ? "border-info-text bg-info-bg border-l-info-text" : "border-[var(--border)] border-l-slate-600"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                      <p className="text-xs font-semibold text-foreground truncate flex-1">{item.title}</p>
                       {item.quality_score !== null && (
-                        <span className={`text-xs font-bold shrink-0 ${calculateScoreBand(item.quality_score).color}`}>
-                          {item.quality_score}
+                        <span className={`text-[10px] font-bold ${calculateScoreBand(item.quality_score).color}`}>
+                          {item.quality_score}%
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      <StatusBadge status={item.audit_status} />
-                      {item.highest_defect_severity && <SeverityBadge severity={item.highest_defect_severity} />}
-                      {item.published_mismatch && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border text-rose-400 bg-rose-500/10 border-rose-500/20">Mismatch</span>
-                      )}
-                      {item.sampled && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border text-cyan-400 bg-cyan-500/10 border-cyan-500/20">Sampled</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[#555]">
-                      {item.platform && <span>{item.platform}</span>}
-                      {item.assigned_auditor && <span>· {item.assigned_auditor}</span>}
-                      {item.audit_due_at && (
-                        <span className={new Date(item.audit_due_at) < new Date() ? "text-rose-400 ml-auto" : "ml-auto"}>
-                          Due {formatDate(item.audit_due_at)}
+
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className={`px-1.5 py-[0.5px] rounded text-[8px] font-bold ${statusColor}`}>
+                        {getStatusLabel(item.audit_status)}
+                      </span>
+                      {item.highest_defect_severity && (
+                        <span className={`px-1.5 py-[0.5px] rounded text-[8px] font-bold ${SEVERITY_COLORS[item.highest_defect_severity]}`}>
+                          {item.highest_defect_severity}
                         </span>
                       )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-[9px] text-foreground-muted mt-2">
+                      <span>{ITEM_TYPE_LABELS[item.item_type]}</span>
+                      <span>{formatDate(item.audit_due_at)}</span>
                     </div>
                   </button>
-                ))}
-              </div>
+                );
+              })
             )}
           </div>
-        )}
+        </div>
 
-        {/* ── Center Panel — Workspace ──────────────────────────────────── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* ─── Center Panel: Workspace & Action Flow ───────────────────────── */}
+        <div className="flex-1 min-w-0 bg-surface border border-[var(--border)] rounded-2xl p-5 min-h-[450px]">
           {!selectedItem ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-[#555] gap-3">
-              <ShieldCheck className="w-10 h-10 opacity-30" />
-              <p className="text-sm font-medium">Select an audit item</p>
-              <p className="text-xs">Choose an item from the left panel to begin reviewing</p>
-            </div>
-          ) : lockedError ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-[#555] gap-3">
-              <Lock className="w-10 h-10 opacity-30" />
-              <p className="text-sm font-medium">Audit Locked</p>
-              <p className="text-xs">{lockedError}</p>
+            <div className="h-full flex flex-col items-center justify-center text-center p-10 text-foreground-muted">
+              <ShieldCheck className="w-8 h-8 opacity-20 mb-2" />
+              <p className="text-xs font-semibold">Select an item from the queue to start audit</p>
             </div>
           ) : (
-            <>
-              {/* Audit Info Bar */}
-              <div className="px-4 py-3 border-b border-[#1a1a1a] bg-[#0e0e0e] shrink-0">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <h2 className="text-sm font-bold text-white">{selectedItem.title}</h2>
-                    <p className="text-[11px] text-[#888] mt-0.5">
-                      {ITEM_TYPE_LABELS[selectedItem.item_type]} · {selectedItem.source_module}
-                      {selectedItem.campaign && ` · ${selectedItem.campaign}`}
-                      {selectedItem.platform && ` · ${selectedItem.platform}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {selectedItem.quality_score !== null && (
-                      <span className={`text-lg font-bold ${calculateScoreBand(selectedItem.quality_score).color}`}>
-                        {selectedItem.quality_score}
-                      </span>
-                    )}
-                    <StatusBadge status={selectedItem.audit_status} />
+            <div className="space-y-4">
+              {/* Header Info */}
+              <div className="border-b border-border pb-3 flex justify-between items-start">
+                <div>
+                  <h3 className="text-sm font-bold text-foreground mb-0.5">{selectedItem.title}</h3>
+                  <div className="flex items-center gap-2 text-[10px] text-foreground-muted">
+                    <span>{ITEM_TYPE_LABELS[selectedItem.item_type]}</span>
+                    <span>•</span>
+                    <span>{selectedItem.source_module}</span>
+                    {selectedItem.platform && <span>• {selectedItem.platform}</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-3 mt-2 text-[10px] text-[#666]">
-                  <span className="flex items-center gap-1"><User className="w-3 h-3" /> {selectedItem.assigned_auditor || "Unassigned"}</span>
-                  {selectedItem.original_reviewer && <span>Reviewer: {selectedItem.original_reviewer}</span>}
-                  {selectedItem.agent_name && <span>Agent: {selectedItem.agent_name}</span>}
-                  {selectedItem.audit_due_at && (
-                    <span className={new Date(selectedItem.audit_due_at) < new Date() ? "text-rose-400" : ""}>
-                      Due: {formatDate(selectedItem.audit_due_at)}
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${STATUS_COLORS[selectedItem.audit_status]}`}>
+                    {getStatusLabel(selectedItem.audit_status)}
+                  </span>
+                  {selectedItem.quality_score !== null && (
+                    <span className={`text-xs font-bold ${calculateScoreBand(selectedItem.quality_score).color}`}>
+                      Audit Score: {selectedItem.quality_score}%
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-1.5 px-4 py-2 border-b border-[#1a1a1a] bg-[#0a0a0a] shrink-0 overflow-x-auto">
+              {/* Quick Actions Bar */}
+              <div className="pt-2 flex items-center gap-2 flex-wrap relative">
                 {selectedItem.audit_status === "audit_pending" && (
-                  <button onClick={() => handleAction("start")} disabled={actionLoading === "start"}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded-lg text-[10px] font-medium flex items-center gap-1.5">
-                    {actionLoading === "start" ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                  <button
+                    disabled={actionLoading === "start"}
+                    onClick={() => handleAction("start")}
+                    className="px-4 py-2 bg-info-text hover:brightness-110 text-black text-xs font-bold rounded-xl transition-all shadow-lg flex items-center gap-1.5"
+                  >
+                    {actionLoading === "start" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
                     Start Audit
                   </button>
                 )}
+
                 {selectedItem.audit_status === "in_audit" && (
                   <>
-                    <button onClick={() => handleAction("pass", { scorecard })} disabled={!passEligible || actionLoading === "pass"}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white rounded-lg text-[10px] font-medium flex items-center gap-1.5">
-                      {actionLoading === "pass" ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                      Pass
+                    <button
+                      disabled={actionLoading === "pass" || !passEligible}
+                      onClick={() => handleAction("pass", { scorecard })}
+                      className="px-4 py-2 bg-success-text hover:brightness-110 disabled:opacity-40 text-black text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+                      title={!passEligible ? "Complete scorecard and resolve major defects to pass" : ""}
+                    >
+                      {actionLoading === "pass" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                      Pass Audit
                     </button>
-                    <button onClick={() => handleAction("fail", { scorecard, reason: "quality_failure" })} disabled={actionLoading === "fail"}
-                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-800 text-white rounded-lg text-[10px] font-medium flex items-center gap-1.5">
-                      {actionLoading === "fail" ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
-                      Fail
+
+                    <button
+                      disabled={actionLoading === "needs-correction"}
+                      onClick={() => handleAction("needs-correction", { scorecard, reason: feedbackText })}
+                      className="px-4 py-2 bg-warning-bg hover:brightness-110 text-warning-text hover:text-black border border-warning-border text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+                    >
+                      {actionLoading === "needs-correction" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                      Correction Required
                     </button>
-                    <button onClick={() => handleAction("needs-correction", { scorecard, reason: "quality_needs_correction" })} disabled={actionLoading === "needs-correction"}
-                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-amber-800 text-white rounded-lg text-[10px] font-medium flex items-center gap-1.5">
-                      {actionLoading === "needs-correction" ? <Loader2 className="w-3 h-3 animate-spin" /> : <AlertTriangle className="w-3 h-3" />}
-                      Needs Correction
-                    </button>
-                    <button onClick={() => handleAction("escalate", { reason: "escalation_required", severity: hasCriticalDefects ? "critical" : "major" })} disabled={actionLoading === "escalate"}
-                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white rounded-lg text-[10px] font-medium flex items-center gap-1.5">
-                      {actionLoading === "escalate" ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowRight className="w-3 h-3" />}
-                      Escalate
+
+                    <button
+                      disabled={actionLoading === "fail"}
+                      onClick={() => handleAction("fail", { scorecard, reason: feedbackText || "Failed audit requirements" })}
+                      className="px-4 py-2 bg-error-bg hover:brightness-110 text-error-text hover:text-black border border-error-border text-xs font-bold rounded-xl transition-all flex items-center gap-1.5"
+                    >
+                      {actionLoading === "fail" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                      Fail Audit
                     </button>
                   </>
                 )}
-                <div className="w-px h-5 bg-[#2d2d2d] mx-1" />
-                <button onClick={() => setShowDefectModal(true)}
-                  className="px-3 py-1.5 bg-[#161616] border border-[#2d2d2d] text-[#aaa] hover:text-white rounded-lg text-[10px] font-medium flex items-center gap-1.5">
-                  <Bug className="w-3 h-3" /> Defect
-                </button>
-                <button onClick={() => setShowCorrectiveModal(true)}
-                  className="px-3 py-1.5 bg-[#161616] border border-[#2d2d2d] text-[#aaa] hover:text-white rounded-lg text-[10px] font-medium flex items-center gap-1.5">
-                  <ClipboardList className="w-3 h-3" /> Corrective
-                </button>
-                <button onClick={() => setShowNoteModal(true)}
-                  className="px-3 py-1.5 bg-[#161616] border border-[#2d2d2d] text-[#aaa] hover:text-white rounded-lg text-[10px] font-medium flex items-center gap-1.5">
-                  <MessageSquare className="w-3 h-3" /> Note
-                </button>
-                {selectedItem.audit_status === "in_audit" && (
-                  <button onClick={() => setShowOverrideModal(true)}
-                    className="px-3 py-1.5 bg-[#161616] border border-[#2d2d2d] text-[#aaa] hover:text-white rounded-lg text-[10px] font-medium flex items-center gap-1.5">
-                    <Edit3 className="w-3 h-3" /> Override Score
-                  </button>
-                )}
-              </div>
 
-              {/* Comparison Tabs */}
-              <div className="flex items-center gap-1 px-4 py-2 border-b border-[#1a1a1a] overflow-x-auto shrink-0 bg-[#0a0a0a]">
-                {COMPARISON_TABS.map(tab => (
-                  <button key={tab.id} onClick={() => setComparisonTab(tab.id)}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-colors whitespace-nowrap ${
-                      comparisonTab === tab.id ? "bg-indigo-500/15 text-indigo-300" : "text-[#555] hover:text-white"
-                    }`}>
-                    {tab.label}
+                {/* More Secondary Options Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowMoreActions(!showMoreActions)}
+                    className="px-3 py-2 bg-surface hover:bg-surface border border-border rounded-xl text-xs font-bold text-foreground-muted hover:text-foreground flex items-center gap-1.5"
+                  >
+                    Auditor Options <ChevronDown className="w-3 h-3" />
                   </button>
-                ))}
-              </div>
 
-              {/* Content Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* Content Preview */}
-                <div className="bg-[#111] border border-[#2d2d2d] rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-[#2d2d2d]">
-                    <FileText className="w-3.5 h-3.5 text-indigo-400" />
-                    <span className="text-[10px] font-bold text-[#666] uppercase tracking-wider">Content Preview</span>
-                  </div>
-                  <div className="text-xs text-[#888] leading-relaxed">
-                    {comparisonTab === "ai_draft" && <p className="italic">AI draft content will be displayed with diff highlighting when available.</p>}
-                    {comparisonTab === "human_edits" && <p className="italic">Human-edited version with changes highlighted for review.</p>}
-                    {comparisonTab === "approved_version" && <p className="italic">Approved version content will appear here.</p>}
-                    {comparisonTab === "published_version" && (
-                      <>
-                        {selectedItem.published_mismatch && (
-                          <div className="flex items-center gap-2 p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-lg mb-3">
-                            <GitCompare className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                            <span className="text-rose-300 text-[10px] font-medium">Published version differs from approved version</span>
-                          </div>
-                        )}
-                        <p className="italic">Published or sent version will be displayed here for comparison.</p>
-                      </>
-                    )}
-                    {comparisonTab === "validation_results" && <p className="italic">Validation results and rule checks will appear here.</p>}
-                    {comparisonTab === "approval_history" && <p className="italic">Approval history log will appear here.</p>}
-                    {comparisonTab === "audit_findings" && (
-                      defects.length === 0
-                        ? <p className="italic">No audit findings recorded yet.</p>
-                        : <div className="space-y-2">{defects.map(d => (
-                            <div key={d.id} className="p-3 bg-black/30 border border-[#2d2d2d] rounded-xl">
-                              <div className="flex items-center gap-2 mb-1">
-                                <SeverityBadge severity={d.defect_severity} />
-                                <span className="text-[10px] text-[#888]">{DEFECT_CATEGORIES.find(c => c.value === d.defect_category)?.label}</span>
-                              </div>
-                              <p className="text-xs text-[#ccc]">{d.defect_description}</p>
-                              {d.evidence_reference && <p className="text-[10px] text-[#555] mt-1">Evidence: {d.evidence_reference}</p>}
-                            </div>
-                          ))}</div>
-                    )}
-                    {comparisonTab === "evidence" && (
-                      evidence.length === 0
-                        ? <p className="italic">No evidence captured yet.</p>
-                        : <div className="space-y-2">{evidence.map(e => (
-                            <div key={e.id} className="flex items-center gap-2 p-2.5 bg-black/30 border border-[#2d2d2d] rounded-xl">
-                              <FileText className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                              <div>
-                                <p className="text-xs text-[#ccc]">{e.evidence_type}</p>
-                                <p className="text-[10px] text-[#555]">{e.evidence_reference} · {formatDate(e.captured_at)}</p>
-                              </div>
-                            </div>
-                          ))}</div>
-                    )}
-                    {comparisonTab === "corrective_actions" && (
-                      correctiveActions.length === 0
-                        ? <p className="italic">No corrective actions created yet.</p>
-                        : <div className="space-y-2">{correctiveActions.map(ca => (
-                            <div key={ca.id} className="p-3 bg-black/30 border border-[#2d2d2d] rounded-xl">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-bold text-[#ccc]">{ca.title}</span>
-                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
-                                  ca.status === "completed" || ca.status === "closed" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" :
-                                  ca.status === "overdue" ? "text-rose-400 bg-rose-500/10 border-rose-500/20" :
-                                  ca.status === "escalated" ? "text-purple-400 bg-purple-500/10 border-purple-500/20" :
-                                  ca.status === "in_progress" ? "text-blue-400 bg-blue-500/10 border-blue-500/20" :
-                                  "text-amber-400 bg-amber-500/10 border-amber-500/20"
-                                }`}>{ca.status.replace(/_/g, " ")}</span>
-                              </div>
-                              <p className="text-[11px] text-[#888]">{ca.required_action}</p>
-                              <div className="flex items-center gap-3 mt-1.5 text-[10px] text-[#555]">
-                                <span>Owner: {ca.owner}</span>
-                                <span>Priority: {ca.priority}</span>
-                                {ca.due_at && <span>Due: {formatDate(ca.due_at)}</span>}
-                              </div>
-                            </div>
-                          ))}</div>
-                    )}
-                  </div>
+                  {showMoreActions && (
+                    <div className="absolute top-full left-0 mt-1 bg-surface border border-border rounded-xl shadow-xl py-1 z-50 w-44">
+                      <button onClick={handleGenerateSample} className="w-full text-left px-3.5 py-2 hover:bg-surface text-xs text-foreground/70 font-semibold flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-cyan-400" /> Generate Sample
+                      </button>
+                      {!selectedItem.assigned_auditor && (
+                        <button onClick={handleAssignAuditor} className="w-full text-left px-3.5 py-2 hover:bg-surface text-xs text-foreground/70 font-semibold flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-info-text" /> Self Assign
+                        </button>
+                      )}
+                      <button onClick={handleExportFindings} className="w-full text-left px-3.5 py-2 hover:bg-surface text-xs text-foreground/70 font-semibold flex items-center gap-1.5">
+                        <Download className="w-3.5 h-3.5 text-success-text" /> Export Findings
+                      </button>
+                      <button onClick={handleExportEvidence} className="w-full text-left px-3.5 py-2 hover:bg-surface text-xs text-foreground/70 font-semibold flex items-center gap-1.5">
+                        <Upload className="w-3.5 h-3.5 text-teal-400" /> Export Evidence
+                      </button>
+                      {selectedItem.audit_status === "in_audit" && (
+                        <button onClick={() => handleAction("escalate", { reason: feedbackText || "Escalation requested" })} className="w-full text-left px-3.5 py-2 hover:bg-surface text-xs text-info-text font-semibold flex items-center gap-1.5">
+                          <ArrowRight className="w-3.5 h-3.5" /> Escalate Audit
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-            </>
+
+              {/* Feedbacks input for fail or correction */}
+              {selectedItem.audit_status === "in_audit" && (
+                <div className="space-y-1.5">
+                  <textarea
+                    placeholder="Enter audit feedback notes, correction remarks, or fail explanations..."
+                    value={feedbackText}
+                    onChange={e => setFeedbackText(e.target.value)}
+                    rows={2}
+                    className="w-full bg-surface border border-border rounded-lg p-2.5 text-xs text-foreground placeholder-foreground-muted focus:outline-none focus:border-info-border/40 resize-none"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setShowDefectForm(!showDefectForm)}
+                      className="px-2.5 py-1 text-[10px] border border-error-border bg-error-bg text-error-text rounded-lg font-bold hover:brightness-110"
+                    >
+                      + Log Defect
+                    </button>
+                    <button
+                      onClick={() => setShowCorrectiveForm(!showCorrectiveForm)}
+                      className="px-2.5 py-1 text-[10px] border border-warning-border bg-warning-bg text-warning-text rounded-lg font-bold hover:brightness-110"
+                    >
+                      + Add Corrective Action
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Log Defect Quick Form */}
+              {showDefectForm && (
+                <div className="bg-surface border border-error-border p-3.5 rounded-xl space-y-2.5">
+                  <h4 className="text-[10px] font-bold text-error-text uppercase tracking-wider">Log Defect</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={newDefect.defect_category}
+                      onChange={e => setNewDefect(prev => ({ ...prev, defect_category: e.target.value as DefectCategory }))}
+                      className="p-1.5 bg-surface border border-border rounded text-[10px] text-foreground focus:outline-none"
+                    >
+                      {DEFECT_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                    <select
+                      value={newDefect.defect_severity}
+                      onChange={e => setNewDefect(prev => ({ ...prev, defect_severity: e.target.value as DefectSeverity }))}
+                      className="p-1.5 bg-surface border border-border rounded text-[10px] text-foreground focus:outline-none"
+                    >
+                      <option value="minor">Minor</option>
+                      <option value="moderate">Moderate</option>
+                      <option value="major">Major</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Short description of the defect..."
+                    value={newDefect.defect_description}
+                    onChange={e => setNewDefect(prev => ({ ...prev, defect_description: e.target.value }))}
+                    className="w-full p-2 bg-surface border border-border rounded text-[10px] text-foreground"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setShowDefectForm(false)} className="px-2.5 py-1 text-[9px] text-foreground-muted hover:text-foreground">Cancel</button>
+                    <button onClick={handleCreateDefect} className="px-2.5 py-1 bg-error-text hover:brightness-110 text-foreground rounded text-[9px] font-bold">Save Defect</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Add Corrective Action Quick Form */}
+              {showCorrectiveForm && (
+                <div className="bg-surface border border-warning-border p-3.5 rounded-xl space-y-2.5">
+                  <h4 className="text-[10px] font-bold text-warning-text uppercase tracking-wider">Create Corrective Action</h4>
+                  <input
+                    type="text"
+                    placeholder="Action Item Title..."
+                    value={newCorrective.title}
+                    onChange={e => setNewCorrective(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full p-2 bg-surface border border-border rounded text-[10px] text-foreground"
+                  />
+                  <textarea
+                    placeholder="Describe what needs to be fixed..."
+                    value={newCorrective.required_action}
+                    onChange={e => setNewCorrective(prev => ({ ...prev, required_action: e.target.value }))}
+                    rows={2}
+                    className="w-full p-2 bg-surface border border-border rounded text-[10px] text-foreground resize-none"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Assignee (email or user ID)"
+                      value={newCorrective.owner}
+                      onChange={e => setNewCorrective(prev => ({ ...prev, owner: e.target.value }))}
+                      className="p-1.5 bg-surface border border-border rounded text-[10px] text-foreground"
+                    />
+                    <input
+                      type="date"
+                      value={newCorrective.due_at}
+                      onChange={e => setNewCorrective(prev => ({ ...prev, due_at: e.target.value }))}
+                      className="p-1.5 bg-surface border border-border rounded text-[10px] text-foreground"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setShowCorrectiveForm(false)} className="px-2.5 py-1 text-[9px] text-foreground-muted hover:text-foreground">Cancel</button>
+                    <button onClick={handleCreateCorrective} className="px-2.5 py-1 bg-warning-text hover:brightness-110 text-foreground rounded text-[9px] font-bold">Create Action</button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        {/* ── Right Panel — Quality Control Panel ───────────────────────── */}
-        {showRight && (
-          <div className="w-96 shrink-0 border-l border-[#1a1a1a] overflow-y-auto bg-[#0a0a0a]">
-            {!selectedItem ? (
-              <div className="flex flex-col items-center justify-center py-16 text-[#555] gap-3">
-                <ShieldCheck className="w-8 h-8 opacity-30" />
-                <p className="text-xs">Select an item to view controls</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-[#1a1a1a]">
-                {/* Scorecard */}
-                <div className="p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <BarChart3 className="w-3.5 h-3.5 text-indigo-400" />
-                      <h3 className="text-[10px] font-bold text-white uppercase tracking-wider">Scorecard</h3>
-                    </div>
-                    {overallScore !== null && (
-                      <div className={`text-sm font-bold ${scoreBand.color}`}>
-                        {overallScore}<span className="text-[10px] text-[#555] ml-0.5">/100</span>
+        {/* ─── Right Panel: Single Tabbed Card (Scorecard + Details) ───────── */}
+        {selectedItem && (
+          <div className="w-[340px] shrink-0 bg-surface border border-[var(--border)] rounded-2xl p-4 min-h-[450px] flex flex-col">
+            <div className="flex gap-2 border-b border-border pb-2 mb-3 shrink-0">
+              <button
+                onClick={() => setComparisonTab("comparison")}
+                className={`flex-1 py-1 text-[10px] font-bold rounded-lg transition-colors ${
+                  comparisonTab === "comparison" ? "bg-surface text-foreground" : "text-foreground-muted"
+                }`}
+              >
+                Comparison
+              </button>
+              <button
+                onClick={() => setComparisonTab("findings")}
+                className={`flex-1 py-1 text-[10px] font-bold rounded-lg transition-colors ${
+                  comparisonTab === "findings" ? "bg-surface text-foreground" : "text-foreground-muted"
+                }`}
+              >
+                Findings
+              </button>
+              <button
+                onClick={() => setComparisonTab("evidence")}
+                className={`flex-1 py-1 text-[10px] font-bold rounded-lg transition-colors ${
+                  comparisonTab === "evidence" ? "bg-surface text-foreground" : "text-foreground-muted"
+                }`}
+              >
+                Logs & Evid.
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto max-h-[450px] scrollbar-none space-y-4">
+              {/* Tab 1: Version Comparison */}
+              {comparisonTab === "comparison" && (
+                <div className="space-y-3">
+                  <div className="flex gap-1 bg-surface p-1 rounded-lg shrink-0">
+                    <button onClick={() => setVersionSubTab("ai")} className={`flex-1 text-[9px] py-1 font-semibold rounded ${versionSubTab === "ai" ? "bg-surface text-foreground" : "text-foreground-muted"}`}>AI Draft</button>
+                    <button onClick={() => setVersionSubTab("approved")} className={`flex-1 text-[9px] py-1 font-semibold rounded ${versionSubTab === "approved" ? "bg-surface text-foreground" : "text-foreground-muted"}`}>Approved</button>
+                    <button onClick={() => setVersionSubTab("published")} className={`flex-1 text-[9px] py-1 font-semibold rounded ${versionSubTab === "published" ? "bg-surface text-foreground" : "text-foreground-muted"}`}>Published</button>
+                  </div>
+
+                  <div className="bg-background/40 border border-border p-3 rounded-xl text-xs text-foreground/70 min-h-[120px] leading-relaxed">
+                    {versionSubTab === "ai" && (
+                      <p>{selectedItem.title || "(No draft title)"}</p>
+                    )}
+                    {versionSubTab === "approved" && (
+                      <p>{selectedItem.title || "(No approved title)"}</p>
+                    )}
+                    {versionSubTab === "published" && (
+                      <div className="space-y-2">
+                        {selectedItem.published_mismatch && (
+                          <div className="text-[9px] font-bold text-error-text bg-error-bg border border-error-border p-1.5 rounded flex items-center gap-1">
+                            <GitCompare className="w-3 h-3" /> Mismatch with approved version
+                          </div>
+                        )}
+                        <p>{selectedItem.title || "(No published title)"}</p>
+                        {selectedItem.published_at && (
+                          <p className="text-[9px] text-foreground-muted pt-1">Published at: {new Date(selectedItem.published_at).toLocaleString()}</p>
+                        )}
                       </div>
                     )}
                   </div>
+                </div>
+              )}
 
-                  {overallScore !== null && (
-                    <div className={`px-2.5 py-1 rounded-lg text-center text-[10px] font-bold uppercase tracking-wider ${scoreBand.color} bg-black/40 border border-[#2d2d2d]`}>
-                      {scoreBand.label}
+              {/* Tab 2: Findings (Scorecard & Defects) */}
+              {comparisonTab === "findings" && (
+                <div className="space-y-4">
+                  {/* Scorecard Slider / Select */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">Rubric Evaluation</h4>
+                      {overallScore !== null && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${scoreBand.color} bg-surface`}>
+                          Score: {overallScore}/100
+                        </span>
+                      )}
                     </div>
-                  )}
 
-                  <div className="space-y-2.5">
-                    {SCORECARD_CATEGORIES.map(cat => (
-                      <div key={cat.key}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[9px] font-bold text-[#666] uppercase tracking-wider">{cat.label}</span>
-                          <div className="flex items-center gap-0.5">
-                            {[0, 1, 2, 3, 4, 5].map(val => (
-                              <button key={val}
-                                onClick={() => handleScoreChange(cat.key, scorecard[cat.key] === val ? -1 : val)}
-                                className={`w-5 h-5 rounded text-[8px] font-bold transition-all ${
-                                  scorecard[cat.key] === val
-                                    ? val === 0 ? "bg-rose-500/30 text-rose-300 border border-rose-500/40"
-                                      : val === 1 ? "bg-orange-500/30 text-orange-300 border border-orange-500/40"
-                                      : val === 2 ? "bg-amber-500/30 text-amber-300 border border-amber-500/40"
-                                      : val === 3 ? "bg-yellow-500/30 text-yellow-300 border border-yellow-500/40"
-                                      : val === 4 ? "bg-lime-500/30 text-lime-300 border border-lime-500/40"
-                                      : "bg-emerald-500/30 text-emerald-300 border border-emerald-500/40"
-                                    : "bg-[#161616] text-[#555] border border-transparent hover:border-[#444]"
+                    <div className="space-y-2 bg-background/40 border border-border p-3 rounded-xl max-h-[200px] overflow-y-auto scrollbar-none">
+                      {SCORECARD_CATEGORIES.map(cat => (
+                        <div key={cat.key} className="flex items-center justify-between text-[10px]">
+                          <span className="text-foreground-muted">{cat.label}</span>
+                          <div className="flex gap-0.5">
+                            {[0, 1, 2, 3, 4, 5].map(v => (
+                              <button
+                                key={v}
+                                onClick={() => handleScoreChange(cat.key, scorecard[cat.key] === v ? -1 : v)}
+                                className={`w-4 h-4 rounded text-[8px] font-bold transition-all ${
+                                  scorecard[cat.key] === v
+                                    ? "bg-info-text text-black font-extrabold"
+                                    : "bg-surface text-foreground-muted hover:bg-surface-hover"
                                 }`}
-                                title={`${val}: ${scoreExplanations[val]}`}>
-                                {val}
+                              >
+                                {v}
                               </button>
                             ))}
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Defects List */}
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">Logged Defects</h4>
+                    {defects.length === 0 ? (
+                      <p className="text-[9px] text-foreground-muted italic">No defects identified.</p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
+                        {defects.map(d => (
+                          <div key={d.id} className="bg-surface-hover border border-border p-2 rounded-lg text-[10px] space-y-1">
+                            <div className="flex justify-between">
+                              <span className="font-semibold text-foreground truncate max-w-[120px]">{DEFECT_CATEGORIES.find(c => c.value === d.defect_category)?.label || d.defect_category}</span>
+                              <span className={`text-[8px] font-bold px-1 rounded ${SEVERITY_COLORS[d.defect_severity]}`}>{d.defect_severity}</span>
+                            </div>
+                            <p className="text-foreground">{d.defect_description}</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-
-                  {/* Eligibility info */}
-                  {selectedItem.audit_status === "in_audit" && (
-                    <div className="space-y-1 pt-2.5 border-t border-[#2d2d2d]">
-                      {!isScorecardComplete && <p className="text-[9px] text-amber-400 font-medium">Scorecard incomplete — all categories must be scored</p>}
-                      {hasMissingEvidence && <p className="text-[9px] text-rose-400 font-medium">Missing evidence — pass blocked</p>}
-                      {pubConsistencyZero && <p className="text-[9px] text-rose-400 font-medium">Publication Consistency is 0 — pass blocked</p>}
-                      {hasMajorOrCriticalDefects && <p className="text-[9px] text-rose-400 font-medium">Unresolved Major/Critical defects — pass blocked</p>}
-                      {complianceLow && <p className="text-[9px] text-purple-400 font-medium">Low Compliance Readiness — escalation recommended</p>}
-                      {sourceGroundingZero && <p className="text-[9px] text-orange-400 font-medium">Source Grounding is 0 — fail or Needs Correction recommended</p>}
-                      {passEligible && <p className="text-[9px] text-emerald-400 font-medium">Pass eligible — all checks passed</p>}
-                    </div>
-                  )}
                 </div>
+              )}
 
-                {/* Defect Log */}
-                <div className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Bug className="w-3.5 h-3.5 text-rose-400" />
-                      <h3 className="text-[10px] font-bold text-white uppercase tracking-wider">Defect Log</h3>
-                    </div>
-                    <span className="text-[10px] text-[#555]">{defects.length}</span>
-                  </div>
-                  {defects.length === 0 ? (
-                    <p className="text-[11px] text-[#555] italic text-center py-2">No defects logged.</p>
-                  ) : (
-                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                      {defects.map(d => (
-                        <div key={d.id} className="p-2.5 bg-black/30 border border-[#2d2d2d] rounded-lg">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <SeverityBadge severity={d.defect_severity} />
-                            <span className="text-[9px] text-[#666]">{DEFECT_CATEGORIES.find(c => c.value === d.defect_category)?.label}</span>
+              {/* Tab 3: Evidence & Notes */}
+              {comparisonTab === "evidence" && (
+                <div className="space-y-4">
+                  {/* Evidence Packages */}
+                  <div className="space-y-2">
+                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">Evidence Files</h4>
+                    {evidence.length === 0 ? (
+                      <p className="text-[9px] text-foreground-muted italic">No evidence artifacts.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {evidence.map(e => (
+                          <div key={e.id} className="bg-surface-hover border border-border rounded-lg p-2 flex items-center gap-2 text-[10px]">
+                            <FileText className="w-3.5 h-3.5 text-info-text shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-foreground truncate">{e.evidence_type}</p>
+                              <p className="text-[8px] text-foreground-muted">{e.evidence_reference}</p>
+                            </div>
                           </div>
-                          <p className="text-[11px] text-[#aaa]">{d.defect_description}</p>
-                          {d.owner && <p className="text-[9px] text-[#555] mt-1">Owner: {d.owner}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Corrective Actions */}
-                <div className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ClipboardList className="w-3.5 h-3.5 text-amber-400" />
-                      <h3 className="text-[10px] font-bold text-white uppercase tracking-wider">Corrective Actions</h3>
-                    </div>
-                    <span className="text-[10px] text-[#555]">{correctiveActions.length}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {correctiveActions.length === 0 ? (
-                    <p className="text-[11px] text-[#555] italic text-center py-2">No corrective actions.</p>
-                  ) : (
-                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                      {correctiveActions.map(ca => (
-                        <div key={ca.id} className="p-2.5 bg-black/30 border border-[#2d2d2d] rounded-lg">
-                          <div className="flex items-center justify-between mb-0.5">
-                            <span className="text-[11px] font-bold text-[#ccc]">{ca.title}</span>
-                            <span className={`text-[9px] font-bold px-1 py-0.5 rounded border ${
-                              ca.status === "completed" || ca.status === "closed" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" :
-                              ca.status === "overdue" ? "text-rose-400 bg-rose-500/10 border-rose-500/20" :
-                              "text-amber-400 bg-amber-500/10 border-amber-500/20"
-                            }`}>{ca.status.replace(/_/g, " ")}</span>
+
+                  {/* Notes Feed */}
+                  <div className="space-y-2 pt-3 border-t border-border">
+                    <h4 className="text-[10px] font-bold text-foreground uppercase tracking-wider">Internal Notes</h4>
+                    <div className="space-y-2 max-h-36 overflow-y-auto">
+                      {notes.length === 0 ? (
+                        <p className="text-[9px] text-foreground-muted italic">No audit notes.</p>
+                      ) : (
+                        notes.map(note => (
+                          <div key={note.id} className="bg-surface-hover border border-border rounded-lg p-2 text-[10px]">
+                            <div className="flex justify-between text-foreground-muted text-[8px] mb-1 font-semibold">
+                              <span>{note.created_by?.slice(0, 8)}</span>
+                              <span>{formatDate(note.created_at)}</span>
+                            </div>
+                            <p className="text-foreground leading-normal">{note.note_body}</p>
                           </div>
-                          <p className="text-[10px] text-[#666]">Owner: {ca.owner} · {ca.priority}</p>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
-                  )}
-                </div>
-
-                {/* Audit Notes */}
-                <div className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
-                      <h3 className="text-[10px] font-bold text-white uppercase tracking-wider">Notes</h3>
-                      <span className="px-1 py-0.5 rounded bg-amber-500/10 text-[8px] font-bold text-amber-400 uppercase">Internal</span>
+                    <div className="flex gap-1.5 mt-2">
+                      <input
+                        type="text"
+                        placeholder="Add quick audit note…"
+                        value={feedbackText}
+                        onChange={e => setFeedbackText(e.target.value)}
+                        className="flex-1 bg-surface border border-border rounded-lg px-2 py-1 text-[10px] text-foreground placeholder-foreground-muted outline-none"
+                      />
+                      <button
+                        onClick={handleAddNote}
+                        disabled={actionLoading === "add-note" || !feedbackText.trim()}
+                        className="px-2.5 bg-info-text hover:brightness-110 disabled:opacity-40 text-black text-[10px] font-bold rounded-lg transition-all"
+                      >
+                        Add
+                      </button>
                     </div>
-                    <span className="text-[10px] text-[#555]">{notes.length}</span>
                   </div>
-                  {notes.length === 0 ? (
-                    <p className="text-[11px] text-[#555] italic text-center py-2">No notes added.</p>
-                  ) : (
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {notes.map(n => (
-                        <div key={n.id} className="p-2.5 bg-black/30 border border-[#2d2d2d] rounded-lg">
-                          <p className="text-[11px] text-[#aaa]">{n.note_body}</p>
-                          <p className="text-[9px] text-[#555] mt-1">{n.created_by} · {formatDate(n.created_at)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
-
-                {/* Evidence Trail */}
-                <div className="p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Paperclip className="w-3.5 h-3.5 text-emerald-400" />
-                    <h3 className="text-[10px] font-bold text-white uppercase tracking-wider">Evidence Trail</h3>
-                    <span className="text-[10px] text-[#555]">{evidence.length}</span>
-                  </div>
-                  {evidence.length === 0 ? (
-                    <p className="text-[11px] text-[#555] italic text-center py-2">No evidence captured.</p>
-                  ) : (
-                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                      {evidence.map(e => (
-                        <div key={e.id} className="flex items-center gap-2 p-2 bg-black/30 border border-[#2d2d2d] rounded-lg">
-                          <FileText className="w-3 h-3 text-indigo-400 shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-[11px] text-[#aaa] truncate">{e.evidence_type}</p>
-                            <p className="text-[9px] text-[#555]">{formatDate(e.captured_at)}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
-
-      {/* ── Modals ──────────────────────────────────────────── */}
-
-      {/* Create Defect Modal */}
-      {showDefectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowDefectModal(false)}>
-          <div className="bg-[#0a0a0a] border border-[#2d2d2d] rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-bold text-white">Create Defect</h3>
-              <button onClick={() => setShowDefectModal(false)} className="p-1 hover:bg-[#161616] rounded-lg text-[#888]">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="space-y-3.5">
-              <div>
-                <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Category</label>
-                <select value={newDefect.defect_category} onChange={e => setNewDefect(prev => ({ ...prev, defect_category: e.target.value as DefectCategory }))}
-                  className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500/40">
-                  {DEFECT_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Severity</label>
-                <div className="flex gap-1.5">
-                  {(["minor", "moderate", "major", "critical"] as DefectSeverity[]).map(s => (
-                    <button key={s} onClick={() => setNewDefect(prev => ({ ...prev, defect_severity: s }))}
-                      className={`flex-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                        newDefect.defect_severity === s ? SEVERITY_COLORS[s] : "bg-[#161616] text-[#555] border border-transparent"
-                      }`}>{s}</button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Description</label>
-                <textarea value={newDefect.defect_description} onChange={e => setNewDefect(prev => ({ ...prev, defect_description: e.target.value }))}
-                  rows={3} className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40 resize-none"
-                  placeholder="Describe the defect..." />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Evidence Ref</label>
-                  <input type="text" value={newDefect.evidence_reference} onChange={e => setNewDefect(prev => ({ ...prev, evidence_reference: e.target.value }))}
-                    className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Responsible Source</label>
-                  <input type="text" value={newDefect.responsible_source} onChange={e => setNewDefect(prev => ({ ...prev, responsible_source: e.target.value }))}
-                    className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Owner</label>
-                  <input type="text" value={newDefect.owner} onChange={e => setNewDefect(prev => ({ ...prev, owner: e.target.value }))}
-                    className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Due Date</label>
-                  <input type="date" value={newDefect.due_at} onChange={e => setNewDefect(prev => ({ ...prev, due_at: e.target.value }))}
-                    className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500/40" />
-                </div>
-              </div>
-              <label className="flex items-center gap-2 text-xs text-[#aaa] cursor-pointer">
-                <input type="checkbox" checked={newDefect.corrective_action_required ?? false}
-                  onChange={e => setNewDefect(prev => ({ ...prev, corrective_action_required: e.target.checked }))}
-                  className="rounded border-[#444] bg-[#111] text-indigo-600" />
-                Corrective action required
-              </label>
-            </div>
-            <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-[#2d2d2d]">
-              <button onClick={() => setShowDefectModal(false)} className="px-4 py-2 bg-[#161616] hover:bg-[#1a1a1a] text-[#888] rounded-lg text-xs font-medium transition-colors">Cancel</button>
-              <button onClick={handleCreateDefect} disabled={!newDefect.defect_description || actionLoading === "create-defect"}
-                className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-800 text-white rounded-lg text-xs font-medium transition-colors">
-                {actionLoading === "create-defect" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bug className="w-3 h-3" />}
-                Create Defect
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Corrective Action Modal */}
-      {showCorrectiveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCorrectiveModal(false)}>
-          <div className="bg-[#0a0a0a] border border-[#2d2d2d] rounded-2xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-bold text-white">Create Corrective Action</h3>
-              <button onClick={() => setShowCorrectiveModal(false)} className="p-1 hover:bg-[#161616] rounded-lg text-[#888]"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="space-y-3.5">
-              <div>
-                <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Title</label>
-                <input type="text" value={newCorrective.title} onChange={e => setNewCorrective(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Required Action</label>
-                <textarea value={newCorrective.required_action} onChange={e => setNewCorrective(prev => ({ ...prev, required_action: e.target.value }))}
-                  rows={3} className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40 resize-none" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Owner</label>
-                  <input type="text" value={newCorrective.owner} onChange={e => setNewCorrective(prev => ({ ...prev, owner: e.target.value }))}
-                    className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Priority</label>
-                  <select value={newCorrective.priority} onChange={e => setNewCorrective(prev => ({ ...prev, priority: e.target.value }))}
-                    className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500/40">
-                    <option value="low">Low</option><option value="medium">Medium</option>
-                    <option value="high">High</option><option value="critical">Critical</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Status</label>
-                  <select value={newCorrective.status} onChange={e => setNewCorrective(prev => ({ ...prev, status: e.target.value as CorrectiveActionStatus }))}
-                    className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500/40">
-                    {CORRECTIVE_ACTION_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Due Date</label>
-                  <input type="date" value={newCorrective.due_at} onChange={e => setNewCorrective(prev => ({ ...prev, due_at: e.target.value }))}
-                    className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500/40" />
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-[#2d2d2d]">
-              <button onClick={() => setShowCorrectiveModal(false)} className="px-4 py-2 bg-[#161616] hover:bg-[#1a1a1a] text-[#888] rounded-lg text-xs font-medium">Cancel</button>
-              <button onClick={handleCreateCorrective} disabled={!newCorrective.title || actionLoading === "create-corrective"}
-                className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:bg-amber-800 text-white rounded-lg text-xs font-medium">
-                {actionLoading === "create-corrective" ? <Loader2 className="w-3 h-3 animate-spin" /> : <ClipboardList className="w-3 h-3" />}
-                Create
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Note Modal */}
-      {showNoteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowNoteModal(false)}>
-          <div className="bg-[#0a0a0a] border border-[#2d2d2d] rounded-2xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-bold text-white">Add Audit Note</h3>
-              <button onClick={() => setShowNoteModal(false)} className="p-1 hover:bg-[#161616] rounded-lg text-[#888]"><X className="w-4 h-4" /></button>
-            </div>
-            <textarea value={noteText} onChange={e => setNoteText(e.target.value)}
-              rows={4} className="w-full p-3 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40 resize-none"
-              placeholder="Type your internal audit note..." />
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 mt-2.5 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-              <Lock className="w-3 h-3 text-amber-400" />
-              <span className="text-[9px] text-amber-400 font-medium">Internal only — not visible to source module</span>
-            </div>
-            <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-[#2d2d2d]">
-              <button onClick={() => setShowNoteModal(false)} className="px-4 py-2 bg-[#161616] hover:bg-[#1a1a1a] text-[#888] rounded-lg text-xs font-medium">Cancel</button>
-              <button onClick={handleAddNote} disabled={!noteText.trim() || actionLoading === "add-note"}
-                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white rounded-lg text-xs font-medium">
-                {actionLoading === "add-note" ? <Loader2 className="w-3 h-3 animate-spin" /> : <MessageSquare className="w-3 h-3" />}
-                Add Note
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Score Override Modal */}
-      {showOverrideModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowOverrideModal(false)}>
-          <div className="bg-[#0a0a0a] border border-[#2d2d2d] rounded-2xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-bold text-white">Score Override</h3>
-              <button onClick={() => setShowOverrideModal(false)} className="p-1 hover:bg-[#161616] rounded-lg text-[#888]"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="flex items-center justify-center p-5 bg-[#111] border border-[#2d2d2d] rounded-xl mb-4">
-              <div className="text-center">
-                <div className={`text-3xl font-bold ${scoreBand.color}`}>{overallScore !== null ? overallScore : "--"}</div>
-                <div className="text-[10px] font-bold text-[#555] uppercase tracking-wider mt-0.5">Current Score</div>
-              </div>
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-[#666] uppercase tracking-wider mb-1 block">Override Reason</label>
-              <textarea value={overrideReason} onChange={e => setOverrideReason(e.target.value)}
-                rows={3} className="w-full p-2.5 bg-[#111] border border-[#2d2d2d] rounded-lg text-xs text-white placeholder:text-[#555] focus:outline-none focus:border-indigo-500/40 resize-none"
-                placeholder="Explain why the score is being overridden..." />
-            </div>
-            <div className="flex items-start gap-2 px-2.5 py-2 mt-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-              <span className="text-[10px] text-amber-400">Score override will not remove defect history or bypass unresolved Major/Critical defects.</span>
-            </div>
-            <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-[#2d2d2d]">
-              <button onClick={() => setShowOverrideModal(false)} className="px-4 py-2 bg-[#161616] hover:bg-[#1a1a1a] text-[#888] rounded-lg text-xs font-medium">Cancel</button>
-              <button onClick={handleScoreOverride} disabled={!overrideReason.trim() || actionLoading === "override"}
-                className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white rounded-lg text-xs font-medium">
-                {actionLoading === "override" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Edit3 className="w-3 h-3" />}
-                Apply Override
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

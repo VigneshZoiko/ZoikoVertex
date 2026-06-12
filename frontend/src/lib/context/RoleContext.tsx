@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useRef, ReactNode } from "react";
 import { api } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseReady } from "@/lib/supabase";
 
 interface RoleContextType {
   role: string | null;
@@ -14,6 +14,7 @@ interface RoleContextType {
   premiumPaidUntil: string | null;
   isSuperAdmin: boolean;
   isLoading: boolean;
+  isBackendOffline: boolean;
   hasRole: (allowedRoles: string[]) => boolean;
   refresh: () => Promise<void>;
 }
@@ -77,6 +78,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [premiumPaidUntil, setPremiumPaidUntil] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBackendOffline, setIsBackendOffline] = useState(false);
   const workspaceIdRef = useRef<string | null>(null);
 
   // Seed from localStorage before first paint — eliminates skeleton flash on revisit
@@ -99,6 +101,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     try {
       if (!background) setIsLoading(true);
 
+      if (!isSupabaseReady) {
+        setRole(null);
+        setIsSuperAdmin(false);
+        setIsLoading(false);
+        return;
+      }
+
       // getSession() reads from localStorage — no network round-trip to Supabase Auth.
       // The backend's authenticate middleware still verifies the JWT server-side.
       const { data: sessionData } = await supabase.auth.getSession();
@@ -117,6 +126,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
       const result = await api.get("/api/v1/user/context");
       if (result.success) {
+        setIsBackendOffline(false);
         if (result.data.role) { nextRole = result.data.role.toUpperCase(); setRole(nextRole); }
         if (result.data.org_status) setOrgStatus(result.data.org_status);
         if (result.data.workspace_status) setWorkspaceStatus(result.data.workspace_status);
@@ -145,9 +155,20 @@ export function RoleProvider({ children }: { children: ReactNode }) {
           window.location.href = '/login?error=org_deleted';
         }
         return;
+      } else if (result.status === 401) {
+        // Backend rejected the session token (expired, project paused, or network issue
+        // between backend and Supabase). Sign out to clear stale state so the user can
+        // log in again with a fresh token.
+        clearCache();
+        await supabase.auth.signOut();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+        return;
       }
     } catch (err) {
       console.error("Failed to fetch user role context:", err);
+      setIsBackendOffline(true);
       if (!background) clearCache();
     } finally {
       if (!background) setIsLoading(false);
@@ -157,6 +178,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const cached = readCache();
     fetchUserRole(!!cached);
+
+    if (!isSupabaseReady) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN') {
@@ -220,6 +243,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     premiumPaidUntil,
     isSuperAdmin,
     isLoading,
+    isBackendOffline,
     hasRole,
     refresh: () => fetchUserRole(false),
   };

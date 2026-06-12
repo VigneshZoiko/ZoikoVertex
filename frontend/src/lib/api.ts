@@ -112,6 +112,19 @@ export const api = {
     return response.json();
   },
 
+  async getBlob(endpoint: string): Promise<Blob> {
+    const auth = await resolveAuth();
+    if (!auth.ok) throw new Error(auth.reason === "NO_SESSION" ? "No session" : "Session expired");
+    const response = await safeFetch(`${BACKEND_URL}${endpoint}`, {
+      headers: { ...auth.headers },
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.statusText);
+      throw new Error(`GET ${endpoint} failed: ${response.status} ${text}`);
+    }
+    return response.blob();
+  },
+
   async postBlob(endpoint: string, body: unknown): Promise<Blob> {
     const auth = await resolveAuth();
     if (!auth.ok) throw new Error(auth.reason === "NO_SESSION" ? "No session" : "Session expired");
@@ -741,6 +754,11 @@ export const api = {
     return this.post(`/api/v1/prompts/${id}/versions`, data);
   },
 
+  // Test Center — classify a post description through the governance pipeline.
+  async classifyTestDescription(body: { description: string; platform?: string; prompt_id?: string }) {
+    return this.post("/api/v1/prompts/test-center/classify", body);
+  },
+
   // ─── KNOWLEDGE BASE API CLIENT ───
   async listKnowledgeBases() {
     return this.get("/api/v1/knowledge/bases");
@@ -783,6 +801,41 @@ export const api = {
       `/api/v1/knowledge/collections/${collectionId}/sources`,
       formData,
     );
+  },
+
+  async getKnowledgeSource(id: string) {
+    return this.get(`/api/v1/knowledge/sources/${id}`);
+  },
+
+  async updateKnowledgeSource(id: string, data: any) {
+    return this.patch(`/api/v1/knowledge/sources/${id}`, data);
+  },
+
+  async deleteKnowledgeSource(id: string) {
+    return this.delete(`/api/v1/knowledge/sources/${id}`);
+  },
+
+  // AI-assisted governance category check (Groq primary, Gemini optional fallback).
+  async classifySourceGovernance(id: string) {
+    return this.post(`/api/v1/knowledge/sources/${id}/classify-governance`, {});
+  },
+
+  // Admin / workspace owner resolves a governance-category check.
+  // decision: 'accept' | 'keep' | 'review'
+  async decideSourceGovernance(id: string, body: { decision: "accept" | "keep" | "review"; reason?: string }) {
+    return this.post(`/api/v1/knowledge/sources/${id}/governance-decision`, body);
+  },
+
+  async listKnowledgeReviews(sourceId: string) {
+    return this.get(`/api/v1/knowledge/reviews?source_id=${encodeURIComponent(sourceId)}`);
+  },
+
+  async listTeamMembers() {
+    return this.get("/api/v1/team/members");
+  },
+
+  async decideKnowledgeTransfer(id: string, decision: "allow" | "block") {
+    return this.post(`/api/v1/knowledge/sources/${id}/transfer/decision`, { decision });
   },
 
   async approveKnowledgeSource(id: string) {

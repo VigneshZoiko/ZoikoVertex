@@ -108,14 +108,14 @@ export default function EvidenceItemDetailPage() {
   useEffect(() => { fetchItem(); }, [fetchItem]);
 
   if (loading) return <div className="p-8 text-[#888]">Loading item...</div>;
-  if (error) return <div className="p-8 text-red-400">{error}</div>;
+  if (error) return <div className="p-8 text-error-text">{error}</div>;
   if (!item) return <div className="p-8 text-[#888]">Item not found</div>;
 
-  const statusColor = item.vault_state === 'preserved' ? 'text-green-400 border-green-400/30 bg-green-400/10' :
-    item.vault_state === 'legal_hold' ? 'text-red-400 border-red-400/30 bg-red-400/10' :
-    item.vault_state === 'quarantined' ? 'text-amber-400 border-amber-400/30 bg-amber-400/10' :
-    item.vault_state === 'failed' ? 'text-red-500 border-red-500/30 bg-red-500/10' :
-    'text-slate-400 border-slate-400/30 bg-slate-400/10';
+  const statusColor = item.vault_state === 'preserved' ? 'text-success-text border-success-border bg-success-bg' :
+    item.vault_state === 'legal_hold' ? 'text-error-text border-error-border bg-error-bg' :
+    item.vault_state === 'quarantined' ? 'text-warning-text border-warning-border bg-warning-bg' :
+    item.vault_state === 'failed' ? 'text-error-text border-error-border bg-error-bg' :
+    'text-info-text border-info-border bg-info-bg';
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -127,7 +127,7 @@ export default function EvidenceItemDetailPage() {
         <div className="flex items-center gap-3">
           <Archive className="w-5 h-5 text-[#888]" />
           <div>
-            <h1 className="text-lg font-semibold text-white font-mono">{item.item_id}</h1>
+            <h1 className="text-lg font-semibold text-foreground font-mono">{item.item_id}</h1>
             <p className="text-xs text-[#888]">{item.source_system}:{item.source_id}</p>
           </div>
           <Badge label={item.vault_state.replace(/_/g, ' ')} color={statusColor} />
@@ -145,7 +145,7 @@ export default function EvidenceItemDetailPage() {
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-1.5 px-3 py-2 text-xs border-b-2 whitespace-nowrap transition-colors ${
-              activeTab === tab.id ? "text-amber-400 border-amber-400" : "text-[#666] border-transparent hover:text-white hover:border-[#444]"
+              activeTab === tab.id ? "text-warning-text border-warning-border" : "text-[#666] border-transparent hover:text-white hover:border-[#444]"
             }`}>
             <tab.icon className="w-3 h-3" /> {tab.label}
           </button>
@@ -186,7 +186,7 @@ export default function EvidenceItemDetailPage() {
           </Section>
           {verifyResult && (
             <Section title="Verification Result" className="md:col-span-2">
-              <div className={`text-xs ${verifyResult.verified ? 'text-green-400' : 'text-red-400'} mb-2`}>
+              <div className={`text-xs ${verifyResult.verified ? 'text-success-text' : 'text-error-text'} mb-2`}>
                 {verifyResult.verified ? '✓ Integrity Verified' : '✗ Verification Failed'}
               </div>
               <Row label="Original Hash Match" value={verifyResult.original_hash_match !== undefined ? (verifyResult.original_hash_match ? '✓ Match' : '✗ Mismatch') : 'N/A'} />
@@ -291,7 +291,7 @@ export default function EvidenceItemDetailPage() {
             {item.hold_ids && item.hold_ids.length > 0 ? (
               <div className="space-y-1">
                 {item.hold_ids.map((hid, i) => (
-                  <div key={i} className="text-xs text-red-400 font-mono bg-red-400/5 rounded px-2 py-1">HLD: {hid}</div>
+                  <div key={i} className="text-xs text-error-text font-mono bg-error-bg rounded px-2 py-1">HLD: {hid}</div>
                 ))}
               </div>
             ) : (

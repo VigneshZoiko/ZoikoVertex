@@ -141,33 +141,33 @@ function platformColor(platform: string): string {
     case "TWITTER":   return "text-sky-400 bg-sky-400/10";
     case "LINKEDIN":  return "text-blue-400 bg-blue-400/10";
     case "FACEBOOK":  return "text-blue-500 bg-blue-500/10";
-    case "THREADS":   return "text-white bg-white/10";
+    case "THREADS":   return "text-foreground bg-surface";
     case "YOUTUBE":   return "text-red-400 bg-red-400/10";
-    default:          return "text-[#888] bg-white/5";
+    default:          return "text-foreground-muted bg-surface";
   }
 }
 
 function statusColor(s: string): string {
   switch (s) {
-    case "UNREAD":         return "text-sky-400 bg-sky-400/10 border border-sky-400/20";
-    case "OPEN":           return "text-white/50 bg-white/5 border border-white/8";
-    case "ASSIGNED":       return "text-yellow-400 bg-yellow-400/10 border border-yellow-400/20";
-    case "IN_PROGRESS":    return "text-blue-400 bg-blue-400/10 border border-blue-400/20";
-    case "ESCALATED":      return "text-red-400 bg-red-400/10 border border-red-400/20";
-    case "PENDING_REVIEW": return "text-orange-400 bg-orange-400/10 border border-orange-400/20";
-    case "RESOLVED":       return "text-emerald-400 bg-emerald-400/10 border border-emerald-400/20";
-    case "ARCHIVED":       return "text-[#444] bg-white/[0.03] border border-white/5";
-    default:               return "text-[#666] bg-white/[0.03] border border-white/5";
+    case "UNREAD":         return "text-info-text bg-info-bg border border-info-border";
+    case "OPEN":           return "text-foreground/50 bg-surface border border-border";
+    case "ASSIGNED":       return "text-warning-text bg-warning-bg border border-warning-border";
+    case "IN_PROGRESS":    return "text-info-text bg-info-bg border border-info-border";
+    case "ESCALATED":      return "text-error-text bg-error-bg border border-error-border";
+    case "PENDING_REVIEW": return "text-warning-text bg-warning-bg border border-warning-border";
+    case "RESOLVED":       return "text-success-text bg-success-bg border border-success-border";
+    case "ARCHIVED":       return "text-foreground-muted bg-surface-hover border border-border";
+    default:               return "text-foreground-muted bg-surface-hover border border-border";
   }
 }
 
 function riskColor(r: string): string {
   switch (r) {
-    case "LOW":      return "text-emerald-500";
-    case "MEDIUM":   return "text-yellow-400";
-    case "HIGH":     return "text-red-400";
-    case "CRITICAL": return "text-red-500";
-    default:         return "text-[#555]";
+    case "LOW":      return "text-success-text";
+    case "MEDIUM":   return "text-warning-text";
+    case "HIGH":     return "text-error-text";
+    case "CRITICAL": return "text-error-text";
+    default:         return "text-foreground-muted";
   }
 }
 
@@ -198,12 +198,12 @@ function MessageListItem({
 }) {
   return (
     <div
-      className={`w-full text-left px-3 py-2.5 border-b border-[#0f0f0f] transition-all duration-100 relative group ${
+      className={`w-full text-left px-3 py-2.5 border-b border-border transition-all duration-100 relative group ${
         selected
-          ? "bg-white/[0.05] border-l-2 border-l-sky-500/80"
+          ? "bg-white/[0.05] border-l-2 border-l-info-border"
           : checked
-          ? "bg-red-500/[0.04] border-l-2 border-l-red-500/40"
-          : "border-l-2 border-l-transparent hover:bg-white/[0.02]"
+          ? "bg-error-bg border-l-2 border-l-error-border"
+          : "border-l-2 border-l-transparent hover:bg-surface-hover"
       }`}
     >
       <div className="flex items-start gap-2">
@@ -213,15 +213,15 @@ function MessageListItem({
           className={`flex-shrink-0 mt-1 transition-opacity ${selectMode ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
         >
           {checked
-            ? <CheckSquare className="w-3.5 h-3.5 text-red-400" />
-            : <Square className="w-3.5 h-3.5 text-[#333]" />}
+            ? <CheckSquare className="w-3.5 h-3.5 text-error-text" />
+            : <Square className="w-3.5 h-3.5 text-foreground-muted" />}
         </button>
 
         {/* Message content — clickable to open detail */}
         <button onClick={onClick} className="flex-1 min-w-0 text-left">
           <div className="flex items-start gap-2">
             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5 ${
-              selected ? "bg-sky-500/15 text-sky-300" : "bg-[#181818] text-[#555]"
+              selected ? "bg-info-bg text-info-text" : "bg-surface text-foreground-muted"
             }`}>
               {initials(msg.sender_name)}
             </div>
@@ -231,23 +231,23 @@ function MessageListItem({
                   <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${platformColor(msg.platform)}`}>
                     {platformBadge(msg.platform)}
                   </span>
-                  <span className="text-[11px] text-white/90 font-medium truncate">{msg.sender_name}</span>
-                  {msg.status === "UNREAD" && <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0" />}
+                  <span className="text-[11px] text-foreground font-medium truncate">{msg.sender_name}</span>
+                  {msg.status === "UNREAD" && <span className="w-1.5 h-1.5 rounded-full bg-info-text flex-shrink-0" />}
                 </div>
-                <span className="text-[9px] text-[#383838] flex-shrink-0">{timeAgo(msg.received_at)}</span>
+                <span className="text-[9px] text-foreground-muted flex-shrink-0">{timeAgo(msg.received_at)}</span>
               </div>
-              <p className="text-[11px] text-[#555] line-clamp-1 leading-relaxed mb-1">{msg.message_body}</p>
+              <p className="text-[11px] text-foreground-muted line-clamp-1 leading-relaxed mb-1">{msg.message_body}</p>
               <div className="flex items-center gap-1.5">
                 <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${statusColor(msg.status)}`}>
                   {msg.status.replace(/_/g, " ")}
                 </span>
                 <span className={`text-[9px] font-medium ${riskColor(msg.risk_level)}`}>{msg.risk_level}</span>
                 {msg.recipient_account_handle && (
-                  <span className="text-[9px] text-[#2a2a2a] truncate ml-1 max-w-[80px]" title={`Your account: ${msg.recipient_account_name || msg.recipient_account_handle}`}>
+                  <span className="text-[9px] text-foreground/50 truncate ml-1 max-w-[80px]" title={`Your account: ${msg.recipient_account_name || msg.recipient_account_handle}`}>
                     → @{msg.recipient_account_handle}
                   </span>
                 )}
-                <span className="text-[#383838] ml-auto">
+                <span className="text-foreground-muted ml-auto">
                   {isComment(msg) ? <MessageCircle className="w-2.5 h-2.5" /> : <MessageSquare className="w-2.5 h-2.5" />}
                 </span>
               </div>
@@ -276,44 +276,44 @@ function DmBubble({ body, time, isMine, status, replyType, sending, retryCount, 
     <div className={`flex ${isMine ? "justify-end" : "justify-start"} mb-3`}>
       <div className={`max-w-[72%] flex flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
         {isAutoSent && (
-          <span className="text-[9px] text-emerald-400/50 px-1 mb-0.5">⚡ Auto-replied</span>
+          <span className="text-[9px] text-success-text/50 px-1 mb-0.5">⚡ Auto-replied</span>
         )}
         <div className={`px-3.5 py-2.5 rounded-2xl text-[13px] leading-[1.55] ${
           isMine
             ? isAutoSent
-              ? "bg-emerald-500/5 text-emerald-200/60 rounded-br-sm border border-emerald-500/15"
+              ? "bg-success-bg text-success-text rounded-br-sm border border-success-border"
               : failed
-                ? "bg-red-900/30 text-red-200/70 rounded-br-sm border border-red-500/20"
+                ? "bg-error-text/30 text-error-text rounded-br-sm border border-error-border"
                 : sending
-                  ? "bg-sky-700/50 text-sky-200/80 rounded-br-sm"
-                  : "bg-sky-600 text-white rounded-br-sm"
-            : "bg-[#161616] text-[#d4d4d4] rounded-bl-sm border border-[#202020]"
+                  ? "bg-info-text/50 text-info-text/80 rounded-br-sm"
+                  : "bg-info-text text-foreground rounded-br-sm"
+            : "bg-surface text-[#d4d4d4] rounded-bl-sm border border-border"
         }`}>
           {body}
         </div>
         <div className="flex items-center gap-1.5 px-1">
-          <span className="text-[10px] text-[#333]">{time}</span>
+          <span className="text-[10px] text-foreground-muted">{time}</span>
           {isMine && failed && (
             <>
-              <X className="w-2.5 h-2.5 text-red-400/80" />
+              <X className="w-2.5 h-2.5 text-error-text/80" />
               {!maxed ? (
                 <button
                   onClick={onRetry}
                   title={`Retry (${retryCount ?? 0}/${MAX_RETRIES})`}
-                  className="text-[#444] hover:text-sky-400 transition-colors"
+                  className="text-foreground-muted hover:text-info-text transition-colors"
                 >
                   <RefreshCcw className="w-2.5 h-2.5" />
                 </button>
               ) : (
-                <span className="text-[9px] text-red-400/50">max retries</span>
+                <span className="text-[9px] text-error-text/50">max retries</span>
               )}
             </>
           )}
           {isMine && !isAutoSent && !sending && !failed && status === "sent" && (
-            <span className="text-[10px] text-[#333]">✓</span>
+            <span className="text-[10px] text-foreground-muted">✓</span>
           )}
-          {isMine && sending && <span className="text-[10px] text-[#383838]">…</span>}
-          {isMine && replyType === "ai_draft" && <Sparkles className="w-2.5 h-2.5 text-sky-500/70" />}
+          {isMine && sending && <span className="text-[10px] text-foreground-muted">…</span>}
+          {isMine && replyType === "ai_draft" && <Sparkles className="w-2.5 h-2.5 text-info-text/70" />}
         </div>
       </div>
     </div>
@@ -335,37 +335,37 @@ function CommentItem({ body, author, time, isMine, sending, replyType, status, r
     <div className={`flex items-start gap-2.5 ${isMine ? "ml-7" : ""}`}>
       <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-bold mt-0.5 ${
         isMine
-          ? failed ? "bg-red-500/10 text-red-300" : isAutoSent ? "bg-emerald-500/10 text-emerald-400/70" : "bg-sky-500/15 text-sky-300"
-          : "bg-[#181818] text-[#555]"
+          ? failed ? "bg-error-bg text-error-text" : isAutoSent ? "bg-success-bg text-success-text/70" : "bg-info-bg text-info-text"
+          : "bg-surface text-foreground-muted"
       }`}>
         {isMine ? "ME" : initials(author)}
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-          <span className={`text-[11px] font-semibold ${isMine ? (failed ? "text-red-400/70" : isAutoSent ? "text-emerald-400/60" : "text-sky-400") : "text-[#c0c0c0]"}`}>
+          <span className={`text-[11px] font-semibold ${isMine ? (failed ? "text-error-text/70" : isAutoSent ? "text-success-text/60" : "text-info-text") : "text-[#c0c0c0]"}`}>
             {isMine ? (isAutoSent ? "⚡ Auto-reply" : "You") : author}
           </span>
-          <span className="text-[10px] text-[#333]">{time}</span>
-          {isMine && replyType === "ai_draft" && <Sparkles className="w-2.5 h-2.5 text-sky-500/70" />}
+          <span className="text-[10px] text-foreground-muted">{time}</span>
+          {isMine && replyType === "ai_draft" && <Sparkles className="w-2.5 h-2.5 text-info-text/70" />}
           {isMine && failed && (
             <>
-              <X className="w-2.5 h-2.5 text-red-400/80" />
+              <X className="w-2.5 h-2.5 text-error-text/80" />
               {!maxed ? (
                 <button
                   onClick={onRetry}
                   title={`Retry (${retryCount ?? 0}/${MAX_RETRIES})`}
-                  className="text-[#444] hover:text-sky-400 transition-colors"
+                  className="text-foreground-muted hover:text-info-text transition-colors"
                 >
                   <RefreshCcw className="w-2.5 h-2.5" />
                 </button>
               ) : (
-                <span className="text-[9px] text-red-400/50">max retries</span>
+                <span className="text-[9px] text-error-text/50">max retries</span>
               )}
             </>
           )}
         </div>
         <p className={`text-[13px] leading-[1.55] ${
-          failed ? "text-red-200/50 line-through decoration-red-500/30" : isAutoSent ? "text-emerald-200/40 italic" : sending ? "text-[#555]" : "text-[#bbb]"
+          failed ? "text-error-text line-through decoration-error-border" : isAutoSent ? "text-success-text italic" : sending ? "text-foreground-muted" : "text-[#bbb]"
         }`}>{body}</p>
       </div>
     </div>
@@ -378,26 +378,26 @@ function ChatSkeleton() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header skeleton */}
-      <div className="border-b border-[#111] px-4 py-2.5 flex items-center justify-between flex-shrink-0">
+      <div className="border-b border-border px-4 py-2.5 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-[#181818] skeleton-shimmer flex-shrink-0" />
+          <div className="w-7 h-7 rounded-full bg-surface skeleton-shimmer flex-shrink-0" />
           <div className="flex flex-col gap-1.5">
-            <div className="h-3 w-28 rounded bg-[#181818] skeleton-shimmer" />
-            <div className="h-2 w-16 rounded bg-[#141414] skeleton-shimmer" />
+            <div className="h-3 w-28 rounded bg-surface skeleton-shimmer" />
+            <div className="h-2 w-16 rounded bg-surface skeleton-shimmer" />
           </div>
         </div>
         <div className="flex gap-1.5">
           {[1,2,3].map(i => (
-            <div key={i} className="w-6 h-6 rounded-lg bg-[#141414] skeleton-shimmer" />
+            <div key={i} className="w-6 h-6 rounded-lg bg-surface skeleton-shimmer" />
           ))}
         </div>
       </div>
 
       {/* Tab bar skeleton */}
-      <div className="border-b border-[#111] px-4 py-0 flex gap-5 flex-shrink-0">
+      <div className="border-b border-border px-4 py-0 flex gap-5 flex-shrink-0">
         {[60, 44, 40].map((w, i) => (
           <div key={i} className="py-2.5">
-            <div className="h-2.5 rounded bg-[#161616] skeleton-shimmer" style={{ width: w }} />
+            <div className="h-2.5 rounded bg-surface skeleton-shimmer" style={{ width: w }} />
           </div>
         ))}
       </div>
@@ -406,32 +406,32 @@ function ChatSkeleton() {
       <div className="flex-1 overflow-hidden px-4 py-3 flex flex-col gap-4">
         {/* Incoming */}
         <div className="flex justify-start">
-          <div className="h-10 w-52 rounded-2xl rounded-bl-sm bg-[#161616] skeleton-shimmer" />
+          <div className="h-10 w-52 rounded-2xl rounded-bl-sm bg-surface skeleton-shimmer" />
         </div>
         {/* Outgoing */}
         <div className="flex justify-end">
-          <div className="h-8 w-40 rounded-2xl rounded-br-sm bg-sky-900/20 skeleton-shimmer" />
+          <div className="h-8 w-40 rounded-2xl rounded-br-sm bg-info-text/20 skeleton-shimmer" />
         </div>
         {/* Incoming */}
         <div className="flex justify-start">
-          <div className="h-14 w-64 rounded-2xl rounded-bl-sm bg-[#161616] skeleton-shimmer" />
+          <div className="h-14 w-64 rounded-2xl rounded-bl-sm bg-surface skeleton-shimmer" />
         </div>
         {/* Outgoing */}
         <div className="flex justify-end">
-          <div className="h-8 w-48 rounded-2xl rounded-br-sm bg-sky-900/20 skeleton-shimmer" />
+          <div className="h-8 w-48 rounded-2xl rounded-br-sm bg-info-text/20 skeleton-shimmer" />
         </div>
         {/* Incoming */}
         <div className="flex justify-start">
-          <div className="h-10 w-44 rounded-2xl rounded-bl-sm bg-[#161616] skeleton-shimmer" />
+          <div className="h-10 w-44 rounded-2xl rounded-bl-sm bg-surface skeleton-shimmer" />
         </div>
       </div>
 
       {/* Compose bar skeleton */}
-      <div className="border-t border-[#131313] px-4 py-3 flex-shrink-0 flex items-end gap-2">
-        <div className="flex-1 h-16 rounded-2xl bg-[#0e0e0e] skeleton-shimmer" />
+      <div className="border-t border-border px-4 py-3 flex-shrink-0 flex items-end gap-2">
+        <div className="flex-1 h-16 rounded-2xl bg-background skeleton-shimmer" />
         <div className="flex flex-col gap-1.5 pb-0.5">
-          <div className="h-7 w-24 rounded-lg bg-[#141414] skeleton-shimmer" />
-          <div className="h-8 w-8 rounded-xl bg-[#141414] skeleton-shimmer" />
+          <div className="h-7 w-24 rounded-lg bg-surface skeleton-shimmer" />
+          <div className="h-8 w-8 rounded-xl bg-surface skeleton-shimmer" />
         </div>
       </div>
     </div>
@@ -450,12 +450,12 @@ function PostContextCard({ msg, preview, loading }: { msg: InboxMessage; preview
   const isVideo = preview?.media_type === "VIDEO" || preview?.media_type === "REEL";
 
   return (
-    <div className="mx-4 mt-2 mb-1 rounded-lg border border-[#161616] bg-[#0c0c0c] overflow-hidden flex-shrink-0">
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[#161616]">
+    <div className="mx-4 mt-2 mb-1 rounded-lg border border-border bg-background overflow-hidden flex-shrink-0">
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border">
         <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${platformColor(msg.platform)}`}>
           {platformBadge(msg.platform)}
         </span>
-        <span className="text-[9px] text-[#383838] uppercase tracking-[0.1em] font-medium">
+        <span className="text-[9px] text-foreground-muted uppercase tracking-[0.1em] font-medium">
           Original {platformLabel} {isVideo ? "video" : "post"}
         </span>
         {preview?.post_url ? (
@@ -463,7 +463,7 @@ function PostContextCard({ msg, preview, loading }: { msg: InboxMessage; preview
             href={preview.post_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto flex items-center gap-1 text-[9px] text-sky-400/60 hover:text-sky-400 transition-colors"
+            className="ml-auto flex items-center gap-1 text-[9px] text-info-text/60 hover:text-info-text transition-colors"
           >
             View {isVideo ? "video" : "post"} <ExternalLink className="w-2.5 h-2.5" />
           </a>
@@ -476,10 +476,10 @@ function PostContextCard({ msg, preview, loading }: { msg: InboxMessage; preview
 
       {loading ? (
         <div className="flex items-center gap-3 px-3 py-2.5">
-          <div className="w-14 h-10 rounded-md bg-[#141414] animate-pulse flex-shrink-0" />
+          <div className="w-14 h-10 rounded-md bg-surface animate-pulse flex-shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-2 bg-[#141414] rounded animate-pulse w-3/4" />
-            <div className="h-2 bg-[#141414] rounded animate-pulse w-1/2" />
+            <div className="h-2 bg-surface rounded animate-pulse w-3/4" />
+            <div className="h-2 bg-surface rounded animate-pulse w-1/2" />
           </div>
         </div>
       ) : preview?.image || preview?.thumb ? (
@@ -489,13 +489,13 @@ function PostContextCard({ msg, preview, loading }: { msg: InboxMessage; preview
             <img
               src={preview.thumb || preview.image || ""}
               alt="Post thumbnail"
-              className="w-14 h-10 rounded-md object-cover bg-[#161616]"
+              className="w-14 h-10 rounded-md object-cover bg-surface"
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
             {isVideo && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-5 h-5 rounded-full bg-black/60 flex items-center justify-center">
-                  <svg className="w-2.5 h-2.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 8 10">
+                <div className="w-5 h-5 rounded-full bg-background/60 flex items-center justify-center">
+                  <svg className="w-2.5 h-2.5 text-foreground ml-0.5" fill="currentColor" viewBox="0 0 8 10">
                     <path d="M0 0l8 5-8 5V0z" />
                   </svg>
                 </div>
@@ -504,20 +504,20 @@ function PostContextCard({ msg, preview, loading }: { msg: InboxMessage; preview
           </div>
           <div className="flex-1 min-w-0">
             {preview.caption && (
-              <p className="text-[11px] text-[#777] leading-relaxed line-clamp-2">{preview.caption}</p>
+              <p className="text-[11px] text-foreground-muted leading-relaxed line-clamp-2">{preview.caption}</p>
             )}
             {preview.media_type && preview.media_type !== "TEXT" && (
-              <span className="text-[9px] text-[#383838] mt-0.5 block">{preview.media_type}</span>
+              <span className="text-[9px] text-foreground-muted mt-0.5 block">{preview.media_type}</span>
             )}
           </div>
         </div>
       ) : (
         <div className="flex items-center gap-3 px-3 py-2.5">
-          <div className="w-14 h-10 rounded-md bg-[#141414] border border-[#1a1a1a] flex items-center justify-center flex-shrink-0">
-            <ImageIcon className="w-3.5 h-3.5 text-[#252525]" />
+          <div className="w-14 h-10 rounded-md bg-surface border border-border flex items-center justify-center flex-shrink-0">
+            <ImageIcon className="w-3.5 h-3.5 text-foreground/50" />
           </div>
           <div>
-            <p className="text-[11px] text-[#444]">Preview unavailable</p>
+            <p className="text-[11px] text-foreground-muted">Preview unavailable</p>
             {msg.original_post_id && (
               <p className="text-[10px] text-[#282828] font-mono mt-0.5">{msg.original_post_id.slice(-12)}</p>
             )}
@@ -551,16 +551,16 @@ function ComposeBar({
 
   return (
     <div className={`border-t px-4 py-3 flex-shrink-0 ${
-      commentMode ? "border-[#161616] bg-[#0b0b0b]" : "border-[#131313] bg-[#080808]"
+      commentMode ? "border-border bg-background" : "border-border bg-background"
     }`}>
       {lastSendStatus === "sent" && (
-        <div className="flex items-center gap-1.5 mb-2 text-[11px] text-emerald-400/80">
+        <div className="flex items-center gap-1.5 mb-2 text-[11px] text-success-text/80">
           <CheckCircle2 className="w-3 h-3" />
           Sent on {platform.charAt(0) + platform.slice(1).toLowerCase()}
         </div>
       )}
       {lastSendStatus === "draft" && (
-        <div className="mb-2 text-[11px] text-yellow-400/70">
+        <div className="mb-2 text-[11px] text-warning-text/70">
           Saved as draft{lastSendError ? ` — ${lastSendError}` : ""}
         </div>
       )}
@@ -573,10 +573,10 @@ function ComposeBar({
           onKeyDown={handleKeyDown}
           placeholder={commentMode ? "Reply to comment…" : `Message ${senderName}…`}
           rows={2}
-          className={`flex-1 text-[13px] text-white/90 placeholder-[#333] px-3.5 py-2.5 outline-none resize-none leading-relaxed transition-colors ${
+          className={`flex-1 text-[13px] text-foreground placeholder-[#333] px-3.5 py-2.5 outline-none resize-none leading-relaxed transition-colors ${
             commentMode
-              ? "bg-[#111] border border-[#1d1d1d] rounded-xl focus:border-[#2a2a2a]"
-              : "bg-[#0e0e0e] border border-[#1a1a1a] rounded-2xl focus:border-sky-600/25"
+              ? "bg-surface border border-border rounded-xl focus:border-border"
+              : "bg-background border border-border rounded-2xl focus:border-info-border/25"
           }`}
         />
 
@@ -586,17 +586,17 @@ function ComposeBar({
               <select
                 value={aiTone}
                 onChange={e => setAiTone(e.target.value)}
-                className="bg-[#0e0e0e] border border-[#1a1a1a] rounded-lg text-[10px] text-[#555] px-2 py-1.5 pr-5 appearance-none outline-none"
+                className="bg-background border border-border rounded-lg text-[10px] text-foreground-muted px-2 py-1.5 pr-5 appearance-none outline-none"
               >
                 {AI_TONES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
               </select>
-              <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-[#383838] pointer-events-none" />
+              <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-foreground-muted pointer-events-none" />
             </div>
             <button
               onClick={onGenerateDraft}
               disabled={generatingDraft}
               title="AI draft"
-              className="p-1.5 rounded-lg text-sky-400/60 bg-sky-400/5 border border-sky-400/10 hover:bg-sky-400/10 hover:text-sky-400 transition-colors disabled:opacity-30"
+              className="p-1.5 rounded-lg text-info-text/60 bg-info-bg border border-info-border hover:brightness-110 hover:text-info-text transition-colors disabled:opacity-30"
             >
               {generatingDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
             </button>
@@ -608,15 +608,15 @@ function ComposeBar({
             title="Send (⌘↵)"
             className={`flex items-center justify-center p-2 rounded-xl transition-colors disabled:opacity-25 disabled:cursor-not-allowed ${
               commentMode
-                ? "bg-[#161616] hover:bg-[#1e1e1e] border border-[#222] text-[#777] hover:text-white"
-                : "bg-sky-600 hover:bg-sky-500 text-white"
+                ? "bg-surface hover:bg-surface border border-border text-foreground-muted hover:text-foreground"
+                : "bg-info-text hover:brightness-110 text-foreground"
             }`}
           >
             {sendingReply ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>
       </div>
-      <p className="text-[9px] text-[#252525] mt-1.5">⌘↵ to send · {replyBody.length}/5000</p>
+      <p className="text-[9px] text-foreground/50 mt-1.5">⌘↵ to send · {replyBody.length}/5000</p>
     </div>
   );
 }
@@ -640,6 +640,7 @@ export default function InboxPage() {
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ synced: number; message: string } | null>(null);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [deleteRuleConfirm, setDeleteRuleConfirm] = useState<{ id: string } | null>(null);
@@ -1002,6 +1003,7 @@ export default function InboxPage() {
       if (res.errors?.length) console.warn('[Inbox sync errors]', res.errors);
       setSyncResult({ synced: res.synced ?? 0, message: res.message || 'Sync complete' });
       if ((res.synced ?? 0) > 0) await fetchMessages();
+      setLastSynced(new Date());
       setTimeout(() => setSyncResult(null), 4000);
     } catch (e: unknown) {
       setSyncResult({ synced: 0, message: e instanceof Error ? e.message : "Sync failed" });
@@ -1010,6 +1012,14 @@ export default function InboxPage() {
       setSyncing(false);
     }
   };
+
+  // Auto-sync on mount and every 2 minutes
+  useEffect(() => {
+    handleSync();
+    const id = setInterval(() => { handleSync(); }, 120_000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleCheck = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1051,52 +1061,60 @@ export default function InboxPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-full flex flex-col bg-[#080808] overflow-hidden">
+    <div className="h-full flex flex-col bg-background overflow-hidden">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="border-b border-[#111] px-5 py-2.5 flex items-center justify-between flex-shrink-0">
+      <div className="border-b border-border px-5 py-2.5 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-6 h-6 rounded-md bg-sky-500/10 flex items-center justify-center">
-            <Inbox className="w-3.5 h-3.5 text-sky-400/80" />
+          <div className="w-6 h-6 rounded-md bg-info-bg flex items-center justify-center">
+            <Inbox className="w-3.5 h-3.5 text-info-text/80" />
           </div>
           <div className="flex items-baseline gap-2">
-            <h1 className="text-[13px] font-semibold text-white/90 tracking-tight">Inbox</h1>
-            <span className="text-[10px] text-[#383838]">
+            <h1 className="text-[13px] font-semibold text-foreground tracking-tight">Inbox</h1>
+            <span className="text-[10px] text-foreground-muted">
               {loading ? "…" : `${total} message${total !== 1 ? "s" : ""}${isDemo ? " · demo" : ""}`}
             </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {isDemo && (
-            <span className="text-[9px] text-yellow-400/60 bg-yellow-400/5 border border-yellow-400/10 px-2 py-1 rounded-full tracking-wide uppercase">
+            <span className="text-[9px] text-warning-text/60 bg-warning-bg border border-warning-border px-2 py-1 rounded-full tracking-wide uppercase">
               Demo
             </span>
           )}
           {syncResult && (
-            <span className="text-[9px] text-emerald-400/60 px-2 py-1 rounded-lg border border-emerald-400/10 bg-emerald-400/5 max-w-[220px] truncate">
+            <span className="text-[9px] text-success-text/60 px-2 py-1 rounded-lg border border-success-border bg-success-bg max-w-[220px] truncate">
               {syncResult.message}
             </span>
           )}
           {isDemo ? (
             <button
               onClick={() => fetchMessages(1)}
-              className="flex items-center gap-1.5 text-[11px] text-[#444] hover:text-[#888] bg-white/[0.03] hover:bg-white/[0.05] border border-white/[0.06] px-2.5 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-[11px] text-foreground-muted hover:text-foreground-muted bg-surface-hover hover:bg-white/[0.05] border border-white/[0.06] px-2.5 py-1.5 rounded-lg transition-colors"
             >
               <RefreshCcw className="w-3 h-3" />
               Reload
             </button>
           ) : (
-            <button
-              onClick={handleSync} disabled={syncing}
-              className="flex items-center gap-1.5 text-[11px] text-sky-400/60 hover:text-sky-400 bg-sky-400/[0.04] hover:bg-sky-400/10 border border-sky-400/10 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30"
-            >
-              {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCcw className="w-3 h-3" />}
-              {syncing ? "Syncing…" : "Sync"}
-            </button>
+            <div className="flex items-center gap-2">
+              {lastSynced && !syncing && (
+                <span className="flex items-center gap-1 text-[10px] text-green-500/70">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  Live · {timeAgo(lastSynced.toISOString())} ago
+                </span>
+              )}
+              <button
+                onClick={handleSync} disabled={syncing}
+                className="flex items-center gap-1.5 text-[11px] text-info-text/60 hover:text-info-text bg-info-bg hover:brightness-110 border border-info-border px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+              >
+                {syncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCcw className="w-3 h-3" />}
+                {syncing ? "Syncing…" : "Sync"}
+              </button>
+            </div>
           )}
           <button
             onClick={openSettings}
-            className="flex items-center justify-center w-7 h-7 text-[#444] hover:text-white/70 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] rounded-lg transition-colors"
+            className="flex items-center justify-center w-7 h-7 text-foreground-muted hover:text-foreground/70 bg-surface-hover hover:bg-white/[0.06] border border-white/[0.06] rounded-lg transition-colors"
             title="Inbox Settings"
           >
             <Settings className="w-3.5 h-3.5" />
@@ -1108,28 +1126,28 @@ export default function InboxPage() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── Filter Panel ──────────────────────────────────────────────────── */}
-        <div className={`border-r border-[#111] flex flex-col flex-shrink-0 overflow-hidden transition-all duration-200 ${filtersOpen ? "w-44" : "w-0"}`}>
+        <div className={`border-r border-border flex flex-col flex-shrink-0 overflow-hidden transition-all duration-200 ${filtersOpen ? "w-44" : "w-0"}`}>
           <div className="w-44 flex flex-col h-full overflow-y-auto">
-            <div className="px-3 py-2 border-b border-[#111]">
-              <div className="flex items-center gap-1.5 bg-[#0d0d0d] border border-[#161616] rounded-lg px-2.5 py-1.5">
+            <div className="px-3 py-2 border-b border-border">
+              <div className="flex items-center gap-1.5 bg-background border border-border rounded-lg px-2.5 py-1.5">
                 <Search className="w-3 h-3 text-[#303030]" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search…"
-                  className="bg-transparent text-[11px] text-white/80 placeholder-[#303030] outline-none flex-1 w-0"
+                  className="bg-transparent text-[11px] text-foreground placeholder-[#303030] outline-none flex-1 w-0"
                 />
               </div>
             </div>
 
-            <div className="px-2 py-2 border-b border-[#111]">
-              <p className="text-[8px] uppercase tracking-[0.14em] text-[#2e2e2e] px-1.5 mb-1.5 font-medium">Status</p>
+            <div className="px-2 py-2 border-b border-border">
+              <p className="text-[8px] uppercase tracking-[0.14em] text-foreground/50 px-1.5 mb-1.5 font-medium">Status</p>
               {TABS.map(t => (
                 <button
                   key={t.key}
                   onClick={() => setTab(t.key)}
                   className={`w-full text-left text-[11px] px-2 py-1.5 rounded-md transition-colors ${
-                    tab === t.key ? "text-white/90 bg-white/[0.05]" : "text-[#3a3a3a] hover:text-[#999] hover:bg-white/[0.02]"
+                    tab === t.key ? "text-foreground bg-white/[0.05]" : "text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover"
                   }`}
                 >
                   {t.label}
@@ -1138,13 +1156,13 @@ export default function InboxPage() {
             </div>
 
             <div className="px-2 py-2">
-              <p className="text-[8px] uppercase tracking-[0.14em] text-[#2e2e2e] px-1.5 mb-1.5 font-medium">Platform</p>
+              <p className="text-[8px] uppercase tracking-[0.14em] text-foreground/50 px-1.5 mb-1.5 font-medium">Platform</p>
               {PLATFORMS.map(p => (
                 <button
                   key={p.key}
                   onClick={() => setPlatform(p.key)}
                   className={`w-full text-left text-[11px] px-2 py-1.5 rounded-md transition-colors flex items-center gap-2 ${
-                    platform === p.key ? "text-white/90 bg-white/[0.05]" : "text-[#3a3a3a] hover:text-[#999] hover:bg-white/[0.02]"
+                    platform === p.key ? "text-foreground bg-white/[0.05]" : "text-foreground-muted hover:text-foreground-muted hover:bg-surface-hover"
                   }`}
                 >
                   {p.key && (
@@ -1160,11 +1178,11 @@ export default function InboxPage() {
         </div>
 
         {/* ── Message List ────────────────────────────────────────────────────── */}
-        <div className="w-64 border-r border-[#111] flex flex-col flex-shrink-0">
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-[#111]">
+        <div className="w-64 border-r border-border flex flex-col flex-shrink-0">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
             <button
               onClick={() => setFiltersOpen(v => !v)}
-              className="p-1 rounded-md text-[#2a2a2a] hover:text-[#888] hover:bg-white/[0.03] transition-colors flex-shrink-0"
+              className="p-1 rounded-md text-foreground/50 hover:text-foreground-muted hover:bg-surface-hover transition-colors flex-shrink-0"
               title={filtersOpen ? "Hide filters" : "Show filters"}
             >
               {filtersOpen ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
@@ -1172,33 +1190,33 @@ export default function InboxPage() {
 
             {checkedIds.size > 0 ? (
               <>
-                <span className="text-[9px] text-red-400/80 font-medium">{checkedIds.size} selected</span>
+                <span className="text-[9px] text-error-text/80 font-medium">{checkedIds.size} selected</span>
                 <button
                   onClick={handleDeleteSelected}
                   disabled={deleting}
-                  className="ml-auto flex items-center gap-1 text-[9px] text-red-400/70 hover:text-red-400 bg-red-400/[0.06] hover:bg-red-400/10 border border-red-400/10 px-2 py-1 rounded-md transition-colors disabled:opacity-40"
+                  className="ml-auto flex items-center gap-1 text-[9px] text-error-text/70 hover:text-error-text bg-error-bg hover:brightness-110 border border-error-border px-2 py-1 rounded-md transition-colors disabled:opacity-40"
                 >
                   {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                   {deleting ? "Deleting…" : "Delete"}
                 </button>
                 <button
                   onClick={() => { setCheckedIds(new Set()); setSelectMode(false); }}
-                  className="p-1 text-[#333] hover:text-[#888] transition-colors"
+                  className="p-1 text-foreground-muted hover:text-foreground-muted transition-colors"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </>
             ) : (
               <>
-                <span className="text-[9px] text-[#2e2e2e] font-medium uppercase tracking-[0.14em]">Messages</span>
+                <span className="text-[9px] text-foreground/50 font-medium uppercase tracking-[0.14em]">Messages</span>
                 {!loading && total > 0 && (
-                  <span className="text-[9px] text-[#2e2e2e] tabular-nums">{total}</span>
+                  <span className="text-[9px] text-foreground/50 tabular-nums">{total}</span>
                 )}
                 {!loading && messages.length > 0 && (
                   <button
                     onClick={() => setSelectMode(v => !v)}
                     title="Select messages"
-                    className={`ml-auto p-1 rounded transition-colors ${selectMode ? "text-sky-400" : "text-[#2a2a2a] hover:text-[#888]"}`}
+                    className={`ml-auto p-1 rounded transition-colors ${selectMode ? "text-info-text" : "text-foreground/50 hover:text-foreground-muted"}`}
                   >
                     <CheckSquare className="w-3.5 h-3.5" />
                   </button>
@@ -1210,18 +1228,18 @@ export default function InboxPage() {
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center h-full">
-                <Loader2 className="w-4 h-4 text-[#2a2a2a] animate-spin" />
+                <Loader2 className="w-4 h-4 text-foreground/50 animate-spin" />
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
-                <XCircle className="w-4 h-4 text-red-400/40" />
-                <span className="text-[11px] text-[#444]">{error}</span>
-                <button onClick={() => fetchMessages(1)} className="text-[11px] text-sky-400/60 hover:text-sky-400">Retry</button>
+                <XCircle className="w-4 h-4 text-error-text/40" />
+                <span className="text-[11px] text-foreground-muted">{error}</span>
+                <button onClick={() => fetchMessages(1)} className="text-[11px] text-info-text/60 hover:text-info-text">Retry</button>
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
                 <Inbox className="w-5 h-5 text-[#1e1e1e]" />
-                <span className="text-[11px] text-[#383838]">No messages</span>
+                <span className="text-[11px] text-foreground-muted">No messages</span>
               </div>
             ) : (
               <>
@@ -1240,7 +1258,7 @@ export default function InboxPage() {
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="w-full py-2.5 text-[10px] text-[#383838] hover:text-[#555] border-t border-[#0f0f0f] flex items-center justify-center gap-1.5 transition-colors"
+                    className="w-full py-2.5 text-[10px] text-foreground-muted hover:text-foreground-muted border-t border-border flex items-center justify-center gap-1.5 transition-colors"
                   >
                     {loadingMore ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                     {loadingMore ? "Loading…" : `${total - messages.length} more`}
@@ -1256,10 +1274,10 @@ export default function InboxPage() {
 
           {!selectedId ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
-              <div className="w-10 h-10 rounded-2xl bg-white/[0.02] border border-[#131313] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-2xl bg-surface-hover border border-border flex items-center justify-center">
                 <MessageSquare className="w-4 h-4 text-[#1e1e1e]" />
               </div>
-              <p className="text-[11px] text-[#2e2e2e]">Select a message to view the conversation</p>
+              <p className="text-[11px] text-foreground/50">Select a message to view the conversation</p>
             </div>
           ) : detailLoading ? (
             <ChatSkeleton />
@@ -1268,19 +1286,19 @@ export default function InboxPage() {
 
               {/* ── Conversation header ───────────────────────────────────── */}
               <div className={`border-b px-4 py-2.5 flex items-center justify-between gap-3 flex-shrink-0 ${
-                commentMode ? "border-[#131313] bg-[#0a0a0a]" : "border-[#111]"
+                commentMode ? "border-border bg-background" : "border-border"
               }`}>
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${
-                    commentMode ? "bg-[#161616] text-[#555]" : "bg-[#181818] text-[#777]"
+                    commentMode ? "bg-surface text-foreground-muted" : "bg-surface text-foreground-muted"
                   }`}>
                     {initials(detail.sender_name)}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[13px] font-semibold text-white/90 tracking-tight">{detail.sender_name}</span>
+                      <span className="text-[13px] font-semibold text-foreground tracking-tight">{detail.sender_name}</span>
                       {detail.sender_handle && (
-                        <span className="text-[10px] text-[#333] truncate max-w-[100px]">{detail.sender_handle}</span>
+                        <span className="text-[10px] text-foreground-muted truncate max-w-[100px]">{detail.sender_handle}</span>
                       )}
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${platformColor(detail.platform)}`}>
                         {platformBadge(detail.platform)}
@@ -1289,18 +1307,18 @@ export default function InboxPage() {
                         {detail.status.replace(/_/g, " ")}
                       </span>
                       {commentMode && (
-                        <span className="flex items-center gap-1 text-[9px] text-[#383838]">
+                        <span className="flex items-center gap-1 text-[9px] text-foreground-muted">
                           <MessageCircle className="w-2.5 h-2.5" /> Comment
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                       <span className={`text-[10px] font-medium ${riskColor(detail.risk_level)}`}>{detail.risk_level}</span>
-                      <span className="text-[10px] text-[#2e2e2e]">{timeAgo(detail.received_at)}</span>
+                      <span className="text-[10px] text-foreground/50">{timeAgo(detail.received_at)}</span>
                       {detail.recipient_account_handle && (
-                        <span className="text-[10px] text-[#2e2e2e]" title="Your connected account">
-                          → <span className="text-[#444]">{detail.recipient_account_name || detail.recipient_account_handle}</span>
-                          <span className="text-[#2a2a2a] ml-0.5">(@{detail.recipient_account_handle})</span>
+                        <span className="text-[10px] text-foreground/50" title="Your connected account">
+                          → <span className="text-foreground-muted">{detail.recipient_account_name || detail.recipient_account_handle}</span>
+                          <span className="text-foreground/50 ml-0.5">(@{detail.recipient_account_handle})</span>
                         </span>
                       )}
                     </div>
@@ -1311,7 +1329,7 @@ export default function InboxPage() {
                   {detail.status !== "ESCALATED" && detail.status !== "RESOLVED" && detail.status !== "ARCHIVED" && !isDemo && (
                     <button
                       onClick={() => setShowEscalate(true)}
-                      className="p-1.5 rounded-lg text-red-400/40 hover:text-red-400/80 hover:bg-red-400/5 border border-transparent hover:border-red-400/10 transition-colors"
+                      className="p-1.5 rounded-lg text-error-text/40 hover:text-error-text/80 hover:brightness-110 border border-transparent hover:border-error-border transition-colors"
                       title="Escalate"
                     >
                       <ShieldAlert className="w-3.5 h-3.5" />
@@ -1320,7 +1338,7 @@ export default function InboxPage() {
                   {detail.status !== "RESOLVED" && !isDemo && (
                     <button
                       onClick={() => handleStatusChange("RESOLVED")}
-                      className="p-1.5 rounded-lg text-emerald-400/40 hover:text-emerald-400/80 hover:bg-emerald-400/5 border border-transparent hover:border-emerald-400/10 transition-colors"
+                      className="p-1.5 rounded-lg text-success-text/40 hover:text-success-text/80 hover:brightness-110 border border-transparent hover:border-success-border transition-colors"
                       title="Resolve"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1329,7 +1347,7 @@ export default function InboxPage() {
                   {!isDemo && (
                     <button
                       onClick={handleArchive}
-                      className="p-1.5 rounded-lg text-[#2a2a2a] hover:text-[#888] hover:bg-white/[0.04] transition-colors"
+                      className="p-1.5 rounded-lg text-foreground/50 hover:text-foreground-muted hover:bg-white/[0.04] transition-colors"
                       title="Archive"
                     >
                       <Archive className="w-3.5 h-3.5" />
@@ -1337,7 +1355,7 @@ export default function InboxPage() {
                   )}
                   <button
                     onClick={() => { setSelectedId(null); setDetail(null); }}
-                    className="p-1.5 rounded-lg text-[#2a2a2a] hover:text-[#888] hover:bg-white/[0.04] transition-colors"
+                    className="p-1.5 rounded-lg text-foreground/50 hover:text-foreground-muted hover:bg-white/[0.04] transition-colors"
                     title="Close"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -1346,7 +1364,7 @@ export default function InboxPage() {
               </div>
 
               {/* ── Tab bar ────────────────────────────────────────────────── */}
-              <div className={`border-b px-4 flex-shrink-0 ${commentMode ? "border-[#131313] bg-[#0a0a0a]" : "border-[#111]"}`}>
+              <div className={`border-b px-4 flex-shrink-0 ${commentMode ? "border-border bg-background" : "border-border"}`}>
                 <div className="flex gap-5">
                   {[
                     { key: "compose", label: commentMode ? "Thread" : "Chat",  icon: commentMode ? <MessageCircle className="w-3 h-3" /> : <MessageSquare className="w-3 h-3" /> },
@@ -1358,8 +1376,8 @@ export default function InboxPage() {
                       onClick={() => setReplyTab(t.key as typeof replyTab)}
                       className={`flex items-center gap-1.5 text-[11px] py-2.5 border-b-2 transition-colors ${
                         replyTab === t.key
-                          ? "text-white/80 border-sky-500/70"
-                          : "text-[#333] border-transparent hover:text-[#666]"
+                          ? "text-foreground border-info-border"
+                          : "text-foreground-muted border-transparent hover:text-foreground-muted"
                       }`}
                     >
                       {t.icon} {t.label}
@@ -1382,22 +1400,22 @@ export default function InboxPage() {
                   {detail.escalation && (
                     <div className={`mx-4 mt-2 border rounded-lg px-3 py-2 flex-shrink-0 ${
                       detail.escalation.review_status === "RESOLVED"
-                        ? "bg-emerald-400/[0.04] border-emerald-400/10"
-                        : "bg-red-400/[0.04] border-red-400/10"
+                        ? "bg-success-bg border-success-border"
+                        : "bg-error-bg border-error-border"
                     }`}>
                       <div className="flex items-start gap-2">
                         {detail.escalation.review_status === "RESOLVED"
-                          ? <CheckCircle2 className="w-3 h-3 text-emerald-400/60 mt-0.5 flex-shrink-0" />
-                          : <AlertTriangle className="w-3 h-3 text-red-400/60 mt-0.5 flex-shrink-0" />
+                          ? <CheckCircle2 className="w-3 h-3 text-success-text/60 mt-0.5 flex-shrink-0" />
+                          : <AlertTriangle className="w-3 h-3 text-error-text/60 mt-0.5 flex-shrink-0" />
                         }
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {detail.escalation.is_auto_escalated && (
-                              <span className="text-[9px] font-semibold uppercase tracking-wider bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 py-0.5 rounded-full">
+                              <span className="text-[9px] font-semibold uppercase tracking-wider bg-warning-bg text-warning-text border border-warning-border px-1.5 py-0.5 rounded-full">
                                 Auto-escalated
                               </span>
                             )}
-                            <p className={`text-[11px] font-medium ${detail.escalation.review_status === "RESOLVED" ? "text-emerald-400/70" : "text-red-400/70"}`}>
+                            <p className={`text-[11px] font-medium ${detail.escalation.review_status === "RESOLVED" ? "text-success-text/70" : "text-error-text/70"}`}>
                               {detail.escalation.review_status === "RESOLVED"
                                 ? `Resolved${detail.escalation.decision ? ` · ${detail.escalation.decision}` : ""}`
                                 : detail.escalation.escalation_reason
@@ -1411,11 +1429,11 @@ export default function InboxPage() {
                                 : "Resolved"
                               }
                               {detail.escalation.decision_note && (
-                                <span className="text-[#383838]"> — {detail.escalation.decision_note}</span>
+                                <span className="text-foreground-muted"> — {detail.escalation.decision_note}</span>
                               )}
                             </p>
                           ) : (
-                            <p className="text-[10px] text-[#383838] mt-0.5">
+                            <p className="text-[10px] text-foreground-muted mt-0.5">
                               {detail.escalation.risk_category !== "AUTO_DETECTED" ? detail.escalation.risk_category : detail.escalation.risk_level} · Awaiting review
                               {detail.escalation.assigned_reviewer_name && (
                                 <span className="text-[#484848]"> · Assigned to {detail.escalation.assigned_reviewer_name}</span>
@@ -1438,11 +1456,11 @@ export default function InboxPage() {
                         />
                         {(detail.replies?.length ?? 0) > 0 && (
                           <div className="flex items-center gap-2 pl-8">
-                            <div className="flex-1 border-t border-[#161616]" />
+                            <div className="flex-1 border-t border-border" />
                             <span className="text-[9px] text-[#282828]">
                               {detail.replies!.length} {detail.replies!.length === 1 ? "reply" : "replies"}
                             </span>
-                            <div className="flex-1 border-t border-[#161616]" />
+                            <div className="flex-1 border-t border-border" />
                           </div>
                         )}
                         {detail.replies?.map(r => (
@@ -1485,7 +1503,7 @@ export default function InboxPage() {
 
                     {detail.is_demo && (
                       <div className="flex justify-center mt-3">
-                        <span className="text-[9px] text-yellow-400/40 border border-yellow-400/10 px-3 py-1 rounded-full">
+                        <span className="text-[9px] text-warning-text/40 border border-warning-border px-3 py-1 rounded-full">
                           Demo — Upgrade to Growth for real messages
                         </span>
                       </div>
@@ -1495,31 +1513,31 @@ export default function InboxPage() {
                   </div>
 
                   {detail.status === "ESCALATED" ? (
-                    <div className="border-t border-[#111] px-4 py-3 flex items-center gap-2 text-[11px] flex-shrink-0">
-                      <Shield className="w-3 h-3 text-red-400/40 flex-shrink-0" />
-                      <span className="text-[#333]">Reply locked — awaiting escalation review</span>
+                    <div className="border-t border-border px-4 py-3 flex items-center gap-2 text-[11px] flex-shrink-0">
+                      <Shield className="w-3 h-3 text-error-text/40 flex-shrink-0" />
+                      <span className="text-foreground-muted">Reply locked — awaiting escalation review</span>
                       {detail.escalation?.assigned_reviewer_name && (
-                        <span className="ml-auto text-[10px] text-[#2e2e2e]">
+                        <span className="ml-auto text-[10px] text-foreground/50">
                           → {detail.escalation.assigned_reviewer_name}
                         </span>
                       )}
                     </div>
                   ) : detail.status === "RESOLVED" && detail.escalation?.review_status === "RESOLVED" ? (
-                    <div className="border-t border-[#111] px-4 py-3 flex items-center gap-2 text-[11px] flex-shrink-0">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400/50 flex-shrink-0" />
-                      <span className="text-[#444]">
+                    <div className="border-t border-border px-4 py-3 flex items-center gap-2 text-[11px] flex-shrink-0">
+                      <CheckCircle2 className="w-3 h-3 text-success-text/50 flex-shrink-0" />
+                      <span className="text-foreground-muted">
                         {detail.escalation.resolved_by_name
                           ? `Resolved by ${detail.escalation.resolved_by_name}`
                           : "Escalation resolved"
                         }
                         {detail.escalation.decision && (
-                          <span className="text-[#333]"> · {detail.escalation.decision}</span>
+                          <span className="text-foreground-muted"> · {detail.escalation.decision}</span>
                         )}
                       </span>
                     </div>
                   ) : isDemo ? (
-                    <div className="border-t border-[#111] px-4 py-3 flex items-center gap-2 text-[11px] text-[#333] flex-shrink-0">
-                      <ArrowUpRight className="w-3 h-3 text-yellow-400/40" />
+                    <div className="border-t border-border px-4 py-3 flex items-center gap-2 text-[11px] text-foreground-muted flex-shrink-0">
+                      <ArrowUpRight className="w-3 h-3 text-warning-text/40" />
                       Upgrade to Growth to reply
                     </div>
                   ) : (
@@ -1547,27 +1565,27 @@ export default function InboxPage() {
                 <div className="flex-1 flex flex-col overflow-hidden">
                   <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
                     {detail.notes?.length ? detail.notes.map(n => (
-                      <div key={n.id} className="bg-yellow-400/[0.02] border border-yellow-400/[0.06] rounded-lg px-3 py-2.5">
-                        <p className="text-[12px] text-[#aaa] leading-relaxed">{n.note_body}</p>
-                        <p className="text-[10px] text-[#2e2e2e] mt-1">{timeAgo(n.created_at)}</p>
+                      <div key={n.id} className="bg-warning-bg border border-warning-border rounded-lg px-3 py-2.5">
+                        <p className="text-[12px] text-foreground/70 leading-relaxed">{n.note_body}</p>
+                        <p className="text-[10px] text-foreground/50 mt-1">{timeAgo(n.created_at)}</p>
                       </div>
                     )) : (
-                      <p className="text-[11px] text-[#2e2e2e] text-center py-8">No notes yet</p>
+                      <p className="text-[11px] text-foreground/50 text-center py-8">No notes yet</p>
                     )}
                   </div>
                   {!isDemo && (
-                    <div className="border-t border-[#111] px-4 py-3 flex gap-2 items-end flex-shrink-0">
+                    <div className="border-t border-border px-4 py-3 flex gap-2 items-end flex-shrink-0">
                       <textarea
                         value={noteBody}
                         onChange={e => setNoteBody(e.target.value)}
                         placeholder="Internal note…"
                         rows={2}
-                        className="flex-1 bg-[#0d0d0d] border border-[#161616] rounded-xl text-[12px] text-white/80 placeholder-[#2e2e2e] px-3 py-2 outline-none resize-none focus:border-yellow-500/15 transition-colors leading-relaxed"
+                        className="flex-1 bg-background border border-border rounded-xl text-[12px] text-foreground placeholder-foreground-muted px-3 py-2 outline-none resize-none focus:border-warning-border transition-colors leading-relaxed"
                       />
                       <button
                         onClick={handleAddNote}
                         disabled={savingNote || !noteBody.trim()}
-                        className="p-2 rounded-xl bg-yellow-600/[0.08] hover:bg-yellow-600/15 border border-yellow-600/15 text-yellow-400/50 hover:text-yellow-400/80 transition-colors disabled:opacity-25"
+                        className="p-2 rounded-xl bg-warning-bg hover:brightness-110 border border-warning-border text-warning-text/50 hover:text-warning-text/80 transition-colors disabled:opacity-25"
                       >
                         {savingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <StickyNote className="w-4 h-4" />}
                       </button>
@@ -1581,17 +1599,17 @@ export default function InboxPage() {
                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
                   {detail.audit?.length ? detail.audit.map(entry => (
                     <div key={entry.id} className="flex items-start gap-2.5">
-                      <div className="w-1 h-1 rounded-full bg-[#222] mt-2 flex-shrink-0" />
+                      <div className="w-1 h-1 rounded-full bg-surface mt-2 flex-shrink-0" />
                       <div>
-                        <p className="text-[11px] text-[#666]">{entry.action}</p>
+                        <p className="text-[11px] text-foreground-muted">{entry.action}</p>
                         {(entry.previous_value || entry.new_value) && (
-                          <p className="text-[10px] text-[#333] mt-0.5">{entry.previous_value} → {entry.new_value}</p>
+                          <p className="text-[10px] text-foreground-muted mt-0.5">{entry.previous_value} → {entry.new_value}</p>
                         )}
-                        <p className="text-[10px] text-[#252525] mt-0.5">{timeAgo(entry.performed_at)}</p>
+                        <p className="text-[10px] text-foreground/50 mt-0.5">{timeAgo(entry.performed_at)}</p>
                       </div>
                     </div>
                   )) : (
-                    <p className="text-[11px] text-[#2e2e2e] text-center py-8">No audit trail yet</p>
+                    <p className="text-[11px] text-foreground/50 text-center py-8">No audit trail yet</p>
                   )}
                 </div>
               )}
@@ -1602,24 +1620,24 @@ export default function InboxPage() {
 
       {/* ── Escalation modal ────────────────────────────────────────────────── */}
       {showEscalate && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="bg-[#0c0c0c] border border-[#161616] rounded-xl p-5 w-full max-w-md shadow-2xl">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-background border border-border rounded-xl p-5 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-red-400/60" />
-                <h3 className="text-[13px] font-semibold text-white/90">Escalate</h3>
+                <ShieldAlert className="w-4 h-4 text-error-text/60" />
+                <h3 className="text-[13px] font-semibold text-foreground">Escalate</h3>
               </div>
-              <button onClick={() => setShowEscalate(false)} className="text-[#2e2e2e] hover:text-white/70 transition-colors">
+              <button onClick={() => setShowEscalate(false)} className="text-foreground/50 hover:text-foreground/70 transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-[9px] text-[#444] mb-1.5 block uppercase tracking-[0.12em]">Category</label>
+                <label className="text-[9px] text-foreground-muted mb-1.5 block uppercase tracking-[0.12em]">Category</label>
                 <select
                   value={escalateCategory}
                   onChange={e => setEscalateCategory(e.target.value)}
-                  className="w-full bg-[#0d0d0d] border border-[#161616] rounded-lg text-[12px] text-white/80 px-3 py-2 outline-none"
+                  className="w-full bg-background border border-border rounded-lg text-[12px] text-foreground px-3 py-2 outline-none"
                 >
                   <option value="SENSITIVE_CONTENT">Sensitive Content</option>
                   <option value="LEGAL_RISK">Legal Risk</option>
@@ -1630,26 +1648,26 @@ export default function InboxPage() {
                 </select>
               </div>
               <div>
-                <label className="text-[9px] text-[#444] mb-1.5 block uppercase tracking-[0.12em]">Reason</label>
+                <label className="text-[9px] text-foreground-muted mb-1.5 block uppercase tracking-[0.12em]">Reason</label>
                 <textarea
                   value={escalateReason}
                   onChange={e => setEscalateReason(e.target.value)}
                   placeholder="Describe the escalation reason…"
                   rows={3}
-                  className="w-full bg-[#0d0d0d] border border-[#161616] rounded-lg text-[12px] text-white/80 placeholder-[#2e2e2e] px-3 py-2.5 outline-none resize-none"
+                  className="w-full bg-background border border-border rounded-lg text-[12px] text-foreground placeholder-foreground-muted px-3 py-2.5 outline-none resize-none"
                 />
               </div>
               <div className="flex gap-2 justify-end pt-1">
                 <button
                   onClick={() => setShowEscalate(false)}
-                  className="text-[11px] text-[#444] hover:text-white/70 px-3 py-1.5 rounded-lg border border-[#161616] hover:bg-white/[0.04] transition-colors"
+                  className="text-[11px] text-foreground-muted hover:text-foreground/70 px-3 py-1.5 rounded-lg border border-border hover:bg-white/[0.04] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleEscalate}
                   disabled={escalating || !escalateReason.trim()}
-                  className="flex items-center gap-1.5 text-[11px] text-white/90 bg-red-700/80 hover:bg-red-600/80 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+                  className="flex items-center gap-1.5 text-[11px] text-foreground bg-error-text/80 hover:brightness-110 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
                 >
                   {escalating ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldAlert className="w-3 h-3" />}
                   {escalating ? "Escalating…" : "Escalate"}
@@ -1663,23 +1681,23 @@ export default function InboxPage() {
       {/* ── Settings Modal (portal → renders into document.body, escapes layout transforms) */}
       {showSettings && createPortal(
         <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] overflow-y-auto"
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[9999] overflow-y-auto"
           onClick={e => { if (e.target === e.currentTarget) setShowSettings(false); }}
         >
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="bg-[#0c0c0c] border border-[#1a1a1a] rounded-xl w-full max-w-[560px] shadow-2xl">
+            <div className="bg-background border border-border rounded-xl w-full max-w-[560px] shadow-2xl">
 
               {/* ── Modal header ─────────────────────────────────────────── */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#141414]">
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-md bg-sky-500/10 flex items-center justify-center">
-                    <Settings className="w-3.5 h-3.5 text-sky-400/70" />
+                  <div className="w-6 h-6 rounded-md bg-info-bg flex items-center justify-center">
+                    <Settings className="w-3.5 h-3.5 text-info-text/70" />
                   </div>
-                  <h3 className="text-[13px] font-semibold text-white/90 tracking-tight">Inbox Settings</h3>
+                  <h3 className="text-[13px] font-semibold text-foreground tracking-tight">Inbox Settings</h3>
                 </div>
                 <button
                   onClick={() => setShowSettings(false)}
-                  className="w-6 h-6 flex items-center justify-center rounded-md text-[#333] hover:text-white/60 hover:bg-white/[0.04] transition-colors"
+                  className="w-6 h-6 flex items-center justify-center rounded-md text-foreground-muted hover:text-foreground/60 hover:bg-white/[0.04] transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1689,18 +1707,18 @@ export default function InboxPage() {
 
                 {/* ── Risk Classification ─────────────────────────────────── */}
                 <section>
-                  <p className="text-[9px] text-[#3a3a3a] uppercase tracking-[0.14em] font-medium mb-2.5">Risk Classification</p>
-                  <div className="bg-[#0f0f0f] border border-[#161616] rounded-lg overflow-hidden">
+                  <p className="text-[9px] text-foreground-muted uppercase tracking-[0.14em] font-medium mb-2.5">Risk Classification</p>
+                  <div className="bg-surface border border-border rounded-lg overflow-hidden">
                     <div className="divide-y divide-[#111]">
                       {[
-                        { level: "CRITICAL", color: "text-red-500",     bg: "bg-red-500/5",     desc: "Threats, extreme abuse, slurs — 10 languages" },
-                        { level: "HIGH",     color: "text-orange-400",  bg: "bg-orange-400/5",  desc: "Legal threats, chargeback, fraud claims" },
-                        { level: "MEDIUM",   color: "text-yellow-400",  bg: "bg-yellow-400/5",  desc: "Strong complaints and frustration" },
-                        { level: "LOW",      color: "text-emerald-500", bg: "bg-emerald-500/5", desc: "General inquiries and positive messages" },
+                        { level: "CRITICAL", color: "text-error-text",     bg: "bg-error-bg",     desc: "Threats, extreme abuse, slurs — 10 languages" },
+                        { level: "HIGH",     color: "text-warning-text",  bg: "bg-warning-bg",  desc: "Legal threats, chargeback, fraud claims" },
+                        { level: "MEDIUM",   color: "text-warning-text",  bg: "bg-warning-bg",  desc: "Strong complaints and frustration" },
+                        { level: "LOW",      color: "text-success-text", bg: "bg-success-bg", desc: "General inquiries and positive messages" },
                       ].map(({ level, color, bg, desc }) => (
                         <div key={level} className="flex items-center gap-3 px-3.5 py-2.5">
                           <span className={`text-[10px] font-bold ${color} ${bg} px-2 py-0.5 rounded w-[68px] text-center flex-shrink-0`}>{level}</span>
-                          <span className="text-[11px] text-[#555]">{desc}</span>
+                          <span className="text-[11px] text-foreground-muted">{desc}</span>
                         </div>
                       ))}
                     </div>
@@ -1710,35 +1728,35 @@ export default function InboxPage() {
                 {/* ── Auto-Reply Rules ────────────────────────────────────── */}
                 <section>
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-[9px] text-[#3a3a3a] uppercase tracking-[0.14em] font-medium">Smart Auto-Reply</p>
-                    <span className="text-[9px] text-[#2e2e2e]">{autoReplyRules.length} rule{autoReplyRules.length !== 1 ? "s" : ""}</span>
+                    <p className="text-[9px] text-foreground-muted uppercase tracking-[0.14em] font-medium">Smart Auto-Reply</p>
+                    <span className="text-[9px] text-foreground/50">{autoReplyRules.length} rule{autoReplyRules.length !== 1 ? "s" : ""}</span>
                   </div>
-                  <p className="text-[10px] text-[#333] mb-3">When a new message matches a keyword, a draft reply is auto-created for one-click sending.</p>
+                  <p className="text-[10px] text-foreground-muted mb-3">When a new message matches a keyword, a draft reply is auto-created for one-click sending.</p>
 
                   {/* Form */}
-                  <div className="bg-[#0f0f0f] border border-[#191919] rounded-lg p-3.5 mb-3 space-y-2.5">
-                    <p className="text-[10px] text-[#444] font-medium">{editingRule ? "Edit rule" : "Add new rule"}</p>
+                  <div className="bg-surface border border-border rounded-lg p-3.5 mb-3 space-y-2.5">
+                    <p className="text-[10px] text-foreground-muted font-medium">{editingRule ? "Edit rule" : "Add new rule"}</p>
                     <div className="grid grid-cols-2 gap-2.5">
                       <div>
-                        <label className="text-[9px] text-[#333] uppercase tracking-[0.1em] mb-1 block">Rule name</label>
+                        <label className="text-[9px] text-foreground-muted uppercase tracking-[0.1em] mb-1 block">Rule name</label>
                         <input
                           value={newRuleName}
                           onChange={e => setNewRuleName(e.target.value)}
                           placeholder="e.g. Greeting reply"
-                          className="w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-lg text-[11px] text-white/80 placeholder-[#252525] px-2.5 py-1.5 outline-none focus:border-[#2a2a2a] transition-colors"
+                          className="w-full bg-background border border-border rounded-lg text-[11px] text-foreground placeholder-foreground-muted px-2.5 py-1.5 outline-none focus:border-border transition-colors"
                         />
                       </div>
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="text-[9px] text-[#333] uppercase tracking-[0.1em]">Keywords <span className="normal-case">(comma-sep.)</span></label>
+                          <label className="text-[9px] text-foreground-muted uppercase tracking-[0.1em]">Keywords <span className="normal-case">(comma-sep.)</span></label>
                           <button
                             type="button"
                             onClick={() => setNewRuleCaseSensitive(v => !v)}
                             className="flex items-center gap-1.5 group"
                             title="Toggle case-sensitive matching"
                           >
-                            <span className={`text-[9px] font-mono font-bold transition-colors ${newRuleCaseSensitive ? "text-sky-400" : "text-[#333] group-hover:text-[#555]"}`}>Aa</span>
-                            <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${newRuleCaseSensitive ? "bg-sky-500" : "bg-[#222]"}`}>
+                            <span className={`text-[9px] font-mono font-bold transition-colors ${newRuleCaseSensitive ? "text-info-text" : "text-foreground-muted group-hover:text-foreground-muted"}`}>Aa</span>
+                            <div className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${newRuleCaseSensitive ? "bg-info-text" : "bg-surface"}`}>
                               <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-all duration-200 ${newRuleCaseSensitive ? "left-[14px]" : "left-0.5"}`} />
                             </div>
                           </button>
@@ -1747,25 +1765,25 @@ export default function InboxPage() {
                           value={newRuleKeywords}
                           onChange={e => setNewRuleKeywords(e.target.value)}
                           placeholder="hello, hi, hey"
-                          className="w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-lg text-[11px] text-white/80 placeholder-[#252525] px-2.5 py-1.5 outline-none focus:border-[#2a2a2a] transition-colors"
+                          className="w-full bg-background border border-border rounded-lg text-[11px] text-foreground placeholder-foreground-muted px-2.5 py-1.5 outline-none focus:border-border transition-colors"
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="text-[9px] text-[#333] uppercase tracking-[0.1em] mb-1 block">Auto-reply message</label>
+                      <label className="text-[9px] text-foreground-muted uppercase tracking-[0.1em] mb-1 block">Auto-reply message</label>
                       <textarea
                         value={newRuleReply}
                         onChange={e => setNewRuleReply(e.target.value)}
                         placeholder="Thank you for contacting us! We'll get back to you shortly."
                         rows={2}
-                        className="w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-lg text-[11px] text-white/80 placeholder-[#252525] px-2.5 py-2 outline-none resize-none focus:border-[#2a2a2a] transition-colors"
+                        className="w-full bg-background border border-border rounded-lg text-[11px] text-foreground placeholder-foreground-muted px-2.5 py-2 outline-none resize-none focus:border-border transition-colors"
                       />
                     </div>
                     <div className="flex items-center justify-end gap-2">
                       {editingRule && (
                         <button
                           onClick={() => { setEditingRule(null); setNewRuleName(""); setNewRuleKeywords(""); setNewRuleReply(""); setNewRuleCaseSensitive(false); }}
-                          className="text-[11px] text-[#444] hover:text-white/60 px-3 py-1.5 rounded-lg border border-[#1a1a1a] hover:bg-white/[0.03] transition-colors"
+                          className="text-[11px] text-foreground-muted hover:text-foreground/60 px-3 py-1.5 rounded-lg border border-border hover:bg-surface-hover transition-colors"
                         >
                           Cancel
                         </button>
@@ -1774,7 +1792,7 @@ export default function InboxPage() {
                         onClick={handleSaveRule}
                         disabled={savingRule || !newRuleKeywords.trim() || !newRuleReply.trim() || !canManageInboxRules}
                         title={!canManageInboxRules ? "Only Admins can manage auto-reply rules" : undefined}
-                        className="flex items-center gap-1.5 text-[11px] text-white/90 bg-sky-600/70 hover:bg-sky-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
+                        className="flex items-center gap-1.5 text-[11px] text-foreground bg-info-text/70 hover:brightness-110 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-30"
                       >
                         {savingRule ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                         {editingRule ? "Save Changes" : "Add Rule"}
@@ -1785,12 +1803,12 @@ export default function InboxPage() {
                   {/* Rules list */}
                   {rulesLoading ? (
                     <div className="flex items-center gap-2 py-5 justify-center">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#333]" />
-                      <span className="text-[11px] text-[#383838]">Loading rules…</span>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground-muted" />
+                      <span className="text-[11px] text-foreground-muted">Loading rules…</span>
                     </div>
                   ) : autoReplyRules.length === 0 ? (
-                    <div className="border border-dashed border-[#161616] rounded-lg py-6 text-center">
-                      <p className="text-[11px] text-[#2a2a2a]">No auto-reply rules yet.</p>
+                    <div className="border border-dashed border-border rounded-lg py-6 text-center">
+                      <p className="text-[11px] text-foreground/50">No auto-reply rules yet.</p>
                       <p className="text-[10px] text-[#222] mt-0.5">Add a rule above to get started.</p>
                     </div>
                   ) : (
@@ -1800,27 +1818,27 @@ export default function InboxPage() {
                           key={rule.id}
                           className={`border rounded-lg px-3.5 py-2.5 transition-all ${
                             rule.is_active
-                              ? "bg-[#0f0f0f] border-[#1a1a1a]"
-                              : "bg-[#0a0a0a] border-[#111] opacity-40"
+                              ? "bg-surface border-border"
+                              : "bg-background border-border opacity-40"
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                <p className="text-[11px] text-white/80 font-medium truncate">{rule.rule_name}</p>
+                                <p className="text-[11px] text-foreground font-medium truncate">{rule.rule_name}</p>
                                 {rule.is_active && (
-                                  <span className="text-[8px] text-emerald-500/60 bg-emerald-500/5 border border-emerald-500/10 px-1.5 py-0.5 rounded-full flex-shrink-0">active</span>
+                                  <span className="text-[8px] text-success-text/60 bg-success-bg border border-success-border px-1.5 py-0.5 rounded-full flex-shrink-0">active</span>
                                 )}
                                 {rule.is_case_sensitive && (
-                                  <span className="text-[8px] text-sky-400/60 bg-sky-500/5 border border-sky-500/10 px-1.5 py-0.5 rounded-full flex-shrink-0 font-mono">Aa</span>
+                                  <span className="text-[8px] text-info-text/60 bg-info-bg border border-info-border px-1.5 py-0.5 rounded-full flex-shrink-0 font-mono">Aa</span>
                                 )}
                               </div>
                               <div className="flex flex-wrap gap-1 mb-1">
                                 {rule.keywords.map(kw => (
-                                  <span key={kw} className="text-[9px] bg-[#141414] text-[#444] border border-[#1c1c1c] px-1.5 py-0.5 rounded font-mono">{kw}</span>
+                                  <span key={kw} className="text-[9px] bg-surface text-foreground-muted border border-border px-1.5 py-0.5 rounded font-mono">{kw}</span>
                                 ))}
                               </div>
-                              <p className="text-[10px] text-[#383838] line-clamp-1 italic">&ldquo;{rule.reply_body}&rdquo;</p>
+                              <p className="text-[10px] text-foreground-muted line-clamp-1 italic">&ldquo;{rule.reply_body}&rdquo;</p>
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                               <button
@@ -1830,20 +1848,20 @@ export default function InboxPage() {
                                 title={rule.is_active ? "Disable" : "Enable"}
                               >
                                 {rule.is_active
-                                  ? <ToggleRight className="w-4 h-4 text-sky-500" />
-                                  : <ToggleLeft className="w-4 h-4 text-[#333]" />}
+                                  ? <ToggleRight className="w-4 h-4 text-info-text" />
+                                  : <ToggleLeft className="w-4 h-4 text-foreground-muted" />}
                               </button>
                               <button
                                 onClick={() => startEditRule(rule)}
                                 disabled={!canManageInboxRules}
-                                className="p-1 rounded-md text-[#2e2e2e] hover:text-white/60 hover:bg-white/[0.04] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="p-1 rounded-md text-foreground/50 hover:text-foreground/60 hover:bg-white/[0.04] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <Pencil className="w-3 h-3" />
                               </button>
                               <button
                                 onClick={() => handleDeleteRule(rule.id)}
                                 disabled={!canManageInboxRules}
-                                className="p-1 rounded-md text-[#2e2e2e] hover:text-red-400 hover:bg-red-500/[0.06] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="p-1 rounded-md text-foreground/50 hover:text-error-text hover:brightness-110 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>

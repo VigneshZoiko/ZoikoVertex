@@ -33,49 +33,32 @@ export interface EvidencePack {
   export_hash: string;
 }
 
-// ─── In-Memory Stores ───────────────────────────────────────────────────────
-
-const legalHoldStore = new Map<string, LegalHold>();
-const evidencePackStore = new Map<string, EvidencePack>();
-
 // ─── Evidence Persistence ───────────────────────────────────────────────────
 
 export async function listLegalHolds(
   workspaceId?: string | null,
   isSuperAdmin?: boolean
 ): Promise<LegalHold[]> {
-  try {
-    let query = supabaseAdmin.from('legal_holds').select('*');
-    if (!isSuperAdmin && workspaceId) {
-      query = query.eq('workspace_id', workspaceId);
-    }
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
-  } catch {
-    return [...legalHoldStore.values()].filter(
-      (h) => isSuperAdmin || !workspaceId || h.workspace_id === workspaceId
-    );
+  let query = supabaseAdmin.from('legal_holds').select('*');
+  if (!isSuperAdmin && workspaceId) {
+    query = query.eq('workspace_id', workspaceId);
   }
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
 }
 
 export async function listEvidencePacks(
   workspaceId?: string | null,
   isSuperAdmin?: boolean
 ): Promise<EvidencePack[]> {
-  try {
-    let query = supabaseAdmin.from('evidence_packs').select('*');
-    if (!isSuperAdmin && workspaceId) {
-      query = query.eq('workspace_id', workspaceId);
-    }
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
-  } catch {
-    return [...evidencePackStore.values()].filter(
-      (p) => isSuperAdmin || !workspaceId || p.workspace_id === workspaceId
-    );
+  let query = supabaseAdmin.from('evidence_packs').select('*');
+  if (!isSuperAdmin && workspaceId) {
+    query = query.eq('workspace_id', workspaceId);
   }
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
 }
 
 export async function resolveWorkspaceId(userId: string): Promise<string | null> {
@@ -224,12 +207,8 @@ export async function createLegalHold(params: {
     created_at: new Date().toISOString(),
   };
 
-  try {
-    const { error } = await supabaseAdmin.from('legal_holds').insert(hold);
-    if (error) throw error;
-  } catch {
-    legalHoldStore.set(hold.id, hold);
-  }
+  const { error } = await supabaseAdmin.from('legal_holds').insert(hold);
+  if (error) throw error;
 
   await logAuditEvent({
     workspaceId: params.workspaceId,
@@ -259,12 +238,8 @@ export async function releaseLegalHoldById(
   const hold = holds.find((h) => h.id === id);
   if (!hold) return null;
 
-  try {
-    const { error } = await supabaseAdmin.from('legal_holds').delete().eq('id', id);
-    if (error) throw error;
-  } catch {
-    legalHoldStore.delete(id);
-  }
+  const { error } = await supabaseAdmin.from('legal_holds').delete().eq('id', id);
+  if (error) throw error;
 
   await logAuditEvent({
     workspaceId: hold.workspace_id,
@@ -277,8 +252,13 @@ export async function releaseLegalHoldById(
   return hold;
 }
 
-export function isOnLegalHold(objectId: string): boolean {
-  return [...legalHoldStore.values()].some((h) => h.object_id === objectId);
+export async function isOnLegalHold(objectId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from('legal_holds')
+    .select('id')
+    .eq('object_id', objectId)
+    .maybeSingle();
+  return !!data;
 }
 
 // ─── Evidence Pack Operations ───────────────────────────────────────────────
@@ -326,12 +306,8 @@ export async function buildEvidencePack(params: {
     export_hash: `sha256-${randomUUID().replace(/-/g, '')}`,
   };
 
-  try {
-    const { error } = await supabaseAdmin.from('evidence_packs').insert(pack);
-    if (error) throw error;
-  } catch {
-    evidencePackStore.set(pack.id, pack);
-  }
+  const { error } = await supabaseAdmin.from('evidence_packs').insert(pack);
+  if (error) throw error;
 
   await logAuditEvent({
     workspaceId: pack.workspace_id,
@@ -564,9 +540,7 @@ export async function computeEvidenceStats(
   try {
     let query = supabaseAdmin
       .from('publish_intents')
-      .select(
-        'id, status, risk_level, risk_score, feedback, target_account_ids, platform, content, workspace_id, creator_id'
-      );
+      .select('*');
     if (!isSuperAdmin && workspaceId) {
       query = query.eq('workspace_id', workspaceId);
     }

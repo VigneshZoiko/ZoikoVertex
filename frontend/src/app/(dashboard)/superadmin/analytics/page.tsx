@@ -226,7 +226,7 @@ export default function PlatformAnalytics() {
           </div>
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3.5">
             <div className="text-xs text-[var(--foreground-muted)] mb-0.5">Storage</div>
-            <div className="text-xl font-semibold text-emerald-500">Healthy</div>
+            <div className="text-xl font-semibold text-success-text">Healthy</div>
           </div>
         </div>
       )}
@@ -344,13 +344,13 @@ export default function PlatformAnalytics() {
                     <td className="px-5 py-3.5 align-top">
                       <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
                         org.status === 'ACTIVE' 
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
+                          ? 'bg-success-bg text-success-text' 
                           : org.status === 'SUSPENDED'
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                            ? 'bg-warning-bg text-warning-text'
                             : org.status === 'RESTRICTED'
-                              ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                              ? 'bg-error-bg text-error-text'
                               : org.status === 'DELETED'
-                                ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                ? 'bg-error-bg text-error-text'
                                 : 'bg-[var(--surface)] text-[var(--foreground-muted)]'
                       }`}>
                         {org.status === 'SUSPENDED' ? 'Paused' : org.status === 'RESTRICTED' ? 'Restricted' : org.status.charAt(0) + org.status.slice(1).toLowerCase()}
@@ -394,7 +394,7 @@ export default function PlatformAnalytics() {
                           <button
                             onClick={() => { setUpgradeOrgId(org.id); setUpgradePlanType(org.plan_type === 'ENTERPRISE' ? 'ENTERPRISE' : org.plan_type === 'GROWTH' ? 'ENTERPRISE' : 'GROWTH'); }}
                             disabled={!!actionLoading}
-                            className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-indigo-500 border border-[var(--border)] rounded transition-colors"
+                            className="p-1.5 bg-[var(--background)] hover:bg-[var(--surface)] text-[var(--foreground-muted)] hover:text-info-text border border-[var(--border)] rounded transition-colors"
                             title="Upgrade Plan"
                           >
                             <ArrowUpCircle className="w-3.5 h-3.5" />
@@ -503,7 +503,7 @@ export default function PlatformAnalytics() {
                   key={p.value}
                   className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
                     upgradePlanType === p.value
-                      ? 'border-indigo-500 bg-indigo-500/10 text-[var(--foreground)]'
+                      ? 'border-info-border bg-info-bg text-[var(--foreground)]'
                       : 'border-[var(--border)] text-[var(--foreground-muted)] hover:bg-[var(--surface-hover)]'
                   }`}
                 >
@@ -513,7 +513,7 @@ export default function PlatformAnalytics() {
                     value={p.value}
                     checked={upgradePlanType === p.value}
                     onChange={() => setUpgradePlanType(p.value)}
-                    className="accent-indigo-500"
+                    className="accent-info-text"
                   />
                   <span className="text-xs font-medium">{p.label}</span>
                 </label>
@@ -529,7 +529,7 @@ export default function PlatformAnalytics() {
               <button
                 onClick={handleUpgradePlan}
                 disabled={!!actionLoading}
-                className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                className="px-3 py-1.5 bg-info-text hover:brightness-110 text-foreground rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
                 {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUpCircle className="w-3.5 h-3.5" />}
                 Upgrade
@@ -545,10 +545,10 @@ export default function PlatformAnalytics() {
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg ${
               confirmDialog.type === 'delete'
-                ? 'bg-rose-500/10 text-rose-400 shadow-rose-500/10'
+                ? 'bg-error-bg text-error-text shadow-rose-500/10'
                 : confirmDialog.type === 'pause'
-                  ? 'bg-amber-500/10 text-amber-400 shadow-amber-500/10'
-                  : 'bg-amber-500/10 text-amber-400 shadow-amber-500/10'
+                  ? 'bg-warning-bg text-warning-text shadow-amber-500/10'
+                  : 'bg-warning-bg text-warning-text shadow-amber-500/10'
             }`}>
               {confirmDialog.type === 'delete' ? <Trash2 className="w-6 h-6" /> : <Shield className="w-6 h-6" />}
             </div>
@@ -577,8 +577,8 @@ export default function PlatformAnalytics() {
                 disabled={!!actionLoading}
                 className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
                   confirmDialog.type === 'delete'
-                    ? 'bg-red-600 hover:bg-red-500 text-white'
-                    : 'bg-amber-600 hover:bg-amber-500 text-white'
+                    ? 'bg-error-text hover:brightness-110 text-foreground'
+                    : 'bg-warning-text hover:brightness-110 text-foreground'
                 }`}
               >
                 {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
@@ -592,14 +592,14 @@ export default function PlatformAnalytics() {
       {/* Toasts */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-50 pointer-events-none">
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/80 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm pointer-events-auto border border-red-200 dark:border-red-800">
+          <div className="bg-error-bg text-error-text dark:text-red-200 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm pointer-events-auto border border-error-border">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
             <button onClick={() => setError(null)} className="ml-2"><X className="w-3.5 h-3.5" /></button>
           </div>
         )}
         {success && (
-          <div className="bg-emerald-50 dark:bg-emerald-900/80 text-emerald-700 dark:text-emerald-200 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm pointer-events-auto border border-emerald-200 dark:border-emerald-800">
+          <div className="bg-success-bg text-success-text dark:text-success-text px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm pointer-events-auto border border-success-border">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
             <button onClick={() => setSuccess(null)} className="ml-2"><X className="w-3.5 h-3.5" /></button>

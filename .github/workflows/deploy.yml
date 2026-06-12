@@ -2,6 +2,7 @@ name: Vercel Production Deployment
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 on:
@@ -12,6 +13,10 @@ on:
 
 jobs:
   deploy:
+    # Only deploy from the upstream repo that holds the Vercel secrets.
+    # Forks (which lack VERCEL_TOKEN) skip this job instead of failing it,
+    # so a fork push / cross-fork PR doesn't show a red deploy check.
+    if: github.repository == 'VigneshZoiko/ZoikoVertex'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -28,5 +33,14 @@ jobs:
         run: npm run build
         working-directory: ./frontend
 
+      - name: Check Vercel token
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::VERCEL_TOKEN secret is not set. Add it in repo Settings → Secrets and variables → Actions (and ensure the workflow runs in a context that has access to secrets — fork PRs do not)."
+            exit 1
+          fi
+
       - name: Deploy to Vercel
-        run: npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --cwd ./frontend --yes --archive=tgz
+        # Vercel CLI reads the token from the VERCEL_TOKEN env var (set above),
+        # so we don't pass --token= which crashes when the secret is empty.
+        run: npx vercel deploy --prod --token "$VERCEL_TOKEN" --cwd ./frontend --yes --archive=tgz

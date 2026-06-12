@@ -226,8 +226,8 @@ export default function TeamPage() {
         <div className="lg:col-span-1">
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
             <div className="flex items-center mb-6">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center mr-3">
-                <UserPlus className="w-4 h-4 text-indigo-400" />
+              <div className="w-8 h-8 rounded-lg bg-info-text/10 flex items-center justify-center mr-3">
+                <UserPlus className="w-4 h-4 text-info-text" />
               </div>
               <h2 className="text-lg font-bold text-[var(--foreground)]">Provision User</h2>
             </div>
@@ -235,8 +235,8 @@ export default function TeamPage() {
             {message && (
               <div className={`mb-4 p-3 text-sm rounded-lg border ${
                 message.type === "success"
-                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                  : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                  ? "bg-success-text/10 border-success-border/20 text-success-text"
+                  : "bg-error-text/10 border-error-border/20 text-error-text"
               }`}>
                 {message.text}
               </div>
@@ -247,14 +247,14 @@ export default function TeamPage() {
                 <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">Full Name</label>
                 <input
                   type="text" required value={fullName} onChange={e => setFullName(e.target.value)}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-info-border text-sm"
                 />
               </div>
               <div>
                 <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">Corporate Email</label>
                 <input
                   type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-info-border text-sm"
                 />
               </div>
 
@@ -265,7 +265,7 @@ export default function TeamPage() {
                   <button
                     type="button"
                     onClick={() => setDropdownOpen(o => !o)}
-                    className="w-full flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm hover:border-indigo-500/50 transition-colors"
+                    className="w-full flex items-center justify-between bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-info-border text-sm hover:border-info-border/50 transition-colors"
                   >
                     <span>{selectedRoleName}</span>
                     <ChevronDown className={`w-4 h-4 text-[var(--foreground-muted)] transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
@@ -294,18 +294,18 @@ export default function TeamPage() {
                                     ${locked
                                       ? "opacity-40 cursor-not-allowed"
                                       : role === r.id
-                                        ? "bg-indigo-500/15 text-indigo-400"
+                                        ? "bg-info-text/15 text-info-text"
                                         : "hover:bg-[var(--surface-hover)] text-[var(--foreground)]"
                                     }`}
                                 >
                                   <span className="font-medium">{r.name}</span>
                                   {locked ? (
-                                    <span className="flex items-center gap-1 text-[10px] font-bold text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-0.5 shrink-0">
+                                    <span className="flex items-center gap-1 text-[10px] font-bold text-warning-text/80 bg-warning-text/10 border border-warning-border/20 rounded px-1.5 py-0.5 shrink-0">
                                       <Lock className="w-2.5 h-2.5" />
                                       {reqPlan}+
                                     </span>
                                   ) : role === r.id ? (
-                                    <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                                    <Check className="w-3.5 h-3.5 text-info-text shrink-0" />
                                   ) : null}
                                 </button>
                               );
@@ -316,10 +316,10 @@ export default function TeamPage() {
                       {/* Upgrade nudge */}
                       {effectivePlan !== "ENTERPRISE" && (
                         <div className="px-3 py-2 border-t border-[var(--border)]/50 bg-[var(--surface)]/40 flex items-center gap-1.5">
-                          <Lock className="w-3 h-3 text-amber-500/70 shrink-0" />
+                          <Lock className="w-3 h-3 text-warning-text/70 shrink-0" />
                           <span className="text-[10px] text-[var(--foreground-muted)]">
                             Locked roles require a higher plan. Upgrade in{" "}
-                            <span className="text-amber-500/90 font-semibold">Settings → Billing</span>.
+                            <span className="text-warning-text/90 font-semibold">Settings → Billing</span>.
                           </span>
                         </div>
                       )}
@@ -332,7 +332,7 @@ export default function TeamPage() {
                 <label className="block text-xs font-medium text-[var(--foreground-muted)] mb-1.5">Temporary Password</label>
                 <input
                   type="text" required value={password} onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-[var(--foreground)] focus:outline-none focus:border-info-border text-sm"
                 />
               </div>
 
@@ -349,9 +349,9 @@ export default function TeamPage() {
             </form>
 
             {currentUserRole === "MANAGER" && !isSuperAdmin && (
-              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2">
-                <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-500/90 leading-relaxed">
+              <div className="mt-4 p-3 bg-warning-text/10 border border-warning-border/20 rounded-lg flex items-start gap-2">
+                <ShieldAlert className="w-4 h-4 text-warning-text shrink-0 mt-0.5" />
+                <p className="text-xs text-warning-text/90 leading-relaxed">
                   As a Manager, accounts you provision must be approved by an Administrator before they become active.
                 </p>
               </div>
@@ -364,12 +364,12 @@ export default function TeamPage() {
 
           {/* Pending Approvals — Admin / Superadmin only */}
           {(currentUserRole === "ADMIN" || isSuperAdmin) && (
-            <div className="bg-[var(--card)] border border-amber-500/30 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+            <div className="bg-[var(--card)] border border-warning-border/30 rounded-2xl p-6 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
-                <ShieldAlert className="w-32 h-32 text-amber-500" />
+                <ShieldAlert className="w-32 h-32 text-warning-text" />
               </div>
               <h2 className="text-lg font-bold text-[var(--foreground)] mb-1 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-amber-500" />
+                <Shield className="w-5 h-5 text-warning-text" />
                 Pending Account Approvals
               </h2>
               <p className="text-sm text-[var(--foreground-muted)] mb-6">Users provisioned by Managers requiring your authorization.</p>
@@ -393,15 +393,15 @@ export default function TeamPage() {
                           <div className="text-xs text-[var(--foreground-muted)]">{req.email}</div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="bg-indigo-500/10 text-indigo-400 px-2 py-1 rounded-md text-xs font-semibold">{req.role}</span>
+                          <span className="bg-info-text/10 text-info-text px-2 py-1 rounded-md text-xs font-semibold">{req.role}</span>
                         </td>
                         <td className="px-4 py-3 text-xs">{req.users?.full_name || "Manager"}</td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => handleRequestAction(req.id, "APPROVED")} className="p-1.5 text-emerald-500 hover:bg-emerald-500/10 rounded-md transition-colors" title="Approve">
+                            <button onClick={() => handleRequestAction(req.id, "APPROVED")} className="p-1.5 text-success-text hover:bg-success-text/10 rounded-md transition-colors" title="Approve">
                               <Check className="w-4 h-4" />
                             </button>
-                            <button onClick={() => handleRequestAction(req.id, "REJECTED")} className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-md transition-colors" title="Reject">
+                            <button onClick={() => handleRequestAction(req.id, "REJECTED")} className="p-1.5 text-error-text hover:bg-error-text/10 rounded-md transition-colors" title="Reject">
                               <X className="w-4 h-4" />
                             </button>
                           </div>
@@ -417,7 +417,7 @@ export default function TeamPage() {
           {/* Active Members Table */}
           <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-bold text-[var(--foreground)] mb-6 flex items-center gap-2">
-              <Users className="w-5 h-5 text-indigo-400" />
+              <Users className="w-5 h-5 text-info-text" />
               Active Workspace Members
               <span className="ml-auto text-xs text-[var(--foreground-muted)] font-normal">{members.length} members</span>
             </h2>
@@ -452,16 +452,16 @@ export default function TeamPage() {
                         {/* Name + email */}
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-bold text-white shadow-inner shrink-0">
+                            <div className="w-9 h-9 rounded-full bg-surface-hover flex items-center justify-center text-sm font-bold text-foreground shadow-inner shrink-0">
                               {(member.full_name || member.email || "Z").charAt(0).toUpperCase()}
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-[var(--foreground)] font-bold text-sm group-hover:text-indigo-400 transition-colors">
+                                <span className="text-[var(--foreground)] font-bold text-sm group-hover:text-info-text transition-colors">
                                   {member.full_name || "Zoiko Employee"}
                                 </span>
                                 {isSelf && (
-                                  <span className="text-[10px] px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded font-semibold">You</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-info-text/10 border border-info-border/20 text-info-text rounded font-semibold">You</span>
                                 )}
                               </div>
                               <div className="text-xs text-[var(--foreground-muted)]">{member.email}</div>
@@ -473,12 +473,12 @@ export default function TeamPage() {
                         <td className="px-4 py-4">
                           <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase tracking-wider font-bold ${
                             member.role === "ADMIN" || member.role === "WORKSPACE_OWNER"
-                              ? "bg-rose-500/10 border border-rose-500/20 text-rose-400"
+                              ? "bg-error-text/10 border border-error-border/20 text-error-text"
                               : member.role?.includes("ADMIN") || member.role?.includes("OWNER")
-                              ? "bg-rose-500/10 border border-rose-500/20 text-rose-400"
+                              ? "bg-error-text/10 border border-error-border/20 text-error-text"
                               : member.role?.includes("MANAGER") || member.role?.includes("REVIEWER")
-                              ? "bg-amber-500/10 border border-amber-500/20 text-amber-400"
-                              : "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
+                              ? "bg-warning-text/10 border border-warning-border/20 text-warning-text"
+                              : "bg-info-text/10 border border-info-border/20 text-info-text"
                           }`}>
                             {(member.role || "MEMBER").replace(/_/g, " ")}
                           </span>
@@ -486,8 +486,8 @@ export default function TeamPage() {
 
                         {/* Status */}
                         <td className="px-4 py-4 text-center">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success-text/10 border border-success-border/20 text-success-text text-xs font-bold">
+                            <div className="w-1.5 h-1.5 rounded-full bg-success-text animate-pulse" />
                             Active
                           </span>
                         </td>
@@ -499,7 +499,7 @@ export default function TeamPage() {
                               <button
                                 onClick={() => setConfirmDelete(member.id)}
                                 disabled={deleting === member.id}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-[11px] font-semibold rounded-lg transition-all disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-error-text/10 hover:bg-error-text/20 border border-error-border/20 text-error-text text-[11px] font-semibold rounded-lg transition-all disabled:opacity-50 opacity-0 group-hover:opacity-100"
                               >
                                 {deleting === member.id
                                   ? <RefreshCw className="w-3 h-3 animate-spin" />
@@ -536,10 +536,10 @@ export default function TeamPage() {
         if (!target) return null;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-[var(--card)] border border-rose-500/30 rounded-2xl w-full max-w-sm shadow-2xl p-6">
+            <div className="bg-[var(--card)] border border-error-border/30 rounded-2xl w-full max-w-sm shadow-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-rose-400" />
+                <div className="w-10 h-10 rounded-full bg-error-text/10 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-error-text" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-[var(--foreground)]">Delete Member Account</h3>
@@ -549,14 +549,14 @@ export default function TeamPage() {
 
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 mb-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-xs font-bold text-foreground shrink-0">
                     {(target.full_name || target.email || "?").charAt(0).toUpperCase()}
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-[var(--foreground)]">{target.full_name || "Unknown"}</p>
                     <p className="text-xs text-[var(--foreground-muted)]">{target.email}</p>
                   </div>
-                  <span className="ml-auto text-[10px] px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded font-bold">
+                  <span className="ml-auto text-[10px] px-2 py-0.5 bg-info-text/10 border border-info-border/20 text-info-text rounded font-bold">
                     {(target.role || "MEMBER").replace(/_/g, " ")}
                   </span>
                 </div>
@@ -579,7 +579,7 @@ export default function TeamPage() {
                 <button
                   onClick={() => handleDeleteMember(target.id)}
                   disabled={deleting === target.id}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-rose-500 hover:bg-rose-600 text-white rounded-xl transition-all disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold bg-error-text hover:bg-error-text text-foreground rounded-xl transition-all disabled:opacity-50"
                 >
                   {deleting === target.id
                     ? <RefreshCw className="w-4 h-4 animate-spin" />

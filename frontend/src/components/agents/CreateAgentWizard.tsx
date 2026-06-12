@@ -804,7 +804,7 @@ export default function CreateAgentWizard({
         {/* ── Header ── */}
         <div className="px-6 py-4 border-b border-[var(--card-border)] flex items-center justify-between bg-[var(--surface)]/50 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white">
+            <div className="w-8 h-8 bg-info-text rounded-lg flex items-center justify-center text-foreground">
               <Bot className="w-5 h-5" />
             </div>
             <div>
@@ -832,9 +832,9 @@ export default function CreateAgentWizard({
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all ${
                     done
-                      ? "bg-emerald-500 border-emerald-500 text-white"
+                      ? "bg-success-text border-success-border text-foreground"
                       : active
-                        ? "bg-indigo-500 border-indigo-500 text-white"
+                        ? "bg-info-text border-info-border text-foreground"
                         : "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground-muted)]"
                   }`}
                 >
@@ -843,7 +843,7 @@ export default function CreateAgentWizard({
                 <span
                   className={`text-xs font-semibold shrink-0 ${
                     done
-                      ? "text-emerald-500"
+                      ? "text-success-text"
                       : active
                         ? "text-[var(--foreground)]"
                         : "text-[var(--foreground-muted)]"
@@ -877,7 +877,7 @@ export default function CreateAgentWizard({
                     <button
                       key={template.id}
                       onClick={() => handleTemplateSelect(template)}
-                      className="flex items-start gap-3 p-3 rounded-xl border bg-[var(--background)] border-[var(--border)] hover:border-indigo-500/50 transition-all text-left"
+                      className="flex items-start gap-3 p-3 rounded-xl border bg-[var(--background)] border-[var(--border)] hover:border-info-border/50 transition-all text-left"
                     >
                       <div className="flex-1">
                         <div className="font-semibold text-xs text-[var(--foreground)]">
@@ -890,15 +890,15 @@ export default function CreateAgentWizard({
                           <span
                             className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                               template.defaultRisk === "low"
-                                ? "bg-emerald-500/10 text-emerald-500"
+                                ? "bg-success-bg text-success-text"
                                 : template.defaultRisk === "medium"
-                                  ? "bg-amber-500/10 text-amber-500"
-                                  : "bg-rose-500/10 text-rose-500"
+                                  ? "bg-warning-text/10 text-warning-text"
+                                  : "bg-error-text/10 text-error-text"
                             }`}
                           >
                             {template.defaultRisk.toUpperCase()}
                           </span>
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-500">
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-info-text/10 text-info-text">
                             {template.defaultMode.replace("_", " ")}
                           </span>
                         </div>
@@ -924,7 +924,7 @@ export default function CreateAgentWizard({
                 </label>
                 <input
                   type="text"
-                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-[var(--foreground)]"
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 focus:ring-2 focus:ring-info-text/20 outline-none transition-all text-[var(--foreground)]"
                   placeholder="e.g. Nexus Content Lead"
                   value={formData.name}
                   onChange={(e) =>
@@ -937,7 +937,7 @@ export default function CreateAgentWizard({
                   Business Purpose
                 </label>
                 <textarea
-                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all h-28 resize-none text-[var(--foreground)]"
+                  className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 focus:ring-2 focus:ring-info-text/20 outline-none transition-all h-28 resize-none text-[var(--foreground)]"
                   placeholder="What is this agent's primary objective?"
                   value={formData.purpose}
                   onChange={(e) =>
@@ -962,12 +962,12 @@ export default function CreateAgentWizard({
                       className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
                         formData.risk_level === risk
                           ? risk === "low"
-                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                            ? "bg-success-bg border-success-border/30 text-success-text"
                             : risk === "medium"
-                              ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                              ? "bg-warning-text/10 border-warning-border/30 text-warning-text"
                               : risk === "high"
-                                ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
-                                : "bg-rose-600/10 border-rose-600/30 text-rose-600"
+                                ? "bg-error-text/10 border-error-border/30 text-error-text"
+                                : "bg-error-text/10 border-error-border/30 text-error-text"
                           : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground-muted)]"
                       }`}
                     >
@@ -978,7 +978,7 @@ export default function CreateAgentWizard({
               </div>
               <button
                 onClick={() => setShowTemplates(true)}
-                className="text-xs text-indigo-500 hover:underline"
+                className="text-xs text-info-text hover:underline"
               >
                 ← Browse templates
               </button>
@@ -1001,12 +1001,12 @@ export default function CreateAgentWizard({
                       }
                       className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
                         formData.type === type.id
-                          ? "bg-indigo-500/10 border-indigo-500 ring-1 ring-indigo-500"
-                          : "bg-[var(--background)] border-[var(--border)] hover:border-indigo-500/50"
+                          ? "bg-info-text/10 border-info-border ring-1 ring-info-text"
+                          : "bg-[var(--background)] border-[var(--border)] hover:border-info-border/50"
                       }`}
                     >
                       <Target
-                        className={`w-5 h-5 shrink-0 ${formData.type === type.id ? "text-indigo-500" : "text-[var(--foreground-muted)]"}`}
+                        className={`w-5 h-5 shrink-0 ${formData.type === type.id ? "text-info-text" : "text-[var(--foreground-muted)]"}`}
                       />
                       <div>
                         <div className="font-semibold text-sm text-[var(--foreground)]">
@@ -1033,12 +1033,12 @@ export default function CreateAgentWizard({
                       }
                       className={`flex items-start gap-3 p-3 rounded-xl border transition-all text-left ${
                         formData.mode === mode.id
-                          ? "bg-indigo-500/10 border-indigo-500 ring-1 ring-indigo-500"
-                          : "bg-[var(--background)] border-[var(--border)] hover:border-indigo-500/50"
+                          ? "bg-info-text/10 border-info-border ring-1 ring-info-text"
+                          : "bg-[var(--background)] border-[var(--border)] hover:border-info-border/50"
                       }`}
                     >
                       <BrainCircuit
-                        className={`w-5 h-5 mt-0.5 shrink-0 ${formData.mode === mode.id ? "text-indigo-500" : "text-[var(--foreground-muted)]"}`}
+                        className={`w-5 h-5 mt-0.5 shrink-0 ${formData.mode === mode.id ? "text-info-text" : "text-[var(--foreground-muted)]"}`}
                       />
                       <div className="flex-1">
                         <div className="font-semibold text-sm text-[var(--foreground)]">
@@ -1049,7 +1049,7 @@ export default function CreateAgentWizard({
                         </div>
                       </div>
                       <span
-                        className={`text-[9px] font-black px-2 py-0.5 rounded border shrink-0 ${formData.mode === mode.id ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" : "bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)]"}`}
+                        className={`text-[9px] font-black px-2 py-0.5 rounded border shrink-0 ${formData.mode === mode.id ? "bg-info-text/10 text-info-text border-info-border/20" : "bg-[var(--surface)] text-[var(--foreground-muted)] border-[var(--border)]"}`}
                       >
                         {mode.targetLevel}
                       </span>
@@ -1066,7 +1066,7 @@ export default function CreateAgentWizard({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground-muted)]">
-                    Channel Scope <span className="text-rose-500">*</span>
+                    Channel Scope <span className="text-error-text">*</span>
                   </label>
                   <span className="text-[10px] text-[var(--foreground-muted)]">
                     {formData.linked_channels.length} selected
@@ -1086,8 +1086,8 @@ export default function CreateAgentWizard({
                         onClick={() => toggleChannel(channel.id)}
                         className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
                           selected
-                            ? "bg-indigo-500/10 border-indigo-500/30"
-                            : "bg-[var(--background)] border-[var(--border)] hover:border-indigo-500/30"
+                            ? "bg-info-text/10 border-info-border/30"
+                            : "bg-[var(--background)] border-[var(--border)] hover:border-info-border/30"
                         }`}
                       >
                         <div className="flex items-center gap-2">
@@ -1112,7 +1112,7 @@ export default function CreateAgentWizard({
             <div className="space-y-5 animate-in slide-in-from-right-4 duration-300">
               <div className="space-y-2">
                 <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground-muted)]">
-                  Primary DRI <span className="text-rose-500">*</span>
+                  Primary DRI <span className="text-error-text">*</span>
                 </label>
                 <select
                   className="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl py-3 px-4 outline-none transition-all text-[var(--foreground)]"
@@ -1131,7 +1131,7 @@ export default function CreateAgentWizard({
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-emerald-500 flex items-center gap-1">
+                <p className="text-xs text-success-text flex items-center gap-1">
                   <Shield className="w-3 h-3" />
                   Responsible for all agent actions and policy compliance.
                 </p>
@@ -1166,7 +1166,7 @@ export default function CreateAgentWizard({
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-black uppercase tracking-widest text-emerald-500">
+                  <label className="text-xs font-black uppercase tracking-widest text-success-text">
                     Permitted Actions
                   </label>
                   <span className="text-[10px] text-[var(--foreground-muted)]">
@@ -1185,10 +1185,10 @@ export default function CreateAgentWizard({
                       disabled={formData.prohibited_actions.includes(action.id)}
                       className={`p-3 rounded-xl border text-center transition-all ${
                         formData.permitted_actions.includes(action.id)
-                          ? `bg-emerald-500/10 border-emerald-500/30 text-emerald-500`
+                          ? `bg-success-bg border-success-border/30 text-success-text`
                           : formData.prohibited_actions.includes(action.id)
                             ? "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground-muted)] opacity-30 cursor-not-allowed"
-                            : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-indigo-500/30"
+                            : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-info-border/30"
                       }`}
                     >
                       <div className="text-xs font-bold">{action.label}</div>
@@ -1201,7 +1201,7 @@ export default function CreateAgentWizard({
               </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-black uppercase tracking-widest text-rose-500">
+                  <label className="text-xs font-black uppercase tracking-widest text-error-text">
                     Prohibited Actions
                   </label>
                   <span className="text-[10px] text-[var(--foreground-muted)]">
@@ -1220,10 +1220,10 @@ export default function CreateAgentWizard({
                       disabled={formData.permitted_actions.includes(action.id)}
                       className={`p-3 rounded-xl border text-center transition-all ${
                         formData.prohibited_actions.includes(action.id)
-                          ? "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                          ? "bg-error-text/10 border-error-border/30 text-error-text"
                           : formData.permitted_actions.includes(action.id)
                             ? "bg-[var(--surface)] border-[var(--border)] text-[var(--foreground-muted)] opacity-30 cursor-not-allowed"
-                            : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-rose-500/30"
+                            : "bg-[var(--background)] border-[var(--border)] text-[var(--foreground-muted)] hover:border-error-border/30"
                       }`}
                     >
                       <div className="text-xs font-bold">{action.label}</div>
@@ -1292,7 +1292,7 @@ export default function CreateAgentWizard({
                 }) => (
                   <div key={key} className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4 text-indigo-400" />
+                      <Icon className="w-4 h-4 text-info-text" />
                       <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground-muted)]">
                         {label}
                       </label>
@@ -1305,7 +1305,7 @@ export default function CreateAgentWizard({
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        className="flex-1 bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-4 text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-[var(--foreground-muted)]"
+                        className="flex-1 bg-[var(--background)] border border-[var(--border)] rounded-xl py-2.5 px-4 text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-info-text/20 transition-all placeholder:text-[var(--foreground-muted)]"
                         placeholder={placeholder}
                         value={manualInputs[key]}
                         onChange={(e) =>
@@ -1327,7 +1327,7 @@ export default function CreateAgentWizard({
                           addManualResource(key, manualInputs[key])
                         }
                         disabled={!manualInputs[key].trim()}
-                        className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                        className="px-4 py-2.5 rounded-xl bg-info-text hover:bg-info-text text-foreground text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
                       >
                         Add
                       </button>
@@ -1346,14 +1346,14 @@ export default function CreateAgentWizard({
                           return (
                             <div
                               key={id}
-                              className="flex items-center gap-1.5 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 rounded-full px-3 py-1 text-xs font-semibold"
+                              className="flex items-center gap-1.5 bg-info-text/10 border border-info-border/30 text-info-text rounded-full px-3 py-1 text-xs font-semibold"
                             >
                               <Check className="w-3 h-3" />
                               <span>{matched?.name || id}</span>
                               <button
                                 type="button"
                                 onClick={() => removeManualResource(key, id)}
-                                className="ml-1 hover:text-rose-400 transition-colors"
+                                className="ml-1 hover:text-error-text transition-colors"
                               >
                                 <X className="w-3 h-3" />
                               </button>
@@ -1375,8 +1375,8 @@ export default function CreateAgentWizard({
                               onClick={() => toggleLinked(item.id, key)}
                               className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
                                 selected
-                                  ? "bg-indigo-500/10 border-indigo-500/30"
-                                  : "bg-[var(--background)] border-[var(--border)] hover:border-indigo-500/30"
+                                  ? "bg-info-text/10 border-info-border/30"
+                                  : "bg-[var(--background)] border-[var(--border)] hover:border-info-border/30"
                               }`}
                             >
                               <span className="text-xs font-semibold text-[var(--foreground)] truncate">
@@ -1385,7 +1385,7 @@ export default function CreateAgentWizard({
                               <div className="flex items-center gap-2 shrink-0">
                                 <StatusBadge status={item.status} />
                                 {selected && (
-                                  <Check className="w-3 h-3 text-indigo-500" />
+                                  <Check className="w-3 h-3 text-info-text" />
                                 )}
                               </div>
                             </button>
@@ -1409,7 +1409,7 @@ export default function CreateAgentWizard({
           {currentStep === 7 && (
             <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
               <div className="flex items-center gap-2">
-                <FileCheck className="w-5 h-5 text-indigo-400" />
+                <FileCheck className="w-5 h-5 text-info-text" />
                 <h3 className="text-sm font-bold text-[var(--foreground)]">
                   Activation Checklist
                 </h3>
@@ -1426,19 +1426,19 @@ export default function CreateAgentWizard({
                     <div
                       className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
                         item.done
-                          ? "bg-emerald-500 text-white"
+                          ? "bg-success-text text-foreground"
                           : "bg-[var(--surface)] border border-[var(--border)]"
                       }`}
                     >
                       {item.done && <Check className="w-3 h-3" />}
                     </div>
                     <span
-                      className={`text-xs font-medium ${item.done ? "text-emerald-500" : "text-[var(--foreground-muted)]"}`}
+                      className={`text-xs font-medium ${item.done ? "text-success-text" : "text-[var(--foreground-muted)]"}`}
                     >
                       {item.label}
                     </span>
                     {!item.done && (
-                      <span className="text-[9px] text-amber-500 ml-auto">
+                      <span className="text-[9px] text-warning-text ml-auto">
                         Action required in step{" "}
                         {item.key === "identity"
                           ? 1
@@ -1457,9 +1457,9 @@ export default function CreateAgentWizard({
                 ))}
               </div>
               {!allChecklistDone && (
-                <div className="flex items-center gap-2 p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl">
-                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                  <p className="text-xs text-amber-500">
+                <div className="flex items-center gap-2 p-3 bg-warning-text/5 border border-warning-border/10 rounded-xl">
+                  <AlertTriangle className="w-4 h-4 text-warning-text shrink-0" />
+                  <p className="text-xs text-warning-text">
                     Complete all checklist items to enable full deployment. You
                     can still save as draft or request approval.
                   </p>
@@ -1471,9 +1471,9 @@ export default function CreateAgentWizard({
           {/* ── Step 8: Sandbox ── */}
           {currentStep === 8 && (
             <div className="space-y-5 animate-in slide-in-from-right-4 duration-300">
-              <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-xl">
+              <div className="p-4 bg-info-text/5 border border-info-border/10 rounded-xl">
                 <div className="flex items-center gap-2 mb-3">
-                  <ShieldCheck className="w-5 h-5 text-indigo-400" />
+                  <ShieldCheck className="w-5 h-5 text-info-text" />
                   <h3 className="text-sm font-bold text-[var(--foreground)]">
                     Sandbox Safety Tests
                   </h3>
@@ -1488,8 +1488,8 @@ export default function CreateAgentWizard({
                       key={check.id}
                       className="flex items-center gap-3 p-2.5 bg-[var(--background)] border border-[var(--border)] rounded-lg"
                     >
-                      <div className="w-4 h-4 rounded border border-indigo-500/30 bg-indigo-500/5 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-indigo-400" />
+                      <div className="w-4 h-4 rounded border border-info-border/30 bg-info-text/5 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-info-text" />
                       </div>
                       <div className="flex-1">
                         <div className="text-xs font-semibold text-[var(--foreground)]">
@@ -1503,10 +1503,10 @@ export default function CreateAgentWizard({
                   ))}
                 </div>
               </div>
-              <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
+              <div className="p-4 bg-success-bg5 border border-success-border/10 rounded-xl">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-bold text-emerald-500">
+                    <div className="text-xs font-bold text-success-text">
                       Target Autonomy Level
                     </div>
                     <div className="text-lg font-black text-[var(--foreground)]">
@@ -1528,10 +1528,10 @@ export default function CreateAgentWizard({
                     <div
                       className={`text-lg font-black ${
                         formData.risk_level === "low"
-                          ? "text-emerald-500"
+                          ? "text-success-text"
                           : formData.risk_level === "medium"
-                            ? "text-amber-500"
-                            : "text-rose-500"
+                            ? "text-warning-text"
+                            : "text-error-text"
                       }`}
                     >
                       {formData.risk_level.toUpperCase()}
@@ -1540,7 +1540,7 @@ export default function CreateAgentWizard({
                 </div>
               </div>
               <div className="flex items-center gap-2 p-3 bg-[var(--surface)]/50 border border-[var(--border)] rounded-xl">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <AlertTriangle className="w-4 h-4 text-warning-text shrink-0" />
                 <span className="text-xs text-[var(--foreground-muted)]">
                   Sandbox tests run in a contained environment. Agent will
                   remain in <strong>Draft</strong> status until all tests pass.
@@ -1552,9 +1552,9 @@ export default function CreateAgentWizard({
           {/* ── Step 9: Release ── */}
           {currentStep === 9 && (
             <div className="space-y-5 animate-in zoom-in-95 duration-300">
-              <div className="p-5 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl space-y-4">
+              <div className="p-5 bg-info-text/5 border border-info-border/10 rounded-2xl space-y-4">
                 <h3 className="font-bold text-sm flex items-center gap-2 text-[var(--foreground)]">
-                  <Bot className="w-5 h-5 text-indigo-500" />
+                  <Bot className="w-5 h-5 text-info-text" />
                   Agent Operating Contract
                 </h3>
                 <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
@@ -1643,10 +1643,10 @@ export default function CreateAgentWizard({
                 </details>
               )}
 
-              <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl">
+              <div className="p-4 bg-warning-text/5 border border-warning-border/10 rounded-xl">
                 <div className="flex items-center gap-2 mb-3">
-                  <User className="w-4 h-4 text-amber-500" />
-                  <span className="text-xs font-bold text-amber-500">
+                  <User className="w-4 h-4 text-warning-text" />
+                  <span className="text-xs font-bold text-warning-text">
                     Required Approvers ({formData.risk_level} risk)
                   </span>
                 </div>
@@ -1654,7 +1654,7 @@ export default function CreateAgentWizard({
                   {approvers.roles.map((role) => (
                     <span
                       key={role}
-                      className="px-2 py-1 text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded"
+                      className="px-2 py-1 text-[10px] font-bold bg-warning-text/10 text-warning-text border border-warning-border/20 rounded"
                     >
                       {role}
                     </span>
@@ -1666,8 +1666,8 @@ export default function CreateAgentWizard({
               </div>
 
               {formData.prohibited_actions.length > 0 && (
-                <div className="p-4 bg-rose-500/5 border border-rose-500/10 rounded-2xl">
-                  <div className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">
+                <div className="p-4 bg-error-text/5 border border-error-border/10 rounded-2xl">
+                  <div className="text-[10px] font-black text-error-text uppercase tracking-widest mb-1">
                     Hard Prohibitions
                   </div>
                   <div className="text-[11px] text-[var(--foreground-muted)]">
@@ -1679,9 +1679,9 @@ export default function CreateAgentWizard({
 
               {/* ── FIX: inline success message ── */}
               {submitSuccess && (
-                <div className="flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl animate-in fade-in duration-200">
-                  <Check className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <p className="text-sm font-medium text-emerald-500">
+                <div className="flex items-center gap-3 p-4 bg-success-bg border border-success-border/20 rounded-xl animate-in fade-in duration-200">
+                  <Check className="w-5 h-5 text-success-text shrink-0" />
+                  <p className="text-sm font-medium text-success-text">
                     {submitSuccess}
                   </p>
                 </div>
@@ -1689,13 +1689,13 @@ export default function CreateAgentWizard({
 
               {/* ── FIX: inline error message ── */}
               {submitError && (
-                <div className="flex items-start gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl animate-in fade-in duration-200">
-                  <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 p-4 bg-error-text/10 border border-error-border/20 rounded-xl animate-in fade-in duration-200">
+                  <AlertTriangle className="w-5 h-5 text-error-text shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-sm font-semibold text-rose-500">
+                    <p className="text-sm font-semibold text-error-text">
                       Submission failed
                     </p>
-                    <p className="text-xs text-rose-400">{submitError}</p>
+                    <p className="text-xs text-error-text">{submitError}</p>
                     <p className="text-[10px] text-[var(--foreground-muted)]">
                       Check your connection and try again. Your form data is
                       preserved.
@@ -1706,14 +1706,14 @@ export default function CreateAgentWizard({
 
               {/* ── FIX: checklist warning if not all done ── */}
               {!allChecklistDone && !submitSuccess && (
-                <div className="flex items-start gap-2 p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl">
-                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2 p-3 bg-warning-text/5 border border-warning-border/10 rounded-xl">
+                  <AlertTriangle className="w-4 h-4 text-warning-text shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs text-amber-500 font-semibold">
+                    <p className="text-xs text-warning-text font-semibold">
                       Checklist incomplete ({checklistComplete}/
                       {checklist.length})
                     </p>
-                    <p className="text-[10px] text-amber-400 mt-0.5">
+                    <p className="text-[10px] text-warning-text mt-0.5">
                       &quot;Queue for Approval&quot; requires a complete checklist. You
                       can still save as draft or request approval now.
                     </p>
@@ -1743,7 +1743,7 @@ export default function CreateAgentWizard({
                 (currentStep === 3 && formData.linked_channels.length === 0) ||
                 (currentStep === 4 && !formData.primary_dri_id)
               }
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+              className="flex items-center gap-2 bg-info-text hover:bg-info-text text-foreground px-6 py-2 rounded-xl font-bold transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50"
             >
               Continue
               <ChevronRight className="w-4 h-4" />
@@ -1771,7 +1771,7 @@ export default function CreateAgentWizard({
               <button
                 onClick={() => handleSubmit("approval")}
                 disabled={loading || !!submitSuccess}
-                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-600/20 disabled:opacity-50"
+                className="flex items-center gap-2 bg-warning-text hover:bg-warning-text text-foreground px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-amber-600/20 disabled:opacity-50"
               >
                 {loading && submitAction === "approval" ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1788,7 +1788,7 @@ export default function CreateAgentWizard({
                 <button
                   onClick={() => handleSubmit("deploy")}
                   disabled={loading || !allChecklistDone || !!submitSuccess}
-                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 bg-success-text hover:bg-success-text text-foreground px-4 py-2 rounded-xl font-bold transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading && submitAction === "deploy" ? (
                     <>

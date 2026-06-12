@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
 
@@ -24,11 +24,16 @@ export interface Notification {
   read: boolean;
   actions?: NotificationAction[];
   metadata?: Record<string, any>;
+  /** Present only for admin workspace notifications */
+  user?: { id: string; full_name?: string; email?: string; role?: string };
 }
 
 interface NotificationState {
   notifications: Notification[];
   loading: boolean;
+  /** Workspace-wide notifications visible to admins */
+  adminNotifications: Notification[];
+  adminLoading: boolean;
 }
 
 type NotificationEvent =
@@ -38,7 +43,9 @@ type NotificationEvent =
   | { type: 'MARK_READ'; payload: string }
   | { type: 'MARK_ALL_READ' }
   | { type: 'CLEAR_ALL' }
-  | { type: 'SET_LOADING'; payload: boolean };
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ADMIN_NOTIFICATIONS'; payload: Notification[] }
+  | { type: 'SET_ADMIN_LOADING'; payload: boolean };
 
 const NotificationContext = createContext<{
   state: NotificationState;
@@ -47,6 +54,7 @@ const NotificationContext = createContext<{
   markAsRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
   clearAll: () => Promise<void>;
+  fetchAdminNotifications: () => Promise<void>;
 } | undefined>(undefined);
 
 function notificationReducer(state: NotificationState, action: NotificationEvent): NotificationState {
@@ -73,30 +81,88 @@ function notificationReducer(state: NotificationState, action: NotificationEvent
       };
     case 'CLEAR_ALL':
       return { ...state, notifications: [] };
+    case 'SET_ADMIN_NOTIFICATIONS':
+      return { ...state, adminNotifications: action.payload, adminLoading: false };
+    case 'SET_ADMIN_LOADING':
+      return { ...state, adminLoading: action.payload };
     default:
       return state;
   }
 }
 
+function typeToCategory(t: string): NotificationCategory {
+  if (t.startsWith('workflow_')) return 'WORKFLOW';
+  if (t === 'APPROVAL' || t === 'GOVERNANCE') return 'WORKFLOW';
+  if (t === 'WARNING' || t === 'ERROR') return 'SECURITY';
+  if (t === 'SOCIAL') return 'SOCIAL';
+  return 'SYSTEM';
+}
+
+function typeToActions(n: any): NotificationAction[] | undefined {
+  if (n.link) return [{ label: 'View Details', href: n.link, primary: true }];
+  return undefined;
+}
+
+function typeToPriority(t: string, cat: string): NotificationPriority {
+  if (t === 'ERROR') return 'URGENT';
+  if (t.startsWith('workflow_')) return 'MEDIUM';
+  if (t === 'WARNING' || cat === 'ESCALATION') return 'HIGH';
+  if (t === 'APPROVAL' || t === 'GOVERNANCE') return 'MEDIUM';
+  return 'LOW';
+}
+
+function formatNotification(n: any): Notification {
+  const category = n.category || typeToCategory(n.type || '');
+  const priority = n.priority || typeToPriority(n.type || '', n.sub_type || '');
+  return {
+    ...n,
+    message: n.message || n.body || '',
+    timestamp: new Date(n.created_at || n.timestamp),
+    category,
+    priority,
+    actions: n.actions || typeToActions(n),
+  };
+}
+
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(notificationReducer, { notifications: [], loading: true });
+  const [state, dispatch] = useReducer(notificationReducer, {
+    notifications: [],
+    loading: true,
+    adminNotifications: [],
+    adminLoading: false,
+  });
 
   const fetchNotifications = useCallback(async () => {
     try {
       const response = await api.get('/api/v1/notifications');
       if (response.success) {
-        const formatted = response.data.map((n: any) => ({
-          ...n,
-          timestamp: new Date(n.created_at || n.timestamp),
-          // Ensure category and priority are correctly typed
-          category: n.category || 'SYSTEM',
-          priority: n.priority || 'MEDIUM',
-        }));
+        const formatted = (response.data || []).map(formatNotification);
         dispatch({ type: 'SET_NOTIFICATIONS', payload: formatted });
+      } else {
+        dispatch({ type: 'SET_LOADING', payload: false });
       }
     } catch (err) {
       console.warn("Failed to fetch notifications:", err);
       dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  const fetchAdminNotifications = useCallback(async () => {
+    try {
+      dispatch({ type: 'SET_ADMIN_LOADING', payload: true });
+      const response = await api.get('/api/v1/notifications/admin/workspace');
+      if (response.success) {
+        const formatted = (response.data || []).map((n: any) => ({
+          ...formatNotification(n),
+          user: n.users ? { id: n.users.id, full_name: n.users.full_name, email: n.users.email, role: n.users.role } : undefined,
+        }));
+        dispatch({ type: 'SET_ADMIN_NOTIFICATIONS', payload: formatted });
+      } else {
+        dispatch({ type: 'SET_ADMIN_LOADING', payload: false });
+      }
+    } catch (err) {
+      console.warn("Failed to fetch admin notifications:", err);
+      dispatch({ type: 'SET_ADMIN_LOADING', payload: false });
     }
   }, []);
 
@@ -151,7 +217,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         async (payload) => {
           const { new: newRow, old: oldRow } = payload;
           if (newRow.status !== oldRow.status) {
-            // getSession() reads from localStorage — no network round-trip to Supabase Auth
             const { data: { session } } = await supabase.auth.getSession();
             const user = session?.user;
             if (user && newRow.creator_id === user.id) {
@@ -165,7 +230,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 ]
               });
 
-              // OS browser notification (requires permission granted by useRealtimeNotifications)
               if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
                 const title = `Post ${newRow.status}`;
                 const body = newRow.status === 'RETURNED'
@@ -175,7 +239,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               }
             }
 
-            // Notify for admin-level actions even when not the creator
             if (newRow.status === 'PENDING_MANAGER' || newRow.status === 'PENDING_ADMIN') {
               if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
                 new Notification('New Action Required', {
@@ -195,7 +258,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [addNotification]);
 
   return (
-    <NotificationContext.Provider value={{ state, dispatch, addNotification, markAsRead, markAllRead, clearAll }}>
+    <NotificationContext.Provider value={{ state, dispatch, addNotification, markAsRead, markAllRead, clearAll, fetchAdminNotifications }}>
       {children}
     </NotificationContext.Provider>
   );

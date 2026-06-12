@@ -3,6 +3,8 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import * as rulesService from '../../services/approvalRules.service';
 import { DEFAULT_TENANT_ID } from '../../shared/constants';
 import { buildAuthContext } from '../../shared/serviceAuth';
+import OpenAI from 'openai';
+import { env } from '../../config/env';
 
 function getTenantId(req: AuthRequest): string {
   return req.user?.workspace_id || DEFAULT_TENANT_ID;
@@ -40,6 +42,7 @@ export const createRule = async (req: AuthRequest, res: Response, next: NextFunc
       rule_priority: req.body.rule_priority || 1000,
       risk_classification: req.body.risk_classification || 'LOW',
       tags: req.body.tags || [],
+      keyword_rules: req.body.keyword_rules || [],
       created_by: getUserId(req),
     }, auth);
     res.json({ success: true, data: rule });
@@ -104,6 +107,13 @@ export const reactivateRule = async (req: AuthRequest, res: Response, next: Next
     const auth = buildAuthContext(req.user);
     const rule = await rulesService.reactivateRule(req.params.id as string, getTenantId(req), getUserId(req), auth);
     res.json({ success: true, data: rule });
+  } catch (error) { next(error); }
+};
+
+export const deleteRule = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    await rulesService.deleteRule(req.params.id as string, getTenantId(req), getUserId(req));
+    res.json({ success: true });
   } catch (error) { next(error); }
 };
 
@@ -251,4 +261,74 @@ export const markRuleInvalid = async (req: AuthRequest, res: Response, next: Nex
     const rule = await rulesService.markRuleInvalid(req.params.id as string, getTenantId(req), getUserId(req), req.body.reason || 'Marked invalid by user', auth);
     res.json({ success: true, data: rule });
   } catch (error) { next(error); }
+};
+
+export const suggestKeywords = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { topic, context, existing_keywords = [], action = 'BLOCK' } = req.body;
+    if (!topic?.trim()) return res.status(400).json({ error: 'topic is required' });
+
+    if (!env.GROQ_API_KEY) return res.status(503).json({ error: 'AI service not configured' });
+
+    const groqClient = new OpenAI({
+      baseURL: 'https://api.groq.com/openai/v1',
+      apiKey: env.GROQ_API_KEY,
+      timeout: 30_000,
+    });
+
+    const existingStr = (existing_keywords as string[]).length > 0
+      ? `\n\nAlready in this rule (do NOT repeat): ${(existing_keywords as string[]).join(', ')}`
+      : '';
+    const contextStr = context?.trim() ? `\nPlatform context: ${context}` : '';
+    const actionDesc = action === 'BLOCK'
+      ? 'BLOCK — focus on clearly harmful, offensive, or strictly policy-violating terms.'
+      : 'REQUEST_REVIEW — include borderline, sensitive, or compliance-risk terms that need human review.';
+
+    const prompt = `You are a content moderation expert for an enterprise social media governance platform.
+
+Generate a comprehensive keyword list for automated content filtering.
+
+Topic to generate keywords for: "${topic}"${contextStr}
+Action type: ${actionDesc}
+${existingStr}
+
+Requirements:
+- Up to 30 unique, lowercase keywords or short phrases
+- Include: direct terms, common misspellings, slang, abbreviations, leet-speak variants, 2-3 word phrases
+- Cover regional/cultural variants where relevant
+- Be smart and comprehensive — think how real people write this content online
+- Exclude any already-existing keywords listed above
+
+Return ONLY a valid JSON array with no explanation:
+["keyword1", "keyword2", ...]`;
+
+    const completion = await groqClient.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.4,
+      max_tokens: 600,
+    });
+
+    const raw = completion.choices[0]?.message?.content || '[]';
+    const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+    let keywords: string[] = [];
+    try {
+      const parsed = JSON.parse(cleaned);
+      keywords = Array.isArray(parsed)
+        ? parsed.map((k: any) => String(k).toLowerCase().trim()).filter(Boolean)
+        : [];
+    } catch {
+      keywords = cleaned.replace(/["\[\]]/g, '').split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean);
+    }
+
+    const unique = [...new Set(keywords)].slice(0, 30);
+    res.json({ success: true, keywords: unique, count: unique.length });
+  } catch (error: any) {
+    if (error?.status) {
+      // Handle Groq API errors specifically instead of throwing a generic 500
+      return res.status(error.status).json({ error: error.message || 'AI generation failed' });
+    }
+    next(error);
+  }
 };

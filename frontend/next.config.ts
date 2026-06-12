@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "**",
+      },
+      {
+        protocol: "http",
+        hostname: "**",
+      },
+      {
+        protocol: "https",
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
@@ -71,6 +79,15 @@ const nextConfig: NextConfig = {
           { key: "CDN-Cache-Control",   value: "no-store" },
           { key: "Vercel-CDN-Cache-Control", value: "no-store" },
         ],
+      },
+    ];
+  },
+  async redirects() {
+    return [
+      {
+        source: '/queue',
+        destination: '/review-queue',
+        permanent: true,
       },
     ];
   },

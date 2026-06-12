@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -444,7 +445,7 @@ export default function OnboardingPage() {
       {/* Top bar */}
       <header className="flex items-center justify-between px-6 sm:px-10 py-5 border-b border-neutral-100">
         <Image
-          src="/images/logo-wordmark.svg"
+          src="/images/zoikovertexlogo.png"
           alt="ZoikoVertex"
           width={136}
           height={28}
@@ -592,9 +593,9 @@ export default function OnboardingPage() {
 
           <p className="mt-6 text-center text-[11px] text-neutral-400">
             By continuing you agree to ZoikoVertex&apos;s{" "}
-            <a href="#" className="text-neutral-600 font-semibold hover:text-black underline underline-offset-2">Terms</a>
+            <Link href="/terms" className="text-neutral-600 font-semibold hover:text-black underline underline-offset-2">Terms</Link>
             {" "}and{" "}
-            <a href="#" className="text-neutral-600 font-semibold hover:text-black underline underline-offset-2">Privacy Policy</a>.
+            <Link href="/privacy" className="text-neutral-600 font-semibold hover:text-black underline underline-offset-2">Privacy Policy</Link>.
           </p>
         </div>
       </main>

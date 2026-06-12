@@ -31,7 +31,8 @@ export default function DashboardLayout({
     | false
     | null
   >(null);
-  const verifyingRef = useRef(false);
+  const verifyingRef    = useRef(false);
+  const emailRetriedRef = useRef(false);
 
   // ── Auth guard — runs once on mount; RoleContext handles per-nav auth state ──
   useEffect(() => {
@@ -45,29 +46,52 @@ export default function DashboardLayout({
   }, []);
 
   // ── No workspace → verify API before redirecting (guards against stale RoleContext) ─
+  // Email-signup users always have a workspace created at signup time. If the API
+  // returns NO_WORKSPACE for them, it's likely a transient cache/timing issue — retry
+  // once before sending them to onboarding. SSO first-time users redirect immediately.
   useEffect(() => {
     if (isLoading || isSuperAdmin || orgStatus !== 'NO_WORKSPACE') return;
     if (verifyingRef.current) return;
     verifyingRef.current = true;
-    api.get('/api/v1/user/context').then(res => {
-      verifyingRef.current = false;
-      if (res?.success && res.data?.workspace_id) {
-        // Context was stale — refresh silently and stay on dashboard
-        refresh();
-      } else {
+
+    const doCheck = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const provider = session?.user?.app_metadata?.provider;
+        const res = await api.get('/api/v1/user/context');
+        verifyingRef.current = false;
+
+        if (res?.success && res.data?.workspace_id) {
+          // Stale RoleContext — workspace exists, refresh and stay on dashboard
+          refresh();
+        } else if (provider === 'email' && !emailRetriedRef.current) {
+          // Email-signup users always have a workspace. First miss may be a race condition
+          // (auth cache hasn't reflected the new membership yet). Retry once via full refresh.
+          emailRetriedRef.current = true;
+          refresh();
+        } else {
+          // SSO user with no workspace, or email user whose workspace genuinely wasn't created
+          router.replace('/onboarding');
+        }
+      } catch {
+        verifyingRef.current = false;
         router.replace('/onboarding');
       }
-    }).catch(() => {
-      verifyingRef.current = false;
-      router.replace('/onboarding');
-    });
+    };
+
+    doCheck();
   }, [isLoading, isSuperAdmin, orgStatus, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Role guard ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isLoading) return;
     if (!isSuperAdmin && orgStatus === 'NO_WORKSPACE') return;
-    if (role === null && !isSuperAdmin) return;
+    if (role === null && !isSuperAdmin) {
+      // Loading finished but no role resolved (auth failure, backend unreachable, etc.).
+      // Unblock the skeleton so the auth guard can redirect to /login; don't show content.
+      setAccessDenied(false);
+      return;
+    }
     const result = canAccess(pathname, role, isSuperAdmin, planType);
     setAccessDenied(result.allowed ? false : result);
   }, [pathname, isLoading, role, isSuperAdmin, orgStatus, planType]);
@@ -75,7 +99,7 @@ export default function DashboardLayout({
   // ── Loading skeleton — mimics sidebar + header + content so transition feels instant ──
   if (isLoading || accessDenied === null) {
     return (
-      <div className="h-screen bg-[var(--background,#111111)] flex overflow-hidden">
+      <div className="h-full bg-[var(--background,#111111)] flex overflow-hidden">
         {/* Sidebar skeleton */}
         <div className="w-64 shrink-0 border-r border-white/5 flex flex-col gap-3 p-4">
           <div className="h-8 w-32 rounded-lg bg-white/5 animate-pulse mb-4" />
@@ -131,11 +155,11 @@ export default function DashboardLayout({
   return (
     <NotificationProvider>
       <DraftGuardProvider>
-        <div className="bg-[var(--background)] text-[var(--foreground)] h-screen overflow-hidden flex transition-colors">
+        <div className="bg-[var(--background)] text-[var(--foreground)] h-full overflow-hidden flex transition-colors">
           <div className={`shrink-0 transition-all duration-200 ${sidebarCollapseEnabled ? 'w-16' : 'w-64'} ${isSuspended ? 'opacity-20 pointer-events-none select-none' : ''}`}>
             <Sidebar />
           </div>
-          <div className="flex-1 flex flex-col min-w-0 h-screen">
+          <div className="flex-1 flex flex-col min-w-0 h-full">
             <Header />
             <main className="flex-1 overflow-hidden flex flex-col bg-[var(--background)] transition-colors">
               {isSuspended ? (
@@ -172,8 +196,8 @@ function PlanBlockView({ requiredPlan, feature, onBack }: { requiredPlan: Plan; 
   const displayName = PLAN_DISPLAY[minPlan];
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 page-enter">
-      <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-6">
-        <Lock className="w-7 h-7 text-amber-400" />
+      <div className="w-16 h-16 rounded-2xl bg-warning-text/10 border border-warning-border/20 flex items-center justify-center mb-6">
+        <Lock className="w-7 h-7 text-warning-text" />
       </div>
       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border mb-4 ${badgeClass}`}>
         {displayName}
@@ -190,7 +214,7 @@ function PlanBlockView({ requiredPlan, feature, onBack }: { requiredPlan: Plan; 
         </button>
         <button
           onClick={() => router.push('/admin/billing')}
-          className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black rounded-xl text-sm font-bold transition-all duration-200"
+          className="flex items-center gap-2 px-5 py-2.5 bg-warning-text hover:bg-warning-text text-black rounded-xl text-sm font-bold transition-all duration-200"
         >
           View Plans
           <ArrowRight className="w-4 h-4" />
@@ -205,8 +229,8 @@ function UnauthorizedView({ pathname, onBack }: { pathname: string; onBack: () =
   const label   = section ? section.charAt(0).toUpperCase() + section.slice(1).replace(/-/g, ' ') : 'this page';
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 page-enter">
-      <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-6">
-        <ShieldOff className="w-7 h-7 text-rose-400" />
+      <div className="w-16 h-16 rounded-2xl bg-error-text/10 border border-error-border/20 flex items-center justify-center mb-6">
+        <ShieldOff className="w-7 h-7 text-error-text" />
       </div>
       <h1 className="text-2xl font-bold text-[var(--foreground)] mb-2 tracking-tight">Access Restricted</h1>
       <p className="text-[var(--foreground-muted)] text-sm max-w-sm leading-relaxed mb-8">

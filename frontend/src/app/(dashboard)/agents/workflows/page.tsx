@@ -6,6 +6,7 @@ import ConfirmActionModal from "@/components/ConfirmActionModal";
 import RoutingStats from "./components/RoutingStats";
 import WorkflowCanvas from "./components/WorkflowCanvas";
 import ActiveOrchestrations from "./components/ActiveOrchestrations";
+import PublishedContentPanel from "./components/PublishedContentPanel";
 import EscalationPaths from "./components/EscalationPaths";
 import CreateWorkflowModal from "./components/CreateWorkflowModal";
 import {
@@ -197,6 +198,12 @@ function mapActiveInstance(instance: any) {
       const raw = instance.blocker || instance.reason_code;
       return raw && typeof raw === "string" ? raw : undefined;
     })(),
+    post: instance.post && typeof instance.post === "object"
+      ? {
+          platform: safeStr(instance.post.platform, ""),
+          excerpt: safeStr(instance.post.excerpt, ""),
+        }
+      : undefined,
   };
 }
 
@@ -240,41 +247,41 @@ function safeNum(v: unknown, fallback = 0): number {
 // ── Status helpers ─────────────────────────────────────────────────────────
 
 const WORKFLOW_STATUS_STYLES: Record<WorkflowStatus, string> = {
-  Draft: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
+  Draft: "bg-zinc-500/10 text-foreground-muted border-zinc-500/20",
   Testing: "bg-sky-500/10 text-sky-400 border-sky-500/20",
-  "Pending Approval": "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  "Pending Approval": "bg-warning-text/10 text-warning-text border-warning-border/20",
   Approved: "bg-teal-500/10 text-teal-400 border-teal-500/20",
-  Active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  Active: "bg-success-text/10 text-success-text border-success-border/20",
   Paused: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-  Blocked: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+  Blocked: "bg-error-text/10 text-error-text border-error-border/20",
   Deprecated: "bg-purple-500/10 text-purple-400 border-purple-500/20",
   Retired: "bg-gray-500/10 text-gray-400 border-gray-500/20",
   Failed: "bg-red-600/10 text-red-500 border-red-600/20",
 };
 
 const RISK_STYLES: Record<RiskLevel, string> = {
-  Low: "text-emerald-400",
-  Medium: "text-amber-400",
+  Low: "text-success-text",
+  Medium: "text-warning-text",
   High: "text-orange-400",
-  Critical: "text-rose-400",
+  Critical: "text-error-text",
 };
 
 const HEALTH_STYLES: Record<string, string> = {
-  Healthy: "bg-emerald-400",
-  Warning: "bg-amber-400",
-  Critical: "bg-rose-400",
+  Healthy: "bg-success-text",
+  Warning: "bg-warning-text",
+  Critical: "bg-error-text",
   Stale: "bg-gray-400",
 };
 
 // ── Node-type legend items ─────────────────────────────────────────────────
 
 const NODE_LEGEND = [
-  { type: "trigger", label: "Trigger", color: "bg-indigo-500" },
-  { type: "agent", label: "Agent Action", color: "bg-emerald-500" },
+  { type: "trigger", label: "Trigger", color: "bg-info-text" },
+  { type: "agent", label: "Agent Action", color: "bg-success-text" },
   { type: "prompt", label: "Prompt Execution", color: "bg-sky-500" },
   { type: "knowledge", label: "Knowledge Lookup", color: "bg-violet-500" },
-  { type: "policy", label: "Policy Check", color: "bg-amber-500" },
-  { type: "human", label: "Human Review", color: "bg-rose-500" },
+  { type: "policy", label: "Policy Check", color: "bg-warning-text" },
+  { type: "human", label: "Human Review", color: "bg-error-text" },
   { type: "approval", label: "Approval Gate", color: "bg-pink-500" },
   { type: "evidence", label: "Evidence Capture", color: "bg-cyan-500" },
   { type: "action", label: "Publish / Action", color: "bg-teal-500" },
@@ -295,7 +302,7 @@ const APPROVAL_STAGES = [
     key: "pending_authorization",
     label: "Authorization",
     icon: Shield,
-    color: "text-indigo-400",
+    color: "text-info-text",
   },
   {
     key: "pending_governance",
@@ -326,21 +333,21 @@ function ControlStrip({
       label: "Active Workflows",
       value: data?.activeWorkflows ?? 0,
       icon: GitMerge,
-      color: "text-indigo-400",
+      color: "text-info-text",
       urgent: false,
     },
     {
       label: "Pending Approvals",
       value: totalPending,
       icon: FileCheck2,
-      color: "text-amber-400",
+      color: "text-warning-text",
       urgent: totalPending > 0,
     },
     {
       label: "Blocked Runs",
       value: blocked,
       icon: XCircle,
-      color: "text-rose-400",
+      color: "text-error-text",
       urgent: blocked > 0,
     },
     {
@@ -368,7 +375,7 @@ function ControlStrip({
       label: "Critical Risk",
       value: critical,
       icon: AlertTriangle,
-      color: "text-rose-500",
+      color: "text-error-text",
       urgent: critical > 0,
     },
   ];
@@ -380,7 +387,7 @@ function ControlStrip({
           key={item.label}
           className={`flex flex-col gap-1.5 p-3.5 rounded-xl border transition-all ${
             item.urgent
-              ? "bg-rose-500/5 border-rose-500/20"
+              ? "bg-error-text/5 border-error-border/20"
               : "bg-[var(--surface)] border-[var(--border)]"
           }`}
         >
@@ -391,9 +398,9 @@ function ControlStrip({
             </span>
           </div>
           <p
-            className={`text-2xl font-bold ${item.urgent ? "text-rose-400" : "text-[var(--text-primary)]"}`}
+            className={`text-2xl font-bold ${item.urgent ? "text-error-text" : "text-[var(--text-primary)]"}`}
           >
-            {item.value}
+            {safeNum(item.value)}
           </p>
         </div>
       ))}
@@ -425,8 +432,8 @@ function TemplateLibrary({
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden">
       <div className="px-6 py-4 border-b border-[var(--border)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[var(--surface-hover)]/30">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-500/10 rounded-xl">
-            <GitBranch className="w-4 h-4 text-indigo-400" />
+          <div className="p-2 bg-info-text/10 rounded-xl">
+            <GitBranch className="w-4 h-4 text-info-text" />
           </div>
           <div>
             <h2 className="text-sm font-semibold text-[var(--text-primary)]">
@@ -441,7 +448,7 @@ function TemplateLibrary({
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" />
           <input
-            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/40"
+            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-info-border/40"
             placeholder="Search templates, owners, status…"
             value={search}
             onChange={(e) => onSearch(e.target.value)}
@@ -550,8 +557,8 @@ function ApprovalGatesPanel({
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
       <div className="flex items-center gap-3 mb-5">
-        <div className="p-2 bg-indigo-500/10 rounded-xl">
-          <FileCheck2 className="w-4 h-4 text-indigo-400" />
+        <div className="p-2 bg-info-text/10 rounded-xl">
+          <FileCheck2 className="w-4 h-4 text-info-text" />
         </div>
         <div>
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">
@@ -569,7 +576,7 @@ function ApprovalGatesPanel({
             Total Pending
           </span>
           <span
-            className={`text-lg font-bold ${total > 0 ? "text-amber-400" : "text-emerald-400"}`}
+            className={`text-lg font-bold ${total > 0 ? "text-warning-text" : "text-success-text"}`}
           >
             {total}
           </span>
@@ -598,8 +605,8 @@ function ApprovalGatesPanel({
         })}
       </div>
 
-      <div className="mt-4 p-3 rounded-xl bg-indigo-500/5 border border-indigo-500/10">
-        <p className="text-[10px] text-indigo-400 leading-relaxed">
+      <div className="mt-4 p-3 rounded-xl bg-info-text/5 border border-info-border/10">
+        <p className="text-[10px] text-info-text leading-relaxed">
           Approval authority is role-based. Critical paths require three-key
           quorum. Overrides require reason capture and evidence.
         </p>
@@ -614,13 +621,13 @@ function ExecutionDoctrine() {
   const rules = [
     {
       icon: ShieldCheck,
-      color: "text-emerald-400",
+      color: "text-success-text",
       title: "No direct production edits",
       desc: "Active workflows must go through draft → simulate → approve → deploy.",
     },
     {
       icon: Shield,
-      color: "text-indigo-400",
+      color: "text-info-text",
       title: "High-risk gates are mandatory",
       desc: "Critical paths require approval gates, policy checks, and evidence capture.",
     },
@@ -632,13 +639,13 @@ function ExecutionDoctrine() {
     },
     {
       icon: AlertCircle,
-      color: "text-rose-400",
+      color: "text-error-text",
       title: "Policy failures block or escalate",
       desc: "Critical failures stop the workflow. Warnings require mitigation or reason.",
     },
     {
       icon: PackageCheck,
-      color: "text-amber-400",
+      color: "text-warning-text",
       title: "Evidence by default",
       desc: "Design changes, simulations, approvals, and runtime actions generate evidence automatically.",
     },
@@ -647,8 +654,8 @@ function ExecutionDoctrine() {
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
       <div className="flex items-center gap-3 mb-5">
-        <div className="p-2 bg-rose-500/10 rounded-xl">
-          <AlertTriangle className="w-4 h-4 text-rose-400" />
+        <div className="p-2 bg-error-text/10 rounded-xl">
+          <AlertTriangle className="w-4 h-4 text-error-text" />
         </div>
         <div>
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">
@@ -841,8 +848,8 @@ function ReportingMetrics({ stats }: { stats?: any }) {
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6">
       <div className="flex items-center gap-3 mb-5">
-        <div className="p-2 bg-emerald-500/10 rounded-xl">
-          <ArrowUpCircle className="w-4 h-4 text-emerald-400" />
+        <div className="p-2 bg-success-text/10 rounded-xl">
+          <ArrowUpCircle className="w-4 h-4 text-success-text" />
         </div>
         <div>
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">
@@ -881,7 +888,7 @@ function EmergencyPauseBanner({ onPause }: { onPause: () => void }) {
   return (
     <button
       onClick={onPause}
-      className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 border border-rose-500/30 rounded-xl text-sm text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/50 transition-all font-semibold"
+      className="flex items-center gap-2 px-4 py-2 bg-error-text/10 border border-error-border/30 rounded-xl text-sm text-error-text hover:bg-error-text/20 hover:border-error-border/50 transition-all font-semibold"
     >
       <Pause className="w-4 h-4" />
       Emergency Pause
@@ -978,7 +985,7 @@ function WorkflowDetailDrawer({
     },
     {
       label: "Submit for Approval",
-      color: "bg-amber-500 hover:bg-amber-600",
+      color: "bg-warning-text hover:bg-warning-text",
       enabled: (s) => ["Draft", "Testing"].includes(s),
       fn: versionAction("Submit for Approval", (vid) =>
         api.submitWorkflowForApproval(vid),
@@ -986,7 +993,7 @@ function WorkflowDetailDrawer({
     },
     {
       label: "Activate",
-      color: "bg-emerald-500 hover:bg-emerald-600",
+      color: "bg-success-text hover:bg-success-text",
       enabled: (s) => s === "Approved",
       fn: versionAction("Activate", (vid) => api.activateWorkflowVersion(vid)),
     },
@@ -1040,34 +1047,54 @@ function WorkflowDetailDrawer({
         setActionError(null);
         setActionLoading("Export Evidence");
         try {
+          // Prefer runtime evidence from a completed instance; otherwise fall
+          // back to the workflow's evidence bundles (no run required). Always
+          // produces a download instead of a hard error when nothing has run.
+          let evidencePayload: any = null;
+          let fileSuffix = workflow.id;
+
           const instancesRes = await api.get(
             `/api/v1/agents/workflows/instances?workflow_id=${workflow.id}&limit=1`,
           );
-          if (!instancesRes?.success || !instancesRes?.data?.length) {
-            setActionError(
-              "No workflow instances found. Run the workflow at least once to generate evidence.",
-            );
-            setActionLoading(null);
-            return;
+          if (instancesRes?.success && instancesRes?.data?.length) {
+            const instanceId = instancesRes.data[0].id as string;
+            const evidenceRes = await api.getWorkflowEvidence(instanceId);
+            const d = evidenceRes?.data;
+            const hasData = Array.isArray(d) ? d.length > 0 : !!d;
+            if (evidenceRes?.success && hasData) {
+              evidencePayload = d;
+              fileSuffix = `${workflow.id}-${instanceId}`;
+            }
           }
-          const instanceId = instancesRes.data[0].id as string;
-          const evidenceRes = await api.getWorkflowEvidence(instanceId);
-          if (evidenceRes?.success && evidenceRes?.data) {
-            const blob = new Blob([JSON.stringify(evidenceRes.data, null, 2)], {
-              type: "application/json",
-            });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `evidence-${workflow.id}-${instanceId}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-          } else {
-            setActionError(
-              evidenceRes?.error ||
-                "No evidence bundle available for this workflow.",
-            );
+
+          if (!evidencePayload) {
+            // Workflow-level evidence bundles (gathered by workflow_id).
+            const fullRes = await api.exportWorkflow(workflow.id);
+            if (!fullRes?.success || !fullRes?.data) {
+              setActionError(fullRes?.error || "Failed to export evidence.");
+              setActionLoading(null);
+              return;
+            }
+            const bundles = fullRes.data.evidence_bundles || [];
+            evidencePayload = {
+              workflow: fullRes.data.workflow,
+              evidence_bundles: bundles,
+              evidence_refs: fullRes.data.metrics?.evidence_refs || [],
+              note: bundles.length === 0
+                ? "No evidence captured yet — this workflow has no completed runs."
+                : undefined,
+            };
           }
+
+          const blob = new Blob([JSON.stringify(evidencePayload, null, 2)], {
+            type: "application/json",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `evidence-${fileSuffix}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
         } catch (err: any) {
           setActionError(err?.message || "Failed to export evidence.");
         } finally {
@@ -1250,13 +1277,13 @@ function WorkflowDetailDrawer({
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-2">
                     Lifecycle Actions
                     {versionLoading && (
-                      <span className="ml-2 text-indigo-400 normal-case font-normal">
+                      <span className="ml-2 text-info-text normal-case font-normal">
                         Resolving version…
                       </span>
                     )}
                   </p>
                   {actionError && (
-                    <div className="mb-3 flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+                    <div className="mb-3 flex items-start gap-2 p-3 rounded-xl bg-error-text/10 border border-error-border/20 text-error-text text-xs">
                       <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                       {safeStr(actionError)}
                     </div>
@@ -1267,7 +1294,7 @@ function WorkflowDetailDrawer({
                         key={action.label}
                         disabled={actionLoading !== null || versionLoading}
                         onClick={action.fn}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${action.color}`}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${action.color}`}
                       >
                         {actionLoading === action.label && (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1300,7 +1327,7 @@ function WorkflowDetailDrawer({
                     {workflow.linkedAgents.map((a, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium"
+                        className="px-2 py-0.5 rounded-full bg-info-text/10 border border-info-border/20 text-info-text text-xs font-medium"
                       >
                         {typeof a === "string" ? a : String(a)}
                       </span>
@@ -1338,6 +1365,7 @@ export default function WorkflowsPage() {
   const [stats, setStats] = useState<any>(undefined);
   const [graph, setGraph] = useState<any>(undefined);
   const [active, setActive] = useState<any[]>([]);
+  const [publishedContent, setPublishedContent] = useState<any[] | undefined>(undefined);
   const [escalations, setEscalations] = useState<any[] | undefined>(undefined);
   const [workflows, setWorkflows] = useState<WorkflowRecord[]>([]);
   const [approvalStats, setApprovalStats] = useState<ApprovalStats | null>(
@@ -1361,6 +1389,7 @@ export default function WorkflowsPage() {
       api.get("/api/v1/agents/workflows/escalations"),
       api.get("/api/v1/agents/workflows"),
       api.get("/api/v1/agents/workflows/approvals/stats"),
+      api.get("/api/v1/agents/workflows/published-content"),
     ]);
     const [
       statsRes,
@@ -1369,6 +1398,7 @@ export default function WorkflowsPage() {
       escalationsRes,
       workflowsRes,
       approvalsRes,
+      publishedRes,
     ] = responses.map((r) =>
       r.status === "fulfilled" ? r.value : { success: false, data: null },
     );
@@ -1381,6 +1411,8 @@ export default function WorkflowsPage() {
     if (workflowsRes.success)
       setWorkflows((workflowsRes.data || []).map(mapWorkflowRecord));
     if (approvalsRes.success) setApprovalStats(approvalsRes.data || null);
+    if (publishedRes.success) setPublishedContent(publishedRes.data || []);
+    else setPublishedContent([]);
     setLoading(false);
   }, []);
 
@@ -1423,15 +1455,15 @@ export default function WorkflowsPage() {
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-start gap-4">
-          <div className="p-3 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
-            <GitBranch className="w-7 h-7 text-indigo-400" />
+          <div className="p-3 bg-info-text/10 rounded-2xl border border-info-border/20">
+            <GitBranch className="w-7 h-7 text-info-text" />
           </div>
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
                 Agent Workflows
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20 uppercase tracking-widest">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-success-text/10 text-success-text border-success-border/20 uppercase tracking-widest">
                 Production
               </span>
             </div>
@@ -1443,8 +1475,8 @@ export default function WorkflowsPage() {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-xs font-medium text-emerald-400">
-            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-success-text/10 border border-success-border/20 rounded-full text-xs font-medium text-success-text">
+            <span className="w-1.5 h-1.5 bg-success-text rounded-full animate-pulse" />
             Auto-refresh 20s
           </div>
           <EmergencyPauseBanner onPause={handleEmergencyPause} />
@@ -1458,7 +1490,7 @@ export default function WorkflowsPage() {
           </button>
           <button
             onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-xl text-sm font-semibold text-white transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-info-text hover:bg-info-text rounded-xl text-sm font-semibold text-foreground transition-all"
           >
             <Plus className="w-4 h-4" />
             Create Workflow
@@ -1469,8 +1501,8 @@ export default function WorkflowsPage() {
       {emergencyMessage && (
         <div className={`flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm ${
           emergencyMessage === "Emergency Lock L4 applied successfully."
-            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
-            : "border-rose-500/20 bg-rose-500/10 text-rose-400"
+            ? "border-success-border/20 bg-success-text/10 text-success-text"
+            : "border-error-border/20 bg-error-text/10 text-error-text"
         }`}>
           <span>{safeStr(emergencyMessage)}</span>
           <button onClick={() => setEmergencyMessage(null)} className="ml-auto hover:text-white">
@@ -1508,7 +1540,9 @@ export default function WorkflowsPage() {
       />
 
       {/* ── Workflow Canvas ── */}
-      <WorkflowCanvas graph={graph} />
+      {/* Read-only: visualizes the agent-driven flow. Users inspect nodes to
+          learn the workflow; they cannot move, add, connect, or delete nodes. */}
+      <WorkflowCanvas graph={graph} readOnly />
 
       {/* ── Governance Panels Row ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -1522,6 +1556,9 @@ export default function WorkflowsPage() {
         <WorkflowLifecycle />
         <ReportingMetrics stats={stats} />
       </div>
+
+      {/* ── Published Content (from the Publish Hub) ── */}
+      <PublishedContentPanel data={publishedContent} />
 
       {/* ── Live Orchestrations + Escalations ── */}
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">

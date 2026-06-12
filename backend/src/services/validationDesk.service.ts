@@ -640,16 +640,18 @@ export async function getValidationStats(tenant_id: string): Promise<{
   warnings: number;
   failed: number;
   blocked: number;
+  needs_revision: number;
   escalation_required: number;
 }> {
   const base = supabaseAdmin.from('validation_items').select('*', { count: 'exact', head: true }).eq('tenant_id', tenant_id);
 
-  const [pending, passed, warnings, failed, blocked, escalation] = await Promise.all([
+  const [pending, passed, warnings, failed, blocked, revision, escalation] = await Promise.all([
     base.eq('validation_status', 'PENDING_VALIDATION'),
     supabaseAdmin.from('validation_items').select('*', { count: 'exact', head: true }).eq('tenant_id', tenant_id).in('validation_status', ['PASSED', 'PASSED_WITH_OVERRIDE']),
     supabaseAdmin.from('validation_items').select('*', { count: 'exact', head: true }).eq('tenant_id', tenant_id).eq('validation_status', 'WARNING'),
     supabaseAdmin.from('validation_items').select('*', { count: 'exact', head: true }).eq('tenant_id', tenant_id).eq('validation_status', 'FAILED'),
     supabaseAdmin.from('validation_items').select('*', { count: 'exact', head: true }).eq('tenant_id', tenant_id).eq('validation_status', 'BLOCKED'),
+    supabaseAdmin.from('validation_items').select('*', { count: 'exact', head: true }).eq('tenant_id', tenant_id).eq('validation_status', 'NEEDS_REVISION'),
     supabaseAdmin.from('validation_items').select('*', { count: 'exact', head: true }).eq('tenant_id', tenant_id).eq('validation_status', 'ESCALATION_REQUIRED'),
   ]);
 
@@ -659,6 +661,7 @@ export async function getValidationStats(tenant_id: string): Promise<{
     warnings: warnings.count || 0,
     failed: failed.count || 0,
     blocked: blocked.count || 0,
+    needs_revision: revision.count || 0,
     escalation_required: escalation.count || 0,
   };
 }

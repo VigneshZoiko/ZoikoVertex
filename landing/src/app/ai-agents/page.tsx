@@ -1,8 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Footer from "@/components/footer/Footer";
 import {
   Brain, Pencil, Send, MessageCircle, TrendingUp,
   Users, CheckSquare, BookOpen, Code2, FileText, UserCheck,
@@ -825,7 +824,6 @@ function CTA() {
 export default function AIAgentsPage() {
   return (
     <main className="min-h-screen bg-[#080812]">
-      <Navbar />
       <div className="pt-16">
         <Hero />
         <Ticker />

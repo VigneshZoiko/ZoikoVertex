@@ -68,8 +68,9 @@ export function resolveMetaAdAccountId(account: AgencyAccount): string {
 
 /**
  * Resolves the Facebook Page ID for ad creatives.
- * Uses agency_page_id if set, falls back to account_handle.
+ * Returns agency_page_id (numeric page ID) only — account_handle is a username
+ * string and is rejected by Meta's API as a non-numeric page_id value.
  */
 export function resolveMetaPageId(account: AgencyAccount): string | null {
-  return account.agency_page_id || account.account_handle || null;
+  return account.agency_page_id || null;
 }

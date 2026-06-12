@@ -1,16 +1,19 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../shared/authMiddleware';
+import { supabaseAdmin } from '../../shared/supabase';
+import { internalEventBus } from '../../shared/internalEventBus';
 import { logAuditEvent } from './evidenceController';
+import { randomUUID } from 'crypto';
 
 // ---------------------------------------------------------------------------
-// Idempotency Tracking Map
+// Idempotency Tracking (in-memory per-process; good enough for single instance)
 // ---------------------------------------------------------------------------
 const idempotencyStore: Record<string, boolean> = {};
 
 // ---------------------------------------------------------------------------
 // Canonical Outcome Codes
 // ---------------------------------------------------------------------------
-export type CanonicalOutcome = 
+export type CanonicalOutcome =
   | 'allow'
   | 'allow_with_warning'
   | 'require_approval'
@@ -21,125 +24,135 @@ export type CanonicalOutcome =
   | 'emergency_pause_recommendation';
 
 // ---------------------------------------------------------------------------
-// In-Memory Fallback Queue & Details
+// Map a publish_intent row to the ReviewItem shape expected by the frontend
 // ---------------------------------------------------------------------------
-const fallbackReviews: any[] = [
-  {
-    id: 'REV-0000-001',
-    workspace_id: '00000000-0000-0000-0000-000000000000',
-    priority: 'Critical',
-    sla_due_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 mins (breach imminent)
-    item_type: 'Regulated Claim',
-    brand: 'Zoiko Finance',
-    trigger_summary: 'Detected specific guaranteed return rate (100% ROI) in generated financial claim.',
-    agent_id: 'AGT-FIN-02',
-    autonomy_band: 'High Autonomy',
-    owner: 'Unassigned',
-    decision_state: 'hold_for_review',
-    author_id: 'USR-888', // Ensure conflict check
-    
-    // Canvas & Evidence details
-    content_preview: 'Our new product guarantees 100% ROI within the first month! Risk-free investment.',
-    risk_factors: ['Financial Promises', 'Regulatory Sensitivity'],
-    jurisdictions: ['US-FINRA', 'EU-ESMA'],
-    policy_match: 'RUL-FIN-091',
-    ai_recommendation: 'block',
-    provenance: ['PROMPT-V4', 'AGENT-CTX-992'],
-    evidence_hash: 'sha256-a9f8b2c4e6d7...',
-    first_approver_id: null
-  },
-  {
-    id: 'REV-0000-002',
-    workspace_id: '00000000-0000-0000-0000-000000000000',
-    priority: 'High',
-    sla_due_at: new Date(Date.now() + 120 * 60 * 1000).toISOString(), // 2 hours
-    item_type: 'Crisis Response',
-    brand: 'Zoiko Corporate',
-    trigger_summary: 'Agent attempted to publish autonomous PR statement regarding recent server outage.',
-    agent_id: 'AGT-PR-01',
+function intentToReviewItem(intent: any) {
+  const slaDueAt = new Date(
+    new Date(intent.created_at).getTime() + 24 * 60 * 60 * 1000
+  ).toISOString(); // 24-hour SLA window
+
+  const riskLevel = (intent.risk_level || 'LOW').toUpperCase();
+  const riskScore = typeof intent.risk_score === 'number' ? intent.risk_score : 0;
+
+  const priorityMap: Record<string, string> = {
+    LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High', CRITICAL: 'Critical',
+  };
+
+  const recommendationMap: Record<string, string> = {
+    LOW: 'allow',
+    MEDIUM: 'hold_for_review',
+    HIGH: 'block',
+    CRITICAL: 'block',
+  };
+
+  const riskFactors: string[] = intent.risk_factors || [];
+  const policyMatch = riskFactors.length > 0
+    ? riskFactors.slice(0, 3).join(', ')
+    : `Risk Level ${riskLevel}${riskScore > 0 ? ` (${riskScore}/100)` : ''}`;
+
+  return {
+    id: intent.id,
+    workspace_id: intent.workspace_id,
+    priority: priorityMap[riskLevel] || 'Medium',
+    sla_due_at: slaDueAt,
+    item_type: 'Social Post',
+    brand: (intent.platform || 'social').toUpperCase(),
+    trigger_summary: `Risk ${riskLevel} · ${intent.platform || 'Social'} post submitted for review`,
+    agent_id: 'HUMAN',
     autonomy_band: 'Supervised',
-    owner: 'USR-042',
-    decision_state: 'Awaiting Second Approval',
-    author_id: 'AGT-PR-01',
-    
-    content_preview: 'We apologize for the downtime. Systems were affected by an external DDoS attack...',
-    risk_factors: ['Brand Reputation', 'Legal Admissibility'],
-    jurisdictions: ['Global'],
-    policy_match: 'RUL-BRAND-112',
-    ai_recommendation: 'require_approval',
-    provenance: ['EVENT-LOG-X', 'PR-DB-SYNC'],
-    evidence_hash: 'sha256-b8471da91...',
-    first_approver_id: 'USR-042'
-  },
-  {
-    id: 'REV-0000-003',
-    workspace_id: '00000000-0000-0000-0000-000000000000',
-    priority: 'Medium',
-    sla_due_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // breached 5 mins ago
-    item_type: 'Campaign Image',
-    brand: 'Zoiko Social',
-    trigger_summary: 'Generated image contains visual elements resembling competitor logos.',
-    agent_id: 'AGT-DESIGN-04',
-    autonomy_band: 'Full Autonomy',
-    owner: 'Unassigned',
-    decision_state: 'hold_for_review',
-    author_id: 'AGT-DESIGN-04',
-    
-    content_preview: '[IMAGE PREVIEW: Group of people using phones with subtle competitor branding visible]',
-    risk_factors: ['Copyright Infringement', 'Brand Dilution'],
-    jurisdictions: ['US', 'UK'],
-    policy_match: 'RUL-IP-003',
-    ai_recommendation: 'quarantine',
-    provenance: ['PROMPT-IMG-22', 'GEN-4211'],
-    evidence_hash: 'sha256-ccc28da...',
-    first_approver_id: null
-  }
-];
+    owner: intent.reviewer_id || 'Unassigned',
+    decision_state: intent.status === 'PENDING_REVIEW' ? 'hold_for_review' : intent.status,
+    author_id: intent.creator_id,
+    content_preview: intent.content || '(no caption)',
+    risk_factors: riskFactors,
+    jurisdictions: [],
+    policy_match: policyMatch,
+    ai_recommendation: recommendationMap[riskLevel] || 'hold_for_review',
+    provenance: [intent.platform || 'social'],
+    evidence_hash: `sha256-${intent.id.substring(0, 8)}`,
+    first_approver_id: intent.first_approver_id || null,
+    media_urls: intent.media_urls || [],
+  };
+}
 
 // ---------------------------------------------------------------------------
-// Role Helpers
+// In-App Notification Helper
 // ---------------------------------------------------------------------------
-/*
-async function getUserRoles(userId: string, workspaceId: string): Promise<string[]> {
-  if (!workspaceId) return ['ADMIN'];
+async function createNotification(
+  userId: string,
+  title: string,
+  body: string,
+  type: string,
+  link?: string
+) {
   try {
-    const { data } = await supabaseAdmin
-      .from('workspace_members')
-      .select('role')
-      .eq('user_id', userId)
-      .eq('workspace_id', workspaceId);
-    
-    if (data && data.length > 0) {
-      return data.map(r => r.role);
-    }
-    return ['ADMIN']; // fallback mock
+    await supabaseAdmin.from('notifications').insert({
+      id: randomUUID(),
+      user_id: userId,
+      title,
+      body,
+      type,
+      link: link || null,
+      read: false,
+      created_at: new Date().toISOString(),
+    });
   } catch {
-    return ['ADMIN']; // fallback mock
+    // notification failure must not block the review decision
   }
 }
-*/
 
+async function notifyWorkspaceAdmins(
+  workspaceId: string,
+  title: string,
+  body: string,
+  type: string,
+  link?: string
+) {
+  try {
+    const { data: admins } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .in('role', ['ADMIN', 'WORKSPACE_OWNER', 'GOVERNANCE_ADMIN', 'SUPERADMIN', 'SECURITY_ADMIN']);
+
+    if (!admins) return;
+    for (const admin of admins) {
+      if (admin.id) {
+        await createNotification(admin.id, title, body, type, link);
+      }
+    }
+  } catch {
+    // non-blocking
+  }
+}
 
 // ---------------------------------------------------------------------------
-// Review Controller Methods
+// GET /api/safety/reviews
+// Returns all PENDING_REVIEW intents for the caller's workspace
 // ---------------------------------------------------------------------------
-
-/**
- * GET /api/safety/reviews
- * Fetch priority sorted queue.
- */
 export const getReviewQueue = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const workspaceId = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
-    
-    const items = fallbackReviews.filter(r => r.workspace_id === workspaceId);
-    
-    // Sort logic: Critical first, then by SLA (earliest first)
-    items.sort((a, b) => {
-      if (a.priority === 'Critical' && b.priority !== 'Critical') return -1;
-      if (b.priority === 'Critical' && a.priority !== 'Critical') return 1;
-      return new Date(a.sla_due_at).getTime() - new Date(b.sla_due_at).getTime();
-    });
+    const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
+
+    if (!workspaceId && !isSuperAdmin) {
+      return res.status(403).json({ error: 'No workspace context' });
+    }
+
+    let query = supabaseAdmin
+      .from('publish_intents')
+      .select('*')
+      .eq('status', 'PENDING_REVIEW')
+      .order('created_at', { ascending: true });
+
+    if (!isSuperAdmin && workspaceId) {
+      query = query.eq('workspace_id', workspaceId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const items = (data || []).map(intentToReviewItem);
 
     res.json({ success: true, data: items });
   } catch (error) {
@@ -147,146 +160,250 @@ export const getReviewQueue = async (req: AuthRequest, res: Response, next: Next
   }
 };
 
-/**
- * GET /api/safety/reviews/:id
- * Fetch detailed context for the 3-panel workspace (Evidence Drawer data)
- */
+// ---------------------------------------------------------------------------
+// GET /api/safety/reviews/:id
+// ---------------------------------------------------------------------------
 export const getReviewDetail = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const workspaceId = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
+    const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
 
-    const item = fallbackReviews.find(r => r.id === id && r.workspace_id === workspaceId);
-    if (!item) {
+    const query = supabaseAdmin
+      .from('publish_intents')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    const { data, error } = await query;
+
+    if (error || !data) {
       return res.status(404).json({ error: 'Review item not found.' });
     }
 
-    res.json({ success: true, data: item });
+    if (!isSuperAdmin && workspaceId && data.workspace_id !== workspaceId) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+
+    res.json({ success: true, data: intentToReviewItem(data) });
   } catch (error) {
     next(error);
   }
 };
 
-/**
- * POST /api/safety/reviews/:id/decision
- * Dual-control decision engine.
- */
+// ---------------------------------------------------------------------------
+// POST /api/safety/reviews/:id/decision
+// Reviewer decision: Approve / Reject / Request Changes / Escalate
+// ---------------------------------------------------------------------------
 export const submitReviewDecision = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
-    const workspaceId = req.user?.workspace_id || '00000000-0000-0000-0000-000000000000';
-    
+    const workspaceId = req.user?.workspace_id;
+    const isSuperAdmin = req.user?.is_superadmin;
+
     const { decision, rationale, idempotency_key } = req.body;
 
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-    if (!decision || !rationale) return res.status(400).json({ error: 'Decision and rationale are mandatory fields.' });
-    
-    // Validate Exact Outcome string (if the decision is an explicit outcome)
-    // Note: decision from UI could be "Approve", "Reject", "Request Changes", "Escalate".
-    // We map UI actions to canonical outcomes based on logic below.
+    if (!decision || !rationale || rationale.trim().length < 5) {
+      return res.status(400).json({ error: 'Decision and rationale (min 5 chars) are required.' });
+    }
 
-    // 1. Idempotency Check
+    // Idempotency guard
     if (idempotency_key) {
       if (idempotencyStore[idempotency_key]) {
-        return res.status(409).json({ error: 'Duplicate submission detected. Decision already processed.', canonical_outcome: 'block' });
+        return res.status(409).json({ error: 'Duplicate submission detected.' });
       }
       idempotencyStore[idempotency_key] = true;
     }
 
-    // Lookup item
-    const itemIndex = fallbackReviews.findIndex(r => r.id === id && r.workspace_id === workspaceId);
-    if (itemIndex === -1) {
+    // Load intent
+    const { data: intent, error: fetchErr } = await supabaseAdmin
+      .from('publish_intents')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !intent) {
       return res.status(404).json({ error: 'Review item not found.' });
     }
-    
-    const item = fallbackReviews[itemIndex];
 
-    // 2. Conflict of Interest Check
-    if (item.author_id === userId) {
-      return res.status(403).json({ 
-        error: 'Conflict of Interest violation. You cannot approve an item where you are the author.', 
-        canonical_outcome: 'block' 
+    if (!isSuperAdmin && workspaceId && intent.workspace_id !== workspaceId) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+
+    // Conflict of interest: creator cannot review their own post
+    if (intent.creator_id === userId && !isSuperAdmin) {
+      return res.status(403).json({
+        error: 'Conflict of Interest: you cannot review your own submission.',
+        canonical_outcome: 'block',
       });
     }
 
-    // 3. Dual-Control Logic Matrix
-    // Critical Risk OR Regulated Claims require specific dual sign-off (First Approver != Second Approver).
-    const requiresDualControl = item.priority === 'Critical' || item.item_type === 'Regulated Claim' || item.item_type === 'Crisis Response';
-    
-    let finalCanonicalOutcome: CanonicalOutcome = 'hold_for_review';
-    let nextState = item.decision_state;
+    // Map decision → new status + canonical outcome
+    let newStatus: string;
+    let canonicalOutcome: CanonicalOutcome;
+    let nextState: string;
 
-    // Map user "Approve" action
-    if (decision === 'Approve') {
-      if (requiresDualControl) {
-        if (!item.first_approver_id) {
-          // First key turned
-          nextState = 'Awaiting Second Approval';
-          item.first_approver_id = userId;
-          finalCanonicalOutcome = 'require_approval'; // Still requires approval from downstream perspective
-        } else {
-          // Second key turned (must be a different user, handled by Conflict of Interest typically, but check anyway)
-          if (item.first_approver_id === userId) {
-            return res.status(403).json({ error: 'Dual-Control violation. A single user cannot provide both approvals for this risk tier.', canonical_outcome: 'block' });
-          }
-          nextState = 'Approved';
-          finalCanonicalOutcome = 'allow'; // or 'allow_with_warning' if conditions apply
-        }
-      } else {
+    switch (decision) {
+      case 'Approve':
+        newStatus = 'APPROVED';
+        canonicalOutcome = 'allow';
         nextState = 'Approved';
-        finalCanonicalOutcome = 'allow';
-      }
-    } else if (decision === 'Reject') {
-      nextState = 'Rejected';
-      finalCanonicalOutcome = 'block';
-    } else if (decision === 'Request Changes') {
-      nextState = 'Changes Requested';
-      finalCanonicalOutcome = 'hold_for_review';
-    } else if (decision === 'Escalate') {
-      nextState = 'Escalated';
-      item.sla_due_at = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // recalculate SLA +1h
-      finalCanonicalOutcome = 'require_approval';
-    } else if (decision === 'Quarantine') {
-      nextState = 'Quarantined';
-      finalCanonicalOutcome = 'quarantine';
-    } else if (decision === 'Pause Agent') {
-      nextState = 'Agent Paused';
-      finalCanonicalOutcome = 'emergency_pause_recommendation';
+        break;
+      case 'Reject':
+        newStatus = 'REJECTED';
+        canonicalOutcome = 'block';
+        nextState = 'Rejected';
+        break;
+      case 'Request Changes':
+        newStatus = 'RETURNED';
+        canonicalOutcome = 'hold_for_review';
+        nextState = 'Changes Requested';
+        break;
+      case 'Escalate':
+        newStatus = 'PENDING_REVIEW'; // stays in queue for senior reviewer
+        canonicalOutcome = 'require_approval';
+        nextState = 'Escalated';
+        break;
+      case 'Quarantine':
+        newStatus = 'REJECTED';
+        canonicalOutcome = 'quarantine';
+        nextState = 'Quarantined';
+        break;
+      default:
+        return res.status(400).json({ error: `Unknown decision: ${decision}` });
     }
 
-    // Update in-memory
-    item.decision_state = nextState;
-    item.owner = userId; // Claim ownership if not already
+    // Persist status change
+    const { error: updateErr } = await supabaseAdmin
+      .from('publish_intents')
+      .update({
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+        reviewer_id: userId,
+        reviewer_feedback: rationale,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', id);
 
-    // 4. Immutable Audit Event Emission
-    await logAuditEvent({
-      workspaceId,
-      actorId: userId,
-      actorType: 'USER',
-      action: `REVIEW_DECISION_${decision.toUpperCase().replace(' ', '_')}`,
-      objectType: 'REVIEW_ITEM',
-      module: 'SafetyLayer',
-      riskLevel: item.priority.toUpperCase(),
-      metadata: { 
-        review_id: item.id,
-        rationale,
-        canonical_outcome: finalCanonicalOutcome,
-        evidence_hash: item.evidence_hash,
-        downstream_state: nextState
-      }
-    });
+    if (updateErr) throw updateErr;
 
-    res.json({ 
-      success: true, 
+    // If approved, hand off to execution
+    if (newStatus === 'APPROVED') {
+      try {
+        internalEventBus.emit('execution.requested', { intentId: id });
+      } catch { /* non-blocking */ }
+    }
+
+    // Immutable audit trail
+    try {
+      await logAuditEvent({
+        workspaceId: intent.workspace_id || workspaceId || '',
+        actorId: userId,
+        actorType: 'USER',
+        action: `REVIEW_DECISION_${decision.toUpperCase().replace(/ /g, '_')}`,
+        objectType: 'PUBLISH_INTENT',
+        module: 'SafetyLayer',
+        riskLevel: 'MEDIUM',
+        metadata: {
+          intent_id: id,
+          rationale,
+          canonical_outcome: canonicalOutcome,
+          new_status: newStatus,
+        },
+      });
+    } catch { /* audit failure must not block the decision */ }
+
+    // ── Notifications ──────────────────────────────────────────────────────
+    const contentPreview = (intent.content || '(no content)').slice(0, 120);
+    const creatorLink = `/publish?revisionId=${id}`;
+    const adminLink = '/review-queue';
+
+    switch (decision) {
+      case 'Approve':
+        await createNotification(
+          intent.creator_id,
+          '✅ Content Approved',
+          `Your content was approved: "${contentPreview}"`,
+          'APPROVAL',
+          creatorLink,
+        );
+        break;
+
+      case 'Reject':
+        await createNotification(
+          intent.creator_id,
+          '❌ Content Rejected',
+          `Your content was rejected. Reason: ${rationale}`,
+          'GOVERNANCE',
+          creatorLink,
+        );
+        break;
+
+      case 'Request Changes':
+        await createNotification(
+          intent.creator_id,
+          '🔄 Changes Requested',
+          `Changes requested for your content. Feedback: ${rationale}`,
+          'GOVERNANCE',
+          creatorLink,
+        );
+        break;
+
+      case 'Escalate':
+        // Notify creator
+        await createNotification(
+          intent.creator_id,
+          '⏫ Content Escalated',
+          `Your content has been escalated for senior review.`,
+          'GOVERNANCE',
+          creatorLink,
+        );
+        // Notify all workspace admins
+        await notifyWorkspaceAdmins(
+          intent.workspace_id || workspaceId || '',
+          '⏫ Escalation Requires Attention',
+          `Content "${contentPreview}" was escalated by a reviewer. Rationale: ${rationale}`,
+          'GOVERNANCE',
+          adminLink,
+        );
+        break;
+
+      case 'Quarantine':
+        // Notify creator
+        await createNotification(
+          intent.creator_id,
+          '⚠️ Content Quarantined',
+          `Your content was quarantined. Reason: ${rationale}`,
+          'ERROR',
+          creatorLink,
+        );
+        // Notify all workspace admins
+        await notifyWorkspaceAdmins(
+          intent.workspace_id || workspaceId || '',
+          '🚨 Content Quarantined — Admin Action Required',
+          `Content "${contentPreview}" was quarantined. Reviewer notes: ${rationale}`,
+          'ERROR',
+          adminLink,
+        );
+        break;
+    }
+
+    res.json({
+      success: true,
       data: {
-        item_id: item.id,
+        item_id: id,
         new_state: nextState,
-        canonical_outcome: finalCanonicalOutcome,
-        downstream_action: finalCanonicalOutcome === 'allow' ? 'release_requested' : finalCanonicalOutcome === 'block' ? 'block_confirmed' : 'pending'
-      }
+        canonical_outcome: canonicalOutcome,
+        downstream_action:
+          canonicalOutcome === 'allow'
+            ? 'execution_requested'
+            : canonicalOutcome === 'block' || canonicalOutcome === 'quarantine'
+            ? 'block_confirmed'
+            : 'pending',
+      },
     });
-
   } catch (error) {
     next(error);
   }
