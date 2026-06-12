@@ -158,7 +158,6 @@ export const getCampaignStats = async (req: AuthRequest, res: Response, next: Ne
       in_review:         rows.filter(r => ['READY_FOR_REVIEW', 'IN_REVIEW', 'CHANGES_REQUESTED'].includes(r.status)).length,
       approval_pending:  rows.filter(r => r.status === 'APPROVED').length,
       active:            rows.filter(r => r.status === 'ACTIVE').length,
-      pausing:           0,
       paused:            rows.filter(r => r.status === 'PAUSED').length,
       completed:         rows.filter(r => r.status === 'COMPLETED').length,
       risk_flags:        rows.filter(r => ['high', 'critical'].includes(r.risk_tier)).length,
