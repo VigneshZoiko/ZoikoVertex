@@ -124,9 +124,9 @@ function fmtDate(ts: string) {
 
 function StatCard({ label, value, color, onClick }: { label: string; value: number; color: string; onClick?: () => void }) {
   return (
-    <div onClick={onClick} className={`bg-[#111] border border-[#222] rounded-xl p-4 ${onClick ? 'cursor-pointer hover:border-[#444]' : ''}`}>
+    <div onClick={onClick} className={`bg-surface border border-border rounded-xl p-4 ${onClick ? 'cursor-pointer hover:border-border' : ''}`}>
       <div className={`text-2xl font-bold ${color}`}>{value}</div>
-      <div className="text-xs text-[#888] mt-1">{label}</div>
+      <div className="text-xs text-foreground-muted mt-1">{label}</div>
     </div>
   );
 }
@@ -251,7 +251,7 @@ export default function EvidenceVaultPage() {
 
   const TabIcon = TABS.find(t => t.id === activeTab)?.icon || Archive;
 
-  if (rolesLoading) return <div className="p-8 text-[#888]">Loading...</div>;
+  if (rolesLoading) return <div className="p-8 text-foreground-muted">Loading...</div>;
   if (error) return <div className="p-8 text-error-text">{error}</div>;
 
   return (
@@ -260,13 +260,13 @@ export default function EvidenceVaultPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
-            <Archive className="w-5 h-5 text-[#888]" /> Evidence Vault
+            <Archive className="w-5 h-5 text-foreground-muted" /> Evidence Vault
           </h1>
-          <p className="text-xs text-[#888] mt-1">Preserved evidence, integrity verification, and legal-grade export</p>
+          <p className="text-xs text-foreground-muted mt-1">Preserved evidence, integrity verification, and legal-grade export</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => { if (activeTab === "items") fetchItems(); else if (activeTab === "packages") fetchPackages(); else if (activeTab === "shares") fetchShares(); else fetchScans(); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#222] text-xs text-[#aaa] rounded-lg hover:bg-[#333]">
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface text-xs text-foreground/70 rounded-lg hover:bg-surface-hover">
             <RefreshCw className="w-3.5 h-3.5" /> Refresh
           </button>
           {activeTab === "items" && (
@@ -304,11 +304,11 @@ export default function EvidenceVaultPage() {
       )}
 
       {/* Tab Bar */}
-      <div className="flex items-center gap-1 mb-4 border-b border-[#222]">
+      <div className="flex items-center gap-1 mb-4 border-b border-border">
         {TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs border-b-2 transition-colors ${
-              activeTab === tab.id ? "text-warning-text border-warning-border" : "text-[#666] border-transparent hover:text-white hover:border-[#444]"
+              activeTab === tab.id ? "text-warning-text border-warning-border" : "text-foreground-muted border-transparent hover:text-foreground hover:border-border"
             }`}>
             <tab.icon className="w-3.5 h-3.5" /> {tab.label}
           </button>
@@ -319,11 +319,11 @@ export default function EvidenceVaultPage() {
       {activeTab === "items" && (
         <>
           <div className="flex items-center gap-3 mb-4 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs text-[#888]">
+            <div className="flex items-center gap-1.5 text-xs text-foreground-muted">
               <Filter className="w-3 h-3" /> Filters:
             </div>
             <select value={sourceType} onChange={e => { setSourceType(e.target.value); setCursor(null); }}
-              className="bg-[#1a1a1a] border border-[#333] rounded-lg px-2.5 py-1.5 text-xs text-[#ccc]">
+              className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground">
               <option value="">All Sources</option>
               <option value="audit_event">Audit Event</option>
               <option value="forensic_case">Forensic Case</option>
@@ -333,7 +333,7 @@ export default function EvidenceVaultPage() {
               <option value="identity_proof">Identity Proof</option>
             </select>
             <select value={vaultState} onChange={e => { setVaultState(e.target.value); setCursor(null); }}
-              className="bg-[#1a1a1a] border border-[#333] rounded-lg px-2.5 py-1.5 text-xs text-[#ccc]">
+              className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground">
               <option value="">All States</option>
               <option value="preserved">Preserved</option>
               <option value="sealed">Sealed</option>
@@ -343,7 +343,7 @@ export default function EvidenceVaultPage() {
               <option value="failed">Failed</option>
             </select>
             <select value={retentionClass} onChange={e => { setRetentionClass(e.target.value); setCursor(null); }}
-              className="bg-[#1a1a1a] border border-[#333] rounded-lg px-2.5 py-1.5 text-xs text-[#ccc]">
+              className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground">
               <option value="">All Retention</option>
               <option value="standard">Standard</option>
               <option value="extended">Extended</option>
@@ -351,11 +351,11 @@ export default function EvidenceVaultPage() {
               <option value="legal_hold">Legal Hold</option>
             </select>
           </div>
-          <div className="bg-[#111] border border-[#222] rounded-xl overflow-hidden">
+          <div className="bg-surface border border-border rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-[#222] text-[#888]">
+                  <tr className="border-b border-border text-foreground-muted">
                     <th className="text-left p-3 font-medium">Item ID</th>
                     <th className="text-left p-3 font-medium">Source</th>
                     <th className="text-left p-3 font-medium">State</th>
@@ -368,21 +368,21 @@ export default function EvidenceVaultPage() {
                 </thead>
                 <tbody>
                   {items.map(item => (
-                    <tr key={item.id} className="border-b border-[#1a1a1a] hover:bg-[#1a1a1a] cursor-pointer"
+                    <tr key={item.id} className="border-b border-border hover:bg-surface cursor-pointer"
                       onClick={() => router.push(`/evidence/evidence-vault/items/${item.id}`)}>
                       <td className="p-3 text-foreground font-mono text-[11px]">{item.item_id}</td>
                       <td className="p-3">
-                        <span className="text-[#aaa]">{item.source_type}</span>
-                        <span className="text-[#666] ml-1">:{item.source_id.substring(0, 12)}</span>
+                        <span className="text-foreground/70">{item.source_type}</span>
+                        <span className="text-foreground-muted ml-1">:{item.source_id.substring(0, 12)}</span>
                       </td>
                       <td className="p-3">
                         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] border ${STATE_COLORS[item.vault_state] || 'text-info-text border-info-border bg-info-bg'}`}>
                           {STATE_LABELS[item.vault_state] || item.vault_state}
                         </span>
                       </td>
-                      <td className={`p-3 ${RETENTION_COLORS[item.retention_class] || 'text-[#888]'}`}>{item.retention_class}</td>
+                      <td className={`p-3 ${RETENTION_COLORS[item.retention_class] || 'text-foreground-muted'}`}>{item.retention_class}</td>
                       <td className="p-3">
-                        {item.legal_hold ? <span className="text-error-text flex items-center gap-1"><Lock className="w-3 h-3" /> Held</span> : <span className="text-[#555]">—</span>}
+                        {item.legal_hold ? <span className="text-error-text flex items-center gap-1"><Lock className="w-3 h-3" /> Held</span> : <span className="text-foreground-muted">—</span>}
                       </td>
                       <td className="p-3">
                         <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${
@@ -391,21 +391,21 @@ export default function EvidenceVaultPage() {
                           item.risk_level === 'medium' ? 'bg-warning-bg text-warning-text' : 'bg-info-bg text-info-text'
                         }`}>{item.risk_level}</span>
                       </td>
-                      <td className="p-3 text-[#888] font-mono text-[11px]">{item.preserved_by_actor_id}</td>
-                      <td className="p-3 text-[#666] text-[11px]">{fmt(item.created_at)}</td>
+                      <td className="p-3 text-foreground-muted font-mono text-[11px]">{item.preserved_by_actor_id}</td>
+                      <td className="p-3 text-foreground-muted text-[11px]">{fmt(item.created_at)}</td>
                     </tr>
                   ))}
-                  {items.length === 0 && !itemsLoading && <tr><td colSpan={8} className="p-8 text-center text-[#555]">No evidence items preserved yet.</td></tr>}
+                  {items.length === 0 && !itemsLoading && <tr><td colSpan={8} className="p-8 text-center text-foreground-muted">No evidence items preserved yet.</td></tr>}
                 </tbody>
               </table>
             </div>
             {cursor && (
-              <div className="p-3 text-center border-t border-[#222]">
+              <div className="p-3 text-center border-t border-border">
                 <button onClick={() => fetchItems(cursor)} className="text-xs text-info-text hover:text-info-text">Load More</button>
               </div>
             )}
           </div>
-          <div className="text-xs text-[#555] mt-2">{total} total items</div>
+          <div className="text-xs text-foreground-muted mt-2">{total} total items</div>
         </>
       )}
 
@@ -413,9 +413,9 @@ export default function EvidenceVaultPage() {
       {activeTab === "packages" && (
         <>
           <div className="flex items-center gap-3 mb-4 flex-wrap">
-            <div className="flex items-center gap-1.5 text-xs text-[#888]"><Filter className="w-3 h-3" /> Filters:</div>
+            <div className="flex items-center gap-1.5 text-xs text-foreground-muted"><Filter className="w-3 h-3" /> Filters:</div>
             <select value={pkgTypeFilter} onChange={e => setPkgTypeFilter(e.target.value)}
-              className="bg-[#1a1a1a] border border-[#333] rounded-lg px-2.5 py-1.5 text-xs text-[#ccc]">
+              className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground">
               <option value="">All Types</option>
               <option value="regulatory_response">Regulatory</option>
               <option value="litigation_hold">Litigation</option>
@@ -425,7 +425,7 @@ export default function EvidenceVaultPage() {
               <option value="ai_governance">AI Governance</option>
             </select>
             <select value={pkgStatusFilter} onChange={e => setPkgStatusFilter(e.target.value)}
-              className="bg-[#1a1a1a] border border-[#333] rounded-lg px-2.5 py-1.5 text-xs text-[#ccc]">
+              className="bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground">
               <option value="">All Status</option>
               <option value="draft">Draft</option>
               <option value="sealed">Sealed</option>
@@ -434,10 +434,10 @@ export default function EvidenceVaultPage() {
               <option value="failed">Failed</option>
             </select>
           </div>
-          <div className="bg-[#111] border border-[#222] rounded-xl overflow-hidden">
+          <div className="bg-surface border border-border rounded-xl overflow-hidden">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-[#222] text-[#888]">
+                <tr className="border-b border-border text-foreground-muted">
                   <th className="text-left p-3 font-medium">Package ID</th>
                   <th className="text-left p-3 font-medium">Title</th>
                   <th className="text-left p-3 font-medium">Type</th>
@@ -449,10 +449,10 @@ export default function EvidenceVaultPage() {
               </thead>
               <tbody>
                 {packages.map(pkg => (
-                  <tr key={pkg.id} className="border-b border-[#1a1a1a] hover:bg-[#1a1a1a]">
+                  <tr key={pkg.id} className="border-b border-border hover:bg-surface">
                     <td className="p-3 text-foreground font-mono text-[11px]">{pkg.package_id}</td>
-                    <td className="p-3 text-[#ccc]">{pkg.title}</td>
-                    <td className="p-3 text-[#aaa]">{pkg.package_type.replace(/_/g, ' ')}</td>
+                    <td className="p-3 text-foreground">{pkg.title}</td>
+                    <td className="p-3 text-foreground/70">{pkg.package_type.replace(/_/g, ' ')}</td>
                     <td className="p-3">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] border ${
                         pkg.status === 'sealed' ? 'text-info-text border-info-border bg-info-bg' :
@@ -461,26 +461,26 @@ export default function EvidenceVaultPage() {
                         'text-error-text border-error-border bg-error-bg'
                       }`}>{pkg.status}</span>
                     </td>
-                    <td className="p-3 text-[#888]">{pkg.item_count}</td>
-                    <td className="p-3 text-[#888] font-mono text-[11px]">{pkg.created_by}</td>
-                    <td className="p-3 text-[#666] text-[11px]">{fmt(pkg.created_at)}</td>
+                    <td className="p-3 text-foreground-muted">{pkg.item_count}</td>
+                    <td className="p-3 text-foreground-muted font-mono text-[11px]">{pkg.created_by}</td>
+                    <td className="p-3 text-foreground-muted text-[11px]">{fmt(pkg.created_at)}</td>
                   </tr>
                 ))}
-                {packages.length === 0 && !packagesLoading && <tr><td colSpan={7} className="p-8 text-center text-[#555]">No packages created yet.</td></tr>}
+                {packages.length === 0 && !packagesLoading && <tr><td colSpan={7} className="p-8 text-center text-foreground-muted">No packages created yet.</td></tr>}
               </tbody>
             </table>
           </div>
-          <div className="text-xs text-[#555] mt-2">{pkgTotal} total packages</div>
+          <div className="text-xs text-foreground-muted mt-2">{pkgTotal} total packages</div>
         </>
       )}
 
       {/* ─── Shares Tab ──────────────────────────────────────── */}
       {activeTab === "shares" && (
         <>
-          <div className="bg-[#111] border border-[#222] rounded-xl overflow-hidden">
+          <div className="bg-surface border border-border rounded-xl overflow-hidden">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-[#222] text-[#888]">
+                <tr className="border-b border-border text-foreground-muted">
                   <th className="text-left p-3 font-medium">Share ID</th>
                   <th className="text-left p-3 font-medium">Recipient</th>
                   <th className="text-left p-3 font-medium">Mode</th>
@@ -492,12 +492,12 @@ export default function EvidenceVaultPage() {
               </thead>
               <tbody>
                 {shares.map(share => (
-                  <tr key={share.id} className="border-b border-[#1a1a1a]">
+                  <tr key={share.id} className="border-b border-border">
                     <td className="p-3 text-foreground font-mono text-[11px]">{share.share_id}</td>
-                    <td className="p-3 text-[#ccc]">{share.recipient_email}</td>
-                    <td className="p-3 text-[#aaa] text-[10px]">{share.disclosure_mode.replace(/_/g, ' ')}</td>
-                    <td className="p-3 text-[#888] text-[11px]">{fmtDate(share.expires_at)}</td>
-                    <td className="p-3 text-[#888]}">{share.current_views}{share.max_views > 0 ? `/${share.max_views}` : ''}</td>
+                    <td className="p-3 text-foreground">{share.recipient_email}</td>
+                    <td className="p-3 text-foreground/70 text-[10px]">{share.disclosure_mode.replace(/_/g, ' ')}</td>
+                    <td className="p-3 text-foreground-muted text-[11px]">{fmtDate(share.expires_at)}</td>
+                    <td className="p-3 text-foreground-muted}">{share.current_views}{share.max_views > 0 ? `/${share.max_views}` : ''}</td>
                     <td className="p-3">
                       {share.revoked
                         ? <span className="text-error-text text-[10px]">Revoked</span>
@@ -506,24 +506,24 @@ export default function EvidenceVaultPage() {
                           : <span className="text-success-text text-[10px]">Active</span>
                       }
                     </td>
-                    <td className="p-3 text-[#666] text-[11px]">{fmt(share.created_at)}</td>
+                    <td className="p-3 text-foreground-muted text-[11px]">{fmt(share.created_at)}</td>
                   </tr>
                 ))}
-                {shares.length === 0 && !sharesLoading && <tr><td colSpan={7} className="p-8 text-center text-[#555]">No external shares created yet.</td></tr>}
+                {shares.length === 0 && !sharesLoading && <tr><td colSpan={7} className="p-8 text-center text-foreground-muted">No external shares created yet.</td></tr>}
               </tbody>
             </table>
           </div>
-          <div className="text-xs text-[#555] mt-2">{sharesTotal} total shares</div>
+          <div className="text-xs text-foreground-muted mt-2">{sharesTotal} total shares</div>
         </>
       )}
 
       {/* ─── Scans Tab ───────────────────────────────────────── */}
       {activeTab === "scans" && (
         <>
-          <div className="bg-[#111] border border-[#222] rounded-xl overflow-hidden">
+          <div className="bg-surface border border-border rounded-xl overflow-hidden">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-[#222] text-[#888]">
+                <tr className="border-b border-border text-foreground-muted">
                   <th className="text-left p-3 font-medium">Scan ID</th>
                   <th className="text-left p-3 font-medium">Package</th>
                   <th className="text-left p-3 font-medium">Status</th>
@@ -535,25 +535,25 @@ export default function EvidenceVaultPage() {
               </thead>
               <tbody>
                 {scans.map(scan => (
-                  <tr key={scan.id} className="border-b border-[#1a1a1a]">
+                  <tr key={scan.id} className="border-b border-border">
                     <td className="p-3 text-foreground font-mono text-[11px]">{scan.id.substring(0, 8)}</td>
-                    <td className="p-3 text-[#aaa] font-mono text-[11px]">{scan.package_id.substring(0, 8)}</td>
+                    <td className="p-3 text-foreground/70 font-mono text-[11px]">{scan.package_id.substring(0, 8)}</td>
                     <td className="p-3">
                       <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${SCAN_STATUS_COLORS[scan.scan_status] || 'text-info-text'}`}>
                         {scan.scan_status}
                       </span>
                     </td>
-                    <td className="p-3 text-[#888] text-[10px]">{scan.detection_category || '—'}</td>
-                    <td className="p-3 text-[#888]">{Array.isArray(scan.findings) ? scan.findings.length : 0}</td>
-                    <td className="p-3 text-[#888] text-[10px] max-w-[200px] truncate">{scan.scan_report || '—'}</td>
-                    <td className="p-3 text-[#666] text-[11px]">{fmt(scan.created_at)}</td>
+                    <td className="p-3 text-foreground-muted text-[10px]">{scan.detection_category || '—'}</td>
+                    <td className="p-3 text-foreground-muted">{Array.isArray(scan.findings) ? scan.findings.length : 0}</td>
+                    <td className="p-3 text-foreground-muted text-[10px] max-w-[200px] truncate">{scan.scan_report || '—'}</td>
+                    <td className="p-3 text-foreground-muted text-[11px]">{fmt(scan.created_at)}</td>
                   </tr>
                 ))}
-                {scans.length === 0 && !scansLoading && <tr><td colSpan={7} className="p-8 text-center text-[#555]">No DLP scans run yet.</td></tr>}
+                {scans.length === 0 && !scansLoading && <tr><td colSpan={7} className="p-8 text-center text-foreground-muted">No DLP scans run yet.</td></tr>}
               </tbody>
             </table>
           </div>
-          <div className="text-xs text-[#555] mt-2">{scansTotal} total scans</div>
+          <div className="text-xs text-foreground-muted mt-2">{scansTotal} total scans</div>
         </>
       )}
 
@@ -611,17 +611,17 @@ function CreatePreservationModal({ onClose, onCreated }: { onClose: () => void; 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-[#151515] border border-[#333] rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-background/60 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2"><Archive className="w-4 h-4" /> Preserve Evidence</h2>
-          <button onClick={onClose}><X className="w-4 h-4 text-[#666] hover:text-white" /></button>
+          <button onClick={onClose}><X className="w-4 h-4 text-foreground-muted hover:text-foreground" /></button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Source Type</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Source Type</label>
             <select value={sourceType} onChange={e => setSourceType(e.target.value)}
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-[#ccc]">
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground">
               <option value="audit_event">Audit Event</option>
               <option value="forensic_case">Forensic Case</option>
               <option value="ai_output">AI Output</option>
@@ -629,25 +629,25 @@ function CreatePreservationModal({ onClose, onCreated }: { onClose: () => void; 
             </select>
           </div>
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Source ID</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Source ID</label>
             <input value={sourceId} onChange={e => setSourceId(e.target.value)} placeholder="AUD-2026-00018492"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
           </div>
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Source System</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Source System</label>
             <input value={sourceSystem} onChange={e => setSourceSystem(e.target.value)} placeholder="audit_trail"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
           </div>
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Preservation Reason</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Preservation Reason</label>
             <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason for preservation"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" rows={2} />
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" rows={2} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-[#888] mb-1 block">Retention Class</label>
+              <label className="text-xs text-foreground-muted mb-1 block">Retention Class</label>
               <select value={retentionClass} onChange={e => setRetentionClass(e.target.value)}
-                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-[#ccc]">
+                className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground">
                 <option value="standard">Standard (2yr)</option>
                 <option value="extended">Extended (7yr)</option>
                 <option value="regulated">Regulated (10yr)</option>
@@ -655,9 +655,9 @@ function CreatePreservationModal({ onClose, onCreated }: { onClose: () => void; 
               </select>
             </div>
             <div>
-              <label className="text-xs text-[#888] mb-1 block">Risk Level</label>
+              <label className="text-xs text-foreground-muted mb-1 block">Risk Level</label>
               <select value={riskLevel} onChange={e => setRiskLevel(e.target.value)}
-                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-[#ccc]">
+                className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -667,7 +667,7 @@ function CreatePreservationModal({ onClose, onCreated }: { onClose: () => void; 
           </div>
           {error && <div className="text-xs text-error-text">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
+            <button onClick={onClose} className="px-4 py-2 text-xs text-foreground-muted bg-surface rounded-lg hover:bg-surface-hover">Cancel</button>
             <button onClick={handleSave} disabled={saving}
               className="px-4 py-2 text-xs text-foreground bg-info-text rounded-lg hover:brightness-110 disabled:opacity-50">
               {saving ? "Preserving..." : "Preserve"}
@@ -701,17 +701,17 @@ function CreatePackageModal({ onClose, onCreated }: { onClose: () => void; onCre
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-[#151515] border border-[#333] rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-background/60 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2"><Package className="w-4 h-4" /> Create Package</h2>
-          <button onClick={onClose}><X className="w-4 h-4 text-[#666] hover:text-white" /></button>
+          <button onClick={onClose}><X className="w-4 h-4 text-foreground-muted hover:text-foreground" /></button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Package Type</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Package Type</label>
             <select value={pkgType} onChange={e => setPkgType(e.target.value)}
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-[#ccc]">
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground">
               <option value="regulatory_response">Regulatory Response</option>
               <option value="litigation_hold">Litigation Hold</option>
               <option value="customer_assurance">Customer Assurance</option>
@@ -721,18 +721,18 @@ function CreatePackageModal({ onClose, onCreated }: { onClose: () => void; onCre
             </select>
           </div>
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Title</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Title</label>
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Package title"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
           </div>
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Description</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Description</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" rows={2} />
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" rows={2} />
           </div>
           {error && <div className="text-xs text-error-text">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
+            <button onClick={onClose} className="px-4 py-2 text-xs text-foreground-muted bg-surface rounded-lg hover:bg-surface-hover">Cancel</button>
             <button onClick={handleSave} disabled={saving}
               className="px-4 py-2 text-xs text-foreground bg-info-text rounded-lg hover:brightness-110 disabled:opacity-50">
               {saving ? "Creating..." : "Create"}
@@ -777,53 +777,53 @@ function CreateShareModal({ onClose, onCreated }: { onClose: () => void; onCreat
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-[#151515] border border-[#333] rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-background/60 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2"><Share2 className="w-4 h-4" /> Create External Share</h2>
-          <button onClick={onClose}><X className="w-4 h-4 text-[#666] hover:text-white" /></button>
+          <button onClick={onClose}><X className="w-4 h-4 text-foreground-muted hover:text-foreground" /></button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Package ID</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Package ID</label>
             <input value={packageId} onChange={e => setPackageId(e.target.value)} placeholder="Sealed package UUID"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
           </div>
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Recipient Email</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Recipient Email</label>
             <input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder="auditor@example.com"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
           </div>
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Recipient Name</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Recipient Name</label>
             <input value={recipientName} onChange={e => setRecipientName(e.target.value)} placeholder="Optional"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
           </div>
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Expires At</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Expires At</label>
             <input type="datetime-local" value={expiresAt} onChange={e => setExpiresAt(e.target.value)}
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-[#888] mb-1 block">Max Views</label>
+              <label className="text-xs text-foreground-muted mb-1 block">Max Views</label>
               <input type="number" value={maxViews} onChange={e => setMaxViews(parseInt(e.target.value) || 0)} placeholder="0 = unlimited"
-                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
+                className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
             </div>
             <div>
-              <label className="text-xs text-[#888] mb-1 block">Watermark</label>
+              <label className="text-xs text-foreground-muted mb-1 block">Watermark</label>
               <input value={watermark} onChange={e => setWatermark(e.target.value)} placeholder="e.g. Confidential"
-                className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
+                className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
             </div>
           </div>
-          <label className="flex items-center gap-2 text-xs text-[#888]">
+          <label className="flex items-center gap-2 text-xs text-foreground-muted">
             <input type="checkbox" checked={allowDownload} onChange={e => setAllowDownload(e.target.checked)}
-              className="rounded border-[#333] bg-[#1a1a1a]" />
+              className="rounded border-border bg-surface" />
             Allow download
           </label>
           {error && <div className="text-xs text-error-text">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
+            <button onClick={onClose} className="px-4 py-2 text-xs text-foreground-muted bg-surface rounded-lg hover:bg-surface-hover">Cancel</button>
             <button onClick={handleSave} disabled={saving}
               className="px-4 py-2 text-xs text-foreground bg-info-text rounded-lg hover:brightness-110 disabled:opacity-50">
               {saving ? "Creating..." : "Create Share"}
@@ -855,21 +855,21 @@ function RunScanModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="bg-[#151515] border border-[#333] rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-background/60 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2"><Scan className="w-4 h-4" /> Run DLP Scan</h2>
-          <button onClick={onClose}><X className="w-4 h-4 text-[#666] hover:text-white" /></button>
+          <button onClick={onClose}><X className="w-4 h-4 text-foreground-muted hover:text-foreground" /></button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-[#888] mb-1 block">Package ID</label>
+            <label className="text-xs text-foreground-muted mb-1 block">Package ID</label>
             <input value={packageId} onChange={e => setPackageId(e.target.value)} placeholder="Sealed package UUID"
-              className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-xs text-foreground" />
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground" />
           </div>
           {error && <div className="text-xs text-error-text">{error}</div>}
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={onClose} className="px-4 py-2 text-xs text-[#888] bg-[#222] rounded-lg hover:bg-[#333]">Cancel</button>
+            <button onClick={onClose} className="px-4 py-2 text-xs text-foreground-muted bg-surface rounded-lg hover:bg-surface-hover">Cancel</button>
             <button onClick={handleSave} disabled={saving}
               className="px-4 py-2 text-xs text-foreground bg-info-text rounded-lg hover:brightness-110 disabled:opacity-50">
               {saving ? "Scanning..." : "Run Scan"}

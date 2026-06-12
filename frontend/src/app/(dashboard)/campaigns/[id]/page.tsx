@@ -227,8 +227,8 @@ export default function CampaignDetailPage() {
           </div>
 
           {campaign.status === "COMPLETED" && (
-            <span className="text-xs text-emerald-400 flex items-center gap-1">
-              <span className="w-3 h-3 text-emerald-400">✓</span> Completed
+            <span className="text-xs text-success-text flex items-center gap-1">
+              <span className="w-3 h-3 text-success-text">✓</span> Completed
             </span>
           )}
 
@@ -249,7 +249,7 @@ export default function CampaignDetailPage() {
               <div className="absolute right-0 top-9 z-50 w-56 bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
                 <button
                   onClick={() => { handleDelete(); setMenu(false); }}
-                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-rose-400 hover:bg-surface transition-colors"
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-error-text hover:bg-surface transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />Delete campaign
                 </button>
@@ -298,11 +298,11 @@ export default function CampaignDetailPage() {
 
             {/* Meta sync error banner */}
             {campaign.meta_error && (
-              <div className="flex items-start gap-3 p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl">
-                <AlertCircle className="w-4 h-4 text-rose-400 mt-0.5 shrink-0" />
+              <div className="flex items-start gap-3 p-4 bg-error-text/10 border border-error-border/30 rounded-xl">
+                <AlertCircle className="w-4 h-4 text-error-text mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-rose-400">Meta sync error</p>
-                  <p className="text-[12px] text-rose-300 mt-0.5">{campaign.meta_error}</p>
+                  <p className="text-sm font-semibold text-error-text">Meta sync error</p>
+                  <p className="text-[12px] text-error-text mt-0.5">{campaign.meta_error}</p>
                 </div>
               </div>
             )}
@@ -321,8 +321,8 @@ export default function CampaignDetailPage() {
                   {campaign.meta_ad_account_name && (
                     <p className="text-[11px] text-foreground-muted mt-0.5 font-mono">{campaign.meta_ad_account_name}</p>
                   )}
-                  <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />Active
+                  <span className="inline-flex items-center gap-1 text-[11px] text-success-text mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-success-text inline-block" />Active
                   </span>
                 </div>
 
@@ -377,7 +377,7 @@ export default function CampaignDetailPage() {
                     <div className="mt-1.5">
                       <div className="w-32 h-1.5 bg-surface-hover rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all ${spendPct >= 90 ? "bg-amber-500" : "bg-zinc-400"}`}
+                          className={`h-full rounded-full transition-all ${spendPct >= 90 ? "bg-warning-text" : "bg-zinc-400"}`}
                           style={{ width: `${Math.min(100, spendPct)}%` }}
                         />
                       </div>
@@ -545,8 +545,8 @@ export default function CampaignDetailPage() {
                   <div className="space-y-4">
                     {/* Summary bar */}
                     <div className="flex items-center gap-4 px-4 py-3 bg-surface border border-border rounded-xl">
-                      <span className="text-xs font-bold text-emerald-400">{verify.summary.passed} / {verify.summary.total} fields confirmed</span>
-                      {verify.summary.failed > 0 && <span className="text-xs font-bold text-rose-400">{verify.summary.failed} mismatch{verify.summary.failed > 1 ? "es" : ""}</span>}
+                      <span className="text-xs font-bold text-success-text">{verify.summary.passed} / {verify.summary.total} fields confirmed</span>
+                      {verify.summary.failed > 0 && <span className="text-xs font-bold text-error-text">{verify.summary.failed} mismatch{verify.summary.failed > 1 ? "es" : ""}</span>}
                       <span className="ml-auto text-[10px] text-foreground-muted">Campaign: {verify.meta_ids.campaign_id} · Ad Set: {verify.meta_ids.adset_id}</span>
                     </div>
 
@@ -563,14 +563,14 @@ export default function CampaignDetailPage() {
                         </thead>
                         <tbody className="divide-y divide-border/60">
                           {verify.checks.map((c: MetaVerifyCheck) => (
-                            <tr key={c.field} className={c.match ? "" : "bg-rose-500/5"}>
+                            <tr key={c.field} className={c.match ? "" : "bg-error-text/5"}>
                               <td className="px-4 py-2.5 text-foreground-muted font-medium">{c.field}</td>
                               <td className="px-4 py-2.5 text-foreground-muted font-mono text-[11px] max-w-xs truncate">{c.intended ?? "—"}</td>
                               <td className="px-4 py-2.5 text-foreground-muted font-mono text-[11px] max-w-xs truncate">{c.on_meta ?? <span className="text-foreground-muted">not found</span>}</td>
                               <td className="px-4 py-2.5 text-center">
                                 {c.match
-                                  ? <span className="text-emerald-400 text-sm">✓</span>
-                                  : <span className="text-rose-400 text-sm">✗</span>}
+                                  ? <span className="text-success-text text-sm">✓</span>
+                                  : <span className="text-error-text text-sm">✗</span>}
                               </td>
                             </tr>
                           ))}
@@ -599,7 +599,7 @@ export default function CampaignDetailPage() {
                 )}
 
                 {verify?.error && (
-                  <p className="text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">{verify.error}</p>
+                  <p className="text-sm text-error-text bg-error-text/10 border border-error-border/20 rounded-xl px-4 py-3">{verify.error}</p>
                 )}
               </div>
             )}
@@ -761,7 +761,7 @@ export default function CampaignDetailPage() {
               <section>
                 <p className="text-xs font-bold text-foreground-muted uppercase tracking-widest mb-4">Status</p>
                 <div className="flex items-center gap-3">
-                  <span className={`w-2 h-2 rounded-full ${campaign.status === "ACTIVE" ? "bg-emerald-400" : "bg-zinc-500"}`} />
+                  <span className={`w-2 h-2 rounded-full ${campaign.status === "ACTIVE" ? "bg-success-text" : "bg-zinc-500"}`} />
                   <p className="text-sm text-foreground-muted font-medium capitalize">{campaign.status.toLowerCase()}</p>
                   <span className="text-foreground-muted text-xs">— Ad set is paused until campaign is activated</span>
                 </div>
@@ -798,7 +798,7 @@ export default function CampaignDetailPage() {
                     return (
                       <tr key={b.id}
                         className={`border-b border-border/40 transition-colors ${
-                          isAdActive ? "bg-amber-500/3 hover:bg-amber-500/5" : "hover:bg-surface/40"
+                          isAdActive ? "bg-warning-text/3 hover:bg-warning-text/5" : "hover:bg-surface/40"
                         } ${i < boosts.length - 1 ? "" : "border-b-0"}`}>
 
                         {/* AD */}

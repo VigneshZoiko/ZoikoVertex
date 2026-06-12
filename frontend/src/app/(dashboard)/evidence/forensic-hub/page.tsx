@@ -68,9 +68,9 @@ function fmt(ts: string) {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="bg-[#111] border border-[#222] rounded-xl p-4">
+    <div className="bg-surface border border-border rounded-xl p-4">
       <div className={`text-2xl font-bold ${color}`}>{value}</div>
-      <div className="text-xs text-[#888] mt-1">{label}</div>
+      <div className="text-xs text-foreground-muted mt-1">{label}</div>
     </div>
   );
 }
@@ -130,7 +130,7 @@ export default function ForensicHubPage() {
     } catch (e: any) { setError(e?.message || "Failed to create case"); }
   };
 
-  if (rolesLoading) return <div className="p-8 text-[#888]">Loading...</div>;
+  if (rolesLoading) return <div className="p-8 text-foreground-muted">Loading...</div>;
   if (!hasRole(["ADMIN", "WORKSPACE_OWNER", "GOVERNANCE_ADMIN", "AUDITOR", "COMPLIANCE_REVIEWER", "SECURITY_ADMIN"])) {
     return <div className="p-8 text-error-text">Unauthorized.</div>;
   }
@@ -159,7 +159,7 @@ export default function ForensicHubPage() {
             <Fingerprint className="w-6 h-6 text-warning-text" />
             Forensic Hub
           </h1>
-          <p className="text-[#888] mt-1">
+          <p className="text-foreground-muted mt-1">
             Investigation command center for reconstructing governed AI activity and managing cases.
           </p>
         </div>
@@ -180,18 +180,18 @@ export default function ForensicHubPage() {
           <StatCard label="Awaiting Info" value={stats.awaiting_info} color="text-info-text" />
           <StatCard label="Legal Review" value={stats.legal_review} color="text-info-text" />
           <StatCard label="Closed This.." value={stats.closed_cases} color="text-success-text" />
-          <StatCard label="Total" value={stats.total_cases} color="text-[#888]" />
+          <StatCard label="Total" value={stats.total_cases} color="text-foreground-muted" />
         </div>
       )}
 
       {/* Create Case Form */}
       {showCreate && (
-        <div className="bg-[#111] border border-[#222] rounded-xl p-6 mb-4 space-y-3">
+        <div className="bg-surface border border-border rounded-xl p-6 mb-4 space-y-3">
           <h3 className="text-sm font-medium text-foreground">New Investigation Case</h3>
           <select
             value={createForm.case_type}
             onChange={e => setCreateForm(p => ({ ...p, case_type: e.target.value }))}
-            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground"
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground"
           >
             <option value="">Select case type...</option>
             {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -200,18 +200,18 @@ export default function ForensicHubPage() {
             placeholder="Case title"
             value={createForm.title}
             onChange={e => setCreateForm(p => ({ ...p, title: e.target.value }))}
-            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground"
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground"
           />
           <textarea
             placeholder="Summary"
             value={createForm.summary}
             onChange={e => setCreateForm(p => ({ ...p, summary: e.target.value }))}
-            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground resize-none h-20"
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground resize-none h-20"
           />
           <select
             value={createForm.severity}
             onChange={e => setCreateForm(p => ({ ...p, severity: e.target.value }))}
-            className="w-full bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2 text-sm text-foreground"
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground"
           >
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -227,16 +227,16 @@ export default function ForensicHubPage() {
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#555]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
           <input
             placeholder="Search cases by title or summary..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[#111] border border-[#222] rounded-lg pl-9 pr-3 py-2 text-sm text-foreground"
+            className="w-full bg-surface border border-border rounded-lg pl-9 pr-3 py-2 text-sm text-foreground"
           />
         </div>
         <select value={filterSeverity} onChange={e => setFilterSeverity(e.target.value)}
-          className="bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-xs text-[#888]">
+          className="bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground-muted">
           <option value="">Severity</option>
           <option value="critical">Critical</option>
           <option value="high">High</option>
@@ -244,18 +244,18 @@ export default function ForensicHubPage() {
           <option value="low">Low</option>
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          className="bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-xs text-[#888]">
+          className="bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground-muted">
           <option value="">Status</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
         <select value={filterType} onChange={e => setFilterType(e.target.value)}
-          className="bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-xs text-[#888]">
+          className="bg-surface border border-border rounded-lg px-3 py-2 text-xs text-foreground-muted">
           <option value="">Type</option>
           {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
         {(search || filterSeverity || filterStatus || filterType) && (
           <button onClick={clearFilters}
-            className="px-3 py-2 text-xs text-[#888] hover:text-white flex items-center gap-1">
+            className="px-3 py-2 text-xs text-foreground-muted hover:text-foreground flex items-center gap-1">
             <X className="w-3 h-3" /> Clear
           </button>
         )}
@@ -273,21 +273,21 @@ export default function ForensicHubPage() {
       )}
 
       {/* Case Queue */}
-      <div className="bg-[#111] border border-[#222] rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#222] flex items-center justify-between">
-          <span className="text-sm text-[#888]">{total} case{total !== 1 ? "s" : ""}</span>
-          <button onClick={fetchData} className="text-xs text-[#888] hover:text-white flex items-center gap-1">
+      <div className="bg-surface border border-border rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+          <span className="text-sm text-foreground-muted">{total} case{total !== 1 ? "s" : ""}</span>
+          <button onClick={fetchData} className="text-xs text-foreground-muted hover:text-foreground flex items-center gap-1">
             <RefreshCw className="w-3 h-3" /> Refresh
           </button>
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-[#888]">Loading cases...</div>
+          <div className="p-8 text-center text-foreground-muted">Loading cases...</div>
         ) : cases.length === 0 ? (
           <div className="p-12 text-center">
-            <Fingerprint className="w-10 h-10 mx-auto mb-3 text-[#444]" />
-            <p className="text-sm text-[#888]">No cases found.</p>
-            <p className="text-xs text-[#666] mt-1">
+            <Fingerprint className="w-10 h-10 mx-auto mb-3 text-foreground-muted" />
+            <p className="text-sm text-foreground-muted">No cases found.</p>
+            <p className="text-xs text-foreground-muted mt-1">
               {search || filterSeverity || filterStatus || filterType
                 ? "No cases match current filters. Try clearing filters."
                 : "Cases appear from manual creation, rule triggers, or selected audit events."}
@@ -297,7 +297,7 @@ export default function ForensicHubPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="text-xs text-[#888] uppercase tracking-wider border-b border-[#222]">
+                <tr className="text-xs text-foreground-muted uppercase tracking-wider border-b border-border">
                   <th className="py-3 px-4">Case</th>
                   <th className="py-3 px-4">Type</th>
                   <th className="py-3 px-4">Severity</th>
@@ -313,15 +313,15 @@ export default function ForensicHubPage() {
                   <tr
                     key={c.id}
                     onClick={() => router.push(`/evidence/forensic-hub/cases/${c.id}`)}
-                    className="text-sm text-[#ccc] hover:bg-white/[0.02] cursor-pointer"
+                    className="text-sm text-foreground hover:bg-surface-hover cursor-pointer"
                   >
                     <td className="py-3 px-4">
                       <div className="font-medium text-foreground">{c.title}</div>
-                      <div className="text-[10px] text-[#666] font-mono">{c.case_id}</div>
+                      <div className="text-[10px] text-foreground-muted font-mono">{c.case_id}</div>
                     </td>
                     <td className="py-3 px-4 text-xs">{TYPE_LABELS[c.case_type] || c.case_type}</td>
                     <td className="py-3 px-4">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border ${SEVERITY_COLORS[c.severity] || "text-[#888]"}`}>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border ${SEVERITY_COLORS[c.severity] || "text-foreground-muted"}`}>
                         {severityIcon(c.severity)}
                         {c.severity}
                       </span>
@@ -334,15 +334,15 @@ export default function ForensicHubPage() {
                         ""
                       }`}>{STATUS_LABELS[c.status] || c.status}</span>
                     </td>
-                    <td className="py-3 px-4 text-xs">{c.owner_user_id || <span className="text-[#555]">—</span>}</td>
+                    <td className="py-3 px-4 text-xs">{c.owner_user_id || <span className="text-foreground-muted">—</span>}</td>
                     <td className="py-3 px-4">
                       {c.legal_hold_active
                         ? <Lock className="w-4 h-4 text-warning-text" />
-                        : <Unlock className="w-4 h-4 text-[#444]" />
+                        : <Unlock className="w-4 h-4 text-foreground-muted" />
                       }
                     </td>
-                    <td className="py-3 px-4 text-xs text-[#888]">{fmt(c.created_at)}</td>
-                    <td className="py-3 px-4"><ChevronRight className="w-4 h-4 text-[#444]" /></td>
+                    <td className="py-3 px-4 text-xs text-foreground-muted">{fmt(c.created_at)}</td>
+                    <td className="py-3 px-4"><ChevronRight className="w-4 h-4 text-foreground-muted" /></td>
                   </tr>
                 ))}
               </tbody>

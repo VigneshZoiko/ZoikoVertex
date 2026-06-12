@@ -671,7 +671,7 @@ export default function BillingPage() {
                 </div>
                 {/* Processing credits */}
                 {(wallet.processing_balance ?? 0) > 0 && (
-                  <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-400">
+                  <div className="flex items-center gap-1.5 mt-2 text-xs text-warning-text">
                     <Clock className="w-3 h-3" />
                     <span>{fmtCurrency(wallet.processing_balance!, wallet.currency)} processing -- available within 48h</span>
                   </div>
@@ -834,11 +834,11 @@ export default function BillingPage() {
                     </tr>
                   ) : (
                     transactions.map(tx => (
-                      <tr key={tx.id} className={`hover:bg-surface-hover transition-colors ${tx.status === "PROCESSING" ? "bg-amber-500/3" : ""}`}>
+                      <tr key={tx.id} className={`hover:bg-surface-hover transition-colors ${tx.status === "PROCESSING" ? "bg-warning-text/3" : ""}`}>
                         <td className="px-5 py-3 whitespace-nowrap text-foreground-muted">
                           <div>{new Date(tx.created_at).toLocaleDateString()}</div>
                           {tx.status === "PROCESSING" && tx.available_at && (
-                            <div className="text-[10px] text-amber-400">Avail. {new Date(tx.available_at).toLocaleDateString()}</div>
+                            <div className="text-[10px] text-warning-text">Avail. {new Date(tx.available_at).toLocaleDateString()}</div>
                           )}
                         </td>
                         <td className="px-5 py-3">
@@ -850,12 +850,12 @@ export default function BillingPage() {
                         <td className="px-5 py-3 text-foreground-muted">{tx.campaign_name || "--"}</td>
                         <td className="px-5 py-3">
                           {tx.status === "PROCESSING" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-warning-bg text-warning-text border border-warning-border">
                               <Clock className="w-2.5 h-2.5" />PROCESSING
                             </span>
                           )}
                           {(tx.status === "AVAILABLE" || tx.status === "COMPLETED" || !tx.status) && tx.type === "CREDIT" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-success-bg text-success-text border border-success-border">
                               <CheckCircle2 className="w-2.5 h-2.5" />AVAILABLE
                             </span>
                           )}
@@ -911,7 +911,7 @@ export default function BillingPage() {
               </button>
             </div>
             {overchargeEnabled ? (
-              <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4 text-xs text-amber-400 space-y-1">
+              <div className="bg-warning-bg border border-warning-border rounded-lg p-4 text-xs text-warning-text space-y-1">
                 <p className="font-medium">Overcharge active</p>
                 <p>Excess AI usage will be charged from your wallet. If balance hits $0, AI services suspend until you top up or your billing cycle resets.</p>
               </div>
@@ -1004,17 +1004,17 @@ export default function BillingPage() {
                   </button>
                   {subscription && !subscription.cancel_at_period_end && activePlan.id !== 'starter' && (
                     <button type="button" onClick={handleCancelSubscription}
-                      className="text-xs text-foreground-muted hover:text-rose-400 transition-colors w-full text-center">
+                      className="text-xs text-foreground-muted hover:text-error-text transition-colors w-full text-center">
                       Cancel subscription
                     </button>
                   )}
                   {subscription?.cancel_at_period_end && (
-                    <p className="text-xs text-amber-400 text-center">
+                    <p className="text-xs text-warning-text text-center">
                       Cancels {new Date(subscription.current_period_end).toLocaleDateString()}
                     </p>
                   )}
                   {subscribeError && (
-                    <p className="text-xs text-rose-400 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{subscribeError}</p>
+                    <p className="text-xs text-error-text flex items-center gap-1"><AlertCircle className="w-3 h-3" />{subscribeError}</p>
                   )}
                 </div>
 
@@ -1093,8 +1093,8 @@ export default function BillingPage() {
                         <td className="px-5 py-3">
                           <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border ${
                             inv.status === 'paid'
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              ? 'bg-success-text/10 text-success-text border-success-border/20'
+                              : 'bg-warning-text/10 text-warning-text border-warning-border/20'
                           }`}>
                             {inv.status === 'paid' ? <CheckCircle2 className="w-2.5 h-2.5" /> : <Clock className="w-2.5 h-2.5" />}
                             {inv.status?.toUpperCase()}
@@ -1133,7 +1133,7 @@ export default function BillingPage() {
                 Add Card
               </button>
             </div>
-            {cardError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{cardError}</p>}
+            {cardError && <p className="text-xs text-error-text flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{cardError}</p>}
             {cards.length === 0 ? (
               <div className="bg-card border border-border rounded-xl p-6 text-center">
                 <CreditCard className="w-7 h-7 text-foreground-muted mx-auto mb-2" />
@@ -1165,14 +1165,14 @@ export default function BillingPage() {
                       <div className="flex items-center gap-1">
                         {!card.is_default && (
                           <button type="button" onClick={() => handleSetDefaultCard(card.id)}
-                            className="p-1.5 text-foreground-muted hover:text-amber-400 transition-colors" title="Set as default">
+                            className="p-1.5 text-foreground-muted hover:text-warning-text transition-colors" title="Set as default">
                             <Star className="w-3.5 h-3.5" />
                           </button>
                         )}
                         <button
                           onClick={() => handleDeleteCard(card.id)}
                           disabled={!canDelete}
-                          className={`p-1.5 transition-colors ${canDelete ? 'text-foreground-muted hover:text-rose-400' : 'text-foreground-muted cursor-not-allowed'}`}
+                          className={`p-1.5 transition-colors ${canDelete ? 'text-foreground-muted hover:text-error-text' : 'text-foreground-muted cursor-not-allowed'}`}
                           title={!canDelete ? (card.is_default ? 'Set another card as default first' : 'Must keep at least one card') : 'Remove card'}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1232,7 +1232,7 @@ export default function BillingPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-400 flex items-start gap-2">
+                  <div className="p-3 bg-warning-text/10 border border-warning-border/20 rounded-xl text-xs text-warning-text flex items-start gap-2">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     No card on file. Add a card to continue.
                   </div>
@@ -1245,7 +1245,7 @@ export default function BillingPage() {
             </div>
 
             {subscribeError && (
-              <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{subscribeError}</p>
+              <p className="text-xs text-error-text flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{subscribeError}</p>
             )}
 
             {cards.length > 0 && (
@@ -1263,8 +1263,8 @@ export default function BillingPage() {
       {depositToast && mounted && createPortal(
         <div className={`fixed top-4 right-4 z-[9999] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-xl border text-sm font-semibold ${
           depositToast.type === "success"
-            ? "bg-emerald-950 border-emerald-500/30 text-emerald-300"
-            : "bg-rose-950 border-rose-500/30 text-rose-300"
+            ? "bg-success-text border-success-border/30 text-success-text"
+            : "bg-error-text border-error-border/30 text-error-text"
         }`}>
           {depositToast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
           <span className="max-w-sm">{depositToast.msg}</span>
@@ -1283,7 +1283,7 @@ export default function BillingPage() {
             <div className="flex items-center justify-between px-6 py-5 border-b border-border">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-surface-hover rounded-xl">
-                  <ArrowDownCircle className="w-4 h-4 text-emerald-400" />
+                  <ArrowDownCircle className="w-4 h-4 text-success-text" />
                 </div>
                 <h2 className="text-base font-semibold text-foreground">
                   {depositStep === "amount"  && "Add Credits"}
@@ -1336,7 +1336,7 @@ export default function BillingPage() {
                     <Info className="w-3.5 h-3.5 text-blue-400 mt-0.5 shrink-0" />
                     <p className="text-xs text-blue-300">Stripe processing fees (2.9% + $0.30) will be shown on the next screen.</p>
                   </div>
-                  {depositError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
+                  {depositError && <p className="text-xs text-error-text flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
                   <button type="button" onClick={handleCalculateFees} disabled={!depositAmount || loadingFees}
                     className="w-full flex items-center justify-center gap-2 py-3 bg-white hover:bg-zinc-100 text-zinc-900 text-sm font-bold rounded-xl disabled:opacity-40 transition-all">
                     {loadingFees && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -1359,14 +1359,14 @@ export default function BillingPage() {
                       </div>
                     ))}
                   </div>
-                  <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl space-y-2">
+                  <div className="p-3 bg-warning-text/5 border border-warning-border/20 rounded-xl space-y-2">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
-                      <p className="text-xs text-amber-300 font-semibold">{fees.non_refundable_notice}</p>
+                      <AlertCircle className="w-3.5 h-3.5 text-warning-text mt-0.5 shrink-0" />
+                      <p className="text-xs text-warning-text font-semibold">{fees.non_refundable_notice}</p>
                     </div>
                     <div className="flex items-start gap-2">
-                      <Clock className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
-                      <p className="text-xs text-amber-300">{fees.processing_notice}</p>
+                      <Clock className="w-3.5 h-3.5 text-warning-text mt-0.5 shrink-0" />
+                      <p className="text-xs text-warning-text">{fees.processing_notice}</p>
                     </div>
                   </div>
                   <div className="flex gap-3">
@@ -1379,10 +1379,10 @@ export default function BillingPage() {
               {/* Step 3 -- Confirm */}
               {depositStep === "confirm" && fees && (
                 <>
-                  <div className="p-5 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-center">
+                  <div className="p-5 bg-success-text/5 border border-success-border/20 rounded-xl text-center">
                     <p className="text-xs text-foreground-muted mb-1">Total charge to your card</p>
                     <p className="text-4xl font-bold text-foreground">{fmtCurrency(fees.total_charge, fees.currency)}</p>
-                    <p className="text-sm text-emerald-400 mt-1">{fmtCurrency(fees.net_credits, fees.currency)} campaign credits</p>
+                    <p className="text-sm text-success-text mt-1">{fmtCurrency(fees.net_credits, fees.currency)} campaign credits</p>
                   </div>
                   <label className="flex items-start gap-3 p-4 bg-surface border border-border rounded-xl cursor-pointer group"
                     onClick={() => setConfirmed(!confirmed)}>
@@ -1391,7 +1391,7 @@ export default function BillingPage() {
                     </div>
                     <span className="text-xs text-foreground-muted leading-relaxed">
                       I understand this deposit of <strong className="text-foreground">{fmtCurrency(fees.total_charge, fees.currency)}</strong> is{" "}
-                      <strong className="text-rose-400">non-refundable</strong> and can only be used for{" "}
+                      <strong className="text-error-text">non-refundable</strong> and can only be used for{" "}
                       <strong className="text-foreground">campaign ad spend</strong> within ZoikoVertex.
                     </span>
                   </label>
@@ -1399,11 +1399,11 @@ export default function BillingPage() {
                     <Shield className="w-3.5 h-3.5 text-foreground-muted shrink-0" />
                     <p className="text-xs text-foreground-muted">Redirects to Stripe&apos;s secure checkout. Credits appear as Processing for up to 48h, then Available.</p>
                   </div>
-                  {depositError && <p className="text-xs text-rose-400 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
+                  {depositError && <p className="text-xs text-error-text flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{depositError}</p>}
                   <div className="flex gap-3">
                     <button type="button" onClick={() => setDepositStep("fees")} className="flex-1 py-2.5 bg-surface-hover hover:bg-surface-hover text-foreground-muted text-sm font-semibold rounded-xl">Back</button>
                     <button type="button" onClick={handleConfirmDeposit} disabled={!confirmed || depositing}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-foreground text-sm font-bold rounded-xl transition-all">
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-success-text hover:bg-success-text disabled:opacity-40 text-foreground text-sm font-bold rounded-xl transition-all">
                       {depositing ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
                       {depositing ? "Redirecting..." : `Pay ${fmtCurrency(fees.total_charge, fees.currency)}`}
                     </button>
@@ -1435,15 +1435,15 @@ export default function BillingPage() {
             </div>
             
             {subscribeError && (
-              <div className="mx-6 mt-4 p-3 rounded-lg text-sm font-medium text-center bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center gap-2">
+              <div className="mx-6 mt-4 p-3 rounded-lg text-sm font-medium text-center bg-error-text/10 border border-error-border/20 text-error-text flex items-center justify-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />{subscribeError}
               </div>
             )}
             {planMessage && (
               <div className={`mx-6 mt-4 p-3 rounded-lg text-sm font-medium text-center ${
                 planMessage.type === 'success'
-                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-                  : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+                  ? 'bg-success-text/10 border border-success-border/20 text-success-text'
+                  : 'bg-error-text/10 border border-error-border/20 text-error-text'
               }`}>
                 {planMessage.text}
               </div>
@@ -1496,7 +1496,7 @@ export default function BillingPage() {
                           {isChanging ? 'Switching...' : subscribing ? 'Processing...' : (activePlanId && PLANS.findIndex(p=>p.id===plan.id) < PLANS.findIndex(p=>p.id===activePlanId) ? 'Downgrade' : 'Upgrade')}
                         </button>
                         {plan.id !== 'starter' && cards.length === 0 && (
-                          <p className="text-[10px] text-amber-400 text-center">Add a card first to subscribe</p>
+                          <p className="text-[10px] text-warning-text text-center">Add a card first to subscribe</p>
                         )}
                         {plan.id !== 'starter' && cards.length > 0 && (
                           <p className="text-[10px] text-foreground-muted text-center">Charged to your default card</p>

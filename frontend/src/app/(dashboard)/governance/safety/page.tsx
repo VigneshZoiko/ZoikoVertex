@@ -181,9 +181,9 @@ export default function SafetyOverviewPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] text-foreground p-8">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-warning-text mb-4"></div>
-        <p className="text-[#888] font-medium tracking-wide">Assembling safety telemetry...</p>
+        <p className="text-foreground-muted font-medium tracking-wide">Assembling safety telemetry...</p>
       </div>
     );
   }
@@ -206,33 +206,33 @@ export default function SafetyOverviewPage() {
       case "unavailable":
         return "text-error-text border-error-border bg-error-bg";
       default:
-        return "text-neutral-400 border-neutral-800 bg-neutral-900";
+        return "text-neutral-400 border-neutral-800 bg-surface";
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#ddd] pb-20 font-sans selection:bg-warning-bg selection:text-white">
+    <div className="min-h-screen bg-background text-foreground pb-20 font-sans selection:bg-warning-bg selection:text-white">
       {/* Global Safety Bar */}
-      <div className="bg-[#111] border-b border-[#222] sticky top-0 z-40">
+      <div className="bg-surface border-b border-border sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-mono px-2 py-0.5 bg-[#1a1a1a] border border-[#333] rounded text-[#888]">
+            <span className="text-xs font-mono px-2 py-0.5 bg-surface border border-border rounded text-foreground-muted">
               Tenant: <span className="text-white font-bold">{data?.tenant_id}</span>
             </span>
-            <span className="text-xs font-mono px-2 py-0.5 bg-[#1a1a1a] border border-[#333] rounded text-[#888]">
+            <span className="text-xs font-mono px-2 py-0.5 bg-surface border border-border rounded text-foreground-muted">
               Workspace: <span className="text-white font-bold">{data?.workspace_id?.substring(0, 8)}</span>
             </span>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-[#888]">Posture:</span>
+              <span className="text-[10px] text-foreground-muted">Posture:</span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full border font-black uppercase ${getStatusColor(data?.posture_status || "healthy")}`}>
                 {data?.posture_status}
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-[#888]">Mode:</span>
+              <span className="text-[10px] text-foreground-muted">Mode:</span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full border font-black uppercase ${
                 isEmergencyPaused 
                   ? "text-error-text border-error-border bg-error-bg animate-pulse" 
@@ -275,14 +275,14 @@ export default function SafetyOverviewPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-5 space-y-5">
         
         {/* Header Strip with Page Title, Action Buttons and Simulation Toggle */}
-        <div className="flex items-center justify-between gap-4 border-b border-[#222] pb-4">
+        <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
           <div className="flex items-center gap-2.5">
             <Layers className="w-6 h-6 text-warning-text" />
             <h1 className="text-xl font-extrabold text-white">Safety Layer Overview</h1>
           </div>
 
           <div className="flex items-center gap-3">
-            <button onClick={() => fetchOverview(true)} className="p-2 bg-[#141414] hover:bg-[#1f1f1f] border border-[#2d2d2d] rounded-lg" aria-label="Refresh">
+            <button onClick={() => fetchOverview(true)} className="p-2 bg-surface hover:bg-surface-hover border border-border rounded-lg" aria-label="Refresh">
               <RefreshCw className={`w-4 h-4 text-white ${isRefreshing ? "animate-spin" : ""}`} />
             </button>
             <button onClick={handleReviewCriticalQueue} className="px-4 py-2 bg-warning-text hover:brightness-110 text-black font-extrabold rounded-lg text-xs">
@@ -293,33 +293,33 @@ export default function SafetyOverviewPage() {
 
         {/* Posture Cards Grid */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-[#111] border border-[#222] rounded-xl p-4">
+          <div className="bg-surface border border-border rounded-xl p-4">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-bold text-[#888] uppercase tracking-wider">Posture</p>
+              <p className="text-xs font-bold text-foreground-muted uppercase tracking-wider">Posture</p>
               <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${getStatusColor(data?.posture_status || "healthy")}`}>
                 {data?.posture_status}
               </span>
             </div>
             <h3 className="text-3xl font-black text-white mt-2">{data?.posture_score}%</h3>
-            <div className="w-full bg-[#222] h-2 rounded-full mt-2 overflow-hidden">
+            <div className="w-full bg-surface h-2 rounded-full mt-2 overflow-hidden">
               <div className={`h-full rounded-full ${(data?.posture_score || 0) > 85 ? "bg-success-text" : (data?.posture_score || 0) > 60 ? "bg-warning-text" : "bg-error-text"}`}
                 style={{ width: `${data?.posture_score || 0}%` }} />
             </div>
           </div>
 
-          <div className="bg-[#111] border border-[#222] rounded-xl p-4">
+          <div className="bg-surface border border-border rounded-xl p-4">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-bold text-[#888] uppercase tracking-wider">Critical Holds</p>
-              <ShieldAlert className="w-4 h-4 text-[#666]" />
+              <p className="text-xs font-bold text-foreground-muted uppercase tracking-wider">Critical Holds</p>
+              <ShieldAlert className="w-4 h-4 text-foreground-muted" />
             </div>
             <h3 className={`text-3xl font-black mt-2 ${data?.critical_holds_count && data.critical_holds_count > 0 ? "text-error-text" : "text-white"}`}>
               {data?.critical_holds_count || 0}
             </h3>
           </div>
 
-          <div className="bg-[#111] border border-[#222] rounded-xl p-4">
+          <div className="bg-surface border border-border rounded-xl p-4">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-bold text-[#888] uppercase tracking-wider">Agent Health</p>
+              <p className="text-xs font-bold text-foreground-muted uppercase tracking-wider">Agent Health</p>
               <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${getStatusColor(data?.agent_safety_health || "healthy")}`}>
                 {data?.agent_safety_health}
               </span>
@@ -335,10 +335,10 @@ export default function SafetyOverviewPage() {
             Live Safety Queue
           </h2>
 
-          <div className="bg-[#111] border border-[#222] rounded-xl flex flex-col h-[360px] overflow-hidden">
-            <div className="p-3 border-b border-[#222] flex justify-between items-center">
+          <div className="bg-surface border border-border rounded-xl flex flex-col h-[360px] overflow-hidden">
+            <div className="p-3 border-b border-border flex justify-between items-center">
               <span className="text-xs font-bold text-white">Telemetry Stream</span>
-              <span className="text-[10px] text-[#666]">Sorted by criticality & recency</span>
+              <span className="text-[10px] text-foreground-muted">Sorted by criticality & recency</span>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -346,7 +346,7 @@ export default function SafetyOverviewPage() {
                   data.recent_material_decisions.map((decision) => (
                     <div 
                       key={decision.decision_id} 
-                      className="bg-[#161616] border border-[#2d2d2d] rounded-lg p-3 space-y-1.5"
+                      className="bg-surface border border-border rounded-lg p-3 space-y-1.5"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${
@@ -355,19 +355,19 @@ export default function SafetyOverviewPage() {
                           {decision.risk_level}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-[9px] text-[#888] font-bold">Score: {decision.risk_score}</span>
+                          <span className="text-[9px] text-foreground-muted font-bold">Score: {decision.risk_score}</span>
                           <span className={`w-2 h-2 rounded-full ${decision.status === 'GOVERNANCE_BLOCKED' ? 'bg-error-text animate-pulse' : 'bg-warning-text'}`} />
                         </div>
                       </div>
-                      <p className="text-xs text-[#ddd] line-clamp-1">{decision.content}</p>
+                      <p className="text-xs text-foreground line-clamp-1">{decision.content}</p>
                       <div className="flex items-center justify-between">
-                        <span className="text-[9px] text-[#555]">{new Date(decision.created_at).toLocaleTimeString()}</span>
-                        <span className="text-[9px] text-[#666] font-mono">{decision.platform}</span>
+                        <span className="text-[9px] text-foreground-muted">{new Date(decision.created_at).toLocaleTimeString()}</span>
+                        <span className="text-[9px] text-foreground-muted font-mono">{decision.platform}</span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-10 text-xs text-[#666] font-mono">
+                  <div className="text-center py-10 text-xs text-foreground-muted font-mono">
                     No material holds active. Workspace operations stable.
                   </div>
                 )}
@@ -377,14 +377,14 @@ export default function SafetyOverviewPage() {
 
         {/* Bottom Widget: Top Rule Hits */}
         <div>
-          <div className="bg-[#111] border border-[#222] rounded-xl p-4">
+          <div className="bg-surface border border-border rounded-xl p-4">
             <h3 className="text-base font-bold text-white mb-3 flex items-center gap-2">
               <Activity className="w-4 h-4 text-warning-text" />
               Top Rule Hits
             </h3>
             <div className="space-y-2">
               {data?.top_rule_hits.map((rule) => (
-                <div key={rule.rule_name} className="flex items-center justify-between p-2.5 bg-[#141414] border border-[#222] rounded-lg">
+                <div key={rule.rule_name} className="flex items-center justify-between p-2.5 bg-surface border border-border rounded-lg">
                   <div className="flex items-center gap-2">
                     <h4 className="text-xs font-bold text-white">{rule.rule_name}</h4>
                     <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
@@ -396,7 +396,7 @@ export default function SafetyOverviewPage() {
 
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-black text-white">{rule.count}</span>
-                    <span className="flex items-center justify-center w-5 h-5 rounded bg-[#222]">
+                    <span className="flex items-center justify-center w-5 h-5 rounded bg-surface">
                       {rule.trend === 'up' ? (
                         <TrendingUp className="w-3 h-3 text-error-text" />
                       ) : rule.trend === 'down' ? (
@@ -417,23 +417,23 @@ export default function SafetyOverviewPage() {
       </div>
 
       {/* Footer Strip */}
-      <footer className="mt-12 border-t border-[#222] bg-[#0c0c0c] py-4 text-xs text-[#555]">
+      <footer className="mt-12 border-t border-border bg-background py-4 text-xs text-foreground-muted">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center gap-4 font-mono">
-          <span>Last Evaluated: <strong className="text-[#888]">{data?.evaluated_at ? new Date(data.evaluated_at).toLocaleTimeString() : "Pending"}</strong></span>
+          <span>Last Evaluated: <strong className="text-foreground-muted">{data?.evaluated_at ? new Date(data.evaluated_at).toLocaleTimeString() : "Pending"}</strong></span>
           <span>Evidence Chain: <strong className={data?.evidence_chain_health === "verified" ? "text-success-text" : "text-error-text"}>{data?.evidence_chain_health?.toUpperCase()}</strong></span>
         </div>
       </footer>
 
       {/* Emergency Pause / Resume MFA Modal */}
       {isPauseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm" role="dialog" aria-modal="true">
-          <div className="bg-[#111] border border-[#222] w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="bg-surface border border-border w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Power className="w-5 h-5 text-error-text" />
               {isEmergencyPaused ? "Deactivate Emergency Pause" : "Request Emergency Pause"}
             </h3>
             
-            <p className="text-[#888] text-xs mt-2 leading-relaxed">
+            <p className="text-foreground-muted text-xs mt-2 leading-relaxed">
               {isEmergencyPaused 
                 ? "Resuming workspace publishing requires explicit justification and token re-verification."
                 : "You are initiating a global pause. This will halt all scheduled content publishing and agent operations immediately."}
@@ -441,19 +441,19 @@ export default function SafetyOverviewPage() {
 
             <form onSubmit={handleEmergencyPauseSubmit} className="mt-5 space-y-4">
               <div>
-                <label className="block text-xs text-[#888] font-bold mb-1.5">Justification Reason *</label>
+                <label className="block text-xs text-foreground-muted font-bold mb-1.5">Justification Reason *</label>
                 <textarea
                   value={pauseReason}
                   onChange={(e) => setPauseReason(e.target.value)}
                   placeholder="Describe why this change is being requested (minimum 10 characters)..."
-                  className="w-full h-24 bg-black border border-[#333] focus:border-[#555] rounded-xl p-3 text-xs text-foreground placeholder-[#555] focus:outline-none resize-none"
+                  className="w-full h-24 bg-background border border-border focus:border-border rounded-xl p-3 text-xs text-foreground placeholder-foreground-muted focus:outline-none resize-none"
                   required
                 />
               </div>
 
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs text-[#888] font-bold">MFA Verification Code *</label>
+                  <label className="block text-xs text-foreground-muted font-bold">MFA Verification Code *</label>
                   {mfaSent && (
                     <span className="text-[9px] text-success-text">Code sent to your email</span>
                   )}
@@ -474,7 +474,7 @@ export default function SafetyOverviewPage() {
                     onChange={(e) => setMfaCode(e.target.value)}
                     placeholder="Enter 6-digit code"
                     maxLength={6}
-                    className="w-full bg-black border border-[#333] focus:border-[#555] rounded-xl px-4 py-2.5 text-sm text-center text-foreground tracking-widest focus:outline-none"
+                    className="w-full bg-background border border-border focus:border-border rounded-xl px-4 py-2.5 text-sm text-center text-foreground tracking-widest focus:outline-none"
                     required
                   />
                 )}
@@ -495,7 +495,7 @@ export default function SafetyOverviewPage() {
                     setModalError(null);
                     setMfaSent(false);
                   }}
-                  className="px-4 py-2 bg-neutral-900 border border-[#333] hover:bg-neutral-800 text-foreground rounded-xl text-xs font-bold transition-colors"
+                  className="px-4 py-2 bg-surface border border-border hover:bg-neutral-800 text-foreground rounded-xl text-xs font-bold transition-colors"
                 >
                   Cancel
                 </button>

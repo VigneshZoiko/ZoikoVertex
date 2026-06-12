@@ -53,8 +53,8 @@ export default function UpdatePasswordPage() {
       <div className="w-full max-w-[420px]">
         {success ? (
           <div className="text-center space-y-6">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-900/40 border border-emerald-500/30">
-              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success-text/40 border border-success-border/30">
+              <CheckCircle2 className="h-8 w-8 text-success-text" />
             </div>
             <div>
               <h2 className="text-[1.75rem] font-bold text-white mb-2">Password updated</h2>
@@ -83,7 +83,7 @@ export default function UpdatePasswordPage() {
             </div>
 
             {error && (
-              <div className="mb-5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
+              <div className="mb-5 rounded-xl border border-error-border/30 bg-error-text/10 px-4 py-3 text-sm text-error-text">
                 {error}
               </div>
             )}

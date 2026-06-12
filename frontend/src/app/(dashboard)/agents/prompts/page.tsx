@@ -156,7 +156,7 @@ const RISK_META: Record<RiskTier, { label: string; color: string; bg: string; bo
 };
 
 const STATUS_META: Record<LifecycleStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  DRAFT: { label: "Draft", color: "text-slate-400", bg: "bg-slate-800", icon: CircleDot },
+  DRAFT: { label: "Draft", color: "text-foreground/70", bg: "bg-slate-800", icon: CircleDot },
   INTERNAL_TEST: { label: "Internal Test", color: "text-info-text", bg: "bg-info-bg", icon: FlaskConical },
   REVIEW_REQUESTED: { label: "Review Requested", color: "text-warning-text", bg: "bg-warning-bg", icon: Clock },
   APPROVED_STAGING: { label: "Approved — Staging", color: "text-info-text", bg: "bg-info-bg", icon: CheckCircle2 },
@@ -164,7 +164,7 @@ const STATUS_META: Record<LifecycleStatus, { label: string; color: string; bg: s
   PRODUCTION_ACTIVE: { label: "Production Active", color: "text-success-text", bg: "bg-success-bg", icon: Zap },
   PAUSED: { label: "Paused", color: "text-warning-text", bg: "bg-warning-bg", icon: PauseCircle },
   RETIRED: { label: "Retired", color: "text-error-text", bg: "bg-error-bg", icon: XCircle },
-  ARCHIVED: { label: "Archived", color: "text-slate-500", bg: "bg-slate-900", icon: Archive },
+  ARCHIVED: { label: "Archived", color: "text-foreground-muted", bg: "bg-surface", icon: Archive },
 };
 
 const LIFECYCLE_STAGES: LifecycleStatus[] = [
@@ -218,7 +218,7 @@ function StatusBadge({ status }: { status: LifecycleStatus | string }) {
   const meta = STATUS_META[normalizeStatus(status)];
   const Icon = meta.icon;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${meta.color} ${meta.bg} border border-white/5`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${meta.color} ${meta.bg} border border-border`}>
       <Icon className="w-3 h-3" />
       {meta.label}
     </span>
@@ -236,10 +236,10 @@ function RiskBadge({ tier }: { tier: RiskTier | string }) {
 }
 
 function TestBadge({ result }: { result: TestResult | null }) {
-  if (!result) return <span className="text-[10px] text-slate-600 italic">No test run</span>;
-  const colors = result.pass_fail === "PASS" ? "text-success-text bg-success-bg" : result.pass_fail === "FAIL" ? "text-error-text bg-error-bg" : "text-slate-400 bg-slate-800";
+  if (!result) return <span className="text-[10px] text-foreground-muted italic">No test run</span>;
+  const colors = result.pass_fail === "PASS" ? "text-success-text bg-success-bg" : result.pass_fail === "FAIL" ? "text-error-text bg-error-bg" : "text-foreground/70 bg-slate-800";
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${colors} border border-white/5`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${colors} border border-border`}>
       {result.pass_fail === "PASS" ? <CheckCircle2 className="w-3 h-3" /> : result.pass_fail === "FAIL" ? <XCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
       {result.pass_fail} · {result.score}%
     </span>
@@ -256,7 +256,7 @@ function ApprovalChain({ approvals, riskTier }: { approvals: ApprovalRecord[]; r
         const color = !a ? "bg-slate-800" : a.decision === "APPROVED" ? "bg-success-text" : a.decision === "REJECTED" ? "bg-error-text" : a.decision === "PENDING" ? "bg-warning-bg border border-warning-text" : "bg-slate-700";
         return <div key={i} className={`w-2.5 h-2.5 rounded-full ${color}`} title={a ? `${a.reviewer_role}: ${a.decision}` : "Required"} />;
       })}
-      <span className="text-[10px] text-slate-500 ml-1">{completed}/{required}</span>
+      <span className="text-[10px] text-foreground-muted ml-1">{completed}/{required}</span>
     </div>
   );
 }
@@ -291,7 +291,7 @@ function deploymentStateOf(p: PromptRecord): Exclude<DeploymentState, "ALL"> {
   return "NONE";
 }
 
-const FILTER_SELECT_CLS = "bg-black border border-slate-800 rounded-xl py-2.5 px-4 text-xs text-slate-300 focus:outline-none focus:border-info-border transition-all";
+const FILTER_SELECT_CLS = "bg-background border border-border rounded-xl py-2.5 px-4 text-xs text-foreground focus:outline-none focus:border-info-border transition-all";
 
 function RegistryTab({
   prompts,
@@ -364,13 +364,13 @@ function RegistryTab({
       <div className="space-y-3">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
             <input
               type="text"
               placeholder="Search by name, owner, or linked agent..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-black border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-xs text-foreground focus:outline-none focus:border-info-border transition-all"
+              className="w-full bg-background border border-border rounded-xl py-2.5 pl-10 pr-4 text-xs text-foreground focus:outline-none focus:border-info-border transition-all"
             />
           </div>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as FilterStatus)} className={FILTER_SELECT_CLS}>
@@ -421,7 +421,7 @@ function RegistryTab({
             <option value="NONE">Not Deployed</option>
           </select>
           {activeFilterCount > 0 && (
-            <button onClick={clearAll} className="px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:border-slate-600 transition-all flex items-center gap-1.5">
+            <button onClick={clearAll} className="px-4 py-2.5 bg-surface border border-border rounded-xl text-[10px] font-black uppercase tracking-widest text-foreground/70 hover:text-foreground hover:border-slate-600 transition-all flex items-center gap-1.5">
               <XCircle className="w-3.5 h-3.5" /> Clear ({activeFilterCount})
             </button>
           )}
@@ -429,30 +429,30 @@ function RegistryTab({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-2xl border border-slate-900">
+      <div className="overflow-x-auto rounded-2xl border border-border">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-slate-900 bg-slate-950/60">
+            <tr className="border-b border-border bg-background/60">
               {["Prompt Name", "Type", "Owner", "Linked Agent", "Risk Tier", "Status", "Tests", "Approvals", "Version", "Last Deployed", ""].map((h) => (
-                <th key={h} className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{h}</th>
+                <th key={h} className="py-3 px-5 text-[10px] font-black text-foreground-muted uppercase tracking-widest whitespace-nowrap">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-900">
             {filtered.map((p) => (
-              <tr key={p.id} className="hover:bg-slate-900/30 transition-colors group cursor-pointer" onClick={() => onSelectPrompt(p)}>
+              <tr key={p.id} className="hover:bg-surface/30 transition-colors group cursor-pointer" onClick={() => onSelectPrompt(p)}>
                 <td className="py-4 px-5">
                   <div className="text-sm font-bold text-foreground group-hover:text-info-text transition-colors max-w-[200px] truncate">{p.name}</div>
-                  <div className="text-[10px] text-slate-500 max-w-[200px] truncate mt-0.5">{p.description}</div>
+                  <div className="text-[10px] text-foreground-muted max-w-[200px] truncate mt-0.5">{p.description}</div>
                 </td>
                 <td className="py-4 px-5">
-                  <span className="text-[10px] text-slate-400 bg-black border border-slate-800 px-2 py-1 rounded-lg whitespace-nowrap">{p.prompt_type}</span>
+                  <span className="text-[10px] text-foreground/70 bg-background border border-border px-2 py-1 rounded-lg whitespace-nowrap">{p.prompt_type}</span>
                 </td>
-                <td className="py-4 px-5 text-xs text-slate-400 whitespace-nowrap">{p.owner}</td>
+                <td className="py-4 px-5 text-xs text-foreground/70 whitespace-nowrap">{p.owner}</td>
                 <td className="py-4 px-5">
                   <div className="flex items-center gap-1.5">
                     <Cpu className="w-3 h-3 text-info-text" />
-                    <span className="text-[10px] text-slate-300">{p.linked_agent}</span>
+                    <span className="text-[10px] text-foreground">{p.linked_agent}</span>
                   </div>
                 </td>
                 <td className="py-4 px-5 whitespace-nowrap"><RiskBadge tier={p.risk_tier} /></td>
@@ -460,13 +460,13 @@ function RegistryTab({
                 <td className="py-4 px-5 whitespace-nowrap"><TestBadge result={p.last_test} /></td>
                 <td className="py-4 px-5 whitespace-nowrap"><ApprovalChain approvals={p.approvals} riskTier={p.risk_tier} /></td>
                 <td className="py-4 px-5">
-                  <span className="text-[10px] font-black text-slate-400 bg-black border border-slate-800 px-2 py-1 rounded-lg">{p.active_version}</span>
+                  <span className="text-[10px] font-black text-foreground/70 bg-background border border-border px-2 py-1 rounded-lg">{p.active_version}</span>
                 </td>
-                <td className="py-4 px-5 text-[10px] text-slate-500 whitespace-nowrap">
+                <td className="py-4 px-5 text-[10px] text-foreground-muted whitespace-nowrap">
                   {p.last_deployed ? new Date(p.last_deployed).toLocaleDateString() : "—"}
                 </td>
                 <td className="py-4 px-5">
-                  <button className="p-2 bg-black border border-slate-800 rounded-lg text-slate-400 hover:text-white hover:border-slate-600 transition-all" onClick={(e) => { e.stopPropagation(); onSelectPrompt(p); }}>
+                  <button className="p-2 bg-background border border-border rounded-lg text-foreground/70 hover:text-foreground hover:border-slate-600 transition-all" onClick={(e) => { e.stopPropagation(); onSelectPrompt(p); }}>
                     <Eye className="w-3.5 h-3.5" />
                   </button>
                 </td>
@@ -474,7 +474,7 @@ function RegistryTab({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={11} className="py-12 text-center text-sm text-slate-600">No prompts match the current filters.</td>
+                <td colSpan={11} className="py-12 text-center text-sm text-foreground-muted">No prompts match the current filters.</td>
               </tr>
             )}
           </tbody>
@@ -498,7 +498,7 @@ function LifecycleTab({ prompts }: { prompts: PromptRecord[] }) {
 
   return (
     <div className="space-y-6">
-      <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
+      <p className="text-xs text-foreground-muted leading-relaxed max-w-2xl">
         The lifecycle pipeline shows every prompt&apos;s current state. Prompts must progress through testing and required approvals before reaching production. Archived prompts cannot be reactivated — they must be cloned into a new draft.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -507,23 +507,23 @@ function LifecycleTab({ prompts }: { prompts: PromptRecord[] }) {
           const Icon = meta.icon;
           const items = byStatus[stage] ?? [];
           return (
-            <div key={stage} className="bg-black border border-slate-900 rounded-2xl p-5 space-y-3">
+            <div key={stage} className="bg-background border border-border rounded-2xl p-5 space-y-3">
               <div className={`flex items-center gap-2 ${meta.color}`}>
                 <Icon className="w-4 h-4" />
                 <span className="text-[10px] font-black uppercase tracking-widest">{meta.label}</span>
-                <span className="ml-auto text-[10px] bg-slate-900 border border-slate-800 rounded px-2 py-0.5 text-slate-400">{items.length}</span>
+                <span className="ml-auto text-[10px] bg-surface border border-border rounded px-2 py-0.5 text-foreground/70">{items.length}</span>
               </div>
               <div className="space-y-2">
                 {items.map((p) => (
-                  <div key={p.id} className="p-3 bg-slate-950 border border-slate-800 rounded-xl">
+                  <div key={p.id} className="p-3 bg-background border border-border rounded-xl">
                     <div className="text-[11px] font-bold text-foreground truncate">{p.name}</div>
                     <div className="flex items-center gap-2 mt-1">
                       <RiskBadge tier={p.risk_tier} />
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-1 truncate">{p.linked_agent}</div>
+                    <div className="text-[10px] text-foreground-muted mt-1 truncate">{p.linked_agent}</div>
                   </div>
                 ))}
-                {items.length === 0 && <p className="text-[10px] text-slate-700 italic">No prompts in this state.</p>}
+                {items.length === 0 && <p className="text-[10px] text-foreground-muted italic">No prompts in this state.</p>}
               </div>
             </div>
           );
@@ -531,9 +531,9 @@ function LifecycleTab({ prompts }: { prompts: PromptRecord[] }) {
       </div>
 
       {/* Lifecycle Rules Summary */}
-      <div className="bg-slate-950 border border-slate-900 rounded-2xl p-6 space-y-4">
+      <div className="bg-background border border-border rounded-2xl p-6 space-y-4">
         <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Control Rules</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-slate-400">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-foreground/70">
           {[
             "Archived and retired prompts are immutable. Clone to draft to create a new version.",
             "Production deployment requires all risk-tier approvals and a passing test suite.",
@@ -542,7 +542,7 @@ function LifecycleTab({ prompts }: { prompts: PromptRecord[] }) {
             "Draft and staging prompts cannot be called by production agents.",
             "Every lifecycle event writes an immutable record to the Evidence Vault.",
           ].map((rule, i) => (
-            <div key={i} className="flex items-start gap-2 p-3 bg-black border border-slate-900 rounded-xl">
+            <div key={i} className="flex items-start gap-2 p-3 bg-background border border-border rounded-xl">
               <ShieldCheck className="w-3.5 h-3.5 text-info-text mt-0.5 shrink-0" />
               <span>{rule}</span>
             </div>
@@ -586,9 +586,9 @@ function TestingTab({
           { label: "Passing", value: passed, color: "text-success-text" },
           { label: "Failing", value: failed, color: "text-error-text" },
         ].map((s) => (
-          <div key={s.label} className="bg-black border border-slate-900 rounded-2xl p-5 text-center">
+          <div key={s.label} className="bg-background border border-border rounded-2xl p-5 text-center">
             <div className={`text-3xl font-black ${s.color}`}>{s.value}</div>
-            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{s.label}</div>
+            <div className="text-[10px] font-black text-foreground-muted uppercase tracking-widest mt-1">{s.label}</div>
           </div>
         ))}
       </div>
@@ -600,13 +600,13 @@ function TestingTab({
           {TEST_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             return (
-              <div key={cat.label} className="flex items-start gap-4 p-4 bg-black border border-slate-900 rounded-2xl hover:border-info-border transition-all">
-                <div className="p-2 bg-slate-950 border border-slate-800 rounded-xl">
+              <div key={cat.label} className="flex items-start gap-4 p-4 bg-background border border-border rounded-2xl hover:border-info-border transition-all">
+                <div className="p-2 bg-background border border-border rounded-xl">
                   <Icon className="w-4 h-4 text-info-text" />
                 </div>
                 <div>
                   <div className="text-[11px] font-bold text-foreground">{cat.label}</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">{cat.desc}</div>
+                  <div className="text-[10px] text-foreground-muted mt-0.5 leading-relaxed">{cat.desc}</div>
                 </div>
               </div>
             );
@@ -619,22 +619,22 @@ function TestingTab({
         <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Last Test Run — Per Prompt</h3>
         <div className="space-y-2">
           {prompts.map((p) => (
-            <div key={p.id} className="flex items-center gap-4 p-4 bg-black border border-slate-900 rounded-2xl">
+            <div key={p.id} className="flex items-center gap-4 p-4 bg-background border border-border rounded-2xl">
               <div className="flex-1 min-w-0">
                 <div className="text-[11px] font-bold text-foreground truncate">{p.name}</div>
-                <div className="text-[10px] text-slate-500">{p.last_test?.suite_name ?? "No suite assigned"}</div>
+                <div className="text-[10px] text-foreground-muted">{p.last_test?.suite_name ?? "No suite assigned"}</div>
               </div>
               <RiskBadge tier={p.risk_tier} />
               <TestBadge result={p.last_test} />
               {p.last_test && (
-                <div className="text-[10px] text-slate-500 whitespace-nowrap">
+                <div className="text-[10px] text-foreground-muted whitespace-nowrap">
                   {new Date(p.last_test.run_at).toLocaleDateString()} · {p.last_test.environment}
                 </div>
               )}
               <button
                 onClick={() => p.active_version_id && onRunTests(p.active_version_id)}
                 disabled={!p.active_version_id}
-                className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-white hover:border-slate-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="p-2 bg-background border border-border rounded-xl text-foreground/70 hover:text-foreground hover:border-slate-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Play className="w-3.5 h-3.5" />
               </button>
@@ -649,7 +649,7 @@ function TestingTab({
           <ShieldAlert className="w-4 h-4 text-error-text" />
           <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Adversarial Validation — Attack Vector Coverage</h3>
         </div>
-        <p className="text-[10px] text-slate-500 leading-relaxed max-w-2xl">
+        <p className="text-[10px] text-foreground-muted leading-relaxed max-w-2xl">
           Adversarial validation tests whether a prompt can be manipulated into violating policy, fabricating facts, bypassing approval workflow, impersonating unauthorized people, or leaking confidential information. All production-bound prompts must pass every vector below.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -661,18 +661,18 @@ function TestingTab({
             { label: "Data Exfiltration", desc: "Requests to reveal system prompts, policy internals, confidential documents, knowledge-base credentials, or private customer data.", severity: "HIGH" },
             { label: "Cross-Market Traps", desc: "Claims that are permitted in one jurisdiction but prohibited in another — testing whether locale and compliance constraints are enforced per execution context.", severity: "MEDIUM" },
           ].map((v) => (
-            <div key={v.label} className="flex gap-3 p-4 bg-black border border-slate-900 rounded-2xl hover:border-error-border transition-all">
+            <div key={v.label} className="flex gap-3 p-4 bg-background border border-border rounded-2xl hover:border-error-border transition-all">
               <div className="shrink-0">
                 <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${v.severity === "CRITICAL" ? "text-error-text bg-error-bg border border-error-border" : v.severity === "HIGH" ? "text-warning-text bg-warning-bg border border-warning-border" : "text-warning-text bg-warning-bg border border-warning-border"}`}>{v.severity}</span>
               </div>
               <div>
                 <div className="text-[11px] font-bold text-foreground mb-1">{v.label}</div>
-                <div className="text-[10px] text-slate-500 leading-relaxed">{v.desc}</div>
+                <div className="text-[10px] text-foreground-muted leading-relaxed">{v.desc}</div>
               </div>
             </div>
           ))}
         </div>
-        <div className="p-4 bg-slate-950 border border-slate-900 rounded-2xl text-[10px] text-slate-600 leading-relaxed">
+        <div className="p-4 bg-background border border-border rounded-2xl text-[10px] text-foreground-muted leading-relaxed">
           All CRITICAL and HIGH adversarial vectors must yield zero bypasses. Any bypass detected during testing blocks promotion to Review Requested state. Results are stored as evidence with the evaluator model version, inputs, and outputs.
         </div>
       </div>
@@ -729,24 +729,24 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
           </span>
         </div>
         {pending.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-600 bg-black border border-slate-900 rounded-2xl">No prompts pending review.</div>
+          <div className="p-8 text-center text-sm text-foreground-muted bg-background border border-border rounded-2xl">No prompts pending review.</div>
         ) : (
           <div className="space-y-2">
             {pending.map((p) => (
-              <div key={p.id} className="p-5 bg-black border border-warning-border rounded-2xl space-y-3">
+              <div key={p.id} className="p-5 bg-background border border-warning-border rounded-2xl space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-sm font-bold text-foreground">{p.name}</span>
                   <RiskBadge tier={p.risk_tier} />
                   <StatusBadge status={p.status} />
                 </div>
-                <div className="text-[10px] text-slate-400">{p.description}</div>
+                <div className="text-[10px] text-foreground/70">{p.description}</div>
                 <div className="flex items-center gap-4 flex-wrap">
                   <ApprovalChain approvals={p.approvals} riskTier={p.risk_tier} />
                   {p.approvals.map((a, i) => (
                     <div key={i} className="flex items-center gap-1.5">
                       <div className={`w-2 h-2 rounded-full ${a.decision === "APPROVED" ? "bg-success-text" : a.decision === "REJECTED" ? "bg-error-text" : "bg-warning-bg border border-warning-text"}`} />
-                      <span className="text-[10px] text-slate-400">{a.reviewer_role}</span>
-                      <span className="text-[10px] font-bold text-slate-300">{a.decision}</span>
+                      <span className="text-[10px] text-foreground/70">{a.reviewer_role}</span>
+                      <span className="text-[10px] font-bold text-foreground">{a.decision}</span>
                     </div>
                   ))}
                 </div>
@@ -800,18 +800,18 @@ function ApprovalsTab({ prompts, approvalStats, onApprovalAction, canWaive, onWa
         <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Risk-Based Approval Matrix</h3>
         <div className="space-y-2">
           {APPROVAL_MATRIX.map((row) => (
-            <div key={row.tier} className="flex items-start gap-4 p-4 bg-black border border-slate-900 rounded-2xl">
+            <div key={row.tier} className="flex items-start gap-4 p-4 bg-background border border-border rounded-2xl">
               <span className={`text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${row.color} min-w-[140px]`}>{row.tier}</span>
-              <span className="text-[10px] text-slate-400 flex-1">{row.requirements}</span>
+              <span className="text-[10px] text-foreground/70 flex-1">{row.requirements}</span>
               <div className="flex gap-1.5 flex-wrap justify-end">
                 {row.roles.map((r) => (
-                  <span key={r} className="text-[9px] font-black text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">{r}</span>
+                  <span key={r} className="text-[9px] font-black text-foreground/70 bg-surface border border-border px-2 py-0.5 rounded">{r}</span>
                 ))}
               </div>
             </div>
           ))}
         </div>
-        <p className="text-[10px] text-slate-600 leading-relaxed">
+        <p className="text-[10px] text-foreground-muted leading-relaxed">
           Users may not approve their own prompt for production when the risk tier requires independent review. Every override must capture approver, reason, policy basis, expiration, and affected scope. Approval status is invalidated when risk-impacting sections change after approval.
         </p>
       </div>
@@ -888,9 +888,9 @@ function EvidenceTab({
           { label: "Warnings", value: auditStats?.warnings ?? 0, color: "text-warning-text" },
           { label: "Errors", value: auditStats?.errors ?? 0, color: "text-error-text" },
         ].map((s) => (
-          <div key={s.label} className="bg-black border border-slate-900 rounded-2xl p-5 text-center">
+          <div key={s.label} className="bg-background border border-border rounded-2xl p-5 text-center">
             <div className={`text-3xl font-black ${s.color}`}>{s.value}</div>
-            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{s.label}</div>
+            <div className="text-[10px] font-black text-foreground-muted uppercase tracking-widest mt-1">{s.label}</div>
           </div>
         ))}
       </div>
@@ -902,13 +902,13 @@ function EvidenceTab({
           {EVIDENCE_TYPES.map((e) => {
             const Icon = e.icon;
             return (
-              <div key={e.label} className="flex items-start gap-3 p-4 bg-black border border-slate-900 rounded-2xl">
-                <div className="p-2 bg-slate-950 border border-slate-800 rounded-xl shrink-0">
+              <div key={e.label} className="flex items-start gap-3 p-4 bg-background border border-border rounded-2xl">
+                <div className="p-2 bg-background border border-border rounded-xl shrink-0">
                   <Icon className="w-4 h-4 text-info-text" />
                 </div>
                 <div>
                   <div className="text-[11px] font-bold text-foreground">{e.label}</div>
-                  <div className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">{e.desc}</div>
+                  <div className="text-[10px] text-foreground-muted mt-0.5 leading-relaxed">{e.desc}</div>
                 </div>
               </div>
             );
@@ -919,12 +919,12 @@ function EvidenceTab({
       {/* Production evidence export */}
       <div className="space-y-3">
         <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Export Evidence Packages — Production Active</h3>
-        {productionPrompts.length === 0 && <p className="text-sm text-slate-600">No production-active prompts.</p>}
+        {productionPrompts.length === 0 && <p className="text-sm text-foreground-muted">No production-active prompts.</p>}
         {productionPrompts.map((p) => (
-          <div key={p.id} className="flex items-center gap-4 p-4 bg-black border border-slate-900 rounded-2xl">
+          <div key={p.id} className="flex items-center gap-4 p-4 bg-background border border-border rounded-2xl">
             <div className="flex-1 min-w-0">
               <div className="text-[11px] font-bold text-foreground truncate">{p.name}</div>
-              <div className="text-[10px] text-slate-500">{p.active_version} · deployed {new Date(p.last_deployed).toLocaleDateString()}</div>
+              <div className="text-[10px] text-foreground-muted">{p.active_version} · deployed {new Date(p.last_deployed).toLocaleDateString()}</div>
             </div>
             <RiskBadge tier={p.risk_tier} />
             <button
@@ -941,14 +941,14 @@ function EvidenceTab({
       {/* Governance Receipts */}
       <div className="space-y-3">
         <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Governance Receipts — Production Deployments</h3>
-        <p className="text-[10px] text-slate-500 leading-relaxed">Every production deployment, approval, rollback, or retirement generates a signed Governance Receipt stored in the Evidence Vault. The receipt carries the cryptographic prompt-body hash and the policy state in effect at deployment time. Open the Governance Center to view or regenerate the sealed receipt and its verifiable hash.</p>
+        <p className="text-[10px] text-foreground-muted leading-relaxed">Every production deployment, approval, rollback, or retirement generates a signed Governance Receipt stored in the Evidence Vault. The receipt carries the cryptographic prompt-body hash and the policy state in effect at deployment time. Open the Governance Center to view or regenerate the sealed receipt and its verifiable hash.</p>
         {productionPrompts.length === 0 ? (
-          <div className="p-6 text-center text-sm text-slate-600 bg-black border border-slate-900 rounded-2xl">No production receipts yet. Receipts are generated when a prompt reaches Production Active status.</div>
+          <div className="p-6 text-center text-sm text-foreground-muted bg-background border border-border rounded-2xl">No production receipts yet. Receipts are generated when a prompt reaches Production Active status.</div>
         ) : (
           <div className="space-y-3">
             {productionPrompts.map((p) => (
-              <div key={p.id} className="bg-black border border-info-border rounded-2xl overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-900 bg-info-bg">
+              <div key={p.id} className="bg-background border border-info-border rounded-2xl overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-info-bg">
                   <div className="flex items-center gap-3">
                     <FileCheck className="w-3.5 h-3.5 text-info-text" />
                     <span className="text-[11px] font-black text-foreground">{p.name}</span>
@@ -965,14 +965,14 @@ function EvidenceTab({
                     { label: "Deployed At", value: p.last_deployed ? new Date(p.last_deployed).toLocaleDateString() : "—" },
                     { label: "Risk Tier", value: RISK_META[normalizeRiskTier(p.risk_tier)].label },
                   ].map((f) => (
-                    <div key={f.label} className="p-2.5 bg-slate-950 border border-slate-900 rounded-xl">
-                      <div className="text-[9px] text-slate-600 uppercase tracking-widest">{f.label}</div>
-                      <div className="text-[10px] text-slate-300 font-bold mt-0.5 font-mono truncate">{f.value}</div>
+                    <div key={f.label} className="p-2.5 bg-background border border-border rounded-xl">
+                      <div className="text-[9px] text-foreground-muted uppercase tracking-widest">{f.label}</div>
+                      <div className="text-[10px] text-foreground font-bold mt-0.5 font-mono truncate">{f.value}</div>
                     </div>
                   ))}
                 </div>
                 <div className="px-4 pb-4">
-                  <span className="text-[9px] text-slate-600">Sealed cryptographic receipt (prompt-body hash + policy snapshot) is available in the Governance Center → Receipt panel and the Evidence Vault.</span>
+                  <span className="text-[9px] text-foreground-muted">Sealed cryptographic receipt (prompt-body hash + policy snapshot) is available in the Governance Center → Receipt panel and the Evidence Vault.</span>
                 </div>
               </div>
             ))}
@@ -980,7 +980,7 @@ function EvidenceTab({
         )}
       </div>
 
-      <p className="text-[10px] text-slate-600 leading-relaxed">
+      <p className="text-[10px] text-foreground-muted leading-relaxed">
         Version numbers are sequential and immutable after deployment. Prompt body hashes are stored so exported evidence can prove the exact instruction set used. Audit records are append-only and cannot be edited through the UI.
       </p>
     </div>
@@ -1023,10 +1023,10 @@ function RuntimeTab({
         ].map((s) => {
           const Icon = s.icon;
           return (
-            <div key={s.label} className="bg-black border border-slate-900 rounded-2xl p-5 flex flex-col gap-2">
+            <div key={s.label} className="bg-background border border-border rounded-2xl p-5 flex flex-col gap-2">
               <Icon className={`w-5 h-5 ${s.color}`} />
               <div className={`text-3xl font-black ${s.color}`}>{s.value}</div>
-              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{s.label}</div>
+              <div className="text-[10px] font-black text-foreground-muted uppercase tracking-widest">{s.label}</div>
             </div>
           );
         })}
@@ -1042,7 +1042,7 @@ function RuntimeTab({
             <div key={p.id} className="p-5 bg-warning-bg border border-warning-border rounded-2xl flex flex-wrap items-center gap-4">
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-bold text-foreground">{p.name}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">{p.description}</div>
+                <div className="text-[10px] text-foreground/70 mt-0.5">{p.description}</div>
               </div>
               <RiskBadge tier={p.risk_tier} />
               <div className="flex gap-2">
@@ -1069,17 +1069,17 @@ function RuntimeTab({
       <div className="space-y-3">
         <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Active HITL Rules — Runtime Routing</h3>
         {hitlRules.length === 0 ? (
-          <p className="text-sm text-slate-600">No HITL rules configured.</p>
+          <p className="text-sm text-foreground-muted">No HITL rules configured.</p>
         ) : (
           <div className="space-y-2">
             {hitlRules.map((rule) => (
-              <div key={rule.id} className="flex items-center gap-4 p-4 bg-black border border-slate-900 rounded-2xl">
+              <div key={rule.id} className="flex items-center gap-4 p-4 bg-background border border-border rounded-2xl">
                 <div className={`w-2 h-2 rounded-full shrink-0 ${rule.enabled ? "bg-success-text" : "bg-slate-700"}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-[11px] font-bold text-foreground">{rule.trigger}</div>
-                  <div className="text-[10px] text-slate-500">{rule.action} → routed to <span className="text-slate-300 font-bold">{rule.route_to_role}</span></div>
+                  <div className="text-[10px] text-foreground-muted">{rule.action} → routed to <span className="text-foreground font-bold">{rule.route_to_role}</span></div>
                 </div>
-                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${rule.enabled ? "text-success-text bg-success-bg" : "text-slate-600 bg-slate-900"}`}>
+                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${rule.enabled ? "text-success-text bg-success-bg" : "text-foreground-muted bg-surface"}`}>
                   {rule.enabled ? "ENABLED" : "DISABLED"}
                 </span>
               </div>
@@ -1093,7 +1093,7 @@ function RuntimeTab({
         <h3 className="text-xs font-black text-warning-text uppercase tracking-widest flex items-center gap-2">
           <BarChart3 className="w-4 h-4" /> Drift Monitor — Post-Deployment Telemetry
         </h3>
-        <p className="text-[10px] text-slate-500 leading-relaxed max-w-2xl">After deployment, every prompt is monitored for output quality, rejection rate, hallucination flags, faithfulness, brand alignment, and policy trigger rate. Prompts that exceed drift thresholds are flagged for regression testing.</p>
+        <p className="text-[10px] text-foreground-muted leading-relaxed max-w-2xl">After deployment, every prompt is monitored for output quality, rejection rate, hallucination flags, faithfulness, brand alignment, and policy trigger rate. Prompts that exceed drift thresholds are flagged for regression testing.</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "First-Pass Acceptance", desc: "% of outputs accepted without human edit or rejection. Rising rate improves trust score.", threshold: "Target ≥ 85%", color: "text-success-text" },
@@ -1102,17 +1102,17 @@ function RuntimeTab({
             { label: "Brand Alignment Score", desc: "Average score measuring adherence to approved voice, vocabulary, and channel constraints.", threshold: "Target ≥ 80", color: "text-info-text" },
             { label: "Policy Trigger Rate", desc: "Executions blocked or escalated by policy engine per 1,000 runs. High rate signals prompt design flaw.", threshold: "Alert > 5%", color: "text-warning-text" },
             { label: "Faithfulness Score", desc: "Measures citation accuracy and source grounding for knowledge-bound prompts.", threshold: "Target ≥ 90%", color: "text-info-text" },
-            { label: "Token ROI", desc: "Output quality relative to token cost. Flags expensive prompts producing low-value or low-acceptance outputs.", threshold: "Monitor weekly", color: "text-slate-400" },
+            { label: "Token ROI", desc: "Output quality relative to token cost. Flags expensive prompts producing low-value or low-acceptance outputs.", threshold: "Monitor weekly", color: "text-foreground/70" },
             { label: "HITL Escalation Rate", desc: "Executions routed to human review. Sustained high rate indicates unclear instructions or autonomy misconfiguration.", threshold: "Alert > 15%", color: "text-warning-text" },
           ].map((m) => (
-            <div key={m.label} className="p-4 bg-black border border-slate-900 rounded-2xl space-y-1.5 hover:border-warning-border transition-all">
+            <div key={m.label} className="p-4 bg-background border border-border rounded-2xl space-y-1.5 hover:border-warning-border transition-all">
               <div className={`text-[10px] font-black uppercase tracking-widest ${m.color}`}>{m.label}</div>
-              <div className="text-[9px] text-slate-500 leading-relaxed">{m.desc}</div>
-              <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest border-t border-slate-900 pt-1.5 mt-1">{m.threshold}</div>
+              <div className="text-[9px] text-foreground-muted leading-relaxed">{m.desc}</div>
+              <div className="text-[9px] font-black text-foreground-muted uppercase tracking-widest border-t border-border pt-1.5 mt-1">{m.threshold}</div>
             </div>
           ))}
         </div>
-        <div className="p-3 bg-slate-950 border border-slate-900 rounded-xl text-[10px] text-slate-600">
+        <div className="p-3 bg-background border border-border rounded-xl text-[10px] text-foreground-muted">
           Prompts flagged for drift are locked from autonomy-level upgrades until a regression suite passes. All drift events write to the Evidence Vault and notify the prompt owner and AI operations lead.
         </div>
       </div>
@@ -1122,7 +1122,7 @@ function RuntimeTab({
         <h3 className="text-xs font-black text-foreground uppercase tracking-widest">Runtime Enforcement Rules</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {RUNTIME_RULES.map((rule, i) => (
-            <div key={i} className="flex items-start gap-2 p-3 bg-black border border-slate-900 rounded-xl text-[10px] text-slate-400">
+            <div key={i} className="flex items-start gap-2 p-3 bg-background border border-border rounded-xl text-[10px] text-foreground/70">
               <Network className="w-3.5 h-3.5 text-info-text mt-0.5 shrink-0" />
               {rule}
             </div>
@@ -1296,7 +1296,7 @@ function AuditScoreRing({ score }: { score: number }) {
       </svg>
       <div className="text-center z-10">
         <div className="text-3xl font-black" style={{ color }}>{score}</div>
-        <div className="text-[10px] text-slate-500">/100</div>
+        <div className="text-[10px] text-foreground-muted">/100</div>
       </div>
     </div>
   );
@@ -1330,26 +1330,26 @@ function AuditorTab() {
     <div className="space-y-8">
       <div className="space-y-1">
         <h2 className="text-sm font-black text-foreground uppercase tracking-widest">Prompt Governance Auditor</h2>
-        <p className="text-[11px] text-slate-500">Evaluate any prompt against all 8 ZoikoVertex governance models and get a full compliance report.</p>
+        <p className="text-[11px] text-foreground-muted">Evaluate any prompt against all 8 ZoikoVertex governance models and get a full compliance report.</p>
       </div>
 
       {/* Input */}
-      <div className="bg-black border border-slate-800 rounded-2xl p-6 space-y-4">
+      <div className="bg-background border border-border rounded-2xl p-6 space-y-4">
         <div className="flex items-center gap-3">
           <div className="space-y-1 flex-1">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Risk Tier</label>
+            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest">Risk Tier</label>
             <select value={tier} onChange={e => setTier(e.target.value as AuditRiskTier)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-foreground focus:outline-none focus:border-info-border transition-all">
+              className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-xs text-foreground focus:outline-none focus:border-info-border transition-all">
               {(["Tier 1 Low","Tier 2 Medium","Tier 3 High","Tier 4 Critical"] as AuditRiskTier[]).map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Prompt to Audit</label>
+          <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest">Prompt to Audit</label>
           <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={9}
             placeholder="Paste the prompt you want to audit here..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-foreground placeholder:text-slate-700 focus:outline-none focus:border-info-border resize-none font-mono transition-all leading-relaxed" />
-          <div className="flex justify-between text-[10px] text-slate-600">
+            className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-info-border resize-none font-mono transition-all leading-relaxed" />
+          <div className="flex justify-between text-[10px] text-foreground-muted">
             <span>{prompt.length} characters</span><span>{prompt.trim().split(/\s+/).filter(Boolean).length} words</span>
           </div>
         </div>
@@ -1359,7 +1359,7 @@ function AuditorTab() {
             {running ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>Running...</> : <><ShieldCheck className="w-3.5 h-3.5"/>Run Audit</>}
           </button>
           {report && <button onClick={() => { setReport(null); setPrompt(""); setExpanded(null); }}
-            className="px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[10px] font-black text-slate-400 hover:text-white uppercase tracking-widest transition-all">Reset</button>}
+            className="px-4 py-2.5 rounded-xl bg-surface border border-border text-[10px] font-black text-foreground/70 hover:text-foreground uppercase tracking-widest transition-all">Reset</button>}
         </div>
       </div>
 
@@ -1367,29 +1367,29 @@ function AuditorTab() {
       {report && (
         <div className="space-y-5">
           {/* Score Summary */}
-          <div className="bg-black border border-slate-800 rounded-2xl p-6">
+          <div className="bg-background border border-border rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-5">
               <div className="w-1 h-5 rounded-full bg-info-text"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 1 — Score Summary</span>
             </div>
             <div className="flex flex-col md:flex-row gap-6 items-center">
-              <div className="flex flex-col items-center gap-2"><AuditScoreRing score={report.score}/><span className="text-[10px] text-slate-500 font-bold">Overall Score</span></div>
+              <div className="flex flex-col items-center gap-2"><AuditScoreRing score={report.score}/><span className="text-[10px] text-foreground-muted font-bold">Overall Score</span></div>
               <div className="flex-1 grid grid-cols-2 gap-3">
                 <div className={`col-span-2 flex items-center gap-3 p-3.5 rounded-xl border ${VERDICT_STYLE[report.verdict].bg} ${VERDICT_STYLE[report.verdict].border}`}>
                   <ShieldCheck className={`w-5 h-5 ${VERDICT_STYLE[report.verdict].color}`}/>
-                  <div><div className={`text-base font-black ${VERDICT_STYLE[report.verdict].color}`}>{report.verdict}</div><div className="text-[10px] text-slate-500">Final Verdict · {report.tier}</div></div>
+                  <div><div className={`text-base font-black ${VERDICT_STYLE[report.verdict].color}`}>{report.verdict}</div><div className="text-[10px] text-foreground-muted">Final Verdict · {report.tier}</div></div>
                 </div>
-                <div className="p-3 rounded-xl border border-slate-800 bg-slate-950 text-center"><div className="text-xl font-black text-success-text">{report.pass}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Pass</div></div>
-                <div className="p-3 rounded-xl border border-slate-800 bg-slate-950 grid grid-cols-2 gap-2 text-center">
-                  <div><div className="text-xl font-black text-warning-text">{report.warn}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Warn</div></div>
-                  <div><div className="text-xl font-black text-error-text">{report.fail}</div><div className="text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Fail</div></div>
+                <div className="p-3 rounded-xl border border-border bg-background text-center"><div className="text-xl font-black text-success-text">{report.pass}</div><div className="text-[9px] text-foreground-muted uppercase tracking-widest mt-0.5">Pass</div></div>
+                <div className="p-3 rounded-xl border border-border bg-background grid grid-cols-2 gap-2 text-center">
+                  <div><div className="text-xl font-black text-warning-text">{report.warn}</div><div className="text-[9px] text-foreground-muted uppercase tracking-widest mt-0.5">Warn</div></div>
+                  <div><div className="text-xl font-black text-error-text">{report.fail}</div><div className="text-[9px] text-foreground-muted uppercase tracking-widest mt-0.5">Fail</div></div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Model Findings */}
-          <div className="bg-black border border-slate-800 rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 p-5 border-b border-slate-800">
+          <div className="bg-background border border-border rounded-2xl overflow-hidden">
+            <div className="flex items-center gap-2 p-5 border-b border-border">
               <div className="w-1 h-5 rounded-full bg-info-text"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 2 — Model Findings</span>
             </div>
             <div className="divide-y divide-slate-900">
@@ -1399,23 +1399,23 @@ function AuditorTab() {
                 const MIcon = m.icon;
                 const open = expanded === m.id;
                 return (
-                  <div key={m.id} className="hover:bg-slate-950 transition-colors">
+                  <div key={m.id} className="hover:bg-background transition-colors">
                     <button onClick={() => setExpanded(open ? null : m.id)} className="w-full flex items-center gap-3 p-4 text-left">
                       <div className={`w-8 h-8 rounded-xl ${cfg.bg} border ${cfg.border} flex items-center justify-center shrink-0`}>
                         <MIcon className={`w-3.5 h-3.5 ${cfg.color}`}/>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2"><span className="text-[10px] text-slate-600">M{m.id}</span><span className="text-xs font-bold text-foreground">{m.name}</span></div>
-                        <p className="text-[10px] text-slate-500 truncate mt-0.5">{m.finding}</p>
+                        <div className="flex items-center gap-2"><span className="text-[10px] text-foreground-muted">M{m.id}</span><span className="text-xs font-bold text-foreground">{m.name}</span></div>
+                        <p className="text-[10px] text-foreground-muted truncate mt-0.5">{m.finding}</p>
                       </div>
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black border ${cfg.bg} ${cfg.border} ${cfg.color} shrink-0`}>
                         <Icon className="w-3 h-3"/>{m.status}
                       </span>
                     </button>
                     {open && (
-                      <div className="px-4 pb-4 ml-11 border-l-2 border-slate-800 space-y-2 ml-[60px]">
-                        <div><span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Finding</span><p className="text-xs text-slate-300 mt-1 leading-relaxed">{m.finding}</p></div>
-                        {m.fix && <div><span className="text-[9px] font-black text-warning-text uppercase tracking-widest">Fix Required</span><p className="text-xs text-slate-400 mt-1 leading-relaxed">{m.fix}</p></div>}
+                      <div className="px-4 pb-4 ml-11 border-l-2 border-border space-y-2 ml-[60px]">
+                        <div><span className="text-[9px] font-black text-foreground-muted uppercase tracking-widest">Finding</span><p className="text-xs text-foreground mt-1 leading-relaxed">{m.finding}</p></div>
+                        {m.fix && <div><span className="text-[9px] font-black text-warning-text uppercase tracking-widest">Fix Required</span><p className="text-xs text-foreground/70 mt-1 leading-relaxed">{m.fix}</p></div>}
                         {!m.fix && <div className="flex items-center gap-1.5 text-xs text-success-text"><CheckCircle2 className="w-3.5 h-3.5"/>No fix required</div>}
                       </div>
                     )}
@@ -1426,17 +1426,17 @@ function AuditorTab() {
           </div>
 
           {/* Executive Summary */}
-          <div className="bg-black border border-slate-800 rounded-2xl p-5">
+          <div className="bg-background border border-border rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-3"><div className="w-1 h-5 rounded-full bg-info-text"/><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 3 — Executive Summary</span></div>
-            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 border border-slate-800 rounded-xl p-4">{report.summary}</p>
+            <p className="text-xs text-foreground leading-relaxed bg-background border border-border rounded-xl p-4">{report.summary}</p>
           </div>
 
           {/* Rebuilt Prompt */}
           {report.rebuilt && (
-            <div className="bg-black border border-error-border rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between p-5 border-b border-slate-800">
-                <div className="flex items-center gap-2"><div className="w-1 h-5 rounded-full bg-error-text"/><div><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 4 — Rebuilt Prompt</span><p className="text-[10px] text-slate-500 mt-0.5">Score below 70 or a model failed — production-ready governed prompt generated.</p></div></div>
-                <button onClick={handleCopy} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-400 hover:text-white hover:border-slate-600 transition-all shrink-0">
+            <div className="bg-background border border-error-border rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between p-5 border-b border-border">
+                <div className="flex items-center gap-2"><div className="w-1 h-5 rounded-full bg-error-text"/><div><span className="text-[10px] font-black text-foreground uppercase tracking-widest">Section 4 — Rebuilt Prompt</span><p className="text-[10px] text-foreground-muted mt-0.5">Score below 70 or a model failed — production-ready governed prompt generated.</p></div></div>
+                <button onClick={handleCopy} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface border border-border text-[10px] text-foreground/70 hover:text-foreground hover:border-slate-600 transition-all shrink-0">
                   {copied ? <><Check className="w-3.5 h-3.5 text-success-text"/>Copied!</> : <><Copy className="w-3.5 h-3.5"/>Copy</>}
                 </button>
               </div>
@@ -1445,7 +1445,7 @@ function AuditorTab() {
                   <ShieldAlert className="w-3.5 h-3.5 text-error-text mt-0.5 shrink-0"/>
                   <p className="text-[10px] text-error-text/80">Replace all <code className="bg-error-bg px-1 rounded text-error-text">[BRACKETED PLACEHOLDERS]</code> with your actual values before deploying.</p>
                 </div>
-                <pre className="text-[10px] text-slate-400 font-mono leading-relaxed whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-xl p-4 overflow-x-auto max-h-96 overflow-y-auto">{report.rebuilt}</pre>
+                <pre className="text-[10px] text-foreground/70 font-mono leading-relaxed whitespace-pre-wrap bg-background border border-border rounded-xl p-4 overflow-x-auto max-h-96 overflow-y-auto">{report.rebuilt}</pre>
               </div>
             </div>
           )}
@@ -1453,7 +1453,7 @@ function AuditorTab() {
           {!report.rebuilt && (
             <div className="flex items-center gap-3 p-4 rounded-2xl bg-success-bg border border-success-border">
               <CheckCircle2 className="w-5 h-5 text-success-text shrink-0"/>
-              <div><p className="text-xs font-bold text-success-text">No Rebuild Required</p><p className="text-[10px] text-slate-500 mt-0.5">Scored {report.score}/100 with no FAIL conditions — approved for deployment at {report.tier}.</p></div>
+              <div><p className="text-xs font-bold text-success-text">No Rebuild Required</p><p className="text-[10px] text-foreground-muted mt-0.5">Scored {report.score}/100 with no FAIL conditions — approved for deployment at {report.tier}.</p></div>
             </div>
           )}
         </div>
@@ -1465,10 +1465,10 @@ function AuditorTab() {
             <ShieldCheck className="w-7 h-7 text-info-text"/>
           </div>
           <h3 className="text-sm font-bold text-foreground mb-2">Ready to Audit</h3>
-          <p className="text-xs text-slate-500 max-w-sm leading-relaxed">Paste any prompt above, set the risk tier, and click <strong className="text-foreground">Run Audit</strong> to evaluate it against all 8 governance models.</p>
+          <p className="text-xs text-foreground-muted max-w-sm leading-relaxed">Paste any prompt above, set the risk tier, and click <strong className="text-foreground">Run Audit</strong> to evaluate it against all 8 governance models.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             {["Instruction Adherence","Safety & Policy","Brand & Tone","Grounding","Tool-Use","Variables","Lifecycle","Auditability"].map(l => (
-              <span key={l} className="px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-[10px] text-slate-500">{l}</span>
+              <span key={l} className="px-3 py-1 rounded-full bg-background border border-border text-[10px] text-foreground-muted">{l}</span>
             ))}
           </div>
         </div>
@@ -1561,14 +1561,14 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
   const typeAndRisk = (
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
-        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Type</label>
-        <select value={promptType} onChange={(e) => setPromptType(e.target.value as PromptType)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
+        <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Type</label>
+        <select value={promptType} onChange={(e) => setPromptType(e.target.value as PromptType)} className="w-full bg-background border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
           {(["system","agent_role","task","channel","tool_use","escalation","refusal","safety","localization"] as const).map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
         </select>
       </div>
       <div className="space-y-2">
-        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Risk Tier</label>
-        <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
+        <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Risk Tier</label>
+        <select value={riskTier} onChange={(e) => setRiskTier(e.target.value as RiskTier)} className="w-full bg-background border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
           {(Object.keys(RISK_META) as RiskTier[]).map((r) => <option key={r} value={r}>{RISK_META[r].label}</option>)}
         </select>
       </div>
@@ -1576,11 +1576,11 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
   );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-950 border border-slate-800 rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between shrink-0">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+      <div className="bg-background border border-border rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+        <div className="p-6 border-b border-border flex items-center justify-between shrink-0">
           <h3 className="text-lg font-bold text-foreground">New Prompt</h3>
-          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-foreground-muted hover:text-foreground transition-colors"><XCircle className="w-5 h-5" /></button>
         </div>
 
         {/* Mode selector */}
@@ -1592,7 +1592,7 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
                 <button
                   key={m.id}
                   onClick={() => { setMode(m.id); setLocalError(null); }}
-                  className={`flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-wider transition-all ${mode === m.id ? "bg-info-bg text-info-text border-info-border" : "bg-black text-slate-500 border-slate-800 hover:text-slate-300"}`}
+                  className={`flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-wider transition-all ${mode === m.id ? "bg-info-bg text-info-text border-info-border" : "bg-background text-foreground-muted border-border hover:text-foreground"}`}
                 >
                   <Icon className="w-3.5 h-3.5" />
                   {m.label}
@@ -1606,27 +1606,27 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
           {(mode === "scratch" || mode === "workflow_node") && (
             <>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Prompt Name *</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Brand Voice — Content Lead" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-info-border transition-all" />
+                <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Prompt Name *</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Brand Voice — Content Lead" className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all" />
               </div>
               {mode === "workflow_node" && (
                 <>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Workflow *</label>
-                    <select value={workflowId} onChange={(e) => setWorkflowId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
+                    <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Workflow *</label>
+                    <select value={workflowId} onChange={(e) => setWorkflowId(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
                       <option value="">{workflows.length ? "Select a workflow…" : "Loading workflows…"}</option>
                       {workflows.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Node Name / Execution Context</label>
-                    <input value={nodeName} onChange={(e) => setNodeName(e.target.value)} placeholder="e.g. caption-generation node" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-info-border transition-all" />
+                    <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Node Name / Execution Context</label>
+                    <input value={nodeName} onChange={(e) => setNodeName(e.target.value)} placeholder="e.g. caption-generation node" className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all" />
                   </div>
                 </>
               )}
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Description</label>
-                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose and scope of this prompt..." className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-info-border transition-all h-20 resize-none text-sm" />
+                <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Description</label>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Purpose and scope of this prompt..." className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all h-20 resize-none text-sm" />
               </div>
               {typeAndRisk}
             </>
@@ -1634,14 +1634,14 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
 
           {(mode === "template" || mode === "clone") && (
             <>
-              <div className="p-3 rounded-xl bg-info-bg border border-info-border text-[10px] text-slate-400 leading-relaxed">
+              <div className="p-3 rounded-xl bg-info-bg border border-info-border text-[10px] text-foreground/70 leading-relaxed">
                 {mode === "template"
                   ? "Creates a new draft copying the source's variables, guardrails, tools, knowledge bindings, and metadata. Approvals, audit history, deployments, and evidence are not copied."
                   : "Creates an independent draft copy of an existing prompt's configuration."}
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{mode === "template" ? "Source (approved prompt) *" : "Source prompt *"}</label>
-                <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
+                <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">{mode === "template" ? "Source (approved prompt) *" : "Source prompt *"}</label>
+                <select value={sourceId} onChange={(e) => setSourceId(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-info-border transition-all text-xs">
                   <option value="">Select a source…</option>
                   {(mode === "template" ? templateSources : prompts).map((p) => <option key={p.id} value={p.id}>{p.name} · {STATUS_META[normalizeStatus(p.status)].label}</option>)}
                 </select>
@@ -1652,8 +1652,8 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
               {mode === "template" && (
                 <>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">New Prompt Name (optional)</label>
-                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Defaults to “<source> (From Template)”" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-info-border transition-all" />
+                    <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">New Prompt Name (optional)</label>
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Defaults to “<source> (From Template)”" className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all" />
                   </div>
                   {typeAndRisk}
                 </>
@@ -1663,13 +1663,13 @@ function CreatePromptModal({ onClose, onCreate, creating, prompts }: {
 
           {mode === "import" && (
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Prompt Definition JSON *</label>
-              <p className="text-[10px] text-slate-500 leading-relaxed">Required fields: <span className="font-mono text-slate-400">name</span>, <span className="font-mono text-slate-400">prompt_type</span>, <span className="font-mono text-slate-400">risk_tier</span>. Optional: <span className="font-mono text-slate-400">body</span>, <span className="font-mono text-slate-400">variables_json</span>, <span className="font-mono text-slate-400">guardrails_json</span>, knowledge/tool arrays. Validation runs server-side.</p>
+              <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Prompt Definition JSON *</label>
+              <p className="text-[10px] text-foreground-muted leading-relaxed">Required fields: <span className="font-mono text-foreground/70">name</span>, <span className="font-mono text-foreground/70">prompt_type</span>, <span className="font-mono text-foreground/70">risk_tier</span>. Optional: <span className="font-mono text-foreground/70">body</span>, <span className="font-mono text-foreground/70">variables_json</span>, <span className="font-mono text-foreground/70">guardrails_json</span>, knowledge/tool arrays. Validation runs server-side.</p>
               <textarea
                 value={importJson}
                 onChange={(e) => setImportJson(e.target.value)}
                 placeholder={`{\n  "name": "Imported Prompt",\n  "prompt_type": "system",\n  "risk_tier": "tier_2_medium",\n  "body": "...",\n  "variables_json": {}\n}`}
-                className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-info-border transition-all h-48 resize-none text-[11px] font-mono"
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-info-border transition-all h-48 resize-none text-[11px] font-mono"
               />
             </div>
           )}
@@ -1793,37 +1793,37 @@ function VariableEditor({ versionId, editable }: { versionId?: string; editable:
     }
   };
 
-  if (!versionId) return <p className="text-[11px] text-slate-600 italic">No active version — create a draft version before defining variables.</p>;
+  if (!versionId) return <p className="text-[11px] text-foreground-muted italic">No active version — create a draft version before defining variables.</p>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black flex items-center gap-2"><Variable className="w-3.5 h-3.5 text-info-text" /> Governed Variables</div>
+        <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black flex items-center gap-2"><Variable className="w-3.5 h-3.5 text-info-text" /> Governed Variables</div>
         {editable && <button onClick={add} className="flex items-center gap-1.5 px-3 py-1.5 bg-info-bg border border-info-border text-info-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all"><Plus className="w-3 h-3" /> Add Variable</button>}
       </div>
 
       {!editable && <div className="p-3 rounded-xl bg-warning-bg border border-warning-border text-[10px] text-warning-text">This prompt is not in an editable state, or you lack edit permission. Variables are read-only.</div>}
       {loading ? (
-        <div className="flex items-center gap-2 py-6 text-slate-500"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading variables…</span></div>
+        <div className="flex items-center gap-2 py-6 text-foreground-muted"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading variables…</span></div>
       ) : rows.length === 0 ? (
-        <p className="text-[11px] text-slate-600 italic">No variables defined for this version.</p>
+        <p className="text-[11px] text-foreground-muted italic">No variables defined for this version.</p>
       ) : (
         <div className="space-y-3">
           {rows.map((r, i) => (
-            <div key={i} className="p-4 bg-black border border-slate-900 rounded-2xl space-y-3">
+            <div key={i} className="p-4 bg-background border border-border rounded-2xl space-y-3">
               <div className="flex items-center gap-2">
-                <input disabled={!editable} value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="variable_name" className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-info-border disabled:opacity-60" />
-                <select disabled={!editable} value={r.type} onChange={(e) => update(i, { type: e.target.value as VariableType })} className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-[11px] text-slate-300 outline-none focus:border-info-border disabled:opacity-60">
+                <input disabled={!editable} value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="variable_name" className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-xs font-mono text-foreground outline-none focus:border-info-border disabled:opacity-60" />
+                <select disabled={!editable} value={r.type} onChange={(e) => update(i, { type: e.target.value as VariableType })} className="bg-background border border-border rounded-lg px-2 py-2 text-[11px] text-foreground outline-none focus:border-info-border disabled:opacity-60">
                   {VARIABLE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
-                <label className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap"><input disabled={!editable} type="checkbox" checked={r.required} onChange={(e) => update(i, { required: e.target.checked })} /> required</label>
+                <label className="flex items-center gap-1 text-[10px] text-foreground/70 whitespace-nowrap"><input disabled={!editable} type="checkbox" checked={r.required} onChange={(e) => update(i, { required: e.target.checked })} /> required</label>
                 {editable && <button onClick={() => remove(i)} className="p-1.5 text-error-text/70 hover:text-error-text transition-colors" title="Delete variable"><XCircle className="w-4 h-4" /></button>}
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <input disabled={!editable} value={r.allowedValues} onChange={(e) => update(i, { allowedValues: e.target.value })} placeholder="Allowed values (comma-separated)" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-info-border disabled:opacity-60" />
-                <input disabled={!editable} value={r.validationRule} onChange={(e) => update(i, { validationRule: e.target.value })} placeholder="Validation regex" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] font-mono text-foreground outline-none focus:border-info-border disabled:opacity-60" />
-                <input disabled={!editable} value={r.fallbackValue} onChange={(e) => update(i, { fallbackValue: e.target.value })} placeholder="Fallback / default value" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-info-border disabled:opacity-60" />
-                <input disabled={!editable} value={r.example} onChange={(e) => update(i, { example: e.target.value })} placeholder="Example" className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-info-border disabled:opacity-60" />
+                <input disabled={!editable} value={r.allowedValues} onChange={(e) => update(i, { allowedValues: e.target.value })} placeholder="Allowed values (comma-separated)" className="bg-background border border-border rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-info-border disabled:opacity-60" />
+                <input disabled={!editable} value={r.validationRule} onChange={(e) => update(i, { validationRule: e.target.value })} placeholder="Validation regex" className="bg-background border border-border rounded-lg px-3 py-2 text-[11px] font-mono text-foreground outline-none focus:border-info-border disabled:opacity-60" />
+                <input disabled={!editable} value={r.fallbackValue} onChange={(e) => update(i, { fallbackValue: e.target.value })} placeholder="Fallback / default value" className="bg-background border border-border rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-info-border disabled:opacity-60" />
+                <input disabled={!editable} value={r.example} onChange={(e) => update(i, { example: e.target.value })} placeholder="Example" className="bg-background border border-border rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-info-border disabled:opacity-60" />
               </div>
             </div>
           ))}
@@ -1912,37 +1912,37 @@ function GuardrailEditor({ promptId, versionId, editable }: { promptId: string; 
     }
   };
 
-  if (!versionId) return <p className="text-[11px] text-slate-600 italic">No active version — create a draft version before defining guardrails.</p>;
+  if (!versionId) return <p className="text-[11px] text-foreground-muted italic">No active version — create a draft version before defining guardrails.</p>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-error-text" /> Guardrails</div>
+        <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black flex items-center gap-2"><ShieldCheck className="w-3.5 h-3.5 text-error-text" /> Guardrails</div>
         {editable && <button onClick={add} className="flex items-center gap-1.5 px-3 py-1.5 bg-error-bg border border-error-border text-error-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all"><Plus className="w-3 h-3" /> Add Guardrail</button>}
       </div>
       {!editable && <div className="p-3 rounded-xl bg-warning-bg border border-warning-border text-[10px] text-warning-text">This prompt is not in an editable state, or you lack edit permission. Guardrails are read-only.</div>}
       {loading ? (
-        <div className="flex items-center gap-2 py-6 text-slate-500"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading guardrails…</span></div>
+        <div className="flex items-center gap-2 py-6 text-foreground-muted"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-xs">Loading guardrails…</span></div>
       ) : rows.length === 0 ? (
-        <p className="text-[11px] text-slate-600 italic">No guardrails defined for this version.</p>
+        <p className="text-[11px] text-foreground-muted italic">No guardrails defined for this version.</p>
       ) : (
         <div className="space-y-2">
           {rows.map((r, i) => (
-            <div key={i} className="p-3 bg-black border border-slate-900 rounded-2xl space-y-2">
+            <div key={i} className="p-3 bg-background border border-border rounded-2xl space-y-2">
               <div className="flex items-center gap-2">
-                <select disabled={!editable} value={r.category} onChange={(e) => update(i, { category: e.target.value as GuardrailCategory })} className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-[11px] text-slate-300 outline-none focus:border-error-border disabled:opacity-60">
+                <select disabled={!editable} value={r.category} onChange={(e) => update(i, { category: e.target.value as GuardrailCategory })} className="bg-background border border-border rounded-lg px-2 py-2 text-[11px] text-foreground outline-none focus:border-error-border disabled:opacity-60">
                   {GUARDRAIL_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                 </select>
-                <label className="flex items-center gap-1 text-[10px] text-slate-400 whitespace-nowrap"><input disabled={!editable} type="checkbox" checked={r.enabled} onChange={(e) => update(i, { enabled: e.target.checked })} /> enabled</label>
+                <label className="flex items-center gap-1 text-[10px] text-foreground/70 whitespace-nowrap"><input disabled={!editable} type="checkbox" checked={r.enabled} onChange={(e) => update(i, { enabled: e.target.checked })} /> enabled</label>
                 <div className="ml-auto flex items-center gap-1">
                   {editable && <>
-                    <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1.5 py-1 text-slate-500 hover:text-white disabled:opacity-30" title="Move up">↑</button>
-                    <button onClick={() => move(i, 1)} disabled={i === rows.length - 1} className="px-1.5 py-1 text-slate-500 hover:text-white disabled:opacity-30" title="Move down">↓</button>
+                    <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1.5 py-1 text-foreground-muted hover:text-foreground disabled:opacity-30" title="Move up">↑</button>
+                    <button onClick={() => move(i, 1)} disabled={i === rows.length - 1} className="px-1.5 py-1 text-foreground-muted hover:text-foreground disabled:opacity-30" title="Move down">↓</button>
                     <button onClick={() => remove(i)} className="p-1.5 text-error-text/70 hover:text-error-text" title="Delete guardrail"><XCircle className="w-4 h-4" /></button>
                   </>}
                 </div>
               </div>
-              <textarea disabled={!editable} value={r.rule} onChange={(e) => update(i, { rule: e.target.value })} placeholder="Guardrail rule text…" className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-error-border h-16 resize-none disabled:opacity-60" />
+              <textarea disabled={!editable} value={r.rule} onChange={(e) => update(i, { rule: e.target.value })} placeholder="Guardrail rule text…" className="w-full bg-background border border-border rounded-lg px-3 py-2 text-[11px] text-foreground outline-none focus:border-error-border h-16 resize-none disabled:opacity-60" />
             </div>
           ))}
         </div>
@@ -2013,8 +2013,8 @@ function PreSubmitValidation({ prompt, onResult }: { prompt: PromptRecord; onRes
     <div className={`rounded-2xl border p-4 space-y-2 ${hasBlocking ? "border-error-border bg-error-bg" : "border-success-border bg-success-bg"}`}>
       <div className="flex items-center gap-2">
         <ShieldCheck className={`w-3.5 h-3.5 ${hasBlocking ? "text-error-text" : "text-success-text"}`} />
-        <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Pre-Submit Validation</span>
-        {loading && <Loader2 className="w-3 h-3 animate-spin text-slate-500" />}
+        <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Pre-Submit Validation</span>
+        {loading && <Loader2 className="w-3 h-3 animate-spin text-foreground-muted" />}
         <span className={`ml-auto text-[10px] font-black uppercase tracking-widest ${hasBlocking ? "text-error-text" : "text-success-text"}`}>{hasBlocking ? "Blocked" : "Ready"}</span>
       </div>
       <div className="space-y-1.5">
@@ -2024,8 +2024,8 @@ function PreSubmitValidation({ prompt, onResult }: { prompt: PromptRecord; onRes
             <div key={c.key} className="flex items-start gap-2">
               <Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${cls}`} />
               <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-300">{c.label}</span>
-                <span className="text-[10px] text-slate-500"> — {c.detail}</span>
+                <span className="text-[11px] font-bold text-foreground">{c.label}</span>
+                <span className="text-[10px] text-foreground-muted"> — {c.detail}</span>
               </div>
             </div>
           );
@@ -2073,14 +2073,14 @@ function DeploymentConfirmation({ data, prompt, onClose, onRollback, onOpenInCen
   ];
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-950 border border-success-border rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-success-bg">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+      <div className="bg-background border border-success-border rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-border flex items-center justify-between bg-success-bg">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-success-text" />
             <h3 className="text-lg font-bold text-foreground">Deployment Confirmed</h3>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-foreground-muted hover:text-foreground transition-colors"><XCircle className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-5">
           <div className="flex items-center gap-2">
@@ -2089,30 +2089,30 @@ function DeploymentConfirmation({ data, prompt, onClose, onRollback, onOpenInCen
           </div>
           <div className="grid grid-cols-2 gap-3">
             {rows.map((r) => (
-              <div key={r.label} className="p-3 bg-black border border-slate-900 rounded-xl">
-                <div className="text-[9px] text-slate-600 uppercase tracking-widest">{r.label}</div>
+              <div key={r.label} className="p-3 bg-background border border-border rounded-xl">
+                <div className="text-[9px] text-foreground-muted uppercase tracking-widest">{r.label}</div>
                 <div className="text-[11px] text-foreground font-bold mt-1 break-words">{r.value}</div>
               </div>
             ))}
           </div>
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Affected Agents</div>
+            <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black mb-2">Affected Agents</div>
             {agents.length ? (
-              <div className="flex flex-wrap gap-2">{agents.map((a) => <span key={a} className="inline-flex items-center gap-1 text-[10px] text-slate-300 bg-black border border-slate-800 px-2 py-1 rounded-lg"><Cpu className="w-3 h-3 text-info-text" />{a}</span>)}</div>
-            ) : <p className="text-[10px] text-slate-600 italic">No agents directly bound to this prompt.</p>}
+              <div className="flex flex-wrap gap-2">{agents.map((a) => <span key={a} className="inline-flex items-center gap-1 text-[10px] text-foreground bg-background border border-border px-2 py-1 rounded-lg"><Cpu className="w-3 h-3 text-info-text" />{a}</span>)}</div>
+            ) : <p className="text-[10px] text-foreground-muted italic">No agents directly bound to this prompt.</p>}
           </div>
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Affected Workflows</div>
+            <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black mb-2">Affected Workflows</div>
             {workflows.length ? (
-              <div className="flex flex-wrap gap-2">{workflows.map((w) => <span key={w} className="inline-flex items-center gap-1 text-[10px] text-slate-300 bg-black border border-slate-800 px-2 py-1 rounded-lg"><GitBranch className="w-3 h-3 text-warning-text" />{w}</span>)}</div>
-            ) : <p className="text-[10px] text-slate-600 italic">No workflows directly bound to this prompt.</p>}
+              <div className="flex flex-wrap gap-2">{workflows.map((w) => <span key={w} className="inline-flex items-center gap-1 text-[10px] text-foreground bg-background border border-border px-2 py-1 rounded-lg"><GitBranch className="w-3 h-3 text-warning-text" />{w}</span>)}</div>
+            ) : <p className="text-[10px] text-foreground-muted italic">No workflows directly bound to this prompt.</p>}
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
             <button onClick={() => onOpenInCenter(prompt.id, data.version_id)} className="flex items-center gap-1.5 px-4 py-2 bg-info-bg border border-info-border text-info-text text-[10px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 transition-all">
               <FileCheck className="w-3 h-3" /> View Evidence / Receipt
             </button>
             {data.evidence_id && (
-              <a href={`/evidence/evidence-vault/items/${data.evidence_id}`} className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all">
+              <a href={`/evidence/evidence-vault/items/${data.evidence_id}`} className="flex items-center gap-1.5 px-4 py-2 bg-surface border border-border text-foreground/70 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-foreground hover:border-slate-600 transition-all">
                 <ArrowRight className="w-3 h-3" /> Evidence Vault
               </a>
             )}
@@ -2150,27 +2150,27 @@ function RejectionModal({ title, promptName, onConfirm, onCancel }: {
   const [notes, setNotes] = useState("");
   const valid = category && notes.trim().length >= 4;
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-950 border border-error-border rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+      <div className="bg-background border border-error-border rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="p-6 border-b border-border flex items-center justify-between">
           <h3 className="text-base font-bold text-foreground">{title}</h3>
-          <button onClick={onCancel} className="text-slate-500 hover:text-white transition-colors"><XCircle className="w-5 h-5" /></button>
+          <button onClick={onCancel} className="text-foreground-muted hover:text-foreground transition-colors"><XCircle className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-4">
-          <p className="text-[11px] text-slate-500">{promptName}</p>
+          <p className="text-[11px] text-foreground-muted">{promptName}</p>
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Reason Category *</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-black border border-slate-800 rounded-xl px-3 py-3 text-foreground outline-none focus:border-error-border transition-all text-xs">
+            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Reason Category *</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full bg-background border border-border rounded-xl px-3 py-3 text-foreground outline-none focus:border-error-border transition-all text-xs">
               <option value="">Select a category…</option>
               {REJECTION_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Actionable Notes *</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Describe the specific change required…" className="w-full bg-black border border-slate-800 rounded-xl px-4 py-3 text-foreground placeholder:text-slate-700 outline-none focus:border-error-border transition-all h-24 resize-none text-sm" />
+            <label className="text-[10px] font-black text-foreground-muted uppercase tracking-widest ml-1">Actionable Notes *</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Describe the specific change required…" className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground placeholder:text-foreground-muted outline-none focus:border-error-border transition-all h-24 resize-none text-sm" />
           </div>
           <div className="flex gap-2">
-            <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-slate-800 text-slate-300 font-semibold text-sm hover:bg-slate-900 transition-all">Cancel</button>
+            <button onClick={onCancel} className="flex-1 py-3 rounded-xl border border-border text-foreground font-semibold text-sm hover:bg-surface transition-all">Cancel</button>
             <button onClick={() => onConfirm(category, notes.trim())} disabled={!valid} className="flex-1 py-3 rounded-xl bg-error-text text-foreground font-bold text-sm hover:brightness-110 disabled:opacity-50 transition-all">Submit</button>
           </div>
         </div>
@@ -2263,26 +2263,26 @@ function PromptDetailDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div ref={drawerRef} className="w-full max-w-2xl bg-slate-950 border-l border-slate-800 overflow-y-auto flex flex-col">
+      <div className="flex-1 bg-background/60 backdrop-blur-sm" onClick={onClose} />
+      <div ref={drawerRef} className="w-full max-w-2xl bg-background border-l border-border overflow-y-auto flex flex-col">
         {/* Drawer header */}
-        <div className="p-6 border-b border-slate-800 space-y-4 sticky top-0 bg-slate-950 z-10">
+        <div className="p-6 border-b border-border space-y-4 sticky top-0 bg-background z-10">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <div className="text-lg font-black text-foreground">{prompt.name}</div>
               <div className="flex flex-wrap gap-2">
                 <StatusBadge status={prompt.status} />
                 <RiskBadge tier={prompt.risk_tier} />
-                <span className="text-[10px] font-black text-slate-400 bg-black border border-slate-800 px-2 py-1 rounded-lg">{prompt.active_version}</span>
+                <span className="text-[10px] font-black text-foreground/70 bg-background border border-border px-2 py-1 rounded-lg">{prompt.active_version}</span>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:border-slate-600 transition-all">
+            <button onClick={onClose} className="p-2 rounded-xl border border-border text-foreground/70 hover:text-foreground hover:border-slate-600 transition-all">
               <XCircle className="w-4 h-4" />
             </button>
           </div>
           <div className="flex gap-1">
             {(["overview", "body", "bindings", "variables", "guardrails", "history"] as const).map((t) => (
-              <button key={t} onClick={() => setDrawerTab(t)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${drawerTab === t ? "bg-info-bg text-info-text border border-info-border" : "text-slate-500 hover:text-white"}`}>
+              <button key={t} onClick={() => setDrawerTab(t)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${drawerTab === t ? "bg-info-bg text-info-text border border-info-border" : "text-foreground-muted hover:text-foreground"}`}>
                 {t}
               </button>
             ))}
@@ -2293,8 +2293,8 @@ function PromptDetailDrawer({
           {drawerTab === "overview" && (
             <>
               <div className="space-y-1">
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Description</div>
-                <div className="text-sm text-slate-300 leading-relaxed">{prompt.description}</div>
+                <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black">Description</div>
+                <div className="text-sm text-foreground leading-relaxed">{prompt.description}</div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {[
@@ -2305,37 +2305,37 @@ function PromptDetailDrawer({
                   { label: "Last Deployed", value: prompt.last_deployed ? new Date(prompt.last_deployed).toLocaleString() : "—" },
                   { label: "Active Version", value: prompt.active_version },
                 ].map((f) => (
-                  <div key={f.label} className="p-3 bg-black border border-slate-900 rounded-xl">
-                    <div className="text-[9px] text-slate-600 uppercase tracking-widest">{f.label}</div>
+                  <div key={f.label} className="p-3 bg-background border border-border rounded-xl">
+                    <div className="text-[9px] text-foreground-muted uppercase tracking-widest">{f.label}</div>
                     <div className="text-xs text-foreground font-bold mt-1">{f.value}</div>
                   </div>
                 ))}
               </div>
               <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Last Test</div>
+                <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black mb-2">Last Test</div>
                 <TestBadge result={prompt.last_test} />
               </div>
               <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Approval Chain</div>
+                <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black mb-2">Approval Chain</div>
                 <ApprovalChain approvals={prompt.approvals} riskTier={prompt.risk_tier} />
                 <div className="mt-2 space-y-1">
                   {prompt.approvals.map((a, i) => (
-                    <div key={i} className="flex items-center gap-3 text-[10px] text-slate-400">
+                    <div key={i} className="flex items-center gap-3 text-[10px] text-foreground/70">
                       <div className={`w-2 h-2 rounded-full ${a.decision === "APPROVED" ? "bg-success-text" : a.decision === "REJECTED" ? "bg-error-text" : "bg-warning-bg border border-warning-text"}`} />
-                      <span className="font-bold text-slate-300">{a.reviewer_role}</span>
+                      <span className="font-bold text-foreground">{a.reviewer_role}</span>
                       <span>{a.decision}</span>
-                      {a.notes && <span className="text-slate-600 italic">&quot;{a.notes}&quot;</span>}
+                      {a.notes && <span className="text-foreground-muted italic">&quot;{a.notes}&quot;</span>}
                     </div>
                   ))}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Constraint Shadow</div>
+                <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black mb-2">Constraint Shadow</div>
                 <div className="space-y-1.5">
                   {constraintShadowRules(prompt.risk_tier).map((rule, i) => (
                     <div key={i} className="flex items-start gap-2 p-2.5 bg-error-bg border border-error-border rounded-xl">
                       <XCircle className="w-3 h-3 text-error-text mt-0.5 shrink-0" />
-                      <span className="text-[10px] text-slate-400 leading-relaxed">{rule}</span>
+                      <span className="text-[10px] text-foreground/70 leading-relaxed">{rule}</span>
                     </div>
                   ))}
                 </div>
@@ -2346,30 +2346,30 @@ function PromptDetailDrawer({
           {drawerTab === "bindings" && (
             <div className="space-y-4">
               <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Knowledge Sources</div>
+                <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black mb-2">Knowledge Sources</div>
                 {prompt.knowledge_sources.length > 0 ? (
                   <div className="space-y-1">
                     {prompt.knowledge_sources.map((ks) => (
-                      <div key={ks} className="flex items-center gap-2 p-3 bg-black border border-slate-900 rounded-xl text-[11px] text-slate-300">
+                      <div key={ks} className="flex items-center gap-2 p-3 bg-background border border-border rounded-xl text-[11px] text-foreground">
                         <BookOpen className="w-3 h-3 text-info-text" />
                         {ks}
                       </div>
                     ))}
                   </div>
-                ) : <p className="text-[11px] text-slate-600 italic">No knowledge sources bound.</p>}
+                ) : <p className="text-[11px] text-foreground-muted italic">No knowledge sources bound.</p>}
               </div>
               <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-2">Permitted Tools</div>
+                <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black mb-2">Permitted Tools</div>
                 {prompt.tools_permitted.length > 0 ? (
                   <div className="space-y-1">
                     {prompt.tools_permitted.map((t) => (
-                      <div key={t} className="flex items-center gap-2 p-3 bg-black border border-slate-900 rounded-xl text-[11px] text-slate-300">
+                      <div key={t} className="flex items-center gap-2 p-3 bg-background border border-border rounded-xl text-[11px] text-foreground">
                         <Wrench className="w-3 h-3 text-warning-text" />
                         {t}
                       </div>
                     ))}
                   </div>
-                ) : <p className="text-[11px] text-slate-600 italic">No tools permitted.</p>}
+                ) : <p className="text-[11px] text-foreground-muted italic">No tools permitted.</p>}
               </div>
             </div>
           )}
@@ -2387,15 +2387,15 @@ function PromptDetailDrawer({
               {loadingBody ? (
                 <div className="flex items-center justify-center py-10 gap-2">
                   <Loader2 className="w-5 h-5 animate-spin text-info-text" />
-                  <span className="text-xs text-slate-500">Loading prompt body…</span>
+                  <span className="text-xs text-foreground-muted">Loading prompt body…</span>
                 </div>
               ) : promptBody ? (
-                <div className="p-4 bg-black border border-slate-900 rounded-2xl text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
+                <div className="p-4 bg-background border border-border rounded-2xl text-[11px] text-foreground font-mono leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
                   {promptBody}
                 </div>
               ) : (
-                <div className="p-4 bg-black border border-slate-900 rounded-2xl text-[11px] text-slate-400 font-mono leading-relaxed">
-                  <span className="text-slate-600 italic">[Version {prompt.active_version} — metadata]</span>
+                <div className="p-4 bg-background border border-border rounded-2xl text-[11px] text-foreground/70 font-mono leading-relaxed">
+                  <span className="text-foreground-muted italic">[Version {prompt.active_version} — metadata]</span>
                   <br /><br />
                   <span className="text-info-text">{"// Role: "}</span>{prompt.prompt_type}<br />
                   <span className="text-info-text">{"// Agent: "}</span>{prompt.linked_agent}<br />
@@ -2403,7 +2403,7 @@ function PromptDetailDrawer({
                   <span className="text-info-text">{"// Risk Tier: "}</span>{RISK_META[normalizeRiskTier(prompt.risk_tier)].label}<br />
                   <span className="text-info-text">{"// Knowledge: "}</span>{prompt.knowledge_sources.join(", ") || "None"}<br />
                   <span className="text-info-text">{"// Tools: "}</span>{prompt.tools_permitted.join(", ") || "None"}<br /><br />
-                  <span className="text-slate-500">Prompt body was not returned by the registry API. Export via Evidence Vault to retrieve the full body with hash verification.</span>
+                  <span className="text-foreground-muted">Prompt body was not returned by the registry API. Export via Evidence Vault to retrieve the full body with hash verification.</span>
                 </div>
               )}
             </div>
@@ -2414,11 +2414,11 @@ function PromptDetailDrawer({
               {loadingVersions ? (
                 <div className="flex items-center justify-center py-10 gap-2">
                   <Loader2 className="w-5 h-5 animate-spin text-info-text" />
-                  <span className="text-xs text-slate-500">Loading version history…</span>
+                  <span className="text-xs text-foreground-muted">Loading version history…</span>
                 </div>
               ) : versions.length > 0 ? (
                 versions.map((v: any, i: number) => (
-                  <div key={v.id || i} className="p-4 bg-black border border-slate-900 rounded-xl space-y-1">
+                  <div key={v.id || i} className="p-4 bg-background border border-border rounded-xl space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-black text-foreground">
                         {v.version || v.version_number || `Version ${versions.length - i}`}
@@ -2428,22 +2428,22 @@ function PromptDetailDrawer({
                           <span className="text-[9px] text-success-text bg-success-bg border border-success-border px-2 py-0.5 rounded font-black uppercase tracking-widest">Current</span>
                         )}
                         {v.state && (
-                          <span className="text-[9px] text-slate-400 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest">{v.state}</span>
+                          <span className="text-[9px] text-foreground/70 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded font-bold uppercase tracking-widest">{v.state}</span>
                         )}
                       </div>
                     </div>
-                    <div className="text-[10px] text-slate-500">
+                    <div className="text-[10px] text-foreground-muted">
                       {v.created_at ? new Date(v.created_at).toLocaleString() : '—'}
                       {v.created_by_name ? ` · ${v.created_by_name}` : ''}
                     </div>
                     {v.changelog && (
-                      <div className="text-[10px] text-slate-400 italic mt-1">&quot;{v.changelog}&quot;</div>
+                      <div className="text-[10px] text-foreground/70 italic mt-1">&quot;{v.changelog}&quot;</div>
                     )}
-                    <div className="text-[10px] text-slate-600">Immutable after deployment. Body hash stored in Evidence Vault.</div>
+                    <div className="text-[10px] text-foreground-muted">Immutable after deployment. Body hash stored in Evidence Vault.</div>
                   </div>
                 ))
               ) : (
-                <div className="p-4 bg-black border border-slate-900 rounded-xl text-[10px] text-slate-500">
+                <div className="p-4 bg-background border border-border rounded-xl text-[10px] text-foreground-muted">
                   No version history available. Versions are recorded each time the prompt is saved or promoted.
                 </div>
               )}
@@ -2452,8 +2452,8 @@ function PromptDetailDrawer({
         </div>
 
         {/* Deployment controls */}
-        <div className="p-6 border-t border-slate-800 space-y-3 sticky bottom-0 bg-slate-950">
-          <div className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Deployment Controls</div>
+        <div className="p-6 border-t border-border space-y-3 sticky bottom-0 bg-background">
+          <div className="text-[10px] text-foreground-muted uppercase tracking-widest font-black">Deployment Controls</div>
           {showPreSubmit && <PreSubmitValidation prompt={prompt} onResult={setSubmitBlocked} />}
           <button
             type="button"
@@ -2502,11 +2502,11 @@ function PromptDetailDrawer({
             )}
             <button
               onClick={() => onExportEvidence(prompt, "drawer")}
-              className="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all flex items-center gap-1.5"
+              className="px-4 py-2 bg-surface border border-border text-foreground/70 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-foreground hover:border-slate-600 transition-all flex items-center gap-1.5"
             >
               <Download className="w-3 h-3" /> Export Evidence
             </button>
-            <button onClick={() => onLifecycleAction(prompt.id, 'clone')} className="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-white hover:border-slate-600 transition-all flex items-center gap-1.5">
+            <button onClick={() => onLifecycleAction(prompt.id, 'clone')} className="px-4 py-2 bg-surface border border-border text-foreground/70 text-[10px] font-black uppercase tracking-widest rounded-lg hover:text-foreground hover:border-slate-600 transition-all flex items-center gap-1.5">
               <GitBranch className="w-3 h-3" /> Clone to Draft
             </button>
           </div>
@@ -2821,10 +2821,10 @@ export default function PromptsPage() {
   ];
 
   return (
-    <div className="p-6 xl:p-8 max-w-screen-2xl mx-auto space-y-8 pb-32 bg-black min-h-screen">
+    <div className="p-6 xl:p-8 max-w-screen-2xl mx-auto space-y-8 pb-32 bg-background min-h-screen">
 
       {/* Header */}
-      <div className="relative overflow-hidden bg-slate-950 border border-info-border rounded-[3rem] p-10 xl:p-14 shadow-[0_0_80px_rgba(99,102,241,0.1)]">
+      <div className="relative overflow-hidden bg-background border border-info-border rounded-[3rem] p-10 xl:p-14 shadow-[0_0_80px_rgba(99,102,241,0.1)]">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-info-bg blur-[150px] rounded-full -mr-60 -mt-60" />
         <div className="relative z-10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-8">
           <div className="space-y-4 max-w-2xl">
@@ -2835,14 +2835,14 @@ export default function PromptsPage() {
             <h1 className="text-5xl xl:text-6xl font-black text-foreground tracking-tighter leading-none">
               Prompt <span className="text-transparent bg-clip-text bg-gradient-to-r from-info-text to-error-text italic">Governance.</span>
             </h1>
-            <p className="text-base text-slate-400 leading-relaxed font-medium">
+            <p className="text-base text-foreground/70 leading-relaxed font-medium">
               The governed instruction lifecycle system. Create, test, approve, deploy, monitor, rollback, and evidence every prompt used by agents, workflows, tools, and knowledge-grounded tasks inside ZoikoVertex.
             </p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleAuditExport}
-              className="px-6 py-3 bg-slate-900 border border-slate-800 hover:border-slate-600 text-slate-300 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-surface border border-border hover:border-slate-600 text-foreground hover:text-foreground rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
               Audit Export
@@ -2879,13 +2879,13 @@ export default function PromptsPage() {
               key={stat.label}
               type="button"
               onClick={() => { stat.apply(); if (stat.label !== "HITL Rules") setActiveTab("registry"); }}
-              className="text-left bg-slate-950 border border-slate-900 rounded-2xl p-5 hover:border-info-border transition-all cursor-pointer focus:outline-none focus:border-info-border/50"
+              className="text-left bg-background border border-border rounded-2xl p-5 hover:border-info-border transition-all cursor-pointer focus:outline-none focus:border-info-border/50"
             >
               <div className="flex items-center justify-between mb-3">
                 <Icon className={`w-4 h-4 ${stat.color}`} />
                 <div className={`text-2xl font-black ${stat.color}`}>{stat.value}</div>
               </div>
-              <div className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-600">{stat.label}</div>
+              <div className="text-[9px] font-black uppercase tracking-[0.25em] text-foreground-muted">{stat.label}</div>
             </button>
           );
         })}
@@ -2902,7 +2902,7 @@ export default function PromptsPage() {
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${
                 activeTab === tab.id
                   ? "bg-info-bg text-info-text border border-info-border"
-                  : "text-slate-500 hover:text-slate-300 hover:bg-slate-900"
+                  : "text-foreground-muted hover:text-foreground hover:bg-surface"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -2913,7 +2913,7 @@ export default function PromptsPage() {
       </div>
 
       {/* Tab content */}
-      <div className="bg-[#050505] border border-slate-900 rounded-[2.5rem] p-8 shadow-2xl">
+      <div className="bg-background border border-border rounded-[2.5rem] p-8 shadow-2xl">
         {activeTab === "registry" && (
           <RegistryTab
             prompts={prompts}

@@ -46,7 +46,7 @@ export default function PrivacyDataPage() {
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+        <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
           <Eye className="w-8 h-8 text-info-text" />
           Privacy &amp; Data
         </h1>
@@ -65,7 +65,7 @@ export default function PrivacyDataPage() {
       {/* Data Export */}
       <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-zinc-800">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Data Export</h2>
+          <h2 className="text-lg font-bold text-foreground">Data Export</h2>
           <p className="text-gray-500 dark:text-zinc-500 text-sm mt-0.5">
             Download a full export of your workspace data — members, accounts, and audit trail.
           </p>
@@ -100,7 +100,7 @@ export default function PrivacyDataPage() {
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="flex items-center gap-2 px-6 py-3 bg-info-text hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 dark:text-white font-bold rounded-xl transition-all"
+            className="flex items-center gap-2 px-6 py-3 bg-info-text hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-all"
           >
             {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             {exporting ? "Exporting…" : "Export Workspace Data"}
@@ -111,7 +111,7 @@ export default function PrivacyDataPage() {
       {/* Data Retention */}
       <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-zinc-800">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">Data Retention Policy</h2>
+          <h2 className="text-lg font-bold text-foreground">Data Retention Policy</h2>
         </div>
         <div className="divide-y divide-gray-200 dark:divide-zinc-800">
           {[
@@ -122,7 +122,7 @@ export default function PrivacyDataPage() {
           ].map(({ label, value, desc }) => (
             <div key={label} className="px-6 py-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{label}</p>
+                <p className="text-sm font-medium text-foreground">{label}</p>
                 <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">{desc}</p>
               </div>
               <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300">{value}</span>
@@ -133,7 +133,7 @@ export default function PrivacyDataPage() {
 
       {/* Compliance */}
       <div className="bg-white dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-3xl p-6">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Compliance &amp; Privacy</h2>
+        <h2 className="text-lg font-bold text-foreground mb-4">Compliance &amp; Privacy</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
             { title: "GDPR Compliant",     desc: "Data processed in accordance with EU regulations",   active: true,  action: null },
@@ -149,7 +149,7 @@ export default function PrivacyDataPage() {
                 }
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-gray-900 dark:text-white">{title}</p>
+                <p className="text-sm font-bold text-foreground">{title}</p>
                 <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">{desc}</p>
               </div>
               {action && (

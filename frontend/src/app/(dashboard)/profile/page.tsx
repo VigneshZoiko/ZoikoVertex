@@ -309,7 +309,7 @@ export default function ProfilePage() {
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-8 h-8 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-info-border/20 border-t-indigo-500 rounded-full animate-spin" />
     </div>
   );
 
@@ -319,8 +319,8 @@ export default function ProfilePage() {
       {toast && (
         <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border animate-in slide-in-from-right-4 duration-300 ${
           toast.type === "success"
-            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-            : "bg-rose-500/10 border-rose-500/30 text-rose-400"
+            ? "bg-success-text/10 border-success-border/30 text-success-text"
+            : "bg-error-text/10 border-error-border/30 text-error-text"
         }`}>
           {toast.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
           <p className="text-sm font-medium">{toast.msg}</p>
@@ -342,7 +342,7 @@ export default function ProfilePage() {
           >
             {t.label}
             {tab === t.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-indigo-500 rounded-full animate-tab-line" />
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-info-text rounded-full animate-tab-line" />
             )}
           </button>
         ))}
@@ -374,7 +374,7 @@ export default function ProfilePage() {
                   type="text"
                   value={profile.full_name}
                   onChange={e => setProfile(p => ({ ...p, full_name: e.target.value }))}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-info-border transition-colors"
                   placeholder="Vignesh"
                 />
               </div>
@@ -398,7 +398,7 @@ export default function ProfilePage() {
                   type="tel"
                   value={profile.phone_number}
                   onChange={e => setProfile(p => ({ ...p, phone_number: e.target.value }))}
-                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-info-border transition-colors"
                   placeholder="+1 555 123 4567"
                 />
               </div>
@@ -456,7 +456,7 @@ export default function ProfilePage() {
                     type="password"
                     value={pwForm.current}
                     onChange={e => setPwForm(p => ({ ...p, current: e.target.value }))}
-                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-indigo-500 transition-colors"
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-info-border transition-colors"
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -466,7 +466,7 @@ export default function ProfilePage() {
                       type="password"
                       value={pwForm.newPw}
                       onChange={e => setPwForm(p => ({ ...p, newPw: e.target.value }))}
-                      className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-info-border transition-colors"
                     />
                     <p className="text-xs text-[var(--foreground-muted)] mt-1.5">At least 8 characters, with both letters and numbers.</p>
                   </div>
@@ -476,7 +476,7 @@ export default function ProfilePage() {
                       type="password"
                       value={pwForm.confirm}
                       onChange={e => setPwForm(p => ({ ...p, confirm: e.target.value }))}
-                      className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-info-border transition-colors"
                     />
                   </div>
                 </div>
@@ -485,7 +485,7 @@ export default function ProfilePage() {
                   <button
                     onClick={changePassword}
                     disabled={pwSaving}
-                    className="px-6 py-2.5 bg-[#8b949e] hover:bg-indigo-500 text-foreground text-sm font-bold rounded-lg transition-all active:scale-95 shadow-sm"
+                    className="px-6 py-2.5 bg-[#8b949e] hover:bg-info-text text-foreground text-sm font-bold rounded-lg transition-all active:scale-95 shadow-sm"
                   >
                     {pwSaving ? "Updating..." : "Update Password"}
                   </button>
@@ -505,13 +505,13 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={signOutAll}
-                  className="text-xs font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-3 py-2 rounded-lg border border-rose-500/20 transition-all"
+                  className="text-xs font-bold text-error-text hover:text-error-text hover:bg-error-text/10 px-3 py-2 rounded-lg border border-error-border/20 transition-all"
                 >
                   Sign Out All
                 </button>
                 <button
                   onClick={loadAccessLogs}
-                  className="text-sm font-bold text-[var(--foreground)] hover:text-indigo-400 transition-colors border border-[var(--border)] px-4 py-2 rounded-lg bg-[var(--surface)]"
+                  className="text-sm font-bold text-[var(--foreground)] hover:text-info-text transition-colors border border-[var(--border)] px-4 py-2 rounded-lg bg-[var(--surface)]"
                 >
                   Refresh list
                 </button>
@@ -519,7 +519,7 @@ export default function ProfilePage() {
             </div>
             <div className="divide-y divide-[var(--border)]">
               {logsLoading ? (
-                <div className="p-8 flex justify-center"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
+                <div className="p-8 flex justify-center"><div className="w-6 h-6 border-2 border-info-border border-t-transparent rounded-full animate-spin" /></div>
               ) : (
                 <>
                   {/* Always show current device first */}
@@ -534,7 +534,7 @@ export default function ProfilePage() {
                           <div>
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-bold text-[var(--foreground)]">{label}</p>
-                              <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full uppercase tracking-tight">Active Now</span>
+                              <span className="text-[10px] font-black bg-success-text/10 text-success-text px-2 py-0.5 rounded-full uppercase tracking-tight">Active Now</span>
                             </div>
                             <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
                               {locLoading
@@ -572,7 +572,7 @@ export default function ProfilePage() {
                         </div>
                         <button
                           onClick={() => removeLog(session.id)}
-                          className="text-xs font-semibold text-[var(--foreground-muted)] hover:text-rose-400 hover:bg-rose-500/10 px-3 py-1.5 rounded-lg border border-transparent hover:border-rose-500/20 transition-all opacity-0 group-hover:opacity-100"
+                          className="text-xs font-semibold text-[var(--foreground-muted)] hover:text-error-text hover:bg-error-text/10 px-3 py-1.5 rounded-lg border border-transparent hover:border-error-border/20 transition-all opacity-0 group-hover:opacity-100"
                         >
                           Remove
                         </button>
@@ -595,14 +595,14 @@ export default function ProfilePage() {
           </div>
           <div className="p-0 divide-y divide-[var(--border)]">
             {logsLoading ? (
-              <div className="p-12 flex justify-center"><div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
+              <div className="p-12 flex justify-center"><div className="w-6 h-6 border-2 border-info-border border-t-transparent rounded-full animate-spin" /></div>
             ) : accessLogs.length === 0 ? (
               <div className="p-12 text-center text-[var(--foreground-muted)]">No activity recorded yet.</div>
             ) : (
               accessLogs.map(log => (
                 <div key={log.id} className="px-8 py-6 flex items-start justify-between hover:bg-[var(--surface)]/30 transition-all group">
                   <div className="flex items-start gap-4">
-                    <div className="w-2 h-2 rounded-full bg-indigo-500 mt-2.5 shrink-0" />
+                    <div className="w-2 h-2 rounded-full bg-info-text mt-2.5 shrink-0" />
                     <div>
                       <p className="text-base font-bold text-[var(--foreground)] capitalize">{log.action.replace(/_/g, " ")}</p>
                       <p className="text-sm text-[var(--foreground-muted)] mt-1 font-medium flex items-center gap-1.5 flex-wrap">

@@ -26,7 +26,7 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
       <h2 className="text-lg font-bold text-[var(--foreground)] mb-4">Media Assets</h2>
 
       {!mediaPreview ? (
-        <label className="w-full h-48 border-2 border-dashed border-[var(--border)] hover:border-indigo-500 hover:bg-indigo-500/5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors">
+        <label className="w-full h-48 border-2 border-dashed border-[var(--border)] hover:border-info-border hover:bg-info-bg rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors">
           <div className="flex items-center gap-4 mb-2">
             <ImageIcon className="w-6 h-6 text-[var(--foreground-muted)]" />
             <Video className="w-6 h-6 text-[var(--foreground-muted)]" />
@@ -44,7 +44,7 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
           )}
           <button
             onClick={onClear}
-            className="absolute top-3 right-3 bg-card/80 hover:bg-rose-500 text-foreground p-2 rounded-xl backdrop-blur-md transition-all border border-white/10"
+            className="absolute top-3 right-3 bg-card/80 hover:brightness-110 text-foreground p-2 rounded-xl backdrop-blur-md transition-all border border-white/10"
             title="Remove Media"
           >
             <X className="w-4 h-4" />

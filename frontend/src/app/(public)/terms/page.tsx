@@ -237,7 +237,7 @@ export default function TermsPage() {
 
         {/* Title */}
         <div className="mb-12">
-          <p className="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-3">Legal</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-info-text mb-3">Legal</p>
           <h1 className="text-4xl font-black tracking-tight text-white mb-4">Terms of Service</h1>
           <p className="text-white/50 text-sm">
             Last updated: <span className="text-white/70">May 2025</span>
@@ -263,7 +263,7 @@ export default function TermsPage() {
                         if (isBullet) {
                           return (
                             <div key={j} className="flex gap-2 mt-1">
-                              <span className="text-indigo-400 shrink-0 mt-px">—</span>
+                              <span className="text-info-text shrink-0 mt-px">—</span>
                               <span>{line.slice(2).replace(/\*\*(.*?)\*\*/g, "$1")}</span>
                             </div>
                           );
@@ -292,10 +292,10 @@ export default function TermsPage() {
         </div>
 
         {/* Footer note */}
-        <div className="mt-16 p-6 bg-indigo-500/5 border border-indigo-500/20 rounded-2xl text-center">
+        <div className="mt-16 p-6 bg-info-text/5 border border-info-border/20 rounded-2xl text-center">
           <p className="text-sm text-white/50">
             These Terms apply to the ZoikoVertex platform available at{" "}
-            <span className="text-indigo-400">zoikovertex.com</span> and any associated subdomains or services operated by Zoiko Group.
+            <span className="text-info-text">zoikovertex.com</span> and any associated subdomains or services operated by Zoiko Group.
           </p>
         </div>
       </main>

@@ -61,8 +61,8 @@ interface WorkspaceSettings {
 const PLAN_COLORS: Record<string, string> = {
   FREE:       "text-slate-400 bg-slate-400/10 border-slate-400/20",
   STARTER:    "text-slate-400 bg-slate-400/10 border-slate-400/20",
-  GROWTH:     "text-indigo-400 bg-indigo-400/10 border-indigo-400/20",
-  ENTERPRISE: "text-amber-400 bg-amber-400/10 border-amber-400/20",
+  GROWTH:     "text-info-text bg-info-bg border-info-border",
+  ENTERPRISE: "text-warning-text bg-warning-bg border-warning-border",
 };
 
 export default function WorkspaceSettingsPage() {
@@ -128,7 +128,7 @@ export default function WorkspaceSettingsPage() {
   if (loading) {
     return (
       <div className="p-8 max-w-4xl mx-auto flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+        <Loader2 className="w-8 h-8 animate-spin text-info-text" />
       </div>
     );
   }
@@ -141,7 +141,7 @@ export default function WorkspaceSettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
-            <Sliders className="w-8 h-8 text-indigo-500" />
+            <Sliders className="w-8 h-8 text-info-text" />
             Workspace Settings
           </h1>
           <p className="text-foreground-muted mt-1 text-sm">Manage your workspace configuration and identity.</p>
@@ -156,7 +156,7 @@ export default function WorkspaceSettingsPage() {
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm">
+        <div className="flex items-center gap-2 p-4 bg-error-bg border border-error-border rounded-xl text-error-text text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
         </div>
@@ -166,8 +166,8 @@ export default function WorkspaceSettingsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Plan",     value: planKey,                                                            icon: Building2, color: planColor },
-          { label: "Members",  value: settings?.member_count ?? 0,                                        icon: Users,     color: "text-indigo-400 bg-indigo-400/10 border-indigo-400/20" },
-          { label: "Accounts", value: settings?.account_count ?? 0,                                       icon: Link2,     color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20" },
+          { label: "Members",  value: settings?.member_count ?? 0,                                        icon: Users,     color: "text-info-text bg-info-text/10 border-info-border/20" },
+          { label: "Accounts", value: settings?.account_count ?? 0,                                       icon: Link2,     color: "text-success-text bg-success-bg border-success-border" },
           { label: "Created",  value: settings?.created_at ? new Date(settings.created_at).toLocaleDateString() : "—", icon: Calendar,  color: "text-foreground-muted bg-zinc-400/10 border-zinc-400/20" },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="p-4 bg-card border border-border rounded-2xl">
@@ -194,7 +194,7 @@ export default function WorkspaceSettingsPage() {
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSave()}
-              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-info-border transition-colors"
               placeholder="Your workspace name"
               minLength={2}
               maxLength={100}
@@ -213,18 +213,18 @@ export default function WorkspaceSettingsPage() {
             <button
               onClick={handleSave}
               disabled={saving || !(name ?? "").trim() || (name ?? "").trim() === (settings?.name ?? "")}
-              className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-all"
+              className="flex items-center gap-2 px-6 py-3 bg-info-text hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed text-foreground font-bold rounded-xl transition-all"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Changes
             </button>
             {saveStatus === "success" && (
-              <span className="flex items-center gap-1.5 text-emerald-400 text-sm font-medium animate-in fade-in duration-300">
+              <span className="flex items-center gap-1.5 text-success-text text-sm font-medium animate-in fade-in duration-300">
                 <CheckCircle2 className="w-4 h-4" /> Saved
               </span>
             )}
             {saveStatus === "error" && (
-              <span className="flex items-center gap-1.5 text-rose-400 text-sm font-medium">
+              <span className="flex items-center gap-1.5 text-error-text text-sm font-medium">
                 <AlertCircle className="w-4 h-4" /> Failed to save
               </span>
             )}
@@ -236,7 +236,7 @@ export default function WorkspaceSettingsPage() {
       <div className="bg-card border border-border rounded-3xl overflow-hidden">
         <div className="p-6 border-b border-border">
           <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <Bell className="w-5 h-5 text-indigo-400" />
+            <Bell className="w-5 h-5 text-info-text" />
             Notification Preferences
           </h2>
           <p className="text-foreground-muted text-sm mt-0.5">Control which alerts you receive in-app.</p>
@@ -259,7 +259,7 @@ export default function WorkspaceSettingsPage() {
               <button
                 onClick={() => handleNotifToggle(key)}
                 className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
-                  notifPrefs[key] ? "bg-indigo-500" : "bg-surface-hover"
+                  notifPrefs[key] ? "bg-info-text" : "bg-surface-hover"
                 }`}
                 role="switch"
                 aria-checked={notifPrefs[key]}
@@ -274,7 +274,7 @@ export default function WorkspaceSettingsPage() {
           ))}
         </div>
         {notifSaved && (
-          <div className="px-6 py-3 border-t border-border flex items-center gap-1.5 text-emerald-400 text-sm font-medium animate-in fade-in duration-300">
+          <div className="px-6 py-3 border-t border-border flex items-center gap-1.5 text-success-text text-sm font-medium animate-in fade-in duration-300">
             <CheckCircle2 className="w-4 h-4" /> Preferences saved
           </div>
         )}
@@ -284,7 +284,7 @@ export default function WorkspaceSettingsPage() {
       <div className="bg-card border border-border rounded-3xl overflow-hidden">
         <div className="p-6 border-b border-border">
           <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <PanelLeftClose className="w-5 h-5 text-indigo-400" />
+            <PanelLeftClose className="w-5 h-5 text-info-text" />
             Interface Preferences
           </h2>
           <p className="text-foreground-muted text-sm mt-0.5">Customise your workspace layout and display behaviour.</p>
@@ -300,7 +300,7 @@ export default function WorkspaceSettingsPage() {
             <button
               onClick={() => setCollapse(!collapseEnabled)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
-                collapseEnabled ? "bg-indigo-500" : "bg-surface-hover"
+                collapseEnabled ? "bg-info-text" : "bg-surface-hover"
               }`}
               role="switch"
               aria-checked={collapseEnabled}

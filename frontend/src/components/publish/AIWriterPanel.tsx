@@ -48,14 +48,14 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
             <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground-muted)]">Post Topic / Story Detail</label>
             {isAnalyzing ? (
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--foreground-muted)] animate-pulse">
-                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping" />
+                <div className="w-2 h-2 bg-info-text rounded-full animate-ping" />
                 Analyzing Image...
               </div>
             ) : hasImageAnalysis && (
               <button 
                 type="button"
                 onClick={onAddImageInsight}
-                className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 hover:text-indigo-300 transition-colors bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20"
+                className="text-[10px] font-bold uppercase tracking-widest text-info-text hover:text-info-text transition-colors bg-info-bg px-3 py-1 rounded-full border border-info-border"
               >
                 + Add AI Image Insight
               </button>
@@ -64,7 +64,7 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
           <textarea 
             value={topic} onChange={(e) => onTopicChange(e.target.value)}
             placeholder="Describe your story in detail. Add up to 5+ lines for better AI context..."
-            className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-4 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm min-h-[140px] resize-none"
+            className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-4 text-[var(--foreground)] focus:outline-none focus:border-info-border text-sm min-h-[140px] resize-none"
           />
         </div>
         
@@ -73,7 +73,7 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
             <label className="text-xs font-black uppercase tracking-widest text-[var(--foreground-muted)]">Content Category</label>
             <select 
               value={contentType} onChange={(e) => onContentTypeChange(e.target.value)}
-              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--foreground)] focus:outline-none focus:border-indigo-500 text-sm outline-none"
+              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--foreground)] focus:outline-none focus:border-info-border text-sm outline-none"
             >
               <option value="Entertainment">Entertainment</option>
               <option value="Education">Education</option>
@@ -103,7 +103,7 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
           <select 
             value={styleMode} 
             onChange={(e) => onStyleModeChange(e.target.value)} 
-            className="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-foreground text-xs outline-none focus:border-indigo-500"
+            className="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-foreground text-xs outline-none focus:border-info-border"
           >
             <option value="">Standard</option>
             <option value="MrBeast">MrBeast (Viral)</option>
@@ -120,7 +120,7 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
           <select 
             value={aiTone} 
             onChange={(e) => onAiToneChange(e.target.value)} 
-            className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-2.5 text-[var(--foreground)] text-xs outline-none focus:border-indigo-500"
+            className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-2.5 text-[var(--foreground)] text-xs outline-none focus:border-info-border"
           >
             <option value="professional">Professional</option>
             <option value="casual">Casual</option>
@@ -134,7 +134,7 @@ const AIWriterPanel: React.FC<AIWriterPanelProps> = ({
         <div>
           <button 
             onClick={onGenerate} disabled={generating || !topic}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-foreground font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-info-text hover:brightness-110 text-foreground font-bold rounded-xl transition-all shadow-lg shadow-info-text/20 disabled:opacity-50 text-sm flex items-center justify-center gap-2"
           >
             {generating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
             Generate Magic

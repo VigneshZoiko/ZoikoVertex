@@ -41,19 +41,19 @@ function LoginForm() {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (!isSupabaseReady) return;
+    if (!isSupabaseReady) { setChecking(false); return; }
     supabase.auth.getSession().then(({ data: { session } }) => {
+      setChecking(false);
       if (session) {
         const next = searchParams.get("next");
         router.replace(next && next.startsWith("/") ? next : "/dashboard");
       }
-    }).catch((err: any) => {
-      if (err?.message?.includes?.("Invalid Refresh Token") || err?.message?.includes?.("Refresh Token Not Found")) {
-        supabase.auth.signOut();
-        setError("Your session has expired. Please sign in again.");
-      }
+    }).catch(() => {
+      setChecking(false);
+      supabase.auth.signOut();
     });
   }, [router, searchParams]);
 
