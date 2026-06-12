@@ -197,7 +197,7 @@ export const generateContent = async (req: AuthRequest, res: Response, next: Nex
 
     if (!env.GROQ_API_KEY) {
       logger.error('[Intelligence] GROQ_API_KEY missing');
-      return fallbackMock(topic, contentType, tone, length, res);
+      return res.status(503).json({ success: false, error: 'AI service unavailable — GROQ_API_KEY not configured' });
     }
 
     const groq = new OpenAI({
@@ -430,14 +430,4 @@ const formatTimes = (hours: SuggestedHour[]) => {
   }));
 };
 
-const fallbackMock = (topic: string, contentType: string, tone: string, length: string, res: Response) => {
-  logger.warn('[Intelligence] Fallback mock used');
-  const tonePrefix = "Update on";
-  const baseDescription = `${tonePrefix} ${topic}. ${contentType} is evolving fast.`;
 
-  res.status(200).json({
-    success: true,
-    description: baseDescription,
-    suggestedTimes: []
-  });
-};

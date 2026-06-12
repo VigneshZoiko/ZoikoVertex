@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'crypto';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type AnchorProvider = 'ethereum' | 'opentimestamps' | 'mock';
+export type AnchorProvider = 'ethereum' | 'opentimestamps';
 export type AnchorStatus = 'pending' | 'submitted' | 'confirmed' | 'failed';
 
 export interface AnchorSubmission {
@@ -33,18 +33,16 @@ const PROVIDER_CONFIG: Record<AnchorProvider, {
     block_time_ms: 1000,
     tx_prefix: 'ots:',
   },
-  mock: {
-    name: 'Mock Provider',
-    block_time_ms: 500,
-    tx_prefix: 'MOCK-',
-  },
 };
 
 // ─── External Anchor Submission ──────────────────────────────────────────────
 
+const DEFAULT_ANCHOR_PROVIDER: AnchorProvider =
+  (process.env.ANCHOR_PROVIDER as AnchorProvider) || 'ethereum';
+
 export async function submitAnchor(
   contentHash: string,
-  provider: AnchorProvider = 'mock',
+  provider: AnchorProvider = DEFAULT_ANCHOR_PROVIDER,
   metadata?: Record<string, unknown>
 ): Promise<AnchorSubmission> {
   const config = PROVIDER_CONFIG[provider];
@@ -69,8 +67,8 @@ export async function submitAnchor(
       provider_name: config.name,
       transaction_hash: txHash,
       block_height: blockHeight,
-      network: provider === 'ethereum' ? 'sepolia' : provider === 'opentimestamps' ? 'btc' : 'mock',
-      confirmations_required: provider === 'mock' ? 1 : 12,
+      network: provider === 'ethereum' ? 'sepolia' : 'btc',
+      confirmations_required: 12,
       ...(metadata || {}),
     },
   };
