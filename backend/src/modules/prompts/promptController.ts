@@ -3712,27 +3712,4 @@ export class PromptController {
     }
   }
 
-  // ─── Test Center — Classify post description through the governance pipeline ──
-  static async classifyTestDescription(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const { description, platform } = req.body || {};
-      if (!description || !description.trim()) {
-        return res.status(400).json({ success: false, error: 'description is required' });
-      }
-      const workspaceId = await PromptController.resolveWorkspaceId(req);
-      if (!workspaceId) {
-        return res.status(400).json({ success: false, error: 'Workspace context required' });
-      }
-
-      const result = await PostGovernanceService.classify(
-        description.trim(),
-        platform || 'linkedin',
-        workspaceId,
-      );
-
-      res.json({ success: true, data: result });
-    } catch (error) {
-      next(error);
-    }
-  }
 }
