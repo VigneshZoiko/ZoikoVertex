@@ -155,7 +155,7 @@ export default function DashboardLayout({
   return (
     <NotificationProvider>
       <DraftGuardProvider>
-        <div className="bg-[var(--background)] text-[var(--foreground)] h-full overflow-hidden flex transition-colors">
+        <div className="bg-[var(--background)] text-[var(--foreground)] h-screen overflow-hidden flex transition-colors">
           <div className={`shrink-0 transition-all duration-200 ${sidebarCollapseEnabled ? 'w-16' : 'w-64'} ${isSuspended ? 'opacity-20 pointer-events-none select-none' : ''}`}>
             <Sidebar />
           </div>
