@@ -694,7 +694,7 @@ export default function Sidebar() {
         onMouseLeave={() => collapseEnabled && setIsHovered(false)}
         style={{ width: isCollapsed ? "4rem" : "16rem" }}
         className={`
-          bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col h-screen overflow-hidden
+          bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col h-full overflow-hidden
           transition-[width] duration-300 ease-in-out
           ${collapseEnabled && isHovered ? "absolute left-0 top-0 z-50 shadow-2xl shadow-black/40" : "relative"}
         `}
