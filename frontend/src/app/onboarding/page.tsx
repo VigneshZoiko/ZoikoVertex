@@ -398,7 +398,8 @@ export default function OnboardingPage() {
       });
 
       if (!res.success) {
-        setError(res.data?.error || res.error || "Something went wrong. Please try again.");
+        const errMsg = typeof res.data?.error === 'object' ? res.data.error.message : res.data?.error;
+        setError(errMsg || res.error || "Something went wrong. Please try again.");
         return;
       }
 
