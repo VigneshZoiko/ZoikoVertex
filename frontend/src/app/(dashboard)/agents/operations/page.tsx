@@ -524,7 +524,7 @@ function RunDetailDrawer({
               )}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-surface-hover rounded-xl text-foreground-muted hover:text-white ml-4 shrink-0">
+          <button onClick={onClose} className="p-2 hover:bg-surface-hover rounded-xl text-foreground-muted hover:text-foreground ml-4 shrink-0">
             <XCircle className="w-5 h-5" />
           </button>
         </div>
@@ -1705,7 +1705,7 @@ export default function AgentOperationsPage() {
                 onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
                 aria-label={`Sort direction: ${sortDir === "asc" ? "ascending" : "descending"}`}
                 title={sortDir === "asc" ? "Ascending" : "Descending"}
-                className="bg-card border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground-muted hover:text-white hover:border-border transition-colors"
+                className="bg-card border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground-muted hover:text-foreground hover:border-border transition-colors"
               >
                 {sortDir === "asc" ? "↑" : "↓"}
               </button>
@@ -1727,7 +1727,7 @@ export default function AgentOperationsPage() {
                   className="bg-card border border-border rounded-lg px-2 py-1 text-xs text-foreground-muted focus:outline-none focus:border-border"
                 />
                 {(dateFrom || dateTo) && (
-                  <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-foreground-muted hover:text-white" aria-label="Clear date range" title="Clear dates">✕</button>
+                  <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-foreground-muted hover:text-foreground" aria-label="Clear date range" title="Clear dates">✕</button>
                 )}
               </div>
               {/* Saved operational views */}
@@ -1745,7 +1745,7 @@ export default function AgentOperationsPage() {
               <button
                 onClick={saveCurrentView}
                 title="Save current filters as a view"
-                className="bg-card border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground-muted hover:text-white hover:border-border transition-colors"
+                className="bg-card border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground-muted hover:text-foreground hover:border-border transition-colors"
               >
                 Save view
               </button>
@@ -1761,7 +1761,7 @@ export default function AgentOperationsPage() {
               <button
                 onClick={handleExportFilteredRuns}
                 title="Export the currently filtered runs to CSV"
-                className="flex items-center gap-1.5 bg-card border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground-muted hover:text-white hover:border-border transition-colors"
+                className="flex items-center gap-1.5 bg-card border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground-muted hover:text-foreground hover:border-border transition-colors"
               >
                 <Download className="w-3.5 h-3.5" /> Export
               </button>
@@ -1783,9 +1783,9 @@ export default function AgentOperationsPage() {
               <p className="text-emerald-400 font-semibold mb-1">No Active Runs</p>
               <p className="text-foreground-muted text-sm mb-4">Agent operations are clear. No runs match the current filter.</p>
               <div className="flex items-center justify-center gap-3 flex-wrap">
-                <button onClick={() => setStatusFilter("SCHEDULED")} className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-white hover:border-border transition-colors flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" />Scheduled Runs</button>
-                <a href="/agents/studio" className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-white hover:border-border transition-colors flex items-center gap-1.5"><Bot className="w-3.5 h-3.5" />Agent Catalog</a>
-                <button onClick={() => setStatusFilter("COMPLETED")} className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-white hover:border-border transition-colors flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" />Recent Completed</button>
+                <button onClick={() => setStatusFilter("SCHEDULED")} className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-foreground hover:border-border transition-colors flex items-center gap-1.5"><CalendarRange className="w-3.5 h-3.5" />Scheduled Runs</button>
+                <a href="/agents/studio" className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-foreground hover:border-border transition-colors flex items-center gap-1.5"><Bot className="w-3.5 h-3.5" />Agent Catalog</a>
+                <button onClick={() => setStatusFilter("COMPLETED")} className="text-xs px-3 py-1.5 border border-border rounded-xl text-foreground-muted hover:text-foreground hover:border-border transition-colors flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" />Recent Completed</button>
               </div>
             </div>
           ) : viewMode === "list" ? (
@@ -1949,7 +1949,7 @@ export default function AgentOperationsPage() {
                 <button
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="px-3 py-1.5 bg-card border border-border rounded-xl text-xs text-foreground-muted hover:text-white hover:border-border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 bg-card border border-border rounded-xl text-xs text-foreground-muted hover:text-foreground hover:border-border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -1957,7 +1957,7 @@ export default function AgentOperationsPage() {
                 <button
                   onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
                   disabled={page + 1 >= totalPages}
-                  className="px-3 py-1.5 bg-card border border-border rounded-xl text-xs text-foreground-muted hover:text-white hover:border-border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 bg-card border border-border rounded-xl text-xs text-foreground-muted hover:text-foreground hover:border-border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -1982,7 +1982,7 @@ export default function AgentOperationsPage() {
           <div className="flex items-center gap-1.5 mb-4 overflow-x-auto">
             <button
               onClick={() => setQueueTypeFilter("ALL")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === "ALL" ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-card text-foreground-muted border-border hover:text-white"}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === "ALL" ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-card text-foreground-muted border-border hover:text-foreground"}`}
             >
               All <span className="ml-1 text-[10px] opacity-70">{queues.length}</span>
             </button>
@@ -1992,7 +1992,7 @@ export default function AgentOperationsPage() {
                 <button
                   key={qt}
                   onClick={() => setQueueTypeFilter(qt)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === qt ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-card text-foreground-muted border-border hover:text-white"}`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${queueTypeFilter === qt ? "bg-indigo-500/15 text-indigo-400 border-indigo-500/25" : "bg-card text-foreground-muted border-border hover:text-foreground"}`}
                 >
                   {qt.replace(/_/g, " ")} <span className="ml-1 text-[10px] opacity-70">{count}</span>
                 </button>

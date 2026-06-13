@@ -44,7 +44,7 @@ interface NKS {
 
 const LEVEL_CONFIG: Record<Level, { name: string; color: string; bg: string; border: string; dot: string; minTrust: number }> = {
   L0: { name: "Disabled",                     color: "text-[#555]",     bg: "bg-[#333]/20",      border: "border-[#444]",      dot: "bg-[#555]",     minTrust: 0  },
-  L1: { name: "Assistive",                     color: "text-foreground-muted",   bg: "bg-zinc-500/10",    border: "border-zinc-500/30", dot: "bg-zinc-400",   minTrust: 0  },
+  L1: { name: "Assistive",                     color: "text-foreground-muted",   bg: "bg-surface",    border: "border-border", dot: "bg-foreground-muted",   minTrust: 0  },
   L2: { name: "Creative",                      color: "text-info-text",   bg: "bg-info-bg",    border: "border-info-border", dot: "bg-blue-400",   minTrust: 0  },
   L3: { name: "Guided",                        color: "text-warning-text",  bg: "bg-warning-bg",   border: "border-warning-border",dot: "bg-warning-text",  minTrust: 60 },
   L4: { name: "Validated",                     color: "text-success-text",bg: "bg-success-bg", border: "border-success-border",dot:"bg-success-text",minTrust: 70 },
