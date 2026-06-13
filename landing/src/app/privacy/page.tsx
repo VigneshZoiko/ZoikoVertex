@@ -189,6 +189,47 @@ function Body({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-[14.5px] text-gray-700 leading-[1.75]">{children}</p>;
 }
 
+/* ── FAQ accordion ──────────────────────────────────────────────── */
+const FAQ_ITEMS = [
+  { q: "What personal information does ZoikoVertex collect?", a: "We collect account information (name, email, job title, company), workspace and profile data, usage and activity data, customer content (drafts, approvals, audit logs), communications, billing details, integration data, and cookie/tracking data. See Section 2 for the full category table." },
+  { q: "How does ZoikoVertex use personal information?", a: "Primarily to provide, operate, and improve the platform; manage user accounts and workspaces; authenticate users; enable marketing workflow features; provide support; process billing; analyze performance; detect security incidents; and comply with legal obligations." },
+  { q: "Does ZoikoVertex use AI with customer content?", a: "ZoikoVertex supports AI-assisted marketing workflows. The specific inputs processed, storage practices, third-party AI providers, and admin controls are documented in Section 4. Details are subject to product confirmation before final publication." },
+  { q: "Does ZoikoVertex sell or share personal information?", a: "ZoikoVertex does not sell personal information for monetary consideration. Whether sharing with advertising and analytics vendors constitutes 'selling' or 'sharing' under U.S. state law is subject to legal review. See Sections 8 and 13." },
+  { q: "Can users manage cookies?", a: "Yes. Non-essential cookies — including analytics and marketing cookies — can be managed via the Cookie Preferences centre. Strictly necessary cookies cannot be disabled as they are required for platform operation." },
+  { q: "How long does ZoikoVertex retain personal information?", a: "Retention periods vary by data type: active account data is kept during the subscription and a reasonable period after closure; billing records are held for 7 years; audit logs for at least 12 months; support records typically 3 years. See Section 10." },
+  { q: "Can users request access, deletion, or correction?", a: "Yes. Depending on your location you may have rights to access, correct, delete, port, restrict, or object to processing of your personal information. Submit requests to privacy@zoikogroup.com. We respond within 30 days (45 days where permitted)." },
+  { q: "How does the Privacy Policy relate to the Data Processing Addendum?", a: "This Privacy Policy covers ZoikoVertex's own processing of personal data. The DPA covers ZoikoVertex's processing of personal data on behalf of enterprise customers inside their workspaces. Both documents apply in enterprise relationships." },
+];
+
+function FaqSection() {
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
+  return (
+    <div className="mt-2">
+      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">FAQ</p>
+      <h3 className="text-[20px] font-black text-gray-900 mb-1">Frequently Asked Privacy Questions</h3>
+      <p className="text-[13.5px] text-gray-500 mb-5">Quick answers for the most common questions about ZoikoVertex data privacy.</p>
+      <div className="border border-gray-100 rounded-xl overflow-hidden">
+        {FAQ_ITEMS.map(({ q, a }, i) => (
+          <div key={q} className="border-b border-gray-100 last:border-b-0">
+            <button
+              onClick={() => setOpenIdx(openIdx === i ? null : i)}
+              className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50/60 transition-colors"
+            >
+              <span className="text-[13.5px] font-medium text-gray-800 pr-4">{q}</span>
+              <span className="text-gray-400 shrink-0 text-lg leading-none">{openIdx === i ? "−" : "+"}</span>
+            </button>
+            {openIdx === i && (
+              <div className="px-5 pb-4">
+                <p className="text-[13px] text-gray-500 leading-relaxed">{a}</p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════════
    PAGE
 ══════════════════════════════════════════════════════════════════ */
@@ -669,20 +710,7 @@ export default function PrivacyPage() {
             <Divider />
 
             {/* ── FAQ ───────────────────────────────────────────────── */}
-            <div className="mt-2">
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 mb-4">Frequently asked privacy questions</p>
-              {[
-                { q: "Does ZoikoVertex sell my personal information?", a: "No. ZoikoVertex does not sell personal information to third parties for monetary consideration. Sharing with analytics and advertising vendors is subject to legal review for state-law definitions of 'sale' or 'sharing'." },
-                { q: "How do I request deletion of my account and data?", a: "Email privacy@zoikogroup.com with your account details. We will confirm the request, process it within 30 days, and notify you when complete, subject to any legal retention obligations." },
-                { q: "Is my customer workspace data isolated from other customers?", a: "Yes. ZoikoVertex uses workspace-level data isolation. Your workspace data, users, and records are logically separated from other customers." },
-                { q: "How does the Privacy Policy relate to the Data Processing Addendum?", a: "This Privacy Policy covers ZoikoVertex's own processing of personal data. The DPA covers ZoikoVertex's processing of personal data on behalf of enterprise customers inside workspaces. Both documents apply in enterprise relationships." },
-              ].map(({ q, a }) => (
-                <div key={q} className="border-b border-gray-100 py-4">
-                  <p className="text-[14px] font-semibold text-gray-800">{q}</p>
-                  <p className="mt-1.5 text-[13.5px] text-gray-500 leading-relaxed">{a}</p>
-                </div>
-              ))}
-            </div>
+            <FaqSection />
 
             <Divider />
 
@@ -697,7 +725,7 @@ export default function PrivacyPage() {
                   { icon: FileText, title: "Data Processing Addendum",     desc: "Enterprise data processing terms for customer personal information.",                  href: "#" },
                   { icon: Globe,    title: "Responsible AI",               desc: "AI-assisted workflows, human oversight, and governance posture.",                      href: "#" },
                 ].map(({ icon: Icon, title, desc, href }) => (
-                  <Link key={title} href={href} className="flex flex-col gap-3 p-4 rounded-xl border border-gray-100 hover:border-[#20E7F2]/40 hover:bg-[#20E7F2]/5 transition-colors group">
+                  <Link key={title} href={href} className="flex flex-col gap-3 p-4 rounded-xl hover:bg-[#20E7F2]/5 transition-colors group">
                     <div className="w-8 h-8 rounded-lg bg-[#20E7F2]/10 border border-[#20E7F2]/20 flex items-center justify-center">
                       <Icon className="w-3.5 h-3.5 text-[#0d8d9a]" />
                     </div>
