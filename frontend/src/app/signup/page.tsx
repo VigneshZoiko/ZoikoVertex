@@ -223,7 +223,7 @@ export default function SignupPage() {
             </div>
 
             {/* Name row */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <label className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">First Name</label>
                 <div className="relative">
