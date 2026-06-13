@@ -29,10 +29,11 @@ const PROTECTED_PREFIXES = [
   "/support",
   "/profile",
   "/manage-posts",
+  "/onboarding",
 ];
 
 // Routes only for unauthenticated users
-const AUTH_ONLY_ROUTES = new Set(["/login", "/signup", "/reset-password"]);
+const AUTH_ONLY_ROUTES = new Set(["/login", "/reset-password"]);
 
 function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(
@@ -43,9 +44,10 @@ function isProtectedPath(pathname: string): boolean {
 // zv_auth cookie is set client-side via supabase onAuthStateChange.
 // It acts as a first-layer signal; the real validation is client-side in
 // (dashboard)/layout.tsx via supabase.auth.getSession().
-export function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasAuthCookie = request.cookies.has("zv_auth");
+  const hasOtpVerified = request.cookies.has("zv_otp_verified");
 
   // If unauthenticated, allow root to render the landing page.
   if (pathname === "/") {
@@ -53,6 +55,13 @@ export function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return NextResponse.next();
+  }
+
+  // Require OTP verification for onboarding (OTP-only users don't have zv_auth yet)
+  if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) {
+    if (!hasOtpVerified) {
+      return NextResponse.redirect(new URL("/auth/callback", request.url));
+    }
   }
 
   // Block protected routes for users without a session cookie

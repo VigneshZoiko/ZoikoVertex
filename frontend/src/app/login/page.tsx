@@ -61,6 +61,8 @@ function LoginForm() {
     if (searchParams.get("error") === "org_deleted") {
       setError("Your organization has been permanently deleted. Please contact support.");
     }
+    const emailParam = searchParams.get("email");
+    if (emailParam) setEmail(emailParam);
   }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {

@@ -239,7 +239,8 @@ import { getSystemTelemetry, getMissionLogs } from './domains/monitoring/telemet
 import { performGlobalSearch } from './domains/admin/globalSearchController';
 import { getIntegrationHealth } from './domains/monitoring/integrationHealthController';
 import { enterpriseSignup } from './domains/identity/enterpriseSignupController';
-import { setupWorkspace } from './domains/identity/onboardingController';
+import { setupWorkspace, completeOnboarding } from './domains/identity/onboardingController';
+import { sendOtpCode, verifyOtpCode, resendOtpCode } from './modules/auth/otpController';
 import { getWorkspaceSettings, updateWorkspaceSettings, exportWorkspaceData } from './domains/admin/workspaceController';
 // New features from Naresh
 import { listNotifications, markAsRead, markAllRead, clearNotifications } from './domains/identity/notificationController';
@@ -423,7 +424,11 @@ app.get('/api/v1/health', (req, res) => {
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.post('/api/v1/auth/signup-enterprise', enterpriseSignup);
+app.post('/api/v1/auth/otp/send', sendOtpCode);
+app.post('/api/v1/auth/otp/verify', verifyOtpCode);
+app.post('/api/v1/auth/otp/resend', resendOtpCode);
 app.post('/api/v1/onboarding/setup', authenticate, setupWorkspace);
+app.post('/api/v1/onboarding/complete', completeOnboarding);
 app.post('/api/v1/users/provision', provisionGuard, provisionUser);
 app.post('/api/v1/users/resend-verification', resendVerificationEmail);
 
