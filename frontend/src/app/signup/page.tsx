@@ -12,9 +12,9 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 /* ── Shared styles ─────────────────────────────────────────────── */
-const inputCls = "w-full rounded-xl border border-[#1E2F55] bg-[#0C1529] py-3.5 text-sm text-white/80 placeholder-white/20 outline-none transition focus:border-[#20E7F2]/50 focus:ring-1 focus:ring-[#20E7F2]/20";
-const cyanBtn  = "w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#20E7F2] py-3.5 text-sm font-bold text-[#080E1A] transition hover:bg-[#20E7F2]/90 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed";
-const darkBtn  = "w-full flex items-center justify-center gap-2.5 rounded-xl border border-[#1E2F55] bg-[#0C1422] py-3.5 text-sm font-medium text-white/60 transition hover:text-white hover:bg-[#111D2E]";
+const inputCls = "w-full rounded-[9px] border border-white/10 bg-[#111D2E] py-3.5 text-sm text-white/80 placeholder-white/20 outline-none transition focus:border-[#20E7F2]/50 focus:ring-1 focus:ring-[#20E7F2]/20";
+const cyanBtn  = "w-full flex items-center justify-center gap-2.5 rounded-[9px] bg-[#20E7F2] py-3.5 text-sm font-bold text-[#080E1A] transition hover:bg-[#20E7F2]/90 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed";
+const darkBtn  = "w-full flex items-center justify-center gap-2.5 rounded-[9px] border border-white/10 bg-white/[0.05] py-3.5 text-sm font-medium text-white/60 transition hover:text-white hover:bg-white/10";
 
 const ROLES = [
   "Founder / CEO",
@@ -90,7 +90,7 @@ function OtpInput({ value, onChange }: { value: string[]; onChange: (v: string[]
           onChange={(e) => handleChange(idx, e.target.value)}
           onKeyDown={(e) => handleKey(idx, e)}
           onPaste={handlePaste}
-          className="h-14 w-11 rounded-xl border border-[#1E2F55] bg-[#0C1529] text-center text-xl font-bold text-white/90 outline-none transition focus:border-[#20E7F2]/60 focus:ring-1 focus:ring-[#20E7F2]/20 caret-[#20E7F2]"
+          className="h-14 w-11 rounded-[9px] border border-white/10 bg-[#111D2E] text-center text-xl font-bold text-white/90 outline-none transition focus:border-[#20E7F2]/60 focus:ring-1 focus:ring-[#20E7F2]/20 caret-[#20E7F2]"
         />
       ))}
     </div>
@@ -263,7 +263,7 @@ export default function SignupPage() {
   );
 
   return (
-    <AuthLayout footer={signInFooter} noCard>
+    <AuthLayout footer={signInFooter}>
       <div className="w-full">
         {error && (
           <div className="mb-5 rounded-xl border border-error-border/30 bg-error-text/10 px-4 py-3 text-sm text-error-text">
@@ -329,11 +329,11 @@ export default function SignupPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <button type="button" onClick={() => handleOAuth("google")} disabled={loading}
-                className="flex items-center justify-center gap-2 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-[#111D2E] hover:text-white disabled:opacity-60">
+                className="flex items-center justify-center gap-2 rounded-[9px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-60">
                 <GoogleIcon /> Google
               </button>
               <button type="button" onClick={() => handleOAuth("azure")} disabled={loading}
-                className="flex items-center justify-center gap-2 rounded-xl border border-[#1E2F55] bg-[#0C1422] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-[#111D2E] hover:text-white disabled:opacity-60">
+                className="flex items-center justify-center gap-2 rounded-[9px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-60">
                 <MicrosoftIcon /> Microsoft
               </button>
             </div>
@@ -396,7 +396,7 @@ export default function SignupPage() {
                 >
                   <option value="" disabled style={{ color: "#555" }}>Select your role</option>
                   {ROLES.map((r) => (
-                    <option key={r} value={r} style={{ color: "#fff", background: "#0C1529" }}>{r}</option>
+                    <option key={r} value={r} style={{ color: "#fff", background: "#111D2E" }}>{r}</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 pointer-events-none" />
@@ -406,7 +406,7 @@ export default function SignupPage() {
             {/* ToS checkbox */}
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={agreedToS} onChange={(e) => setAgreedToS(e.target.checked)}
-                className="h-4 w-4 shrink-0 rounded border-[#1E2F55] bg-[#0C1529] accent-[#20E7F2]" />
+                className="h-4 w-4 shrink-0 rounded-[2.5px] border border-[#767676] bg-white accent-[#20E7F2]" />
               <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
                 I agree to the{" "}
                 <Link href="/terms" className="underline text-[#20E7F2] hover:text-[#20E7F2]/80">Terms of Service</Link>
