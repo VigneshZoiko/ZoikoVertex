@@ -69,11 +69,15 @@ export const enterpriseSignup = async (req: Request, res: Response, next: NextFu
 
     // 5. Upsert public.users row (trigger may have already done this, this is a safety net)
     const { error: upsertError } = await supabaseAdmin.from('users').upsert(
-      { id: userId, email: workEmail, full_name: fullName },
+      { id: userId, email: workEmail, full_name: fullName, is_superadmin: false },
       { onConflict: 'id', ignoreDuplicates: false }
     );
     if (upsertError) {
-      logger.warn(`[Auth] public.users upsert warning for ${workEmail}: ${upsertError.message}`);
+      logger.error(`[Auth] public.users upsert failed for ${workEmail}: ${upsertError.message}`);
+      // Roll back: delete workspace and org so the user can try again cleanly
+      await supabaseAdmin.from('workspaces').delete().eq('id', wsData.id);
+      await supabaseAdmin.from('organizations').delete().eq('id', orgData.id);
+      return res.status(500).json({ error: 'Account setup failed. Please try again or contact support.' });
     }
 
     // 6. Assign as ADMIN in workspace

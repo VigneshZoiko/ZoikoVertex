@@ -17,14 +17,21 @@ export const setupWorkspace = async (req: AuthRequest, res: Response, next: Next
     // Prevent duplicate onboarding — user already has a non-deleted workspace
     const { data: existing } = await supabaseAdmin
       .from('workspace_members')
-      .select('workspace_id, workspaces!inner(status)')
+      .select('workspace_id')
       .eq('user_id', userId)
-      .neq('workspaces.status', 'DELETED')
       .limit(1)
       .maybeSingle();
 
     if (existing) {
-      return res.status(409).json({ error: 'User already belongs to a workspace' });
+      const { data: ws } = await supabaseAdmin
+        .from('workspaces')
+        .select('status')
+        .eq('id', existing.workspace_id)
+        .single();
+
+      if (ws && ws.status !== 'DELETED') {
+        return res.status(409).json({ error: 'User already belongs to a workspace' });
+      }
     }
 
     // 1. Create organisation (ACTIVE, FREE plan)
@@ -51,12 +58,14 @@ export const setupWorkspace = async (req: AuthRequest, res: Response, next: Next
       || email?.split('@')[0]
       || 'User';
 
-    await supabaseAdmin.from('users').upsert({
+    const { error: upsertErr } = await supabaseAdmin.from('users').upsert({
       id: userId,
       email,
       full_name: fullName,
       is_superadmin: false,
     });
+
+    if (upsertErr) throw upsertErr;
 
     // 4. Add as WORKSPACE_OWNER
     const { error: memberErr } = await supabaseAdmin
