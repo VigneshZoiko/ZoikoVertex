@@ -58,12 +58,14 @@ export const setupWorkspace = async (req: AuthRequest, res: Response, next: Next
       || email?.split('@')[0]
       || 'User';
 
-    await supabaseAdmin.from('users').upsert({
+    const { error: upsertErr } = await supabaseAdmin.from('users').upsert({
       id: userId,
       email,
       full_name: fullName,
       is_superadmin: false,
     });
+
+    if (upsertErr) throw upsertErr;
 
     // 4. Add as WORKSPACE_OWNER
     const { error: memberErr } = await supabaseAdmin
