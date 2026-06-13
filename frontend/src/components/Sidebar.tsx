@@ -717,8 +717,8 @@ export default function Sidebar() {
               </span>
             </div>
           </div>
-          <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${isCollapsed ? "max-h-0 opacity-0" : "max-h-8 opacity-100"}`}>
-            <p className="text-[var(--sidebar-text-muted)] text-xs mt-1 ml-11 whitespace-nowrap">
+          <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${isCollapsed ? "max-h-0 opacity-0" : "max-h-10 opacity-100"}`}>
+            <p className="text-[var(--sidebar-text-muted)] text-xs mt-1 ml-11 leading-tight">
               Where Execution Becomes Accountable.
             </p>
           </div>
