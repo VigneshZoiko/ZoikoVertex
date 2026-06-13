@@ -89,6 +89,11 @@ const nextConfig: NextConfig = {
         destination: '/review-queue',
         permanent: true,
       },
+      {
+        source: '/security',
+        destination: 'https://www.zoikovertex.com/security',
+        permanent: true,
+      },
     ];
   },
   async rewrites() {
