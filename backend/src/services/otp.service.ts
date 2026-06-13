@@ -72,6 +72,23 @@ export async function sendOtp(email: string): Promise<{ success: boolean; messag
       ``,
       `— The ZoikoVertex Team`,
     ].join('\n'),
+    html: [
+      `<!DOCTYPE html>`,
+      `<html><body style="font-family:Arial,sans-serif;background:#f5f5f5;padding:40px 20px">`,
+      `<table align="center" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#fff;border-radius:12px;overflow:hidden">`,
+      `<tr><td style="padding:40px 32px 32px;text-align:center">`,
+      `<h1 style="margin:0 0 8px;font-size:18px;color:#1e1e1e;font-weight:600">ZoikoVertex</h1>`,
+      `<p style="margin:0 0 24px;font-size:14px;color:#666">Your verification code</p>`,
+      `<div style="background:#f0fdfa;border:1px solid #14b8a6;border-radius:12px;padding:20px;margin-bottom:24px;text-align:center">`,
+      `<span style="font-size:36px;font-weight:800;letter-spacing:8px;color:#0f172a">${code}</span>`,
+      `</div>`,
+      `<p style="margin:0 0 8px;font-size:13px;color:#888">This code expires in 5 minutes.</p>`,
+      `<p style="margin:0 0 24px;font-size:13px;color:#888">If you did not request this code, please ignore this email.</p>`,
+      `<hr style="border:none;border-top:1px solid #eee;margin:0 0 16px">`,
+      `<p style="margin:0;font-size:12px;color:#aaa">— The ZoikoVertex Team</p>`,
+      `</td></tr></table>`,
+      `</body></html>`,
+    ].join('\n'),
   });
 
   return { success: true, message: 'Verification code sent to your email.' };
