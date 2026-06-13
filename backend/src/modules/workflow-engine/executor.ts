@@ -59,12 +59,12 @@ async function loadInstance(instanceId: string): Promise<{
     .maybeSingle();
   if (error || !data) return null;
   // Supabase nests the joined row; flatten.
-  /* eslint-disable @typescript-eslint/no-explicit-any */
+   
   const wsId =
     (data as any).workflow_templates?.workspace_id ??
     (data as any).workspace_id ??
     null;
-  /* eslint-enable @typescript-eslint/no-explicit-any */
+   
   const { workflow_templates: _omit, ...rest } = data as Record<string, unknown>;
   void _omit;
   return { instance: rest as unknown as InstanceRow, workspaceId: wsId };

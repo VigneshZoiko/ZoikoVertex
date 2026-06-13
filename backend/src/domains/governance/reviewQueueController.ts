@@ -638,7 +638,7 @@ async function logReviewAuditEvent(params: {
     await createAuditEvent({
       workspace_id: params.workspaceId,
       tenant_id: params.workspaceId,
-      event_category: 'evidence_legal',
+      event_category: 'approval',
       event_type: params.action as any,
       event_title: params.summary,
       event_summary: params.summary,

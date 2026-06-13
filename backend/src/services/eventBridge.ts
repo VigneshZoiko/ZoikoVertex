@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { internalEventBus } from '../shared/internalEventBus';
 import { logger } from '../shared/logger';
 import { createAuditEvent } from './auditTrail.service';

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { verifyChainIntegrity, createAuditEvent } from '../services/auditTrail.service';
+import { logger } from '../shared/logger';
 
 export function initAuditIntegrityWorker() {
   const POLL_INTERVAL = 60_000;
@@ -24,7 +25,7 @@ export function initAuditIntegrityWorker() {
         const result = await verifyChainIntegrity(workspaceId);
 
         if (result.failed_blocks > 0) {
-          console.error(`[integrity-worker] Chain integrity FAILURE: ${result.failed_blocks} broken block(s) in workspace ${workspaceId}`);
+          logger.error({ failedBlocks: result.failed_blocks, workspaceId }, '[integrity-worker] Chain integrity FAILURE');
 
           await createAuditEvent({
             workspace_id: workspaceId,
@@ -49,7 +50,7 @@ export function initAuditIntegrityWorker() {
         }
       }
     } catch (err) {
-      console.error('[integrity-worker] Poll error:', err);
+      logger.error({ err }, '[integrity-worker] Poll error');
     } finally {
       running = false;
     }
@@ -57,5 +58,5 @@ export function initAuditIntegrityWorker() {
 
   poll();
   setInterval(poll, POLL_INTERVAL);
-  console.log('[audit-integrity-worker] Started (poll every 60s)');
+  logger.info('[audit-integrity-worker] Started (poll every 60s)');
 }

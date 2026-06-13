@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../shared/supabase';
 import { createAuditEvent } from '../services/auditTrail.service';
+import { logger } from '../shared/logger';
 
 export function initVaultWorker() {
   const SHARE_EXPIRY_INTERVAL = 120_000; // 2 minutes
@@ -49,7 +50,7 @@ export function initVaultWorker() {
         });
       }
     } catch (err) {
-      console.error('[vault-worker] Share expiry check error:', err);
+      logger.error({ err }, '[vault-worker] Share expiry check error');
     } finally {
       shareRunning = false;
     }
@@ -60,7 +61,7 @@ export function initVaultWorker() {
   checkExpiredShares();
   setInterval(checkExpiredShares, SHARE_EXPIRY_INTERVAL);
 
-  console.log('[vault-worker] Started (share expiry every 120s)');
+  logger.info('[vault-worker] Started (share expiry every 120s)');
 }
 
 export function initDlpScanWorker() {
@@ -93,7 +94,7 @@ export function initDlpScanWorker() {
 
         if (existing && existing.length > 0) continue;
 
-        // Run simulated scan — fetch all item IDs, then fetch all evidence items in one query
+        // Fetch all item IDs, then fetch all evidence items in one query
         const { data: pkgItems } = await supabaseAdmin
           .from('vault_package_items')
           .select('item_id')
@@ -143,7 +144,7 @@ export function initDlpScanWorker() {
 
         if (scanStatus === 'flagged') {
           await createAuditEvent({
-            workspace_id: pkg.workspace_id || 'WRK-001',
+            workspace_id: pkg.workspace_id,
             event_category: 'evidence_legal',
             event_type: 'evidence.export_blocked',
             event_title: 'DLP Scan Flagged Package',
@@ -158,7 +159,7 @@ export function initDlpScanWorker() {
         }
       }
     } catch (err) {
-      console.error('[dlp-worker] Pending scan error:', err);
+      logger.error({ err }, '[dlp-worker] Pending scan error');
     } finally {
       workerRunning = false;
     }
@@ -166,5 +167,5 @@ export function initDlpScanWorker() {
 
   processPendingScans();
   setInterval(processPendingScans, DLP_SCAN_INTERVAL);
-  console.log('[dlp-worker] Started (pending scans every 5m)');
+  logger.info('[dlp-worker] Started (pending scans every 5m)');
 }

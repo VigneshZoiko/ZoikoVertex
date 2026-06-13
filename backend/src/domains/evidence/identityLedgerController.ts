@@ -55,7 +55,7 @@ async function logIdentityLedgerAccess(params: {
   try {
     await createAuditEvent({
       workspace_id: params.workspace_id,
-      tenant_id: 'default',
+      tenant_id: params.workspace_id,
       event_category: params.event_type === 'identity.chain_verified' ? 'system_security' : 'user_identity',
       event_type: params.event_type,
       event_title: params.summary,
@@ -262,8 +262,7 @@ export async function verifyLedgerChain(req: AuthRequest, res: Response, next: N
 
 export async function listDelegations(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const rawTenantId = (req.user as any)?.tenant_id;
-    const tenantId = rawTenantId && rawTenantId !== 'default' ? rawTenantId : '00000000-0000-0000-0000-000000000000';
+    const tenantId = (req.user as any)?.tenant_id || req.user?.workspace_id;
     const status = req.query.status as string | undefined;
     const result = await identityLedgerService.listDelegations({ tenant_id: tenantId, status });
     res.json({ success: true, data: result });
@@ -274,8 +273,7 @@ export async function listDelegations(req: AuthRequest, res: Response, next: Nex
 
 export async function createDelegation(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const rawTenantId = (req.user as any)?.tenant_id;
-    const tenantId = rawTenantId && rawTenantId !== 'default' ? rawTenantId : '00000000-0000-0000-0000-000000000000';
+    const tenantId = (req.user as any)?.tenant_id || req.user?.workspace_id;
     const auth = buildAuthContext(req.user);
     const { delegator_id, delegatee_id, scope, expires_at, reason } = req.body;
     const result = await identityLedgerService.createDelegation({
@@ -311,8 +309,7 @@ export async function revokeDelegation(req: AuthRequest, res: Response, next: Ne
 
 export async function listBreakGlass(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const rawTenantId = (req.user as any)?.tenant_id;
-    const tenantId = rawTenantId && rawTenantId !== 'default' ? rawTenantId : '00000000-0000-0000-0000-000000000000';
+    const tenantId = (req.user as any)?.tenant_id || req.user?.workspace_id;
     const status = req.query.status as string | undefined;
     const result = await identityLedgerService.listBreakGlassSessions({ tenant_id: tenantId, status });
     res.json({ success: true, data: result });
@@ -323,8 +320,7 @@ export async function listBreakGlass(req: AuthRequest, res: Response, next: Next
 
 export async function requestBreakGlass(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const rawTenantId = (req.user as any)?.tenant_id;
-    const tenantId = rawTenantId && rawTenantId !== 'default' ? rawTenantId : '00000000-0000-0000-0000-000000000000';
+    const tenantId = (req.user as any)?.tenant_id || req.user?.workspace_id;
     const userId = req.user?.id;
     if (!userId) return res.status(400).json({ error: 'User required' });
     const auth = buildAuthContext(req.user);
@@ -488,7 +484,7 @@ export async function registerServiceAccount(req: AuthRequest, res: Response, ne
     const result = await identityLedgerService.registerServiceAccount({
       actor_id,
       workspace_id: workspaceId,
-      tenant_id: 'default',
+      tenant_id: workspaceId,
       display_name,
       source_system,
       description,

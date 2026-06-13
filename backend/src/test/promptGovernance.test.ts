@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 // Per-file Supabase mock (queue-driven) — isolated to THIS suite only. It does
 // not touch the global test setup (src/test/setup.ts), so no other suite is
 // affected.

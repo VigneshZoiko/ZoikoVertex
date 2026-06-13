@@ -3,8 +3,6 @@ import { AuthRequest } from '../../shared/authMiddleware';
 import { buildAuthContext } from '../../shared/serviceAuth';
 import * as forensicAi from '../../services/forensicAi.service';
 
-const DEFAULT_WORKSPACE_ID = 'WRK-001';
-
 // ─── AI: Generate Case Summary ────────────────────────────────────────────────
 
 export async function generateAiSummary(req: AuthRequest, res: Response, next: NextFunction) {
@@ -134,14 +132,16 @@ export async function getSiemHistory(req: AuthRequest, res: Response, next: Next
 
 export async function createAuditorSession(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const auth = buildAuthContext(req.user!);
     const { case_id, export_id, auditor_id } = req.body;
     if (!case_id || !export_id || !auditor_id) {
       return res.status(400).json({ success: false, error: 'case_id, export_id, and auditor_id are required' });
     }
+    const workspaceId = req.user?.workspace_id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
+    const auth = buildAuthContext(req.user!);
     const result = await forensicAi.createAuditorSession({
       case_id, export_id, auditor_id,
-      workspace_id: req.user!.workspace_id || DEFAULT_WORKSPACE_ID,
+      workspace_id: workspaceId,
     }, auth);
     res.status(201).json({ success: true, data: result });
   } catch (error) {

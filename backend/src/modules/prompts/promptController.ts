@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../../shared/supabase';
 import { AuthRequest } from '../../shared/authMiddleware';
@@ -3229,40 +3229,14 @@ export class PromptController {
     }
   }
 
-  // ─── Phase 3 — Cross-Model Comparison ─────────────────────────────────────
+  // ─── Phase 3 — Cross-Model Comparison (removed — use POST .../cross-model/real) ─
 
-  static async compareCrossModel(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const workspaceId = await PromptController.resolveWorkspaceId(req);
-      const versionId = getParam(req, 'versionId');
-      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
-      const { data: version } = await supabaseAdmin
-        .from('prompt_versions')
-        .select('prompt_id')
-        .eq('id', versionId)
-        .single();
-      const result = await CrossModelComparisonService.compare(versionId, version?.prompt_id || '', workspaceId);
-      res.json({ success: true, data: result });
-    } catch (error) {
-      next(error);
-    }
+  static async compareCrossModel(_req: AuthRequest, res: Response) {
+    res.status(410).json({ error: 'compareCrossModel removed — use POST /api/v1/prompts/versions/:versionId/cross-model/real' });
   }
 
-  static async runCrossModelParityCheck(req: AuthRequest, res: Response, next: NextFunction) {
-    try {
-      const workspaceId = await PromptController.resolveWorkspaceId(req);
-      const versionId = getParam(req, 'versionId');
-      await PromptController.requireVersionInWorkspace(versionId, workspaceId);
-      const { data: version } = await supabaseAdmin
-        .from('prompt_versions')
-        .select('prompt_id')
-        .eq('id', versionId)
-        .single();
-      const result = await CrossModelComparisonService.runParityCheck(versionId, version?.prompt_id || '', workspaceId);
-      res.json({ success: true, data: result });
-    } catch (error) {
-      next(error);
-    }
+  static async runCrossModelParityCheck(_req: AuthRequest, res: Response) {
+    res.status(410).json({ error: 'runCrossModelParityCheck removed — use POST /api/v1/prompts/versions/:versionId/cross-model/real' });
   }
 
   // ─── Phase 4 — Governance Receipt ──────────────────────────────────────────

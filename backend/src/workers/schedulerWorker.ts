@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { Worker, Queue, Job } from 'bullmq';
+ 
+import { Worker, Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import { env } from '../config/env';
 import { logger } from '../shared/logger';
@@ -9,58 +9,68 @@ import { ExecutionService } from '../domains/channels/executionService';
 
 let connection: IORedis | null = null;
 let publishQueue: Queue | null = null;
+let _redisOk = false;
 
-function getConnection(): IORedis | null {
+async function tryConnect(): Promise<IORedis | null> {
   if (!env.REDIS_URL) return null;
-  if (!connection) {
-    connection = new IORedis(env.REDIS_URL, {
-      maxRetriesPerRequest: null,
-      retryStrategy: (times: number) => {
-        if (times > 3) return null; // stop retrying after 3 attempts
-        return Math.min(times * 2000, 10000);
-      },
+  if (_redisOk && connection) return connection;
+  try {
+    const c = new IORedis(env.REDIS_URL, {
+      maxRetriesPerRequest: 3,
+      retryStrategy: () => null,
+      lazyConnect: true,
     });
-    let _redisErrLogged = false;
-    connection.on('error', (err: any) => {
-      if (!_redisErrLogged) {
-        logger.error(`[Redis] Connection error: ${err.message}`);
-        _redisErrLogged = true;
-      }
-    });
+    await c.ping();
+    connection = c;
+    _redisOk = true;
+    return connection;
+  } catch {
+    logger.warn('[Redis] Unavailable — skipping Redis-backed features');
+    return null;
   }
-  return connection;
 }
 
-export function getQueue(): Queue | null {
+export async function getQueue(): Promise<Queue | null> {
   if (!env.REDIS_URL) return null;
+  const conn = await tryConnect();
+  if (!conn) return null;
   if (!publishQueue) {
-    publishQueue = new Queue('PublishQueue', { connection: getConnection()! });
+    publishQueue = new Queue('PublishQueue', { connection: conn });
   }
   return publishQueue;
 }
 
-// Initialize the worker
-export const initWorker = () => {
+export const initWorker = async () => {
   if (!env.REDIS_URL) {
-    logger.warn('[Worker] REDIS_URL not set — skipping worker init. Install Redis or configure REDIS_URL for delayed publishing.');
+    logger.warn('[Worker] REDIS_URL not set — skipping worker init.');
     return;
   }
 
-  logger.info('[Worker] Initializing PublishQueue Worker...');
+  const conn = await tryConnect();
+  if (!conn) {
+    logger.warn('[Worker] Redis unavailable — skipping worker init.');
+    return;
+  }
 
-  const worker = new Worker(
-    'PublishQueue',
-    async (job: Job) => {
+  try {
+    const workerConn = new IORedis(env.REDIS_URL!, {
+      maxRetriesPerRequest: null,
+      retryStrategy: (times: number) => {
+        if (times > 3) return null;
+        return Math.min(times * 2000, 10000);
+      },
+    });
+    workerConn.on('error', () => {});
+
+    const worker = new Worker('PublishQueue', async (job) => {
       const { postId, platform, content } = job.data;
       logger.info(`[Worker] Processing post ${postId} for ${platform}`);
-      
+
       try {
-        // 1. Update job status to PROCESSING
         await supabaseAdmin.from('scheduler_jobs')
           .update({ execution_status: 'PROCESSING' })
           .eq('post_id', postId);
 
-        // 2. Fetch post to confirm it exists
         const { data: post, error: fetchError } = await supabaseAdmin
           .from('scheduled_posts')
           .select('*')
@@ -69,10 +79,8 @@ export const initWorker = () => {
 
         if (fetchError || !post) throw new Error(`Post ${postId} not found`);
 
-        // 3. Delegate to ExecutionService for real platform API calls
         await ExecutionService.publishIntent(postId);
 
-        // 4. Update post and job status after successful publish
         const { error: postError } = await supabaseAdmin.from('scheduled_posts')
           .update({ status: 'PUBLISHED', published_time: new Date().toISOString() })
           .eq('id', postId);
@@ -95,17 +103,16 @@ export const initWorker = () => {
 
         throw error;
       }
-    },
-    { connection: getConnection()! }
-  );
+    }, { connection: workerConn });
 
-  worker.on('completed', (job) => {
-    logger.info(`[Worker] Job ${job.id} has completed!`);
-  });
+    worker.on('completed', (job) => {
+      logger.info(`[Worker] Job ${job.id} has completed!`);
+    });
 
-  worker.on('failed', (job, err) => {
-    logger.error(`[Worker] Job ${job?.id} has failed with ${err.message}`);
-  });
-
-  return worker;
+    worker.on('failed', (job, err) => {
+      logger.error(`[Worker] Job ${job?.id} has failed with ${err.message}`);
+    });
+  } catch {
+    logger.warn('[Worker] Redis unavailable — worker initialization skipped.');
+  }
 };

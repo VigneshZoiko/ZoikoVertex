@@ -1880,6 +1880,7 @@ function GuardrailEditor({ promptId, versionId, editable }: { promptId: string; 
       })
       .catch(() => setError("Failed to load guardrails."))
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [promptId, versionId]);
 
   const update = (i: number, patch: Partial<GuardrailRow>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));

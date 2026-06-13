@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { supabaseAdmin } from '../../../shared/supabase';
 import { PromptDependencyService } from '../PromptDependencyService';
 import { DependencyImpactService, ImpactAnalysisResult } from './DependencyImpactService';

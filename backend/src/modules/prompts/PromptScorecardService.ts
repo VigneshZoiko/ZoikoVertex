@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { supabaseAdmin } from '../../shared/supabase';
 import { PromptService, PROMPT_STATUS } from './PromptService';
 import { PromptVersionService } from './PromptVersionService';

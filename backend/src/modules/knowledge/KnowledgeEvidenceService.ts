@@ -94,8 +94,8 @@ export class KnowledgeEvidenceService {
         retention_class: 'standard',
         preserved_by: source.created_by || 'system',
         preservation_reason: `Evidence bundle for source "${source.title}"`,
-        workspace_id: source.workspace_id || 'unknown',
-        tenant_id: source.workspace_id || 'unknown',
+        workspace_id: source.workspace_id,
+        tenant_id: source.workspace_id,
       }).catch((e: any) => logger.warn({ err: e, sourceId }, 'Failed to preserve evidence in vault'));
 
       logger.info({ source_id: sourceId, chunks: bundle.chunks.length }, 'Evidence bundle created');
